@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Mercure</title>
+</head>
+
+<body>
+	<textarea id="iri" placeholder="List of templated IRIs to subscribe" required></textarea>
+	<div id="contents">No contents pushed.</div>
+	<template id="content">
+		<li>
+			<article>
+				<h1></h1>
+				<pre></pre>
+			</article>
+		</li>
+	</template>
+
+	<form id="publish" action="/publish" method="POST">
+		<label>
+			IRI:
+			<input name="iri" type="url" required>
+		</label>
+
+		<label>
+			Data:
+			<textarea name="data" required></textarea>
+		</label>
+
+		<input type="submit">
+	</form>
+
+	<script>
+		document.querySelector('#publish').onsubmit = (e) => {
+			e.preventDefault();
+			fetch(e.target.action, { method: e.target.method, body: new URLSearchParams([...new FormData(e.target).entries()]) });
+		};
+
+		const template = document.querySelector('#content');
+
+		let eventSource;
+		document.querySelector('#iri').onchange = (e) => {
+			if (eventSource) {
+				eventSource.close();
+			}
+
+			const iris = e.target.value.split("\n");
+
+			const url = new URL('/events/', document.location);
+			iris.forEach((iri) => {url.searchParams.append('iri[]', iri)});
+
+			eventSource = new EventSource(url);
+			eventSource.onmessage = (e) => {
+				let ol = document.querySelector('#contents ol');
+				if (ol === null) {
+					ol = document.createElement('ol');
+					ol.reversed = true;
+					const contents = document.querySelector('#contents');
+					contents.innerHTML = '';
+					contents.appendChild(ol);
+				}
+
+				const li = document.importNode(template.content, true);
+				li.querySelector('h1').textContent = e.lastEventId;
+				li.querySelector('pre').textContent = e.data;
+				ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
+			};
+
+			iris.length && (document.querySelector('#publish input[name="iri"]').value = iris[0]);
+		}
+	</script>
+</body>
+
+</html>
