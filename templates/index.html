@@ -3,11 +3,28 @@
 
 <head>
 	<title>Mercure</title>
+
+	<style>
+		label {
+			display: block;
+		}
+		main {
+			padding-top: 5em;
+			padding-bottom: 5em;
+		}
+	</style>
 </head>
 
 <body>
-	<textarea id="iri" placeholder="List of templated IRIs to subscribe" required></textarea>
-	<div id="contents">No contents pushed.</div>
+	<form>
+		<label>
+			List of templated IRIs to subscribe:
+			<textarea id="iri" required cols="30" rows="5">http://example.com/books/{id}
+http://example.com/reviews/12</textarea>
+		</label>
+	</form>
+
+	<main id="contents">No contents pushed.</main>
 	<template id="content">
 		<li>
 			<article>
@@ -20,12 +37,12 @@
 	<form id="publish" action="/publish" method="POST">
 		<label>
 			IRI:
-			<input name="iri" type="url" required>
+			<input name="iri" type="url" value="http://example.com/books/1" required>
 		</label>
 
 		<label>
 			Data:
-			<textarea name="data" required></textarea>
+			<textarea name="data" required cols="30" rows="10">Hello World!</textarea>
 		</label>
 
 		<input type="submit">
@@ -40,18 +57,17 @@
 		const template = document.querySelector('#content');
 
 		let eventSource;
-		document.querySelector('#iri').onchange = (e) => {
+		const init = () => {
 			if (eventSource) {
 				eventSource.close();
 			}
 
-			const iris = e.target.value.split("\n");
-
+			const iris = document.querySelector('#iri').value.split("\n");
 			const url = new URL('/events/', document.location);
-			iris.forEach((iri) => {url.searchParams.append('iri[]', iri)});
+			iris.forEach((iri) => { url.searchParams.append('iri[]', iri) });
 
 			eventSource = new EventSource(url);
-			eventSource.onmessage = (e) => {
+			eventSource.addEventListener('mercure', (e) => {
 				let ol = document.querySelector('#contents ol');
 				if (ol === null) {
 					ol = document.createElement('ol');
@@ -65,10 +81,11 @@
 				li.querySelector('h1').textContent = e.lastEventId;
 				li.querySelector('pre').textContent = e.data;
 				ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
-			};
-
-			iris.length && (document.querySelector('#publish input[name="iri"]').value = iris[0]);
+			});
 		}
+
+		init();
+		document.querySelector('#iri').onchange = init;
 	</script>
 </body>
 

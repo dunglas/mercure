@@ -70,8 +70,9 @@ Note: an URL is also a valid URI template.
 The hub sends updates concerning all subscribed resources matching the provided URI templates.
 The hub MUST send these updates as [`text/event-stream` compliant events](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model).
 
-The `id` key of the event MUST contains the IRI of the resource being updated.
-The `data` key MUST contain the new version of the resource.
+* the `id` key of the event MUST contains the IRI of the resource being updated
+* the `data` key MUST contain the new version of the resource
+* the `event` key MUST be set to `mercure`, it allows a hub to mix Mercure events with other kind of Server-sent events
 
 Example implementation of a client in JavaScript:
 
@@ -85,10 +86,10 @@ params.append('iri', 'https://example.com/books/{name}');
 const eventSource = new EventSource(`https://hub.example.com?${params}`);
 
 // The following callaback will be called every time the Hub send an update 
-eventSource.onmessage = (e) => {
+eventSource.addEventListener('mercure', (e) => {
     console.log('Resource IRI: %s', e.lastEventId);
     console.log('Resource content: %s', e.data);
-};
+});
 ```
 
 The protocol doesn't specify the maximum number of `iri[]` parameters that can be sent, but the hub MAY apply a limit.
@@ -138,7 +139,11 @@ is required).
 By the specification, server-sent events connection can only be executed with the `GET` HTTP method, and it is not possible to set
 custom HTTP headers (such as the `Authorization` one).
 
-However, cookies are supported, and can be included even in crossdomain requests if [the CORS credentials are set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials).
+However, cookies are supported, and can be included even in crossdomain requests if [the CORS credentials are set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials):
+
+```javascript
+const eventSource = new EventSource(`https://hub.example.com?${params}`, { withCredentials: true });
+```
 
 ## Contributing
 

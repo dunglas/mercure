@@ -80,7 +80,6 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		regexps[index] = tpl.Regexp()
 	}
-	fmt.Printf("%v", regexps)
 
 	// Server-sent events https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#Sending_events_from_the_server
 	w.Header().Set("Connection", "keep-alive")
@@ -134,6 +133,7 @@ func (b *Broker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		fmt.Fprint(w, "event: mercure\n")
 		fmt.Fprintf(w, "id: %s\n", content.iri)
 		fmt.Fprint(w, content.data)
 
@@ -207,8 +207,9 @@ func main() {
 
 	listen := os.Getenv("LISTEN")
 	if listen == "" {
-		listen = ":3001"
+		listen = ":80"
 	}
+	log.Printf("Mercure started on %s.\n", listen)
 
 	http.ListenAndServe(listen, nil)
 }
