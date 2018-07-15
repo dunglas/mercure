@@ -63,7 +63,7 @@ http://example.com/reviews/12</textarea>
 			}
 
 			const iris = document.querySelector('#iri').value.split("\n");
-			const url = new URL('/events/', document.location);
+			const url = new URL('/subscribe', document.location);
 			iris.forEach((iri) => { url.searchParams.append('iri[]', iri) });
 
 			eventSource = new EventSource(url);
