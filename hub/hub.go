@@ -10,15 +10,19 @@ type Hub struct {
 	newSubscribers     chan chan Resource
 	removedSubscribers chan chan Resource
 	resources          chan Resource
+	publisherJwtKey    []byte
+	subscriberJwtKey   []byte
 }
 
 // NewHub creates a hub
-func NewHub() Hub {
+func NewHub(publisherJwtKey []byte, subscriberJwtKey []byte) Hub {
 	return Hub{
 		make(map[chan Resource]bool),
 		make(chan (chan Resource)),
 		make(chan (chan Resource)),
 		make(chan Resource),
+		publisherJwtKey,
+		subscriberJwtKey,
 	}
 }
 
@@ -39,7 +43,7 @@ func (h *Hub) Start() {
 				for s := range h.subscribers {
 					s <- content
 				}
-				log.Printf("Broadcast resource to %d subscribers", len(h.subscribers))
+				log.Printf("Broadcast resource \"%s\".", content.IRI)
 			}
 		}
 	}()

@@ -13,9 +13,12 @@ type Resource struct {
 	// Data, encoded in the sever-sent event format: every line starts with the string "data: "
 	// https://www.w3.org/TR/eventsource/#dispatchMessage
 	Data string
+
+	// Target audience
+	Targets map[string]bool
 }
 
 // NewResource creates a new resource and encodes the data property
-func NewResource(iri string, data string) Resource {
-	return Resource{iri, fmt.Sprintf("data: %s\n\n", strings.Replace(data, "\n", "\ndata: ", -1))}
+func NewResource(iri string, data string, targets map[string]bool) Resource {
+	return Resource{iri, fmt.Sprintf("data: %s\n\n", strings.Replace(data, "\n", "\ndata: ", -1)), targets}
 }

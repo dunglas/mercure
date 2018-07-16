@@ -124,13 +124,13 @@ The connection MUST use an encryption layer, such as TLS. HTTPS certificate can 
 If a resource is not public, the update request sent by the publisher to the hub MUST also contain a list of keys named `target[]`.
 Theirs values are `string`. They can be, for instance a user ID, or a list of group IDs.
 
-To receive updates for private resources, the subscriber must send a cookie called `mercure_authorization` when connecting
+To receive updates for private resources, the subscriber must send a cookie called `mercureAuthorization` when connecting
 to the hub.
 
-The value of this cookie is a JWT token that MUST be encrypted. It MUST contain a claim named `mercure_targets` and containing
+The value of this cookie MUST be a JWT token. It MUST have a claim named `mercureTargets` and containing
 an array of strings: the list of target the user is authorized to receive updates for.
 
-If one or more targets are specified, the update MUST NOT be sent to the subscriber by the hub, unless the `mercure_targets`
+If one or more targets are specified, the update MUST NOT be sent to the subscriber by the hub, unless the `mercureTargets`
 claim of the subscriber contains at least one target specified for the resource by the publisher. 
 
 When using the authorization mechanism, the connection between the subscriber and the hub MUST use an encryption layer (HTTPS

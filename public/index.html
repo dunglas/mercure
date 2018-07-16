@@ -1,77 +1,177 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
 	<title>Mercure</title>
-
 	<style>
 		label {
 			display: block;
 		}
+
+		section {
+			float: left;
+			width: 50%;
+		}
+
 		main {
-			padding-top: 5em;
-			padding-bottom: 5em;
+			padding-top: 2em;
+		}
+
+		form>div {
+			padding-bottom: 1em;
+		}
+
+		textarea,
+		input:not([type="submit"]) {
+			display: block;
+			width: 80%;
+		}
+
+		code,
+		pre {
+			background-color: lightgray;
 		}
 	</style>
 </head>
 
 <body>
-	<form>
-		<label>
-			List of templated IRIs to subscribe:
-			<textarea id="iri" required cols="30" rows="5">http://example.com/books/{id}
+	<h1>Mercure Testing Page</h1>
+
+	<section>
+		<h1>Subscriber</h1>
+		<form name="subscribe">
+			<div>
+				<label>
+					IRIs of resources to get updates for (
+					<a href="https://tools.ietf.org/html/rfc6570">URI template</a>):
+					<textarea name="iris" required cols="30" rows="3">http://example.com/books/{id}
 http://example.com/reviews/12</textarea>
-		</label>
-	</form>
+				</label>
+				<small>One template per line</small>
+			</div>
 
-	<main id="contents">No contents pushed.</main>
-	<template id="content">
-		<li>
-			<article>
-				<h1></h1>
-				<pre></pre>
-			</article>
-		</li>
-	</template>
+			<div>
+				<label>
+					JWT:
+					<input name="jwt" autocomplete="off">
+				</label>
+				<small>
+					<a href="https://jwt.io" target="_blank">Create a token</a>. Default key:
+					<code>!UnsecureChangeMeSubscriber!</code>, don't forget to add an array of targets (strings) in a claim named
+					<code>mercureTargets</code>.
+				</small>
+			</div>
 
-	<form id="publish" action="/publish" method="POST">
-		<label>
-			IRI:
-			<input name="iri" type="url" value="http://example.com/books/1" required>
-		</label>
+			<input type="submit" value="Subscribe" name="subscribe">
+			<button name="unsubscribe" disabled>Unsubscribe</button>
+		</form>
 
-		<label>
-			Data:
-			<textarea name="data" required cols="30" rows="10">Hello World!</textarea>
-		</label>
+		<main id="contents">No contents pushed yet.</main>
 
-		<input type="submit">
-	</form>
+		<template id="content">
+			<li>
+				<article>
+					<h1></h1>
+					<pre></pre>
+				</article>
+			</li>
+		</template>
+	</section>
+
+	<section>
+		<h1>Publisher</h1>
+
+		<form name="publish" action="/publish" method="POST">
+			<div>
+				<label>
+					IRI:
+					<input name="iri" type="url" value="http://example.com/books/1" required>
+				</label>
+			</div>
+
+			<div>
+				<label>
+					Data:
+					<textarea name="data" required cols="30" rows="10">Hello World!</textarea>
+				</label>
+			</div>
+
+			<div>
+				<label>
+					Targets:
+					<textarea name="targets"></textarea>
+
+					<small>One target per line.</small>
+				</label>
+			</div>
+
+			<div>
+				<label>
+					JWT:
+					<input name="jwt" required autocomplete="off">
+				</label>
+				<small>
+					<a href="https://jwt.io" target="_blank">Create a token</a>. Default key:
+					<code>!UnsecureChangeMePublisher!</code>
+				</small>
+			</div>
+
+			<input type="submit" value="Publish">
+		</form>
+	</section>
 
 	<script>
-		document.querySelector('#publish').onsubmit = (e) => {
+		document.forms.publish.onsubmit = (e) => {
 			e.preventDefault();
-			fetch(e.target.action, { method: e.target.method, body: new URLSearchParams([...new FormData(e.target).entries()]) });
+			const { preventDefault, target: { action, method, elements: { iri, data, targets, jwt } } } = e;
+
+			const body = new URLSearchParams();
+			body.append('iri', iri.value);
+			body.append('data', data.value);
+
+			targets.value !== '' && targets.value.split("\n").forEach((target) => {
+				body.append('target[]', target);
+			});
+
+			fetch(action, {
+				method: method,
+				body,
+				headers: { Authorization: `Bearer ${jwt.value}` }
+			}).then(({ ok, statusText }) => {
+				if (!ok) alert(statusText);
+			});
 		};
 
 		const template = document.querySelector('#content');
-
+		let ol;
 		let eventSource;
-		const init = () => {
+		document.forms.subscribe.onsubmit = (e) => {
+			e.preventDefault();
 			if (eventSource) {
 				eventSource.close();
 			}
 
-			const iris = document.querySelector('#iri').value.split("\n");
-			const url = new URL('/subscribe', document.location);
-			iris.forEach((iri) => { url.searchParams.append('iri[]', iri) });
+			const { target: { elements: { iris, jwt } } } = e;
 
-			eventSource = new EventSource(url);
+			const iriList = iris.value.split("\n");
+			const params = new URLSearchParams();
+			iriList.forEach((iri) => {
+				params.append('iri[]', iri);
+			});
+
+			if (jwt.value !== '') {
+				const cookieValue = new URLSearchParams();
+				cookieValue.append('mercureAuthorization', jwt.value);
+
+				document.cookie = cookieValue;
+			}
+
+			eventSource = new EventSource(`/subscribe?${params}`);
 			eventSource.addEventListener('mercure', (e) => {
-				let ol = document.querySelector('#contents ol');
-				if (ol === null) {
+				if (!ol) {
 					ol = document.createElement('ol');
 					ol.reversed = true;
+
 					const contents = document.querySelector('#contents');
 					contents.innerHTML = '';
 					contents.appendChild(ol);
@@ -82,10 +182,19 @@ http://example.com/reviews/12</textarea>
 				li.querySelector('pre').textContent = e.data;
 				ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
 			});
-		}
+			eventSource.onerror = (e) => {
+				console.log(e);
+				alert('EventSource failed.')
+			};
 
-		init();
-		document.querySelector('#iri').onchange = init;
+			e.target.elements.unsubscribe.disabled = false;
+		};
+		document.forms.subscribe.elements.unsubscribe.onclick = (e) => {
+			eventSource.close();
+			e.target.disabled = true;
+		};
+
+		document.forms.subscribe.elements.subscribe.click();
 	</script>
 </body>
 

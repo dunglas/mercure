@@ -6,8 +6,14 @@ import (
 	"net/http"
 	"regexp"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/yosida95/uritemplate"
 )
+
+type claims struct {
+	MercureTargets []string `json:"mercureTargets"`
+	jwt.StandardClaims
+}
 
 // SubscribeHandler create a keep alive connection and send the events to the subscribers
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,6 +22,15 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		log.Panic("The Reponse Writter must be an instance of Flusher.")
 		return
+	}
+
+	targets := []string{}
+	cookie, err := r.Cookie("mercureAuthorization")
+	if err == nil {
+		if targets, ok = h.extractTargets(cookie.Value); !ok {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
 	}
 
 	iris := r.URL.Query()["iri[]"]
@@ -35,7 +50,60 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("%s connected.", r.RemoteAddr)
+	sendHeaders(w)
 
+	// Create a new channel, over which the hub can send can send resources to this subscriber.
+	resourceChan := make(chan Resource)
+
+	// Add this client to the map of those that should
+	// receive updates
+	h.newSubscribers <- resourceChan
+
+	// Listen to the closing of the http connection via the CloseNotifier
+	notify := w.(http.CloseNotifier).CloseNotify()
+	go func() {
+		<-notify
+		h.removedSubscribers <- resourceChan
+		log.Printf("%s disconnected.", r.RemoteAddr)
+	}()
+
+	for {
+		resource, open := <-resourceChan
+		if !open {
+			break
+		}
+
+		// Check authorization
+		if !isAuthorized(targets, resource.Targets) || !isSubscribedToResource(regexps, resource.IRI) {
+			continue
+		}
+
+		fmt.Fprint(w, "event: mercure\n")
+		fmt.Fprintf(w, "id: %s\n", resource.IRI)
+		fmt.Fprint(w, resource.Data)
+
+		f.Flush()
+	}
+}
+
+// extractTargets extracts the subscriber's authorized targets from the JWT
+func (h *Hub) extractTargets(encodedToken string) ([]string, bool) {
+	token, _ := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return h.subscriberJwtKey, nil
+	})
+
+	if claims, ok := token.Claims.(*claims); ok && token.Valid {
+		return claims.MercureTargets, true
+	}
+
+	return nil, false
+}
+
+// sendHeaders send correct HTTP headers to create a keep-alive connection
+func sendHeaders(w http.ResponseWriter) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
 
@@ -49,48 +117,30 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	w.Header().Set("X-Accel-Buffering", "no")
+}
 
-	// Create a new channel, over which the hub can send can send resources to this subscriber.
-	resourceChan := make(chan Resource)
-
-	// Add this client to the map of those that should
-	// receive updates
-	h.newSubscribers <- resourceChan
-
-	// Listen to the closing of the http connection via the CloseNotifier
-	notify := w.(http.CloseNotifier).CloseNotify()
-	go func() {
-		<-notify
-		// Remove this client from the map of attached clients
-		// when `EventHandler` exits.
-		h.removedSubscribers <- resourceChan
-		log.Printf("%s disconnected.", r.RemoteAddr)
-	}()
-
-	for {
-		// Read from our resourceChan.
-		resource, open := <-resourceChan
-
-		if !open {
-			// If our resourceChan was closed, this means that the client has disconnected.
-			break
-		}
-
-		match := false
-		for _, r := range regexps {
-			if r.MatchString(resource.IRI) {
-				match = true
-				break
-			}
-		}
-		if !match {
-			continue
-		}
-
-		fmt.Fprint(w, "event: mercure\n")
-		fmt.Fprintf(w, "id: %s\n", resource.IRI)
-		fmt.Fprint(w, resource.Data)
-
-		f.Flush()
+// isAuthorized checks if the subscriber can access to at least one of the resource's intended targets
+func isAuthorized(subscriberTargets []string, resourceTargets map[string]bool) bool {
+	if len(resourceTargets) == 0 {
+		return true
 	}
+
+	for _, t := range subscriberTargets {
+		if _, ok := resourceTargets[t]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isSubscribedToResource checks if the subscriber has subscribed to this resource
+func isSubscribedToResource(regexps []*regexp.Regexp, resourceIri string) bool {
+	for _, r := range regexps {
+		if r.MatchString(resourceIri) {
+			return true
+		}
+	}
+
+	return false
 }
