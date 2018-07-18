@@ -41,7 +41,7 @@ func TestUnauthorizedJWT(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+hub.createDummyUnauthorizedPublisherJWT())
+	req.Header.Add("Authorization", "Bearer "+createDummyUnauthorizedPublisherJWT(hub))
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -55,7 +55,7 @@ func TestNoIRI(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+hub.createDummyAuthorizedPublisherJWT())
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedPublisherJWT(hub))
 	req.Form = url.Values{}
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -73,7 +73,7 @@ func TestNoData(t *testing.T) {
 	form.Add("iri", "http://example.com/books/1")
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+hub.createDummyAuthorizedPublisherJWT())
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedPublisherJWT(hub))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -107,7 +107,7 @@ func TestOk(t *testing.T) {
 	form.Add("target[]", "bar")
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+hub.createDummyAuthorizedPublisherJWT())
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedPublisherJWT(hub))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -117,7 +117,7 @@ func TestOk(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func (h *Hub) createDummyAuthorizedPublisherJWT() string {
+func createDummyAuthorizedPublisherJWT(h *Hub) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	expiresAt := time.Now().Add(time.Minute * 1).Unix()
@@ -127,7 +127,7 @@ func (h *Hub) createDummyAuthorizedPublisherJWT() string {
 	return tokenString
 }
 
-func (h *Hub) createDummyUnauthorizedPublisherJWT() string {
+func createDummyUnauthorizedPublisherJWT(h *Hub) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	expiresAt := time.Now().Add(time.Minute * 1).Unix()

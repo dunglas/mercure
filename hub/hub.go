@@ -6,23 +6,23 @@ import "log"
 
 // Hub stores channels with clients currently subcribed
 type Hub struct {
+	publisherJWTKey    []byte
+	subscriberJWTKey   []byte
 	subscribers        map[chan Resource]bool
 	newSubscribers     chan chan Resource
 	removedSubscribers chan chan Resource
 	resources          chan Resource
-	publisherJWTKey    []byte
-	subscriberJWTKey   []byte
 }
 
 // NewHub creates a hub
-func NewHub(publisherJWTKey []byte, subscriberJWTKey []byte) Hub {
-	return Hub{
+func NewHub(publisherJWTKey []byte, subscriberJWTKey []byte) *Hub {
+	return &Hub{
+		publisherJWTKey,
+		subscriberJWTKey,
 		make(map[chan Resource]bool),
 		make(chan (chan Resource)),
 		make(chan (chan Resource)),
 		make(chan Resource),
-		publisherJWTKey,
-		subscriberJWTKey,
 	}
 }
 

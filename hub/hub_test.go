@@ -1,5 +1,5 @@
 package hub
 
-func createDummy() Hub {
+func createDummy() *Hub {
 	return NewHub([]byte("publisher"), []byte("publisher"))
 }
