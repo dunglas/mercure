@@ -79,6 +79,10 @@ func serve(options *options, hub *hub.Hub) {
 	recoveryHandler := handlers.RecoveryHandler(handlers.PrintRecoveryStack(options.debug))(loggingHandler)
 
 	srv := &http.Server{Addr: options.addr, Handler: recoveryHandler}
+	srv.RegisterOnShutdown(func() {
+		hub.Stop()
+	})
+
 	idleConnsClosed := make(chan struct{})
 	go func() {
 		sigint := make(chan os.Signal, 1)

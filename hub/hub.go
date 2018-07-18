@@ -39,12 +39,25 @@ func (h *Hub) Start() {
 				delete(h.subscribers, s)
 				close(s)
 
-			case content := <-h.resources:
+			case content, ok := <-h.resources:
 				for s := range h.subscribers {
-					s <- content
+					if ok {
+						s <- content
+					} else {
+						close(s)
+					}
 				}
-				log.Printf("Broadcast resource \"%s\".", content.IRI)
+				if ok {
+					log.Printf("Broadcast resource \"%s\".", content.IRI)
+				} else {
+					return
+				}
 			}
 		}
 	}()
+}
+
+// Stop stops disconnect all connected clients
+func (h *Hub) Stop() {
+	close(h.resources)
 }
