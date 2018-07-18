@@ -88,12 +88,16 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // extractTargets extracts the subscriber's authorized targets from the JWT
 func (h *Hub) extractTargets(encodedToken string) ([]string, bool) {
-	token, _ := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return h.subscriberJwtKey, nil
+		return h.subscriberJWTKey, nil
 	})
+
+	if err != nil {
+		return nil, false
+	}
 
 	if claims, ok := token.Claims.(*claims); ok && token.Valid {
 		return claims.MercureTargets, true

@@ -8,6 +8,12 @@
   version = "v3.2.0"
 
 [[projects]]
+  name = "github.com/gorilla/handlers"
+  packages = ["."]
+  revision = "90663712d74cb411cbef281bc1e08c19d1a76145"
+  version = "v1.3.0"
+
+[[projects]]
   name = "github.com/joho/godotenv"
   packages = [
     ".",
@@ -25,6 +31,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "36990770b29d34fec0ff266eddc198c4cfc4e131f7bcf7f698a7babcbee86d21"
+  inputs-digest = "df998c4aa682d91af694d3618d265d16d174e0707bb138aed37ef330fc6a562a"
   solver-name = "gps-cdcl"
   solver-version = 1

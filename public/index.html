@@ -123,7 +123,7 @@ http://example.com/reviews/12</textarea>
 	<script>
 		document.forms.publish.onsubmit = (e) => {
 			e.preventDefault();
-			const { preventDefault, target: { action, method, elements: { iri, data, targets, jwt } } } = e;
+			const { target: { action, method, elements: { iri, data, targets, jwt } } } = e;
 
 			const body = new URLSearchParams();
 			body.append('iri', iri.value);
@@ -140,6 +140,10 @@ http://example.com/reviews/12</textarea>
 			}).then(({ ok, statusText }) => {
 				if (!ok) alert(statusText);
 			});
+		};
+
+		const deleteCookie = () => {
+			document.cookie = 'mercureAuthorization=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 		};
 
 		const template = document.querySelector('#content');
@@ -159,11 +163,10 @@ http://example.com/reviews/12</textarea>
 				params.append('iri[]', iri);
 			});
 
-			if (jwt.value !== '') {
-				const cookieValue = new URLSearchParams();
-				cookieValue.append('mercureAuthorization', jwt.value);
-
-				document.cookie = cookieValue;
+			if (jwt.value === '') {
+				deleteCookie();
+			} else {
+				document.cookie = `mercureAuthorization=${encodeURIComponent(jwt.value)}`;
 			}
 
 			eventSource = new EventSource(`/subscribe?${params}`);
@@ -191,6 +194,7 @@ http://example.com/reviews/12</textarea>
 		};
 		document.forms.subscribe.elements.unsubscribe.onclick = (e) => {
 			eventSource.close();
+			deleteCookie();
 			e.target.disabled = true;
 		};
 

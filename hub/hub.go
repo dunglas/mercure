@@ -10,19 +10,19 @@ type Hub struct {
 	newSubscribers     chan chan Resource
 	removedSubscribers chan chan Resource
 	resources          chan Resource
-	publisherJwtKey    []byte
-	subscriberJwtKey   []byte
+	publisherJWTKey    []byte
+	subscriberJWTKey   []byte
 }
 
 // NewHub creates a hub
-func NewHub(publisherJwtKey []byte, subscriberJwtKey []byte) Hub {
+func NewHub(publisherJWTKey []byte, subscriberJWTKey []byte) Hub {
 	return Hub{
 		make(map[chan Resource]bool),
 		make(chan (chan Resource)),
 		make(chan (chan Resource)),
 		make(chan Resource),
-		publisherJwtKey,
-		subscriberJwtKey,
+		publisherJWTKey,
+		subscriberJWTKey,
 	}
 }
 

@@ -86,9 +86,9 @@ params.append('iri', 'https://example.com/books/{name}');
 const eventSource = new EventSource(`https://hub.example.com?${params}`);
 
 // The following callaback will be called every time the Hub send an update 
-eventSource.addEventListener('mercure', (e) => {
-    console.log('Resource IRI: %s', e.lastEventId);
-    console.log('Resource content: %s', e.data);
+eventSource.addEventListener('mercure', ({lastEventId, data}) => {
+    console.log('Resource IRI: %s', lastEventId);
+    console.log('Resource content: %s', data);
 });
 ```
 
