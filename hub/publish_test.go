@@ -5,9 +5,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
-	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +22,7 @@ func TestNoAuthorizationHeader(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
 }
 
-func TestInvalidJWT(t *testing.T) {
+func TestPublishInvalidJWT(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
@@ -37,11 +35,11 @@ func TestInvalidJWT(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
 }
-func TestUnauthorizedJWT(t *testing.T) {
+func TestPublishUnauthorizedJWT(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyUnauthorizedPublisherJWT(hub))
+	req.Header.Add("Authorization", "Bearer "+createDummyUnauthorizedJWT(hub))
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -51,11 +49,11 @@ func TestUnauthorizedJWT(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
 }
 
-func TestNoIRI(t *testing.T) {
+func TestPublishNoIRI(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedPublisherJWT(hub))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = url.Values{}
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -66,14 +64,14 @@ func TestNoIRI(t *testing.T) {
 	assert.Equal(t, "Missing \"iri\" parameter\n", w.Body.String())
 }
 
-func TestNoData(t *testing.T) {
+func TestPublishNoData(t *testing.T) {
 	hub := createDummy()
 
 	form := url.Values{}
 	form.Add("iri", "http://example.com/books/1")
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedPublisherJWT(hub))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -84,7 +82,7 @@ func TestNoData(t *testing.T) {
 	assert.Equal(t, "Missing \"data\" parameter\n", w.Body.String())
 }
 
-func TestOk(t *testing.T) {
+func TestPublishOk(t *testing.T) {
 	hub := createDummy()
 
 	go func() {
@@ -107,7 +105,7 @@ func TestOk(t *testing.T) {
 	form.Add("target[]", "bar")
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedPublisherJWT(hub))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -115,24 +113,4 @@ func TestOk(t *testing.T) {
 	resp := w.Result()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func createDummyAuthorizedPublisherJWT(h *Hub) string {
-	token := jwt.New(jwt.SigningMethodHS256)
-
-	expiresAt := time.Now().Add(time.Minute * 1).Unix()
-	token.Claims = &jwt.StandardClaims{ExpiresAt: expiresAt}
-	tokenString, _ := token.SignedString(h.publisherJWTKey)
-
-	return tokenString
-}
-
-func createDummyUnauthorizedPublisherJWT(h *Hub) string {
-	token := jwt.New(jwt.SigningMethodHS256)
-
-	expiresAt := time.Now().Add(time.Minute * 1).Unix()
-	token.Claims = &jwt.StandardClaims{ExpiresAt: expiresAt}
-	tokenString, _ := token.SignedString([]byte("unauthorized"))
-
-	return tokenString
 }
