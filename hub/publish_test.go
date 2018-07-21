@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,18 +86,21 @@ func TestPublishNoData(t *testing.T) {
 func TestPublishOk(t *testing.T) {
 	hub := createDummy()
 
-	go func() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(w *sync.WaitGroup) {
+		defer w.Done()
 		for {
 			select {
 			case content := <-hub.resources:
 				assert.Equal(t, "http://example.com/books/1", content.IRI)
-				assert.Equal(t, "data: Hello!\n", content.Data)
+				assert.Equal(t, "data: Hello!\n\n", content.Data)
 				assert.True(t, content.Targets["foo"])
 				assert.True(t, content.Targets["bar"])
 				return
 			}
 		}
-	}()
+	}((&wg))
 
 	form := url.Values{}
 	form.Add("iri", "http://example.com/books/1")
@@ -113,4 +117,5 @@ func TestPublishOk(t *testing.T) {
 	resp := w.Result()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	wg.Wait()
 }

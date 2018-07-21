@@ -40,6 +40,16 @@ func createDummyAuthorizedJWT(h *Hub, publisher bool) string {
 	return tokenString
 }
 
+func createDummyAuthorizedJWTWithTargets(h *Hub, targets []string) string {
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	expiresAt := time.Now().Add(time.Minute * 1).Unix()
+	token.Claims = &claims{targets, jwt.StandardClaims{ExpiresAt: expiresAt}}
+	tokenString, _ := token.SignedString(h.subscriberJWTKey)
+
+	return tokenString
+}
+
 func createDummyUnauthorizedJWT(h *Hub) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 

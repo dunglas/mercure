@@ -14,7 +14,9 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
 	w := httptest.NewRecorder()
 	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: "invalid"})
-	hub.PublishHandler(w, req)
+	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
+
+	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
 
@@ -28,7 +30,9 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
 	w := httptest.NewRecorder()
 	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT(hub)})
-	hub.PublishHandler(w, req)
+	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
+
+	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
 
@@ -58,6 +62,7 @@ func TestSubscribe(t *testing.T) {
 			if len(hub.subscribers) > 0 {
 				hub.resources <- NewResource("http://example.com/not-subscribed", "Hello World", map[string]bool{})
 				hub.resources <- NewResource("http://example.com/books/1", "Hello World", map[string]bool{})
+				hub.resources <- NewResource("http://example.com/reviews/22", "Great", map[string]bool{})
 				hub.Stop()
 
 				return
@@ -65,13 +70,44 @@ func TestSubscribe(t *testing.T) {
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe?iri[]=http://example.com/books/1", nil)
+	req := httptest.NewRequest("GET", "http://example.com/subscribe?iri[]=http://example.com/books/1&iri[]=http://example.com/reviews/{id}", nil)
 	w := newCloseNotifyingRecorder()
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "event: mercure\nid: http://example.com/books/1\ndata: Hello World\n\n", w.Body.String())
+	assert.Equal(t, "event: mercure\nid: http://example.com/books/1\ndata: Hello World\n\nevent: mercure\nid: http://example.com/reviews/22\ndata: Great\n\n", w.Body.String())
+}
+
+func TestSubscribeTarget(t *testing.T) {
+	hub := createDummy()
+	hub.Start()
+
+	go func() {
+		for {
+			if len(hub.subscribers) > 0 {
+				hub.resources <- NewResource("http://example.com/reviews/21", "Foo", map[string]bool{"baz": true})
+				hub.resources <- NewResource("http://example.com/reviews/22", "Hello World", map[string]bool{})
+				hub.resources <- NewResource("http://example.com/reviews/23", "Great", map[string]bool{"hello": true, "bar": true})
+				hub.Stop()
+
+				return
+			}
+		}
+	}()
+
+	req := httptest.NewRequest("GET", "http://example.com/subscribe?iri[]=http://example.com/reviews/{id}", nil)
+	w := newCloseNotifyingRecorder()
+	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithTargets(hub, []string{"foo", "bar"})})
+	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
+
+	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT(hub)})
+
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "event: mercure\nid: http://example.com/reviews/22\ndata: Hello World\n\nevent: mercure\nid: http://example.com/reviews/23\ndata: Great\n\n", w.Body.String())
 }
 
 // From https://github.com/go-martini/martini/blob/master/response_writer_test.go
