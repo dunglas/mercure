@@ -3,7 +3,7 @@
 
 Mercure is a protocol and a reference implementation allowing servers to push live data updates to clients in a fast and
 reliable way.
-Is is especially useful to push real time updates of data served by web APIs, including [hypermedia APIs](https://en.wikipedia.org/wiki/HATEOAS).
+It is especially useful to push real-time updates of data served by web APIs, including [hypermedia APIs](https://en.wikipedia.org/wiki/HATEOAS).
 
 A typical use case:
 
@@ -31,7 +31,7 @@ A fast and easy to use reference implementation (written in Go) is provided in t
 ### Terminology
 
 * Publisher: a server that exposes resources to a subscriber (typically a website or a web API)
-* Subscriber: a client application that subscribes to real time updates (typically a Progressive Web App or a Mobile
+* Subscriber: a client application that subscribes to real-time updates (typically a Progressive Web App or a Mobile
   App) 
 * Hub: a server that handles subscription requests and distributes the content to subscribers when the corresponding resources
   have been updated (a Hub implementation is provided in this repository)
@@ -58,7 +58,7 @@ Links embedded in HTML or XML documents (as defined in the WebSub recommendation
 ### Subscribtions
 
 The subscriber subscribes to an URL exposed by a hub to receive updates of one or many resources.
-To subscribe to updates, the client opens a HTTP (HTTPS and HTTP/2 are strongly recommended) connection following the [server-send
+To subscribe to updates, the client opens an HTTP (HTTPS and HTTP/2 are strongly recommended) connection following the [server-send
 event specification](https://html.spec.whatwg.org/multipage/server-sent-events.html) to the hub's subscription URL advertised
 by the Publisher.
 
@@ -70,9 +70,9 @@ Note: an URL is also a valid URI template.
 The hub sends updates concerning all subscribed resources matching the provided URI templates.
 The hub MUST send these updates as [`text/event-stream` compliant events](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model).
 
-* the `id` key of the event MUST contains the IRI of the resource being updated
+* the `id` key of the event MUST contain the IRI of the resource being updated
 * the `data` key MUST contain the new version of the resource
-* the `event` key MUST be set to `mercure`, it allows a hub to mix Mercure events with other kind of Server-sent events
+* the `event` key MUST be set to `mercure`, it allows a hub to mix Mercure events with other kinds of Server-sent events
 
 Example implementation of a client in JavaScript:
 
@@ -97,21 +97,21 @@ The protocol doesn't specify the maximum number of `iri[]` parameters that can b
 ### Hub
 
 The hub receives updates from the publisher on a dedicated HTTP endpoint.
-This endpoint MUST be exposed only trough a secure connection (HTTPS). 
+This endpoint MUST be exposed only through a secure connection (HTTPS). 
 
-WHen it receives an update, the hub dispatches it to subsribers using the established server-sent event connections.
+When it receives an update, the hub dispatches it to subsribers using the established server-sent event connections.
 
 This repository provides a full, high performance, implementation of a hub that can be used directly.
 
 An application CAN send events directly to the subscribers, without using an external hub server, if it is able to do so.
 In this case, it SHOULD not implement the endpoint to publish updates.
-This repository also contain a Go library that can be used in Go application to implement Mercure.
+This repository also contains a Go library that can be used in Go application to implement Mercure.
 
 The endpoint to publish updates is an HTTP URL accessed using the `POST` method.
 The request must be encoded using the `application/x-www-form-urlencoded` and contains the following data:
 
 * `iri`: the IRI of the updated resource
-* `data`: the resources's content
+* `data`: the resources' content
 
 The request MUST also contain an `Authorization` HTTP header containing the string `Bearer ` followed by a valid [JWT token
 (RFC7519)](https://tools.ietf.org/html/rfc7519) that the hub will check to ensure that the publisher is authorized to publish
