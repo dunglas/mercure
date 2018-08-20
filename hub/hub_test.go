@@ -13,7 +13,7 @@ func TestNewHub(t *testing.T) {
 
 	assert.Equal(t, []byte("publisher"), h.publisherJWTKey)
 	assert.Equal(t, []byte("subscriber"), h.subscriberJWTKey)
-	assert.IsType(t, map[chan Resource]bool{}, h.subscribers)
+	assert.IsType(t, map[chan Resource]struct{}{}, h.subscribers)
 	assert.IsType(t, make(chan (chan Resource)), h.newSubscribers)
 	assert.IsType(t, make(chan (chan Resource)), h.removedSubscribers)
 	assert.IsType(t, make(chan Resource), h.resources)

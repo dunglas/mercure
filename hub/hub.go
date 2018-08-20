@@ -8,7 +8,7 @@ import "log"
 type Hub struct {
 	publisherJWTKey    []byte
 	subscriberJWTKey   []byte
-	subscribers        map[chan Resource]bool
+	subscribers        map[chan Resource]struct{}
 	newSubscribers     chan chan Resource
 	removedSubscribers chan chan Resource
 	resources          chan Resource
@@ -19,7 +19,7 @@ func NewHub(publisherJWTKey []byte, subscriberJWTKey []byte) *Hub {
 	return &Hub{
 		publisherJWTKey,
 		subscriberJWTKey,
-		make(map[chan Resource]bool),
+		make(map[chan Resource]struct{}),
 		make(chan (chan Resource)),
 		make(chan (chan Resource)),
 		make(chan Resource),
@@ -33,7 +33,7 @@ func (h *Hub) Start() {
 			select {
 
 			case s := <-h.newSubscribers:
-				h.subscribers[s] = true
+				h.subscribers[s] = struct{}{}
 
 			case s := <-h.removedSubscribers:
 				delete(h.subscribers, s)
