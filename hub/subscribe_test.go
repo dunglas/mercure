@@ -60,9 +60,9 @@ func TestSubscribe(t *testing.T) {
 	go func() {
 		for {
 			if len(hub.subscribers) > 0 {
-				hub.resources <- NewResource("http://example.com/not-subscribed", "Hello World", map[string]bool{})
-				hub.resources <- NewResource("http://example.com/books/1", "Hello World", map[string]bool{})
-				hub.resources <- NewResource("http://example.com/reviews/22", "Great", map[string]bool{})
+				hub.resources <- NewResource("a", "http://example.com/not-subscribed", "Hello World", map[string]struct{}{})
+				hub.resources <- NewResource("b", "http://example.com/books/1", "Hello World", map[string]struct{}{})
+				hub.resources <- NewResource("c", "http://example.com/reviews/22", "Great", map[string]struct{}{})
 				hub.Stop()
 
 				return
@@ -76,7 +76,7 @@ func TestSubscribe(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "event: mercure\nid: http://example.com/books/1\ndata: Hello World\n\nevent: mercure\nid: http://example.com/reviews/22\ndata: Great\n\n", w.Body.String())
+	assert.Equal(t, "event: mercure\nid: b\ndata: Hello World\n\nevent: mercure\nid: c\ndata: Great\n\n", w.Body.String())
 }
 
 func TestSubscribeTarget(t *testing.T) {
@@ -86,9 +86,9 @@ func TestSubscribeTarget(t *testing.T) {
 	go func() {
 		for {
 			if len(hub.subscribers) > 0 {
-				hub.resources <- NewResource("http://example.com/reviews/21", "Foo", map[string]bool{"baz": true})
-				hub.resources <- NewResource("http://example.com/reviews/22", "Hello World", map[string]bool{})
-				hub.resources <- NewResource("http://example.com/reviews/23", "Great", map[string]bool{"hello": true, "bar": true})
+				hub.resources <- NewResource("a", "http://example.com/reviews/21", "Foo", map[string]struct{}{"baz": struct{}{}})
+				hub.resources <- NewResource("b", "http://example.com/reviews/22", "Hello World", map[string]struct{}{})
+				hub.resources <- NewResource("c", "http://example.com/reviews/23", "Great", map[string]struct{}{"hello": struct{}{}, "bar": struct{}{}})
 				hub.Stop()
 
 				return
@@ -107,7 +107,7 @@ func TestSubscribeTarget(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "event: mercure\nid: http://example.com/reviews/22\ndata: Hello World\n\nevent: mercure\nid: http://example.com/reviews/23\ndata: Great\n\n", w.Body.String())
+	assert.Equal(t, "event: mercure\nid: b\ndata: Hello World\n\nevent: mercure\nid: c\ndata: Great\n\n", w.Body.String())
 }
 
 // From https://github.com/go-martini/martini/blob/master/response_writer_test.go

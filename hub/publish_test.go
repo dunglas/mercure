@@ -92,17 +92,19 @@ func TestPublishOk(t *testing.T) {
 		defer w.Done()
 		for {
 			select {
-			case content := <-hub.resources:
-				assert.Equal(t, "http://example.com/books/1", content.IRI)
-				assert.Equal(t, "data: Hello!\n\n", content.Data)
-				assert.True(t, content.Targets["foo"])
-				assert.True(t, content.Targets["bar"])
+			case r := <-hub.resources:
+				assert.Equal(t, "revid", r.RevID)
+				assert.Equal(t, "http://example.com/books/1", r.IRI)
+				assert.Equal(t, "data: Hello!\n\n", r.Data)
+				assert.Equal(t, struct{}{}, r.Targets["foo"])
+				assert.Equal(t, struct{}{}, r.Targets["bar"])
 				return
 			}
 		}
 	}((&wg))
 
 	form := url.Values{}
+	form.Add("revid", "revid")
 	form.Add("iri", "http://example.com/books/1")
 	form.Add("data", "Hello!")
 	form.Add("target[]", "foo")

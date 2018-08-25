@@ -32,13 +32,13 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	targets := make(map[string]bool, len(r.Form["target[]"]))
+	targets := make(map[string]struct{}, len(r.Form["target[]"]))
 	for _, t := range r.Form["target[]"] {
-		targets[t] = true
+		targets[t] = struct{}{}
 	}
 
 	// Broadcast the resource
-	h.resources <- NewResource(iri, data, targets)
+	h.resources <- NewResource(r.Form.Get("revid"), iri, data, targets)
 }
 
 // Checks the validity of the JWT

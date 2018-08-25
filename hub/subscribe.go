@@ -79,7 +79,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fmt.Fprint(w, "event: mercure\n")
-		fmt.Fprintf(w, "id: %s\n", resource.IRI)
+		fmt.Fprintf(w, "id: %s\n", resource.RevID)
 		fmt.Fprint(w, resource.Data)
 
 		f.Flush()
@@ -124,7 +124,7 @@ func sendHeaders(w http.ResponseWriter) {
 }
 
 // isAuthorized checks if the subscriber can access to at least one of the resource's intended targets
-func isAuthorized(subscriberTargets []string, resourceTargets map[string]bool) bool {
+func isAuthorized(subscriberTargets []string, resourceTargets map[string]struct{}) bool {
 	if len(resourceTargets) == 0 {
 		return true
 	}
