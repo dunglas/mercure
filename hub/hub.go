@@ -2,27 +2,27 @@ package hub
 
 import "log"
 
-// Partially based on https://github.com/kljensen/golang-html5-sse-example
-
 // Hub stores channels with clients currently subcribed
 type Hub struct {
 	publisherJWTKey    []byte
 	subscriberJWTKey   []byte
-	subscribers        map[chan Resource]struct{}
-	newSubscribers     chan chan Resource
-	removedSubscribers chan chan Resource
-	resources          chan Resource
+	allowAnonymous     bool
+	subscribers        map[chan Update]struct{}
+	newSubscribers     chan chan Update
+	removedSubscribers chan chan Update
+	updates            chan Update
 }
 
 // NewHub creates a hub
-func NewHub(publisherJWTKey []byte, subscriberJWTKey []byte) *Hub {
+func NewHub(publisherJWTKey, subscriberJWTKey []byte, allowAnonymous bool) *Hub {
 	return &Hub{
 		publisherJWTKey,
 		subscriberJWTKey,
-		make(map[chan Resource]struct{}),
-		make(chan (chan Resource)),
-		make(chan (chan Resource)),
-		make(chan Resource),
+		allowAnonymous,
+		make(map[chan Update]struct{}),
+		make(chan (chan Update)),
+		make(chan (chan Update)),
+		make(chan Update),
 	}
 }
 
@@ -39,16 +39,16 @@ func (h *Hub) Start() {
 				delete(h.subscribers, s)
 				close(s)
 
-			case content, ok := <-h.resources:
+			case update, ok := <-h.updates:
 				for s := range h.subscribers {
 					if ok {
-						s <- content
+						s <- update
 					} else {
 						close(s)
 					}
 				}
 				if ok {
-					log.Printf("Broadcast resource \"%s\".", content.IRI)
+					log.Printf("Broadcast topics \"%s\".", update.Topics)
 				} else {
 					return
 				}
@@ -59,5 +59,5 @@ func (h *Hub) Start() {
 
 // Stop stops disconnect all connected clients
 func (h *Hub) Stop() {
-	close(h.resources)
+	close(h.updates)
 }

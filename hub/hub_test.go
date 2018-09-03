@@ -2,25 +2,28 @@ package hub
 
 import (
 	"testing"
-	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewHub(t *testing.T) {
-	h := NewHub([]byte("publisher"), []byte("subscriber"))
+	h := NewHub([]byte("publisher"), []byte("subscriber"), false)
 
 	assert.Equal(t, []byte("publisher"), h.publisherJWTKey)
 	assert.Equal(t, []byte("subscriber"), h.subscriberJWTKey)
-	assert.IsType(t, map[chan Resource]struct{}{}, h.subscribers)
-	assert.IsType(t, make(chan (chan Resource)), h.newSubscribers)
-	assert.IsType(t, make(chan (chan Resource)), h.removedSubscribers)
-	assert.IsType(t, make(chan Resource), h.resources)
+	assert.IsType(t, map[chan Update]struct{}{}, h.subscribers)
+	assert.IsType(t, make(chan (chan Update)), h.newSubscribers)
+	assert.IsType(t, make(chan (chan Update)), h.removedSubscribers)
+	assert.IsType(t, make(chan Update), h.updates)
 }
 
 func createDummy() *Hub {
-	return NewHub([]byte("publisher"), []byte("subscriber"))
+	return NewHub([]byte("publisher"), []byte("subscriber"), false)
+}
+
+func createAnonymousDummy() *Hub {
+	return NewHub([]byte("publisher"), []byte("subscriber"), true)
 }
 
 func createDummyAuthorizedJWT(h *Hub, publisher bool) string {
@@ -32,9 +35,6 @@ func createDummyAuthorizedJWT(h *Hub, publisher bool) string {
 	}
 
 	token := jwt.New(jwt.SigningMethodHS256)
-
-	expiresAt := time.Now().Add(time.Minute * 1).Unix()
-	token.Claims = &jwt.StandardClaims{ExpiresAt: expiresAt}
 	tokenString, _ := token.SignedString(key)
 
 	return tokenString
@@ -42,20 +42,25 @@ func createDummyAuthorizedJWT(h *Hub, publisher bool) string {
 
 func createDummyAuthorizedJWTWithTargets(h *Hub, targets []string) string {
 	token := jwt.New(jwt.SigningMethodHS256)
+	token.Claims = &claims{targets, jwt.StandardClaims{}}
 
-	expiresAt := time.Now().Add(time.Minute * 1).Unix()
-	token.Claims = &claims{targets, jwt.StandardClaims{ExpiresAt: expiresAt}}
 	tokenString, _ := token.SignedString(h.subscriberJWTKey)
 
 	return tokenString
 }
 
-func createDummyUnauthorizedJWT(h *Hub) string {
+func createDummyUnauthorizedJWT() string {
 	token := jwt.New(jwt.SigningMethodHS256)
-
-	expiresAt := time.Now().Add(time.Minute * 1).Unix()
-	token.Claims = &jwt.StandardClaims{ExpiresAt: expiresAt}
 	tokenString, _ := token.SignedString([]byte("unauthorized"))
+
+	return tokenString
+}
+
+func createDummyNoneSignedJWT() string {
+	token := jwt.New(jwt.SigningMethodNone)
+	// The generated token must have more than 41 chars
+	token.Claims = jwt.StandardClaims{Subject: "me"}
+	tokenString, _ := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
 
 	return tokenString
 }

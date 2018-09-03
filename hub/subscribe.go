@@ -31,19 +31,22 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-	}
-
-	iris := r.URL.Query()["iri[]"]
-	if len(iris) == 0 {
-		http.Error(w, "Missing \"iri[]\" parameters.", http.StatusBadRequest)
+	} else if !h.allowAnonymous {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
-	var regexps = make([]*regexp.Regexp, len(iris))
-	for index, iri := range iris {
-		tpl, err := uritemplate.New(iri)
+	topics := r.URL.Query()["topic"]
+	if len(topics) == 0 {
+		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
+		return
+	}
+
+	var regexps = make([]*regexp.Regexp, len(topics))
+	for index, topic := range topics {
+		tpl, err := uritemplate.New(topic)
 		if nil != err {
-			http.Error(w, fmt.Sprintf("\"%s\" is not a valid URI template (RFC6570).", iri), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("\"%s\" is not a valid URI template (RFC6570).", topic), http.StatusBadRequest)
 			return
 		}
 		regexps[index] = tpl.Regexp()
@@ -52,35 +55,33 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s connected.", r.RemoteAddr)
 	sendHeaders(w)
 
-	// Create a new channel, over which the hub can send can send resources to this subscriber.
-	resourceChan := make(chan Resource)
+	// Create a new channel, over which the hub can send can send updates to this subscriber.
+	updateChan := make(chan Update)
 
 	// Add this client to the map of those that should
 	// receive updates
-	h.newSubscribers <- resourceChan
+	h.newSubscribers <- updateChan
 
 	// Listen to the closing of the http connection via the CloseNotifier
 	notify := w.(http.CloseNotifier).CloseNotify()
 	go func() {
 		<-notify
-		h.removedSubscribers <- resourceChan
+		h.removedSubscribers <- updateChan
 		log.Printf("%s disconnected.", r.RemoteAddr)
 	}()
 
 	for {
-		resource, open := <-resourceChan
+		update, open := <-updateChan
 		if !open {
 			break
 		}
 
 		// Check authorization
-		if !isAuthorized(targets, resource.Targets) || !isSubscribedToResource(regexps, resource.IRI) {
+		if !isAuthorized(targets, update.Targets) || !isSubscribedToUpdate(regexps, update.Topics) {
 			continue
 		}
 
-		fmt.Fprint(w, "event: mercure\n")
-		fmt.Fprintf(w, "id: %s\n", resource.RevID)
-		fmt.Fprint(w, resource.Data)
+		fmt.Fprint(w, update.Event.String())
 
 		f.Flush()
 	}
@@ -123,14 +124,14 @@ func sendHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Accel-Buffering", "no")
 }
 
-// isAuthorized checks if the subscriber can access to at least one of the resource's intended targets
-func isAuthorized(subscriberTargets []string, resourceTargets map[string]struct{}) bool {
-	if len(resourceTargets) == 0 {
+// isAuthorized checks if the subscriber can access to at least one of the update's intended targets
+func isAuthorized(subscriberTargets []string, updateTargets map[string]struct{}) bool {
+	if len(updateTargets) == 0 {
 		return true
 	}
 
 	for _, t := range subscriberTargets {
-		if _, ok := resourceTargets[t]; ok {
+		if _, ok := updateTargets[t]; ok {
 			return true
 		}
 	}
@@ -138,11 +139,14 @@ func isAuthorized(subscriberTargets []string, resourceTargets map[string]struct{
 	return false
 }
 
-// isSubscribedToResource checks if the subscriber has subscribed to this resource
-func isSubscribedToResource(regexps []*regexp.Regexp, resourceIri string) bool {
+// isSubscribedToUpdate checks if the subscriber has subscribed to this update
+func isSubscribedToUpdate(regexps []*regexp.Regexp, topics []string) bool {
+	// Add a global cache here
 	for _, r := range regexps {
-		if r.MatchString(resourceIri) {
-			return true
+		for _, t := range topics {
+			if r.MatchString(t) {
+				return true
+			}
 		}
 	}
 

@@ -1,0 +1,27 @@
+label {
+    display: block;
+}
+
+section {
+    float: left;
+    width: 50%;
+}
+
+main {
+    padding-top: 2em;
+}
+
+form>div {
+    padding-bottom: 1em;
+}
+
+textarea,
+input:not([type="submit"]) {
+    display: block;
+    width: 80%;
+}
+
+code,
+pre {
+    background-color: lightgray;
+}

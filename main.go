@@ -16,7 +16,9 @@ import (
 
 type options struct {
 	debug              bool
+	demo               bool
 	addr               string
+	allowAnonymous     bool
 	publisherJWTKey    []byte
 	subscriberJWTKey   []byte
 	corsAllowedOrigins []string
@@ -29,8 +31,10 @@ func parseEnv() (*options, error) {
 	}
 
 	options := &options{
-		os.Getenv("DEBUG") != "",
+		os.Getenv("DEBUG") == "1",
+		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",
 		listen,
+		os.Getenv("ALLOW_ANONYMOUS") == "1",
 		[]byte(os.Getenv("PUBLISHER_JWT_KEY")),
 		[]byte(os.Getenv("SUBSCRIBER_JWT_KEY")),
 		strings.Split(os.Getenv("CORS_ALLOWED_ORIGINS"), ","),
@@ -61,7 +65,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	hub := hub.NewHub(options.publisherJWTKey, options.subscriberJWTKey)
+	hub := hub.NewHub(options.publisherJWTKey, options.subscriberJWTKey, options.allowAnonymous)
 	hub.Start()
 
 	serve(options, hub)
@@ -71,7 +75,9 @@ func serve(options *options, hub *hub.Hub) {
 	allowedOrigins := handlers.AllowedOrigins(options.corsAllowedOrigins)
 	subscribeCORS := handlers.CORS(handlers.AllowCredentials(), allowedOrigins)
 
-	http.Handle("/", http.FileServer(http.Dir("public")))
+	if options.demo {
+		http.Handle("/", http.FileServer(http.Dir("public")))
+	}
 	http.Handle("/publish", http.HandlerFunc(hub.PublishHandler))
 	http.Handle("/subscribe", subscribeCORS(http.HandlerFunc(hub.SubscribeHandler)))
 
