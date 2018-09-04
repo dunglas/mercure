@@ -2,15 +2,24 @@ package hub
 
 import "log"
 
+type serializedUpdate struct {
+	update Update
+	event  string
+}
+
+func newSerializedUpdate(u Update) serializedUpdate {
+	return serializedUpdate{u, u.String()}
+}
+
 // Hub stores channels with clients currently subcribed
 type Hub struct {
 	publisherJWTKey    []byte
 	subscriberJWTKey   []byte
 	allowAnonymous     bool
-	subscribers        map[chan Update]struct{}
-	newSubscribers     chan chan Update
-	removedSubscribers chan chan Update
-	updates            chan Update
+	subscribers        map[chan serializedUpdate]struct{}
+	newSubscribers     chan chan serializedUpdate
+	removedSubscribers chan chan serializedUpdate
+	updates            chan serializedUpdate
 }
 
 // NewHub creates a hub
@@ -19,10 +28,10 @@ func NewHub(publisherJWTKey, subscriberJWTKey []byte, allowAnonymous bool) *Hub 
 		publisherJWTKey,
 		subscriberJWTKey,
 		allowAnonymous,
-		make(map[chan Update]struct{}),
-		make(chan (chan Update)),
-		make(chan (chan Update)),
-		make(chan Update),
+		make(map[chan serializedUpdate]struct{}),
+		make(chan (chan serializedUpdate)),
+		make(chan (chan serializedUpdate)),
+		make(chan serializedUpdate),
 	}
 }
 
@@ -39,16 +48,16 @@ func (h *Hub) Start() {
 				delete(h.subscribers, s)
 				close(s)
 
-			case update, ok := <-h.updates:
+			case serializedUpdate, ok := <-h.updates:
 				for s := range h.subscribers {
 					if ok {
-						s <- update
+						s <- serializedUpdate
 					} else {
 						close(s)
 					}
 				}
 				if ok {
-					log.Printf("Broadcast topics \"%s\".", update.Topics)
+					log.Printf("Broadcast topics \"%s\".", serializedUpdate.update.Topics)
 				} else {
 					return
 				}

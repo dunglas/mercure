@@ -127,9 +127,9 @@ func TestSubscribe(t *testing.T) {
 	go func() {
 		for {
 			if len(hub.subscribers) > 0 {
-				hub.updates <- NewUpdate([]string{"http://example.com/not-subscribed"}, map[string]struct{}{}, "Hello World", "a", "", 0)
-				hub.updates <- NewUpdate([]string{"http://example.com/books/1"}, map[string]struct{}{}, "Hello World", "b", "", 0)
-				hub.updates <- NewUpdate([]string{"http://example.com/reviews/22"}, map[string]struct{}{}, "Great", "c", "", 0)
+				hub.updates <- newSerializedUpdate(NewUpdate([]string{"http://example.com/not-subscribed"}, map[string]struct{}{}, "Hello World", "a", "", 0))
+				hub.updates <- newSerializedUpdate(NewUpdate([]string{"http://example.com/books/1"}, map[string]struct{}{}, "Hello World", "b", "", 0))
+				hub.updates <- newSerializedUpdate(NewUpdate([]string{"http://example.com/reviews/22"}, map[string]struct{}{}, "Great", "c", "", 0))
 				hub.Stop()
 
 				return
@@ -153,9 +153,9 @@ func TestSubscribeTarget(t *testing.T) {
 	go func() {
 		for {
 			if len(hub.subscribers) > 0 {
-				hub.updates <- NewUpdate([]string{"http://example.com/reviews/21"}, map[string]struct{}{"baz": struct{}{}}, "Foo", "a", "", 0)
-				hub.updates <- NewUpdate([]string{"http://example.com/reviews/22"}, map[string]struct{}{}, "Hello World", "b", "test", 0)
-				hub.updates <- NewUpdate([]string{"http://example.com/reviews/23"}, map[string]struct{}{"hello": struct{}{}, "bar": struct{}{}}, "Great", "c", "", 1)
+				hub.updates <- newSerializedUpdate(NewUpdate([]string{"http://example.com/reviews/21"}, map[string]struct{}{"baz": struct{}{}}, "Foo", "a", "", 0))
+				hub.updates <- newSerializedUpdate(NewUpdate([]string{"http://example.com/reviews/22"}, map[string]struct{}{}, "Hello World", "b", "test", 0))
+				hub.updates <- newSerializedUpdate(NewUpdate([]string{"http://example.com/reviews/23"}, map[string]struct{}{"hello": struct{}{}, "bar": struct{}{}}, "Great", "c", "", 1))
 				hub.Stop()
 
 				return

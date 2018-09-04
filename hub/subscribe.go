@@ -56,7 +56,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	sendHeaders(w)
 
 	// Create a new channel, over which the hub can send can send updates to this subscriber.
-	updateChan := make(chan Update)
+	updateChan := make(chan serializedUpdate)
 
 	// Add this client to the map of those that should
 	// receive updates
@@ -71,17 +71,17 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	for {
-		update, open := <-updateChan
+		serializedUpdate, open := <-updateChan
 		if !open {
 			break
 		}
 
 		// Check authorization
-		if !isAuthorized(targets, update.Targets) || !isSubscribedToUpdate(regexps, update.Topics) {
+		if !isAuthorized(targets, serializedUpdate.update.Targets) || !isSubscribedToUpdate(regexps, serializedUpdate.update.Topics) {
 			continue
 		}
 
-		fmt.Fprint(w, update.Event.String())
+		fmt.Fprint(w, serializedUpdate.event)
 
 		f.Flush()
 	}

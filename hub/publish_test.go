@@ -114,11 +114,11 @@ func TestPublishOk(t *testing.T) {
 		for {
 			select {
 			case u := <-hub.updates:
-				assert.Equal(t, "id", u.ID)
-				assert.Equal(t, []string{"http://example.com/books/1"}, u.Topics)
-				assert.Equal(t, "Hello!", u.Data)
-				assert.Equal(t, struct{}{}, u.Targets["foo"])
-				assert.Equal(t, struct{}{}, u.Targets["bar"])
+				assert.Equal(t, "id", u.update.ID)
+				assert.Equal(t, []string{"http://example.com/books/1"}, u.update.Topics)
+				assert.Equal(t, "Hello!", u.update.Data)
+				assert.Equal(t, struct{}{}, u.update.Targets["foo"])
+				assert.Equal(t, struct{}{}, u.update.Targets["bar"])
 				return
 			}
 		}
