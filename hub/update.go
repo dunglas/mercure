@@ -14,6 +14,6 @@ type Update struct {
 }
 
 // NewUpdate creates a new update to dispatch
-func NewUpdate(topics []string, targets map[string]struct{}, eventData, eventID, eventType string, eventRetry uint64) Update {
-	return Update{topics, targets, NewEvent(eventData, eventID, eventType, eventRetry)}
+func NewUpdate(topics []string, targets map[string]struct{}, eventData, eventID, eventType string, eventRetry uint64) *Update {
+	return &Update{topics, targets, NewEvent(eventData, eventID, eventType, eventRetry)}
 }

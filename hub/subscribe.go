@@ -56,7 +56,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	sendHeaders(w)
 
 	// Create a new channel, over which the hub can send can send updates to this subscriber.
-	updateChan := make(chan serializedUpdate)
+	updateChan := make(chan *serializedUpdate)
 
 	// Add this client to the map of those that should
 	// receive updates

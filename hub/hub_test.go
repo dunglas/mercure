@@ -12,10 +12,10 @@ func TestNewHub(t *testing.T) {
 
 	assert.Equal(t, []byte("publisher"), h.publisherJWTKey)
 	assert.Equal(t, []byte("subscriber"), h.subscriberJWTKey)
-	assert.IsType(t, map[chan Update]struct{}{}, h.subscribers)
-	assert.IsType(t, make(chan (chan Update)), h.newSubscribers)
-	assert.IsType(t, make(chan (chan Update)), h.removedSubscribers)
-	assert.IsType(t, make(chan Update), h.updates)
+	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers)
+	assert.IsType(t, make(chan (chan *serializedUpdate)), h.newSubscribers)
+	assert.IsType(t, make(chan (chan *serializedUpdate)), h.removedSubscribers)
+	assert.IsType(t, make(chan *serializedUpdate), h.updates)
 }
 
 func createDummy() *Hub {

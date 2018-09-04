@@ -3,12 +3,12 @@ package hub
 import "log"
 
 type serializedUpdate struct {
-	update Update
+	update *Update
 	event  string
 }
 
-func newSerializedUpdate(u Update) serializedUpdate {
-	return serializedUpdate{u, u.String()}
+func newSerializedUpdate(u *Update) *serializedUpdate {
+	return &serializedUpdate{u, u.String()}
 }
 
 // Hub stores channels with clients currently subcribed
@@ -16,10 +16,10 @@ type Hub struct {
 	publisherJWTKey    []byte
 	subscriberJWTKey   []byte
 	allowAnonymous     bool
-	subscribers        map[chan serializedUpdate]struct{}
-	newSubscribers     chan chan serializedUpdate
-	removedSubscribers chan chan serializedUpdate
-	updates            chan serializedUpdate
+	subscribers        map[chan *serializedUpdate]struct{}
+	newSubscribers     chan chan *serializedUpdate
+	removedSubscribers chan chan *serializedUpdate
+	updates            chan *serializedUpdate
 }
 
 // NewHub creates a hub
@@ -28,10 +28,10 @@ func NewHub(publisherJWTKey, subscriberJWTKey []byte, allowAnonymous bool) *Hub 
 		publisherJWTKey,
 		subscriberJWTKey,
 		allowAnonymous,
-		make(map[chan serializedUpdate]struct{}),
-		make(chan (chan serializedUpdate)),
-		make(chan (chan serializedUpdate)),
-		make(chan serializedUpdate),
+		make(map[chan *serializedUpdate]struct{}),
+		make(chan (chan *serializedUpdate)),
+		make(chan (chan *serializedUpdate)),
+		make(chan *serializedUpdate),
 	}
 }
 

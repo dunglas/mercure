@@ -16,7 +16,7 @@ func TestNewUpdate(t *testing.T) {
 		5,
 	)
 
-	assert.IsType(t, Update{}, u)
+	assert.IsType(t, Update{}, *u)
 	assert.Equal(t, []string{"http://example.com/canonical", "http://example.com/alternate"}, u.Topics)
 	assert.Equal(t, "data", u.Event.Data)
 	assert.Equal(t, "id", u.Event.ID)
