@@ -1,3 +1,5 @@
+'use strict';
+
 document.forms.publish.onsubmit = function (e) {
     e.preventDefault();
     const { action, method, elements: { topics, data, targets, jwt, id, type, retry } } = this;

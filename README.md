@@ -1,39 +1,65 @@
-# Mercure: Server-Sent Live Updates
-> A Protocol and Implementation to Subscribe to Data Updates (especially useful for Web APIs)
+# Mercure, Server-Sent Live Updates
+*Protocol and Reference Implementation*
 
-Mercure is a protocol and a reference implementation allowing servers to push live data updates to clients in a fast,
-reliable and battery-efficient way.
-It is especially useful to push real-time updates of resources served through web APIs, including [hypermedia](https://en.wikipedia.org/wiki/HATEOAS) and [GraphQL](https://graphql.org/) APIs.
+Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a fast, reliable and battery-efficient way.
+It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
-Typical use cases:
+In addition to the full specification, a reference, production-grade implementation of **a Mercure server** (the hub) is provided in this repository. It is written in Go (golang) and is a free software licensed under the AGPL license.
+It also includes a library that can be used in any Go application to implement the Mercure protocol directly (without a hub).
 
-Availability display
+Mercure in a few words:
 
-* a Progressive Web App queries a REST API to retrieve product's details, including its availability: only one is still
+* native browser support, no lib nor SDK required (built on top of [server-sent events](https://www.smashingmagazine.com/2018/02/sse-websockets-data-flow-http2/))
+* compatible with all existing servers, even those who don't support persistent connections (serverless, PHP, FastCGI...)
+* builtin connection re-establishment and state reconciliation
+* [JWT](https://jwt.io/)-based authorization mechanism (securely dispatch an update to some selected subscribers)
+* performant, leverages [HTTP/2 multiplexing](https://developers.google.com/web/fundamentals/performance/http2/#request_and_response_multiplexing)
+* designed with [hypermedia in mind](https://en.wikipedia.org/wiki/HATEOAS), also supports [GraphQL](https://graphql.org/)
+* auto-discoverable through [web linking](https://tools.ietf.org/html/rfc5988)
+* message encryption support
+* can work with old browsers (IE7+) using an `EventSource` polyfill
+* [connection-less push](https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource-push) in controlled environments (e.g. browsers on mobile handsets tied to specific carriers)
+
+Example implementation of a client in JavaScript:
+
+```javascript
+// The subscriber subscribes to updates for the https://example.com/foo topic
+// and to any topic matching https://example.com/books/{name}
+const params = new URLSearchParams([
+    ['topic', 'https://example.com/foo'],
+    ['topic', 'https://example.com/books/{name}'],
+]);
+const eventSource = new EventSource(`https://hub.example.com?${params}`);
+
+// The callback will be called every time an update is published
+eventSource.on message = function ({data}) {
+    console.log(data);
+};
+```
+
+To dispatch an update (in any JS environment, including Node with the fetch polyfill):
+
+```javascript
+// ...
+```
+
+Example Use Cases:
+
+**Live Availability**
+
+* a Progressive Web App retrieves the availability status of a product form a REST API and displays it: only one is still
   available
-* after some minutes, the product is bought by another customer
-* we want the Progressive Web App to be instantly notified, and to refresh the view to show that this product isn't available
-  anymore
+* 3 minutes later, the last product is bought by another customer
+* the PWA's view instantly show that this product isn't available anymore
 
-Collaborative editing
+**Collaborative Editing**
 
-* a webapp allows several users to display and edit the same document through a form
-* we want the webapp to instantly display changes made to the document by other users without requiring a page reload
+* a webapp allows several users to edit the same document concurently
+* changes made are immediately broadcasted to all connected users
 
 **Mercure gets you covered!**
 
-Client-side, it uses [Server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events),
-thus is compatible with all modern browsers and can support older ones with a polyfill.
-It requires **no specific libraries or SDK** to receive updates pushes.
-
-Server-side, it is designed to be easy to use in any web application, including (but not limited to) the ones built using
-serverless architectures (Amazon Lambda like), (Fast)CGI scripts and PHP.
-
-Mercure also describes an authorization mechanism allowing to send updates only to a list of allowed clients.
-
-A fast and easy to use reference implementation (written in Go) is provided in this repository.
-
-## Protocol
+## Protocol Specification
 
 ### Terminology
 
@@ -55,11 +81,11 @@ Note: this relation type has not been [registered](https://tools.ietf.org/html/r
 
 The publisher MAY provide the following target attributes in the Link headers:
 
-* `jwt=<jwt-token>`: a valid JWT ([RFC7519](https://tools.ietf.org/html/rfc7519)) that will be used by the subscriber to be authorized by the hub (see the Authorization section). The JWT can also be transfered by the publisher to the subscriber using other off band channels including (but not limited too) OAuth 2.0 ([RFC6749](https://tools.ietf.org/html/rfc6749)).
-* `jwe-key=<encryption-key>`: an encryption key to decode the JWE data (see the Encryption section).
-* `content-type`: the content type of the updates that will pushed by the hub. If omited, the subscriber MUST assume that the content type will be the same than the one of the original resource.
+* `last-event-id`: the globally unique identifier of the last event dispatched by the publisher at the time of the generation of this resource. If provided, it must be passed to the hub through a query parameter called `Last-Event-ID` and will be used to ensure that possible updates having been made during between the resource generation time and the connection to the hub are not lost (see the connection re-establishment section). If this attribute is provided, the publisher MUST always set the `id` parameter when sending updates to the hub.
+* `content-type`: the content type of the updates that will pushed by the hub. If omited, the subscriber MUST assume that the content type will be the same than the one of the original resource. Setting the `content-type` attribute is especially useful to hint that partial updates will be pushed, using formats such as JSON Patch ([RFC6902](https://tools.ietf.org/html/rfc6902)) or JSON Merge Patch ([RFC7386](https://tools.ietf.org/html/rfc7386)).
+* `encryption-key=<key>`: the key to decrypt updates encode in the JWK format (see the Encryption section).
 
-Setting the `content-type` attribute is especially useful to hint that partial updates will be pushed, using formats such as JSON Patch ([RFC6902](https://tools.ietf.org/html/rfc6902)) or JSON Merge Patch ([RFC7386](https://tools.ietf.org/html/rfc7386)).
+All these attributes are not optional.
 
 The publisher MAY also include one Link Header [RFC5988] with `rel=self` (the self link header). It SHOULD contain the canonical URL for the topic to which subscribers are expected to use for subscriptions. If the Link with `rel=self` is ommitted, the current URL of the resource MUST be used as fallback.
 
@@ -76,25 +102,33 @@ Minimal example:
 
 Links embedded in HTML or XML documents (as defined in the WebSub recommendation) MAY also be supported by subscribers.
 
-This discovery mechanism [is similar to the one specified in the WebSub recommendation](https://www.w3.org/TR/websub/#discovery).
+Note: the discovery mechanism described in this section [is strongly inspired from the one specified in the WebSub recommendation](https://www.w3.org/TR/websub/#discovery).
 
 ### Subscriptions
 
 The subscriber subscribes to an URL exposed by a hub to receive updates of one or many topics.
-To subscribe to updates, the client opens an HTTPS connection following the [server-send
-event specification](https://html.spec.whatwg.org/multipage/server-sent-events.html) to the hub's subscription URL advertised
+To subscribe to updates, the client opens an HTTPS connection following the [Server-Sent Events specification](https://html.spec.whatwg.org/multipage/server-sent-events.html) to the hub's subscription URL advertised
 by the Publisher.
 The connection SHOULD use HTTP/2 to leverage mutliplexing and other advanced features of this protocol.
 
-It specifies the list of topics it wants to get updates for by using one or several query parameters named `topic`.
+The subscriber specifies the list of topics to get updates for by using one or several query parameters named `topic`.
 The value of these query parameters MUST be [URI templates (RFC6570)](https://tools.ietf.org/html/rfc6570).
 
 Note: an URL is also a valid URI template.
 
+The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub MAY apply an arbitrary limit.
+
+The [`EventSource` JavaScript interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface)
+MAY be used to establish the connection.
+Any other appropriate mechanism including but not limited to [readable streams](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API/Using_readable_streams) and [XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest) (used by popular polyfills) MAY
+also be used.
+
 The hub sends updates concerning all subscribed resources matching the provided URI templates.
 The hub MUST send these updates as [`text/event-stream` compliant events](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model).
 
-The `data` property MUST contain the new version of the topic (it can be the full resource, or contain only the changes since the last version when using format such as JSON Patch or JSON Merge Patch)
+The `data` property MUST contain the new version of the topic. It can be the full resource, or a partial update
+by using formats such as [JSON Patch](https://tools.ietf.org/html/rfc6902) or
+[JSON Merge Patch](https://tools.ietf.org/html/rfc7386)).
 
 All other properties defined in the Server-Sent Events specification MAY be used and SHOULD be supported by hubs.
 
@@ -104,50 +138,32 @@ The resource SHOULD be represented in a format with hypermedia capabilities such
 When using Atom, XML or HTML as serialization format for the resource, the document SHOULD contain a `link` element with a `self` relation containing the IRI of the resource.
 When using JSON-LD, the document SHOULD contain an `@id` property containing the IRI of the resource.
 
-The hub SHOULD support the other [optional capabilities defined in the Server Sent Event specification](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events).
-
-Namely, events MAY include an `id` key.
-The value associated to this `id` property SHOULD be a globally unique identifier.
-Using an [UUID](https://tools.ietf.org/html/rfc4122) is RECOMMENDED.
-
-According to the Server Sent Event specification, in case of connection lost the subscriber will try to automatically reconnect. During the reconnection the subscriber will send the last received event id in a [`Last-Event-Id`](https://html.spec.whatwg.org/multipage/iana.html#last-event-id) HTTP header .
-If such header exists, the hub MAY send to the subscriber all events published since the one having this identifier.
-It's a the hub CAN discard some messages for operational reasons. The subscriber MUST NOT assume that no message will be lost, and MUST re-fetch the original topic to ensure this (for instance, after a long deconnection).
-
-The hub MAY also specify the reconnection time using the `retry` key.
-
-Example implementation of a client in JavaScript:
+Example:
 
 ```javascript
-const params = new URLSearchParams();
 // The subscriber subscribes to updates for the https://example.com/foo topic
 // and to any topic matching https://example.com/books/{name}
-params.append('topic', 'https://example.com/foo');
-params.append('topic', 'https://example.com/books/{name}');
-
+const params = new URLSearchParams([
+    ['topic', 'https://example.com/foo'],
+    ['topic', 'https://example.com/books/{name}'],
+]);
 const eventSource = new EventSource(`https://hub.example.com?${params}`);
 
-// The following callaback will be called every time the Hub send an update 
+// The callback will be called every time an update is published
 eventSource.on message = function ({data}) {
     console.log(data);
 };
 ```
-
-The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub MAY apply a limit.
 
 ### Hub
 
 The hub receives updates from the publisher on a dedicated HTTPS endpoint.
 The connection MUST use an encryption layer, such as TLS. HTTPS certificate can be obtained for free using [Let's Encrypt](https://letsencrypt.org/).
 
-When it receives an update, the hub dispatches it to subsribers using the established server-sent event connections.
-
-Note: This repository provides a full, high performance, implementation of a hub that can be used directly.
+When it receives an update, the hub dispatches it to subsribers using the established server-sent events connections.
 
 An application CAN send events directly to the subscribers, without using an external hub server, if it is able to do so.
 In this case, it MAY not implement the endpoint to publish updates.
-
-Note: This repository also contains a library that can be used in Go application to implement the Mercure protocol.
 
 The endpoint to publish updates is an HTTPS URL accessed using the `POST` method.
 The request must be encoded using the `application/x-www-form-urlencoded` format and contains the following data:
@@ -171,8 +187,23 @@ Theirs values are `string`. They can be, for instance a user ID, or a list of gr
 To receive updates for private topics, the subscriber must send a cookie called `mercureAuthorization` when connecting
 to the hub.
 
-The value of this cookie MUST be a JWT token. It MUST have a claim named `mercureTargets` and containing
-an array of strings: the list of target the user is authorized to receive updates for.
+The cookie SHOULD be set by the publisher during the discovery. The cookie SHOULD have the `Secure`, `HttpOnly`.
+It MAY have the `SameSite` flag if appropriate. When skipping the discovery mechanism, the client
+MAY set the cookie itself.
+
+Consequently if the subscriber is a web browser, both the publisher and the hub have to share the
+same second level domain to use the autorization feature. The `Domain` flag MAY be used to allow the publisher
+and the host to use different subdomains.
+
+By the `EventSource` specification, connections can only be estabilished using the `GET` HTTP method,
+and it is not possible to set custom HTTP headers (such as the `Authorization` one).
+
+However, cookies are supported, and can be included even in crossdomain requests if [the CORS credentials are set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials):
+
+The value of this cookie MUST be a JWT token. It MUST have a claim named `mercureTargets` that contains
+an array of strings: the list of targets the user is authorized to receive updates for.
+For instance, valid targets can be a username or a list of group identifiers.
+The JWT token SHOULD be short lived, especially if the subscriber is a web browser.
 
 If one or more targets are specified, the update MUST NOT be sent to the subscriber by the hub, unless the `mercureTargets`
 claim of the subscriber contains at least one target specified for the topic by the publisher. 
@@ -180,14 +211,38 @@ claim of the subscriber contains at least one target specified for the topic by 
 When using the authorization mechanism, the connection between the subscriber and the hub MUST use an encryption layer (HTTPS
 is required).
 
-By the specification, server-sent events connection can only be executed with the `GET` HTTP method, and it is not possible to set
-custom HTTP headers (such as the `Authorization` one).
+### Re-Connection and State Reconciliation
 
-However, cookies are supported, and can be included even in crossdomain requests if [the CORS credentials are set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials):
+To allow re-establisment in case of connection lost, events dispatched by the hub SHOULD include an `id` property.
+The value contained in this `id` property SHOULD be a globally unique identifier.
+To do so, [UUID](https://tools.ietf.org/html/rfc4122) MAY be used.
 
-```javascript
-const eventSource = new EventSource(`https://hub.example.com?${params}`, { withCredentials: true });
-```
+According to the server-sent events specification, in case of connection lost the subscriber will try to automatically reconnect. During the reconnection the subscriber MUST send the last received event id in a [`Last-Event-ID`](https://html.spec.whatwg.org/multipage/iana.html#last-event-id) HTTP header.
+
+The server-sent events specification doesn't allow to set this HTTP header during the first connection (before a re-connection occurs).
+In order to fetch any update dispatched between the initial resource generation by the publisher and the connection to he hub,
+the subscriber MUST send the event id provided during the discovery in the `last-event-id` link's attribute in a query parameter named `Last-Event-ID` when connecting to the hub.
+
+If both the `Last-Event-ID` HTTP header and the query parameter are present, the HTTP header MUST take precedence.
+
+If the `Last-Event-ID` header or query parameter exists, the hub SHOULD send to the subscriber all events published since the one having this identifier.
+
+The hub MAY discard some messages for operational reasons. The subscriber MUST NOT assume that no update will be lost, and MUST re-fetch the original topic to ensure this (for instance, after a long deconnection time).
+
+The hub MAY also specify the reconnection time using the `retry` key, as specified in the server-sent events format.
+
+### Encryption
+
+Using HTTPS doesn't prevent the hub to access to the update's content.
+Depending of the intended privacy of informations contained in the updates, it MAY be necessary to prevent eavesdropping by the hub.
+
+To make sure that the message content can not be read by the hub, the publisher MAY encode the message before sending it to the hub.
+The publisher SHOULD use the [JSON Web Encryption, (JWE, RFC7516)](https://tools.ietf.org/html/rfc7516) to encrypt the update content.
+The publisher MAY provide the relevant encryption key (it may be a shared secret or a private key) in the `encryption-key` attribute of the Link HTTP header during the discovery. The `encryption-key` attribute SHOULD contain a key encoded using the [JSON Web Key (JWK, RFC7517](https://tools.ietf.org/html/rfc7517) format.
+Any other out-of-band mechanism MAY be used instead to share the key between the publisher and the subscriber.
+
+Updates encyption is considered a best practice to prevent mass surveillance.
+This is especially relevant if the hub is managed by an external provider.
 
 ## The Hub Implementation
 
@@ -199,6 +254,12 @@ Environment variables:
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
 * `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
+
+## Resources
+
+* [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
+* [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
+* [`Server-sent events` client (and server) for Go](https://github.com/donovanhide/eventsource)
 
 ## Contributing
 
