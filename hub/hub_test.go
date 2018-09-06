@@ -8,10 +8,9 @@ import (
 )
 
 func TestNewHub(t *testing.T) {
-	h := NewHub([]byte("publisher"), []byte("subscriber"), false)
+	h := createDummy()
 
-	assert.Equal(t, []byte("publisher"), h.publisherJWTKey)
-	assert.Equal(t, []byte("subscriber"), h.subscriberJWTKey)
+	assert.IsType(t, &Options{}, h.options)
 	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.newSubscribers)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.removedSubscribers)
@@ -19,19 +18,19 @@ func TestNewHub(t *testing.T) {
 }
 
 func createDummy() *Hub {
-	return NewHub([]byte("publisher"), []byte("subscriber"), false)
+	return NewHub(&Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
 }
 
 func createAnonymousDummy() *Hub {
-	return NewHub([]byte("publisher"), []byte("subscriber"), true)
+	return NewHub(&Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), AllowAnonymous: true})
 }
 
 func createDummyAuthorizedJWT(h *Hub, publisher bool) string {
 	var key []byte
 	if publisher {
-		key = h.publisherJWTKey
+		key = h.options.PublisherJWTKey
 	} else {
-		key = h.subscriberJWTKey
+		key = h.options.SubscriberJWTKey
 	}
 
 	token := jwt.New(jwt.SigningMethodHS256)
@@ -44,7 +43,7 @@ func createDummyAuthorizedJWTWithTargets(h *Hub, targets []string) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Claims = &claims{targets, jwt.StandardClaims{}}
 
-	tokenString, _ := token.SignedString(h.subscriberJWTKey)
+	tokenString, _ := token.SignedString(h.options.SubscriberJWTKey)
 
 	return tokenString
 }

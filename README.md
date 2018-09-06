@@ -83,7 +83,7 @@ The publisher MAY provide the following target attributes in the Link headers:
 
 * `last-event-id`: the globally unique identifier of the last event dispatched by the publisher at the time of the generation of this resource. If provided, it must be passed to the hub through a query parameter called `Last-Event-ID` and will be used to ensure that possible updates having been made during between the resource generation time and the connection to the hub are not lost (see the connection re-establishment section). If this attribute is provided, the publisher MUST always set the `id` parameter when sending updates to the hub.
 * `content-type`: the content type of the updates that will pushed by the hub. If omited, the subscriber MUST assume that the content type will be the same than the one of the original resource. Setting the `content-type` attribute is especially useful to hint that partial updates will be pushed, using formats such as JSON Patch ([RFC6902](https://tools.ietf.org/html/rfc6902)) or JSON Merge Patch ([RFC7386](https://tools.ietf.org/html/rfc7386)).
-* `encryption-key=<key>`: the key to decrypt updates encode in the JWK format (see the Encryption section).
+* `key-set=<JWKS>`: the key(s) to decrypt updates encode in the JWKS (JSON Web Key Set) format (see the Encryption section).
 
 All these attributes are not optional.
 
@@ -175,8 +175,7 @@ The request must be encoded using the `application/x-www-form-urlencoded` format
 * `type` (optional): the SSE's `event` property (a specific event type)
 * `retry` (optional): the SSE's `retry` property (the reconnection time)
 
-The request MUST also contain an `Authorization` HTTP header containing the string `Bearer ` followed by a valid [JWT token
-(RFC7519)](https://tools.ietf.org/html/rfc7519) that the hub will check to ensure that the publisher is authorized to publish
+The request MUST also contain an `Authorization` HTTP header containing the string `Bearer ` followed by a valid [JWS (RFC7515)](https://tools.ietf.org/html/rfc7515) in compact serialization that the hub will check to ensure that the publisher is authorized to publish
 the update.
 
 ## Authorization
@@ -200,10 +199,10 @@ and it is not possible to set custom HTTP headers (such as the `Authorization` o
 
 However, cookies are supported, and can be included even in crossdomain requests if [the CORS credentials are set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials):
 
-The value of this cookie MUST be a JWT token. It MUST have a claim named `mercureTargets` that contains
+The value of this cookie MUST be a JWS in compact serialization. It MUST have a claim named `mercureTargets` that contains
 an array of strings: the list of targets the user is authorized to receive updates for.
 For instance, valid targets can be a username or a list of group identifiers.
-The JWT token SHOULD be short lived, especially if the subscriber is a web browser.
+The JWS SHOULD be short lived, especially if the subscriber is a web browser.
 
 If one or more targets are specified, the update MUST NOT be sent to the subscriber by the hub, unless the `mercureTargets`
 claim of the subscriber contains at least one target specified for the topic by the publisher. 
@@ -237,8 +236,8 @@ Using HTTPS doesn't prevent the hub to access to the update's content.
 Depending of the intended privacy of informations contained in the updates, it MAY be necessary to prevent eavesdropping by the hub.
 
 To make sure that the message content can not be read by the hub, the publisher MAY encode the message before sending it to the hub.
-The publisher SHOULD use the [JSON Web Encryption, (JWE, RFC7516)](https://tools.ietf.org/html/rfc7516) to encrypt the update content.
-The publisher MAY provide the relevant encryption key (it may be a shared secret or a private key) in the `encryption-key` attribute of the Link HTTP header during the discovery. The `encryption-key` attribute SHOULD contain a key encoded using the [JSON Web Key (JWK, RFC7517](https://tools.ietf.org/html/rfc7517) format.
+The publisher SHOULD use [JSON Web Encryption, (JWE, RFC7516)](https://tools.ietf.org/html/rfc7516) to encrypt the update content.
+The publisher MAY provide the relevant encryption key(s) in the `key-set` attribute of the Link HTTP header during the discovery. The `key-set` attribute SHOULD contain a key encoded using the [JSON Web Key Set (JWKS, RFC7517](https://tools.ietf.org/html/rfc7517) format.
 Any other out-of-band mechanism MAY be used instead to share the key between the publisher and the subscriber.
 
 Updates encyption is considered a best practice to prevent mass surveillance.
@@ -257,6 +256,7 @@ Environment variables:
 
 ## Resources
 
+* [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
 * [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [`Server-sent events` client (and server) for Go](https://github.com/donovanhide/eventsource)

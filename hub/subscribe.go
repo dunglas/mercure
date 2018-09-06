@@ -31,7 +31,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-	} else if !h.allowAnonymous {
+	} else if !h.options.AllowAnonymous {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -93,7 +93,7 @@ func (h *Hub) extractTargets(encodedToken string) ([]string, bool) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
-		return h.subscriberJWTKey, nil
+		return h.options.SubscriberJWTKey, nil
 	})
 
 	if err != nil {

@@ -1,6 +1,8 @@
 package hub
 
-import "log"
+import (
+	"log"
+)
 
 type serializedUpdate struct {
 	update *Update
@@ -13,21 +15,27 @@ func newSerializedUpdate(u *Update) *serializedUpdate {
 
 // Hub stores channels with clients currently subcribed
 type Hub struct {
-	publisherJWTKey    []byte
-	subscriberJWTKey   []byte
-	allowAnonymous     bool
+	options            *Options
 	subscribers        map[chan *serializedUpdate]struct{}
 	newSubscribers     chan chan *serializedUpdate
 	removedSubscribers chan chan *serializedUpdate
 	updates            chan *serializedUpdate
 }
 
+// NewHubFromEnv creates a hub fusing the configuration set in env vars
+func NewHubFromEnv() (*Hub, error) {
+	options, err := NewOptionsFromEnv()
+	if err != nil {
+		return nil, err
+	}
+
+	return NewHub(options), nil
+}
+
 // NewHub creates a hub
-func NewHub(publisherJWTKey, subscriberJWTKey []byte, allowAnonymous bool) *Hub {
+func NewHub(options *Options) *Hub {
 	return &Hub{
-		publisherJWTKey,
-		subscriberJWTKey,
-		allowAnonymous,
+		options,
 		make(map[chan *serializedUpdate]struct{}),
 		make(chan (chan *serializedUpdate)),
 		make(chan (chan *serializedUpdate)),
@@ -57,7 +65,7 @@ func (h *Hub) Start() {
 					}
 				}
 				if ok {
-					log.Printf("Broadcast topics \"%s\".", serializedUpdate.update.Topics)
+					log.Printf("Broadcasted topics %s", serializedUpdate.update.Topics)
 				} else {
 					return
 				}
