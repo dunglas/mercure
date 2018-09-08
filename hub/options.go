@@ -12,26 +12,29 @@ type Options struct {
 	PublisherJWTKey    []byte
 	SubscriberJWTKey   []byte
 	AllowAnonymous     bool
-	Addr               string
 	CorsAllowedOrigins []string
+	Addr               string
+	AcmeHosts          []string
+	AcmeCertDir        string
+	CertFile           string
+	KeyFile            string
 	Demo               bool
 }
 
 // NewOptionsFromEnv creates a new option instance from environment
 // It return an error if mandatory env env vars are missing
 func NewOptionsFromEnv() (*Options, error) {
-	listen := os.Getenv("ADDR")
-	if listen == "" {
-		listen = ":80"
-	}
-
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
 		[]byte(os.Getenv("PUBLISHER_JWT_KEY")),
 		[]byte(os.Getenv("SUBSCRIBER_JWT_KEY")),
 		os.Getenv("ALLOW_ANONYMOUS") == "1",
-		listen,
-		strings.Split(os.Getenv("CORS_ALLOWED_ORIGINS"), ","),
+		splitVar(os.Getenv("CORS_ALLOWED_ORIGINS")),
+		os.Getenv("ADDR"),
+		splitVar(os.Getenv("ACME_HOSTS")),
+		os.Getenv("ACME_CERT_DIR"),
+		os.Getenv("CERT_FILE"),
+		os.Getenv("KEY_FILE"),
 		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",
 	}
 
@@ -48,4 +51,12 @@ func NewOptionsFromEnv() (*Options, error) {
 	}
 
 	return options, nil
+}
+
+func splitVar(v string) []string {
+	if v == "" {
+		return []string{}
+	}
+
+	return strings.Split(v, ",")
 }

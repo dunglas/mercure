@@ -13,8 +13,12 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"PUBLISHER_JWT_KEY":    "foo",
 		"SUBSCRIBER_JWT_KEY":   "bar",
 		"ALLOW_ANONYMOUS":      "1",
-		"ADDR":                 "127.0.0.1:8080",
 		"CORS_ALLOWED_ORIGINS": "*",
+		"ADDR":                 "127.0.0.1:8080",
+		"ACME_HOSTS":           "example.com,example.org",
+		"ACME_CERT_DIR":        "/tmp",
+		"CERT_FILE":            "foo",
+		"KEY_FILE":             "bar",
 		"DEMO":                 "1",
 	}
 	for k, v := range testEnv {
@@ -28,8 +32,12 @@ func TestNewOptionsFormNew(t *testing.T) {
 		[]byte("foo"),
 		[]byte("bar"),
 		true,
-		"127.0.0.1:8080",
 		[]string{"*"},
+		"127.0.0.1:8080",
+		[]string{"example.com", "example.org"},
+		"/tmp",
+		"foo",
+		"bar",
 		true,
 	}, options)
 	assert.Nil(t, err)

@@ -249,11 +249,18 @@ Environment variables:
 
 * `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT
 * `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT
-* `CORS_ALLOWED_ORIGINS`: must contain a comma separated list of hosts allowed to subscribe
+* `CORS_ALLOWED_ORIGINS`: a comma separated list of hosts allowed CORS origins
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
 * `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
 * `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
+* `ACME_HOSTS`: a comma separated list of host for which Let's Encrypt certificates must be issues
+* `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
+* `CERT_FILE`: a cert file (to use a custom certificate)
+* `CERT_KEY`: a cert key (to use a custom certificate)
+
+If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
+If not, an HTTP server will be started (**not secure**).
 
 ## Resources
 
