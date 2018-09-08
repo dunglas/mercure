@@ -47,7 +47,7 @@ Example Use Cases:
 
 **Live Availability**
 
-* a Progressive Web App retrieves the availability status of a product form a REST API and displays it: only one is still
+* a Progressive Web App retrieves the availability status of a product from a REST API and displays it: only one is still
   available
 * 3 minutes later, the last product is bought by another customer
 * the PWA's view instantly show that this product isn't available anymore
@@ -253,6 +253,7 @@ Environment variables:
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
 * `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
+* `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 
 ## Resources
 
@@ -267,17 +268,17 @@ Clone the project:
 
     $ git clone https://github.com/dunglas/mercure
     
-Install Gin to get the Live Reloading:
+Install Gin for Live Reloading:
 
     $ go get github.com/codegangsta/gin
 
 Install the dependencies:
 
     $ cd mercure
-    $ dep ensure
+    $ go get
 
 Run the server:
 
     $ gin run main.go
 
-Go to `http://localhost:3001` and enjoy!
+Go to `http://localhost:3000` and enjoy!

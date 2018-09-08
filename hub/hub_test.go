@@ -18,11 +18,11 @@ func TestNewHub(t *testing.T) {
 }
 
 func createDummy() *Hub {
-	return NewHub(&Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
+	return NewHub(&NoHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
 }
 
 func createAnonymousDummy() *Hub {
-	return NewHub(&Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), AllowAnonymous: true})
+	return NewHub(&NoHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), AllowAnonymous: true})
 }
 
 func createDummyAuthorizedJWT(h *Hub, publisher bool) string {

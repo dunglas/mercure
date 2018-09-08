@@ -10,4 +10,5 @@ require (
 	github.com/stretchr/objx v0.1.1
 	github.com/stretchr/testify v1.2.2
 	github.com/yosida95/uritemplate v0.0.0-20170413134207-5c22f358020b
+	go.etcd.io/bbolt v1.3.0
 )

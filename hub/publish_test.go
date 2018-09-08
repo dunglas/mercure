@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -104,7 +105,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 	assert.Equal(t, "Invalid \"retry\" parameter\n", w.Body.String())
 }
 
-func TestPublishOk(t *testing.T) {
+func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 
 	var wg sync.WaitGroup
@@ -114,11 +115,11 @@ func TestPublishOk(t *testing.T) {
 		for {
 			select {
 			case u := <-hub.updates:
-				assert.Equal(t, "id", u.update.ID)
-				assert.Equal(t, []string{"http://example.com/books/1"}, u.update.Topics)
-				assert.Equal(t, "Hello!", u.update.Data)
-				assert.Equal(t, struct{}{}, u.update.Targets["foo"])
-				assert.Equal(t, struct{}{}, u.update.Targets["bar"])
+				assert.Equal(t, "id", u.ID)
+				assert.Equal(t, []string{"http://example.com/books/1"}, u.Topics)
+				assert.Equal(t, "Hello!", u.Data)
+				assert.Equal(t, struct{}{}, u.Targets["foo"])
+				assert.Equal(t, struct{}{}, u.Targets["bar"])
 				return
 			}
 		}
@@ -130,6 +131,39 @@ func TestPublishOk(t *testing.T) {
 	form.Add("data", "Hello!")
 	form.Add("target", "foo")
 	form.Add("target", "bar")
+
+	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
+	req.Form = form
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	wg.Wait()
+}
+
+func TestPublishGenerateUUID(t *testing.T) {
+	hub := createDummy()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(w *sync.WaitGroup) {
+		defer w.Done()
+		for {
+			select {
+			case u := <-hub.updates:
+				_, err := uuid.FromString(u.ID)
+				assert.Nil(t, err)
+				return
+			}
+		}
+	}((&wg))
+
+	form := url.Values{}
+	form.Add("topic", "http://example.com/books/1")
+	form.Add("data", "Hello!")
 
 	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))

@@ -52,8 +52,18 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	u := &Update{
+		Targets: targets,
+		Topics:  topics,
+		Event:   NewEvent(data, r.Form.Get("id"), r.Form.Get("type"), retry),
+	}
+
+	if err := h.history.Add(u); err != nil {
+		panic(err)
+	}
+
 	// Broadcast the update
-	h.updates <- newSerializedUpdate(NewUpdate(topics, targets, data, r.Form.Get("id"), r.Form.Get("type"), retry))
+	h.updates <- newSerializedUpdate(u)
 }
 
 // Checks the validity of the JWT

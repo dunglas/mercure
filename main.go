@@ -2,19 +2,27 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/dunglas/mercure/hub"
 	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {
-	hub, err := hub.NewHubFromEnv()
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
+	db, err := hub.NewBoltFromEnv()
+	exitOnError(err)
+	defer db.Close()
+
+	hub, err := hub.NewHubFromEnv(&hub.BoltHistory{DB: db})
+	exitOnError(err)
 
 	hub.Start()
 	hub.Serve()
+}
+
+func exitOnError(err error) {
+	if err == nil {
+		return
+	}
+
+	log.Fatal(err)
 }

@@ -19,9 +19,7 @@ type claims struct {
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	f, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		log.Panic("The Reponse Writter must be an instance of Flusher.")
-		return
+		panic("The Reponse Writter must be an instance of Flusher.")
 	}
 
 	targets := []string{}
@@ -55,6 +53,9 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s connected.", r.RemoteAddr)
 	sendHeaders(w)
 
+	h.sendMissedEvents(w, r, targets, regexps)
+	f.Flush()
+
 	// Create a new channel, over which the hub can send can send updates to this subscriber.
 	updateChan := make(chan *serializedUpdate)
 
@@ -77,12 +78,11 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Check authorization
-		if !isAuthorized(targets, serializedUpdate.update.Targets) || !isSubscribedToUpdate(regexps, serializedUpdate.update.Topics) {
+		if !CanDispatch(serializedUpdate.Update, targets, regexps) {
 			continue
 		}
 
 		fmt.Fprint(w, serializedUpdate.event)
-
 		f.Flush()
 	}
 }
@@ -124,6 +124,28 @@ func sendHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Accel-Buffering", "no")
 }
 
+func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, targets []string, topics []*regexp.Regexp) {
+	lastEventID := r.Header.Get("Last-Event-ID")
+	if lastEventID == "" {
+		lastEventID = r.URL.Query().Get("Last-Event-ID")
+	}
+	if lastEventID == "" {
+		return
+	}
+
+	if err := h.history.Find(lastEventID, targets, topics, func(u *Update) bool {
+		fmt.Fprint(w, u.String())
+		return true
+	}); err != nil {
+		panic(err)
+	}
+}
+
+// CanDispatch checks if the update can be dispatched according to the given criterias
+func CanDispatch(update *Update, subscriberTargets []string, subsriberTopics []*regexp.Regexp) bool {
+	return isAuthorized(subscriberTargets, update.Targets) && isSubscribedToUpdate(subsriberTopics, update.Topics)
+}
+
 // isAuthorized checks if the subscriber can access to at least one of the update's intended targets
 func isAuthorized(subscriberTargets []string, updateTargets map[string]struct{}) bool {
 	if len(updateTargets) == 0 {
@@ -140,11 +162,11 @@ func isAuthorized(subscriberTargets []string, updateTargets map[string]struct{})
 }
 
 // isSubscribedToUpdate checks if the subscriber has subscribed to this update
-func isSubscribedToUpdate(regexps []*regexp.Regexp, topics []string) bool {
+func isSubscribedToUpdate(subscriberTopics []*regexp.Regexp, updateTopics []string) bool {
 	// Add a global cache here
-	for _, r := range regexps {
-		for _, t := range topics {
-			if r.MatchString(t) {
+	for _, st := range subscriberTopics {
+		for _, ut := range updateTopics {
+			if st.MatchString(ut) {
 				return true
 			}
 		}
