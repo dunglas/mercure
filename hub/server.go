@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"crypto/tls"
 	"log"
 	"net/http"
 	"os"
@@ -38,8 +37,8 @@ func (h *Hub) Serve() {
 	acme := len(h.options.AcmeHosts) > 0
 	var err error
 
-	log.Printf("Mercure is starting...")
-	if !acme || (h.options.CertFile == "" && h.options.KeyFile == "") {
+	if !acme && h.options.CertFile == "" && h.options.KeyFile == "" {
+		log.Printf("Mercure is starting (http)...")
 		err = srv.ListenAndServe()
 	} else {
 		// TLS
@@ -51,10 +50,13 @@ func (h *Hub) Serve() {
 			if h.options.AcmeCertDir != "" {
 				certManager.Cache = autocert.DirCache(h.options.AcmeCertDir)
 			}
+			srv.TLSConfig = certManager.TLSConfig()
 
-			srv.TLSConfig = &tls.Config{GetCertificate: certManager.GetCertificate}
+			// Mandatory for Let's Encrypt http-01 challenge
+			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 		}
 
+		log.Printf("Mercure is starting (https)...")
 		err = srv.ListenAndServeTLS(h.options.CertFile, h.options.KeyFile)
 	}
 
