@@ -245,7 +245,27 @@ This is especially relevant if the hub is managed by an external provider.
 
 ## The Hub Implementation
 
-Environment variables:
+### Usage
+
+#### Prebuilt Binary
+
+Grab a binary from the release page and run:
+
+    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ACME_HOSTS=example.com ./mercure 
+
+The ACME_HOSTS environment variable allows to use Let's Encrypt to expose a valid SSL certificate.
+If you omit this variable, the server will be exposed on an (unsecure) HTTP connection.
+
+#### Docker
+
+A Docker image is available on Docker Hub. The following command is enough to get a working server:
+
+    docker run \
+        -e PUBLISHER_JWT_KEY=myPublisherKey -e SUBSCRIBER_JWT_KEY=mySubcriberKey -e ACME_HOSTS=example.com \
+        -p 80:80 -p 443:443 \
+        dunglas/mercure
+
+### Environment Variables
 
 * `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT
 * `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT
