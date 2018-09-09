@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/gorilla/handlers"
+	"github.com/unrolled/secure"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -85,7 +86,17 @@ func (h *Hub) chainHandlers() http.Handler {
 	}
 	http.Handle("/subscribe", s)
 
-	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, http.DefaultServeMux)
+	secureMiddleware := secure.New(secure.Options{
+		IsDevelopment:         h.options.Debug,
+		AllowedHosts:          h.options.AcmeHosts,
+		FrameDeny:             true,
+		ContentTypeNosniff:    true,
+		BrowserXssFilter:      true,
+		ContentSecurityPolicy: "script-src $NONCE",
+	})
+
+	secureHandler := secureMiddleware.Handler(http.DefaultServeMux)
+	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(handlers.PrintRecoveryStack(h.options.Debug))(loggingHandler)
 
 	return recoveryHandler
