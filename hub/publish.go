@@ -58,10 +58,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		Event:   NewEvent(data, r.Form.Get("id"), r.Form.Get("type"), retry),
 	}
 
-	if err := h.history.Add(u); err != nil {
-		panic(err)
-	}
-
 	// Broadcast the update
 	h.updates <- newSerializedUpdate(u)
 }

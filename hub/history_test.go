@@ -34,7 +34,7 @@ func TestBoltHistory(t *testing.T) {
 	assert.Implements(t, (*History)(nil), h)
 
 	count := 0
-	assert.Nil(t, h.Find("", []string{}, []*regexp.Regexp{}, func(*Update) bool {
+	assert.Nil(t, h.FindFor(&Subscriber{[]string{}, []*regexp.Regexp{}, ""}, func(*Update) bool {
 		count++
 		return true
 	}))
@@ -67,10 +67,12 @@ func TestBoltHistory(t *testing.T) {
 		Event:   Event{Data: "should not be called"},
 	}))
 
-	h.Find(
-		"first",
-		[]string{"foo"},
-		[]*regexp.Regexp{regexp.MustCompile(`^http:\/\/example\.com\/alt\/3$`)},
+	h.FindFor(
+		&Subscriber{
+			[]string{"foo"},
+			[]*regexp.Regexp{regexp.MustCompile(`^http:\/\/example\.com\/alt\/3$`)},
+			"first",
+		},
 		func(u *Update) bool {
 			count++
 

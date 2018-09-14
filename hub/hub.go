@@ -59,6 +59,12 @@ func (h *Hub) Start() {
 				close(s)
 
 			case serializedUpdate, ok := <-h.updates:
+				if ok {
+					if err := h.history.Add(serializedUpdate.Update); err != nil {
+						panic(err)
+					}
+				}
+
 				for s := range h.subscribers {
 					if ok {
 						s <- serializedUpdate

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"os"
-	"regexp"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -19,7 +18,7 @@ type History interface {
 
 	// Find retrieves updates pushed since the provided Last-Event-ID matching both the provided topics and targets
 	// The onItem func will be called for every retrieved item, if its return value is false, Find will stop
-	Find(lastEventID string, targets []string, topics []*regexp.Regexp, onItem func(*Update) bool) error
+	FindFor(subscriber *Subscriber, onItem func(*Update) bool) error
 }
 
 // NoHistory implements the History interface but does nothing
@@ -31,8 +30,8 @@ func (*NoHistory) Add(*Update) error {
 	return nil
 }
 
-// Find does nothing
-func (*NoHistory) Find(lastEventID string, targets []string, topics []*regexp.Regexp, onItem func(*Update) bool) error {
+// FindFor does nothing
+func (*NoHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
 	return nil
 }
 
@@ -83,8 +82,8 @@ func (b *BoltHistory) Add(update *Update) error {
 	})
 }
 
-// Find searches in the local bolt DB
-func (b *BoltHistory) Find(lastEventID string, targets []string, topics []*regexp.Regexp, onItem func(*Update) bool) error {
+// FindFor searches in the local bolt DB
+func (b *BoltHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
 	b.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
@@ -96,7 +95,7 @@ func (b *BoltHistory) Find(lastEventID string, targets []string, topics []*regex
 		afterLastEventID := false
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if !afterLastEventID {
-				if string(k[8:]) == lastEventID {
+				if string(k[8:]) == subscriber.LastEventID {
 					afterLastEventID = true
 				}
 
@@ -108,7 +107,7 @@ func (b *BoltHistory) Find(lastEventID string, targets []string, topics []*regex
 				return err
 			}
 
-			if CanDispatch(&update, targets, topics) && !onItem(&update) {
+			if subscriber.CanReceive(&update) && !onItem(&update) {
 				return nil
 			}
 		}

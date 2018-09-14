@@ -92,7 +92,7 @@ func (h *Hub) chainHandlers() http.Handler {
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
 		BrowserXssFilter:      true,
-		ContentSecurityPolicy: "script-src $NONCE",
+		ContentSecurityPolicy: "default-src 'self'",
 	})
 
 	secureHandler := secureMiddleware.Handler(http.DefaultServeMux)
