@@ -2,11 +2,11 @@ package hub
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
 )
 
 // PublishHandler allows publisher to broadcast updates to all subscribers
@@ -60,6 +60,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast the update
 	h.updates <- newSerializedUpdate(u)
+	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Event published")
 }
 
 // Checks the validity of the JWT
@@ -69,7 +70,6 @@ func (h *Hub) isAuthorizationValid(authorizationHeader string) bool {
 	}
 
 	token, _ := jwt.Parse(authorizationHeader[7:], func(token *jwt.Token) (interface{}, error) {
-		log.Println(token.Header["alg"])
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}

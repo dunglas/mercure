@@ -2,11 +2,11 @@ package hub
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
 )
 
@@ -50,7 +50,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		regexps[index] = tpl.Regexp()
 	}
 
-	log.Printf("%s connected.", r.RemoteAddr)
+	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("New subscriber")
 	sendHeaders(w)
 
 	subscriber := &Subscriber{targets, regexps, retrieveLastEventID(r)}
@@ -72,7 +72,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		<-notify
 		h.removedSubscribers <- updateChan
-		log.Printf("%s disconnected.", r.RemoteAddr)
+		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("Subscriber disconnected")
 	}()
 
 	for {
@@ -87,6 +87,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		fmt.Fprint(w, serializedUpdate.event)
+		log.WithFields(log.Fields{
+			"event_id":    serializedUpdate.ID,
+			"remote_addr": r.RemoteAddr,
+		}).Info("Event sent")
 		f.Flush()
 	}
 }
@@ -139,6 +143,11 @@ func retrieveLastEventID(r *http.Request) string {
 func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscriber) {
 	if err := h.history.FindFor(s, func(u *Update) bool {
 		fmt.Fprint(w, u.String())
+		log.WithFields(log.Fields{
+			"event_id":      u.ID,
+			"last_event_id": s.LastEventID,
+			"remote_addr":   r.RemoteAddr,
+		}).Info("Event sent")
 		return true
 	}); err != nil {
 		panic(err)

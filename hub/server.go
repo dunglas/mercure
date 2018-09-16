@@ -2,12 +2,12 @@ package hub
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 
 	"github.com/gorilla/handlers"
+	log "github.com/sirupsen/logrus"
 	"github.com/unrolled/secure"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -29,9 +29,9 @@ func (h *Hub) Serve() {
 		<-sigint
 
 		if err := srv.Shutdown(context.Background()); err != nil {
-			log.Println(err)
+			log.Error(err)
 		}
-		log.Println("My Baby Shot Me Down")
+		log.Infoln("My Baby Shot Me Down")
 		close(idleConnsClosed)
 	}()
 
@@ -39,7 +39,7 @@ func (h *Hub) Serve() {
 	var err error
 
 	if !acme && h.options.CertFile == "" && h.options.KeyFile == "" {
-		log.Printf("Mercure is starting (http)...")
+		log.WithFields(log.Fields{"protocol": "http"}).Info("Mercure started")
 		err = srv.ListenAndServe()
 	} else {
 		// TLS
@@ -57,12 +57,12 @@ func (h *Hub) Serve() {
 			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 		}
 
-		log.Printf("Mercure is starting (https)...")
+		log.WithFields(log.Fields{"protocol": "https"}).Info("Mercure started")
 		err = srv.ListenAndServeTLS(h.options.CertFile, h.options.KeyFile)
 	}
 
 	if err != http.ErrServerClosed {
-		log.Println(err)
+		log.Error(err)
 	}
 
 	<-idleConnsClosed
@@ -95,9 +95,13 @@ func (h *Hub) chainHandlers() http.Handler {
 		ContentSecurityPolicy: "default-src 'self'",
 	})
 
-	secureHandler := secureMiddleware.Handler(http.DefaultServeMux)
+	compressHandler := handlers.CompressHandler(http.DefaultServeMux)
+	secureHandler := secureMiddleware.Handler(compressHandler)
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
-	recoveryHandler := handlers.RecoveryHandler(handlers.PrintRecoveryStack(h.options.Debug))(loggingHandler)
+	recoveryHandler := handlers.RecoveryHandler(
+		handlers.RecoveryLogger(log.New()),
+		handlers.PrintRecoveryStack(h.options.Debug),
+	)(loggingHandler)
 
 	return recoveryHandler
 }

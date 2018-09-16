@@ -26,11 +26,14 @@ document.forms.subscribe.onsubmit = function (e) {
     e.preventDefault();
     eventSource && eventSource.close();
 
-    const { elements: { topics, jwt } } = this;
+    const { elements: { topics, jwt, lastEventId } } = this;
 
     const topicList = topics.value.split("\n");
     const params = new URLSearchParams();
     topicList.forEach(topic => params.append('topic', topic));
+    if (lastEventId) {
+        params.append('Last-Event-ID', lastEventId.value);
+    }
 
     jwt.value ? document.cookie = `mercureAuthorization=${encodeURIComponent(jwt.value)}` : deleteCookie();
 

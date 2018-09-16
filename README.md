@@ -278,6 +278,7 @@ A Docker image is available on Docker Hub. The following command is enough to ge
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
 * `CERT_FILE`: a cert file (to use a custom certificate)
 * `CERT_KEY`: a cert key (to use a custom certificate)
+* `LOG_FORMAT`: the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)
 
 If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).

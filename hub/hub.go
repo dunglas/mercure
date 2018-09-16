@@ -1,9 +1,5 @@
 package hub
 
-import (
-	"log"
-)
-
 type serializedUpdate struct {
 	*Update
 	event string
@@ -72,9 +68,7 @@ func (h *Hub) Start() {
 						close(s)
 					}
 				}
-				if ok {
-					log.Printf("Broadcasted topic %s", serializedUpdate.Topics)
-				} else {
+				if !ok {
 					return
 				}
 			}
