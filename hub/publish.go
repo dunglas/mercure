@@ -60,7 +60,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast the update
 	h.updates <- newSerializedUpdate(u)
-	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Event published")
+	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Update published")
 }
 
 // Checks the validity of the JWT

@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testAddr = "127.0.0.1:4242"
+
 func TestNewHub(t *testing.T) {
 	h := createDummy()
 
@@ -22,7 +24,12 @@ func createDummy() *Hub {
 }
 
 func createAnonymousDummy() *Hub {
-	return NewHub(&NoHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), AllowAnonymous: true})
+	return NewHub(&NoHistory{}, &Options{
+		PublisherJWTKey:  []byte("publisher"),
+		SubscriberJWTKey: []byte("subscriber"),
+		AllowAnonymous:   true,
+		Addr:             testAddr,
+	})
 }
 
 func createDummyAuthorizedJWT(h *Hub, publisher bool) string {
