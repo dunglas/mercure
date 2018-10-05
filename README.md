@@ -32,7 +32,7 @@ const params = new URLSearchParams([
 const eventSource = new EventSource(`https://hub.example.com?${params}`);
 
 // The callback will be called every time an update is published
-eventSource.on message = function ({data}) {
+eventSource.onmessage = function ({data}) {
     console.log(data);
 };
 ```
@@ -150,7 +150,7 @@ const params = new URLSearchParams([
 const eventSource = new EventSource(`https://hub.example.com?${params}`);
 
 // The callback will be called every time an update is published
-eventSource.on message = function ({data}) {
+eventSource.onmessage = function ({data}) {
     console.log(data);
 };
 ```
