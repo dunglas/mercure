@@ -123,7 +123,7 @@ func TestPublishOK(t *testing.T) {
 				return
 			}
 		}
-	}((&wg))
+	}(&wg)
 
 	form := url.Values{}
 	form.Add("id", "id")
@@ -159,7 +159,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 				return
 			}
 		}
-	}((&wg))
+	}(&wg)
 
 	form := url.Values{}
 	form.Add("topic", "http://example.com/books/1")

@@ -1,25 +1,24 @@
 package hub
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestServe(t *testing.T) {
 	h := createAnonymousDummy()
+
 	h.Start()
 	go func() {
 		h.Serve()
 	}()
-	// Wait for the HTTP server to start...
-	time.Sleep(1 * time.Second)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -51,7 +50,11 @@ func TestServe(t *testing.T) {
 	}(&wg)
 
 	// Wait for the subscription
-	time.Sleep(1 * time.Second)
+	for {
+		if len(h.subscribers) == 2 {
+			break
+		}
+	}
 
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
 	req, _ := http.NewRequest("POST", "http://"+testAddr+"/publish", strings.NewReader(body.Encode()))
@@ -64,6 +67,27 @@ func TestServe(t *testing.T) {
 		panic(err)
 	}
 
-	h.Stop()
+	h.server.Shutdown(context.Background())
 	wg.Wait()
+}
+
+func TestServeAllOptions(t *testing.T) {
+	h := createAnonymousDummy()
+	h.options.Demo = true
+	h.options.CorsAllowedOrigins = []string{"*"}
+
+	h.Start()
+	go func() {
+		h.Serve()
+	}()
+
+	resp, err := http.Get("http://" + testAddr + "/")
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	assert.NotEmpty(t, body)
+	h.server.Shutdown(context.Background())
 }

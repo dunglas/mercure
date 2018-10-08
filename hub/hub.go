@@ -1,5 +1,7 @@
 package hub
 
+import "net/http"
+
 type serializedUpdate struct {
 	*Update
 	event string
@@ -17,6 +19,7 @@ type Hub struct {
 	removedSubscribers chan chan *serializedUpdate
 	updates            chan *serializedUpdate
 	history            History
+	server             *http.Server
 }
 
 // NewHubFromEnv creates a hub fusing the configuration set in env vars
@@ -38,6 +41,7 @@ func NewHub(history History, options *Options) *Hub {
 		make(chan (chan *serializedUpdate)),
 		make(chan *serializedUpdate),
 		history,
+		nil,
 	}
 }
 

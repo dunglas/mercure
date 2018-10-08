@@ -92,3 +92,9 @@ func TestBoltHistory(t *testing.T) {
 
 	assert.Equal(t, 2, count)
 }
+
+func TestNoHistory(t *testing.T) {
+	h := &NoHistory{}
+	assert.Nil(t, h.Add(nil))
+	assert.Nil(t, h.FindFor(nil, func(*Update) bool { return true }))
+}

@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"os"
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -19,12 +20,38 @@ func TestNewHub(t *testing.T) {
 	assert.IsType(t, make(chan *serializedUpdate), h.updates)
 }
 
+func TestNewHubFromEnv(t *testing.T) {
+	os.Setenv("PUBLISHER_JWT_KEY", "foo")
+	os.Setenv("SUBSCRIBER_JWT_KEY", "bar")
+	defer os.Unsetenv("PUBLISHER_JWT_KEY")
+	defer os.Unsetenv("SUBSCRIBER_JWT_KEY")
+
+	h, err := NewHubFromEnv(&NoHistory{})
+	assert.NotNil(t, h)
+	assert.Nil(t, err)
+}
+
+func TestNewHubFromEnvError(t *testing.T) {
+	h, err := NewHubFromEnv(&NoHistory{})
+	assert.Nil(t, h)
+	assert.Error(t, err)
+}
+
 func createDummy() *Hub {
 	return NewHub(&NoHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
 }
 
 func createAnonymousDummy() *Hub {
 	return NewHub(&NoHistory{}, &Options{
+		PublisherJWTKey:  []byte("publisher"),
+		SubscriberJWTKey: []byte("subscriber"),
+		AllowAnonymous:   true,
+		Addr:             testAddr,
+	})
+}
+
+func createAnonymousDummyWithHistory(h History) *Hub {
+	return NewHub(h, &Options{
 		PublisherJWTKey:  []byte("publisher"),
 		SubscriberJWTKey: []byte("subscriber"),
 		AllowAnonymous:   true,

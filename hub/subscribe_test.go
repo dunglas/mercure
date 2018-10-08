@@ -3,9 +3,12 @@ package hub
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	bolt "go.etcd.io/bbolt"
 )
 
 type responseWriterMock struct {
@@ -157,6 +160,31 @@ func TestSubscribe(t *testing.T) {
 	assert.Equal(t, "id: b\ndata: Hello World\n\nid: c\ndata: Great\n\n", w.Body.String())
 }
 
+func TestUnsubscribe(t *testing.T) {
+	hub := createAnonymousDummy()
+	hub.Start()
+	assert.Equal(t, 0, len(hub.subscribers))
+	wr := newCloseNotifyingRecorder()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(w *sync.WaitGroup) {
+		defer w.Done()
+		req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/books/1", nil)
+		hub.SubscribeHandler(wr, req)
+		assert.Equal(t, 0, len(hub.subscribers))
+	}(&wg)
+
+	for {
+		if len(hub.subscribers) != 0 {
+			break
+		}
+	}
+
+	wr.close()
+	wg.Wait()
+}
+
 func TestSubscribeTarget(t *testing.T) {
 	hub := createDummy()
 	hub.Start()
@@ -200,6 +228,61 @@ func TestSubscribeTarget(t *testing.T) {
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "event: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n", w.Body.String())
+}
+
+func TestSendMissedEvents(t *testing.T) {
+	db, _ := bolt.Open("test.db", 0600, nil)
+	defer db.Close()
+	defer os.Remove("test.db")
+
+	history := &BoltHistory{db}
+	history.Add(&Update{
+		Topics: []string{"http://example.com/foos/a"},
+		Event: Event{
+			ID:   "a",
+			Data: "d1",
+		},
+	})
+	history.Add(&Update{
+		Topics: []string{"http://example.com/foos/b"},
+		Event: Event{
+			ID:   "b",
+			Data: "d2",
+		},
+	})
+
+	hub := createAnonymousDummyWithHistory(history)
+	hub.Start()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	wr1 := newCloseNotifyingRecorder()
+	go func(w *sync.WaitGroup) {
+		defer w.Done()
+		req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil)
+		hub.SubscribeHandler(wr1, req)
+		assert.Equal(t, "id: b\ndata: d2\n\n", wr1.Body.String())
+	}(&wg)
+
+	wr2 := newCloseNotifyingRecorder()
+	go func(w *sync.WaitGroup) {
+		defer w.Done()
+		req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/foos/{id}", nil)
+		req.Header.Add("Last-Event-ID", "a")
+		hub.SubscribeHandler(wr2, req)
+		assert.Equal(t, "id: b\ndata: d2\n\n", wr2.Body.String())
+	}(&wg)
+
+	for {
+		if len(hub.subscribers) == 2 {
+			break
+		}
+	}
+
+	wr1.close()
+	wr2.close()
+	wg.Wait()
 }
 
 // From https://github.com/go-martini/martini/blob/master/response_writer_test.go

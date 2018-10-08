@@ -14,11 +14,11 @@ import (
 
 // Serve starts the HTTP server
 func (h *Hub) Serve() {
-	srv := &http.Server{
+	h.server = &http.Server{
 		Addr:    h.options.Addr,
 		Handler: h.chainHandlers(),
 	}
-	srv.RegisterOnShutdown(func() {
+	h.server.RegisterOnShutdown(func() {
 		h.Stop()
 	})
 
@@ -28,7 +28,7 @@ func (h *Hub) Serve() {
 		signal.Notify(sigint, os.Interrupt)
 		<-sigint
 
-		if err := srv.Shutdown(context.Background()); err != nil {
+		if err := h.server.Shutdown(context.Background()); err != nil {
 			log.Error(err)
 		}
 		log.Infoln("My Baby Shot Me Down")
@@ -40,7 +40,7 @@ func (h *Hub) Serve() {
 
 	if !acme && h.options.CertFile == "" && h.options.KeyFile == "" {
 		log.WithFields(log.Fields{"protocol": "http"}).Info("Mercure started")
-		err = srv.ListenAndServe()
+		err = h.server.ListenAndServe()
 	} else {
 		// TLS
 		if acme {
@@ -51,14 +51,14 @@ func (h *Hub) Serve() {
 			if h.options.AcmeCertDir != "" {
 				certManager.Cache = autocert.DirCache(h.options.AcmeCertDir)
 			}
-			srv.TLSConfig = certManager.TLSConfig()
+			h.server.TLSConfig = certManager.TLSConfig()
 
 			// Mandatory for Let's Encrypt http-01 challenge
 			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 		}
 
 		log.WithFields(log.Fields{"protocol": "https"}).Info("Mercure started")
-		err = srv.ListenAndServeTLS(h.options.CertFile, h.options.KeyFile)
+		err = h.server.ListenAndServeTLS(h.options.CertFile, h.options.KeyFile)
 	}
 
 	if err != http.ErrServerClosed {
@@ -70,10 +70,12 @@ func (h *Hub) Serve() {
 
 // chainHandlers configures and chains handlers
 func (h *Hub) chainHandlers() http.Handler {
+	mux := http.NewServeMux()
+
 	if h.options.Demo {
-		http.Handle("/", http.FileServer(http.Dir("public")))
+		mux.Handle("/", http.FileServer(http.Dir("public")))
 	}
-	http.Handle("/publish", http.HandlerFunc(h.PublishHandler))
+	mux.Handle("/publish", http.HandlerFunc(h.PublishHandler))
 
 	var s http.Handler
 	if len(h.options.CorsAllowedOrigins) > 0 {
@@ -84,7 +86,7 @@ func (h *Hub) chainHandlers() http.Handler {
 	} else {
 		s = http.HandlerFunc(h.SubscribeHandler)
 	}
-	http.Handle("/subscribe", s)
+	mux.Handle("/subscribe", s)
 
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         h.options.Debug,
@@ -95,7 +97,7 @@ func (h *Hub) chainHandlers() http.Handler {
 		ContentSecurityPolicy: "default-src 'self'",
 	})
 
-	compressHandler := handlers.CompressHandler(http.DefaultServeMux)
+	compressHandler := handlers.CompressHandler(mux)
 	secureHandler := secureMiddleware.Handler(compressHandler)
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(
