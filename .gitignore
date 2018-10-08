@@ -3,3 +3,6 @@
 /vendor
 /certs
 /*.db
+/spec/mercure.html
+/spec/mercure.txt
+/spec/mercure.xml
