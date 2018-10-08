@@ -81,13 +81,11 @@ func TestServeAllOptions(t *testing.T) {
 		h.Serve()
 	}()
 
-	resp, err := http.Get("http://" + testAddr + "/")
-	if err != nil {
-		panic(err)
-	}
+	resp, _ := http.Get("http://" + testAddr + "/")
+	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
 
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
-	assert.NotEmpty(t, body)
 	h.server.Shutdown(context.Background())
 }
