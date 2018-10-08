@@ -119,13 +119,6 @@ A Docker image is available on Docker Hub. The following command is enough to ge
 If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
 
-## Resources
-
-* [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
-* [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
-* [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
-* [`Server-sent events` client (and server) for Go](https://github.com/donovanhide/eventsource)
-
 ## FAQ
 
 ### What's the Difference Between Mercure and WebSocket
@@ -156,6 +149,13 @@ In most implementations, the size of the payload to dispatch is very limited, an
 On the other hand, Mercure is designed to send live updates to devices currently connected to the web or mobile app. The payload is not limited, and the message goes directly from your servers to the clients.
 
 In summary, use the Push API to send notifications to offline users (that will be available in Chrome, Android and iOS's notification centers), and use Mercure to receive live updates when the user is using the app.
+
+## Resources
+
+* [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
+* [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
+* [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
+* [`Server-sent events` client (and server) for Go](https://github.com/donovanhide/eventsource)
 
 ## Credits
 
