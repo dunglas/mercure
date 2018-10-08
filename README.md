@@ -123,13 +123,13 @@ If not, an HTTP server will be started (**not secure**).
 
 ### What's the Difference Between Mercure and WebSocket
 
-[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level bidirectional protocol, while Mercure is a high level unidirectional protocol (from servers to clients, but we will come back to that).
-Unlike Mercure  (which is built on top of Server-Sent Events, WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
+[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low leve and bidirectional protocol. Mercure is a high level and unidirectional protocol (servers-to-clients, but we will come back to that later).
+Unlike Mercure (which is built on top of Server-Sent Events), WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
 
-Also, Mercure provides convenient native features (authorization, re-connection, reconciliation...) while with WebSocket, you're on your own.
+Also, Mercure provides convenient built-in features (authorization, re-connection, state reconciliation...) while with WebSocket, you need to implement them yourself.
 
-Unlike when using HTTP/1, HTTP/2 connections are multiplexed and bidirectional by default.
-When using Mercure over a HTTP/2 connection (recommended), it's easy to create a bidirectional protocols by receiving data through Server-Sent Events, and sending data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
+HTTP/2 connections are multiplexed and bidirectional by defaul (it was not the case of HTTP/1).
+Even if Mercure is unidirectional, when using it over a h2 connection (recommended), your app can receive data through Server-Sent Events, and send data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
 
 Basically, in most cases Mercure can be used as a modern, easier to use replacement for WebSocket, but it is a higher level protocol.
 
