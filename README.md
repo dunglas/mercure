@@ -125,3 +125,38 @@ If not, an HTTP server will be started (**not secure**).
 * [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [`Server-sent events` client (and server) for Go](https://github.com/donovanhide/eventsource)
+
+## FAQ
+
+### What's the Difference Between Mercure and WebSocket
+
+[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level bidirectional protocol, while Mercure is a high level unidirectional protocol (from servers to clients, but we will come back to that).
+Unlike Mercure  (which is built on top of Server-Sent Events, WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
+
+Also, Mercure provides convenient native features (authorization, re-connection, reconciliation...) while with WebSocket, you're on your own.
+
+Unlike when using HTTP/1, HTTP/2 connections are multiplexed and bidirectional by default.
+When using Mercure over a HTTP/2 connection (recommended), it's easy to create a bidirectional protocols by receiving data through Server-Sent Events, and sending data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
+
+Basically, in most cases Mercure can be used as a modern, easier to use replacement for WebSocket, but it is a higher level protocol.
+
+### What's the Difference Between Mercure and WebSub
+
+[WebSub](https://www.w3.org/TR/websub/) is a server-to-server protocol while Mercure is mainly a server-to-client protocol (that can also be used for server-to-server communication, but it's not is main interest).
+
+Mercure has been heavily inspired by WebSub, and we tried to make the protocol as close a possible from the WebSub one.
+
+Mercure uses Server-Sent Events to dispatch the updates, while WebSub use `POST` requests. Also, Mercure has an advanced authorization mechanism, and allows to subscribe to several topics with only one connection using templated URIs.
+
+### What's the Difference Between Mercure and Web Push
+
+The [Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) is [mainly designed](https://developers.google.com/web/fundamentals/push-notifications/) to send [notifications](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API) to devices currently not connected to the application.
+In most implementations, the size of the payload to dispatch is very limited, and the messages are sent through the proprietary APIs and servers of the browsers' and operating systems' vendors.
+
+On the other hand, Mercure is designed to send live updates to devices currently connected to the web or mobile app. The payload is not limited, and the message goes directly from your servers to the clients.
+
+In summary, use the Push API to send notifications to offline users (that will be available in Chrome, Android and iOS's notification centers), and use Mercure to receive live updates when the user is using the app.
+
+## Credits
+
+Created by [Kévin Dunglas](https://dunglas.fr). Sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
