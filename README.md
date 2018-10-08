@@ -52,6 +52,12 @@ Example Use Cases:
 * 3 minutes later, the last product is bought by another customer
 * the PWA's view instantly show that this product isn't available anymore
 
+**Asynchronous Jobs**
+
+* a Progressive Web App tell the server to compute a report, this task is costly and will some time to finish
+* the server delegates the computation of the report on an asynchronous worker (using message queue), and close the connection with the PWA
+* the worker sends the report to the PWA when it is computed
+
 **Collaborative Editing**
 
 * a webapp allows several users to edit the same document concurently
