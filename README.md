@@ -180,7 +180,7 @@ the update.
 
 ## Authorization
 
-If a topic is not public, the update request sent by the publisher to the hub MUST also contain a list of keys named `target[]`.
+If a topic is not public, the update request sent by the publisher to the hub MUST also contain a list of keys named `target`.
 Theirs values are `string`. They can be, for instance a user ID, or a list of group IDs.
 
 To receive updates for private topics, the subscriber must send a cookie called `mercureAuthorization` when connecting
