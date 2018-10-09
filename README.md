@@ -92,6 +92,15 @@ Grab a binary from the release page and run:
 The ACME_HOSTS environment variable allows to use Let's Encrypt to expose a valid SSL certificate.
 If you omit this variable, the server will be exposed on an (unsecure) HTTP connection.
 
+The server is now up and running, the following endpoints are now available:
+
+* `POST https://example.com/publish`: to publish updates
+* `GET https://example.com/subscribe`: to subscribe to updates
+
+See [the protocol](spec/mercure.md) for further informations.
+
+To compile the development version and register the demo page, see [CONTRIBUTING.md](CONTRIBUTING.md#hub).
+
 #### Docker
 
 A Docker image is available on Docker Hub. The following command is enough to get a working server:
@@ -103,25 +112,25 @@ A Docker image is available on Docker Hub. The following command is enough to ge
 
 ### Environment Variables
 
-* `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT
-* `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT
-* `CORS_ALLOWED_ORIGINS`: a comma separated list of hosts allowed CORS origins
-* `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
-* `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
-* `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
-* `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
-* `ACME_HOSTS`: a comma separated list of host for which Let's Encrypt certificates must be issues
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
+* `ACME_HOSTS`: a comma separated list of host for which Let's Encrypt certificates must be issues
+* `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
+* `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 * `CERT_FILE`: a cert file (to use a custom certificate)
 * `CERT_KEY`: a cert key (to use a custom certificate)
+* `CORS_ALLOWED_ORIGINS`: a comma separated list of hosts allowed CORS origins
+* `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
+* `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
 * `LOG_FORMAT`: the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)
+* `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT
+* `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT
 
 If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
 
 ## FAQ
 
-### What's the Difference Between Mercure and WebSocket
+### What's the Difference Between Mercure and WebSocket?
 
 [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low leve and bidirectional protocol. Mercure is a high level and unidirectional protocol (servers-to-clients, but we will come back to that later).
 Unlike Mercure (which is built on top of Server-Sent Events), WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
@@ -133,7 +142,7 @@ Even if Mercure is unidirectional, when using it over a h2 connection (recommend
 
 Basically, in most cases Mercure can be used as a modern, easier to use replacement for WebSocket, but it is a higher level protocol.
 
-### What's the Difference Between Mercure and WebSub
+### What's the Difference Between Mercure and WebSub?
 
 [WebSub](https://www.w3.org/TR/websub/) is a server-to-server protocol while Mercure is mainly a server-to-client protocol (that can also be used for server-to-server communication, but it's not is main interest).
 
@@ -141,7 +150,7 @@ Mercure has been heavily inspired by WebSub, and we tried to make the protocol a
 
 Mercure uses Server-Sent Events to dispatch the updates, while WebSub use `POST` requests. Also, Mercure has an advanced authorization mechanism, and allows to subscribe to several topics with only one connection using templated URIs.
 
-### What's the Difference Between Mercure and Web Push
+### What's the Difference Between Mercure and Web Push?
 
 The [Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) is [mainly designed](https://developers.google.com/web/fundamentals/push-notifications/) to send [notifications](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API) to devices currently not connected to the application.
 In most implementations, the size of the payload to dispatch is very limited, and the messages are sent through the proprietary APIs and servers of the browsers' and operating systems' vendors.
