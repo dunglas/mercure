@@ -33,25 +33,62 @@ Example implementation of a client in JavaScript:
 ```javascript
 // The subscriber subscribes to updates for the https://example.com/foo topic
 // and to any topic matching https://example.com/books/{name}
-const params = new URLSearchParams([
-    ['topic', 'https://example.com/foo'],
-    ['topic', 'https://example.com/books/{name}'],
-]);
-const eventSource = new EventSource(`https://hub.example.com?${params}`);
+const url = new URL('https://hub.example.com/subscribe');
+url.searchParams.append('topic', 'https://example.com/books/{id}');
+url.searchParams.append('topic', 'https://example.com/users/dunglas');
+
+const eventSource = new EventSource(url);
 
 // The callback will be called every time an update is published
-eventSource.onmessage = function ({data}) {
-    console.log(data);
-};
+eventSource.onmessage = e => console.log(e); // do something with the payload
 ```
 
-To dispatch an update (in any JS environment, including Node with the fetch polyfill):
+Optionaly, the Hub URL can be automatically discovered:
 
 ```javascript
-// ...
+fetch('https://example.com/books/1') // Has this header `Link: <https://hub.example.com/subscribe>; rel="mercure"`
+    .then(response => {
+        // Extract the hub URL from the Link header
+        const hubUrl = response.headers.get('Link').match(/<(.*)>.*rel="mercure".*/)[1];
+        // Subscribe to updates using the first snippet, do something with response's body...
+    });
 ```
 
-Example Use Cases:
+To dispatch an update (here using [Node.js](https://nodejs.org/) / [Serverless](https://serverless.com/)):
+
+```javascript
+// Handle a resource update, save the document in the persistence layer...
+// then notify the hub
+const https = require('https');
+const querystring = require('querystring');
+
+const postData = querystring.stringify({
+    'topic': 'https://example.com/books/1',
+    'data': JSON.stringify({ key: 'updated value' }),
+});
+
+const req = https.request({
+    hostname: 'hub.example.com',
+    port: '443',
+    path: '/publish',
+    method: 'POST',
+    headers: {
+        Authorization: 'Bearer <valid-jwt-token>',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData),
+    }
+}, /* response handler */);
+
+req.write(postData);
+req.end();
+
+// You'll probably prefer use the "request" library or the fetch polyfill in real projects,
+// but any HTTP client, written in any language, will be just fine.
+```
+
+Examples in other languages are available in [the `examples/` directory](examples/).
+
+Use Cases:
 
 **Live Availability**
 

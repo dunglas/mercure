@@ -113,11 +113,11 @@ Example:
 ```javascript
 // The subscriber subscribes to updates for the https://example.com/foo topic
 // and to any topic matching https://example.com/books/{name}
-const params = new URLSearchParams([
-    ['topic', 'https://example.com/foo'],
-    ['topic', 'https://example.com/books/{name}'],
-]);
-const eventSource = new EventSource(`https://hub.example.com?${params}`);
+const url = new URL('https://hub.example.com/subscribe');
+url.searchParams.append('topic', 'https://example.com/foo');
+url.searchParams.append('topic', 'https://example.com/bar/{id}');
+
+const eventSource = new EventSource(url);
 
 // The callback will be called every time an update is published
 eventSource.onmessage = function ({data}) {
