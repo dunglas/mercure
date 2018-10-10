@@ -33,7 +33,7 @@ Mercure is a protocol allowing to push data updates to web browsers and other HT
 
 # Terminology
 
-The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED** **MAY**, and **OPTIONAL**, when they appear in this document, are to be interpreted as described in [@!RFC2119].
+The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be interpreted as described in [@!RFC2119].
 
 * Topic: An HTTP [@!RFC7230] or HTTPS [@!RFC2818] topic URL. The unit to which one can subscribe to changes.
 * Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub systems might call the publisher the "source". Typically a website or a web API.
@@ -45,7 +45,7 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 The publisher **SHOULD** advertises the URL of one or more hubs to the subscriber, allowing it to receive live updates when topics are updated.
 If more than one hub URL is specified, it is expected that the publisher notifies each hub, so the subscriber **MAY** subscribe to one or more of them.
 
-The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure-hub` (a hub link header).
+The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link header).
 The target URL of these links **MUST** be a hub implementing the Mercure protocol.
 
 Note: this relation type has not been registered yet [@?RFC5988].
@@ -55,7 +55,7 @@ The publisher **MAY** provide the following target attributes in the Link header
 
 * `last-event-id`: the globally unique identifier of the last event dispatched by the publisher at the time of the generation of this resource. If provided, it **MUST** be passed to the hub through a query parameter called `Last-Event-ID` and will be used to ensure that possible updates having been made during between the resource generation time and the connection to the hub are not lost. See section #Re-Connection-and-State-Reconciliation). If this attribute is provided, the publisher **MUST** always set the `id` parameter when sending updates to the hub.
 * `content-type`: the content type of the updates that will pushed by the hub. If omited, the subscriber **MUST** assume that the content type will be the same than the one of the original resource. Setting the `content-type` attribute is especially useful to hint that partial updates will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
-* `key-set=<JWKS>`: the key(s) to decrypt updates encode in the JWKS (JSON Web Key Set) format (see the Encryption section).
+* `key-set=<JWKS>`: the key(s) to decrypt updates encoded in the JWKS (JSON Web Key Set) format (see the Encryption section).
 
 All these attributes are optional.
 
@@ -69,7 +69,7 @@ Host: example.com
 
 HTTP/1.1 200 Ok
 Content-type: application/ld+json
-Link: <https://hub.example.com/updates/>; rel="mercure"
+Link: <https://hub.example.com/subscribe>; rel="mercure"
 
 {"@id": "/books/foo.jsonld", "foo": "bar"}
 ```
@@ -156,8 +156,8 @@ To receive updates for private topics, the subscriber **MUST** send a cookie cal
 to the hub.
 
 The cookie **SHOULD** be set by the publisher during the discovery. The cookie **SHOULD** have the `Secure`, `HttpOnly`.
-It **MAY** have the `SameSite` flag if appropriate. When skipping the discovery mechanism, the client
-**MAY** set the cookie itself.
+It **MAY** have the `SameSite` flag if appropriate. Setting the cookie's `Path` to the path of the subscribe endpoint is also **RECOMMENDED**.
+When skipping the discovery mechanism, the client **MAY** set the cookie itself (for security reasons, this is not recommended in the context of a web browser).
 
 Consequently if the subscriber is a web browser, both the publisher and the hub have to share the same second level domain to use the autorization feature. The `Domain` flag **MAY** be used to allow the publisher and the host to use different subdomains.
 
@@ -171,8 +171,7 @@ The JWS **SHOULD** be short lived, especially if the subscriber is a web browser
 
 If one or more targets are specified, the update **MUST NOT** be sent to the subscriber by the hub, unless the `mercureTargets` claim of the subscriber contains at least one target specified for the topic by the publisher. 
 
-When using the authorization mechanism, the connection between the subscriber and the hub **MUST** use an encryption layer (HTTPS
-is required).
+When using the authorization mechanism, the connection between the subscriber and the hub **MUST** use an encryption layer (HTTPS is required).
 
 # Re-Connection and State Reconciliation
 

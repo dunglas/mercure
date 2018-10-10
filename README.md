@@ -161,10 +161,11 @@ In summary, use the Push API to send notifications to offline users (that will b
 
 ## Resources
 
+* [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
 * [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
 * [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
-* [`Server-sent events` client (and server) for Go](https://github.com/donovanhide/eventsource)
+* [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
 
 ## Credits
 

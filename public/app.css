@@ -2,7 +2,7 @@ label {
     display: block;
 }
 
-section {
+.col {
     float: left;
     width: 50%;
 }

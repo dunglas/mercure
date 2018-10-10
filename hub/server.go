@@ -74,6 +74,7 @@ func (h *Hub) chainHandlers() http.Handler {
 
 	if h.options.Demo {
 		mux.Handle("/", http.FileServer(http.Dir("public")))
+		mux.Handle("/demo/", http.HandlerFunc(demo))
 	}
 	mux.Handle("/publish", http.HandlerFunc(h.PublishHandler))
 
