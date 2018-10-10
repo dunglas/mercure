@@ -3,7 +3,7 @@
 const defaultTopic = window.location.origin + '/demo/books/1.jsonld';
 
 // Set default values
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const topic = document.forms.discover.topic;
     if (!topic.value) topic.value = defaultTopic;
 });
@@ -22,16 +22,18 @@ function getHubUrl(response) {
 document.forms.discover.onsubmit = function (e) {
     e.preventDefault();
     const { elements: { topic, body, jwt } } = this;
-    const params = body.value || jwt.value ? `?${new URLSearchParams({body: body.value, jwt: jwt.value})}` : '';
+    const params = body.value || jwt.value ? `?${new URLSearchParams({ body: body.value, jwt: jwt.value })}` : '';
 
     fetch(topic.value + params)
         .then(response => {
+            if (!response.ok) throw new Error(response.statusText);
+
             // Set subscribe default values
             const subscribeUrl = document.forms.subscribe.url;
             if (!subscribeUrl.value) {
                 const providedUrl = getHubUrl(response);
                 if (providedUrl) {
-                    subscribeUrl.value = new URL(providedUrl, topic.value);    
+                    subscribeUrl.value = new URL(providedUrl, topic.value);
                 }
             }
 
@@ -57,7 +59,7 @@ document.forms.discover.onsubmit = function (e) {
             }
             const publishData = publishForm.data;
             if (!publishData.value && topic.value === defaultTopic) {
-                publishData.value = JSON.stringify({'@id': defaultTopic, availability: 'http://schema.org/OutOfStock'});
+                publishData.value = JSON.stringify({ '@id': defaultTopic, availability: 'http://schema.org/OutOfStock' });
             }
 
             return response.text();
@@ -125,5 +127,8 @@ document.forms.publish.onsubmit = function (e) {
     targets.value !== '' && targets.value.split("\n").forEach(target => body.append('target', target));
 
     fetch(action, { method, body, headers: { Authorization: `Bearer ${jwt.value}` } })
+        .then(response => {
+            if (!response.ok) throw new Error(response.statusText);
+        })
         .catch(error => console.error(error))
 };

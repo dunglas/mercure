@@ -4,14 +4,14 @@
 Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a fast, reliable and battery-efficient way.
 It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
-In addition to the full specification, a reference, production-grade implementation of **a Mercure server** (the hub) is provided in this repository. It is written in Go (golang) and is a free software licensed under the AGPL license.
+In addition to the full specification, a reference, production-grade implementation of **a Mercure hub** (the server) is provided in this repository. It is written in Go (golang) and is a free software licensed under the AGPL license.
 It also includes a library that can be used in any Go application to implement the Mercure protocol directly (without a hub).
 
-Mercure in a few words:
+## Mercure in a Few Words
 
 * native browser support, no lib nor SDK required (built on top of [server-sent events](https://www.smashingmagazine.com/2018/02/sse-websockets-data-flow-http2/))
-* compatible with all existing servers, even those who don't support persistent connections (serverless, PHP, FastCGI...)
-* builtin connection re-establishment and state reconciliation
+* compatible with all existing servers, even those who don't support persistent connections (serverless architecture, PHP, FastCGI...)
+* built-in connection re-establishment and state reconciliation
 * [JWT](https://jwt.io/)-based authorization mechanism (securely dispatch an update to some selected subscribers)
 * performant, leverages [HTTP/2 multiplexing](https://developers.google.com/web/fundamentals/performance/http2/#request_and_response_multiplexing)
 * designed with [hypermedia in mind](https://en.wikipedia.org/wiki/HATEOAS), also supports [GraphQL](https://graphql.org/)
@@ -20,7 +20,7 @@ Mercure in a few words:
 * can work with old browsers (IE7+) using an `EventSource` polyfill
 * [connection-less push](https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource-push) in controlled environments (e.g. browsers on mobile handsets tied to specific carriers)
 
-The reference Hub implementation:
+The reference hub implementation:
 
 * Fast, written in Go
 * Works everywhere: static binaries and Docker images available
@@ -28,7 +28,9 @@ The reference Hub implementation:
 * Cloud Native, follows [the Twelve-Factor App](https://12factor.net) methodoloy
 * Open source (AGPL)
 
-Example implementation of a client in JavaScript:
+# Examples
+
+Example implementation of a client (the subscriber), in JavaScript:
 
 ```javascript
 // The subscriber subscribes to updates for the https://example.com/foo topic
@@ -43,7 +45,7 @@ const eventSource = new EventSource(url);
 eventSource.onmessage = e => console.log(e); // do something with the payload
 ```
 
-Optionaly, the Hub URL can be automatically discovered:
+Optionaly, the hub URL can be automatically discovered:
 
 ```javascript
 fetch('https://example.com/books/1') // Has this header `Link: <https://hub.example.com/subscribe>; rel="mercure"`
@@ -54,17 +56,18 @@ fetch('https://example.com/books/1') // Has this header `Link: <https://hub.exam
     });
 ```
 
-To dispatch an update (here using [Node.js](https://nodejs.org/) / [Serverless](https://serverless.com/)):
+To dispatch an update, the application server (the publisher) just need to send a `POST` HTTP request to the hub.
+Example using [Node.js](https://nodejs.org/) / [Serverless](https://serverless.com/):
 
 ```javascript
-// Handle a resource update, save the document in the persistence layer...
-// then notify the hub
+// Handle a POST, PUT, PATCH or DELETE request or finish an async job...
+// and notify the hub
 const https = require('https');
 const querystring = require('querystring');
 
 const postData = querystring.stringify({
     'topic': 'https://example.com/books/1',
-    'data': JSON.stringify({ key: 'updated value' }),
+    'data': JSON.stringify({ foo: 'updated value' }),
 });
 
 const req = https.request({
@@ -73,37 +76,35 @@ const req = https.request({
     path: '/publish',
     method: 'POST',
     headers: {
-        Authorization: 'Bearer <valid-jwt-token>',
+        Authorization: 'Bearer <valid-jwt-token>', // the JWT key must be shared between the hub and the server
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(postData),
     }
-}, /* response handler */);
-
+}, /* optional response handler */);
 req.write(postData);
 req.end();
 
-// You'll probably prefer use the "request" library or the fetch polyfill in real projects,
+// You'll probably prefer use the request library or the node-fetch polyfill in real projects,
 // but any HTTP client, written in any language, will be just fine.
 ```
 
-Examples in other languages are available in [the `examples/` directory](examples/).
+Examples in other languages are available in [the `example/` directory](examples/).
 
-Use Cases:
+## Use Cases
 
-**Live Availability**
+### Live Availability
 
-* a Progressive Web App retrieves the availability status of a product from a REST API and displays it: only one is still
-  available
+* a Progressive Web App retrieves the availability status of a product from a REST API and displays it: only one is still available
 * 3 minutes later, the last product is bought by another customer
 * the PWA's view instantly show that this product isn't available anymore
 
-**Asynchronous Jobs**
+### Asynchronous Jobs
 
 * a Progressive Web App tell the server to compute a report, this task is costly and will some time to finish
 * the server delegates the computation of the report on an asynchronous worker (using message queue), and close the connection with the PWA
 * the worker sends the report to the PWA when it is computed
 
-**Collaborative Editing**
+### Collaborative Editing
 
 * a webapp allows several users to edit the same document concurently
 * changes made are immediately broadcasted to all connected users
@@ -116,7 +117,7 @@ The full protocol specification can be found in [`spec/mercure.md`](spec/mercure
 It is also available as an [IETF's Internet Draft](https://www.ietf.org/id-info/),
 and is designed to be published as a RFC.
 
-## The Hub Implementation
+## Hub Implementation
 
 ### Usage
 
