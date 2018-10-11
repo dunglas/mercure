@@ -8,9 +8,31 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestServeAllOptions(t *testing.T) {
+	h := createAnonymousDummy()
+	h.options.Demo = true
+	h.options.CorsAllowedOrigins = []string{"*"}
+
+	h.Start()
+	go func() {
+		h.Serve()
+	}()
+
+	time.Sleep(time.Second) // Wait for the server to start
+
+	resp, _ := http.Get("http://" + testAddr + "/")
+	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
+
+	h.server.Shutdown(context.Background())
+}
 
 func TestServe(t *testing.T) {
 	h := createAnonymousDummy()
@@ -19,6 +41,7 @@ func TestServe(t *testing.T) {
 	go func() {
 		h.Serve()
 	}()
+	time.Sleep(time.Second) // Wait for the server to start
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -69,23 +92,4 @@ func TestServe(t *testing.T) {
 
 	h.server.Shutdown(context.Background())
 	wg.Wait()
-}
-
-func TestServeAllOptions(t *testing.T) {
-	h := createAnonymousDummy()
-	h.options.Demo = true
-	h.options.CorsAllowedOrigins = []string{"*"}
-
-	h.Start()
-	go func() {
-		h.Serve()
-	}()
-
-	resp, _ := http.Get("http://" + testAddr + "/")
-	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
-	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
-	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
-	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
-
-	h.server.Shutdown(context.Background())
 }
