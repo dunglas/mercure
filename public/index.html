@@ -2,160 +2,176 @@
 <html lang="en">
 
 <head>
-	<title>Mercure</title>
-	<link rel="stylesheet" href="app.css">
+    <title>Mercure</title>
+    <link rel="stylesheet" href="bulma.min.css">
+    <link rel="stylesheet" href="app.css">
 </head>
 
 <body>
-	<h1>Mercure Debugging Tools</h1>
+    <section class="hero is-dark">
+        <div class="hero-body">
+            <div class="container">
+                <h1 class="title is-2">
+                    Mercure Debugging Tools
+                </h1>
+            </div>
+        </div>
+    </section>
+    <div class="container">
+        <div class="columns">
+            <section class="column">
+                <h2 class="title is-2">Subscriber</h2>
+                <section>
+                    <h3 class="title is-4">Discover</h3>
 
-	<section class="col">
-		<h1>Subscriber</h1>
-		<section>
-			<h1>Discover</h1>
+                    <form name="discover">
+                        <div class="field">
+                            <label class="label">Topic *:</label>
+                            <input class="input" type="url" name="topic" required>
 
-			<form name="discover">
-				<div>
-					<label>Topic *:</label>
-					<input type="url" name="topic" required>
+                            <small>
+                                URL containing a <code>Link rel="mercure"</code> header to init the discovery.<br>
+                                Demo endpoints: any subpath of <code>/demo</code>.
+                            </small>
+                        </div>
+                        <div class="field">
+                            <label class="label">Demo body:</label>
+                            <textarea class="textarea" name="body"></textarea>
 
-					<small>
-						URL containing a <code>Link rel="mercure"</code> header to init the discovery.<br>
-						Demo endpoints: any subpath of <code>/demo</code>.
-					</small>
-				</div>
-				<div>
-					<label>Demo body:</label>
-					<textarea name="body"></textarea>
+                            <small>Data to return (demo entrypoints only, default JSON-LD document when empty).</small>
+                        </div>
 
-					<small>Data to return (demo entrypoints only, default JSON-LD document when empty).</small>
-				</div>
+                        <div class="field">
+                            <label class="label">
+                                Demo JWT:
+                                <input class="input" name="jwt" autocomplete="off">
+                            </label>
+                            <small>
+                                JWT token to set in a <code>mercureAuthorization</code> cookie (demo entrypoints only,
+                                anonymous when empty).<br>
+                                Default key: <code>!UnsecureChangeMeSubscriber!</code>, add an array of targets
+                                (strings)
+                                in a claim named
+                                <code>mercureTargets</code>.<br>
+                                <a href="https://jwt.io" target="_blank">Create a token</a>.
+                            </small>
+                        </div>
 
-				<div>
-					<label>
-						Demo JWT:
-						<input name="jwt" autocomplete="off">
-					</label>
-					<small>
-						JWT token to set in a <code>mercureAuthorization</code> cookie (demo entrypoints only, anonymous when empty).<br>
-						Default key: <code>!UnsecureChangeMeSubscriber!</code>, add an array of targets (strings) in a claim named
-						<code>mercureTargets</code>.<br>
-						<a href="https://jwt.io" target="_blank">Create a token</a>.
-					</small>
-				</div>
+                        <input class="button is-link" type="submit" value="Discover" name="discover">
+                    </form>
+                </section>
 
-				<input type="submit" value="Discover" name="discover">
-			</form>
-		</section>
+                <section>
+                    <h2 class="title is-2">Subscribe</h2>
+                    <form name="subscribe">
+                        <div class="field">
+                            <label class="label">
+                                Hub URL *:
+                                <input class="input" type="url" name="url" required>
+                            </label>
+                        </div>
 
-		<section>
-			<h1>Subscribe</h1>
-			<form name="subscribe">
-				<div>
-					<label>
-						Hub URL *:
-						<input type="url" name="url" required>
-					</label>
-				</div>
+                        <div class="field">
+                            <label class="label">
+                                Topics to get updates for *:
+                                <textarea class="textarea" name="topics" cols="30" rows="3" required></textarea>
+                            </label>
+                            <small>One <a href="https://tools.ietf.org/html/rfc6570">URI template</a> per line.</small>
+                        </div>
 
-				<div>
-					<label>
-						Topics to get updates for *:
-						<textarea name="topics" cols="30" rows="3" required></textarea>
-					</label>
-					<small>One <a href="https://tools.ietf.org/html/rfc6570">URI template</a> per line.</small>
-				</div>
+                        <div class="field">
+                            <label class="label">
+                                Last Event ID:
+                                <input class="input" name="lastEventId">
+                            </label>
+                        </div>
 
-				<div>
-					<label>
-						Last Event ID:
-						<input name="lastEventId">
-					</label>
-				</div>
+                        <input class="button is-link" type="submit" value="Subscribe" name="subscribe">
+                        <button class="button is-danger" name="unsubscribe" disabled>Unsubscribe</button>
+                    </form>
 
-				<input type="submit" value="Subscribe" name="subscribe">
-				<button name="unsubscribe" disabled>Unsubscribe</button>
-			</form>
+                    <main id="updates">No updates pushed yet.</main>
 
-			<main id="updates">No updates pushed yet.</main>
+                    <template id="update">
+                        <li>
+                            <article>
+                                <h1></h1>
+                                <pre></pre>
+                            </article>
+                        </li>
+                    </template>
+                </section>
+            </section>
 
-			<template id="update">
-				<li>
-					<article>
-						<h1></h1>
-						<pre></pre>
-					</article>
-				</li>
-			</template>
-		</section>
-	</section>
+            <section class="column">
+                <h2 class="title is-2">Publisher</h2>
 
-	<section class="col">
-		<h1>Publisher</h1>
+                <form name="publish" action="/publish" method="POST">
+                    <div class="field">
+                        <label class="label">
+                            Publisher JWT *:
+                            <input class="input" name="jwt" autocomplete="off" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.HB0k08BaV8KlLZ3EafCRlTDGbkd9qdznCzJQ_l8ELTU"
+                                required>
+                        </label>
+                        <small>
+                            Default key: <code>!UnsecureChangeMePublisher!</code>.<br>
+                            <a href="https://jwt.io" target="_blank">Create a new token</a>.
+                        </small>
+                    </div>
 
-		<form name="publish" action="/publish" method="POST">
-			<div>
-				<label>
-					Publisher JWT *:
-					<input name="jwt" autocomplete="off" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.HB0k08BaV8KlLZ3EafCRlTDGbkd9qdznCzJQ_l8ELTU"
-					 required>
-				</label>
-				<small>
-					Default key: <code>!UnsecureChangeMePublisher!</code>.<br>
-					<a href="https://jwt.io" target="_blank">Create a new token</a>.
-				</small>
-			</div>
+                    <div class="field">
+                        <label class="label">
+                            Topics *:
+                            <textarea class="textarea" name="topics" required></textarea>
+                        </label>
+                        <small>First line: canonical <a href="https://tools.ietf.org/html/rfc4622">IRI</a>. Next lines:
+                            alternate IRIs.</small>
+                    </div>
 
-			<div>
-				<label>
-					Topics *:
-					<textarea name="topics" required></textarea>
-				</label>
-				<small>First line: canonical <a href="https://tools.ietf.org/html/rfc4622">IRI</a>. Next lines: alternate IRIs.</small>
-			</div>
+                    <div class="field">
+                        <label class="label">
+                            Data *:
+                            <textarea class="textarea" name="data" cols="30" rows="5" required></textarea>
+                        </label>
+                    </div>
 
-			<div>
-				<label>
-					Data *:
-					<textarea name="data" cols="30" rows="5" required></textarea>
-				</label>
-			</div>
+                    <div class="field">
+                        <label class="label">
+                            Targets:
+                            <textarea class="textarea" name="targets"></textarea>
 
-			<div>
-				<label>
-					Targets:
-					<textarea name="targets"></textarea>
+                            <small>One string per line.</small>
+                        </label>
+                    </div>
 
-					<small>One string per line.</small>
-				</label>
-			</div>
+                    <div class="field">
+                        <label class="label">
+                            Event ID:
+                            <input class="input" name="id">
+                        </label>
+                    </div>
 
-			<div>
-				<label>
-					Event ID:
-					<input name="id">
-				</label>
-			</div>
+                    <div class="field">
+                        <label class="label">
+                            Event Type:
+                            <input class="input" name="type">
+                        </label>
+                    </div>
 
-			<div>
-				<label>
-					Event Type:
-					<input name="type">
-				</label>
-			</div>
+                    <div class="field">
+                        <label class="label">
+                            Event Retry:
+                            <input class="input" name="retry">
+                        </label>
+                    </div>
 
-			<div>
-				<label>
-					Event Retry:
-					<input name="retry">
-				</label>
-			</div>
+                    <input class="button is-link" type="submit" value="Publish">
+                </form>
+            </section>
+        </div>
+    </div>
 
-			<input type="submit" value="Publish">
-		</form>
-	</section>
-
-	<script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 
 </html>
