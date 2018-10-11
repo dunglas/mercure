@@ -188,6 +188,8 @@ Updates for the given subscription can then be sent from the GraphQL server to t
 
 To unsubscribe, the client just calls `EventSource.close()`.
 
+Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated transport](https://github.com/apollographql/graphql-subscriptions).
+
 ### What's the Difference Between Mercure and WebSocket?
 
 [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low leve and bidirectional protocol. Mercure is a high level and unidirectional protocol (servers-to-clients, but we will come back to that later).
