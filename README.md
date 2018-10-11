@@ -9,7 +9,7 @@
 Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
-The protocol has been published as an Internet Draft that [is maintained in this repository](spec/mercure.md).
+The protocol has been published as [an Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) that [is maintained in this repository](spec/mercure.md).
 
 A reference, production-grade, implementation of **a Mercure hub** (the server) is also available here.
 It's a free software (AGPL) written in Go. It is provided along with a library that can be used in any Go application to implement the Mercure protocol directly (without a hub) and an official Docker image.
