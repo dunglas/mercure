@@ -88,7 +88,7 @@ req.end();
 // but any HTTP client, written in any language, will be just fine.
 ```
 
-Examples in other languages are available in [the `example/` directory](examples/).
+Examples in other languages are available in [the `examples/` directory](examples/).
 
 ## Use Cases
 
@@ -125,7 +125,7 @@ and is designed to be published as a RFC.
 
 Grab a binary from the release page and run:
 
-    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ACME_HOSTS=example.com ./mercure 
+    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ACME_HOSTS=example.com ./mercure
 
 The ACME_HOSTS environment variable allows to use Let's Encrypt to expose a valid SSL certificate.
 If you omit this variable, the server will be exposed on an (unsecure) HTTP connection.
