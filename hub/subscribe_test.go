@@ -196,7 +196,7 @@ func TestSubscribeTarget(t *testing.T) {
 			}
 
 			hub.updates <- newSerializedUpdate(&Update{
-				Targets: map[string]struct{}{"baz": struct{}{}},
+				Targets: map[string]struct{}{"baz": {}},
 				Topics:  []string{"http://example.com/reviews/21"},
 				Event:   Event{Data: "Foo", ID: "a"},
 			})
@@ -206,7 +206,7 @@ func TestSubscribeTarget(t *testing.T) {
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
 			})
 			hub.updates <- newSerializedUpdate(&Update{
-				Targets: map[string]struct{}{"hello": struct{}{}, "bar": struct{}{}},
+				Targets: map[string]struct{}{"hello": {}, "bar": {}},
 				Topics:  []string{"http://example.com/reviews/23"},
 				Event:   Event{Data: "Great", ID: "c", Retry: 1},
 			})
