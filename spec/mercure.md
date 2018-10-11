@@ -25,7 +25,7 @@ organization = "Les-Tilleuls.coop"
   country = "France"
 %%%
 
-# Abstract
+.# Abstract
 
 Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a fast, reliable and battery-efficient way. It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
