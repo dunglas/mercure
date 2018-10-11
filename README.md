@@ -104,7 +104,7 @@ Examples in other languages are available in [the `example/` directory](example/
 
 ### Asynchronous Jobs
 
-* a Progressive Web App tell the server to compute a report, this task is costly and will some time to finish
+* a Progressive Web App tells the server to compute a report, this task is costly and will some time to finish
 * the server delegates the computation of the report on an asynchronous worker (using message queue), and close the connection with the PWA
 * the worker sends the report to the PWA when it is computed
 
@@ -178,7 +178,7 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 ### Environment Variables
 
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
-* `ACME_HOSTS`: a comma separated list of host for which Let's Encrypt certificates must be issues
+* `ACME_HOSTS`: a comma separated list of hosts for which Let's Encrypt certificates must be issues
 * `ADDR`: the address to listen on (example: `127.0.0.1:3000`, default to `:80` or `:http` or `:https` depending if HTTPS is enabled or not)
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
@@ -211,12 +211,12 @@ Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated tr
 
 ### What's the Difference Between Mercure and WebSocket?
 
-[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low leve and bidirectional protocol. Mercure is a high level and unidirectional protocol (servers-to-clients, but we will come back to that later).
+[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level and bidirectional protocol. Mercure is a high level and unidirectional protocol (servers-to-clients, but we will come back to that later).
 Unlike Mercure (which is built on top of Server-Sent Events), WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
 
 Also, Mercure provides convenient built-in features (authorization, re-connection, state reconciliation...) while with WebSocket, you need to implement them yourself.
 
-HTTP/2 connections are multiplexed and bidirectional by defaul (it was not the case of HTTP/1).
+HTTP/2 connections are multiplexed and bidirectional by default (it was not the case of HTTP/1).
 Even if Mercure is unidirectional, when using it over a h2 connection (recommended), your app can receive data through Server-Sent Events, and send data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
 
 Basically, in most cases Mercure can be used as a modern, easier to use replacement for WebSocket, but it is a higher level protocol.
@@ -225,7 +225,7 @@ Basically, in most cases Mercure can be used as a modern, easier to use replacem
 
 [WebSub](https://www.w3.org/TR/websub/) is a server-to-server protocol while Mercure is mainly a server-to-client protocol (that can also be used for server-to-server communication, but it's not is main interest).
 
-Mercure has been heavily inspired by WebSub, and we tried to make the protocol as close a possible from the WebSub one.
+Mercure has been heavily inspired by WebSub, and we tried to make the protocol as close as possible from the WebSub one.
 
 Mercure uses Server-Sent Events to dispatch the updates, while WebSub use `POST` requests. Also, Mercure has an advanced authorization mechanism, and allows to subscribe to several topics with only one connection using templated URIs.
 
