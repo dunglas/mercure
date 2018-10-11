@@ -1,11 +1,15 @@
 # Mercure, Server-Sent Live Updates
 *Protocol and Reference Implementation*
 
-Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a fast, reliable and battery-efficient way.
+Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
-In addition to the full specification, a reference, production-grade implementation of **a Mercure hub** (the server) is provided in this repository. It is written in Go (golang) and is a free software licensed under the AGPL license.
-It also includes a library that can be used in any Go application to implement the Mercure protocol directly (without a hub).
+The protocol has been published as an Internet Draft that [is maintained in this repository](spec/mercure.md).
+
+A reference, production-grade, implementation of **a Mercure hub** (the server) is also available here.
+It's a free software (AGPL) written in Go. It is provided along with a library that can be used in any Go application to implement the Mercure protocol directly (without a hub) and an official Docker image.
+
+In addition, a managed and high-scalability version of Mercure is [available in private beta](mailto:dunglas+mercure@gmail.com?subject=I%27m%20interested%20in%20Mercure%27s%20private%20beta).
 
 ## Mercure in a Few Words
 
@@ -88,7 +92,7 @@ req.end();
 // but any HTTP client, written in any language, will be just fine.
 ```
 
-Examples in other languages are available in [the `example/` directory](examples/).
+Examples in other languages are available in [the `example/` directory](example/).
 
 ## Use Cases
 
@@ -121,6 +125,11 @@ and is designed to be published as a RFC.
 
 ### Usage
 
+### Managed Version
+
+A managed, high-scalability version of Mercure is available in private beta.
+[Drop us a mail](mailto:dunglas+mercure@gmail.com?subject=I%27m%20interested%20in%20Mercure%27s%20private%20beta) for details and pricing.
+
 #### Prebuilt Binary
 
 Grab a binary from the release page and run:
@@ -139,7 +148,7 @@ See [the protocol](spec/mercure.md) for further informations.
 
 To compile the development version and register the demo page, see [CONTRIBUTING.md](CONTRIBUTING.md#hub).
 
-#### Docker
+#### Docker Image
 
 A Docker image is available on Docker Hub. The following command is enough to get a working server:
 
@@ -167,6 +176,17 @@ If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server
 If not, an HTTP server will be started (**not secure**).
 
 ## FAQ
+
+### How to Use Mercure with GraphQL?
+
+Because they are delivery agnostic, Mercure plays particulary well with [GraphQL's subscriptions](https://facebook.github.io/graphql/draft/#sec-Subscription).
+
+In response to the subscription query, the GraphQL server may return a corresponding topic URL.
+The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with an URL like `https://hub.example.com?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
+
+Updates for the given subscription can then be sent from the GraphQL server to the clients through the Mercure hub (in the `data` property of the server-sent event).
+
+To unsubscribe, the client just calls `EventSource.close()`.
 
 ### What's the Difference Between Mercure and WebSocket?
 
