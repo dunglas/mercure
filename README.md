@@ -1,6 +1,11 @@
 # Mercure, Server-Sent Live Updates
 *Protocol and Reference Implementation*
 
+[![GoDoc](https://godoc.org/github.com/dunglas/mercure?status.svg)](https://godoc.org/github.com/dunglas/mercure/hub)
+[![Build Status](https://travis-ci.com/dunglas/mercure.svg?branch=master)](https://travis-ci.com/dunglas/mercure)
+[![Coverage Status](https://coveralls.io/repos/github/dunglas/mercure/badge.svg?branch=master)](https://coveralls.io/github/dunglas/mercure?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dunglas/mercure)](https://goreportcard.com/report/github.com/dunglas/mercure)
+
 Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
@@ -8,6 +13,8 @@ The protocol has been published as an Internet Draft that [is maintained in this
 
 A reference, production-grade, implementation of **a Mercure hub** (the server) is also available here.
 It's a free software (AGPL) written in Go. It is provided along with a library that can be used in any Go application to implement the Mercure protocol directly (without a hub) and an official Docker image.
+
+[Try the demo!](https://demo.mercure.rocks/)
 
 In addition, a managed and high-scalability version of Mercure is [available in private beta](mailto:dunglas+mercure@gmail.com?subject=I%27m%20interested%20in%20Mercure%27s%20private%20beta).
 
@@ -134,9 +141,9 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 Grab a binary from the release page and run:
 
-    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ADDR=:3000 DEMO=1 ./mercure
+    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ADDR=:3000 DEMO=1 ALLOW_ANONYMOUS=1 ./mercure
 
-The server is now available on `http://localhost:3000`, with the demo mode enabled.
+The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
 
 To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
 
@@ -160,11 +167,11 @@ To compile the development version and register the demo page, see [CONTRIBUTING
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
     docker run \
-        -e PUBLISHER_JWT_KEY=myPublisherKey -e SUBSCRIBER_JWT_KEY=mySubcriberKey \
+        -e PUBLISHER_JWT_KEY=myPublisherKey -e SUBSCRIBER_JWT_KEY=mySubcriberKey -e DEMO=1 -e ALLOW_ANONYMOUS=1 \
         -p 80:80 \
         dunglas/mercure
 
-The server, in demo mode, is available on `http://localhost:80`.
+The server, in demo mode, is available on `http://localhost:80`. Anonymous subscribers are allowed.
 
 In production, run:
 
