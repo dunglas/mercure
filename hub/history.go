@@ -74,11 +74,7 @@ func (b *BoltHistory) Add(update *Update) error {
 
 		// The sequence value is prepended to the update id to create an ordered list
 		key := bytes.Join([][]byte{prefix, []byte(update.ID)}, []byte{})
-		if err := bucket.Put(key, buf); err != nil {
-			return err
-		}
-
-		return nil
+		return bucket.Put(key, buf)
 	})
 }
 
