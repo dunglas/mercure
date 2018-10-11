@@ -15,7 +15,7 @@ import (
 // add a query parameter named "jwt" set a "mercureAuthorization" cookie containing this token
 // the Content-Type header will automatically be set according to the URL's extension
 func demo(w http.ResponseWriter, r *http.Request) {
-	// JSON-LD is the prefered format
+	// JSON-LD is the preferred format
 	mime.AddExtensionType(".jsonld", "application/ld+json")
 
 	url := r.URL.String()
