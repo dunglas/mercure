@@ -134,7 +134,7 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 Grab a binary from the release page and run:
 
-    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ACME_HOSTS=example.com ./mercure 
+    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ACME_HOSTS=example.com ./mercure
 
 The ACME_HOSTS environment variable allows to use Let's Encrypt to expose a valid SSL certificate.
 If you omit this variable, the server will be exposed on an (unsecure) HTTP connection.
