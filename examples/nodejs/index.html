@@ -1,0 +1,7 @@
+<script type="text/javascript">
+const url = new URL('http://localhost/subscribe');
+url.searchParams.append('topic', 'https://example.com/books/{id}');
+
+const eventSource = new EventSource(url);
+eventSource.onmessage = e => console.log(e);
+</script>
