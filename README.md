@@ -134,12 +134,19 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 Grab a binary from the release page and run:
 
+    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ADDR=:3000 DEMO=1 ./mercure
+
+The server is now available on `http://localhost:3000`, with the demo mode enabled.
+
+To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
+
     PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ACME_HOSTS=example.com ./mercure
 
-The ACME_HOSTS environment variable allows to use Let's Encrypt to expose a valid SSL certificate.
+The value of the `ACME_HOSTS` environment variable must be updated to match your domain name(s).
+A Let's Enctypt TLS certificate will be automatically generated.
 If you omit this variable, the server will be exposed on an (unsecure) HTTP connection.
 
-The server is now up and running, the following endpoints are now available:
+When the server is up and running, the following endpoints are available:
 
 * `POST https://example.com/publish`: to publish updates
 * `GET https://example.com/subscribe`: to subscribe to updates
@@ -150,17 +157,29 @@ To compile the development version and register the demo page, see [CONTRIBUTING
 
 #### Docker Image
 
-A Docker image is available on Docker Hub. The following command is enough to get a working server:
+A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
+
+    docker run \
+        -e PUBLISHER_JWT_KEY=myPublisherKey -e SUBSCRIBER_JWT_KEY=mySubcriberKey \
+        -p 80:80 \
+        dunglas/mercure
+
+The server, in demo mode, is available on `http://localhost:80`.
+
+In production, run:
 
     docker run \
         -e PUBLISHER_JWT_KEY=myPublisherKey -e SUBSCRIBER_JWT_KEY=mySubcriberKey -e ACME_HOSTS=example.com \
         -p 80:80 -p 443:443 \
         dunglas/mercure
 
+Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let's Encrypt TLS certificate will be automatically generated.
+
 ### Environment Variables
 
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
 * `ACME_HOSTS`: a comma separated list of host for which Let's Encrypt certificates must be issues
+* `ADDR`: the address to listen on (example: `127.0.0.1:3000`, default to `:80` or `:http` or `:https` depending if HTTPS is enabled or not)
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 * `CERT_FILE`: a cert file (to use a custom certificate)
@@ -226,6 +245,10 @@ In summary, use the Push API to send notifications to offline users (that will b
 * [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
