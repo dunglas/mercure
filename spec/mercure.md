@@ -25,7 +25,7 @@ organization = "Les-Tilleuls.coop"
   country = "France"
 %%%
 
-.# Abstract
+# Abstract
 
 Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a fast, reliable and battery-efficient way. It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
@@ -169,7 +169,7 @@ The value of this cookie **MUST** be a JWS in compact serialization. It **MUST**
 For instance, valid targets can be a username or a list of group identifiers.
 The JWS **SHOULD** be short lived, especially if the subscriber is a web browser.
 
-If one or more targets are specified, the update **MUST NOT** be sent to the subscriber by the hub, unless the `mercureTargets` claim of the subscriber contains at least one target specified for the topic by the publisher. 
+If one or more targets are specified, the update **MUST NOT** be sent to the subscriber by the hub, unless the `mercureTargets` claim of the subscriber contains at least one target specified for the topic by the publisher.
 
 When using the authorization mechanism, the connection between the subscriber and the hub **MUST** use an encryption layer (HTTPS is required).
 
