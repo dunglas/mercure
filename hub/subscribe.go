@@ -19,7 +19,7 @@ type claims struct {
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	f, ok := w.(http.Flusher)
 	if !ok {
-		panic("The Reponse Writter must be an instance of Flusher.")
+		panic("The Response Writter must be an instance of Flusher.")
 	}
 
 	targets := []string{}

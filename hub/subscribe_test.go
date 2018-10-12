@@ -30,7 +30,7 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
 
-	assert.PanicsWithValue(t, "The Reponse Writter must be an instance of Flusher.", func() {
+	assert.PanicsWithValue(t, "The Response Writter must be an instance of Flusher.", func() {
 		hub.SubscribeHandler(&responseWriterMock{}, req)
 	})
 }

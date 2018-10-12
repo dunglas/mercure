@@ -9,7 +9,7 @@ type Subscriber struct {
 	LastEventID string
 }
 
-// CanReceive checks if the update can be dispatched according to the given criterias
+// CanReceive checks if the update can be dispatched according to the given criteria
 func (s *Subscriber) CanReceive(u *Update) bool {
 	return s.isAuthorized(u) && s.isSubscribed(u)
 }
