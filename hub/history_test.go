@@ -42,27 +42,27 @@ func TestBoltHistory(t *testing.T) {
 
 	assert.Nil(t, h.Add(&Update{Event: Event{ID: "first"}}))
 	assert.Nil(t, h.Add(&Update{
-		Targets: map[string]struct{}{"foo": struct{}{}},
+		Targets: map[string]struct{}{"foo": {}},
 		Topics:  []string{"http://example.com/2"},
 		Event:   Event{ID: "second"},
 	}))
 	assert.Nil(t, h.Add(&Update{
-		Targets: map[string]struct{}{"foo": struct{}{}, "bar": struct{}{}},
+		Targets: map[string]struct{}{"foo": {}, "bar": {}},
 		Topics:  []string{"http://example.com/3", "http://example.com/alt/3"},
 		Event:   Event{ID: "third", Data: "an update"},
 	}))
 	assert.Nil(t, h.Add(&Update{
 		Event:   Event{ID: "fourth"},
 		Topics:  []string{"http://example.com/alt/3"},
-		Targets: map[string]struct{}{"baz": struct{}{}},
+		Targets: map[string]struct{}{"baz": {}},
 	}))
 	assert.Nil(t, h.Add(&Update{
-		Targets: map[string]struct{}{"foo": struct{}{}, "bar": struct{}{}},
+		Targets: map[string]struct{}{"foo": {}, "bar": {}},
 		Topics:  []string{"http://example.com/alt/3"},
 		Event:   Event{Data: "stop now"},
 	}))
 	assert.Nil(t, h.Add(&Update{
-		Targets: map[string]struct{}{"foo": struct{}{}, "bar": struct{}{}},
+		Targets: map[string]struct{}{"foo": {}, "bar": {}},
 		Topics:  []string{"http://example.com/alt/3"},
 		Event:   Event{Data: "should not be called"},
 	}))
