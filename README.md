@@ -99,7 +99,7 @@ req.end();
 // but any HTTP client, written in any language, will be just fine.
 ```
 
-Examples in other languages are available in [the `example/` directory](example/).
+Examples in other languages are available in [the `examples/` directory](examples/).
 
 ## Use Cases
 
