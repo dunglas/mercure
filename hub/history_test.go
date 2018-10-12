@@ -23,6 +23,7 @@ func TestNewBoltFromEnv(t *testing.T) {
 	defer os.Remove("test.db")
 
 	assert.FileExists(t, "test.db")
+	assert.IsType(t, &bolt.DB{}, db)
 }
 
 func TestBoltHistory(t *testing.T) {
