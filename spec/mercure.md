@@ -42,7 +42,7 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 
 # Discovery
 
-The publisher **SHOULD** advertises the URL of one or more hubs to the subscriber, allowing it to receive live updates when topics are updated.
+The publisher **SHOULD** advertise the URL of one or more hubs to the subscriber, allowing it to receive live updates when topics are updated.
 If more than one hub URL is specified, it is expected that the publisher notifies each hub, so the subscriber **MAY** subscribe to one or more of them.
 
 The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link header).
