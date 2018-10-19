@@ -9,17 +9,18 @@ import (
 
 func TestNewOptionsFormNew(t *testing.T) {
 	testEnv := map[string]string{
-		"DEBUG":                "1",
-		"PUBLISHER_JWT_KEY":    "foo",
-		"SUBSCRIBER_JWT_KEY":   "bar",
-		"ALLOW_ANONYMOUS":      "1",
-		"CORS_ALLOWED_ORIGINS": "*",
-		"ADDR":                 "127.0.0.1:8080",
-		"ACME_HOSTS":           "example.com,example.org",
-		"ACME_CERT_DIR":        "/tmp",
-		"CERT_FILE":            "foo",
-		"KEY_FILE":             "bar",
-		"DEMO":                 "1",
+		"ACME_CERT_DIR":           "/tmp",
+		"ACME_HOSTS":              "example.com,example.org",
+		"ADDR":                    "127.0.0.1:8080",
+		"ALLOW_ANONYMOUS":         "1",
+		"CERT_FILE":               "foo",
+		"CORS_ALLOWED_ORIGINS":    "*",
+		"DEBUG":                   "1",
+		"DEMO":                    "1",
+		"KEY_FILE":                "bar",
+		"PUBLISHER_JWT_KEY":       "foo",
+		"SUBSCRIBER_JWT_KEY":      "bar",
+		"PUBLISH_ALLOWED_ORIGINS": "http://127.0.0.1:8080",
 	}
 	for k, v := range testEnv {
 		os.Setenv(k, v)
@@ -33,6 +34,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		[]byte("bar"),
 		true,
 		[]string{"*"},
+		[]string{"http://127.0.0.1:8080"},
 		"127.0.0.1:8080",
 		[]string{"example.com", "example.org"},
 		"/tmp",

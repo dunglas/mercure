@@ -84,7 +84,7 @@ func TestServe(t *testing.T) {
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
 	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, true))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, true, []string{}))
 
 	client := &http.Client{}
 	_, err := client.Do(req)

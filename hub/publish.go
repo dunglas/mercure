@@ -11,7 +11,7 @@ import (
 // PublishHandler allows publisher to broadcast updates to all subscribers
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := authorize(r, h.options.PublisherJWTKey, h.options.PublishAllowedOrigins)
-	if err != nil || claims.Mercure.Publish == nil {
+	if err != nil || claims == nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -34,7 +34,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authorizedAlltargets, authorizedTargets := authorizedTargets(claims)
+	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, true)
 	targets := make(map[string]struct{}, len(r.Form["target"]))
 	for _, t := range r.Form["target"] {
 		if !authorizedAlltargets {

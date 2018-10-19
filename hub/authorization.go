@@ -11,11 +11,13 @@ import (
 
 // Claims contains Mercure's JWT claims
 type claims struct {
-	Mercure struct {
-		Publish   []string `json:"publish"`
-		Subscribe []string `json:"subscribe"`
-	} `json:"mercure"`
+	Mercure mercureClaim `json:"mercure"`
 	jwt.StandardClaims
+}
+
+type mercureClaim struct {
+	Publish   []string `json:"publish"`
+	Subscribe []string `json:"subscribe"`
 }
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or a "mercureAuthorization" cookie.
@@ -86,9 +88,20 @@ func validateJWT(encodedToken string, key []byte) (*claims, error) {
 	return nil, errors.New("Invalid JWT")
 }
 
-func authorizedTargets(claims *claims) (all bool, targets map[string]struct{}) {
-	authorizedTargets := make(map[string]struct{}, len(claims.Mercure.Publish))
-	for _, target := range claims.Mercure.Publish {
+func authorizedTargets(claims *claims, publisher bool) (all bool, targets map[string]struct{}) {
+	if claims == nil {
+		return false, map[string]struct{}{}
+	}
+
+	var providedTargets []string
+	if publisher {
+		providedTargets = claims.Mercure.Publish
+	} else {
+		providedTargets = claims.Mercure.Subscribe
+	}
+
+	authorizedTargets := make(map[string]struct{}, len(providedTargets))
+	for _, target := range providedTargets {
 		if target == "*" {
 			return true, nil
 		}

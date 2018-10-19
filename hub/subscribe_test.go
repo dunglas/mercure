@@ -218,10 +218,8 @@ func TestSubscribeTarget(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
 	w := newCloseNotifyingRecorder()
-	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithTargets(hub, []string{"foo", "bar"})})
+	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, false, []string{"foo", "bar"})})
 	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
-
-	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
 
 	hub.SubscribeHandler(w, req)
 

@@ -35,7 +35,7 @@ func TestBoltHistory(t *testing.T) {
 	assert.Implements(t, (*History)(nil), h)
 
 	count := 0
-	assert.Nil(t, h.FindFor(&Subscriber{[]string{}, []*regexp.Regexp{}, ""}, func(*Update) bool {
+	assert.Nil(t, h.FindFor(&Subscriber{false, map[string]struct{}{}, []*regexp.Regexp{}, ""}, func(*Update) bool {
 		count++
 		return true
 	}))
@@ -70,7 +70,8 @@ func TestBoltHistory(t *testing.T) {
 
 	h.FindFor(
 		&Subscriber{
-			[]string{"foo"},
+			false,
+			map[string]struct{}{"foo": {}},
 			[]*regexp.Regexp{regexp.MustCompile(`^http:\/\/example\.com\/alt\/3$`)},
 			"first",
 		},

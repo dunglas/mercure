@@ -16,7 +16,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		panic("The Response Writter must be an instance of Flusher.")
 	}
 
-	claims, err := authorize(r, h.options.PublisherJWTKey, nil)
+	claims, err := authorize(r, h.options.SubscriberJWTKey, nil)
 	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
@@ -41,7 +41,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("New subscriber")
 	sendHeaders(w)
 
-	authorizedAlltargets, authorizedTargets := authorizedTargets(claims)
+	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
 	subscriber := &Subscriber{authorizedAlltargets, authorizedTargets, regexps, retrieveLastEventID(r)}
 
 	if subscriber.LastEventID != "" {

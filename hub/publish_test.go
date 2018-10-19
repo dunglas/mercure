@@ -56,7 +56,7 @@ func TestPublishNoTopic(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
 	req.Form = url.Values{}
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -74,7 +74,7 @@ func TestPublishNoData(t *testing.T) {
 	form.Add("topic", "http://example.com/books/1")
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -94,7 +94,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 	form.Add("retry", "invalid")
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -133,7 +133,7 @@ func TestPublishOK(t *testing.T) {
 	form.Add("target", "bar")
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{"foo", "bar"}))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -166,7 +166,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	form.Add("data", "Hello!")
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
 	req.Form = form
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
