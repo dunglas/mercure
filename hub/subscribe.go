@@ -16,7 +16,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		panic("The Response Writter must be an instance of Flusher.")
 	}
 
-	claims, err := authorize(r, h.options.PublisherJWTKey)
+	claims, err := authorize(r, h.options.PublisherJWTKey, nil)
 	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return

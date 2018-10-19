@@ -11,8 +11,9 @@
     const publishForm = document.forms.publish;
 
     function error(e) {
+        const message = e.toString();
         console.error(e);
-        alert(e);
+        alert(message === '[object Event]' ? 'EventSource error' : message);
     }
 
     function getHubUrl(response) {

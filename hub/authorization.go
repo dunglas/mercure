@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -19,7 +20,7 @@ type claims struct {
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or a "mercureAuthorization" cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
-func authorize(r *http.Request, jwtKey []byte) (*claims, error) {
+func authorize(r *http.Request, jwtKey []byte, publishAllowedOrigins []string) (*claims, error) {
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
@@ -30,13 +31,39 @@ func authorize(r *http.Request, jwtKey []byte) (*claims, error) {
 	}
 
 	cookie, err := r.Cookie("mercureAuthorization")
-	if err == nil {
-		// TODO: validate origin
+	if err != nil {
+		// Anonymous
+		return nil, nil
+	}
+
+	// CSRF attacks cannot occurs when using safe methods
+	if r.Method != "POST" {
 		return validateJWT(cookie.Value, jwtKey)
 	}
 
-	// Anonymous
-	return nil, nil
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// Try to extract the origin from the Referer, or return an error
+		referer := r.Header.Get("Referer")
+		if referer == "" {
+			return nil, errors.New("An \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
+		}
+
+		u, err := url.Parse(referer)
+		if err != nil {
+			return nil, err
+		}
+
+		origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+	}
+
+	for _, allowedOrigin := range publishAllowedOrigins {
+		if origin == allowedOrigin {
+			return validateJWT(cookie.Value, jwtKey)
+		}
+	}
+
+	return nil, fmt.Errorf("The origin \"%s\" is not allowed to post updates", origin)
 }
 
 // validateJWT validates that the provided JWT token is a valid Mercure token

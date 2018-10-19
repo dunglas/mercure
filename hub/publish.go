@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 
@@ -9,7 +10,7 @@ import (
 
 // PublishHandler allows publisher to broadcast updates to all subscribers
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
-	claims, err := authorize(r, h.options.PublisherJWTKey)
+	claims, err := authorize(r, h.options.PublisherJWTKey, h.options.PublishAllowedOrigins)
 	if err != nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
@@ -67,5 +68,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast the update
 	h.updates <- newSerializedUpdate(u)
+	io.WriteString(w, u.ID)
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Update published")
 }
