@@ -4,7 +4,8 @@ import "regexp"
 
 // Subscriber represents a client subscribed to a list of topics
 type Subscriber struct {
-	Targets     []string
+	AllTargets  bool
+	Targets     map[string]struct{}
 	Topics      []*regexp.Regexp
 	LastEventID string
 }
@@ -16,11 +17,11 @@ func (s *Subscriber) CanReceive(u *Update) bool {
 
 // isAuthorized checks if the subscriber can access to at least one of the update's intended targets
 func (s *Subscriber) isAuthorized(u *Update) bool {
-	if len(u.Targets) == 0 {
+	if s.AllTargets || len(u.Targets) == 0 {
 		return true
 	}
 
-	for _, t := range s.Targets {
+	for t := range s.Targets {
 		if _, ok := u.Targets[t]; ok {
 			return true
 		}

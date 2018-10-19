@@ -172,6 +172,7 @@ The cookie **SHOULD** have the `Secure`, `HttpOnly` and `SameSite` attributes se
 
 When using authorization mechanisms, the connection **MUST** use an encryption layer such as HTTPS.
 
+If both an `Authorization` HTTP header and a cookie named `mercureAuthorization` are presented by the client, the cookie **MUST** be ignored.
 If a client tries to execute an operation it is not allowed to, a 403 HTTP status code **SHOULD** be returned.
 
 ## Publishers
@@ -180,12 +181,15 @@ Publishers **MUST** be authorized to dispatch updates to the hub, and **MUST** p
 
 To be allowed to publish an update, the JWT presented by the publisher **MUST** contain a claim called `mercure`, and this claim **MUST** contain a `publish` key.
 JWT's `mercure.publish` contains an array of targets the publisher is allowed to dispatch updates to.
-If `mercure.publish` contains an empty array, the publisher is only allowed to dispatch public updates.
-If `mercure.publish` is not defined, the publisher **MUST NOT** be authorized to dispatch any update.
 
-If the `mercure.publish` array contains the reserved string value `*`, then the publisher is authorized to dispatch updates to all targets.
+If `mercure.publish`:
+
+* is not defined, then the publisher **MUST NOT** be authorized to dispatch any update
+* contains an empty array, then the publisher is only allowed to dispatch public updates
+* contains the reserved string `*` as an array value, then the publisher is authorized to dispatch updates to all targets
 
 If a topic is not public, the `POST` request sent by the publisher to the hub **MUST** contain a list of keys named `target`. Theirs values **MUST** be of type `string`, and it is **RECOMMENDED** to use valid IRIs. They can be, for instance a user ID, or a list of group IDs.
+If an update contains at least one target the publisher is not authorized for, the hub **MUST NOT** dispatch the update (even if some targets in the list are allowed) and **SHOULD** return a 403 HTTP status code.
 
 ## Subscribers
 

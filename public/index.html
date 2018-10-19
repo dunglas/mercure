@@ -8,86 +8,128 @@
 </head>
 
 <body>
-    <section class="hero is-dark">
+    <div class="hero is-dark">
         <div class="hero-body">
             <div class="container">
                 <h1 class="title is-2">
-                    Mercure Debugging Tools
+                    <a href="https://mercure.rocks">Mercure</a> Debugging Tools
                 </h1>
             </div>
         </div>
-    </section>
+    </div>
     <div class="container">
+        <section>
+            <h1 class="title is-2">Settings</h1>
+
+            <form name="settings">
+                <div class="field">
+                    <label class="label" for="hubUrl">Hub URL*</label>
+                    <input class="input" type="url" name="hubUrl" id="hubUrl" required>
+
+                    <p class="help">
+                        Will be filled automatically if you <a href="#discover">discover</a> a resource.
+                    </p>
+                </div>
+
+                <div class="field">
+                    <label class="label">Authorization type</label>
+
+                    <div class="control">
+                        <label class="radio">
+                            <input type="radio" name="authorization" value="cookie" checked>
+                            <code>mercureAuthorization</code> cookie
+                        </label>
+                        <label class="radio">
+                            <input type="radio" name="authorization" value="header">
+                            <code>Authorization</code> HTTP Header
+                        </label>
+                    </div>
+
+                    <p class="help">
+                        The <code>mercureAuthorization</code> cookie will be set automatically by the server only if you <a href="#discover">discover</a> a <b>demo</b> endpoint.
+                    </p>
+                </div>
+
+                <div class="field">
+                    <label class="label" for="jwt">JWT</label>
+                    <input class="input" type="text" name="jwt" id="jwt" required>
+
+                    <p class="help">
+                        Required to publish, or to subscribe to private updates.<br>
+                        Claim structure to use:
+                        <pre><code>{
+  "mercure": {
+    "subscribe": ["list of authorized targets, * for all, omit for public only"],
+    "publish": ["list of authorized targets, * for all, omit to not allow to publish"]
+  }
+}</code></pre><br>
+                        <a href="https://jwt.io" target="_blank" class="button is-link is-small">Create a token</a>
+                        (demo key: <code>!UnsecureChangeMe!</code>)
+                    </p>
+                </div>
+            </form>
+        </section>
+
+        <hr>
+
+        <section id="discover">
+            <h1 class="title is-2">Discover</h1>
+
+            <form name="discover">
+                <div class="field">
+                    <label class="label" for="topic">Topic*</label>
+                    <div class="control">
+                        <input class="input" type="url" name="topic" id="topic" required>
+                    </div>
+
+                    <p class="help">
+                        URL returning a <code>Link rel="mercure"</code> HTTP header to init the discovery.<br>
+                        Demo endpoints: any subpath of <code>/demo</code>.
+                    </p>
+                </div>
+
+                <div class="field">
+                    <label class="label" for="body">Demo body</label>
+                    <div class="control">
+                        <textarea class="textarea" name="body" id="body">
+
+                        </textarea>
+                    </div>
+
+                    <p class="help">Data to return. Supported only by <b>demo</b> endpoints.</p>
+                </div>
+
+                <input class="button is-primary" type="submit" value="Discover" name="discover">
+            </form>
+        </section>
+
         <div class="columns">
             <section class="column">
-                <h2 class="title is-2">Subscriber</h2>
                 <section>
-                    <h3 class="title is-4">Discover</h3>
-
-                    <form name="discover">
-                        <div class="field">
-                            <label class="label">Topic *:</label>
-                            <input class="input" type="url" name="topic" required>
-
-                            <small>
-                                URL containing a <code>Link rel="mercure"</code> header to init the discovery.<br>
-                                Demo endpoints: any subpath of <code>/demo</code>.
-                            </small>
-                        </div>
-                        <div class="field">
-                            <label class="label">Demo body:</label>
-                            <textarea class="textarea" name="body"></textarea>
-
-                            <small>Data to return (demo entrypoints only, default JSON-LD document when empty).</small>
-                        </div>
-
-                        <div class="field">
-                            <label class="label">
-                                Demo JWT:
-                                <input class="input" name="jwt" autocomplete="off">
-                            </label>
-                            <small>
-                                JWT token to set in a <code>mercureAuthorization</code> cookie (demo entrypoints only,
-                                anonymous when empty).<br>
-                                Default key: <code>!UnsecureChangeMeSubscriber!</code>, add an array of targets
-                                (strings)
-                                in a claim named
-                                <code>mercureTargets</code>.<br>
-                                <a href="https://jwt.io" target="_blank">Create a token</a>.
-                            </small>
-                        </div>
-
-                        <input class="button is-link" type="submit" value="Discover" name="discover">
-                    </form>
-                </section>
-
-                <section>
-                    <h2 class="title is-2">Subscribe</h2>
+                    <h1 class="title is-2">Subscribe</h1>
                     <form name="subscribe">
                         <div class="field">
-                            <label class="label">
-                                Hub URL *:
-                                <input class="input" type="url" name="url" required>
-                            </label>
+                            <label class="label" for="subscribeTopics">Topics to get updates for*</label>
+                            <div class="control">
+                                <textarea class="textarea" name="topics" id="subscribeTopics" required></textarea>
+                            </div>
+
+                            <p class="help">
+                                One <a href="https://tools.ietf.org/html/rfc6570">URI template</a> per line.<br>
+                                Examples:
+                                <pre><code id="subscribeTopicsExamples"></code></pre>
+                            </p>
                         </div>
 
                         <div class="field">
-                            <label class="label">
-                                Topics to get updates for *:
-                                <textarea class="textarea" name="topics" cols="30" rows="3" required></textarea>
-                            </label>
-                            <small>One <a href="https://tools.ietf.org/html/rfc6570">URI template</a> per line.</small>
+                            <label class="label" for="lastEventId">Last Event ID</label>
+                            <div class="control">
+                                <input class="input" name="lastEventId" id="lastEventId">
+                            </div>
                         </div>
 
-                        <div class="field">
-                            <label class="label">
-                                Last Event ID:
-                                <input class="input" name="lastEventId">
-                            </label>
-                        </div>
-
-                        <input class="button is-link" type="submit" value="Subscribe" name="subscribe">
-                        <button class="button is-danger" name="unsubscribe" disabled>Unsubscribe</button>
+                        <input class="button is-primary" type="submit" value="Subscribe" name="subscribe">
+                        <button class="button is-warning" name="unsubscribe" disabled>Unsubscribe</button>
                     </form>
 
                     <main id="updates">No updates pushed yet.</main>
@@ -104,68 +146,58 @@
             </section>
 
             <section class="column">
-                <h2 class="title is-2">Publisher</h2>
+                <h1 class="title is-2">Publish</h1>
 
-                <form name="publish" action="/publish" method="POST">
+                <form name="publish">
                     <div class="field">
-                        <label class="label">
-                            Publisher JWT *:
-                            <input class="input" name="jwt" autocomplete="off" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.HB0k08BaV8KlLZ3EafCRlTDGbkd9qdznCzJQ_l8ELTU"
-                                required>
-                        </label>
-                        <small>
-                            Default key: <code>!UnsecureChangeMePublisher!</code>.<br>
-                            <a href="https://jwt.io" target="_blank">Create a new token</a>.
-                        </small>
+                        <label class="label" for="publishTopics">Topics*</label>
+                        <div class="control">
+                            <textarea class="textarea" name="topics" id="publishTopics" required></textarea>
+                        </div>
+
+                        <p class="help">
+                            First line: canonical <a href="https://tools.ietf.org/html/rfc4622">IRI</a>.<br>
+                            Next lines: alternate IRIs.</p>
                     </div>
 
                     <div class="field">
-                        <label class="label">
-                            Topics *:
-                            <textarea class="textarea" name="topics" required></textarea>
-                        </label>
-                        <small>First line: canonical <a href="https://tools.ietf.org/html/rfc4622">IRI</a>. Next lines:
-                            alternate IRIs.</small>
+                        <label class="label" for="data">Data*</label>
+                        <div class="control">
+                            <textarea class="textarea" name="data" id="data" required></textarea>
+                        </div>
                     </div>
 
                     <div class="field">
-                        <label class="label">
-                            Data *:
-                            <textarea class="textarea" name="data" cols="30" rows="5" required></textarea>
-                        </label>
+                        <label class="label" for="targets">Targets</label>
+                        <div class="control">
+                            <textarea class="textarea" name="targets" id="targets"></textarea>
+                        </div>
+
+                        <p class="help">One string per line.</p>
                     </div>
 
                     <div class="field">
-                        <label class="label">
-                            Targets:
-                            <textarea class="textarea" name="targets"></textarea>
-
-                            <small>One string per line.</small>
-                        </label>
+                        <label class="label" for="eventId">Event ID</label>
+                        <div class="control">
+                            <input class="input" name="id" id="eventId">
+                        </div>
                     </div>
 
                     <div class="field">
-                        <label class="label">
-                            Event ID:
-                            <input class="input" name="id">
-                        </label>
+                        <label class="label" for="eventType">Event Type</label>
+                        <div class="control">
+                            <input class="input" name="type" id="eventType">
+                        </div>
                     </div>
 
                     <div class="field">
-                        <label class="label">
-                            Event Type:
-                            <input class="input" name="type">
-                        </label>
+                        <label class="label" for="eventRetry">Event Retry</label>
+                        <div class="control">
+                            <input class="input" name="retry" id="eventRetry">
+                        </div>
                     </div>
 
-                    <div class="field">
-                        <label class="label">
-                            Event Retry:
-                            <input class="input" name="retry">
-                        </label>
-                    </div>
-
-                    <input class="button is-link" type="submit" value="Publish">
+                    <input class="button is-primary" type="submit" value="Publish">
                 </form>
             </section>
         </div>

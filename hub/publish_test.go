@@ -14,7 +14,7 @@ import (
 func TestNoAuthorizationHeader(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -27,7 +27,7 @@ func TestNoAuthorizationHeader(t *testing.T) {
 func TestPublishUnauthorizedJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyUnauthorizedJWT())
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -41,7 +41,7 @@ func TestPublishUnauthorizedJWT(t *testing.T) {
 func TestPublishInvalidAlgJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyNoneSignedJWT())
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -55,7 +55,7 @@ func TestPublishInvalidAlgJWT(t *testing.T) {
 func TestPublishNoTopic(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = url.Values{}
 	w := httptest.NewRecorder()
@@ -73,7 +73,7 @@ func TestPublishNoData(t *testing.T) {
 	form := url.Values{}
 	form.Add("topic", "http://example.com/books/1")
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = form
 	w := httptest.NewRecorder()
@@ -93,7 +93,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 	form.Add("data", "foo")
 	form.Add("retry", "invalid")
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = form
 	w := httptest.NewRecorder()
@@ -132,7 +132,7 @@ func TestPublishOK(t *testing.T) {
 	form.Add("target", "foo")
 	form.Add("target", "bar")
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = form
 	w := httptest.NewRecorder()
@@ -165,7 +165,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	form.Add("topic", "http://example.com/books/1")
 	form.Add("data", "Hello!")
 
-	req := httptest.NewRequest("GET", "http://example.com/publish", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true))
 	req.Form = form
 	w := httptest.NewRecorder()

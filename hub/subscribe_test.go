@@ -28,7 +28,7 @@ func (m *responseWriterMock) WriteHeader(statusCode int) {
 func TestSubscribeNotAFlusher(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 
 	assert.PanicsWithValue(t, "The Response Writter must be an instance of Flusher.", func() {
 		hub.SubscribeHandler(&responseWriterMock{}, req)
@@ -38,7 +38,7 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 func TestSubscribeNoCookie(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
 
 	hub.SubscribeHandler(w, req)
@@ -52,7 +52,7 @@ func TestSubscribeNoCookie(t *testing.T) {
 func TestSubscribeInvalidJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
 	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: "invalid"})
 	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
@@ -68,7 +68,7 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 func TestSubscribeUnauthorizedJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
 	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
 	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
@@ -84,7 +84,7 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 func TestSubscribeInvalidAlgJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
 	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
 	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
@@ -100,7 +100,7 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 func TestSubscribeNoTopic(t *testing.T) {
 	hub := createAnonymousDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
@@ -113,7 +113,7 @@ func TestSubscribeNoTopic(t *testing.T) {
 func TestSubscribeInvalidIRI(t *testing.T) {
 	hub := createAnonymousDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=fau{lty", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=fau{lty", nil)
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
@@ -151,7 +151,7 @@ func TestSubscribe(t *testing.T) {
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil)
 	w := newCloseNotifyingRecorder()
 	hub.SubscribeHandler(w, req)
 
@@ -170,7 +170,7 @@ func TestUnsubscribe(t *testing.T) {
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/books/1", nil)
+		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil)
 		hub.SubscribeHandler(wr, req)
 		assert.Equal(t, 0, len(hub.subscribers))
 	}(&wg)
@@ -216,7 +216,7 @@ func TestSubscribeTarget(t *testing.T) {
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/reviews/{id}", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
 	w := newCloseNotifyingRecorder()
 	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithTargets(hub, []string{"foo", "bar"})})
 	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
@@ -260,7 +260,7 @@ func TestSendMissedEvents(t *testing.T) {
 	wr1 := newCloseNotifyingRecorder()
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil)
+		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil)
 		hub.SubscribeHandler(wr1, req)
 		assert.Equal(t, "id: b\ndata: d2\n\n", wr1.Body.String())
 	}(&wg)
@@ -268,7 +268,7 @@ func TestSendMissedEvents(t *testing.T) {
 	wr2 := newCloseNotifyingRecorder()
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		req := httptest.NewRequest("GET", "http://example.com/subscribe?topic=http://example.com/foos/{id}", nil)
+		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}", nil)
 		req.Header.Add("Last-Event-ID", "a")
 		hub.SubscribeHandler(wr2, req)
 		assert.Equal(t, "id: b\ndata: d2\n\n", wr2.Body.String())

@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/unrolled/secure"
 	"golang.org/x/crypto/acme/autocert"
@@ -70,24 +71,14 @@ func (h *Hub) Serve() {
 
 // chainHandlers configures and chains handlers
 func (h *Hub) chainHandlers() http.Handler {
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 
+	r.HandleFunc("/hub", h.SubscribeHandler).Methods("GET", "HEAD")
+	r.HandleFunc("/hub", h.PublishHandler).Methods("POST")
 	if h.options.Demo {
-		mux.Handle("/", http.FileServer(http.Dir("public")))
-		mux.Handle("/demo/", http.HandlerFunc(demo))
+		r.PathPrefix("/demo").HandlerFunc(demo)
+		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 	}
-	mux.Handle("/publish", http.HandlerFunc(h.PublishHandler))
-
-	var s http.Handler
-	if len(h.options.CorsAllowedOrigins) > 0 {
-		allowedOrigins := handlers.AllowedOrigins(h.options.CorsAllowedOrigins)
-		subscribeCORS := handlers.CORS(handlers.AllowCredentials(), allowedOrigins)
-
-		s = subscribeCORS(http.HandlerFunc(h.SubscribeHandler))
-	} else {
-		s = http.HandlerFunc(h.SubscribeHandler)
-	}
-	mux.Handle("/subscribe", s)
 
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         h.options.Debug,
@@ -98,7 +89,17 @@ func (h *Hub) chainHandlers() http.Handler {
 		ContentSecurityPolicy: "default-src 'self'",
 	})
 
-	compressHandler := handlers.CompressHandler(mux)
+	var corsHandler http.Handler
+	if len(h.options.CorsAllowedOrigins) > 0 {
+		allowedOrigins := handlers.AllowedOrigins(h.options.CorsAllowedOrigins)
+		subscribeCORS := handlers.CORS(handlers.AllowCredentials(), allowedOrigins)
+
+		corsHandler = subscribeCORS(r)
+	} else {
+		corsHandler = r
+	}
+
+	compressHandler := handlers.CompressHandler(corsHandler)
 	secureHandler := secureMiddleware.Handler(compressHandler)
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(

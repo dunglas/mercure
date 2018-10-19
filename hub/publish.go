@@ -1,17 +1,16 @@
 package hub
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 )
 
 // PublishHandler allows publisher to broadcast updates to all subscribers
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.isAuthorizationValid(r.Header.Get("Authorization")) {
+	claims, err := authorize(r, h.options.PublisherJWTKey)
+	if err != nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -34,8 +33,16 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authorizedAlltargets, authorizedTargets := authorizedTargets(claims)
 	targets := make(map[string]struct{}, len(r.Form["target"]))
 	for _, t := range r.Form["target"] {
+		if !authorizedAlltargets {
+			_, ok := authorizedTargets[t]
+			if !ok {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			}
+		}
+
 		targets[t] = struct{}{}
 	}
 
@@ -61,20 +68,4 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// Broadcast the update
 	h.updates <- newSerializedUpdate(u)
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Update published")
-}
-
-// Checks the validity of the JWT
-func (h *Hub) isAuthorizationValid(authorizationHeader string) bool {
-	if len(authorizationHeader) < 48 || authorizationHeader[:7] != "Bearer " {
-		return false
-	}
-
-	token, _ := jwt.Parse(authorizationHeader[7:], func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return h.options.PublisherJWTKey, nil
-	})
-
-	return token.Valid
 }

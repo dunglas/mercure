@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testURL = "http://" + testAddr + "/hub"
+
 func TestServeAllOptions(t *testing.T) {
 	h := createAnonymousDummy()
 	h.options.Demo = true
@@ -48,7 +50,7 @@ func TestServe(t *testing.T) {
 
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		resp, err := http.Get("http://" + testAddr + "/subscribe?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1")
+		resp, err := http.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1")
 		if err != nil {
 			panic(err)
 		}
@@ -61,7 +63,7 @@ func TestServe(t *testing.T) {
 
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		resp, err := http.Get("http://" + testAddr + "/subscribe?topic=http%3A%2F%2Fexample.com%2Falt%2F1")
+		resp, err := http.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Falt%2F1")
 		if err != nil {
 			panic(err)
 		}
@@ -80,7 +82,7 @@ func TestServe(t *testing.T) {
 	}
 
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
-	req, _ := http.NewRequest("POST", "http://"+testAddr+"/publish", strings.NewReader(body.Encode()))
+	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, true))
 
