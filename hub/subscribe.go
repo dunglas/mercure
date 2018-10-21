@@ -5,15 +5,9 @@ import (
 	"net/http"
 	"regexp"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
 )
-
-type claims struct {
-	MercureTargets []string `json:"mercureTargets"`
-	jwt.StandardClaims
-}
 
 // SubscribeHandler create a keep alive connection and send the events to the subscribers
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
@@ -22,14 +16,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		panic("The Response Writter must be an instance of Flusher.")
 	}
 
-	targets := []string{}
-	cookie, err := r.Cookie("mercureAuthorization")
-	if err == nil {
-		if targets, ok = h.extractTargets(cookie.Value); !ok {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-	} else if !h.options.AllowAnonymous {
+	claims, err := authorize(r, h.options.SubscriberJWTKey, nil)
+	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -53,7 +41,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("New subscriber")
 	sendHeaders(w)
 
-	subscriber := &Subscriber{targets, regexps, retrieveLastEventID(r)}
+	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
+	subscriber := &Subscriber{authorizedAlltargets, authorizedTargets, regexps, retrieveLastEventID(r)}
 
 	if subscriber.LastEventID != "" {
 		h.sendMissedEvents(w, r, subscriber)
@@ -93,26 +82,6 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		}).Info("Event sent")
 		f.Flush()
 	}
-}
-
-// extractTargets extracts the subscriber's authorized targets from the JWT
-func (h *Hub) extractTargets(encodedToken string) ([]string, bool) {
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return h.options.SubscriberJWTKey, nil
-	})
-
-	if err != nil {
-		return nil, false
-	}
-
-	if claims, ok := token.Claims.(*claims); ok && token.Valid {
-		return claims.MercureTargets, true
-	}
-
-	return nil, false
 }
 
 // sendHeaders send correct HTTP headers to create a keep-alive connection

@@ -36,13 +36,14 @@ Mercure is a protocol allowing to push data updates to web browsers and other HT
 The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be interpreted as described in [@!RFC2119].
 
 * Topic: An HTTP [@!RFC7230] or HTTPS [@!RFC2818] topic URL. The unit to which one can subscribe to changes.
-* Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub systems might call the publisher the "source". Typically a website or a web API.
-* Subscriber: A client application that subscribes to real-time updates of topics (typically a Progressive Web App or a Mobile App).
+* Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub systems might call the publisher the "source". Typically a website or a web API, but can also be a web browser.
+* Subscriber: A client application that subscribes to real-time updates of topics. Typically a Progressive Web App or a Mobile App, but can also be a server.
+* Target: A subscriber, or a group of subscribers. A publisher is able to securely dispatch updates to specific targets. Using an HTTP [@!RFC7230] or HTTPS [@!RFC2818] URL to identify targets is **RECOMMENDED**.
 * Hub: A server that handles subscription requests and distributes the content to subscribers when the corresponding topics have been updated (a Hub implementation is provided in this repository). Any hub **MAY** implement its own policies on who can use it.
 
 # Discovery
 
-The publisher **SHOULD** advertise the URL of one or more hubs to the subscriber, allowing it to receive live updates when topics are updated.
+If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber, allowing it to receive live updates when topics are updated.
 If more than one hub URL is specified, it is expected that the publisher notifies each hub, so the subscriber **MAY** subscribe to one or more of them.
 
 The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link header).
@@ -53,7 +54,7 @@ During the meantime, the relation type `https://git.io/mercure` can be used inst
 
 The publisher **MAY** provide the following target attributes in the Link headers:
 
-* `last-event-id`: the globally unique identifier of the last event dispatched by the publisher at the time of the generation of this resource. If provided, it **MUST** be passed to the hub through a query parameter called `Last-Event-ID` and will be used to ensure that possible updates having been made during between the resource generation time and the connection to the hub are not lost. See section #Re-Connection-and-State-Reconciliation). If this attribute is provided, the publisher **MUST** always set the `id` parameter when sending updates to the hub.
+* `last-event-id`: the globally unique identifier of the last event dispatched by the publisher at the time of the generation of this resource. If provided, it **MUST** be passed to the hub through a query parameter called `Last-Event-ID` and will be used to ensure that possible updates having been made during between the resource generation time and the connection to the hub are not lost. See section #Re-Connection-and-State-Reconciliation. If this attribute is provided, the publisher **MUST** always set the `id` parameter when sending updates to the hub.
 * `content-type`: the content type of the updates that will pushed by the hub. If omited, the subscriber **MUST** assume that the content type will be the same than the one of the original resource. Setting the `content-type` attribute is especially useful to hint that partial updates will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 * `key-set=<JWKS>`: the key(s) to decrypt updates encoded in the JWKS (JSON Web Key Set) format (see the Encryption section).
 
@@ -69,7 +70,7 @@ Host: example.com
 
 HTTP/1.1 200 Ok
 Content-type: application/ld+json
-Link: <https://hub.example.com/subscribe>; rel="mercure"
+Link: <https://example.com/hub>; rel="mercure"
 
 {"@id": "/books/foo.jsonld", "foo": "bar"}
 ```
@@ -82,7 +83,7 @@ Note: the discovery mechanism described in this section [is strongly inspired fr
 
 The subscriber subscribes to an URL exposed by a hub to receive updates of one or many topics.
 To subscribe to updates, the client opens an HTTPS connection following the [Server-Sent Events specification](https://html.spec.whatwg.org/multipage/server-sent-events.html) to the hub's subscription URL advertised
-by the Publisher.
+by the Publisher. The `GET` HTTP method must be used.
 The connection **SHOULD** use HTTP/2 to leverage mutliplexing and other advanced features of this protocol.
 
 The subscriber specifies the list of topics to get updates for by using one or several query parameters named `topic`.
@@ -95,7 +96,7 @@ The protocol doesn't specify the maximum number of `topic` parameters that can b
 The [EventSource JavaScript interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface) **MAY** be used to establish the connection.
 Any other appropriate mechanism including but not limited to [readable streams](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API/Using_readable_streams) and [XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest) (used by popular polyfills) **MAY** also be used.
 
-The hub sends updates concerning all subscribed resources matching the provided URI templates.
+The hub sends updates concerning all subscribed resources matching the provided URI templates and the provided targets (see section #Authorization). If no targets are specied, the update is dispatched to all subscribers.
 The hub **MUST** send these updates as [text/event-stream compliant events](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model).
 
 The `data` property **MUST** contain the new version of the topic. It can be the full resource, or a partial update by using formats such as JSON Patch `@RFC6902` or JSON Merge Patch `@RFC7386`.
@@ -113,7 +114,7 @@ Example:
 ```javascript
 // The subscriber subscribes to updates for the https://example.com/foo topic
 // and to any topic matching https://example.com/books/{name}
-const url = new URL('https://hub.example.com/subscribe');
+const url = new URL('https://example.com/hub');
 url.searchParams.append('topic', 'https://example.com/foo');
 url.searchParams.append('topic', 'https://example.com/bar/{id}');
 
@@ -125,53 +126,82 @@ eventSource.onmessage = function ({data}) {
 };
 ```
 
-# Hub
+The hub **MAY** require that the subscribers are authorized to receive any update.
 
-The hub receives updates from the publisher on a dedicated HTTPS endpoint.
-The connection **MUST** use an encryption layer, such as TLS. HTTPS certificate can be obtained for free using [Let's Encrypt](https://letsencrypt.org/).
+# Publication
 
+The publisher send updates by issuing `POST` HTTPS requests on the hub URL.
 When it receives an update, the hub dispatches it to subsribers using the established server-sent events connections.
 
 An application CAN send events directly to the subscribers, without using an external hub server, if it is able to do so.
 In this case, it **MAY NOT** implement the endpoint to publish updates.
 
-The endpoint to publish updates is an HTTPS URL accessed using the `POST` method.
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format and contains the following data:
 
 * `topic`: IRIs of the updated topic. If this key is present several times, the first occurence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs. The hub **MUST** dispatch this update to subscribers subscribed to both canonical or alternate URLs.
-* `data`: the content of the new version of this topic
-* `target` (optional): target audience of this event, see the Authorization section for further information.
-* `id` (optional): the topic's revision identifier, it will be used as the SSE's `id` property, if omited the hub **MUST** generate a valid UUID.
+* `data`: the content of the new version of this topic.
+* `target` (optional): target audience of this update. This key can be present several times. See section #Authorization for further information.
+* `id` (optional): the topic's revision identifier, it will be used as the SSE's `id` property, if omited the hub **MUST** generate a valid globally unique id. It `MAY` be an UUID.
 * `type` (optional): the SSE's `event` property (a specific event type)
 * `retry` (optional): the SSE's `retry` property (the reconnection time)
 
-The request **MUST** also contain an `Authorization` HTTP header containing the string `Bearer ` followed by a valid JWS [@!RFC7515] in compact serialization that the hub will check to ensure that the publisher is authorized to publish the update.
+In case of success, the HTTP response's body **MUST** be the `id` associated to this update (the one generated by the hub, if it has not been provided by the client) and a success HTTP status code **MUST** be returned.
+The publisher **MUST** be authorized to publish updates. See section #Authorization.
 
 # Authorization
 
-If a topic is not public, the update request sent by the publisher to the hub **MUST** also contain a list of keys named `target`.
-Theirs values are `string`. They can be, for instance a user ID, or a list of group IDs.
+To ensure that they are authorized, both publishers and subscribers must present a valid JWS [@!RFC7515] in compact serialization to the hub. This JWS **SHOULD** be short lived, especially if the subscriber is a web browser.
+A different key **MAY** be used to sign subscribers' and publishers' tokens.
 
-To receive updates for private topics, the subscriber **MUST** send a cookie called `mercureAuthorization` when connecting
-to the hub.
+Two mechanisms are defined to present the JWS to the hub:
 
-The cookie **SHOULD** be set by the publisher during the discovery. The cookie **SHOULD** have the `Secure`, `HttpOnly`.
-It **MAY** have the `SameSite` flag if appropriate. Setting the cookie's `Path` to the path of the subscribe endpoint is also **RECOMMENDED**.
-When skipping the discovery mechanism, the client **MAY** set the cookie itself (for security reasons, this is not recommended in the context of a web browser).
+* using an `Authorization` HTTP header
+* using a cookie
 
-Consequently if the subscriber is a web browser, both the publisher and the hub have to share the same second level domain to use the autorization feature. The `Domain` flag **MAY** be used to allow the publisher and the host to use different subdomains.
+If a publisher or the subscriber is not a web browser, it **SHOULD** use an `Authorization` HTTP header. This `Authorization` header **MUST** contain the string `Bearer ` followed by the JWS.
+The hub will check that the JWS is conform to the rules defined later to ensure that the client is authorized to publish or subscribe to updates.
 
-By the `EventSource` specification, connections can only be estabilished using the `GET` HTTP method, and it is not possible to set custom HTTP headers (such as the `Authorization` one).
-
+By the `EventSource` specification, web browsers can not set custom HTTP headers for such connections, and they can only be estabilished using the `GET` HTTP method.
 However, cookies are supported, and can be included even in crossdomain requests if [the CORS credentials are set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials):
 
-The value of this cookie **MUST** be a JWS in compact serialization. It **MUST** have a claim named `mercureTargets` that contains an array of strings: the list of targets the user is authorized to receive updates for.
-For instance, valid targets can be a username or a list of group identifiers.
-The JWS **SHOULD** be short lived, especially if the subscriber is a web browser.
+If a publisher or a subscriber is a web browser, it **SHOULD** send a cookie called `mercureAuthorization` containing the JWS when connecting to the hub.
 
-If one or more targets are specified, the update **MUST NOT** be sent to the subscriber by the hub, unless the `mercureTargets` claim of the subscriber contains at least one target specified for the topic by the publisher.
+When possible, to improve the overall security, the `mercureAuthorization` cookie **SHOULD** be set during the discovery. See section #Discovery.
+Consequently, if the cookie is set during the discovery, both the publisher and the hub have to share the same second level domain. The `Domain` attribute **MAY** be used to allow the publisher and the hub to use different subdomains.
 
-When using the authorization mechanism, the connection between the subscriber and the hub **MUST** use an encryption layer (HTTPS is required).
+The cookie **SHOULD** have the `Secure`, `HttpOnly` and `SameSite` attributes set. Setting the cookie's `Path` attribute **SHOULD** also be set to the hub's URL. See section #Security-Considerations.
+
+When using authorization mechanisms, the connection **MUST** use an encryption layer such as HTTPS.
+
+If both an `Authorization` HTTP header and a cookie named `mercureAuthorization` are presented by the client, the cookie **MUST** be ignored.
+If a client tries to execute an operation it is not allowed to, a 403 HTTP status code **SHOULD** be returned.
+
+## Publishers
+
+Publishers **MUST** be authorized to dispatch updates to the hub, and **MUST** prove that they are allowed to send updates.
+
+To be allowed to publish an update, the JWT presented by the publisher **MUST** contain a claim called `mercure`, and this claim **MUST** contain a `publish` key.
+JWT's `mercure.publish` contains an array of targets the publisher is allowed to dispatch updates to.
+
+If `mercure.publish`:
+
+* is not defined, then the publisher **MUST NOT** be authorized to dispatch any update
+* contains an empty array, then the publisher is only allowed to dispatch public updates
+* contains the reserved string `*` as an array value, then the publisher is authorized to dispatch updates to all targets
+
+If a topic is not public, the `POST` request sent by the publisher to the hub **MUST** contain a list of keys named `target`. Theirs values **MUST** be of type `string`, and it is **RECOMMENDED** to use valid IRIs. They can be, for instance a user ID, or a list of group IDs.
+If an update contains at least one target the publisher is not authorized for, the hub **MUST NOT** dispatch the update (even if some targets in the list are allowed) and **SHOULD** return a 403 HTTP status code.
+
+## Subscribers
+
+Subscribers **MAY** need to be authorized to connect to the hub.
+To receive updates destined to specific targets, they **MUST** be authorized, and **MUST** prove they belong to at least one of the specified targets. If the subscriber is not authorized it **MUST NOT** receive any update having at least one target.
+
+To receive updates destined to specific targets, the JWS presented by the subscriber **MUST** have a claim named `mercure` with a key named `subscribe` that contains an array of strings: the list of targets the user is authorized to receive updates for. The targets **SHOULD** be IRIs.
+
+If at least one target is specified, the update **MUST NOT** be sent to the subscriber by the hub, unless the `mercure.subscribe` property of the JWS presented by the subscriber contains at least one of the specified targets.
+
+If the `mercure.subscribe` array contains the reserved string value `*`, then the subscriber is authorized to receive updates destined to all targets.
 
 # Re-Connection and State Reconciliation
 
@@ -205,5 +235,28 @@ Any other out-of-band mechanism **MAY** be used instead to share the key between
 
 Updates encyption is considered a best practice to prevent mass surveillance.
 This is especially relevant if the hub is managed by an external provider.
+
+# Security Considerations
+
+The confidentiality of the secret key(s) used to generate the JWTs is a primary concern.
+The secret key(s) **MUST** be stored securely. They **MUST** be revoked immediatly in case of compromission.
+
+Possessing a valid JWTs allows any client to subscribe, or to publish to the hub.
+Their confidentiality **MUST** therefore be ensured. To do so, JWTs **MUST** only be transmited over secure connections.
+
+Also, when the client is a web browser, to be resilient to [Cross-site Scription (XSS) attacks](https://www.owasp.org/index.php/Cross-site_Scripting_(XSS)), the JWT **SHOULD** not be made accessible to JavaScript scripts.
+It's main reason why, when the client is a web browser, using `HttpOnly` cookies as authorization mechanism **SHOULD** always be prefered.
+
+In case of compromission, revoking a JWT before its expiration is often difficult.
+So, using short-lived token is strongly **RECOMMENDED**.
+
+The publish endpoint of the hub may be targeted by [Cross-Site Request Forgery (CSRF) attacks](https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)) when the cookie-based authorization mechanism is used.
+Therefore, implementations supporting this mechanism **MUST** mitigate such attacks.
+
+The first prevention method to implement is to set the `mercureAuthorization` cookie's `SameSite` attribute.
+However, [some web browsers still not support this attribute](https://caniuse.com/#feat=same-site-cookie-attribute), and will stay vulnerable.
+In addition, hub implementations **SHOULD** use the `Origin` and `Referer` HTTP headers set by web browsers to verify that the source origin matches the target origin. If none of these headers are available, the hub **SHOULD** discard the request.
+
+CSRF prevention techniques, including the ones previously mentioned, are described in depth in [OWASP's Cross-Site Request Forgery (CSRF) Prevention Cheat Sheet](https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)_Prevention_Cheat_Sheet). 
 
 {backmatter}

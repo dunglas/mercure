@@ -1,134 +1,150 @@
 'use strict';
 
-const defaultTopic = window.location.origin + '/demo/books/1.jsonld';
+(function () {
+    const origin = window.location.origin;
+    const defaultTopic = origin + '/demo/books/1.jsonld';
+    const defaultJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM';
 
-// Set default values
-document.addEventListener('DOMContentLoaded', function () {
-    const topic = document.forms.discover.topic;
-    if (!topic.value) topic.value = defaultTopic;
-});
+    const settingsForm = document.forms.settings;
+    const discoverForm = document.forms.discover;
+    const subscribeForm = document.forms.subscribe;
+    const publishForm = document.forms.publish;
 
-function getHubUrl(response) {
-    const link = response.headers.get('Link');
-    if (link) {
-        const match = link.match(/<(.*)>.*rel="mercure".*/);
-        if (match && match[1]) return match[1];
+    function error(e) {
+        const message = e.toString();
+        console.error(e);
+        alert(message === '[object Event]' ? 'EventSource error' : message);
     }
 
-    console.error('No rel="mercure" Link header provided.');
-};
-
-// Discover
-document.forms.discover.onsubmit = function (e) {
-    e.preventDefault();
-    const { elements: { topic, body, jwt } } = this;
-    const params = body.value || jwt.value ? `?${new URLSearchParams({ body: body.value, jwt: jwt.value })}` : '';
-
-    fetch(topic.value + params)
-        .then(response => {
-            if (!response.ok) throw new Error(response.statusText);
-
-            // Set subscribe default values
-            const subscribeUrl = document.forms.subscribe.url;
-            if (!subscribeUrl.value) {
-                const providedUrl = getHubUrl(response);
-                if (providedUrl) {
-                    subscribeUrl.value = new URL(providedUrl, topic.value);
-                }
-            }
-
-            const subscribeTopics = document.forms.subscribe.topics;
-            if (!subscribeTopics.value) {
-                if (topic.value === defaultTopic) {
-                    subscribeTopics.value = `${topic.value}\n${window.location.origin}/demo/books/novels/{id}.jsonld`;
-                } else {
-                    subscribeTopics.value = topic.value;
-                }
-            }
-
-            const publishForm = document.forms.publish;
-
-            // Set publish default values
-            const publishTopics = publishForm.topics;
-            if (!publishTopics.value) {
-                if (topic.value === defaultTopic) {
-                    publishTopics.value = `${topic.value}\n${window.location.origin}/demo/books/novels/1.jsonld`;
-                } else {
-                    publishTopics.value = topic.value;
-                }
-            }
-            const publishData = publishForm.data;
-            if (!publishData.value && topic.value === defaultTopic) {
-                publishData.value = JSON.stringify({ '@id': defaultTopic, availability: 'http://schema.org/OutOfStock' });
-            }
-
-            return response.text();
-        })
-        .then(data => body.value = data)
-        .catch(error => console.error(error))
-}
-
-// Subscribe
-const template = document.querySelector('#update');
-let ol, eventSource;
-document.forms.subscribe.onsubmit = function (e) {
-    e.preventDefault();
-    eventSource && eventSource.close();
-
-    const { elements: { topics, lastEventId } } = this;
-
-    const topicList = topics.value.split("\n");
-    const params = new URLSearchParams();
-    topicList.forEach(topic => params.append('topic', topic));
-    if (lastEventId) {
-        params.append('Last-Event-ID', lastEventId.value);
-    }
-
-    eventSource = new EventSource(`/subscribe?${params}`);
-    eventSource.onmessage = function (e) {
-        if (!ol) {
-            ol = document.createElement('ol');
-            ol.reversed = true;
-
-            const updates = document.querySelector('#updates');
-            updates.innerHTML = '';
-            updates.appendChild(ol);
+    function getHubUrl(response) {
+        const link = response.headers.get('Link');
+        if (link) {
+            const match = link.match(/<(.*)>.*rel="mercure".*/);
+            if (match && match[1]) return match[1];
         }
 
-        const li = document.importNode(template.content, true);
-        li.querySelector('h1').textContent = e.lastEventId;
-        li.querySelector('pre').textContent = e.data;
-        ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
-    };
-    eventSource.onerror = function (e) {
-        console.error(e);
+        error('No rel="mercure" Link header provided.');
     };
 
-    this.elements.unsubscribe.disabled = false;
-};
-document.forms.subscribe.elements.unsubscribe.onclick = function () {
-    eventSource.close();
-    this.disabled = true;
-};
+    // Set default values
+    document.addEventListener('DOMContentLoaded', function () {
+        settingsForm.hubUrl.value = origin + '/hub';
+        settingsForm.jwt.value = defaultJwt;
 
-// Publish
-document.forms.publish.onsubmit = function (e) {
-    e.preventDefault();
-    const { action, method, elements: { topics, data, targets, jwt, id, type, retry } } = this;
+        discoverForm.topic.value = defaultTopic;
+        discoverForm.body.value = JSON.stringify({
+            '@id': defaultTopic,
+            availability: 'https://schema.org/InStock',
+        }, null, 2);
+        publishForm.data.value = JSON.stringify({
+            '@id': defaultTopic,
+            availability: 'https://schema.org/OutOfStock',
+        }, null, 2);
 
-    const body = new URLSearchParams({
-        data: data.value,
-        id: id.value,
-        type: type.value,
-        retry: retry.value,
+        document.getElementById('subscribeTopicsExamples').innerText = `${origin}/demo/novels/{id}.jsonld
+${defaultTopic}`;
     });
 
-    topics.value.split("\n").forEach(topic => body.append('topic', topic));
-    targets.value !== '' && targets.value.split("\n").forEach(target => body.append('target', target));
+    // Discover
+    discoverForm.onsubmit = function (e) {
+        e.preventDefault();
+        const { elements: { topic, body } } = this;
+        const jwt = settingsForm.jwt.value;
 
-    fetch(action, { method, body, headers: { Authorization: `Bearer ${jwt.value}` } })
-        .then(response => {
-            if (!response.ok) throw new Error(response.statusText);
-        })
-        .catch(error => console.error(error))
-};
+        const url = new URL(topic.value);
+        if (body.value) url.searchParams.append('body', body.value);
+        if (jwt) url.searchParams.append('jwt', jwt);
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) throw new Error(response.statusText);
+
+                // Set hub default
+                const hubUrl = getHubUrl(response);
+                if (hubUrl) settingsForm.hubUrl.value = new URL(hubUrl, topic.value);
+
+                const subscribeTopics = subscribeForm.topics;
+                if (!subscribeTopics.value) subscribeTopics.value = topic.value;
+
+                // Set publish default values
+                const publishTopics = publishForm.topics;
+                if (!publishTopics.value) {
+                    publishTopics.value = topic.value;
+                }
+
+                return response.text();
+            })
+            .then(data => body.value = data)
+            .catch(e => error(e))
+    }
+
+    // Subscribe
+    const template = document.querySelector('#update');
+    let ol, eventSource;
+    subscribeForm.onsubmit = function (e) {
+        e.preventDefault();
+
+        if (settingsForm.authorization.value === 'header') {
+            alert('EventSource do not support setting HTTP headers.');
+            return;
+        }
+
+        eventSource && eventSource.close();
+
+        const { elements: { topics, lastEventId } } = this;
+
+        const topicList = topics.value.split("\n");
+        const u = new URL(settingsForm.hubUrl.value);
+        topicList.forEach(topic => u.searchParams.append('topic', topic));
+        if (lastEventId.value) u.searchParams.append('Last-Event-ID', lastEventId.value);
+
+        eventSource = new EventSource(u);
+        eventSource.onmessage = function (e) {
+            if (!ol) {
+                ol = document.createElement('ol');
+                ol.reversed = true;
+
+                const updates = document.querySelector('#updates');
+                updates.innerHTML = '';
+                updates.appendChild(ol);
+            }
+
+            const li = document.importNode(template.content, true);
+            li.querySelector('h1').textContent = e.lastEventId;
+            li.querySelector('pre').textContent = e.data;
+            ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
+        };
+        eventSource.onerror = error;
+        this.elements.unsubscribe.disabled = false;
+    };
+    subscribeForm.elements.unsubscribe.onclick = function () {
+        eventSource.close();
+        this.disabled = true;
+    };
+
+    // Publish
+    publishForm.onsubmit = function (e) {
+        e.preventDefault();
+        const { elements: { topics, data, targets, id, type, retry } } = this;
+
+        const body = new URLSearchParams({
+            data: data.value,
+            id: id.value,
+            type: type.value,
+            retry: retry.value,
+        });
+
+        topics.value.split("\n").forEach(topic => body.append('topic', topic));
+        targets.value !== '' && targets.value.split("\n").forEach(target => body.append('target', target));
+
+        const opt = { method: 'POST', body };
+        if (settingsForm.authorization.value === 'header') opt.headers = { Authorization: `Bearer ${settingsForm.jwt.value}` };
+
+        fetch(settingsForm.hubUrl.value, opt)
+            .then(response => {
+                if (!response.ok) throw new Error(response.statusText);
+            })
+            .catch(e => error(e))
+            ;
+    };
+})();

@@ -8,17 +8,27 @@ import (
 
 // Options stores the hub's options
 type Options struct {
-	Debug              bool
-	PublisherJWTKey    []byte
-	SubscriberJWTKey   []byte
-	AllowAnonymous     bool
-	CorsAllowedOrigins []string
-	Addr               string
-	AcmeHosts          []string
-	AcmeCertDir        string
-	CertFile           string
-	KeyFile            string
-	Demo               bool
+	Debug                 bool
+	PublisherJWTKey       []byte
+	SubscriberJWTKey      []byte
+	AllowAnonymous        bool
+	CorsAllowedOrigins    []string
+	PublishAllowedOrigins []string
+	Addr                  string
+	AcmeHosts             []string
+	AcmeCertDir           string
+	CertFile              string
+	KeyFile               string
+	Demo                  bool
+}
+
+func getJWTKey(role string) string {
+	key := os.Getenv(fmt.Sprintf("%s_JWT_KEY", role))
+	if key == "" {
+		return os.Getenv("JWT_KEY")
+	}
+
+	return key
 }
 
 // NewOptionsFromEnv creates a new option instance from environment
@@ -26,10 +36,11 @@ type Options struct {
 func NewOptionsFromEnv() (*Options, error) {
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
-		[]byte(os.Getenv("PUBLISHER_JWT_KEY")),
-		[]byte(os.Getenv("SUBSCRIBER_JWT_KEY")),
+		[]byte(getJWTKey("PUBLISHER")),
+		[]byte(getJWTKey("SUBSCRIBER")),
 		os.Getenv("ALLOW_ANONYMOUS") == "1",
 		splitVar(os.Getenv("CORS_ALLOWED_ORIGINS")),
+		splitVar(os.Getenv("PUBLISH_ALLOWED_ORIGINS")),
 		os.Getenv("ADDR"),
 		splitVar(os.Getenv("ACME_HOSTS")),
 		os.Getenv("ACME_CERT_DIR"),

@@ -1,7 +1,6 @@
 package hub
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
@@ -27,7 +26,7 @@ func demo(w http.ResponseWriter, r *http.Request) {
 
 	header := w.Header()
 	// Several Link headers are set on purpose to allow testing advanced discovery mechanism
-	header.Add("Link", "</subscribe>; rel=\"mercure\"")
+	header.Add("Link", "</hub>; rel=\"mercure\"")
 	header.Add("Link", fmt.Sprintf("<%s>; rel=\"self\"", url))
 	if mimeType != "" {
 		header.Set("Content-Type", mimeType)
@@ -35,7 +34,7 @@ func demo(w http.ResponseWriter, r *http.Request) {
 
 	cookie := &http.Cookie{
 		Name:     "mercureAuthorization",
-		Path:     "/subscribe",
+		Path:     "/hub",
 		Value:    jwt,
 		HttpOnly: r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
@@ -46,16 +45,5 @@ func demo(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, cookie)
 
-	if body != "" {
-		io.WriteString(w, body)
-		return
-	}
-
-	doc := map[string]string{
-		"@id":          url,
-		"availability": "https://schema.org/InStock",
-	}
-
-	json, _ := json.Marshal(doc)
-	w.Write(json)
+	io.WriteString(w, body)
 }

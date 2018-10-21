@@ -1,4 +1,4 @@
-# Mercure, Server-Sent Live Updates
+# Mercure, Live Updates Made Easy
 *Protocol and Reference Implementation*
 
 [![GoDoc](https://godoc.org/github.com/dunglas/mercure?status.svg)](https://godoc.org/github.com/dunglas/mercure/hub)
@@ -20,7 +20,7 @@ In addition, a managed and high-scalability version of Mercure is [available in 
 
 ## Mercure in a Few Words
 
-* native browser support, no lib nor SDK required (built on top of [server-sent events](https://www.smashingmagazine.com/2018/02/sse-websockets-data-flow-http2/))
+* native browser support, no lib nor SDK required (built on top of HTTP and [server-sent events](https://www.smashingmagazine.com/2018/02/sse-websockets-data-flow-http2/))
 * compatible with all existing servers, even those who don't support persistent connections (serverless architecture, PHP, FastCGI...)
 * built-in connection re-establishment and state reconciliation
 * [JWT](https://jwt.io/)-based authorization mechanism (securely dispatch an update to some selected subscribers)
@@ -46,7 +46,7 @@ Example implementation of a client (the subscriber), in JavaScript:
 ```javascript
 // The subscriber subscribes to updates for the https://example.com/foo topic
 // and to any topic matching https://example.com/books/{name}
-const url = new URL('https://hub.example.com/subscribe');
+const url = new URL('https://example.com/hub');
 url.searchParams.append('topic', 'https://example.com/books/{id}');
 url.searchParams.append('topic', 'https://example.com/users/dunglas');
 
@@ -59,7 +59,7 @@ eventSource.onmessage = e => console.log(e); // do something with the payload
 Optionaly, the hub URL can be automatically discovered:
 
 ```javascript
-fetch('https://example.com/books/1') // Has this header `Link: <https://hub.example.com/subscribe>; rel="mercure"`
+fetch('https://example.com/books/1') // Has this header `Link: <https://example.com/hub>; rel="mercure"`
     .then(response => {
         // Extract the hub URL from the Link header
         const hubUrl = response.headers.get('Link').match(/<(.*)>.*rel="mercure".*/)[1];
@@ -67,7 +67,7 @@ fetch('https://example.com/books/1') // Has this header `Link: <https://hub.exam
     });
 ```
 
-To dispatch an update, the application server (the publisher) just need to send a `POST` HTTP request to the hub.
+To dispatch an update, the publisher (an application server, a web browser...) just need to send a `POST` HTTP request to the hub.
 Example using [Node.js](https://nodejs.org/) / [Serverless](https://serverless.com/):
 
 ```javascript
@@ -82,12 +82,14 @@ const postData = querystring.stringify({
 });
 
 const req = https.request({
-    hostname: 'hub.example.com',
+    hostname: 'example.com',
     port: '443',
-    path: '/publish',
+    path: '/hub',
     method: 'POST',
     headers: {
-        Authorization: 'Bearer <valid-jwt-token>', // the JWT key must be shared between the hub and the server
+        Authorization: 'Bearer <valid-jwt-token>',
+        // the JWT must have a mercure.pulish key containing an array of targets (can be empty for public updates)
+        // the JWT key must be shared between the hub and the server
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(postData),
     }
@@ -141,13 +143,13 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 Grab a binary from the release page and run:
 
-    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ADDR=:3000 DEMO=1 ALLOW_ANONYMOUS=1 ./mercure
+    JWT_KEY=myJWTKey ADDR=:3000 DEMO=1 ALLOW_ANONYMOUS=1 PUBLISH_ALLOWED_ORIGINS=http://localhost:3000 ./mercure
 
 The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
 
 To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
 
-    PUBLISHER_JWT_KEY=myPublisherKey SUBSCRIBER_JWT_KEY=mySubcriberKey ACME_HOSTS=example.com ./mercure
+    JWT_KEY=myJWTKey ACME_HOSTS=example.com ./mercure
 
 The value of the `ACME_HOSTS` environment variable must be updated to match your domain name(s).
 A Let's Enctypt TLS certificate will be automatically generated.
@@ -155,8 +157,8 @@ If you omit this variable, the server will be exposed on an (unsecure) HTTP conn
 
 When the server is up and running, the following endpoints are available:
 
-* `POST https://example.com/publish`: to publish updates
-* `GET https://example.com/subscribe`: to subscribe to updates
+* `POST https://example.com/hub`: to publish updates
+* `GET https://example.com/hub`: to subscribe to updates
 
 See [the protocol](spec/mercure.md) for further informations.
 
@@ -167,7 +169,7 @@ To compile the development version and register the demo page, see [CONTRIBUTING
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
     docker run \
-        -e PUBLISHER_JWT_KEY=myPublisherKey -e SUBSCRIBER_JWT_KEY=mySubcriberKey -e DEMO=1 -e ALLOW_ANONYMOUS=1 \
+        -e JWT_KEY=myJWTKey -e DEMO=1 -e ALLOW_ANONYMOUS=1 -e PUBLISH_ALLOWED_ORIGINS=http://localhost \
         -p 80:80 \
         dunglas/mercure
 
@@ -176,7 +178,7 @@ The server, in demo mode, is available on `http://localhost:80`. Anonymous subsc
 In production, run:
 
     docker run \
-        -e PUBLISHER_JWT_KEY=myPublisherKey -e SUBSCRIBER_JWT_KEY=mySubcriberKey -e ACME_HOSTS=example.com \
+        -e JWT_KEY=myJWTKey -e ACME_HOSTS=example.com \
         -p 80:80 -p 443:443 \
         dunglas/mercure
 
@@ -188,15 +190,17 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 * `ACME_HOSTS`: a comma separated list of hosts for which Let's Encrypt certificates must be issues
 * `ADDR`: the address to listen on (example: `127.0.0.1:3000`, default to `:80` or `:http` or `:https` depending if HTTPS is enabled or not)
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
-* `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 * `CERT_FILE`: a cert file (to use a custom certificate)
 * `CERT_KEY`: a cert key (to use a custom certificate)
-* `CORS_ALLOWED_ORIGINS`: a comma separated list of hosts allowed CORS origins
+* `CORS_ALLOWED_ORIGINS`: a comma separated list of allowed CORS origins, can be `*` for all
+* `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
 * `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
+* `JWT_KEY`: the JWT key to use for both publishers and subscribers
 * `LOG_FORMAT`: the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)
-* `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT
-* `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT
+* `PUBLISH_ALLOWED_ORIGINS`: a comma separated list of origins allowed to publish (only applicable when using cookie-based auth)
+* `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT, can be omited if `JWT_KEY` is set
+* `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT, can be omited if `JWT_KEY` is set
 
 If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
@@ -218,19 +222,18 @@ Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated tr
 
 ### What's the Difference Between Mercure and WebSocket?
 
-[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level and bidirectional protocol. Mercure is a high level and unidirectional protocol (servers-to-clients, but we will come back to that later).
-Unlike Mercure (which is built on top of Server-Sent Events), WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
-
-Also, Mercure provides convenient built-in features (authorization, re-connection, state reconciliation...) while with WebSocket, you need to implement them yourself.
+[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level protocol, Mercure is a high level one.
+Mercure provides convenient built-in features such as authorization, re-connection and state reconciliation ; while with WebSocket, you need to implement them yourself.
+Also, unlike Mercure (which is built on top of HTTP and Server-Sent Events), WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
 
 HTTP/2 connections are multiplexed and bidirectional by default (it was not the case of HTTP/1).
-Even if Mercure is unidirectional, when using it over a h2 connection (recommended), your app can receive data through Server-Sent Events, and send data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
+When using Mercure over a h2 connection (recommended), your app can receive data through Server-Sent Events, and send data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
 
-Basically, in most cases Mercure can be used as a modern, easier to use replacement for WebSocket, but it is a higher level protocol.
+Basically, in most cases Mercure can be used as a modern and easier to use replacement for WebSocket.
 
 ### What's the Difference Between Mercure and WebSub?
 
-[WebSub](https://www.w3.org/TR/websub/) is a server-to-server protocol while Mercure is mainly a server-to-client protocol (that can also be used for server-to-server communication, but it's not is main interest).
+[WebSub](https://www.w3.org/TR/websub/) is a server-to-server only protocol, while Mercure is also a server-to-client and client-to-client protocol.
 
 Mercure has been heavily inspired by WebSub, and we tried to make the protocol as close as possible from the WebSub one.
 
@@ -238,12 +241,12 @@ Mercure uses Server-Sent Events to dispatch the updates, while WebSub use `POST`
 
 ### What's the Difference Between Mercure and Web Push?
 
-The [Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) is [mainly designed](https://developers.google.com/web/fundamentals/push-notifications/) to send [notifications](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API) to devices currently not connected to the application.
+The [Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) is a simplex protocol [mainly designed](https://developers.google.com/web/fundamentals/push-notifications/) to send [notifications](https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API) to devices currently not connected to the application.
 In most implementations, the size of the payload to dispatch is very limited, and the messages are sent through the proprietary APIs and servers of the browsers' and operating systems' vendors.
 
-On the other hand, Mercure is designed to send live updates to devices currently connected to the web or mobile app. The payload is not limited, and the message goes directly from your servers to the clients.
+On the other hand, Mercure is a duplex protocol designed to send live updates to devices currently connected to the web or mobile app. The payload is not limited, and the message goes directly from your servers to the clients.
 
-In summary, use the Push API to send notifications to offline users (that will be available in Chrome, Android and iOS's notification centers), and use Mercure to receive live updates when the user is using the app.
+In summary, use the Push API to send notifications to offline users (that will be available in Chrome, Android and iOS's notification centers), and use Mercure to receive and publish live updates when the user is using the app.
 
 ## Resources
 

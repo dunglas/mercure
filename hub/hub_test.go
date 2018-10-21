@@ -22,9 +22,9 @@ func TestNewHub(t *testing.T) {
 
 func TestNewHubFromEnv(t *testing.T) {
 	os.Setenv("PUBLISHER_JWT_KEY", "foo")
-	os.Setenv("SUBSCRIBER_JWT_KEY", "bar")
+	os.Setenv("JWT_KEY", "bar")
 	defer os.Unsetenv("PUBLISHER_JWT_KEY")
-	defer os.Unsetenv("SUBSCRIBER_JWT_KEY")
+	defer os.Unsetenv("JWT_KEY")
 
 	h, err := NewHubFromEnv(&NoHistory{})
 	assert.NotNil(t, h)
@@ -59,25 +59,19 @@ func createAnonymousDummyWithHistory(h History) *Hub {
 	})
 }
 
-func createDummyAuthorizedJWT(h *Hub, publisher bool) string {
+func createDummyAuthorizedJWT(h *Hub, publisher bool, targets []string) string {
 	var key []byte
+	token := jwt.New(jwt.SigningMethodHS256)
+
 	if publisher {
 		key = h.options.PublisherJWTKey
+		token.Claims = &claims{mercureClaim{Publish: targets}, jwt.StandardClaims{}}
 	} else {
 		key = h.options.SubscriberJWTKey
+		token.Claims = &claims{mercureClaim{Subscribe: targets}, jwt.StandardClaims{}}
 	}
 
-	token := jwt.New(jwt.SigningMethodHS256)
 	tokenString, _ := token.SignedString(key)
-
-	return tokenString
-}
-
-func createDummyAuthorizedJWTWithTargets(h *Hub, targets []string) string {
-	token := jwt.New(jwt.SigningMethodHS256)
-	token.Claims = &claims{targets, jwt.StandardClaims{}}
-
-	tokenString, _ := token.SignedString(h.options.SubscriberJWTKey)
 
 	return tokenString
 }

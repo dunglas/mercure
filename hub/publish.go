@@ -1,17 +1,17 @@
 package hub
 
 import (
-	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 )
 
 // PublishHandler allows publisher to broadcast updates to all subscribers
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.isAuthorizationValid(r.Header.Get("Authorization")) {
+	claims, err := authorize(r, h.options.PublisherJWTKey, h.options.PublishAllowedOrigins)
+	if err != nil || claims == nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
@@ -22,25 +22,37 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topics := r.Form["topic"]
+	topics := r.PostForm["topic"]
 	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter", http.StatusBadRequest)
 		return
 	}
 
-	data := r.Form.Get("data")
+	data := r.PostForm.Get("data")
 	if data == "" {
 		http.Error(w, "Missing \"data\" parameter", http.StatusBadRequest)
 		return
 	}
 
-	targets := make(map[string]struct{}, len(r.Form["target"]))
-	for _, t := range r.Form["target"] {
+	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, true)
+	log.Printf("%v", authorizedAlltargets)
+	log.Printf("%v", authorizedTargets)
+
+	targets := make(map[string]struct{}, len(r.PostForm["target"]))
+	for _, t := range r.PostForm["target"] {
+		if !authorizedAlltargets {
+			_, ok := authorizedTargets[t]
+			if !ok {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+		}
+
 		targets[t] = struct{}{}
 	}
 
 	var retry uint64
-	retryString := r.Form.Get("retry")
+	retryString := r.PostForm.Get("retry")
 	if retryString == "" {
 		retry = 0
 	} else {
@@ -55,26 +67,11 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	u := &Update{
 		Targets: targets,
 		Topics:  topics,
-		Event:   NewEvent(data, r.Form.Get("id"), r.Form.Get("type"), retry),
+		Event:   NewEvent(data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry),
 	}
 
 	// Broadcast the update
 	h.updates <- newSerializedUpdate(u)
+	io.WriteString(w, u.ID)
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Update published")
-}
-
-// Checks the validity of the JWT
-func (h *Hub) isAuthorizationValid(authorizationHeader string) bool {
-	if len(authorizationHeader) < 48 || authorizationHeader[:7] != "Bearer " {
-		return false
-	}
-
-	token, _ := jwt.Parse(authorizationHeader[7:], func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return h.options.PublisherJWTKey, nil
-	})
-
-	return token.Valid
 }
