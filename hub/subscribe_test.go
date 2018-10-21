@@ -54,8 +54,7 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
-	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: "invalid"})
-	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: "invalid"})
 
 	hub.SubscribeHandler(w, req)
 
@@ -70,7 +69,7 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
-	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
 	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
 
 	hub.SubscribeHandler(w, req)
@@ -86,8 +85,7 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
-	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
-	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
 
 	hub.SubscribeHandler(w, req)
 
@@ -218,14 +216,49 @@ func TestSubscribeTarget(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
 	w := newCloseNotifyingRecorder()
-	http.SetCookie(w, &http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, false, []string{"foo", "bar"})})
-	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, false, []string{"foo", "bar"})})
 
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "event: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n", w.Body.String())
+}
+
+func TestSubscribeAllTargets(t *testing.T) {
+	hub := createDummy()
+	hub.Start()
+
+	go func() {
+		for {
+			if len(hub.subscribers) == 0 {
+				continue
+			}
+
+			hub.updates <- newSerializedUpdate(&Update{
+				Targets: map[string]struct{}{"foo": {}},
+				Topics:  []string{"http://example.com/reviews/21"},
+				Event:   Event{Data: "Foo", ID: "a"},
+			})
+			hub.updates <- newSerializedUpdate(&Update{
+				Targets: map[string]struct{}{"bar": {}},
+				Topics:  []string{"http://example.com/reviews/22"},
+				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+			})
+
+			hub.Stop()
+			return
+		}
+	}()
+
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
+	w := newCloseNotifyingRecorder()
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, false, []string{"random", "*"}))
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "id: a\ndata: Foo\n\nevent: test\nid: b\ndata: Hello World\n\n", w.Body.String())
 }
 
 func TestSendMissedEvents(t *testing.T) {

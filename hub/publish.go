@@ -22,25 +22,29 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	topics := r.Form["topic"]
+	topics := r.PostForm["topic"]
 	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter", http.StatusBadRequest)
 		return
 	}
 
-	data := r.Form.Get("data")
+	data := r.PostForm.Get("data")
 	if data == "" {
 		http.Error(w, "Missing \"data\" parameter", http.StatusBadRequest)
 		return
 	}
 
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, true)
-	targets := make(map[string]struct{}, len(r.Form["target"]))
-	for _, t := range r.Form["target"] {
+	log.Printf("%v", authorizedAlltargets)
+	log.Printf("%v", authorizedTargets)
+
+	targets := make(map[string]struct{}, len(r.PostForm["target"]))
+	for _, t := range r.PostForm["target"] {
 		if !authorizedAlltargets {
 			_, ok := authorizedTargets[t]
 			if !ok {
 				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
 			}
 		}
 
@@ -48,7 +52,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var retry uint64
-	retryString := r.Form.Get("retry")
+	retryString := r.PostForm.Get("retry")
 	if retryString == "" {
 		retry = 0
 	} else {
@@ -63,7 +67,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	u := &Update{
 		Targets: targets,
 		Topics:  topics,
-		Event:   NewEvent(data, r.Form.Get("id"), r.Form.Get("type"), retry),
+		Event:   NewEvent(data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry),
 	}
 
 	// Broadcast the update
