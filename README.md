@@ -1,4 +1,4 @@
-# Mercure
+# Mercure, Live Updates Made Easy
 *Protocol and Reference Implementation*
 
 [![GoDoc](https://godoc.org/github.com/dunglas/mercure?status.svg)](https://godoc.org/github.com/dunglas/mercure/hub)
