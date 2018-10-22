@@ -173,7 +173,7 @@ A Docker image is available on Docker Hub. The following command is enough to ge
         -p 80:80 \
         dunglas/mercure
 
-The server, in demo mode, is available on `http://localhost:80`. Anonymous subscribers are allowed.
+The server, in demo mode, is available on `http://localhost`. Anonymous subscribers are allowed.
 
 In production, run:
 
