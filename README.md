@@ -188,7 +188,7 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
 * `ACME_HOSTS`: a comma separated list of hosts for which Let's Encrypt certificates must be issued
-* `ADDR`: the address to listen on (example: `127.0.0.1:3000`, default to `:80` or `:http` or `:https` depending if HTTPS is enabled or not)
+* `ADDR`: the address to listen on (example: `127.0.0.1:3000`, default to `:http` or `:https` depending if HTTPS is enabled or not)
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `CERT_FILE`: a cert file (to use a custom certificate)
 * `CERT_KEY`: a cert key (to use a custom certificate)
