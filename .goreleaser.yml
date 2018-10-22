@@ -27,11 +27,10 @@ changelog:
     - '^docs:'
     - '^test:'
 dockers:
-  - image: dunglas/mercure
-    extra_files:
-    - public/
-    tag_templates:
-    - "{{ .Tag }}"
-    - "v{{ .Major }}"
-    - "v{{ .Major }}.{{ .Minor }}"
-    - latest
+- image_templates:
+  - 'dunglas/mercure:{{ .Tag }}'
+  - 'dunglas/mercure:v{{ .Major }}'
+  - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}'
+  - 'dunglas/mercure:latest'
+  extra_files:
+  - public/
