@@ -35,9 +35,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, true)
-	log.Printf("%v", authorizedAlltargets)
-	log.Printf("%v", authorizedTargets)
-
 	targets := make(map[string]struct{}, len(r.PostForm["target"]))
 	for _, t := range r.PostForm["target"] {
 		if !authorizedAlltargets {
