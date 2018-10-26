@@ -1,5 +1,5 @@
 FROM scratch
 COPY mercure /
-COPY public .
+COPY public ./public/
 CMD ["./mercure"]
 EXPOSE 80 443

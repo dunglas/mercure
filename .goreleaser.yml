@@ -27,7 +27,8 @@ changelog:
     - '^docs:'
     - '^test:'
 dockers:
-- image_templates:
+-
+  image_templates:
   - 'dunglas/mercure:{{ .Tag }}'
   - 'dunglas/mercure:v{{ .Major }}'
   - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}'
