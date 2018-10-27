@@ -113,7 +113,7 @@ Examples in other languages are available in [the `examples/` directory](example
 
 ### Asynchronous Jobs
 
-* a Progressive Web App tells the server to compute a report, this task is costly and will some time to finish
+* a Progressive Web App tells the server to compute a report, this task is costly and will take some time to finish
 * the server delegates the computation of the report on an asynchronous worker (using message queue), and close the connection with the PWA
 * the worker sends the report to the PWA when it is computed
 
