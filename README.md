@@ -56,7 +56,8 @@ const eventSource = new EventSource(url);
 eventSource.onmessage = e => console.log(e); // do something with the payload
 ```
 
-Optionaly, the hub URL can be automatically discovered:
+Optionaly, [the authorization mechanism](https://github.com/dunglas/mercure/blob/master/spec/mercure.md#authorization) can be used to subscribe to private updates.
+Also optionaly, the hub URL can be automatically discovered:
 
 ```javascript
 fetch('https://example.com/books/1') // Has this header `Link: <https://example.com/hub>; rel="mercure"`
@@ -101,6 +102,8 @@ req.end();
 // but any HTTP client, written in any language, will be just fine.
 ```
 
+The JWT must contain a `publish` property containing an array of targets. This array can be empty to allow publishing anonymous updates only. [Example publisher JWT](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM) (demo key: `!UnsecureChangeMe!`).
+
 Examples in other languages are available in [the `examples/` directory](examples/).
 
 ## Use Cases
@@ -143,13 +146,13 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 Grab a binary from the release page and run:
 
-    JWT_KEY=myJWTKey ADDR=:3000 DEMO=1 ALLOW_ANONYMOUS=1 PUBLISH_ALLOWED_ORIGINS=http://localhost:3000 ./mercure
+    JWT_KEY='myJWTKey' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
 
 The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
 
 To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
 
-    JWT_KEY=myJWTKey ACME_HOSTS=example.com ./mercure
+    JWT_KEY='myJWTKey' ACME_HOSTS='example.com' ./mercure
 
 The value of the `ACME_HOSTS` environment variable must be updated to match your domain name(s).
 A Let's Enctypt TLS certificate will be automatically generated.
@@ -169,7 +172,7 @@ To compile the development version and register the demo page, see [CONTRIBUTING
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
     docker run \
-        -e JWT_KEY=myJWTKey -e DEMO=1 -e ALLOW_ANONYMOUS=1 -e PUBLISH_ALLOWED_ORIGINS=http://localhost \
+        -e JWT_KEY='myJWTKey' -e DEMO=1 -e ALLOW_ANONYMOUS=1 -e PUBLISH_ALLOWED_ORIGINS='http://localhost' \
         -p 80:80 \
         dunglas/mercure
 
@@ -178,7 +181,7 @@ The server, in demo mode, is available on `http://localhost`. Anonymous subscrib
 In production, run:
 
     docker run \
-        -e JWT_KEY=myJWTKey -e ACME_HOSTS=example.com \
+        -e JWT_KEY='myJWTKey' -e ACME_HOSTS='example.com' \
         -p 80:80 -p 443:443 \
         dunglas/mercure
 
@@ -204,6 +207,17 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 
 If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
+
+### Troubleshooting
+
+#### 401 Unauthorized
+
+* Be sure to set a **secret key** (and not a JWT) in `JWT_KEY` (or in `SUBSCRIBER_JWT_KEY` and `PUBLISHER_JWT_KEY`)
+* If the secret key contains special characters, be sure to escape them properly, especially if you set the environment variable in a shell, or in a YAML file (Kubernetes...)
+* The publisher always needs a valid JWT, even if `ALLOW_ANONYMOUS` is set to `1`, this JWT **must** contain a key named `publish` and containing an array of targets
+* The subscriber needs a valid JWT only if `ALLOW_ANONYMOUS` is set to `0` (default), or to subscribe to private updates, in this case the JWT **must** contain a key named `subscribe` and containing an array of targets
+
+For both the `publish` and `subscribe` properties, the array can be empty to publish only public updates, or set it to `["*"]` to allow accessing to all targets.
 
 ## FAQ
 
