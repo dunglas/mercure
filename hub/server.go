@@ -91,10 +91,11 @@ func (h *Hub) chainHandlers() http.Handler {
 
 	var corsHandler http.Handler
 	if len(h.options.CorsAllowedOrigins) > 0 {
+		log.Print("cors")
 		allowedOrigins := handlers.AllowedOrigins(h.options.CorsAllowedOrigins)
-		subscribeCORS := handlers.CORS(handlers.AllowCredentials(), allowedOrigins)
+		allowedHeaders := handlers.AllowedHeaders([]string{"authorization"})
 
-		corsHandler = subscribeCORS(r)
+		corsHandler = handlers.CORS(handlers.AllowCredentials(), allowedOrigins, allowedHeaders)(r)
 	} else {
 		corsHandler = r
 	}
