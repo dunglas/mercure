@@ -15,7 +15,7 @@ import (
 
 const testURL = "http://" + testAddr + "/hub"
 
-func TestServeAllOptions(t *testing.T) {
+func TestSecurityOptions(t *testing.T) {
 	h := createAnonymousDummy()
 	h.options.Demo = true
 	h.options.CorsAllowedOrigins = []string{"*"}
@@ -29,13 +29,24 @@ func TestServeAllOptions(t *testing.T) {
 	var resp *http.Response
 	client := http.Client{Timeout: time.Duration(100 * time.Millisecond)}
 	for resp == nil {
-		resp, _ = client.Get("http://" + testAddr + "/")
+		resp, _ = client.Get("http://" + testAddr + "/hub")
 	}
 
 	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
+
+	// Preflight request
+	req, _ := http.NewRequest("OPTIONS", "http://"+testAddr+"/hub", nil)
+	req.Header.Add("Origin", "https://example.com")
+	req.Header.Add("Access-Control-Request-Headers", "authorization")
+	req.Header.Add("Access-Control-Request-Method", "GET")
+	resp, _ = client.Do(req)
+
+	assert.Equal(t, "true", resp.Header.Get("Access-Control-Allow-Credentials"))
+	assert.Equal(t, "Authorization", resp.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "*", resp.Header.Get("Access-Control-Allow-Origin"))
 
 	h.server.Shutdown(context.Background())
 }
