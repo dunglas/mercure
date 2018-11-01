@@ -9,6 +9,8 @@
 Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
+![Subscriptions Schema](spec/subscriptions.png)
+
 The protocol has been published as [an Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) that [is maintained in this repository](spec/mercure.md).
 
 A reference, production-grade, implementation of **a Mercure hub** (the server) is also available here.
@@ -67,6 +69,8 @@ fetch('https://example.com/books/1') // Has this header `Link: <https://example.
         // Subscribe to updates using the first snippet, do something with response's body...
     });
 ```
+
+![Discovery Schema](spec/discovery.png)
 
 To dispatch an update, the publisher (an application server, a web browser...) just need to send a `POST` HTTP request to the hub.
 Example using [Node.js](https://nodejs.org/) / [Serverless](https://serverless.com/):
@@ -277,4 +281,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
-Created by [Kévin Dunglas](https://dunglas.fr). Sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+Created by [Kévin Dunglas](https://dunglas.fr). Schemas by [Laury Sorriaux](https://github.com/ginifizz).
+Sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
