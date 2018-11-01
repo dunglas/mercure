@@ -99,6 +99,7 @@ func sendHeaders(w http.ResponseWriter) {
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	w.Header().Set("X-Accel-Buffering", "no")
+	w.(http.Flusher).Flush()
 }
 
 func retrieveLastEventID(r *http.Request) string {

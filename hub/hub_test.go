@@ -14,7 +14,7 @@ func TestNewHub(t *testing.T) {
 	h := createDummy()
 
 	assert.IsType(t, &Options{}, h.options)
-	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers)
+	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers.m)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.newSubscribers)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.removedSubscribers)
 	assert.IsType(t, make(chan *serializedUpdate), h.updates)

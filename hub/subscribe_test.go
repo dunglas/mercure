@@ -127,7 +127,11 @@ func TestSubscribe(t *testing.T) {
 
 	go func() {
 		for {
-			if len(hub.subscribers) == 0 {
+			hub.subscribers.RLock()
+			empty := len(hub.subscribers.m) == 0
+			hub.subscribers.RUnlock()
+
+			if empty {
 				continue
 			}
 
@@ -161,7 +165,7 @@ func TestSubscribe(t *testing.T) {
 func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 	hub.Start()
-	assert.Equal(t, 0, len(hub.subscribers))
+	assert.Equal(t, 0, len(hub.subscribers.m))
 	wr := newCloseNotifyingRecorder()
 
 	var wg sync.WaitGroup
@@ -170,11 +174,14 @@ func TestUnsubscribe(t *testing.T) {
 		defer w.Done()
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil)
 		hub.SubscribeHandler(wr, req)
-		assert.Equal(t, 0, len(hub.subscribers))
+		assert.Equal(t, 0, len(hub.subscribers.m))
 	}(&wg)
 
 	for {
-		if len(hub.subscribers) != 0 {
+		hub.subscribers.RLock()
+		notEmpty := len(hub.subscribers.m) != 0
+		hub.subscribers.RUnlock()
+		if notEmpty {
 			break
 		}
 	}
@@ -189,7 +196,11 @@ func TestSubscribeTarget(t *testing.T) {
 
 	go func() {
 		for {
-			if len(hub.subscribers) == 0 {
+			hub.subscribers.RLock()
+			empty := len(hub.subscribers.m) == 0
+			hub.subscribers.RUnlock()
+
+			if empty {
 				continue
 			}
 
@@ -231,7 +242,11 @@ func TestSubscribeAllTargets(t *testing.T) {
 
 	go func() {
 		for {
-			if len(hub.subscribers) == 0 {
+			hub.subscribers.RLock()
+			empty := len(hub.subscribers.m) == 0
+			hub.subscribers.RUnlock()
+
+			if empty {
 				continue
 			}
 
@@ -306,7 +321,11 @@ func TestSendMissedEvents(t *testing.T) {
 	}(&wg)
 
 	for {
-		if len(hub.subscribers) == 2 {
+		hub.subscribers.RLock()
+		two := len(hub.subscribers.m) == 2
+		hub.subscribers.RUnlock()
+
+		if two {
 			break
 		}
 	}
