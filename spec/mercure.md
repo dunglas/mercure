@@ -43,6 +43,8 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 
 # Discovery
 
+![Discovery Schema](discovery.png)
+
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber, allowing it to receive live updates when topics are updated.
 If more than one hub URL is specified, it is expected that the publisher notifies each hub, so the subscriber **MAY** subscribe to one or more of them.
 
@@ -80,6 +82,8 @@ Links embedded in HTML or XML documents (as defined in the WebSub recommendation
 Note: the discovery mechanism described in this section [is strongly inspired from the one specified in the WebSub recommendation](https://www.w3.org/TR/websub/#discovery).
 
 # Subscriptions
+
+![Subscriptions Schema](subscriptions.png)
 
 The subscriber subscribes to an URL exposed by a hub to receive updates of one or many topics.
 To subscribe to updates, the client opens an HTTPS connection following the [Server-Sent Events specification](https://html.spec.whatwg.org/multipage/server-sent-events.html) to the hub's subscription URL advertised
