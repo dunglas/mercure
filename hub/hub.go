@@ -1,6 +1,9 @@
 package hub
 
-import "net/http"
+import (
+	"net/http"
+	"sync"
+)
 
 type serializedUpdate struct {
 	*Update
@@ -11,10 +14,15 @@ func newSerializedUpdate(u *Update) *serializedUpdate {
 	return &serializedUpdate{u, u.String()}
 }
 
+type subscribers struct {
+	sync.RWMutex
+	m map[chan *serializedUpdate]struct{}
+}
+
 // Hub stores channels with clients currently subcribed
 type Hub struct {
 	options            *Options
-	subscribers        map[chan *serializedUpdate]struct{}
+	subscribers        subscribers
 	newSubscribers     chan chan *serializedUpdate
 	removedSubscribers chan chan *serializedUpdate
 	updates            chan *serializedUpdate
@@ -36,7 +44,7 @@ func NewHubFromEnv(history History) (*Hub, error) {
 func NewHub(history History, options *Options) *Hub {
 	return &Hub{
 		options,
-		make(map[chan *serializedUpdate]struct{}),
+		subscribers{m: make(map[chan *serializedUpdate]struct{})},
 		make(chan (chan *serializedUpdate)),
 		make(chan (chan *serializedUpdate)),
 		make(chan *serializedUpdate),
@@ -52,10 +60,14 @@ func (h *Hub) Start() {
 			select {
 
 			case s := <-h.newSubscribers:
-				h.subscribers[s] = struct{}{}
+				h.subscribers.Lock()
+				h.subscribers.m[s] = struct{}{}
+				h.subscribers.Unlock()
 
 			case s := <-h.removedSubscribers:
-				delete(h.subscribers, s)
+				h.subscribers.Lock()
+				delete(h.subscribers.m, s)
+				h.subscribers.Unlock()
 				close(s)
 
 			case serializedUpdate, ok := <-h.updates:
@@ -65,13 +77,16 @@ func (h *Hub) Start() {
 					}
 				}
 
-				for s := range h.subscribers {
+				h.subscribers.RLock()
+				for s := range h.subscribers.m {
 					if ok {
 						s <- serializedUpdate
 					} else {
 						close(s)
 					}
 				}
+				h.subscribers.RUnlock()
+
 				if !ok {
 					return
 				}

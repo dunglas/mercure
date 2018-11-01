@@ -18,7 +18,7 @@ script:
   - go vet
   - gofmt -e -d *.go
   - go build
-  - goveralls -covermode=set -service=travis-ci
+  - goveralls -race -service=travis-ci
 after_success:
   - git status
   - test -n "$TRAVIS_TAG" && docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
