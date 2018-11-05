@@ -65,7 +65,7 @@ Also optionaly, the hub URL can be automatically discovered:
 fetch('https://example.com/books/1') // Has this header `Link: <https://example.com/hub>; rel="mercure"`
     .then(response => {
         // Extract the hub URL from the Link header
-        const hubUrl = response.headers.get('Link').match(/<(.*)>.*rel="mercure".*/)[1];
+        const hubUrl = response.headers.get('Link').match(/<([^>]+)>;\s+rel=(?:mercure|"[^"]*mercure[^"]*")/)[1];
         // Subscribe to updates using the first snippet, do something with response's body...
     });
 ```
