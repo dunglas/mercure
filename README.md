@@ -139,12 +139,12 @@ and is designed to be published as a RFC.
 
 ## Hub Implementation
 
-### Usage
-
 ### Managed Version
 
 A managed, high-scalability version of Mercure is available in private beta.
 [Drop us a mail](mailto:dunglas+mercure@gmail.com?subject=I%27m%20interested%20in%20Mercure%27s%20private%20beta) for details and pricing.
+
+### Usage
 
 #### Prebuilt Binary
 
