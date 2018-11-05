@@ -218,8 +218,8 @@ If not, an HTTP server will be started (**not secure**).
 
 * Be sure to set a **secret key** (and not a JWT) in `JWT_KEY` (or in `SUBSCRIBER_JWT_KEY` and `PUBLISHER_JWT_KEY`)
 * If the secret key contains special characters, be sure to escape them properly, especially if you set the environment variable in a shell, or in a YAML file (Kubernetes...)
-* The publisher always needs a valid JWT, even if `ALLOW_ANONYMOUS` is set to `1`, this JWT **must** contain a key named `publish` and containing an array of targets
-* The subscriber needs a valid JWT only if `ALLOW_ANONYMOUS` is set to `0` (default), or to subscribe to private updates, in this case the JWT **must** contain a key named `subscribe` and containing an array of targets
+* The publisher always needs a valid JWT, even if `ALLOW_ANONYMOUS` is set to `1`, this JWT **must** have a property named `publish` and containing an array of targets
+* The subscriber needs a valid JWT only if `ALLOW_ANONYMOUS` is set to `0` (default), or to subscribe to private updates, in this case the JWT **must** have a property named `subscribe` and containing an array of targets
 
 For both the `publish` and `subscribe` properties, the array can be empty to publish only public updates, or set it to `["*"]` to allow accessing to all targets.
 
@@ -268,10 +268,11 @@ In summary, use the Push API to send notifications to offline users (that will b
 
 ## Resources
 
-* [Official Mercure integration in Symfony](https://github.com/symfony/mercure-bundle)
+* [PHP library to publish Mercure updates](https://github.com/symfony/mercure)
+* [Official Mercure support for the Symfony framework](https://github.com/symfony/mercure-bundle)
+* [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource)
 * [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
 * [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
-* [`EventSource` polyfill for old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
 
