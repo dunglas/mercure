@@ -243,20 +243,22 @@ Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated tr
 NGINX is supported out of the box. Use the following proxy configuration:
 
 ```nginx
-        server {
-        listen 80 ssl http2;
-        listen [::]:80 ssl http2;
+server {
+    listen 80 ssl http2;
+    listen [::]:80 ssl http2;
 
-        ssl_certificate /path/to/ssl/cert.crt;
-        ssl_certificate_key /path/to/ssl/cert.key;
+    ssl_certificate /path/to/ssl/cert.crt;
+    ssl_certificate_key /path/to/ssl/cert.key;
 
-        location / {
-            proxy_pass http://url-of-your-mercure-hub;
-            proxy_read_timeout 24h;
-            proxy_http_version 1.1;
-            proxy_set_header Connection "";
-        }
+    location / {
+        proxy_pass http://url-of-your-mercure-hub;
+        proxy_read_timeout 24h;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
     }
+}
+```
+
 ### What's the Difference Between Mercure and WebSocket?
 
 [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level protocol, Mercure is a high level one.
