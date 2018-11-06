@@ -257,7 +257,6 @@ NGINX is supported out of the box. Use the following proxy configuration:
             proxy_set_header Connection "";
         }
     }
-
 ### What's the Difference Between Mercure and WebSocket?
 
 [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level protocol, Mercure is a high level one.
