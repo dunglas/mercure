@@ -242,7 +242,8 @@ Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated tr
 
 NGINX is supported out of the box. Use the following proxy configuration:
 
-    server {
+```nginx
+        server {
         listen 80 ssl http2;
         listen [::]:80 ssl http2;
 
