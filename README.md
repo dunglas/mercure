@@ -114,15 +114,15 @@ Examples in other languages are available in [the `examples/` directory](example
 
 ### Live Availability
 
-* a Progressive Web App retrieves the availability status of a product from a REST API and displays it: only one is still available
+* a webapp retrieves the availability status of a product from a REST API and displays it: only one is still available
 * 3 minutes later, the last product is bought by another customer
-* the PWA's view instantly show that this product isn't available anymore
+* the webapp's view instantly show that this product isn't available anymore
 
 ### Asynchronous Jobs
 
-* a Progressive Web App tells the server to compute a report, this task is costly and will take some time to finish
-* the server delegates the computation of the report on an asynchronous worker (using message queue), and close the connection with the PWA
-* the worker sends the report to the PWA when it is computed
+* a webapp tells the server to compute a report, this task is costly and will take some time to finish
+* the server delegates the computation of the report on an asynchronous worker (using message queue), and close the connection with the webapp
+* the worker sends the report to the webapp when it is computed
 
 ### Collaborative Editing
 
