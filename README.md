@@ -1,13 +1,14 @@
-# Mercure, Live Updates Made Easy
+<h1 align="center"><img src="public/mercure.svg" alt="Mercure: Live Updates Made Easy" title="Live Updates Made Easy"></h1>
+
 *Protocol and Reference Implementation*
+
+Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
+It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
 [![GoDoc](https://godoc.org/github.com/dunglas/mercure?status.svg)](https://godoc.org/github.com/dunglas/mercure/hub)
 [![Build Status](https://travis-ci.com/dunglas/mercure.svg?branch=master)](https://travis-ci.com/dunglas/mercure)
 [![Coverage Status](https://coveralls.io/repos/github/dunglas/mercure/badge.svg?branch=master)](https://coveralls.io/github/dunglas/mercure?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dunglas/mercure)](https://goreportcard.com/report/github.com/dunglas/mercure)
-
-Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
-It is especially useful to publish real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
 ![Subscriptions Schema](spec/subscriptions.png)
 
