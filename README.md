@@ -305,5 +305,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
-Created by [Kévin Dunglas](https://dunglas.fr). Schemas by [Laury Sorriaux](https://github.com/ginifizz).
+Created by [Kévin Dunglas](https://dunglas.fr). Graphic design by [Laury Sorriaux](https://github.com/ginifizz).
 Sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
