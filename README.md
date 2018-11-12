@@ -1,6 +1,8 @@
 # Mercure, Live Updates Made Easy
 *Protocol and Reference Implementation*
 
+![Mercure](public/mercure.svg)
+
 [![GoDoc](https://godoc.org/github.com/dunglas/mercure?status.svg)](https://godoc.org/github.com/dunglas/mercure/hub)
 [![Build Status](https://travis-ci.com/dunglas/mercure.svg?branch=master)](https://travis-ci.com/dunglas/mercure)
 [![Coverage Status](https://coveralls.io/repos/github/dunglas/mercure/badge.svg?branch=master)](https://coveralls.io/github/dunglas/mercure?branch=master)
