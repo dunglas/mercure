@@ -39,6 +39,7 @@ The reference hub implementation:
 * Fast, written in Go
 * Works everywhere: static binaries and Docker images available
 * Automatic HTTP/2 and HTTPS (using Let's Encrypt) support
+* CORS support, CSRF prevention mechanism
 * Cloud Native, follows [the Twelve-Factor App](https://12factor.net) methodology
 * Open source (AGPL)
 
