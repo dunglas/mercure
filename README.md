@@ -123,7 +123,7 @@ Examples in other languages are available in [the `examples/` directory](example
 ### Asynchronous Jobs
 
 * a webapp tells the server to compute a report, this task is costly and will take some time to complete
-* the server delegates the computation of the report on an asynchronous worker (using message queue), and closes the connection with the webapp
+* the server delegates the computation of the report to an asynchronous worker (using message queue), and closes the connection with the webapp
 * the worker sends the report to the webapp when it is computed
 
 ### Collaborative Editing
