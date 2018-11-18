@@ -2,6 +2,12 @@
  *
  * 1. Grab Gatling 3 on https://gatling.io
  * 2. Run path/to/gatling/bin/gatling.sh --simulations-folder .
+ *
+ * Available environment variables (all optional):
+ *   - HUB_URL: the URL of the hub to test
+ *   - JWT: the JWT to use for authenticating the publisher
+ *   - SUBSCRIBERS: the number of concurrent subscribers
+ *   - PUBLISHERS: the number of concurrent publishers
 */
 
 package mercure
@@ -9,16 +15,17 @@ package mercure
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
 import scala.concurrent.duration._
+import scala.util.Properties
 
 class LoadTest extends Simulation {
   /** The hub URL */
-  val HubUrl = "http://localhost:3001/hub"
+  val HubUrl = Properties.envOrElse("HUB_URL", "http://localhost:3001/hub" )
   /** JWT to use to publish */
-  val Jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM"
+  val Jwt = Properties.envOrElse("JWT", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM")
   /** Number of concurrent subscribers to connect */
-  val ConcurrentSubscribers = 10000
+  val ConcurrentSubscribers = Properties.envOrElse("SUBSCRIBERS", "10000").toInt
   /** Number of concurent publishers */
-  val ConcurrentPublishers = 2
+  val ConcurrentPublishers = Properties.envOrElse("PUBLISHERS", "2").toInt
 
   val httpProtocol = http
     .baseUrl(HubUrl)
