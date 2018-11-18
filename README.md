@@ -300,6 +300,13 @@ In summary, use the Push API to send notifications to offline users (that will b
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
 
+## Load Testing
+
+A [Gatling](https://gatling.io)-based load test is provided in this repository.
+It allows to test any implementation of the protocol, including the reference implementation.
+
+See [`LoadTest.scala`](LoadTest.scala) to learn how to use it.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
