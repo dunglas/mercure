@@ -21,21 +21,13 @@ func init() {
 }
 
 func main() {
-	db, err := hub.NewBoltFromEnv()
-	exitOnError(err)
-	defer db.Close()
+	hub, db, err := hub.NewHubFromEnv()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	hub, err := hub.NewHubFromEnv(&hub.BoltHistory{DB: db})
-	exitOnError(err)
+	defer db.Close()
 
 	hub.Start()
 	hub.Serve()
-}
-
-func exitOnError(err error) {
-	if err == nil {
-		return
-	}
-
-	log.Fatal(err)
 }

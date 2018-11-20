@@ -9,29 +9,12 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-func TestNewBoltFromEnv(t *testing.T) {
-	db, _ := NewBoltFromEnv()
-	defer os.Remove("updates.db")
-
-	assert.FileExists(t, "updates.db")
-	assert.IsType(t, &bolt.DB{}, db)
-
-	os.Setenv("DB_PATH", "test.db")
-	defer os.Unsetenv("DB_PATH")
-
-	db, _ = NewBoltFromEnv()
-	defer os.Remove("test.db")
-
-	assert.FileExists(t, "test.db")
-	assert.IsType(t, &bolt.DB{}, db)
-}
-
 func TestBoltHistory(t *testing.T) {
 	db, _ := bolt.Open("test.db", 0600, nil)
 	defer db.Close()
 	defer os.Remove("test.db")
 
-	h := &BoltHistory{db}
+	h := &boltHistory{db}
 	assert.Implements(t, (*History)(nil), h)
 
 	count := 0
@@ -96,7 +79,7 @@ func TestBoltHistory(t *testing.T) {
 }
 
 func TestNoHistory(t *testing.T) {
-	h := &NoHistory{}
+	h := &noHistory{}
 	assert.Nil(t, h.Add(nil))
 	assert.Nil(t, h.FindFor(nil, func(*Update) bool { return true }))
 }

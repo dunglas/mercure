@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"os"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -22,38 +21,28 @@ type History interface {
 }
 
 // NoHistory implements the History interface but does nothing
-type NoHistory struct {
+type noHistory struct {
 }
 
 // Add does nothing
-func (*NoHistory) Add(*Update) error {
+func (*noHistory) Add(*Update) error {
 	return nil
 }
 
 // FindFor does nothing
-func (*NoHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
+func (*noHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
 	return nil
 }
 
 const bucketName = "updates"
 
 // BoltHistory is an implementation of the History interface using the Bolt DB
-type BoltHistory struct {
+type boltHistory struct {
 	*bolt.DB
 }
 
-// NewBoltFromEnv opens the Bolt database, it finds the path in the DB_PATH env var
-func NewBoltFromEnv() (*bolt.DB, error) {
-	path := os.Getenv("DB_PATH")
-	if path == "" {
-		path = "updates.db"
-	}
-
-	return bolt.Open(path, 0600, nil)
-}
-
 // Add puts the update to the local bolt DB
-func (b *BoltHistory) Add(update *Update) error {
+func (b *boltHistory) Add(update *Update) error {
 	return b.DB.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
@@ -79,7 +68,7 @@ func (b *BoltHistory) Add(update *Update) error {
 }
 
 // FindFor searches in the local bolt DB
-func (b *BoltHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
+func (b *boltHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
 	b.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
