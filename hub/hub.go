@@ -82,18 +82,18 @@ func NewHubFromEnv() (*Hub, *bolt.DB, error) {
 		return nil, nil, err
 	}
 
-	return NewHub(&boltHistory{DB: db}, options), db, nil
+	return NewHub(&localPublisher{}, &boltHistory{DB: db}, options), db, nil
 }
 
 // NewHub creates a hub
-func NewHub(history History, options *Options) *Hub {
+func NewHub(publisher Publisher, history History, options *Options) *Hub {
 	return &Hub{
 		subscribers{m: make(map[chan *serializedUpdate]struct{})},
 		make(chan *serializedUpdate),
 		options,
 		make(chan (chan *serializedUpdate)),
 		make(chan (chan *serializedUpdate)),
-		&localPublisher{},
+		publisher,
 		history,
 		nil,
 	}
