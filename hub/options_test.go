@@ -28,8 +28,8 @@ func TestNewOptionsFormNew(t *testing.T) {
 		defer os.Unsetenv(k)
 	}
 
-	opts, err := newOptionsFromEnv()
-	assert.Equal(t, &options{
+	opts, err := NewOptionsFromEnv()
+	assert.Equal(t, &Options{
 		true,
 		"test.db",
 		[]byte("foo"),
@@ -48,6 +48,6 @@ func TestNewOptionsFormNew(t *testing.T) {
 }
 
 func TestMissingEnv(t *testing.T) {
-	_, err := newOptionsFromEnv()
+	_, err := NewOptionsFromEnv()
 	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY]")
 }

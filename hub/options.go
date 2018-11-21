@@ -7,7 +7,7 @@ import (
 )
 
 // Options stores the hub's options
-type options struct {
+type Options struct {
 	Debug                 bool
 	DBPath                string
 	PublisherJWTKey       []byte
@@ -32,15 +32,15 @@ func getJWTKey(role string) string {
 	return key
 }
 
-// newOptionsFromEnv creates a new option instance from environment
+// NewOptionsFromEnv creates a new option instance from environment
 // It returns an error if mandatory env env vars are missing
-func newOptionsFromEnv() (*options, error) {
+func NewOptionsFromEnv() (*Options, error) {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
 		dbPath = "updates.db"
 	}
 
-	options := &options{
+	options := &Options{
 		os.Getenv("DEBUG") == "1",
 		dbPath,
 		[]byte(getJWTKey("PUBLISHER")),

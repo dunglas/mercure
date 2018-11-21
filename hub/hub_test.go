@@ -13,7 +13,7 @@ const testAddr = "127.0.0.1:4242"
 func TestNewHub(t *testing.T) {
 	h := createDummy()
 
-	assert.IsType(t, &options{}, h.options)
+	assert.IsType(t, &Options{}, h.options)
 	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers.m)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.newSubscribers)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.removedSubscribers)
@@ -41,11 +41,11 @@ func TestNewHubFromEnvError(t *testing.T) {
 }
 
 func createDummy() *Hub {
-	return NewHub(&noHistory{}, &options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
+	return NewHub(&noHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
 }
 
 func createAnonymousDummy() *Hub {
-	return NewHub(&noHistory{}, &options{
+	return NewHub(&noHistory{}, &Options{
 		PublisherJWTKey:  []byte("publisher"),
 		SubscriberJWTKey: []byte("subscriber"),
 		AllowAnonymous:   true,
@@ -54,7 +54,7 @@ func createAnonymousDummy() *Hub {
 }
 
 func createAnonymousDummyWithHistory(h History) *Hub {
-	return NewHub(h, &options{
+	return NewHub(h, &Options{
 		PublisherJWTKey:  []byte("publisher"),
 		SubscriberJWTKey: []byte("subscriber"),
 		AllowAnonymous:   true,

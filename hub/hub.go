@@ -10,7 +10,7 @@ import (
 type Hub struct {
 	subscribers        subscribers
 	updates            chan *serializedUpdate
-	options            *options
+	options            *Options
 	newSubscribers     chan chan *serializedUpdate
 	removedSubscribers chan chan *serializedUpdate
 	publisher          Publisher
@@ -72,7 +72,7 @@ func (h *Hub) DispatchUpdate(u *Update) {
 
 // NewHubFromEnv creates a hub using the configuration set in env vars
 func NewHubFromEnv() (*Hub, *bolt.DB, error) {
-	options, err := newOptionsFromEnv()
+	options, err := NewOptionsFromEnv()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -86,7 +86,7 @@ func NewHubFromEnv() (*Hub, *bolt.DB, error) {
 }
 
 // NewHub creates a hub
-func NewHub(history History, options *options) *Hub {
+func NewHub(history History, options *Options) *Hub {
 	return &Hub{
 		subscribers{m: make(map[chan *serializedUpdate]struct{})},
 		make(chan *serializedUpdate),
