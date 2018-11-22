@@ -46,7 +46,6 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 	if subscriber.LastEventID != "" {
 		h.sendMissedEvents(w, r, subscriber)
-		f.Flush()
 	}
 
 	// Create a new channel, over which the hub can send can send updates to this subscriber.
@@ -111,8 +110,10 @@ func retrieveLastEventID(r *http.Request) string {
 }
 
 func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscriber) {
+	f := w.(http.Flusher)
 	if err := h.history.FindFor(s, func(u *Update) bool {
 		fmt.Fprint(w, u.String())
+		f.Flush()
 		log.WithFields(log.Fields{
 			"event_id":      u.ID,
 			"last_event_id": s.LastEventID,
