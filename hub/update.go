@@ -12,3 +12,12 @@ type Update struct {
 	// The Server-Sent Event to send
 	Event
 }
+
+type serializedUpdate struct {
+	*Update
+	event string
+}
+
+func newSerializedUpdate(u *Update) *serializedUpdate {
+	return &serializedUpdate{u, u.String()}
+}

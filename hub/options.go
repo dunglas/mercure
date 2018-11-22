@@ -9,6 +9,7 @@ import (
 // Options stores the hub's options
 type Options struct {
 	Debug                 bool
+	DBPath                string
 	PublisherJWTKey       []byte
 	SubscriberJWTKey      []byte
 	AllowAnonymous        bool
@@ -32,10 +33,16 @@ func getJWTKey(role string) string {
 }
 
 // NewOptionsFromEnv creates a new option instance from environment
-// It return an error if mandatory env env vars are missing
+// It returns an error if mandatory env env vars are missing
 func NewOptionsFromEnv() (*Options, error) {
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "updates.db"
+	}
+
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
+		dbPath,
 		[]byte(getJWTKey("PUBLISHER")),
 		[]byte(getJWTKey("SUBSCRIBER")),
 		os.Getenv("ALLOW_ANONYMOUS") == "1",

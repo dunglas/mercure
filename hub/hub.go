@@ -2,55 +2,20 @@ package hub
 
 import (
 	"net/http"
-	"sync"
+
+	bolt "go.etcd.io/bbolt"
 )
 
-type serializedUpdate struct {
-	*Update
-	event string
-}
-
-func newSerializedUpdate(u *Update) *serializedUpdate {
-	return &serializedUpdate{u, u.String()}
-}
-
-type subscribers struct {
-	sync.RWMutex
-	m map[chan *serializedUpdate]struct{}
-}
-
-// Hub stores channels with clients currently subcribed
+// Hub stores channels with clients currently subcribed and allows to dispatch updates
 type Hub struct {
-	options            *Options
 	subscribers        subscribers
+	updates            chan *serializedUpdate
+	options            *Options
 	newSubscribers     chan chan *serializedUpdate
 	removedSubscribers chan chan *serializedUpdate
-	updates            chan *serializedUpdate
+	publisher          Publisher
 	history            History
 	server             *http.Server
-}
-
-// NewHubFromEnv creates a hub fusing the configuration set in env vars
-func NewHubFromEnv(history History) (*Hub, error) {
-	options, err := NewOptionsFromEnv()
-	if err != nil {
-		return nil, err
-	}
-
-	return NewHub(history, options), nil
-}
-
-// NewHub creates a hub
-func NewHub(history History, options *Options) *Hub {
-	return &Hub{
-		options,
-		subscribers{m: make(map[chan *serializedUpdate]struct{})},
-		make(chan (chan *serializedUpdate)),
-		make(chan (chan *serializedUpdate)),
-		make(chan *serializedUpdate),
-		history,
-		nil,
-	}
 }
 
 // Start starts the hub
@@ -98,4 +63,38 @@ func (h *Hub) Start() {
 // Stop stops disconnect all connected clients
 func (h *Hub) Stop() {
 	close(h.updates)
+}
+
+// DispatchUpdate dispatches an update to all subscribers
+func (h *Hub) DispatchUpdate(u *Update) {
+	h.updates <- newSerializedUpdate(u)
+}
+
+// NewHubFromEnv creates a hub using the configuration set in env vars
+func NewHubFromEnv() (*Hub, *bolt.DB, error) {
+	options, err := NewOptionsFromEnv()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	db, err := bolt.Open(options.DBPath, 0600, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return NewHub(&localPublisher{}, &boltHistory{DB: db}, options), db, nil
+}
+
+// NewHub creates a hub
+func NewHub(publisher Publisher, history History, options *Options) *Hub {
+	return &Hub{
+		subscribers{m: make(map[chan *serializedUpdate]struct{})},
+		make(chan *serializedUpdate),
+		options,
+		make(chan (chan *serializedUpdate)),
+		make(chan (chan *serializedUpdate)),
+		publisher,
+		history,
+		nil,
+	}
 }

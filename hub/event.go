@@ -3,8 +3,6 @@ package hub
 import (
 	"fmt"
 	"strings"
-
-	uuid "github.com/satori/go.uuid"
 )
 
 // Event is the actual Server Sent Event that will be dispatched
@@ -38,13 +36,4 @@ func (e *Event) String() string {
 	fmt.Fprintf(&b, "id: %s\ndata: %s\n\n", e.ID, r.Replace(e.Data))
 
 	return b.String()
-}
-
-// NewEvent creates a Server Sent Event to dispatch
-func NewEvent(data, id, eventType string, retry uint64) Event {
-	if id == "" {
-		id = uuid.Must(uuid.NewV4()).String()
-	}
-
-	return Event{data, id, eventType, retry}
 }

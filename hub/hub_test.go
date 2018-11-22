@@ -26,23 +26,26 @@ func TestNewHubFromEnv(t *testing.T) {
 	defer os.Unsetenv("PUBLISHER_JWT_KEY")
 	defer os.Unsetenv("JWT_KEY")
 
-	h, err := NewHubFromEnv(&NoHistory{})
+	h, db, err := NewHubFromEnv()
+	defer db.Close()
 	assert.NotNil(t, h)
+	assert.NotNil(t, db)
 	assert.Nil(t, err)
 }
 
 func TestNewHubFromEnvError(t *testing.T) {
-	h, err := NewHubFromEnv(&NoHistory{})
+	h, db, err := NewHubFromEnv()
 	assert.Nil(t, h)
+	assert.Nil(t, db)
 	assert.Error(t, err)
 }
 
 func createDummy() *Hub {
-	return NewHub(&NoHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
+	return NewHub(&localPublisher{}, &noHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
 }
 
 func createAnonymousDummy() *Hub {
-	return NewHub(&NoHistory{}, &Options{
+	return NewHub(&localPublisher{}, &noHistory{}, &Options{
 		PublisherJWTKey:  []byte("publisher"),
 		SubscriberJWTKey: []byte("subscriber"),
 		AllowAnonymous:   true,
@@ -51,7 +54,7 @@ func createAnonymousDummy() *Hub {
 }
 
 func createAnonymousDummyWithHistory(h History) *Hub {
-	return NewHub(h, &Options{
+	return NewHub(&localPublisher{}, h, &Options{
 		PublisherJWTKey:  []byte("publisher"),
 		SubscriberJWTKey: []byte("subscriber"),
 		AllowAnonymous:   true,

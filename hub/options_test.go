@@ -15,21 +15,23 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"ALLOW_ANONYMOUS":         "1",
 		"CERT_FILE":               "foo",
 		"CORS_ALLOWED_ORIGINS":    "*",
+		"DB_PATH":                 "test.db",
 		"DEBUG":                   "1",
 		"DEMO":                    "1",
 		"KEY_FILE":                "bar",
 		"PUBLISHER_JWT_KEY":       "foo",
-		"SUBSCRIBER_JWT_KEY":      "bar",
 		"PUBLISH_ALLOWED_ORIGINS": "http://127.0.0.1:8080",
+		"SUBSCRIBER_JWT_KEY":      "bar",
 	}
 	for k, v := range testEnv {
 		os.Setenv(k, v)
 		defer os.Unsetenv(k)
 	}
 
-	options, err := NewOptionsFromEnv()
+	opts, err := NewOptionsFromEnv()
 	assert.Equal(t, &Options{
 		true,
+		"test.db",
 		[]byte("foo"),
 		[]byte("bar"),
 		true,
@@ -41,7 +43,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"foo",
 		"bar",
 		true,
-	}, options)
+	}, opts)
 	assert.Nil(t, err)
 }
 

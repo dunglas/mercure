@@ -5,8 +5,29 @@ import (
 	"net/http"
 	"strconv"
 
+	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 )
+
+// Publisher must be implemented to publish an update
+type Publisher interface {
+	Publish(hub *Hub, update *Update) error
+}
+
+// LocalPublisher dispatch an update locally
+type localPublisher struct {
+}
+
+// Publish publish an update locally
+func (*localPublisher) Publish(h *Hub, u *Update) error {
+	if u.ID == "" {
+		u.ID = uuid.Must(uuid.NewV4()).String()
+	}
+
+	h.DispatchUpdate(u)
+
+	return nil
+}
 
 // PublishHandler allows publisher to broadcast updates to all subscribers
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,11 +85,15 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	u := &Update{
 		Targets: targets,
 		Topics:  topics,
-		Event:   NewEvent(data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry),
+		Event:   Event{data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
 
 	// Broadcast the update
-	h.updates <- newSerializedUpdate(u)
+	err = h.publisher.Publish(h, u)
+	if err != nil {
+		panic(err)
+	}
+
 	io.WriteString(w, u.ID)
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Update published")
 }
