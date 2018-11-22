@@ -114,6 +114,10 @@ Examples in other languages are available in [the `examples/` directory](example
 
 ## Use Cases
 
+Example of usage: the Mercure integration in [API Platform](https://api-platform.com/docs/client-generator):
+
+![API Platform screencast](https://api-platform.com/client-generator-demo-d20c0f7f49b5655a3788d9c570c1c80a.gif)
+
 ### Live Availability
 
 * a webapp retrieves the availability status of a product from a REST API and displays it: only one is still available
