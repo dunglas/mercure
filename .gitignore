@@ -7,3 +7,5 @@
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml
+__pycache__
+*.pyc
