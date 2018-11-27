@@ -43,7 +43,7 @@ The reference hub implementation:
 * Cloud Native, follows [the Twelve-Factor App](https://12factor.net) methodology
 * Open source (AGPL)
 
-# Examples
+## Examples
 
 Example implementation of a client (the subscriber), in JavaScript:
 
@@ -110,7 +110,11 @@ req.end();
 
 The JWT must contain a `publish` property containing an array of targets. This array can be empty to allow publishing anonymous updates only. [Example publisher JWT](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM) (demo key: `!UnsecureChangeMe!`).
 
-Examples in other languages are available in [the `examples/` directory](examples/).
+### Other Examples
+
+* [Python/Flask: chat application](examples/chat-python-flask) ([live demo](https://python-chat.mercure.rocks/))
+* [Node.js: publishing](examples/publisher-node.js)
+* [PHP: publishing](examples/publisher-php.php)
 
 ## Use Cases
 
