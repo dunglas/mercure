@@ -13,7 +13,7 @@ es.onmessage = ({ data }) => {
         ul = document.createElement('ul')
 
         const messages = document.getElementById('messages')
-        messages.firstChild.remove()
+        messages.innerHTML = ''
         messages.append(ul)
     }
 
