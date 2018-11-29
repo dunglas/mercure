@@ -40,7 +40,7 @@ def chat():
     )
 
     hub_url = os.environ.get('HUB_URL', 'http://localhost:3000/hub')
-    topic = os.environ.get('HUB_URL', 'http://example.com/chat')
+    topic = os.environ.get('TOPIC', 'http://example.com/chat')
 
     resp = make_response(render_template('chat.html', config={
                          'hubURL': hub_url, 'topic': topic}))
