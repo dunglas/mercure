@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -78,6 +79,12 @@ func (h *Hub) chainHandlers() http.Handler {
 	if h.options.Demo {
 		r.PathPrefix("/demo").HandlerFunc(demo)
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
+	} else {
+		r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, `<!DOCTYPE html>
+<title>Mercure Hub</title>
+<h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
+		})
 	}
 
 	secureMiddleware := secure.New(secure.Options{

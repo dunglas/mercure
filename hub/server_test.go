@@ -66,6 +66,11 @@ func TestServe(t *testing.T) {
 		resp, _ = client.Get("http://" + testAddr + "/")
 	}
 
+	defer resp.Body.Close()
+	hpBody, _ := ioutil.ReadAll(resp.Body)
+
+	assert.Contains(t, string(hpBody), "Mercure Hub")
+
 	var wgConnected, wgTested sync.WaitGroup
 	wgConnected.Add(2)
 	wgTested.Add(2)
