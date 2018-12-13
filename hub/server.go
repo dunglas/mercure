@@ -77,14 +77,14 @@ func (h *Hub) chainHandlers() http.Handler {
 	r.HandleFunc("/hub", h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc("/hub", h.PublishHandler).Methods("POST")
 	if h.options.Demo {
-		r.PathPrefix("/demo").HandlerFunc(demo)
+		r.PathPrefix("/demo").HandlerFunc(demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 	} else {
 		r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, `<!DOCTYPE html>
 <title>Mercure Hub</title>
 <h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
-		})
+		}).Methods("GET", "HEAD")
 	}
 
 	secureMiddleware := secure.New(secure.Options{
