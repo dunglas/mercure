@@ -36,7 +36,7 @@ Mercure is a protocol enabling the pushing of data updates to web browsers and o
 The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be interpreted as described in [@!RFC2119].
 
 * Topic: An HTTP [@!RFC7230] or HTTPS [@!RFC2818] topic URL. The unit to which one can subscribe to changes.
-* Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in almost all Pub/Sub systems, the publisher is unaware of the subscribers, if any. Other Pub/Sub systems might call the publisher the "source". Typically a website or a web API, but can also be a web browser.
+* Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub systems might call the publisher the "source". Typically a website or a web API, but can also be a web browser.
 * Subscriber: A client application that subscribes to real-time updates of topics. Typically a Progressive Web App or a Mobile App, but can also be a server.
 * Target: A subscriber, or a group of subscribers. A publisher is able to securely dispatch updates to specific targets. Using an HTTP [@!RFC7230] or HTTPS [@!RFC2818] URL to identify targets is **RECOMMENDED**.
 * Hub: A server that handles subscription requests and distributes the content to subscribers when the corresponding topics have been updated (a hub implementation is provided in this repository). Any hub **MAY** implement its own policies on who can use it.
