@@ -46,7 +46,7 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 ![Discovery Schema](discovery.png)
 
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber, allowing it to receive live updates when topics are updated.
-If more than one hub URL is specified, it is expected that the publisher will notify each hub, so the subscriber **MAY** subscribe to one or more of them.
+If more than one hub URL is specified, it is **RECOMMENDED** that the publisher notifies each hub, so the subscriber **MAY** subscribe to one or more of them.
 
 The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link header).
 The target URL of these links **MUST** be a hub implementing the Mercure protocol.
@@ -145,7 +145,7 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 * `topic`: IRIs of the updated topic. If this key is present several times, the first occurrence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs. The hub **MUST** dispatch this update to subscribers that are subscribed to both canonical or alternate URLs.
 * `data`: The content of the new version of this topic.
 * `target` (optional): Target audience of this update. This key can be present several times. See section #Authorization for further information.
-* `id` (optional): The topic's revision identifier: it will be used as the SSE's `id` property. If omitted, the hub **MUST** generate a valid globally unique id. It `MAY` be a UUID. Even if provided, the hub **MAY** ignore the id provided by the client and generate its own id.
+* `id` (optional): The topic's revision identifier: it will be used as the SSE's `id` property. If omitted, the hub **MUST** generate a valid globally unique id. It **MAY** be a UUID. Even if provided, the hub **MAY** ignore the id provided by the client and generate its own id.
 * `type` (optional): The SSE's `event` property (a specific event type)
 * `retry` (optional): The SSE's `retry` property (the reconnection time)
 
@@ -178,7 +178,7 @@ The cookie **SHOULD** have the `Secure`, `HttpOnly` and `SameSite` attributes se
 When using authorization mechanisms, the connection **MUST** use an encryption layer such as HTTPS.
 
 If both an `Authorization` HTTP header and a cookie named `mercureAuthorization` are presented by the client, the cookie **MUST** be ignored.
-If a client tries to execute an operation it is not allowed to, a 403 HTTP status code **SHOULD** be returned.
+If the client tries to execute an operation it is not allowed to, a 403 HTTP status code **SHOULD** be returned.
 
 ## Publishers
 
