@@ -184,7 +184,7 @@ If a client tries to execute an operation it is not allowed to, a 403 HTTP statu
 
 Publishers **MUST** be authorized to dispatch updates to the hub, and **MUST** prove that they are allowed to send updates.
 
-To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim called `mercure`, and this claim **MUST** contain a `publish` key.
+To be allowed to publish an update, the JWT presented by the publisher **MUST** contain a claim called `mercure`, and this claim **MUST** contain a `publish` key.
 `mercure.publish` **MUST** contain an array of targets the publisher is allowed to dispatch updates to.
 
 If `mercure.publish`:
