@@ -147,6 +147,8 @@ The full protocol specification can be found in [`spec/mercure.md`](spec/mercure
 It is also available as an [IETF's Internet Draft](https://www.ietf.org/id-info/),
 and is designed to be published as a RFC.
 
+An [OpenAPI specification](https://www.openapis.org/) of the hub API is also available in [`spec/openapi.yaml`](spec/openapi.yaml).
+
 ## Hub Implementation
 
 ### Managed Version
