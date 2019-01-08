@@ -1,0 +1,112 @@
+openapi: 3.0.2
+info:
+  title: The Mercure protocol
+  description: "[Mercure](https://mercure.rocks) is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way."
+  version: 0.3.2
+  contact:
+    name: Kévin Dunglas
+    url: https://mercure.rocks
+    email: dunglas+mercure@gmail.com
+  license:
+    name: GNU Affero General Public License v3.0 or later
+    url: https://github.com/dunglas/mercure/blob/master/LICENSE
+    x-spdx: AGPL-3.0-or-later
+servers:
+  - url: /hub
+paths:
+  /:
+    get:
+      summary: Subscribe to updates
+      externalDocs:
+        description: Sucbriptions specification
+        url: https://github.com/dunglas/mercure/blob/master/spec/mercure.md#subscriptions
+      parameters:
+        - name: topic
+          in: query
+          description: The topic to get updates from, can be a URI template (RFC6570).
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: Last-Event-ID
+          in: query
+          description: The last received event id, to retrieve missed events.
+          schema:
+            type: string
+        - name: Last-Event-ID
+          in: header
+          description: The last received event id, to retrieve missed events, takes precedence over the query parameter.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event stream opened.
+          content:
+            'text/event-stream': {}
+        '401':
+          description: Not authorized (missing or invalid JWT).
+        '400':
+          description: Missing topic parameter or invalid URI template.
+    post:
+      summary: Publish an update
+      externalDocs:
+        description: Publishing specification
+        url: https://github.com/dunglas/mercure/blob/master/spec/mercure.md#publication
+      requestBody:
+        content:
+          'application/x-www-form-urlencoded':
+            schema:
+              properties:
+                  topic: 
+                    description: IRIs of the updated topic. If this key is present several times, the first occurrence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs.
+                    type: array
+                    items:
+                      type: string
+                  data:
+                    description: The content of the new version of this topic.
+                    type: string
+                  target:
+                    description: Target audience of this update. If not provided, this update will be public.
+                    type: array
+                    items:
+                      type: string
+                  id:
+                    description: "The topic's revision identifier: it will be used as the SSE's `id` property."
+                    type: string
+                  type:
+                    description: The SSE's `event` property (a specific event type).
+                    type: string
+                  retry:
+                    description: The SSE's `retry` property (the reconnection time).
+                    type: integer
+              required:
+                - topic
+                - data
+      responses:
+        '200':
+          description: The id of this update
+          content:
+            'text/plain': {}
+        '401':
+          description: Not authorized (missing or invalid JWT)
+        '400':
+          description: Invalid request
+components:
+  securitySchemes:
+    Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Prefered for server to server
+    Cookie:
+      type: apiKey
+      in: cookie
+      name: mercureAuthorization
+      description: Prefered for web browsers
+security:
+  - Bearer: []
+  - Cookie: []
+externalDocs:
+  description: The Mercure protocol specification
+  url: https://github.com/dunglas/mercure/blob/master/spec/mercure.md
