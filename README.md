@@ -144,7 +144,7 @@ Example of usage: the Mercure integration in [API Platform](https://api-platform
 ## Protocol Specification
 
 The full protocol specification can be found in [`spec/mercure.md`](spec/mercure.md).
-It is also available as an [IETF's Internet Draft](https://www.ietf.org/id-info/),
+It is also available as an [IETF's Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/),
 and is designed to be published as a RFC.
 
 An [OpenAPI specification](https://www.openapis.org/) of the hub API is also available in [`spec/openapi.yaml`](spec/openapi.yaml).

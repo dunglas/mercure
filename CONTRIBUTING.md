@@ -35,6 +35,7 @@ To contribute to the protocol itself:
 * Make your changes
 * [Download Mmark](https://github.com/mmarkdown/mmark/releases)
 * [Download `xml2rfc` using pip](https://pypi.org/project/xml2rfc/): `pip install xml2rfc`
+* Format the Markdown file: `mmark -markdown -w spec/mercure.md`
 * Generate the XML file: `mmark spec/mercure.md > spec/mercure.xml`
 * Validate the generated XML file and generate the text file: `xml2rfc --text --v3 spec/mercure.xml`
 * If appropriate, be sure to update the reference implementation accordingly
