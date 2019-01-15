@@ -2,7 +2,6 @@ require 'json'
 require 'jwt'
 require 'net/http'
 
-payload = { mercure: { publish: [:foo] } }
 token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM'
 
 Net::HTTP.start('localhost', 3000) do |http|
