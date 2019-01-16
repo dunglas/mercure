@@ -115,6 +115,7 @@ The JWT must contain a `publish` property containing an array of targets. This a
 * [Python/Flask: chat application](examples/chat-python-flask) ([live demo](https://python-chat.mercure.rocks/))
 * [Node.js: publishing](examples/publisher-node.js)
 * [PHP: publishing](examples/publisher-php.php)
+* [Ruby: publishing](examples/publisher-ruby.rb)
 
 ## Use Cases
 
