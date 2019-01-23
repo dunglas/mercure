@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"crypto/tls"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -14,22 +15,30 @@ import (
 )
 
 const testURL = "http://" + testAddr + "/hub"
+const testSecureURL = "https://" + testAddr + "/hub"
 
 func TestSecurityOptions(t *testing.T) {
 	h := createAnonymousDummy()
 	h.options.Demo = true
 	h.options.CorsAllowedOrigins = []string{"*"}
+	h.options.CertFile = "../fixtures/tls/server.crt"
+	h.options.KeyFile = "../fixtures/tls/server.key"
 
 	h.Start()
 	go func() {
 		h.Serve()
 	}()
 
+	// This is a self-signed certificate
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := http.Client{Transport: transport, Timeout: time.Duration(100 * time.Millisecond)}
+
 	// loop until the web server is ready
 	var resp *http.Response
-	client := http.Client{Timeout: time.Duration(100 * time.Millisecond)}
 	for resp == nil {
-		resp, _ = client.Get("http://" + testAddr + "/hub")
+		resp, _ = client.Get(testSecureURL)
 	}
 
 	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
@@ -38,7 +47,7 @@ func TestSecurityOptions(t *testing.T) {
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
 
 	// Preflight request
-	req, _ := http.NewRequest("OPTIONS", "http://"+testAddr+"/hub", nil)
+	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil)
 	req.Header.Add("Origin", "https://example.com")
 	req.Header.Add("Access-Control-Request-Headers", "authorization")
 	req.Header.Add("Access-Control-Request-Method", "GET")

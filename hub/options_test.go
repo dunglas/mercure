@@ -51,3 +51,19 @@ func TestMissingEnv(t *testing.T) {
 	_, err := NewOptionsFromEnv()
 	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY]")
 }
+
+func TestMissingKeyFile(t *testing.T) {
+	os.Setenv("CERT_FILE", "foo")
+	defer os.Unsetenv("CERT_FILE")
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY KEY_FILE]")
+}
+
+func TestMissingCertFile(t *testing.T) {
+	os.Setenv("KEY_FILE", "foo")
+	defer os.Unsetenv("KEY_FILE")
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY CERT_FILE]")
+}

@@ -56,12 +56,18 @@ func NewOptionsFromEnv() (*Options, error) {
 		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",
 	}
 
-	missingEnv := make([]string, 0, 2)
+	missingEnv := make([]string, 0, 4)
 	if len(options.PublisherJWTKey) == 0 {
 		missingEnv = append(missingEnv, "PUBLISHER_JWT_KEY")
 	}
 	if len(options.SubscriberJWTKey) == 0 {
 		missingEnv = append(missingEnv, "SUBSCRIBER_JWT_KEY")
+	}
+	if len(options.CertFile) != 0 && len(options.KeyFile) == 0 {
+		missingEnv = append(missingEnv, "KEY_FILE")
+	}
+	if len(options.KeyFile) != 0 && len(options.CertFile) == 0 {
+		missingEnv = append(missingEnv, "CERT_FILE")
 	}
 
 	if len(missingEnv) > 0 {
