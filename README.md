@@ -236,6 +236,10 @@ If not, an HTTP server will be started (**not secure**).
 
 For both the `publish` and `subscribe` properties, the array can be empty to publish only public updates, or set it to `["*"]` to allow accessing to all targets.
 
+#### URI Template and Topics
+
+Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ensure that the template matches the topic.
+
 ## FAQ
 
 ### How to Use Mercure with GraphQL?
@@ -289,7 +293,7 @@ Basically, in most cases Mercure can be used as a modern and easier to use repla
 
 Mercure has been heavily inspired by WebSub, and we tried to make the protocol as close as possible from the WebSub one.
 
-Mercure uses Server-Sent Events to dispatch the updates, while WebSub use `POST` requests. Also, Mercure has an advanced authorization mechanism, and allows to subscribe to several topics with only one connection using templated URIs.
+Mercure uses Server-Sent Events to dispatch the updates, while WebSub use `POST` requests. Also, Mercure has an advanced authorization mechanism, and allows to subscribe to several topics with only one connection using URI templates.
 
 ### What's the Difference Between Mercure and Web Push?
 
