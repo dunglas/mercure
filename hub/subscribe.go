@@ -13,7 +13,7 @@ import (
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	f, ok := w.(http.Flusher)
 	if !ok {
-		panic("The Response Writter must be an instance of Flusher.")
+		panic("The Response Writer must be an instance of Flusher.")
 	}
 
 	claims, err := authorize(r, h.options.SubscriberJWTKey, nil)
