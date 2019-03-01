@@ -315,6 +315,10 @@ In summary, use the Push API to send notifications to offline users (that will b
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
 
+## Talks and Blog Posts
+
+* [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
+
 ## Load Testing
 
 A [Gatling](https://gatling.io)-based load test is provided in this repository.
