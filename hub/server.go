@@ -17,8 +17,10 @@ import (
 // Serve starts the HTTP server
 func (h *Hub) Serve() {
 	h.server = &http.Server{
-		Addr:    h.options.Addr,
-		Handler: h.chainHandlers(),
+		Addr:         h.options.Addr,
+		Handler:      h.chainHandlers(),
+		ReadTimeout:  h.options.ReadTimeout,
+		WriteTimeout: h.options.WriteTimeout,
 	}
 	h.server.RegisterOnShutdown(func() {
 		h.Stop()
