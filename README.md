@@ -210,6 +210,21 @@ To install Mercure in a [Kubernetes](https://kubernetes.io) cluster, use the off
 
     helm install stable/mercure
 
+#### Scalingo (PaaS)
+
+To deploy your own Mercure hub in a single click:
+
+[![Deploy](https://cdn.scalingo.com/deploy/button.svg)](https://my.scalingo.com/deploy?source=https://github.com/dunglas/mercure)
+
+How to deploy updates after initial deployment:
+
+```
+git clone git@github.com:dunglas/mercure
+cd mercure
+git remote add <app name> git@scalingo.com:<app name>.git
+git push <app name> master
+```
+
 ### Environment Variables
 
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates

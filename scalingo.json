@@ -1,0 +1,13 @@
+{
+  "name": "Mercure",
+  "description": "Server-sent live updates: protocol and reference implementation",
+  "website": "https://mercure.rocks/",
+  "repository": "https://github.com/dunglas/mercure",
+  "logo": "https://cdn.scalingo.com/documentation/technologies/mercure.svg",
+  "env": {
+    "JWT_KEY": {
+      "description": "Key to protect JWT tokens",
+      "generator": "secret"
+    }
+  }
+}

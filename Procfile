@@ -1,0 +1,1 @@
+web: ADDR=":${PORT}" mercure
