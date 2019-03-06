@@ -48,8 +48,8 @@ The reference hub implementation:
 Example implementation of a client (the subscriber), in JavaScript:
 
 ```javascript
-// The subscriber subscribes to updates for the https://example.com/foo topic
-// and to any topic matching https://example.com/books/{name}
+// The subscriber subscribes to updates for the https://example.com/users/dunglas topic
+// and to any topic matching https://example.com/books/{id}
 const url = new URL('https://example.com/hub');
 url.searchParams.append('topic', 'https://example.com/books/{id}');
 url.searchParams.append('topic', 'https://example.com/users/dunglas');
