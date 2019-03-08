@@ -31,7 +31,7 @@ In addition, a managed and high-scalability version of Mercure is [available in 
 * designed with [hypermedia in mind](https://en.wikipedia.org/wiki/HATEOAS), also supports [GraphQL](https://graphql.org/)
 * auto-discoverable through [web linking](https://tools.ietf.org/html/rfc5988)
 * message encryption support
-* can work with old browsers (IE7+) using an `EventSource` polyfill
+* can work with old browsers (IE8+) using an `EventSource` polyfill
 * [connection-less push](https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource-push) in controlled environments (e.g. browsers on mobile handsets tied to specific carriers)
 
 The reference hub implementation:
