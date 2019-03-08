@@ -336,9 +336,9 @@ func TestSendMissedEvents(t *testing.T) {
 	wg.Wait()
 }
 
-func TestSubscribeHearthbeat(t *testing.T) {
+func TestSubscribeHeartbeat(t *testing.T) {
 	hub := createAnonymousDummy()
-	hub.options.HearthbeatInterval = 5 * time.Millisecond
+	hub.options.HeartbeatInterval = 5 * time.Millisecond
 	hub.Start()
 
 	go func() {

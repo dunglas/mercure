@@ -21,7 +21,7 @@ type Options struct {
 	AcmeCertDir           string
 	CertFile              string
 	KeyFile               string
-	HearthbeatInterval    time.Duration
+	HeartbeatInterval     time.Duration
 	ReadTimeout           time.Duration
 	WriteTimeout          time.Duration
 	Demo                  bool
@@ -44,7 +44,7 @@ func NewOptionsFromEnv() (*Options, error) {
 		dbPath = "updates.db"
 	}
 
-	hearthbeatInterval, err := parseDurationFromEnvVar("HEARTHBEAT_INTERVAL")
+	heartbeatInterval, err := parseDurationFromEnvVar("HEARTBEAT_INTERVAL")
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func NewOptionsFromEnv() (*Options, error) {
 		os.Getenv("ACME_CERT_DIR"),
 		os.Getenv("CERT_FILE"),
 		os.Getenv("KEY_FILE"),
-		hearthbeatInterval,
+		heartbeatInterval,
 		readTimeout,
 		writeTimeout,
 		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",

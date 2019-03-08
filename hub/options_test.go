@@ -23,7 +23,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"PUBLISHER_JWT_KEY":       "foo",
 		"PUBLISH_ALLOWED_ORIGINS": "http://127.0.0.1:8080",
 		"SUBSCRIBER_JWT_KEY":      "bar",
-		"HEARTHBEAT_INTERVAL":     "30s",
+		"HEARTBEAT_INTERVAL":      "30s",
 		"READ_TIMEOUT":            "1m",
 		"WRITE_TIMEOUT":           "40s",
 	}
@@ -76,7 +76,7 @@ func TestMissingCertFile(t *testing.T) {
 }
 
 func TestInvalidDuration(t *testing.T) {
-	vars := [3]string{"HEARTHBEAT_INTERVAL", "READ_TIMEOUT", "WRITE_TIMEOUT"}
+	vars := [3]string{"HEARTBEAT_INTERVAL", "READ_TIMEOUT", "WRITE_TIMEOUT"}
 	for _, elem := range vars {
 		os.Setenv(elem, "1 MN (invalid)")
 		defer os.Unsetenv(elem)

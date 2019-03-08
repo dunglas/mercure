@@ -79,8 +79,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for {
-		if h.options.HearthbeatInterval == time.Duration(0) {
-			// No hearthbeat defined, just block
+		if h.options.HeartbeatInterval == time.Duration(0) {
+			// No heartbeat defined, just block
 			serializedUpdate, open := <-updateChan
 			if !open {
 				return
@@ -97,7 +97,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			publish(serializedUpdate)
 
-		case <-time.After(h.options.HearthbeatInterval):
+		case <-time.After(h.options.HeartbeatInterval):
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
 			fmt.Fprint(w, ":\n")
 			f.Flush()

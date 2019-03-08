@@ -216,7 +216,7 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 * `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
 * `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
-* `HEARTHBEAT_INTERVAL`: interval between heartbeats (useful with some proxies, and old browsers), set to `0s` to disable (default), example `15s`
+* `HEARTBEAT_INTERVAL`: interval between heartbeats (useful with some proxies, and old browsers), set to `0s` to disable (default), example `15s`
 * `JWT_KEY`: the JWT key to use for both publishers and subscribers
 * `LOG_FORMAT`: the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)
 * `PUBLISH_ALLOWED_ORIGINS`: a comma separated list of origins allowed to publish (only applicable when using cookie-based auth)
