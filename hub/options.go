@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // Options stores the hub's options
@@ -20,6 +21,9 @@ type Options struct {
 	AcmeCertDir           string
 	CertFile              string
 	KeyFile               string
+	HeartbeatInterval     time.Duration
+	ReadTimeout           time.Duration
+	WriteTimeout          time.Duration
 	Demo                  bool
 }
 
@@ -40,6 +44,21 @@ func NewOptionsFromEnv() (*Options, error) {
 		dbPath = "updates.db"
 	}
 
+	heartbeatInterval, err := parseDurationFromEnvVar("HEARTBEAT_INTERVAL")
+	if err != nil {
+		return nil, err
+	}
+
+	readTimeout, err := parseDurationFromEnvVar("READ_TIMEOUT")
+	if err != nil {
+		return nil, err
+	}
+
+	writeTimeout, err := parseDurationFromEnvVar("WRITE_TIMEOUT")
+	if err != nil {
+		return nil, err
+	}
+
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
 		dbPath,
@@ -53,6 +72,9 @@ func NewOptionsFromEnv() (*Options, error) {
 		os.Getenv("ACME_CERT_DIR"),
 		os.Getenv("CERT_FILE"),
 		os.Getenv("KEY_FILE"),
+		heartbeatInterval,
+		readTimeout,
+		writeTimeout,
 		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",
 	}
 
@@ -83,4 +105,18 @@ func splitVar(v string) []string {
 	}
 
 	return strings.Split(v, ",")
+}
+
+func parseDurationFromEnvVar(k string) (time.Duration, error) {
+	v := os.Getenv(k)
+	if v == "" {
+		return time.Duration(0), nil
+	}
+
+	dur, err := time.ParseDuration(v)
+	if err == nil {
+		return dur, nil
+	}
+
+	return time.Duration(0), fmt.Errorf("%s: %s", k, err)
 }

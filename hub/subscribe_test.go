@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	bolt "go.etcd.io/bbolt"
@@ -333,6 +334,41 @@ func TestSendMissedEvents(t *testing.T) {
 	wr1.close()
 	wr2.close()
 	wg.Wait()
+}
+
+func TestSubscribeHeartbeat(t *testing.T) {
+	hub := createAnonymousDummy()
+	hub.options.HeartbeatInterval = 5 * time.Millisecond
+	hub.Start()
+
+	go func() {
+		for {
+			hub.subscribers.RLock()
+			empty := len(hub.subscribers.m) == 0
+			hub.subscribers.RUnlock()
+
+			if empty {
+				continue
+			}
+
+			hub.updates <- newSerializedUpdate(&Update{
+				Topics: []string{"http://example.com/books/1"},
+				Event:  Event{Data: "Hello World", ID: "b"},
+			})
+
+			time.Sleep(8 * time.Millisecond)
+			hub.Stop()
+			return
+		}
+	}()
+
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil)
+	w := newCloseNotifyingRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "id: b\ndata: Hello World\n\n:\n", w.Body.String())
 }
 
 // From https://github.com/go-martini/martini/blob/master/response_writer_test.go

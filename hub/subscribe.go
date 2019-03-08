@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
@@ -63,15 +64,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("Subscriber disconnected")
 	}()
 
-	for {
-		serializedUpdate, open := <-updateChan
-		if !open {
-			break
-		}
-
+	publish := func(serializedUpdate *serializedUpdate) {
 		// Check authorization
 		if !subscriber.CanReceive(serializedUpdate.Update) {
-			continue
+			return
 		}
 
 		fmt.Fprint(w, serializedUpdate.event)
@@ -80,6 +76,32 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			"remote_addr": r.RemoteAddr,
 		}).Info("Event sent")
 		f.Flush()
+	}
+
+	for {
+		if h.options.HeartbeatInterval == time.Duration(0) {
+			// No heartbeat defined, just block
+			serializedUpdate, open := <-updateChan
+			if !open {
+				return
+			}
+			publish(serializedUpdate)
+
+			continue
+		}
+
+		select {
+		case serializedUpdate, open := <-updateChan:
+			if !open {
+				return
+			}
+			publish(serializedUpdate)
+
+		case <-time.After(h.options.HeartbeatInterval):
+			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			fmt.Fprint(w, ":\n")
+			f.Flush()
+		}
 	}
 }
 

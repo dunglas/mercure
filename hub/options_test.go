@@ -3,6 +3,7 @@ package hub
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -22,6 +23,9 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"PUBLISHER_JWT_KEY":       "foo",
 		"PUBLISH_ALLOWED_ORIGINS": "http://127.0.0.1:8080",
 		"SUBSCRIBER_JWT_KEY":      "bar",
+		"HEARTBEAT_INTERVAL":      "30s",
+		"READ_TIMEOUT":            "1m",
+		"WRITE_TIMEOUT":           "40s",
 	}
 	for k, v := range testEnv {
 		os.Setenv(k, v)
@@ -42,6 +46,9 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"/tmp",
 		"foo",
 		"bar",
+		30 * time.Second,
+		time.Minute,
+		40 * time.Second,
 		true,
 	}, opts)
 	assert.Nil(t, err)
@@ -66,4 +73,16 @@ func TestMissingCertFile(t *testing.T) {
 
 	_, err := NewOptionsFromEnv()
 	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY CERT_FILE]")
+}
+
+func TestInvalidDuration(t *testing.T) {
+	vars := [3]string{"HEARTBEAT_INTERVAL", "READ_TIMEOUT", "WRITE_TIMEOUT"}
+	for _, elem := range vars {
+		os.Setenv(elem, "1 MN (invalid)")
+		defer os.Unsetenv(elem)
+		_, err := NewOptionsFromEnv()
+		assert.EqualError(t, err, elem+": time: unknown unit  MN (invalid) in duration 1 MN (invalid)")
+
+		os.Unsetenv(elem)
+	}
 }

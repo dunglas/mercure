@@ -216,11 +216,14 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 * `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
 * `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
+* `HEARTBEAT_INTERVAL`: interval between heartbeats (useful with some proxies, and old browsers), set to `0s` to disable (default), example `15s`
 * `JWT_KEY`: the JWT key to use for both publishers and subscribers
 * `LOG_FORMAT`: the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)
 * `PUBLISH_ALLOWED_ORIGINS`: a comma separated list of origins allowed to publish (only applicable when using cookie-based auth)
 * `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT, can be omited if `JWT_KEY` is set
+* `READ_TIMEOUT`: maximum duration for reading the entire request, including the body, set to `0` to disable (default), example: `2m`
 * `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT, can be omited if `JWT_KEY` is set
+* `WRITE_TIMEOUT`: maximum duration before timing out writes of the response, set to `0` to disable (default), example: `2m`
 
 If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
