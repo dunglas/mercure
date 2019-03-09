@@ -225,7 +225,7 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 * `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT, can be omited if `JWT_KEY` is set
 * `WRITE_TIMEOUT`: maximum duration before timing out writes of the response, set to `0` to disable (default), example: `2m`
 
-If `ACME_HOSTS` or both `CERT_FILE` and `CERT_KEY` are provided, an HTTPS server supporting HTTP/2 connection will be started.
+If `ACME_HOSTS` or both `CERT_FILE` and `KEY_FILE` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
 
 ### Troubleshooting
