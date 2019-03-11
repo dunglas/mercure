@@ -239,9 +239,9 @@ If not, an HTTP server will be started (**not secure**).
 
 For both the `publish` and `subscribe` properties, the array can be empty to publish only public updates, or set it to `["*"]` to allow accessing to all targets.
 
-#### Browser issues
+#### Browser Issues
 
-If subscribing to the EventSource in your browser doesn't work and your browser instantly disconnects from the stream or complains about CORS policy on receiving an event, check that you've set a proper value for `CORS_ALLOWED_ORIGINS` on running mercure. It's fine to use `CORS_ALLOWED_ORIGINS=*` for your local development.
+If subscribing to the `EventSource` in the browser doesn't work (the browser instantly disconnects from the stream or complains about CORS policy on receiving an event), check that you've set a proper value for `CORS_ALLOWED_ORIGINS` on running Mercure. It's fine to use `CORS_ALLOWED_ORIGINS=*` for your local development.
 
 #### URI Template and Topics
 
