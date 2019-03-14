@@ -311,20 +311,28 @@ On the other hand, Mercure is a duplex protocol designed to send live updates to
 
 In summary, use the Push API to send notifications to offline users (that will be available in Chrome, Android and iOS's notification centers), and use Mercure to receive and publish live updates when the user is using the app.
 
-## Resources
+## Tools
 
 * [PHP library to publish Mercure updates](https://github.com/symfony/mercure)
 * [Official Mercure support for the Symfony framework](https://github.com/symfony/mercure-bundle)
+* [Official Mercure support for the API Platform framework](https://api-platform.com/docs/core/mercure/)
 * [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)
-* [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
-* [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
+* [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
+* [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
 
-## Talks and Blog Posts
+## Learning Resources
 
-* [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
+### English
+
+* [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure (Symfony blog)](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
+
+### French
+
+* [Tutoriel vidéo : Notifications instantanées avec Mercure (Grafikart)](https://www.grafikart.fr/tutoriels/symfony-mercure-1151)
+* [Mercure, un protocole pour pousser des mises à jour vers des navigateurs et app mobiles en temps réel (Les-Tilleuls.coop)](https://les-tilleuls.coop/fr/blog/article/mercure-un-protocole-pour-pousser-des-mises-a-jour-vers-des-navigateurs-et-app-mobiles-en-temps-reel)
 
 ## Load Testing
 
