@@ -334,6 +334,7 @@ In summary, use the Push API to send notifications to offline users (that will b
 ### English
 
 * [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure (Symfony blog)](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
+* [Tech Workshop: Mercure by Kevin Dunglas at SensioLabs (SensioLabs)](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
 
 ### French
 
