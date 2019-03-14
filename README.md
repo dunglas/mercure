@@ -204,6 +204,12 @@ In production, run:
 
 Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let's Encrypt TLS certificate will be automatically generated.
 
+#### Kubernetes
+
+To install Mercure in a [Kubernetes](https://kubernetes.io) cluster, use the official [Helm Chart](https://hub.helm.sh/charts/stable/mercure):
+
+    helm install stable/mercure
+
 ### Environment Variables
 
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
