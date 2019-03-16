@@ -163,7 +163,7 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 Grab a binary from the release page and run:
 
-    JWT_KEY='myJWTKey' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGIN=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
+    JWT_KEY='myJWTKey' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGINS=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
 
 The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
 
