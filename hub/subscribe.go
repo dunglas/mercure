@@ -17,16 +17,50 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		panic("The Response Writer must be an instance of Flusher.")
 	}
 
+	subscriber, updateChan, ok := h.initSubscription(w, r)
+	if !ok {
+		return
+	}
+
+	for {
+		if h.options.HeartbeatInterval == time.Duration(0) {
+			// No heartbeat defined, just block
+			serializedUpdate, open := <-updateChan
+			if !open {
+				return
+			}
+			publish(serializedUpdate, subscriber, w, r)
+
+			continue
+		}
+
+		select {
+		case serializedUpdate, open := <-updateChan:
+			if !open {
+				return
+			}
+			publish(serializedUpdate, subscriber, w, r)
+
+		case <-time.After(h.options.HeartbeatInterval):
+			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			fmt.Fprint(w, ":\n")
+			f.Flush()
+		}
+	}
+}
+
+// initSubscription initializes the connection
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, chan *serializedUpdate, bool) {
 	claims, err := authorize(r, h.options.SubscriberJWTKey, nil)
 	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return
+		return nil, nil, false
 	}
 
 	topics := r.URL.Query()["topic"]
 	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
-		return
+		return nil, nil, false
 	}
 
 	var regexps = make([]*regexp.Regexp, len(topics))
@@ -34,7 +68,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		tpl, err := uritemplate.New(topic)
 		if nil != err {
 			http.Error(w, fmt.Sprintf("\"%s\" is not a valid URI template (RFC6570).", topic), http.StatusBadRequest)
-			return
+			return nil, nil, false
 		}
 		regexps[index] = tpl.Regexp()
 	}
@@ -64,48 +98,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("Subscriber disconnected")
 	}()
 
-	publish := func(serializedUpdate *serializedUpdate) {
-		// Check authorization
-		if !subscriber.CanReceive(serializedUpdate.Update) {
-			return
-		}
-
-		fmt.Fprint(w, serializedUpdate.event)
-		log.WithFields(log.Fields{
-			"event_id":    serializedUpdate.ID,
-			"remote_addr": r.RemoteAddr,
-		}).Info("Event sent")
-		f.Flush()
-	}
-
-	for {
-		if h.options.HeartbeatInterval == time.Duration(0) {
-			// No heartbeat defined, just block
-			serializedUpdate, open := <-updateChan
-			if !open {
-				return
-			}
-			publish(serializedUpdate)
-
-			continue
-		}
-
-		select {
-		case serializedUpdate, open := <-updateChan:
-			if !open {
-				return
-			}
-			publish(serializedUpdate)
-
-		case <-time.After(h.options.HeartbeatInterval):
-			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			fmt.Fprint(w, ":\n")
-			f.Flush()
-		}
-	}
+	return subscriber, updateChan, true
 }
 
-// sendHeaders send correct HTTP headers to create a keep-alive connection
+// sendHeaders sends correct HTTP headers to create a keep-alive connection
 func sendHeaders(w http.ResponseWriter) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
@@ -127,6 +123,8 @@ func sendHeaders(w http.ResponseWriter) {
 	w.(http.Flusher).Flush()
 }
 
+// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header
+// with a fallback on the query parameter
 func retrieveLastEventID(r *http.Request) string {
 	if id := r.Header.Get("Last-Event-ID"); id != "" {
 		return id
@@ -135,6 +133,7 @@ func retrieveLastEventID(r *http.Request) string {
 	return r.URL.Query().Get("Last-Event-ID")
 }
 
+// sendMissedEvents sends the events received since the one provided in Last-Event-ID
 func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscriber) {
 	f := w.(http.Flusher)
 	if err := h.history.FindFor(s, func(u *Update) bool {
@@ -149,4 +148,19 @@ func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscr
 	}); err != nil {
 		panic(err)
 	}
+}
+
+// publish sends the update to the client, if authorized
+func publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w http.ResponseWriter, r *http.Request) {
+	// Check authorization
+	if !subscriber.CanReceive(serializedUpdate.Update) {
+		return
+	}
+
+	fmt.Fprint(w, serializedUpdate.event)
+	log.WithFields(log.Fields{
+		"event_id":    serializedUpdate.ID,
+		"remote_addr": r.RemoteAddr,
+	}).Info("Event sent")
+	w.(http.Flusher).Flush()
 }
