@@ -95,7 +95,7 @@ func TestServe(t *testing.T) {
 		defer resp.Body.Close()
 		body, _ := ioutil.ReadAll(resp.Body)
 
-		assert.Equal(t, []byte("id: first\ndata: hello\n\n"), body)
+		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
 	}()
 
 	go func() {
@@ -109,7 +109,7 @@ func TestServe(t *testing.T) {
 		defer resp.Body.Close()
 		body, _ := ioutil.ReadAll(resp.Body)
 
-		assert.Equal(t, []byte("id: first\ndata: hello\n\n"), body)
+		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
 	}()
 
 	wgConnected.Wait()

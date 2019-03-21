@@ -120,6 +120,10 @@ func sendHeaders(w http.ResponseWriter) {
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	w.Header().Set("X-Accel-Buffering", "no")
+
+	// Write a comment in the body
+	// Go currently doesn't provide a better way to flush the headers
+	fmt.Fprint(w, ":\n")
 	w.(http.Flusher).Flush()
 }
 
