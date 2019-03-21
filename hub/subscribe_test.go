@@ -160,7 +160,7 @@ func TestSubscribe(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "id: b\ndata: Hello World\n\nid: c\ndata: Great\n\n", w.Body.String())
+	assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\n", w.Body.String())
 }
 
 func TestUnsubscribe(t *testing.T) {
@@ -234,7 +234,7 @@ func TestSubscribeTarget(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "event: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n", w.Body.String())
+	assert.Equal(t, ":\nevent: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n", w.Body.String())
 }
 
 func TestSubscribeAllTargets(t *testing.T) {
@@ -274,7 +274,7 @@ func TestSubscribeAllTargets(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "id: a\ndata: Foo\n\nevent: test\nid: b\ndata: Hello World\n\n", w.Body.String())
+	assert.Equal(t, ":\nid: a\ndata: Foo\n\nevent: test\nid: b\ndata: Hello World\n\n", w.Body.String())
 }
 
 func TestSendMissedEvents(t *testing.T) {
@@ -309,7 +309,7 @@ func TestSendMissedEvents(t *testing.T) {
 		defer w.Done()
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil)
 		hub.SubscribeHandler(wr1, req)
-		assert.Equal(t, "id: b\ndata: d2\n\n", wr1.Body.String())
+		assert.Equal(t, ":\nid: b\ndata: d2\n\n", wr1.Body.String())
 	}(&wg)
 
 	wr2 := newCloseNotifyingRecorder()
@@ -318,7 +318,7 @@ func TestSendMissedEvents(t *testing.T) {
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}", nil)
 		req.Header.Add("Last-Event-ID", "a")
 		hub.SubscribeHandler(wr2, req)
-		assert.Equal(t, "id: b\ndata: d2\n\n", wr2.Body.String())
+		assert.Equal(t, ":\nid: b\ndata: d2\n\n", wr2.Body.String())
 	}(&wg)
 
 	for {
@@ -368,7 +368,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "id: b\ndata: Hello World\n\n:\n", w.Body.String())
+	assert.Equal(t, ":\nid: b\ndata: Hello World\n\n:\n", w.Body.String())
 }
 
 // From https://github.com/go-martini/martini/blob/master/response_writer_test.go
