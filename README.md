@@ -227,9 +227,9 @@ To install Mercure in a [Kubernetes](https://kubernetes.io) cluster, use the off
 * `LOG_FORMAT`: the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)
 * `PUBLISH_ALLOWED_ORIGINS`: a comma separated list of origins allowed to publish (only applicable when using cookie-based auth)
 * `PUBLISHER_JWT_KEY`: must contain the secret key to valid publishers' JWT, can be omited if `JWT_KEY` is set
-* `READ_TIMEOUT`: maximum duration for reading the entire request, including the body, set to `0` to disable (default), example: `2m`
+* `READ_TIMEOUT`: maximum duration for reading the entire request, including the body, set to `0s` to disable (default), example: `2m`
 * `SUBSCRIBER_JWT_KEY`: must contain the secret key to valid subscribers' JWT, can be omited if `JWT_KEY` is set
-* `WRITE_TIMEOUT`: maximum duration before timing out writes of the response, set to `0` to disable (default), example: `2m`
+* `WRITE_TIMEOUT`: maximum duration before timing out writes of the response, set to `0s` to disable (default), example: `2m`
 
 If `ACME_HOSTS` or both `CERT_FILE` and `KEY_FILE` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
