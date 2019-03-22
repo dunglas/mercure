@@ -3,7 +3,7 @@ package hub
 import (
 	"fmt"
 	"net/http"
-	"regexp"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -63,21 +63,28 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		return nil, nil, false
 	}
 
-	var regexps = make([]*regexp.Regexp, len(topics))
-	for index, topic := range topics {
+	var rawTopics = make([]string, 0, len(topics))
+	var templateTopics = make([]*uritemplate.Template, 0, len(topics))
+	for _, topic := range topics {
+		if !strings.Contains(topic, "{") { // Not an URI template
+			rawTopics = append(rawTopics, topic)
+			continue
+		}
+
 		tpl, err := uritemplate.New(topic)
 		if nil != err {
-			http.Error(w, fmt.Sprintf("\"%s\" is not a valid URI template (RFC6570).", topic), http.StatusBadRequest)
-			return nil, nil, false
+			rawTopics = append(rawTopics, topic)
+			continue
 		}
-		regexps[index] = tpl.Regexp()
+
+		templateTopics = append(templateTopics, tpl)
 	}
 
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("New subscriber")
 	sendHeaders(w)
 
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
-	subscriber := &Subscriber{authorizedAlltargets, authorizedTargets, regexps, retrieveLastEventID(r)}
+	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, rawTopics, templateTopics, retrieveLastEventID(r))
 
 	if subscriber.LastEventID != "" {
 		h.sendMissedEvents(w, r, subscriber)

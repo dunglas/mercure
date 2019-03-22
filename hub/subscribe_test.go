@@ -109,19 +109,6 @@ func TestSubscribeNoTopic(t *testing.T) {
 	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
 }
 
-func TestSubscribeInvalidIRI(t *testing.T) {
-	hub := createAnonymousDummy()
-
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=fau{lty", nil)
-	w := httptest.NewRecorder()
-	hub.SubscribeHandler(w, req)
-
-	resp := w.Result()
-
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Equal(t, "\"fau{lty\" is not a valid URI template (RFC6570).\n", w.Body.String())
-}
-
 func TestSubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 	hub.Start()
@@ -148,19 +135,23 @@ func TestSubscribe(t *testing.T) {
 				Topics: []string{"http://example.com/reviews/22"},
 				Event:  Event{Data: "Great", ID: "c"},
 			})
+			hub.updates <- newSerializedUpdate(&Update{
+				Topics: []string{"http://example.com/hub?topic=faulty{iri"},
+				Event:  Event{Data: "Faulty IRI", ID: "d"},
+			})
 
 			hub.Stop()
 			return
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil)
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil)
 	w := newCloseNotifyingRecorder()
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\n", w.Body.String())
+	assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\n", w.Body.String())
 }
 
 func TestUnsubscribe(t *testing.T) {
