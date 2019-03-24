@@ -6,6 +6,8 @@ import (
 	fluentd "github.com/joonix/log"
 	log "github.com/sirupsen/logrus"
 
+	_ "net/http/pprof"
+
 	"github.com/dunglas/mercure/hub"
 	_ "github.com/joho/godotenv/autoload"
 )
