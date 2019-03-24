@@ -21,6 +21,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	defer h.cleanup(subscriber)
 
 	for {
 		if h.options.HeartbeatInterval == time.Duration(0) {
@@ -66,18 +67,11 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	var rawTopics = make([]string, 0, len(topics))
 	var templateTopics = make([]*uritemplate.Template, 0, len(topics))
 	for _, topic := range topics {
-		if !strings.Contains(topic, "{") { // Not an URI template
+		if tpl := h.getURITemplate(topic); tpl == nil {
 			rawTopics = append(rawTopics, topic)
-			continue
+		} else {
+			templateTopics = append(templateTopics, tpl)
 		}
-
-		tpl, err := uritemplate.New(topic)
-		if nil != err {
-			rawTopics = append(rawTopics, topic)
-			continue
-		}
-
-		templateTopics = append(templateTopics, tpl)
 	}
 
 	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("New subscriber")
@@ -106,6 +100,25 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	}()
 
 	return subscriber, updateChan, true
+}
+
+// getURITemplate retrieves or creates the uritemplate.Template associated with this topic, or nil if it's not a template
+func (h *Hub) getURITemplate(topic string) *uritemplate.Template {
+	var tpl *uritemplate.Template
+	h.uriTemplates.Lock()
+	if tplCache, ok := h.uriTemplates.m[topic]; ok {
+		tpl = tplCache.template
+		tplCache.counter = tplCache.counter + 1
+	} else {
+		if strings.Contains(topic, "{") { // If it's definitely not an URI template, skip to save some resources
+			tpl, _ = uritemplate.New(topic) // Returns nil in case of error, will be considered as a raw string
+		}
+
+		h.uriTemplates.m[topic] = &templateCache{1, tpl}
+	}
+	h.uriTemplates.Unlock()
+
+	return tpl
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection
@@ -170,4 +183,24 @@ func publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w http.
 		"remote_addr": r.RemoteAddr,
 	}).Info("Event sent")
 	w.(http.Flusher).Flush()
+}
+
+// cleanup removes unused uritemplate.Template instances from memory
+func (h *Hub) cleanup(s *Subscriber) {
+	keys := make([]string, 0, len(s.RawTopics)+len(s.TemplateTopics))
+	copy(s.RawTopics, keys)
+	for _, uriTemplate := range s.TemplateTopics {
+		keys = append(keys, uriTemplate.Raw())
+	}
+
+	h.uriTemplates.Lock()
+	for _, key := range keys {
+		counter := h.uriTemplates.m[key].counter
+		if counter == 0 {
+			delete(h.uriTemplates.m, key)
+		} else {
+			h.uriTemplates.m[key].counter = counter - 1
+		}
+	}
+	h.uriTemplates.Unlock()
 }
