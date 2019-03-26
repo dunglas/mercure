@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
