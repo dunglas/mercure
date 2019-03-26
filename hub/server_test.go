@@ -23,6 +23,7 @@ func TestSecurityOptions(t *testing.T) {
 	h.options.CorsAllowedOrigins = []string{"*"}
 	h.options.CertFile = "../fixtures/tls/server.crt"
 	h.options.KeyFile = "../fixtures/tls/server.key"
+	h.options.Compress = false
 
 	h.Start()
 	go func() {

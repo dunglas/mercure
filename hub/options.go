@@ -24,6 +24,7 @@ type Options struct {
 	HeartbeatInterval     time.Duration
 	ReadTimeout           time.Duration
 	WriteTimeout          time.Duration
+	Compress              bool
 	Demo                  bool
 }
 
@@ -75,6 +76,7 @@ func NewOptionsFromEnv() (*Options, error) {
 		heartbeatInterval,
 		readTimeout,
 		writeTimeout,
+		os.Getenv("COMPRESS") != "0",
 		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",
 	}
 

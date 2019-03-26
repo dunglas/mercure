@@ -218,6 +218,7 @@ To install Mercure in a [Kubernetes](https://kubernetes.io) cluster, use the off
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `CERT_FILE`: a cert file (to use a custom certificate)
 * `KEY_FILE`: a key file (to use a custom certificate)
+* `COMPRESS`: set to `0` to disable HTTP compression support (default to enabled)
 * `CORS_ALLOWED_ORIGINS`: a comma separated list of allowed CORS origins, can be `*` for all
 * `DB_PATH`: the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
