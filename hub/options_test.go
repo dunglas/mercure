@@ -15,6 +15,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"ADDR":                    "127.0.0.1:8080",
 		"ALLOW_ANONYMOUS":         "1",
 		"CERT_FILE":               "foo",
+		"COMPRESS":                "0",
 		"CORS_ALLOWED_ORIGINS":    "*",
 		"DB_PATH":                 "test.db",
 		"DEBUG":                   "1",
@@ -49,6 +50,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		30 * time.Second,
 		time.Minute,
 		40 * time.Second,
+		false,
 		true,
 	}, opts)
 	assert.Nil(t, err)

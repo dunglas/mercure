@@ -50,6 +50,7 @@ func createAnonymousDummy() *Hub {
 		SubscriberJWTKey: []byte("subscriber"),
 		AllowAnonymous:   true,
 		Addr:             testAddr,
+		Compress:         true,
 	})
 }
 

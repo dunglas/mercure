@@ -108,7 +108,12 @@ func (h *Hub) chainHandlers() http.Handler {
 		corsHandler = r
 	}
 
-	compressHandler := handlers.CompressHandler(corsHandler)
+	var compressHandler http.Handler
+	if h.options.Compress {
+		compressHandler = handlers.CompressHandler(corsHandler)
+	} else {
+		compressHandler = corsHandler
+	}
 	secureHandler := secureMiddleware.Handler(compressHandler)
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(
