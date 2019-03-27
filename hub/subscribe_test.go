@@ -109,17 +109,18 @@ func TestSubscribeNoTopic(t *testing.T) {
 	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
 }
 
-func TestSubscribe(t *testing.T) {
+func testSubscribe(numberOfSubscribers int, t *testing.T) {
 	hub := createAnonymousDummy()
 	hub.Start()
 
 	go func() {
 		for {
 			hub.subscribers.RLock()
-			empty := len(hub.subscribers.m) == 0
+			ready := len(hub.subscribers.m) == numberOfSubscribers
 			hub.subscribers.RUnlock()
 
-			if empty {
+			if !ready {
+				//time.Sleep(time.Millisecond)
 				continue
 			}
 
@@ -145,13 +146,28 @@ func TestSubscribe(t *testing.T) {
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil)
-	w := newCloseNotifyingRecorder()
-	hub.SubscribeHandler(w, req)
+	var wg sync.WaitGroup
+	wg.Add(numberOfSubscribers)
+	for i := 0; i < numberOfSubscribers; i++ {
+		go func(w2 *sync.WaitGroup) {
+			defer w2.Done()
+			req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil)
+			w := newCloseNotifyingRecorder()
+			hub.SubscribeHandler(w, req)
 
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\n", w.Body.String())
+			if t != nil {
+				resp := w.Result()
+				assert.Equal(t, http.StatusOK, resp.StatusCode)
+				assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\n", w.Body.String())
+			}
+		}(&wg)
+	}
+
+	wg.Wait()
+}
+
+func TestSubscribe(t *testing.T) {
+	testSubscribe(3, t)
 }
 
 func TestUnsubscribe(t *testing.T) {
@@ -381,4 +397,10 @@ func (c *closeNotifyingRecorder) close() {
 
 func (c *closeNotifyingRecorder) CloseNotify() <-chan bool {
 	return c.closed
+}
+
+func BenchmarkSubscribe(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		testSubscribe(1000, nil)
+	}
 }
