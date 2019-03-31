@@ -95,7 +95,7 @@ const req = https.request({
     method: 'POST',
     headers: {
         Authorization: 'Bearer <valid-jwt-token>',
-        // the JWT must have a mercure.pulish key containing an array of targets (can be empty for public updates)
+        // the JWT must have a mercure.publish key containing an array of targets (can be empty for public updates)
         // the JWT key must be shared between the hub and the server
         'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(postData),
