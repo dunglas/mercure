@@ -116,6 +116,7 @@ The JWT must contain a `publish` property containing an array of targets. This a
 * [Node.js: publishing](examples/publisher-node.js)
 * [PHP: publishing](examples/publisher-php.php)
 * [Ruby: publishing](examples/publisher-ruby.rb)
+* [Linux: running mercure via supervisor](examples/example-supervisor-config.md)
 
 ## Use Cases
 
