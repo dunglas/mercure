@@ -269,9 +269,35 @@ To unsubscribe, the client just calls `EventSource.close()`.
 
 Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated transport](https://github.com/apollographql/graphql-subscriptions).
 
-### How to Use NGINX as an HTTP/2 Reverse Proxy in Front of Mercure?
+### How to Monitor the Hub Using Supervisor
 
-NGINX is supported out of the box. Use the following proxy configuration:
+Use the following file as a template to run the Mercure hub with [Supervisor](http://supervisord.org):
+
+```ini
+[program:mercure]
+command=/path/to/mercure
+process_name=%(program_name)s_%(process_num)s
+numprocs=1
+environment=JWT_KEY="myJWTKey"
+directory=/tmp
+autostart=true
+autorestart=true
+startsecs=5
+startretries=10
+user=www-data
+redirect_stderr=false
+stdout_capture_maxbytes=1MB
+stderr_capture_maxbytes=1MB
+stdout_logfile=/path/to/logs/mercure.out.log
+stderr_logfile=/path/to/logs/mercure.error.log
+```
+
+Save this file to `/etc/supervisor/conf.d/mercure.conf`.
+Run `supervisorctl reread` and `supervisorctl update` to activate and start the Mercure hub.
+
+### How to Use NGINX as an HTTP/2 Reverse Proxy in Front of the Hub?
+
+[NGINX](https://www.nginx.com) is supported out of the box. Use the following proxy configuration:
 
 ```nginx
 server {
