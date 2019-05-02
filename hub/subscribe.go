@@ -55,6 +55,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	claims, err := authorize(r, h.options.SubscriberJWTKey, nil)
 	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
 		return nil, nil, false
 	}
 

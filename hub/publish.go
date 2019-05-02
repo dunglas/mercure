@@ -34,6 +34,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := authorize(r, h.options.PublisherJWTKey, h.options.PublishAllowedOrigins)
 	if err != nil || claims == nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
 		return
 	}
 
