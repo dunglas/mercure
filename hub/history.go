@@ -88,8 +88,8 @@ func cleanup(options *Options, bucket *bolt.Bucket, lastID uint64) error {
 	removeUntil := lastID - options.HistorySize
 	c := bucket.Cursor()
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
-		if binary.BigEndian.Uint64(k[8:]) > removeUntil {
-			return nil
+		if binary.BigEndian.Uint64(k[:8]) > removeUntil {
+			break
 		}
 
 		if err := bucket.Delete(k); err != nil {
