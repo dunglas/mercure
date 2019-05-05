@@ -3,29 +3,32 @@ package hub
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // Options stores the hub's options
 type Options struct {
-	Debug                 bool
-	DBPath                string
-	PublisherJWTKey       []byte
-	SubscriberJWTKey      []byte
-	AllowAnonymous        bool
-	CorsAllowedOrigins    []string
-	PublishAllowedOrigins []string
-	Addr                  string
-	AcmeHosts             []string
-	AcmeCertDir           string
-	CertFile              string
-	KeyFile               string
-	HeartbeatInterval     time.Duration
-	ReadTimeout           time.Duration
-	WriteTimeout          time.Duration
-	Compress              bool
-	Demo                  bool
+	Debug                   bool
+	DBPath                  string
+	HistorySize             uint64
+	HistoryCleanupFrequency float64
+	PublisherJWTKey         []byte
+	SubscriberJWTKey        []byte
+	AllowAnonymous          bool
+	CorsAllowedOrigins      []string
+	PublishAllowedOrigins   []string
+	Addr                    string
+	AcmeHosts               []string
+	AcmeCertDir             string
+	CertFile                string
+	KeyFile                 string
+	HeartbeatInterval       time.Duration
+	ReadTimeout             time.Duration
+	WriteTimeout            time.Duration
+	Compress                bool
+	Demo                    bool
 }
 
 func getJWTKey(role string) string {
@@ -43,6 +46,26 @@ func NewOptionsFromEnv() (*Options, error) {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
 		dbPath = "updates.db"
+	}
+
+	var err error
+
+	historySize := uint64(0)
+	historySizeFromEnv := os.Getenv("HISTORY_SIZE")
+	if historySizeFromEnv != "" {
+		historySize, err = strconv.ParseUint(historySizeFromEnv, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("HISTORY_SIZE: %s", err)
+		}
+	}
+
+	historyCleanupFrequency := 0.3
+	historyCleanupFrequencyFromEnv := os.Getenv("HISTORY_CLEANUP_FREQUENCY")
+	if historyCleanupFrequencyFromEnv != "" {
+		historyCleanupFrequency, err = strconv.ParseFloat(historyCleanupFrequencyFromEnv, 64)
+		if err != nil {
+			return nil, fmt.Errorf("HISTORY_CLEANUP_FREQUENCY: %s", err)
+		}
 	}
 
 	heartbeatInterval, err := parseDurationFromEnvVar("HEARTBEAT_INTERVAL")
@@ -63,6 +86,8 @@ func NewOptionsFromEnv() (*Options, error) {
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
 		dbPath,
+		historySize,
+		historyCleanupFrequency,
 		[]byte(getJWTKey("PUBLISHER")),
 		[]byte(getJWTKey("SUBSCRIBER")),
 		os.Getenv("ALLOW_ANONYMOUS") == "1",

@@ -98,7 +98,7 @@ func NewHubFromEnv() (*Hub, *bolt.DB, error) {
 		return nil, nil, err
 	}
 
-	return NewHub(&localPublisher{}, &boltHistory{DB: db}, options), db, nil
+	return NewHub(&localPublisher{}, &boltHistory{db, options}, options), db, nil
 }
 
 // NewHub creates a hub

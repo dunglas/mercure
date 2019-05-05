@@ -14,7 +14,7 @@ func TestBoltHistory(t *testing.T) {
 	defer db.Close()
 	defer os.Remove("test.db")
 
-	h := &boltHistory{db}
+	h := &boltHistory{db, &Options{}}
 	assert.Implements(t, (*History)(nil), h)
 
 	count := 0

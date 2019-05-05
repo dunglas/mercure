@@ -224,6 +224,8 @@ To install Mercure in a [Kubernetes](https://kubernetes.io) cluster, use the off
 * `DEBUG`: set to `1` to enable the debug mode (prints recovery stack traces)
 * `DEMO`: set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)
 * `HEARTBEAT_INTERVAL`: interval between heartbeats (useful with some proxies, and old browsers), set to `0s` to disable (default), example `15s`
+* `HISTORY_SIZE`: size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)
+* `HISTORY_CLEANUP_FREQUENCY`: chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`
 * `JWT_KEY`: the JWT key to use for both publishers and subscribers
 * `LOG_FORMAT`: the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)
 * `PUBLISH_ALLOWED_ORIGINS`: a comma separated list of origins allowed to publish (only applicable when using cookie-based auth)
