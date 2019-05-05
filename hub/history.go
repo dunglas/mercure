@@ -63,6 +63,9 @@ func (b *boltHistory) Add(update *Update) error {
 
 		// The sequence value is prepended to the update id to create an ordered list
 		key := bytes.Join([][]byte{prefix, []byte(update.ID)}, []byte{})
+
+		// The DB is append only
+		bucket.FillPercent = 1
 		return bucket.Put(key, buf)
 	})
 }
