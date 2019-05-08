@@ -289,7 +289,7 @@ func TestSendMissedEvents(t *testing.T) {
 	defer db.Close()
 	defer os.Remove("test.db")
 
-	history := &boltHistory{db}
+	history := &boltHistory{db, &Options{}}
 	history.Add(&Update{
 		Topics: []string{"http://example.com/foos/a"},
 		Event: Event{

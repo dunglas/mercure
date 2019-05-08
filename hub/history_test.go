@@ -2,6 +2,7 @@ package hub
 
 import (
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ func TestBoltHistory(t *testing.T) {
 	defer db.Close()
 	defer os.Remove("test.db")
 
-	h := &boltHistory{db}
+	h := &boltHistory{db, &Options{}}
 	assert.Implements(t, (*History)(nil), h)
 
 	count := 0
@@ -73,6 +74,27 @@ func TestBoltHistory(t *testing.T) {
 	)
 
 	assert.Equal(t, 2, count)
+}
+
+func TestPurgeHistory(t *testing.T) {
+	db, _ := bolt.Open("test.db", 0600, nil)
+	defer db.Close()
+	defer os.Remove("test.db")
+
+	o := &Options{HistorySize: 5, HistoryCleanupFrequency: 1}
+	h := &boltHistory{db, o}
+
+	for i := 0; i < 12; i++ {
+		h.Add(&Update{Event: Event{ID: strconv.Itoa(i)}})
+	}
+
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+
+		assert.Equal(t, 5, b.Stats().KeyN)
+
+		return nil
+	})
 }
 
 func TestNoHistory(t *testing.T) {

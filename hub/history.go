@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"math/rand"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -39,6 +40,7 @@ const bucketName = "updates"
 // BoltHistory is an implementation of the History interface using the Bolt DB
 type boltHistory struct {
 	*bolt.DB
+	*Options
 }
 
 // Add puts the update to the local bolt DB
@@ -64,10 +66,38 @@ func (b *boltHistory) Add(update *Update) error {
 		// The sequence value is prepended to the update id to create an ordered list
 		key := bytes.Join([][]byte{prefix, []byte(update.ID)}, []byte{})
 
+		if err := cleanup(b.Options, bucket, s); err != nil {
+			return err
+		}
+
 		// The DB is append only
 		bucket.FillPercent = 1
 		return bucket.Put(key, buf)
 	})
+}
+
+// cleanup removes entries in the history above the size limit, triggered probabilistically
+func cleanup(options *Options, bucket *bolt.Bucket, lastID uint64) error {
+	if options.HistorySize == 0 ||
+		options.HistoryCleanupFrequency == 0 ||
+		options.HistorySize >= lastID ||
+		(options.HistoryCleanupFrequency != 1 && rand.Float64() < options.HistoryCleanupFrequency) {
+		return nil
+	}
+
+	removeUntil := lastID - options.HistorySize
+	c := bucket.Cursor()
+	for k, _ := c.First(); k != nil; k, _ = c.Next() {
+		if binary.BigEndian.Uint64(k[:8]) > removeUntil {
+			break
+		}
+
+		if err := bucket.Delete(k); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // FindFor searches in the local bolt DB
