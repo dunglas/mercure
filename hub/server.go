@@ -101,7 +101,7 @@ func (h *Hub) chainHandlers() http.Handler {
 	var corsHandler http.Handler
 	if len(h.options.CorsAllowedOrigins) > 0 {
 		allowedOrigins := handlers.AllowedOrigins(h.options.CorsAllowedOrigins)
-		allowedHeaders := handlers.AllowedHeaders([]string{"authorization"})
+		allowedHeaders := handlers.AllowedHeaders([]string{"authorization", "cache-control"})
 
 		corsHandler = handlers.CORS(handlers.AllowCredentials(), allowedOrigins, allowedHeaders)(r)
 	} else {
