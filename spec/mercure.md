@@ -55,8 +55,8 @@ interpreted as described in [@!RFC2119].
     targets is **RECOMMENDED**.
 
  *  Hub: A server that handles subscription requests and distributes the content to subscribers
-    when the corresponding topics have been updated (a hub implementation is provided in this
-    repository). Any hub **MAY** implement its own policies on who can use it.
+    when the corresponding topics have been updated.
+    Any hub **MAY** implement its own policies on who can use it.
 
 # Discovery
 
