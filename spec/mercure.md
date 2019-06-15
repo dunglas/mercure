@@ -19,7 +19,7 @@ organization = "Les-Tilleuls.coop"
   email = "kevin@les-tilleuls.coop"
   [author.address.postal]
   city = "Lille"
-  street = "5 rue Hegel"
+  street = "2 rue Hegel"
   code = "59000"
   postalline= ["Bâtiment Canal"]
   country = "France"
