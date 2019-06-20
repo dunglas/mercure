@@ -161,9 +161,11 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 #### Prebuilt Binary
 
-Grab a binary from the release page and run:
+Grab the binary corresponding to your operating system and architecture [from the release page](https://github.com/dunglas/mercure/releases), then run:
 
     JWT_KEY='myJWTKey' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGINS=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
+
+Note: Mac OS users must use the `Darwin` binary.
 
 The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
 
@@ -241,6 +243,7 @@ If not, an HTTP server will be started (**not secure**).
 
 #### 401 Unauthorized
 
+* Check the logs written by the hub on `stderr`, they contain the exact reason why the token has been rejected
 * Be sure to set a **secret key** (and not a JWT) in `JWT_KEY` (or in `SUBSCRIBER_JWT_KEY` and `PUBLISHER_JWT_KEY`)
 * If the secret key contains special characters, be sure to escape them properly, especially if you set the environment variable in a shell, or in a YAML file (Kubernetes...)
 * The publisher always needs a valid JWT, even if `ALLOW_ANONYMOUS` is set to `1`, this JWT **must** have a property named `publish` and containing an array of targets ([example](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOltdfX0.473isprbLWLjXmAaVZj6FIVkCdjn37SQpGjzWws-xa0))
