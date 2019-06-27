@@ -241,6 +241,10 @@ If not, an HTTP server will be started (**not secure**).
 
 ### Troubleshooting
 
+#### Windows
+
+If you're having trouble getting the Hub running, you may have set an incorrect value for the environment variable `ADDR`. Use `ADDR=":3000"` (and not `ADDR="localhost:3000"`). Windows may ask you for allowing `mercure.exe` in your firewall.
+
 #### 401 Unauthorized
 
 * Check the logs written by the hub on `stderr`, they contain the exact reason why the token has been rejected
