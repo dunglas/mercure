@@ -241,6 +241,10 @@ If not, an HTTP server will be started (**not secure**).
 
 ### Troubleshooting
 
+#### Windows
+
+If you're having trouble getting the Hub running, you may have set an incorrect value for the environment variable `ADDR`. Use `ADDR=":3000"` (and not `ADDR="localhost:3000"`). Windows may ask you for allowing `mercure.exe` in your firewall.
+
 #### 401 Unauthorized
 
 * Check the logs written by the hub on `stderr`, they contain the exact reason why the token has been rejected
@@ -258,10 +262,6 @@ If subscribing to the `EventSource` in the browser doesn't work (the browser ins
 #### URI Template and Topics
 
 Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ensure that the template matches the topic.
-
-#### Windows 10
-
-If you're having trouble getting the eventsource running, you may have to set an incorrect value for the environment variable `ADDR`. After setting the value to `ADDR=":3000"` instead of `ADDR="localhost:3000"` Windows may ask you for opening mercure.exe in your firewall.
 
 ## FAQ
 
