@@ -358,6 +358,7 @@ In summary, use the Push API to send notifications to offline users (that will b
 * [PHP library to publish Mercure updates](https://github.com/symfony/mercure)
 * [Official Mercure support for the Symfony framework](https://github.com/symfony/mercure-bundle)
 * [Official Mercure support for the API Platform framework](https://api-platform.com/docs/core/mercure/)
+* [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 * [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
