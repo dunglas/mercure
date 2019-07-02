@@ -53,7 +53,7 @@ interpreted as described in [@!RFC2119].
 
  *  Target: A subscriber, or a group of subscribers. A publisher is able to securely dispatch
     updates to specific targets. The target **MUST** be identified by an URI [!@RFC3987] or by a
-    string. Using an HTTPS [@!RFC2818] or HTTP [@!RFC7230] URI is **RECOMMENDED**.
+    string. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI is **RECOMMENDED**.
 
  *  Hub: A server that handles subscription requests and distributes the content to subscribers
     when the corresponding topics have been updated.
