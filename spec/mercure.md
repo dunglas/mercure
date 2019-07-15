@@ -39,8 +39,9 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be
 interpreted as described in [@!RFC2119].
 
- *  Topic: An HTTP [@!RFC7230] or HTTPS [@!RFC2818] topic URL. The unit to which one can subscribe
-    to changes.
+ *  Topic: The unit to which one can subscribe to changes. The topic **MUST** be identified by an
+    IRI [!@RFC3987] or by a string. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI [@!RFC3986]
+    is **RECOMMENDED**.
 
  *  Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub
@@ -51,8 +52,8 @@ interpreted as described in [@!RFC2119].
     Progressive Web App or a Mobile App, but can also be a server.
 
  *  Target: A subscriber, or a group of subscribers. A publisher is able to securely dispatch
-    updates to specific targets. Using an HTTP [@!RFC7230] or HTTPS [@!RFC2818] URL to identify
-    targets is **RECOMMENDED**.
+    updates to specific targets. The target **MUST** be identified by an IRI [!@RFC3987] or by a
+    string. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI is **RECOMMENDED**.
 
  *  Hub: A server that handles subscription requests and distributes the content to subscribers
     when the corresponding topics have been updated.
