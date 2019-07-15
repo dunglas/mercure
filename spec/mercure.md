@@ -5,7 +5,7 @@ workgroup = "Network Working Group"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-dunglas-mercure-03"
+value = "draft-dunglas-mercure-04"
 stream = "IETF"
 status = "informational"
 
@@ -55,9 +55,9 @@ interpreted as described in [@!RFC2119].
     updates to specific targets. The target **MUST** be identified by an IRI [!@RFC3987] or by a
     string. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI is **RECOMMENDED**.
 
- *  Hub: A server that handles subscription requests and distributes the content to subscribers
-    when the corresponding topics have been updated.
-    Any hub **MAY** implement its own policies on who can use it.
+ *  Hub: A server that handles subscription requests and distributes the content to subscribers when
+    the corresponding topics have been updated. Any hub **MAY** implement its own policies on who
+    can use it.
 
 # Discovery
 
