@@ -18,7 +18,7 @@ func init() {
 		log.SetFormatter(&log.JSONFormatter{})
 		return
 	case "FLUENTD":
-		log.SetFormatter(&fluentd.FluentdFormatter{})
+		log.SetFormatter(fluentd.NewFormatter())
 	}
 }
 
