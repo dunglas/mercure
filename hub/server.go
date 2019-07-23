@@ -114,7 +114,15 @@ func (h *Hub) chainHandlers() http.Handler {
 	} else {
 		compressHandler = corsHandler
 	}
-	secureHandler := secureMiddleware.Handler(compressHandler)
+
+	var useForwardedHeadersHandlers http.Handler
+	if h.options.UseForwardedHeaders {
+		useForwardedHeadersHandlers = handlers.ProxyHeaders(compressHandler)
+	} else {
+		useForwardedHeadersHandlers = compressHandler
+	}
+
+	secureHandler := secureMiddleware.Handler(useForwardedHeadersHandlers)
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(
 		handlers.RecoveryLogger(log.New()),

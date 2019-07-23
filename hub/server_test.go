@@ -11,11 +11,47 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 )
 
 const testURL = "http://" + testAddr + "/hub"
 const testSecureURL = "https://" + testAddr + "/hub"
+
+func TestForwardedHeaders(t *testing.T) {
+	h := createAnonymousDummy()
+	h.options.Demo = true
+	h.options.UseForwardedHeaders = true
+
+	h.Start()
+	go func() {
+		h.Serve()
+	}()
+
+	client := http.Client{Timeout: time.Duration(100 * time.Millisecond)}
+	hook := test.NewGlobal()
+
+	// loop until the web server is ready
+	var resp *http.Response
+	for resp == nil {
+		resp, _ = client.Get(testURL)
+	}
+
+	body := url.Values{"topic": {"http://example.com/test-forwarded"}, "data": {"hello"}}
+	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+	req.Header.Add("X-Forwarded-For", "192.0.2.1")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, true, []string{}))
+
+	_, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	assert.Equal(t, "192.0.2.1", hook.LastEntry().Data["remote_addr"])
+
+	h.server.Shutdown(context.Background())
+}
 
 func TestSecurityOptions(t *testing.T) {
 	h := createAnonymousDummy()
