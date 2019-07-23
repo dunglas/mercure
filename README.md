@@ -322,10 +322,9 @@ server {
         proxy_read_timeout 24h;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
-        ## Remove comments only if you use argument USE_FORWARDED_HEADERS=1 ##
-        #proxy_set_header Host $host;
-        #proxy_set_header X-Real-IP $remote_addr;
-        #proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        ## Be sure to set USE_FORWARDED_HEADERS=1 to allow the hub to use those headers ##
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 }
 ```
