@@ -28,6 +28,7 @@ type Options struct {
 	ReadTimeout             time.Duration
 	WriteTimeout            time.Duration
 	Compress                bool
+	UseForwardedHeaders     bool
 	Demo                    bool
 }
 
@@ -102,6 +103,7 @@ func NewOptionsFromEnv() (*Options, error) {
 		readTimeout,
 		writeTimeout,
 		os.Getenv("COMPRESS") != "0",
+		os.Getenv("USE_FORWARDED_HEADERS") == "1",
 		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",
 	}
 
