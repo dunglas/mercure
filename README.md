@@ -371,6 +371,7 @@ In summary, use the Push API to send notifications to offline users (that will b
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
 * [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
 * [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
+* [Python library to publish and consume Mercure updates](https://github.com/vitorluis/python-mercure)
 
 ## Learning Resources
 
