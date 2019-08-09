@@ -216,7 +216,7 @@ To install Mercure in a [Kubernetes](https://kubernetes.io) cluster, use the off
 
 * `ACME_CERT_DIR`: the directory where to store Let's Encrypt certificates
 * `ACME_HOSTS`: a comma separated list of hosts for which Let's Encrypt certificates must be issued
-* `ADDR`: the address to listen on (example: `127.0.0.1:3000`, default to `:http` or `:https` depending if HTTPS is enabled or not)
+* `ADDR`: the address to listen on (example: `127.0.0.1:3000`, default to `:http` or `:https` depending if HTTPS is enabled or not). Note that Let's Encrypt only supports the default port: to use Let's Encrypt, **do not set this variable**.
 * `ALLOW_ANONYMOUS`:  set to `1` to allow subscribers with no valid JWT to connect
 * `CERT_FILE`: a cert file (to use a custom certificate)
 * `KEY_FILE`: a key file (to use a custom certificate)
