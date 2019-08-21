@@ -66,7 +66,7 @@ func (h *Hub) Serve() {
 	}
 
 	if err != http.ErrServerClosed {
-		log.Error(err)
+		log.Fatal(err)
 	}
 
 	<-idleConnsClosed
