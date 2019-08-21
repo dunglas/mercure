@@ -69,17 +69,17 @@ func NewOptionsFromEnv() (*Options, error) {
 		}
 	}
 
-	heartbeatInterval, err := parseDurationFromEnvVar("HEARTBEAT_INTERVAL")
+	heartbeatInterval, err := parseDurationFromEnvVar("HEARTBEAT_INTERVAL", time.Duration(15*time.Second))
 	if err != nil {
 		return nil, err
 	}
 
-	readTimeout, err := parseDurationFromEnvVar("READ_TIMEOUT")
+	readTimeout, err := parseDurationFromEnvVar("READ_TIMEOUT", time.Duration(0))
 	if err != nil {
 		return nil, err
 	}
 
-	writeTimeout, err := parseDurationFromEnvVar("WRITE_TIMEOUT")
+	writeTimeout, err := parseDurationFromEnvVar("WRITE_TIMEOUT", time.Duration(0))
 	if err != nil {
 		return nil, err
 	}
@@ -136,10 +136,10 @@ func splitVar(v string) []string {
 	return strings.Split(v, ",")
 }
 
-func parseDurationFromEnvVar(k string) (time.Duration, error) {
+func parseDurationFromEnvVar(k string, d time.Duration) (time.Duration, error) {
 	v := os.Getenv(k)
 	if v == "" {
-		return time.Duration(0), nil
+		return d, nil
 	}
 
 	dur, err := time.ParseDuration(v)
