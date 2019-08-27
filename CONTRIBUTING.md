@@ -37,5 +37,7 @@ To contribute to the protocol itself:
 * [Download `xml2rfc` using pip](https://pypi.org/project/xml2rfc/): `pip install xml2rfc`
 * Format the Markdown file: `mmark -markdown -w spec/mercure.md`
 * Generate the XML file: `mmark spec/mercure.md > spec/mercure.xml`
+* Add the `docName` attribute to the `<rfc>` element (example: `docName="draft-dunglas-mercure-04"`)
 * Validate the generated XML file and generate the text file: `xml2rfc --text --v3 spec/mercure.xml`
+* Remove non-ASCII characters from the generated `mercure.txt` file (example: K**é**vin)
 * If appropriate, be sure to update the reference implementation accordingly
