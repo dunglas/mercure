@@ -24,7 +24,7 @@ const req = http.request({
 });
 
 req.on('error', (e) => {
-    console.error(`An error occured: ${e.message}`);
+    console.error(`An error occurred: ${e.message}`);
 });
 
 req.write(postData);
