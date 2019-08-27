@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const validEmptyHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.gciTwpaT-wC-s73qBP7OQ_BMp9Oosm8YXvIpqYWddzY"
-const validFullHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.pylpKeHDlAN2HHBayzufKYc6VqDfhjCuzlH72r1W6Nw"
+const validEmptyHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30._esyynAyo2Z6PyGe0mM_SuQ3c-C7sMQJ1YxVLvlj80A"
+const validFullHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.e7USPnr2YHHqLYSu9-jEVsynuTXGtAQUDAZuzoR8lxQ"
 
 func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
@@ -60,7 +60,7 @@ func TestAuthorizeAuthorizationHeaderNoContent(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
 	r.Header.Add("Authorization", "Bearer "+validEmptyHeader)
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{})
 	assert.Nil(t, claims.Mercure.Publish)
 	assert.Nil(t, claims.Mercure.Subscribe)
 	assert.Nil(t, err)
@@ -70,7 +70,7 @@ func TestAuthorizeAuthorizationHeader(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
 	r.Header.Add("Authorization", "Bearer "+validFullHeader)
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{})
 	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
 	assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
 	assert.Nil(t, err)
@@ -98,7 +98,7 @@ func TestAuthorizeCookieNoContent(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeader})
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{})
 	assert.Nil(t, claims.Mercure.Publish)
 	assert.Nil(t, claims.Mercure.Subscribe)
 	assert.Nil(t, err)
@@ -108,7 +108,7 @@ func TestAuthorizeCookie(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{})
 	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
 	assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
 	assert.Nil(t, err)
@@ -118,7 +118,7 @@ func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 	r, _ := http.NewRequest("POST", "http://example.com/hub", nil)
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{})
 	assert.EqualError(t, err, "An \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
 	assert.Nil(t, claims)
 }
@@ -128,7 +128,7 @@ func TestAuthorizeCookieOriginNotAllowed(t *testing.T) {
 	r.Header.Add("Origin", "http://example.com")
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{"http://example.net"})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{"http://example.net"})
 	assert.EqualError(t, err, "The origin \"http://example.com\" is not allowed to post updates")
 	assert.Nil(t, claims)
 }
@@ -138,7 +138,7 @@ func TestAuthorizeCookieRefererNotAllowed(t *testing.T) {
 	r.Header.Add("Referer", "http://example.com/foo/bar")
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{"http://example.net"})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{"http://example.net"})
 	assert.EqualError(t, err, "The origin \"http://example.com\" is not allowed to post updates")
 	assert.Nil(t, claims)
 }
@@ -148,7 +148,7 @@ func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 	r.Header.Add("Referer", "http://192.168.0.%31/")
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{"http://example.net"})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{"http://example.net"})
 	assert.EqualError(t, err, "parse http://192.168.0.%31/: invalid URL escape \"%31\"")
 	assert.Nil(t, claims)
 }
@@ -159,7 +159,7 @@ func TestAuthorizeCookieOriginHasPriority(t *testing.T) {
 	r.Header.Add("Referer", "http://example.com")
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
-	claims, err := authorize(r, []byte("!UnsecureChangeMe!"), []string{"http://example.net"})
+	claims, err := authorize(r, []byte("!ChangeMe!"), []string{"http://example.net"})
 	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
 	assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
 	assert.Nil(t, err)

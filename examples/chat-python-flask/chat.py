@@ -35,7 +35,7 @@ def chat():
     targets = [os.environ.get('TARGET', 'chan')]
     token = jwt.encode(
         {'mercure': {'subscribe': targets, 'publish': targets}},
-        os.environ.get('JWT_KEY', '!UnsecureChangeMe!'),
+        os.environ.get('JWT_KEY', '!ChangeMe!'),
         algorithm='HS256'
     )
 
