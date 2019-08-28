@@ -86,8 +86,8 @@ The publisher **MAY** provide the following target attributes in the Link Header
     resource. Setting the `content-type` attribute is especially useful to hint that partial updates
     will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 
- *  `key-set=<JWKS>`: the key(s) to decrypt updates encoded in the JWKS (JSON Web Key Set) format
-    (see the Encryption section).
+ *  `key-set=<JWKS>`: the public key(s) encoded in the JWKS (JSON Web Key Set [@!RFC7517]) format.
+     To be used by the publisher to encrypt an update before sending it to the hub (see the Encryption section).
 
 All these attributes are optional.
 
@@ -329,15 +329,43 @@ Using HTTPS does not prevent the hub from accessing the update's content. Depend
 privacy of information contained in the update, it **MAY** be necessary to prevent eavesdropping by
 the hub.
 
-To make sure that the message content can not be read by the hub, the publisher **MAY** encode the
+To make sure that the message content can not be read by the hub, the publisher **MAY** encrypt the
 message before sending it to the hub. The publisher **SHOULD** use JSON Web Encryption [@!RFC7516]
-to encrypt the update content. The publisher **MAY** provide the relevant encryption key(s) in the
-`key-set` attribute of the Link HTTP header during the discovery. The `key-set` attribute **SHOULD**
-contain a key encoded using the JSON Web Key Set [@!RFC7517] format. Any other out-of-band mechanism
+to encrypt the update content. The publisher **MAY** provide the relevant public encryption key(s) in
+the `key-set` attribute of the Link HTTP header during the discovery. The `key-set` attribute **SHOULD**
+contain a list of public key encoded using the JSON Web Key Set [@!RFC7517] format. Any other out-of-band mechanism
 **MAY** be used instead to share the key between the publisher and the subscriber.
 
-Update encyption is considered a best practice to prevent mass surveillance. This is especially
+The receivers **SHALL** have a private key associated to at least one of the public key in the `key-set` to decrypt
+the update content.
+
+Update encryption is considered a best practice to prevent mass surveillance. This is especially
 relevant if the hub is managed by an external provider.
+
+Example (line breaks within values are for display purposes only):
+
+~~~ json
+{"keys":
+  [
+    {"kty":"EC",
+     "crv":"P-256",
+     "x":"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
+     "y":"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM",
+     "use":"enc",
+     "kid":"abc-def"},
+    {"kty":"RSA",
+     "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx
+           4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMs
+           tn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2
+           QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbI
+           SD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqb
+           w0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+     "e":"AQAB",
+     "alg":"RS256",
+     "kid":"ghi-jkl"}
+  ]
+}
+~~~
 
 # Security Considerations
 
