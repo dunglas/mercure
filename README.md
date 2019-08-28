@@ -60,8 +60,11 @@ const eventSource = new EventSource(url);
 eventSource.onmessage = e => console.log(e); // do something with the payload
 ```
 
-Optionaly, [the authorization mechanism](https://github.com/dunglas/mercure/blob/master/spec/mercure.md#authorization) can be used to subscribe to private updates.
-Also optionaly, the hub URL can be automatically discovered:
+Optionally, [the authorization mechanism](https://github.com/dunglas/mercure/blob/master/spec/mercure.md#authorization) can be used to subscribe to private updates.
+
+![Authorization Schema](spec/authorization.png)
+
+Also optionally, the hub URL can be automatically discovered:
 
 ```javascript
 fetch('https://example.com/books/1') // Has this header `Link: <https://example.com/hub>; rel="mercure"`
