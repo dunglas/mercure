@@ -111,7 +111,7 @@ req.end();
 // but any HTTP client, written in any language, will be just fine.
 ```
 
-The JWT must contain a `publish` property containing an array of targets. This array can be empty to allow publishing anonymous updates only. [Example publisher JWT](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM) (demo key: `!UnsecureChangeMe!`).
+The JWT must contain a `publish` property containing an array of targets. This array can be empty to allow publishing anonymous updates only. [Example publisher JWT](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.afLx2f2ut3YgNVFStCx95Zm_UND1mZJ69OenXaDuZL8) (demo key: `!ChangeMe!`).
 
 ### Other Examples
 
@@ -177,8 +177,8 @@ To run it in production mode, and generate automatically a Let's Encrypt TLS cer
     JWT_KEY='myJWTKey' ACME_HOSTS='example.com' ./mercure
 
 The value of the `ACME_HOSTS` environment variable must be updated to match your domain name(s).
-A Let's Enctypt TLS certificate will be automatically generated.
-If you omit this variable, the server will be exposed on an (unsecure) HTTP connection.
+A Let's Encrypt TLS certificate will be automatically generated.
+If you omit this variable, the server will be exposed using a not encrypted HTTP connection.
 
 When the server is up and running, the following endpoints are available:
 
