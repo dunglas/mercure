@@ -166,7 +166,7 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 Grab the binary corresponding to your operating system and architecture [from the release page](https://github.com/dunglas/mercure/releases), then run:
 
-    JWT_KEY='myJWTKey' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGINS=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
+    JWT_KEY='!ChangeMe!' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGINS=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
 
 Note: Mac OS users must use the `Darwin` binary.
 
@@ -174,7 +174,7 @@ The server is now available on `http://localhost:3000`, with the demo mode enabl
 
 To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
 
-    JWT_KEY='myJWTKey' ACME_HOSTS='example.com' ./mercure
+    JWT_KEY='!ChangeMe!' ACME_HOSTS='example.com' ./mercure
 
 The value of the `ACME_HOSTS` environment variable must be updated to match your domain name(s).
 A Let's Encrypt TLS certificate will be automatically generated.
@@ -194,7 +194,7 @@ To compile the development version and register the demo page, see [CONTRIBUTING
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
     docker run \
-        -e JWT_KEY='myJWTKey' -e DEMO=1 -e ALLOW_ANONYMOUS=1 -e PUBLISH_ALLOWED_ORIGINS='http://localhost' \
+        -e JWT_KEY='!ChangeMe!' -e DEMO=1 -e ALLOW_ANONYMOUS=1 -e PUBLISH_ALLOWED_ORIGINS='http://localhost' \
         -p 80:80 \
         dunglas/mercure
 
@@ -203,7 +203,7 @@ The server, in demo mode, is available on `http://localhost`. Anonymous subscrib
 In production, run:
 
     docker run \
-        -e JWT_KEY='myJWTKey' -e ACME_HOSTS='example.com' \
+        -e JWT_KEY='!ChangeMe!' -e ACME_HOSTS='example.com' \
         -p 80:80 -p 443:443 \
         dunglas/mercure
 
@@ -291,7 +291,7 @@ Use the following file as a template to run the Mercure hub with [Supervisor](ht
 command=/path/to/mercure
 process_name=%(program_name)s_%(process_num)s
 numprocs=1
-environment=JWT_KEY="myJWTKey"
+environment=JWT_KEY="!ChangeMe!"
 directory=/tmp
 autostart=true
 autorestart=true
