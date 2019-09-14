@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 )
 
 // Claims contains Mercure's JWT claims
