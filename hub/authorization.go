@@ -71,10 +71,14 @@ func authorize(r *http.Request, jwtKey []byte, publishAllowedOrigins []string) (
 // validateJWT validates that the provided JWT token is a valid Mercure token
 func validateJWT(encodedToken string, key []byte) (*claims, error) {
 	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		switch token.Method.(type) {
+			case *jwt.SigningMethodHMAC:
+				return key, nil
+			case *jwt.SigningMethodRSA:
+				return key, nil
 		}
-		return key, nil
+
+		return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 	})
 
 	if err != nil {
