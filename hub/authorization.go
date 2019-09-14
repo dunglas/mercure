@@ -1,6 +1,9 @@
 package hub
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -75,7 +78,21 @@ func validateJWT(encodedToken string, key []byte) (*claims, error) {
 			case *jwt.SigningMethodHMAC:
 				return key, nil
 			case *jwt.SigningMethodRSA:
-				return key, nil
+				block, _ := pem.Decode(key)
+
+				if block == nil {
+					return nil, errors.New("public key error")
+				}
+
+				pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+
+				if err != nil {
+					return nil, err
+				}
+
+				pub := pubInterface.(*rsa.PublicKey)
+
+				return pub, nil
 		}
 
 		return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
