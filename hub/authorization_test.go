@@ -19,6 +19,22 @@ WIxK2GqoAVjLjK8HzThSPQpgv2AjiEXD6iAERHeySLGjYAUgfMrVJ01J5fNSL+O+
 bCd7nPuNAyYHCOOHAgMBAAE=
 -----END PUBLIC KEY-----
 `
+const privateKeyRsa = `-----BEGIN RSA PRIVATE KEY-----
+MIICWwIBAAKBgHVwuJsFmzsFnOkGj+OgAp4lTNqRCF0RZSmjY+ECWOJ3sSEzQ8qt
+kJe61uSjr/PKmqvBxxex0YtUL7waSS4jvq3ws8BmWIxK2GqoAVjLjK8HzThSPQpg
+v2AjiEXD6iAERHeySLGjYAUgfMrVJ01J5fNSL+O+bCd7nPuNAyYHCOOHAgMBAAEC
+gYAiOKOCgMK4Ey2i9YeOQ70fiiz375UpUX1SAcuD8KQn8crKqt6RO7xLimU+ILiP
+6LTjYcb7D5TI7dIvFNXIPSA9tpGbuPqzwa0aBkIoIxJkJ7vs6gHijq3kAQl3mik2
+ddzL7OtdlbXG8fRnvgKsRLw2gVlv4+8C3OKmKADJR1bSQQJBAM/xS49IxjUIXMLO
+77tsGd+VxpKo1jrUG5Ao9feFfSxWiFnnlDG9DOriDvguPf0WUkU08j7fC3A3AKVd
+dQkkqWECQQCQlPSA96lJIUD9xCx7S46L7+e+A2EWnhyMb3u4D1EY5rZdA3/Zzc3P
+68Jb8RtRryGuDvezLRcqmVJWq5X97i3nAkADeJ2wSKC2ZetWfSnXURileNSVwifB
+V6UWJPjmJt5ODSu9hHYe1m8OxLNHRU5XmTXKXfXlQsfoGaLzH7pCatBBAkBraBzT
+iiiaiTeszYV1+sVks85m3D/N+5udwFwaelZ2tz4Wjzj1ZuxUYAI9JzpyTjYpBjmB
+RCgHn2sJs+Jzh/NVAkEAnRQKOSQRcm/o4PWNsvrqRwoqUzDcnVcEY67pKPwcnnlR
+Ki0jUpg2xzzwyA+nEI6Bf6CDaHKnCqxL7x0yk2XqeA==
+-----END RSA PRIVATE KEY-----
+`
 
 func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
@@ -152,12 +168,21 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 	assert.Nil(t, claims)
 }
 
-func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
+func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, []byte{}, []string{})
 	assert.EqualError(t, err, "public key error")
+	assert.Nil(t, claims)
+}
+
+func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
+	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
+	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
+
+	claims, err := authorize(r, []byte(privateKeyRsa), []string{})
+	assert.EqualError(t, err, "asn1: structure error: tags don't match (16 vs {class:0 tag:2 length:1 isCompound:false}) {optional:false explicit:false application:false private:false defaultValue:<nil> tag:<nil> stringType:0 timeType:0 set:false omitEmpty:false} AlgorithmIdentifier @2")
 	assert.Nil(t, claims)
 }
 
