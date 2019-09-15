@@ -30,3 +30,24 @@ The Mercure Hub follows [the twelve-factor app methodology](https://12factor.net
 
 If `ACME_HOSTS` or both `CERT_FILE` and `KEY_FILE` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
+
+When using RSA public keys for verification make sure the key is properly formatted.
+
+```
+-----BEGIN PUBLIC KEY-----
+MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHVwuJsFmzsFnOkGj+OgAp4lTNqR
+CF0RZSmjY+ECWOJ3sSEzQ8qtkJe61uSjr/PKmqvBxxex0YtUL7waSS4jvq3ws8Bm
+WIxK2GqoAVjLjK8HzThSPQpgv2AjiEXD6iAERHeySLGjYAUgfMrVJ01J5fNSL+O+
+bCd7nPuNAyYHCOOHAgMBAAE=
+-----END PUBLIC KEY-----
+```
+
+Bash
+```
+JWT_KEY=`cat jwt_key.pub` ./mecure
+```
+
+PowerShell
+```
+$env:JWT_KEY = [IO.File]::ReadAllText(".\jwt_key.pub")
+```
