@@ -13,7 +13,7 @@ RUN go mod download
 COPY ./ .
 
 RUN go get -v
-RUN go build -v
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' .
 RUN chmod +x ./mercure
 
 # Build the actual image
