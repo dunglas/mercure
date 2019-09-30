@@ -43,7 +43,7 @@ func (h *Hub) Serve() {
 	var err error
 
 	if !acme && h.options.CertFile == "" && h.options.KeyFile == "" {
-		log.WithFields(log.Fields{"protocol": "http"}).Info("Mercure started")
+		log.WithFields(log.Fields{"protocol": "http", "addr": h.options.Addr}).Info("Mercure started")
 		err = h.server.ListenAndServe()
 	} else {
 		// TLS
@@ -61,7 +61,7 @@ func (h *Hub) Serve() {
 			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
 		}
 
-		log.WithFields(log.Fields{"protocol": "https"}).Info("Mercure started")
+		log.WithFields(log.Fields{"protocol": "https", "addr": h.options.Addr}).Info("Mercure started")
 		err = h.server.ListenAndServeTLS(h.options.CertFile, h.options.KeyFile)
 	}
 
