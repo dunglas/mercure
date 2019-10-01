@@ -365,6 +365,7 @@ In summary, use the Push API to send notifications to offline users (that will b
 ## Tools
 
 * [PHP library to publish Mercure updates](https://github.com/symfony/mercure)
+* [Python library to publish and consume Mercure updates](https://github.com/vitorluis/python-mercure)
 * [Official Mercure support for the Symfony framework](https://github.com/symfony/mercure-bundle)
 * [Official Mercure support for the API Platform framework](https://api-platform.com/docs/core/mercure/)
 * [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
@@ -375,7 +376,6 @@ In summary, use the Push API to send notifications to offline users (that will b
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
 * [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
 * [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
-* [Python library to publish and consume Mercure updates](https://github.com/vitorluis/python-mercure)
 
 ## Learning Resources
 
