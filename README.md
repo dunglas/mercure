@@ -155,6 +155,7 @@ An [OpenAPI specification](https://www.openapis.org/) of the hub API is also ava
 
 ## Hub Implementation
 
+<<<<<<< HEAD
 ### Managed Version
 
 A managed, high-scalability version of Mercure is available in private beta.
@@ -367,6 +368,13 @@ In most implementations, the size of the payload to dispatch is very limited, an
 On the other hand, Mercure is a duplex protocol designed to send live updates to devices currently connected to the web or mobile app. The payload is not limited, and the message goes directly from your servers to the clients.
 
 In summary, use the Push API to send notifications to offline users (that will be available in Chrome, Android and iOS's notification centers), and use Mercure to receive and publish live updates when the user is using the app.
+=======
+See [hub_implementation.md](https://github.com/dunglas/mercure/blob/master/hub_implementation.md).
+
+## FAQ
+
+See [faq.md](https://github.com/dunglas/mercure/blob/master/faq.md).
+>>>>>>> lowercase filenames
 
 ## Tools
 
