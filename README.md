@@ -155,11 +155,11 @@ An [OpenAPI specification](https://www.openapis.org/) of the hub API is also ava
 
 ## Hub Implementation
 
-See [HUB_IMPLEMENTATION.md](https://github.com/dunglas/mercure/blob/master/HUB_IMPLEMENTATION.md).
+See [hub_implementation.md](https://github.com/dunglas/mercure/blob/master/hub_implementation.md).
 
 ## FAQ
 
-See [FAQ.md](https://github.com/dunglas/mercure/blob/master/FAQ.md).
+See [faq.md](https://github.com/dunglas/mercure/blob/master/faq.md).
 
 ## Tools
 
