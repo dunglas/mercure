@@ -20,6 +20,10 @@ func init() {
 	case "FLUENTD":
 		log.SetFormatter(fluentd.NewFormatter())
 	}
+
+	if os.Getenv("DEBUG") == "1" {
+		log.SetLevel(log.DebugLevel)
+	}
 }
 
 func main() {

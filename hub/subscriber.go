@@ -15,6 +15,7 @@ type subscribers struct {
 type Subscriber struct {
 	AllTargets     bool
 	Targets        map[string]struct{}
+	Topics         []string
 	RawTopics      []string
 	TemplateTopics []*uritemplate.Template
 	LastEventID    string
@@ -22,8 +23,8 @@ type Subscriber struct {
 }
 
 // NewSubscriber creates a subscriber
-func NewSubscriber(allTargets bool, targets map[string]struct{}, rawTopics []string, templateTopics []*uritemplate.Template, lastEventID string) *Subscriber {
-	return &Subscriber{allTargets, targets, rawTopics, templateTopics, lastEventID, make(map[string]bool)}
+func NewSubscriber(allTargets bool, targets map[string]struct{}, topics []string, rawTopics []string, templateTopics []*uritemplate.Template, lastEventID string) *Subscriber {
+	return &Subscriber{allTargets, targets, topics, rawTopics, templateTopics, lastEventID, make(map[string]bool)}
 }
 
 // CanReceive checks if the update can be dispatched according to the given criteria
