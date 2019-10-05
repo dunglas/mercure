@@ -164,17 +164,27 @@ A managed, high-scalability version of Mercure is available in private beta.
 
 #### Prebuilt Binary
 
-Grab the binary corresponding to your operating system and architecture [from the release page](https://github.com/dunglas/mercure/releases), then run:
+First, download the archive corresponding to your operating system and architecture [from the release page](https://github.com/dunglas/mercure/releases), extract the archive and open a shell in the resulting directory.
+
+Note: Mac OS users must use the `Darwin` binary.
+
+Then, on UNIX, run:
 
     JWT_KEY='!ChangeMe!' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGINS=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
 
-Note: Mac OS users must use the `Darwin` binary.
+On Windows, start [PowerShell](https://docs.microsoft.com/en-us/powershell/), go into the extracted directory and run:
+
+    $env:JWT_KEY='!ChangeMe!; $env:ADDR='localhost:3000'; $env:DEMO='1'; $env:ALLOW_ANONYMOUS='1'; $env:CORS_ALLOWED_ORIGINS='*'; $env:PUBLISH_ALLOWED_ORIGINS='http://localhost:3000'; .\mercure.exe
+
+The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it. Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
 
 The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
 
 To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
 
     JWT_KEY='!ChangeMe!' ACME_HOSTS='example.com' ./mercure
+
+Using Windows in production is not recommended.
 
 The value of the `ACME_HOSTS` environment variable must be updated to match your domain name(s).
 A Let's Encrypt TLS certificate will be automatically generated.
@@ -194,7 +204,7 @@ To compile the development version and register the demo page, see [CONTRIBUTING
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
     docker run \
-        -e JWT_KEY='!ChangeMe!' -e DEMO=1 -e ALLOW_ANONYMOUS=1 -e PUBLISH_ALLOWED_ORIGINS='http://localhost' \
+        -e JWT_KEY='!ChangeMe!' -e DEMO=1 -e ALLOW_ANONYMOUS=1 -e CORS_ALLOWED_ORIGINS=* -e PUBLISH_ALLOWED_ORIGINS='http://localhost' \
         -p 80:80 \
         dunglas/mercure
 
@@ -245,10 +255,6 @@ If not, an HTTP server will be started (**not secure**).
 
 ### Troubleshooting
 
-#### Windows
-
-If you're having trouble getting the Hub running, you may have set an incorrect value for the environment variable `ADDR`. Use `ADDR=":3000"` (and not `ADDR="localhost:3000"`). Windows may ask you for allowing `mercure.exe` in your firewall.
-
 #### 401 Unauthorized
 
 * Check the logs written by the hub on `stderr`, they contain the exact reason why the token has been rejected
@@ -271,7 +277,7 @@ Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ens
 
 ### How to Use Mercure with GraphQL?
 
-Because they are delivery agnostic, Mercure plays particulary well with [GraphQL's subscriptions](https://facebook.github.io/graphql/draft/#sec-Subscription).
+Because they are delivery agnostic, Mercure plays particularly well with [GraphQL's subscriptions](https://facebook.github.io/graphql/draft/#sec-Subscription).
 
 In response to the subscription query, the GraphQL server may return a corresponding topic URL.
 The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with an URL like `https://example.com/hub?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
@@ -382,7 +388,7 @@ In summary, use the Push API to send notifications to offline users (that will b
 ### English
 
 * [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure (Symfony blog)](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
-* [Tech Workshop: Mercure by Kevin Dunglas at SensioLabs (SensioLabs)](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
+* [Tech Workshop: Mercure by Kévin Dunglas at SensioLabs (SensioLabs)](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
 * [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
 
 ### French
