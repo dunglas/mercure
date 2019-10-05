@@ -10,7 +10,7 @@ When you send a PR, just make sure that:
 
 # License and Copyright Attribution
 
-When you open a Pull Request to the project, you agree to license your code under the [LICENSE]
+When you open a Pull Request to the project, you agree to license your code under the [GNU AFFERO GENERAL PUBLIC LICENSE](../LICENSE)
 and to transfer the copyright on the submitted code to [Kévin Dunglas](https://dunglas.fr).
 
 Be sure to you have the right to do that (if you are a professional, ask your company)!
