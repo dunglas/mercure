@@ -111,6 +111,7 @@ func TestSubscribeNoTopic(t *testing.T) {
 
 func testSubscribe(numberOfSubscribers int, t *testing.T) {
 	hub := createAnonymousDummy()
+	hub.options.Debug = true
 	hub.Start()
 
 	go func() {
@@ -120,7 +121,6 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 			hub.subscribers.RUnlock()
 
 			if !ready {
-				//time.Sleep(time.Millisecond)
 				continue
 			}
 
