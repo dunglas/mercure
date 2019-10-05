@@ -111,7 +111,6 @@ func TestSubscribeNoTopic(t *testing.T) {
 
 func testSubscribe(numberOfSubscribers int, t *testing.T) {
 	hub := createAnonymousDummy()
-	hub.options.Debug = true
 	hub.Start()
 
 	go func() {
@@ -200,6 +199,7 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestSubscribeTarget(t *testing.T) {
 	hub := createDummy()
+	hub.options.Debug = true
 	hub.Start()
 
 	go func() {
