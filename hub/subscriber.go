@@ -29,11 +29,12 @@ func NewSubscriber(allTargets bool, targets map[string]struct{}, topics []string
 
 // CanReceive checks if the update can be dispatched according to the given criteria
 func (s *Subscriber) CanReceive(u *Update) bool {
-	return s.isAuthorized(u) && s.isSubscribed(u)
+	return s.IsAuthorized(u) && s.IsSubscribed(u)
 }
 
-// isAuthorized checks if the subscriber can access to at least one of the update's intended targets
-func (s *Subscriber) isAuthorized(u *Update) bool {
+// IsAuthorized checks if the subscriber can access to at least one of the update's intended targets
+// Don't forget to also call IsSubscribed
+func (s *Subscriber) IsAuthorized(u *Update) bool {
 	if s.AllTargets || len(u.Targets) == 0 {
 		return true
 	}
@@ -47,8 +48,9 @@ func (s *Subscriber) isAuthorized(u *Update) bool {
 	return false
 }
 
-// isSubscribedToUpdate checks if the subscriber has subscribed to this update
-func (s *Subscriber) isSubscribed(u *Update) bool {
+// IsSubscribed checks if the subscriber has subscribed to this update
+// Don't forget to also call IsAuthorized
+func (s *Subscriber) IsSubscribed(u *Update) bool {
 	for _, ut := range u.Topics {
 		if match, ok := s.matchCache[ut]; ok {
 			return match

@@ -179,12 +179,12 @@ func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscr
 func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w http.ResponseWriter, r *http.Request) {
 	fields := h.createLogFields(r, serializedUpdate.Update, subscriber)
 
-	if !subscriber.isAuthorized(serializedUpdate.Update) {
+	if !subscriber.IsAuthorized(serializedUpdate.Update) {
 		log.WithFields(fields).Debug("Subscriber not authorized to receive this update (no targets matching)")
 		return
 	}
 
-	if !subscriber.isSubscribed(serializedUpdate.Update) {
+	if !subscriber.IsSubscribed(serializedUpdate.Update) {
 		log.WithFields(fields).Debug("Subscriber has not subscribed to this update (no topics matching)")
 		return
 	}
