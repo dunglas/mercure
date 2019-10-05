@@ -30,7 +30,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			if !open {
 				return
 			}
-			publish(serializedUpdate, subscriber, w, r)
+			h.publish(serializedUpdate, subscriber, w, r)
 
 			continue
 		}
@@ -40,7 +40,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			if !open {
 				return
 			}
-			publish(serializedUpdate, subscriber, w, r)
+			h.publish(serializedUpdate, subscriber, w, r)
 
 		case <-time.After(h.options.HeartbeatInterval):
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
@@ -52,10 +52,16 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // initSubscription initializes the connection
 func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, chan *serializedUpdate, bool) {
+	fields := log.Fields{"remote_addr": r.RemoteAddr}
+
 	claims, err := authorize(r, h.options.SubscriberJWTKey, nil)
+	if h.options.Debug && claims != nil {
+		fields["target"] = claims.Mercure.Subscribe
+	}
+
 	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
+		log.WithFields(fields).Info(err)
 		return nil, nil, false
 	}
 
@@ -64,6 +70,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
 		return nil, nil, false
 	}
+	fields["subscriber_topics"] = topics
 
 	var rawTopics = make([]string, 0, len(topics))
 	var templateTopics = make([]*uritemplate.Template, 0, len(topics))
@@ -75,11 +82,11 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		}
 	}
 
-	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("New subscriber")
 	sendHeaders(w)
+	log.WithFields(fields).Info("New subscriber")
 
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
-	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, rawTopics, templateTopics, retrieveLastEventID(r))
+	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
 
 	if subscriber.LastEventID != "" {
 		h.sendMissedEvents(w, r, subscriber)
@@ -97,7 +104,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	go func() {
 		<-notify
 		h.removedSubscribers <- updateChan
-		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("Subscriber disconnected")
+		log.WithFields(fields).Info("Subscriber disconnected")
 	}()
 
 	return subscriber, updateChan, true
@@ -160,11 +167,8 @@ func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscr
 	if err := h.history.FindFor(s, func(u *Update) bool {
 		fmt.Fprint(w, u.String())
 		f.Flush()
-		log.WithFields(log.Fields{
-			"event_id":      u.ID,
-			"last_event_id": s.LastEventID,
-			"remote_addr":   r.RemoteAddr,
-		}).Info("Event sent")
+		log.WithFields(h.createLogFields(r, u, s)).Info("Event sent")
+
 		return true
 	}); err != nil {
 		panic(err)
@@ -172,18 +176,22 @@ func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscr
 }
 
 // publish sends the update to the client, if authorized
-func publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w http.ResponseWriter, r *http.Request) {
-	// Check authorization
-	if !subscriber.CanReceive(serializedUpdate.Update) {
+func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w http.ResponseWriter, r *http.Request) {
+	fields := h.createLogFields(r, serializedUpdate.Update, subscriber)
+
+	if !subscriber.IsAuthorized(serializedUpdate.Update) {
+		log.WithFields(fields).Debug("Subscriber not authorized to receive this update (no targets matching)")
+		return
+	}
+
+	if !subscriber.IsSubscribed(serializedUpdate.Update) {
+		log.WithFields(fields).Debug("Subscriber has not subscribed to this update (no topics matching)")
 		return
 	}
 
 	fmt.Fprint(w, serializedUpdate.event)
-	log.WithFields(log.Fields{
-		"event_id":    serializedUpdate.ID,
-		"remote_addr": r.RemoteAddr,
-	}).Info("Event sent")
 	w.(http.Flusher).Flush()
+	log.WithFields(fields).Info("Event sent")
 }
 
 // cleanup removes unused uritemplate.Template instances from memory
