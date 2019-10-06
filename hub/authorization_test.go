@@ -155,6 +155,15 @@ func TestAuthorizeAuthorizationHeaderRsa(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
+	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
+	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsa)
+
+	claims, err := authorize(r, []byte(publicKeyRsa), nil, []string{})
+	assert.EqualError(t, err, "Unexpected signing method: <nil>")
+	assert.Nil(t, claims)
+}
+
 func TestAuthorizeCookieInvalidAlg(t *testing.T) {
 	r, _ := http.NewRequest("GET", "http://example.com/hub", nil)
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
