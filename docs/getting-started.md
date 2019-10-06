@@ -4,7 +4,7 @@
 
 ## Starting the Hub
 
-The easiest way to get started is to [install the official Mercure Hub](hub.md). When it's done, go directly to the next step.
+The easiest way to get started is to [install the official Mercure Hub](hub/install.md). When it's done, go directly to the next step.
 Also, keep in mind that the hub is entirely optional. By the specification, your app can implement the Mercure protocol directly (take a look to the [libraries implementing Mercure](resources.md#libraries)).
 
 In the rest of this tutorial, we'll assume that the hub is running on `http://localhost:3000` and that the `JWT_KEY` is `!ChangeMe!`.
