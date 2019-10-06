@@ -72,6 +72,38 @@ func TestMissingEnv(t *testing.T) {
 	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY]")
 }
 
+func TestWrongPublisherAlgorithmEnv(t *testing.T) {
+	testEnv := map[string]string{
+		"PUBLISHER_JWT_KEY":         "foo",
+		"PUBLISHER_JWT_ALGORITHM":   "FOO256",
+		"SUBSCRIBER_JWT_KEY":        "bar",
+		"SUBSCRIBER_JWT_ALGORITHM":  "HS256",
+	}
+	for k, v := range testEnv {
+		os.Setenv(k, v)
+		defer os.Unsetenv(k)
+	}
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "Expected valid signing method for 'PUBLISHER_JWT_ALGORITHM', got <nil>")
+}
+
+func TestWrongSubscriberAlgorithmEnv(t *testing.T) {
+	testEnv := map[string]string{
+		"PUBLISHER_JWT_KEY":         "foo",
+		"PUBLISHER_JWT_ALGORITHM":   "RS256",
+		"SUBSCRIBER_JWT_KEY":        "bar",
+		"SUBSCRIBER_JWT_ALGORITHM":  "BAR256",
+	}
+	for k, v := range testEnv {
+		os.Setenv(k, v)
+		defer os.Unsetenv(k)
+	}
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got <nil>")
+}
+
 func TestMissingKeyFile(t *testing.T) {
 	os.Setenv("CERT_FILE", "foo")
 	defer os.Unsetenv("CERT_FILE")

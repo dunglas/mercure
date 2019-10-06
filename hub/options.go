@@ -108,11 +108,11 @@ func NewOptionsFromEnv() (*Options, error) {
 	subJwtAlgorithm := getJWTKeyAlgorithm("SUBSCRIBER")
 
 	if _, ok := pubJwtAlgorithm.(jwt.SigningMethod); !ok {
-		return nil, fmt.Errorf("Expected signing valid method for 'PUBLISHER_JWT_ALGORITHM', got %T", pubJwtAlgorithm)
+		return nil, fmt.Errorf("Expected valid signing method for 'PUBLISHER_JWT_ALGORITHM', got %T", pubJwtAlgorithm)
 	}
 
 	if _, ok := subJwtAlgorithm.(jwt.SigningMethod); !ok {
-		return nil, fmt.Errorf("Expected signing valid method for 'SUBSCRIBER_JWT_ALGORITHM', got %T", pubJwtAlgorithm)
+		return nil, fmt.Errorf("Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got %T", subJwtAlgorithm)
 	}
 
 	options := &Options{
