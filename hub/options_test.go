@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,8 +25,10 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"HISTORY_CLEANUP_FREQUENCY": "0.3",
 		"KEY_FILE":                  "bar",
 		"PUBLISHER_JWT_KEY":         "foo",
+		"PUBLISHER_JWT_ALGORITHM":   "HS256",
 		"PUBLISH_ALLOWED_ORIGINS":   "http://127.0.0.1:8080",
 		"SUBSCRIBER_JWT_KEY":        "bar",
+		"SUBSCRIBER_JWT_ALGORITHM":   "HS256",
 		"HEARTBEAT_INTERVAL":        "30s",
 		"READ_TIMEOUT":              "1m",
 		"WRITE_TIMEOUT":             "40s",
@@ -44,6 +47,8 @@ func TestNewOptionsFormNew(t *testing.T) {
 		0.3,
 		[]byte("foo"),
 		[]byte("bar"),
+		jwt.GetSigningMethod("HS256"),
+		jwt.GetSigningMethod("HS256"),
 		true,
 		[]string{"*"},
 		[]string{"http://127.0.0.1:8080"},

@@ -25,14 +25,14 @@ type mercureClaim struct {
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or a "mercureAuthorization" cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
-func authorize(r *http.Request, jwtKey []byte, publishAllowedOrigins []string) (*claims, error) {
+func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMethod, publishAllowedOrigins []string) (*claims, error) {
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
 			return nil, errors.New("Invalid \"Authorization\" HTTP header")
 		}
 
-		return validateJWT(authorizationHeaders[0][7:], jwtKey)
+		return validateJWT(authorizationHeaders[0][7:], jwtKey, jwtSigningAlgorithm)
 	}
 
 	cookie, err := r.Cookie("mercureAuthorization")
@@ -43,7 +43,7 @@ func authorize(r *http.Request, jwtKey []byte, publishAllowedOrigins []string) (
 
 	// CSRF attacks cannot occurs when using safe methods
 	if r.Method != "POST" {
-		return validateJWT(cookie.Value, jwtKey)
+		return validateJWT(cookie.Value, jwtKey, jwtSigningAlgorithm)
 	}
 
 	origin := r.Header.Get("Origin")
@@ -64,7 +64,7 @@ func authorize(r *http.Request, jwtKey []byte, publishAllowedOrigins []string) (
 
 	for _, allowedOrigin := range publishAllowedOrigins {
 		if origin == allowedOrigin {
-			return validateJWT(cookie.Value, jwtKey)
+			return validateJWT(cookie.Value, jwtKey, jwtSigningAlgorithm)
 		}
 	}
 
@@ -72,9 +72,9 @@ func authorize(r *http.Request, jwtKey []byte, publishAllowedOrigins []string) (
 }
 
 // validateJWT validates that the provided JWT token is a valid Mercure token
-func validateJWT(encodedToken string, key []byte) (*claims, error) {
+func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMethod) (*claims, error) {
 	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
-		switch token.Method.(type) {
+		switch signingAlgorithm.(type) {
 			case *jwt.SigningMethodHMAC:
 				return key, nil
 			case *jwt.SigningMethodRSA:
@@ -95,7 +95,7 @@ func validateJWT(encodedToken string, key []byte) (*claims, error) {
 				return pub, nil
 		}
 
-		return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		return nil, fmt.Errorf("Unexpected signing method: %T", signingAlgorithm)
 	})
 
 	if err != nil {
