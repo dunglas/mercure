@@ -1,4 +1,4 @@
-# Awesome Mercure: Libraries, Examples and Learning Resources
+# Awesome Mercure
 
 ## Examples
 
