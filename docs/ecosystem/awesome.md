@@ -1,4 +1,4 @@
-# Libraries, Examples and Learning Resources
+# Awesome Mercure
 
 ## Examples
 
@@ -7,16 +7,27 @@
 * [PHP: publishing](examples/publisher-php.php)
 * [Ruby: publishing](examples/publisher-ruby.rb)
 
-## Mercure Libraries and Integrations
+## Hubs and Server Libraries
 
-* [PHP library to publish Mercure updates](https://github.com/symfony/mercure)
-* [Python library to publish and consume Mercure updates](https://github.com/vitorluis/python-mercure)
+* [Go Hub and Server library](https://mercure.rocks)
+* [Node.js Hub and Server library](https://github.com/Ilshidur/node-mercure)
+
+## Client Libraries
+
+* [PHP (publish)](https://github.com/symfony/mercure)
+* [Python (publish and subscribe)](https://github.com/vitorluis/python-mercure)
+* [Dart (publish and subscribe)](https://github.com/wallforfry/dart_mercure)
+* [Amphp (publish)](https://github.com/eislambey/amp-mercure-publisher)
+
+## Frameworks and Services Integrations
+
 * [Official Mercure support for the Symfony framework](https://github.com/symfony/mercure-bundle)
 * [Official Mercure support for the API Platform framework](https://api-platform.com/docs/core/mercure/)
 * [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 * [Yii Mercure Behavior](https://github.com/bizley/mercure-behavior)
+* [GitHub Actions for Mercure](https://github.com/Ilshidur/action-mercure)
 
-## Mercure-Related Libraries
+## Useful Related Libraries
 
 * [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)

@@ -20,5 +20,5 @@
 
 ## Ecosystem
 
-* [Libraries, Examples and Learning Resources](ecosystem/resources.md)
+* [Awesome Mercure: Libraries, Examples and Learning Resources](ecosystem/awesome.md)
 * [Getting Help](ecosystem/help.md)
