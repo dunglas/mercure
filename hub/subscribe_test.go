@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	bolt "go.etcd.io/bbolt"
 )
@@ -110,6 +111,7 @@ func TestSubscribeNoTopic(t *testing.T) {
 }
 
 func testSubscribe(numberOfSubscribers int, t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	hub := createAnonymousDummy()
 	hub.Start()
 
@@ -139,6 +141,10 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 				Topics: []string{"http://example.com/hub?topic=faulty{iri"},
 				Event:  Event{Data: "Faulty IRI", ID: "d"},
 			})
+			hub.updates <- newSerializedUpdate(&Update{
+				Topics: []string{"string"},
+				Event:  Event{Data: "string", ID: "e"},
+			})
 
 			hub.Stop()
 			return
@@ -150,14 +156,14 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 	for i := 0; i < numberOfSubscribers; i++ {
 		go func(w2 *sync.WaitGroup) {
 			defer w2.Done()
-			req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil)
+			req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=string&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil)
 			w := newCloseNotifyingRecorder()
 			hub.SubscribeHandler(w, req)
 
 			if t != nil {
 				resp := w.Result()
 				assert.Equal(t, http.StatusOK, resp.StatusCode)
-				assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\n", w.Body.String())
+				assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\nid: e\ndata: string\n\n", w.Body.String())
 			}
 		}(&wg)
 	}
