@@ -2,10 +2,10 @@
 
 ## Examples
 
-* [Python/Flask: chat application](examples/chat-python-flask) ([live demo](https://python-chat.mercure.rocks/))
-* [Node.js: publishing](examples/publisher-node.js)
-* [PHP: publishing](examples/publisher-php.php)
-* [Ruby: publishing](examples/publisher-ruby.rb)
+* [Python/Flask: chat application](https://github.com/dunglas/mercure/tree/master/examples/chat-python-flask) ([live demo](https://python-chat.mercure.rocks/))
+* [Node.js: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-node.js)
+* [PHP: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-php.php)
+* [Ruby: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-ruby.rb)
 
 ## Hubs and Server Libraries
 
