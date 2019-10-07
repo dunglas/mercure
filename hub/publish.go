@@ -96,5 +96,5 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, u.ID)
-	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr, "event_id": u.ID}).Info("Update published")
+	log.WithFields(h.createLogFields(r, u, nil)).Info("Update published")
 }

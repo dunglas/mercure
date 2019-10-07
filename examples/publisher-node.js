@@ -1,7 +1,8 @@
 const http = require('http');
 const querystring = require('querystring');
 
-const demoJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.LRLvirgONK13JgacQ_VbcjySbVhkSmHy3IznH3tA9PM';
+
+const demoJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.afLx2f2ut3YgNVFStCx95Zm_UND1mZJ69OenXaDuZL8';
 
 const postData = querystring.stringify({
     'topic': 'http://localhost:3000/demo/books/1.jsonld',
@@ -24,7 +25,7 @@ const req = http.request({
 });
 
 req.on('error', (e) => {
-    console.error(`An error occured: ${e.message}`);
+    console.error(`An error occurred: ${e.message}`);
 });
 
 req.write(postData);

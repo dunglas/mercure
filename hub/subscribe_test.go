@@ -120,7 +120,6 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 			hub.subscribers.RUnlock()
 
 			if !ready {
-				//time.Sleep(time.Millisecond)
 				continue
 			}
 
@@ -200,6 +199,7 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestSubscribeTarget(t *testing.T) {
 	hub := createDummy()
+	hub.options.Debug = true
 	hub.Start()
 
 	go func() {
