@@ -53,7 +53,10 @@ func (s *Subscriber) IsAuthorized(u *Update) bool {
 func (s *Subscriber) IsSubscribed(u *Update) bool {
 	for _, ut := range u.Topics {
 		if match, ok := s.matchCache[ut]; ok {
-			return match
+			if match {
+				return true
+			}
+			continue
 		}
 
 		for _, rt := range s.RawTopics {
