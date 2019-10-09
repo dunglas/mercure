@@ -42,7 +42,8 @@
         }, null, 2);
 
         document.getElementById('subscribeTopicsExamples').innerText = `${origin}/demo/novels/{id}.jsonld
-${defaultTopic}`;
+${defaultTopic}
+foo`;
     });
 
     // Discover
