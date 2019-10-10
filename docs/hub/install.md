@@ -40,7 +40,7 @@ When the server is up and running, the following endpoints are available:
 
 See [the protocol](spec/mercure.md) for further informations.
 
-To compile the development version and register the demo page, see [CONTRIBUTING.md](CONTRIBUTING.md#hub).
+To compile the development version and register the demo page, see [../../CONTRIBUTING.md](CONTRIBUTING.md#hub).
 
 ## Docker Image
 
