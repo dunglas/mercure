@@ -17,7 +17,7 @@ Then, on UNIX, run:
 
 On Windows, start [PowerShell](https://docs.microsoft.com/en-us/powershell/), go into the extracted directory and run:
 
-    $env:JWT_KEY='!ChangeMe!; $env:ADDR='localhost:3000'; $env:DEMO='1'; $env:ALLOW_ANONYMOUS='1'; $env:CORS_ALLOWED_ORIGINS='*'; $env:PUBLISH_ALLOWED_ORIGINS='http://localhost:3000'; .\mercure.exe
+    $env:JWT_KEY='!ChangeMe!'; $env:ADDR='localhost:3000'; $env:DEMO='1'; $env:ALLOW_ANONYMOUS='1'; $env:CORS_ALLOWED_ORIGINS='*'; $env:PUBLISH_ALLOWED_ORIGINS='http://localhost:3000'; .\mercure.exe
 
 The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it. Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
 
