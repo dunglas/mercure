@@ -9,22 +9,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Publisher must be implemented to publish an update
-type Publisher interface {
-	Publish(hub *Hub, update *Update) error
-}
-
-// LocalPublisher dispatch an update locally
-type localPublisher struct {
-}
-
-// Publish publish an update locally
-func (*localPublisher) Publish(h *Hub, u *Update) error {
+func (h *Hub) dispatch(u *Update) error {
 	if u.ID == "" {
 		u.ID = uuid.Must(uuid.NewV4()).String()
 	}
 
-	h.DispatchUpdate(u)
+	if err := h.stream.Write(u); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -90,7 +82,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Broadcast the update
-	err = h.publisher.Publish(h, u)
+	err = h.dispatch(u)
 	if err != nil {
 		panic(err)
 	}

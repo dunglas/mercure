@@ -27,13 +27,16 @@ func init() {
 }
 
 func main() {
-	hub, db, err := hub.NewHubFromEnv()
+	hub, err := hub.NewHubFromEnv()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	defer db.Close()
+	defer func() {
+		if err = hub.Stop(); err != nil {
+			log.Fatalln(err)
+		}
+	}()
 
-	hub.Start()
 	hub.Serve()
 }

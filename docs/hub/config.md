@@ -7,18 +7,17 @@ The Mercure Hub follows [the twelve-factor app methodology](https://12factor.net
 |-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `ACME_CERT_DIR`             | the directory where to store Let's Encrypt certificates                                                                                                                                                                                                                                                                                                                                                 |
 | `ACME_HOSTS`                | a comma separated list of hosts for which Let's Encrypt certificates must be issued                                                                                                                                                                                                                                                                                                                     |
+| `ACME_HTTP01_ADDR`          | the address used by the acme server to listen on (example:  `0.0.0.0:8080`), default to `:http`.                                                                                                                                                                                                                                                                                                        |
 | `ADDR`                      | the address to listen on (example: `127.0.0.1:3000`, default to `:http` or `:https` depending if HTTPS is enabled or not). Note that Let's Encrypt only supports the default port: to use Let's Encrypt, **do not set this variable**.                                                                                                                                                                  |
 | `ALLOW_ANONYMOUS`           | set to `1` to allow subscribers with no valid JWT to connect                                                                                                                                                                                                                                                                                                                                            |
 | `CERT_FILE`                 | a cert file (to use a custom certificate)                                                                                                                                                                                                                                                                                                                                                               |
 | `KEY_FILE`                  | a key file (to use a custom certificate)                                                                                                                                                                                                                                                                                                                                                                |
 | `COMPRESS`                  | set to `0` to disable HTTP compression support (default to enabled)                                                                                                                                                                                                                                                                                                                                     |
 | `CORS_ALLOWED_ORIGINS`      | a comma separated list of allowed CORS origins, can be `*` for all                                                                                                                                                                                                                                                                                                                                      |
-| `DB_PATH`                   | the path of the [bbolt](https://github.com/etcd-io/bbolt) database (default to `updates.db` in the current directory)                                                                                                                                                                                                                                                                                   |
 | `DEBUG`                     | set to `1` to enable the debug mode, **dangerous, don't enable in production** (logs updates' content, why an update is not send to a specific subscriber and recovery stack traces)                                                                                                                                                                                                                    |
 | `DEMO`                      | set to `1` to enable the demo mode (automatically enabled when `DEBUG=1`)                                                                                                                                                                                                                                                                                                                               |
 | `HEARTBEAT_INTERVAL`        | interval between heartbeats (useful with some proxies, and old browsers, default to `15s`, set to `0s` to disable)                                                                                                                                                                                                                                                                                      |
-| `HISTORY_SIZE`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                                                                                                                                                                                                                                                       |
-| `HISTORY_CLEANUP_FREQUENCY` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`                                                                                                                                                                                                                                      |
+| `TRANSPORT_URL`             | URL representation of the history database. Provided database are `null` to disabled history, `bolt` to use [bbolt](https://github.com/etcd-io/bbolt) (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=10`), `redis` to use redis (example `redis://localhost/1?size=100&stream_name=mercure-hub-history`). (default to `bolt://updates.db`)                                             |
 | `JWT_KEY`                   | the JWT key to use for both publishers and subscribers                                                                                                                                                                                                                                                                                                                                                  |
 | `JWT_ALGORITHM`             | the JWT verification algorithm to use for both publishers and subscribers, e.g. HS256 or RS512. Defaults to HS256.                                                                                                                                                                                                                                                                                      |
 | `LOG_FORMAT`                | the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)                                                                                                                                                                                                                                                                                                                                            |
@@ -53,4 +52,59 @@ JWT_KEY=`cat jwt_key.pub` ./mecure
 PowerShell
 ```
 $env:JWT_KEY = [IO.File]::ReadAllText(".\jwt_key.pub")
+```
+
+## Bolt Adapter
+
+The [Data Source Name (DSN)](https://en.wikipedia.org/wiki/Data_source_name) specifies the path to the [bolt](https://github.com/etcd-io/bbolt) database as well as options
+
+| Parameter           | Description
+|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket_name`       | name of the bolt bucket to store events. default to `updates`                                                                                                                    |
+| `cleanup_frequency` | chances to trchances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`. |
+| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                                |
+
+Below are common examples of valid DSNs showing a combination of available values:
+
+```bash
+# absolute path to `updates.db`
+TRANSPORT_URL="bolt:///var/run/database.db"
+
+# path to `updates.db` in the current directory
+TRANSPORT_URL="bolt://database.db"
+
+# custom options
+TRANSPORT_URL="bolt://database.db?bucket_name=demo&size=1000&cleanup_frequency=0.5"
+```
+
+## Redis Adapter
+
+The [Data Source Name (DSN)](https://en.wikipedia.org/wiki/Data_source_name) can specifies either an IP/host (and an optional port) or a socket path, as well as a password and a database index.
+
+| Parameter           | Description
+|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                   |
+| `stream_name`       | name of the redis stream to store events. default to `mercure-hub-history`                                                                                          |
+| `master_name`       | name of the redis master when using sentinel                                                                                                                        |
+
+Below are common examples of valid DSNs showing a combination of available values:
+
+```bash
+# default port and database
+TRANSPORT_URL="redis://localhost"
+
+# host "my.server.com", port "6379" and database index "20"
+TRANSPORT_URL="redis://my.server.com:6379/20"
+
+# enabling TLS
+TRANSPORT_URL="rediss://localhost"
+
+# authenticate with "abcdef" password
+TRANSPORT_URL="redis://abcdef@localhost"
+
+# custom options
+TRANSPORT_URL="redis://localhost?stream_name=my-prefix&size=1000"
+
+# using sentinel
+TRANSPORT_URL="redis://localhost:26379/?master_name=sentinel_master"
 ```

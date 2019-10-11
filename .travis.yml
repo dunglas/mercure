@@ -1,12 +1,13 @@
 language: go
 go:
-  - '1.12'
+  - '1.13'
 
 env:
   - GO111MODULE=on
 
 services:
   - docker
+  - redis-server
 
 before_install:
   - GO111MODULE=off go get github.com/mattn/goveralls

@@ -3,6 +3,7 @@ package hub
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"sync"
 	"testing"
@@ -10,7 +11,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	bolt "go.etcd.io/bbolt"
 )
 
 type responseWriterMock struct {
@@ -113,39 +113,40 @@ func TestSubscribeNoTopic(t *testing.T) {
 func testSubscribe(numberOfSubscribers int, t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	hub := createAnonymousDummy()
-	hub.Start()
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			ready := len(hub.subscribers.m) == numberOfSubscribers
-			hub.subscribers.RUnlock()
+			s, _ := hub.stream.(*LiveStream)
+			s.RLock()
+			ready := len(s.pipes) == numberOfSubscribers
+			s.RUnlock()
 
 			if !ready {
 				continue
 			}
 
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Topics: []string{"http://example.com/not-subscribed"},
 				Event:  Event{Data: "Hello World", ID: "a"},
 			})
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Topics: []string{"http://example.com/books/1"},
 				Event:  Event{Data: "Hello World", ID: "b"},
 			})
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Topics: []string{"http://example.com/reviews/22"},
 				Event:  Event{Data: "Great", ID: "c"},
 			})
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Topics: []string{"http://example.com/hub?topic=faulty{iri"},
 				Event:  Event{Data: "Faulty IRI", ID: "d"},
 			})
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Topics: []string{"string"},
 				Event:  Event{Data: "string", ID: "e"},
 			})
 
+			time.Sleep(8 * time.Millisecond)
 			hub.Stop()
 			return
 		}
@@ -177,23 +178,24 @@ func TestSubscribe(t *testing.T) {
 
 func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
-	hub.Start()
-	assert.Equal(t, 0, len(hub.subscribers.m))
+
+	s, _ := hub.stream.(*LiveStream)
+	assert.Equal(t, 0, len(s.pipes))
 	wr := newCloseNotifyingRecorder()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
+		assert.Equal(t, 0, len(s.pipes))
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil)
 		hub.SubscribeHandler(wr, req)
-		assert.Equal(t, 0, len(hub.subscribers.m))
 	}(&wg)
 
 	for {
-		hub.subscribers.RLock()
-		notEmpty := len(hub.subscribers.m) != 0
-		hub.subscribers.RUnlock()
+		s.RLock()
+		notEmpty := len(s.pipes) != 0
+		s.RUnlock()
 		if notEmpty {
 			break
 		}
@@ -206,34 +208,35 @@ func TestUnsubscribe(t *testing.T) {
 func TestSubscribeTarget(t *testing.T) {
 	hub := createDummy()
 	hub.options.Debug = true
-	hub.Start()
+	s, _ := hub.stream.(*LiveStream)
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			empty := len(hub.subscribers.m) == 0
-			hub.subscribers.RUnlock()
+			s.RLock()
+			empty := len(s.pipes) == 0
+			s.RUnlock()
 
 			if empty {
 				continue
 			}
 
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Targets: map[string]struct{}{"baz": {}},
 				Topics:  []string{"http://example.com/reviews/21"},
 				Event:   Event{Data: "Foo", ID: "a"},
 			})
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Targets: map[string]struct{}{},
 				Topics:  []string{"http://example.com/reviews/22"},
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
 			})
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Targets: map[string]struct{}{"hello": {}, "bar": {}},
 				Topics:  []string{"http://example.com/reviews/23"},
 				Event:   Event{Data: "Great", ID: "c", Retry: 1},
 			})
 
+			time.Sleep(8 * time.Millisecond)
 			hub.Stop()
 			return
 		}
@@ -252,29 +255,30 @@ func TestSubscribeTarget(t *testing.T) {
 
 func TestSubscribeAllTargets(t *testing.T) {
 	hub := createDummy()
-	hub.Start()
+	s, _ := hub.stream.(*LiveStream)
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			empty := len(hub.subscribers.m) == 0
-			hub.subscribers.RUnlock()
+			s.RLock()
+			empty := len(s.pipes) == 0
+			s.RUnlock()
 
 			if empty {
 				continue
 			}
 
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Targets: map[string]struct{}{"foo": {}},
 				Topics:  []string{"http://example.com/reviews/21"},
 				Event:   Event{Data: "Foo", ID: "a"},
 			})
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Targets: map[string]struct{}{"bar": {}},
 				Topics:  []string{"http://example.com/reviews/22"},
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
 			})
 
+			time.Sleep(8 * time.Millisecond)
 			hub.Stop()
 			return
 		}
@@ -291,28 +295,27 @@ func TestSubscribeAllTargets(t *testing.T) {
 }
 
 func TestSendMissedEvents(t *testing.T) {
-	db, _ := bolt.Open("test.db", 0600, nil)
-	defer db.Close()
+	url, _ := url.Parse("bolt://test.db")
+	stream, _ := NewBoltStream(&Options{TransportURL: url})
+	defer stream.Close()
 	defer os.Remove("test.db")
 
-	history := &boltHistory{db, &Options{}}
-	history.Add(&Update{
+	hub := createAnonymousDummyWithStream(stream)
+
+	stream.Write(&Update{
 		Topics: []string{"http://example.com/foos/a"},
 		Event: Event{
 			ID:   "a",
 			Data: "d1",
 		},
 	})
-	history.Add(&Update{
+	stream.Write(&Update{
 		Topics: []string{"http://example.com/foos/b"},
 		Event: Event{
 			ID:   "b",
 			Data: "d2",
 		},
 	})
-
-	hub := createAnonymousDummyWithHistory(history)
-	hub.Start()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -335,14 +338,16 @@ func TestSendMissedEvents(t *testing.T) {
 	}(&wg)
 
 	for {
-		hub.subscribers.RLock()
-		two := len(hub.subscribers.m) == 2
-		hub.subscribers.RUnlock()
+		stream.RLock()
+		two := len(stream.pipes) == 2
+		stream.RUnlock()
 
 		if two {
 			break
 		}
 	}
+
+	time.Sleep(time.Millisecond)
 
 	wr1.close()
 	wr2.close()
@@ -352,19 +357,19 @@ func TestSendMissedEvents(t *testing.T) {
 func TestSubscribeHeartbeat(t *testing.T) {
 	hub := createAnonymousDummy()
 	hub.options.HeartbeatInterval = 5 * time.Millisecond
-	hub.Start()
+	s, _ := hub.stream.(*LiveStream)
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			empty := len(hub.subscribers.m) == 0
-			hub.subscribers.RUnlock()
+			s.RLock()
+			empty := len(s.pipes) == 0
+			s.RUnlock()
 
 			if empty {
 				continue
 			}
 
-			hub.updates <- newSerializedUpdate(&Update{
+			hub.stream.Write(&Update{
 				Topics: []string{"http://example.com/books/1"},
 				Event:  Event{Data: "Hello World", ID: "b"},
 			})
