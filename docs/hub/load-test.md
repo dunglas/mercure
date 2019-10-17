@@ -1,4 +1,4 @@
-## Load Test
+# Load Test
 
 According to a benchmark made by Glory4Gamers, the open source version of the Mercure hub is able to 40k concurrent connections on a single EC2 t3.micro instance.
 
