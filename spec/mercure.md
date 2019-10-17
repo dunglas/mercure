@@ -40,7 +40,7 @@ NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this docu
 interpreted as described in [@!RFC2119].
 
  *  Topic: The unit to which one can subscribe to changes. The topic **MUST** be identified by an
-    IRI [!@RFC3987] or by a string. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI [@!RFC3986]
+    IRI [@!RFC3987] or by a string. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI [@!RFC3986]
     is **RECOMMENDED**.
 
  *  Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
