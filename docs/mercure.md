@@ -1,4 +1,4 @@
-## Mercure in a Few Words
+# Mercure in a Few Words
 
 * native browser support, no lib nor SDK required (built on top of HTTP and [server-sent events](https://www.smashingmagazine.com/2018/02/sse-websockets-data-flow-http2/))
 * compatible with all existing servers, even those who don't support persistent connections (serverless architecture, PHP, FastCGI...)
