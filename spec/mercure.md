@@ -115,7 +115,7 @@ supported by subscribers.
 Note: the discovery mechanism described in this section [is strongly inspired from the one specified
 in the WebSub recommendation](https://www.w3.org/TR/websub/#discovery).
 
-# Subscriptions
+# Subscription
 
 The subscriber subscribes to a URL exposed by a hub to receive updates from one or many topics.
 To subscribe to updates, the client opens an HTTPS connection following the [Server-Sent Events
