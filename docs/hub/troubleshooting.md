@@ -17,3 +17,28 @@ If subscribing to the `EventSource` in the browser doesn't work (the browser ins
 ## URI Template and Topics
 
 Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ensure that the template matches the topic.
+
+## Mac OS Catalina Localhost Installation Error
+
+![image](https://user-images.githubusercontent.com/20707343/66904710-dd02e280-f004-11e9-84cf-11721cf7894b.png)
+
+#### How to process for Mercure to work in Mac OS Catalina:
+
+- In the Finder on your Mac, locate the app that you want to open.
+- Control-click on the app icon, then choose Open from the shortcut menu.
+- Click Open.
+
+Then you will have a warning 
+![image](https://user-images.githubusercontent.com/20707343/66986766-ca011880-f0bf-11e9-983b-df6bff19791a.png)
+
+Ignore it and close the Terminal.
+
+Open a new Terminal in the Mercure folder.
+
+Then just run the command line
+```
+JWT_KEY='!ChangeMe!' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGINS=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
+```
+
+It will work.🎊
+![image](https://user-images.githubusercontent.com/20707343/66986877-f9178a00-f0bf-11e9-8101-b2a4cd09eb31.png)
