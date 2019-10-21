@@ -19,7 +19,7 @@ import scala.util.Properties
 
 class LoadTest extends Simulation {
   /** The hub URL */
-  val HubUrl = Properties.envOrElse("HUB_URL", "http://localhost:3001/hub" )
+  val HubUrl = Properties.envOrElse("HUB_URL", "http://localhost:3001/.well-known/mercure" )
   /** JWT to use to publish */
   val Jwt = Properties.envOrElse("JWT", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.afLx2f2ut3YgNVFStCx95Zm_UND1mZJ69OenXaDuZL8")
   /** Number of concurrent subscribers to connect */

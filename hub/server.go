@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
+const defaultHubURL = "/.well-known/mercure"
+
 // Serve starts the HTTP server
 func (h *Hub) Serve() {
 	h.server = &http.Server{
@@ -76,8 +78,8 @@ func (h *Hub) Serve() {
 func (h *Hub) chainHandlers() http.Handler {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/hub", h.SubscribeHandler).Methods("GET", "HEAD")
-	r.HandleFunc("/hub", h.PublishHandler).Methods("POST")
+	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
+	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
 	if h.options.Demo {
 		r.PathPrefix("/demo").HandlerFunc(demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))

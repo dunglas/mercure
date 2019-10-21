@@ -28,7 +28,7 @@
 
     // Set default values
     document.addEventListener('DOMContentLoaded', function () {
-        settingsForm.hubUrl.value = origin + '/hub';
+        settingsForm.hubUrl.value = origin + '/.well-known/mercure';
         settingsForm.jwt.value = defaultJwt;
 
         discoverForm.topic.value = defaultTopic;

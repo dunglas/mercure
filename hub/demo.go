@@ -34,7 +34,7 @@ func demo(w http.ResponseWriter, r *http.Request) {
 
 	cookie := &http.Cookie{
 		Name:     "mercureAuthorization",
-		Path:     "/hub",
+		Path:     defaultHubURL,
 		Value:    jwt,
 		HttpOnly: r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
