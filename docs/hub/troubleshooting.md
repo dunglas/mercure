@@ -26,7 +26,7 @@ How to process for Mercure to work in Mac OS Catalina:
 - Control-click on the app icon, then choose Open from the shortcut menu.
 - Click Open.
 
-Then you will have a warning ignore it and close the Terminal.
+Then you will have a warning, ignore it and close the Terminal.
 
 Open a new Terminal in the Mercure folder.
 
