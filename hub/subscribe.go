@@ -54,11 +54,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, chan *serializedUpdate, bool) {
 	fields := log.Fields{"remote_addr": r.RemoteAddr}
 
-	claims, err := authorize(r, h.options.SubscriberJWTKey, nil)
+	claims, err := authorize(r, h.options.SubscriberJWTKey, h.options.SubscriberJWTAlgorithm, nil)
 	if h.options.Debug && claims != nil {
 		fields["target"] = claims.Mercure.Subscribe
 	}
-
 	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		log.WithFields(fields).Info(err)

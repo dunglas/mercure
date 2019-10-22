@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 // Options stores the hub's options
@@ -16,6 +18,8 @@ type Options struct {
 	HistoryCleanupFrequency float64
 	PublisherJWTKey         []byte
 	SubscriberJWTKey        []byte
+	PublisherJWTAlgorithm   jwt.SigningMethod
+	SubscriberJWTAlgorithm  jwt.SigningMethod
 	AllowAnonymous          bool
 	CorsAllowedOrigins      []string
 	PublishAllowedOrigins   []string
@@ -39,6 +43,22 @@ func getJWTKey(role string) string {
 	}
 
 	return key
+}
+
+func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
+	keyType := os.Getenv(fmt.Sprintf("%s_JWT_ALGORITHM", role))
+
+	if keyType == "" {
+		keyType = os.Getenv("JWT_ALGORITHM")
+	}
+
+	if keyType == "" {
+		keyType = "HS512"
+	}
+
+	signingMethod := jwt.GetSigningMethod(keyType)
+
+	return signingMethod
 }
 
 // NewOptionsFromEnv creates a new option instance from environment
@@ -84,6 +104,17 @@ func NewOptionsFromEnv() (*Options, error) {
 		return nil, err
 	}
 
+	pubJwtAlgorithm := getJWTKeyAlgorithm("PUBLISHER")
+	subJwtAlgorithm := getJWTKeyAlgorithm("SUBSCRIBER")
+
+	if _, ok := pubJwtAlgorithm.(jwt.SigningMethod); !ok {
+		return nil, fmt.Errorf("Expected valid signing method for 'PUBLISHER_JWT_ALGORITHM', got %T", pubJwtAlgorithm)
+	}
+
+	if _, ok := subJwtAlgorithm.(jwt.SigningMethod); !ok {
+		return nil, fmt.Errorf("Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got %T", subJwtAlgorithm)
+	}
+
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
 		dbPath,
@@ -91,6 +122,8 @@ func NewOptionsFromEnv() (*Options, error) {
 		historyCleanupFrequency,
 		[]byte(getJWTKey("PUBLISHER")),
 		[]byte(getJWTKey("SUBSCRIBER")),
+		pubJwtAlgorithm,
+		subJwtAlgorithm,
 		os.Getenv("ALLOW_ANONYMOUS") == "1",
 		splitVar(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		splitVar(os.Getenv("PUBLISH_ALLOWED_ORIGINS")),

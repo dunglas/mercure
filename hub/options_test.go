@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,8 +25,10 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"HISTORY_CLEANUP_FREQUENCY": "0.3",
 		"KEY_FILE":                  "bar",
 		"PUBLISHER_JWT_KEY":         "foo",
+		"PUBLISHER_JWT_ALGORITHM":   "HS256",
 		"PUBLISH_ALLOWED_ORIGINS":   "http://127.0.0.1:8080",
 		"SUBSCRIBER_JWT_KEY":        "bar",
+		"SUBSCRIBER_JWT_ALGORITHM":   "HS256",
 		"HEARTBEAT_INTERVAL":        "30s",
 		"READ_TIMEOUT":              "1m",
 		"WRITE_TIMEOUT":             "40s",
@@ -44,6 +47,8 @@ func TestNewOptionsFormNew(t *testing.T) {
 		0.3,
 		[]byte("foo"),
 		[]byte("bar"),
+		jwt.GetSigningMethod("HS256"),
+		jwt.GetSigningMethod("HS256"),
 		true,
 		[]string{"*"},
 		[]string{"http://127.0.0.1:8080"},
@@ -65,6 +70,38 @@ func TestNewOptionsFormNew(t *testing.T) {
 func TestMissingEnv(t *testing.T) {
 	_, err := NewOptionsFromEnv()
 	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY]")
+}
+
+func TestWrongPublisherAlgorithmEnv(t *testing.T) {
+	testEnv := map[string]string{
+		"PUBLISHER_JWT_KEY":         "foo",
+		"PUBLISHER_JWT_ALGORITHM":   "FOO256",
+		"SUBSCRIBER_JWT_KEY":        "bar",
+		"SUBSCRIBER_JWT_ALGORITHM":  "HS256",
+	}
+	for k, v := range testEnv {
+		os.Setenv(k, v)
+		defer os.Unsetenv(k)
+	}
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "Expected valid signing method for 'PUBLISHER_JWT_ALGORITHM', got <nil>")
+}
+
+func TestWrongSubscriberAlgorithmEnv(t *testing.T) {
+	testEnv := map[string]string{
+		"PUBLISHER_JWT_KEY":         "foo",
+		"PUBLISHER_JWT_ALGORITHM":   "RS256",
+		"SUBSCRIBER_JWT_KEY":        "bar",
+		"SUBSCRIBER_JWT_ALGORITHM":  "BAR256",
+	}
+	for k, v := range testEnv {
+		os.Setenv(k, v)
+		defer os.Unsetenv(k)
+	}
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got <nil>")
 }
 
 func TestMissingKeyFile(t *testing.T) {

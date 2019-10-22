@@ -20,13 +20,37 @@ The Mercure Hub follows [the twelve-factor app methodology](https://12factor.net
 | `HISTORY_SIZE`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                                                                                                                                                                                                                                                       |
 | `HISTORY_CLEANUP_FREQUENCY` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`                                                                                                                                                                                                                                      |
 | `JWT_KEY`                   | the JWT key to use for both publishers and subscribers                                                                                                                                                                                                                                                                                                                                                  |
+| `JWT_ALGORITHM`             | the JWT verification algorithm to use for both publishers and subscribers, e.g. HS256 or RS512. Defaults to HS256.                                                                                                                                                                                                                                                                                      |
 | `LOG_FORMAT`                | the log format, can be `JSON`, `FLUENTD` or `TEXT` (default)                                                                                                                                                                                                                                                                                                                                            |
 | `PUBLISH_ALLOWED_ORIGINS`   | a comma separated list of origins allowed to publish (only applicable when using cookie-based auth)                                                                                                                                                                                                                                                                                                     |
 | `PUBLISHER_JWT_KEY`         | must contain the secret key to valid publishers' JWT, can be omited if `JWT_KEY` is set                                                                                                                                                                                                                                                                                                                 |
+| `PUBLISHER_JWT_ALGORITHM`   | the JWT verification algorithm to use for publishers, e.g. HS256 or RS512. Defaults to HS256.                                                                                                                                                                                                                                                                                                           |
 | `READ_TIMEOUT`              | maximum duration for reading the entire request, including the body, set to `0s` to disable (default), example: `2m`                                                                                                                                                                                                                                                                                    |
 | `SUBSCRIBER_JWT_KEY`        | must contain the secret key to valid subscribers' JWT, can be omited if `JWT_KEY` is set                                                                                                                                                                                                                                                                                                                |
+| `SUBSCRIBER_JWT_ALGORITHM`  | the JWT verification algorithm to use for subscribers, e.g. HS256 or RS512. Defaults to HS256.                                                                                                                                                                                                                                                                                                          |
 | `WRITE_TIMEOUT`             | maximum duration before timing out writes of the response, set to `0s` to disable (default), example: `2m`                                                                                                                                                                                                                                                                                              |
 | `USE_FORWARDED_HEADERS`     | set to `1` to use the `X-Forwarded-For`, and `X-Real-IP` for the remote (client) IP address, `X-Forwarded-Proto` or `X-Forwarded-Scheme` for the scheme (http or https), `X-Forwarded-Host` for the host and the RFC 7239 `Forwarded` header, which may include both client IPs and schemes. If this option is enabled, the reverse proxy must override or remove these headers or you will be at risk. |
 
 If `ACME_HOSTS` or both `CERT_FILE` and `KEY_FILE` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
+
+When using RSA public keys for verification make sure the key is properly formatted.
+
+```
+-----BEGIN PUBLIC KEY-----
+MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHVwuJsFmzsFnOkGj+OgAp4lTNqR
+CF0RZSmjY+ECWOJ3sSEzQ8qtkJe61uSjr/PKmqvBxxex0YtUL7waSS4jvq3ws8Bm
+WIxK2GqoAVjLjK8HzThSPQpgv2AjiEXD6iAERHeySLGjYAUgfMrVJ01J5fNSL+O+
+bCd7nPuNAyYHCOOHAgMBAAE=
+-----END PUBLIC KEY-----
+```
+
+Bash
+```
+JWT_KEY=`cat jwt_key.pub` ./mecure
+```
+
+PowerShell
+```
+$env:JWT_KEY = [IO.File]::ReadAllText(".\jwt_key.pub")
+```

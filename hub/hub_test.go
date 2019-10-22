@@ -41,13 +41,15 @@ func TestNewHubFromEnvError(t *testing.T) {
 }
 
 func createDummy() *Hub {
-	return NewHub(&localPublisher{}, &noHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber")})
+	return NewHub(&localPublisher{}, &noHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), PublisherJWTAlgorithm: hmacSigningMethod, SubscriberJWTAlgorithm: hmacSigningMethod})
 }
 
 func createAnonymousDummy() *Hub {
 	return NewHub(&localPublisher{}, &noHistory{}, &Options{
 		PublisherJWTKey:  []byte("publisher"),
 		SubscriberJWTKey: []byte("subscriber"),
+		PublisherJWTAlgorithm: hmacSigningMethod,
+		SubscriberJWTAlgorithm: hmacSigningMethod,
 		AllowAnonymous:   true,
 		Addr:             testAddr,
 		Compress:         true,
@@ -58,6 +60,8 @@ func createAnonymousDummyWithHistory(h History) *Hub {
 	return NewHub(&localPublisher{}, h, &Options{
 		PublisherJWTKey:  []byte("publisher"),
 		SubscriberJWTKey: []byte("subscriber"),
+		PublisherJWTAlgorithm: hmacSigningMethod,
+		SubscriberJWTAlgorithm: hmacSigningMethod,
 		AllowAnonymous:   true,
 		Addr:             testAddr,
 	})
