@@ -36,6 +36,10 @@
 * [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
 * [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
 
+## Projects Using Mercure
+
+* [HTTP Broadcast: a scalable and fault resilient HTTP broadcaster](https://github.com/jderusse/http-broadcast)
+
 ## Learning Resources
 
 ### English
@@ -43,8 +47,13 @@
 * [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure (Symfony blog)](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
 * [Tech Workshop: Mercure by Kévin Dunglas at SensioLabs (SensioLabs)](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
 * [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
+* [Using Mercure on Stackhero](https://www.stackhero.io/en/documentations/mercure-hub/getting-started)
 
 ### French
 
 * [Tutoriel vidéo : Notifications instantanées avec Mercure (Grafikart)](https://www.grafikart.fr/tutoriels/symfony-mercure-1151)
 * [Mercure, un protocole pour pousser des mises à jour vers des navigateurs et app mobiles en temps réel (Les-Tilleuls.coop)](https://les-tilleuls.coop/fr/blog/article/mercure-un-protocole-pour-pousser-des-mises-a-jour-vers-des-navigateurs-et-app-mobiles-en-temps-reel)
+
+### German
+
+* [Neue Symfony-Komponente: Mercure ermöglicht Echtzeitübertragung](https://entwickler.de/online/php/symfony-mercure-komponente-579885243.html)
