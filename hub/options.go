@@ -2,7 +2,7 @@ package hub
 
 import (
 	"fmt"
-	"os"
+	"github.com/dunglas/mercure/config"
 	"strconv"
 	"strings"
 	"time"
@@ -37,19 +37,19 @@ type Options struct {
 }
 
 func getJWTKey(role string) string {
-	key := os.Getenv(fmt.Sprintf("%s_JWT_KEY", role))
+	key := config.GetString(fmt.Sprintf("%s_JWT_KEY", role))
 	if key == "" {
-		return os.Getenv("JWT_KEY")
+		return config.GetString("JWT_KEY")
 	}
 
 	return key
 }
 
 func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
-	keyType := os.Getenv(fmt.Sprintf("%s_JWT_ALGORITHM", role))
+	keyType := config.GetString(fmt.Sprintf("%s_JWT_ALGORITHM", role))
 
 	if keyType == "" {
-		keyType = os.Getenv("JWT_ALGORITHM")
+		keyType = config.GetString("JWT_ALGORITHM")
 	}
 
 	if keyType == "" {
@@ -64,7 +64,7 @@ func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
 // NewOptionsFromEnv creates a new option instance from environment
 // It returns an error if mandatory env env vars are missing
 func NewOptionsFromEnv() (*Options, error) {
-	dbPath := os.Getenv("DB_PATH")
+	dbPath := config.GetString("DB_PATH")
 	if dbPath == "" {
 		dbPath = "updates.db"
 	}
@@ -72,7 +72,7 @@ func NewOptionsFromEnv() (*Options, error) {
 	var err error
 
 	historySize := uint64(0)
-	historySizeFromEnv := os.Getenv("HISTORY_SIZE")
+	historySizeFromEnv := config.GetString("HISTORY_SIZE")
 	if historySizeFromEnv != "" {
 		historySize, err = strconv.ParseUint(historySizeFromEnv, 10, 64)
 		if err != nil {
@@ -81,7 +81,7 @@ func NewOptionsFromEnv() (*Options, error) {
 	}
 
 	historyCleanupFrequency := 0.3
-	historyCleanupFrequencyFromEnv := os.Getenv("HISTORY_CLEANUP_FREQUENCY")
+	historyCleanupFrequencyFromEnv := config.GetString("HISTORY_CLEANUP_FREQUENCY")
 	if historyCleanupFrequencyFromEnv != "" {
 		historyCleanupFrequency, err = strconv.ParseFloat(historyCleanupFrequencyFromEnv, 64)
 		if err != nil {
@@ -116,7 +116,7 @@ func NewOptionsFromEnv() (*Options, error) {
 	}
 
 	options := &Options{
-		os.Getenv("DEBUG") == "1",
+		config.GetString("DEBUG") == "1",
 		dbPath,
 		historySize,
 		historyCleanupFrequency,
@@ -124,20 +124,20 @@ func NewOptionsFromEnv() (*Options, error) {
 		[]byte(getJWTKey("SUBSCRIBER")),
 		pubJwtAlgorithm,
 		subJwtAlgorithm,
-		os.Getenv("ALLOW_ANONYMOUS") == "1",
-		splitVar(os.Getenv("CORS_ALLOWED_ORIGINS")),
-		splitVar(os.Getenv("PUBLISH_ALLOWED_ORIGINS")),
-		os.Getenv("ADDR"),
-		splitVar(os.Getenv("ACME_HOSTS")),
-		os.Getenv("ACME_CERT_DIR"),
-		os.Getenv("CERT_FILE"),
-		os.Getenv("KEY_FILE"),
+		config.GetString("ALLOW_ANONYMOUS") == "1",
+		splitVar(config.GetString("CORS_ALLOWED_ORIGINS")),
+		splitVar(config.GetString("PUBLISH_ALLOWED_ORIGINS")),
+		config.GetString("ADDR"),
+		splitVar(config.GetString("ACME_HOSTS")),
+		config.GetString("ACME_CERT_DIR"),
+		config.GetString("CERT_FILE"),
+		config.GetString("KEY_FILE"),
 		heartbeatInterval,
 		readTimeout,
 		writeTimeout,
-		os.Getenv("COMPRESS") != "0",
-		os.Getenv("USE_FORWARDED_HEADERS") == "1",
-		os.Getenv("DEMO") == "1" || os.Getenv("DEBUG") == "1",
+		config.GetString("COMPRESS") != "0",
+		config.GetString("USE_FORWARDED_HEADERS") == "1",
+		config.GetString("DEMO") == "1" || config.GetString("DEBUG") == "1",
 	}
 
 	missingEnv := make([]string, 0, 4)
@@ -170,7 +170,7 @@ func splitVar(v string) []string {
 }
 
 func parseDurationFromEnvVar(k string, d time.Duration) (time.Duration, error) {
-	v := os.Getenv(k)
+	v := config.GetString(k)
 	if v == "" {
 		return d, nil
 	}
