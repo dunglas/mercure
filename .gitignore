@@ -9,3 +9,4 @@
 /spec/mercure.xml
 __pycache__
 *.pyc
+.idea/
