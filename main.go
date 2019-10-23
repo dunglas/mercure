@@ -1,19 +1,18 @@
 package main
 
 import (
-	"os"
-
+	"github.com/dunglas/mercure/config"
 	fluentd "github.com/joonix/log"
 	log "github.com/sirupsen/logrus"
 
 	_ "net/http/pprof"
 
+	_ "github.com/dunglas/mercure/config"
 	"github.com/dunglas/mercure/hub"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 func init() {
-	switch os.Getenv("LOG_FORMAT") {
+	switch config.GetString("LOG_FORMAT") {
 	case "JSON":
 		log.SetFormatter(&log.JSONFormatter{})
 		return
@@ -21,7 +20,7 @@ func init() {
 		log.SetFormatter(fluentd.NewFormatter())
 	}
 
-	if os.Getenv("DEBUG") == "1" {
+	if config.GetString("DEBUG") == "1" {
 		log.SetLevel(log.DebugLevel)
 	}
 }
