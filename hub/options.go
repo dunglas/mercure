@@ -37,30 +37,36 @@ type Options struct {
 	Demo                    bool
 }
 
-func getJWTKey(role string) string {
+func getJWTKey(role string) (string, error) {
 	roleKeyFile := os.Getenv(fmt.Sprintf("%s_JWT_KEY_FILE", role))
 	if roleKeyFile != "" {
-		file, _ := ioutil.ReadFile(roleKeyFile)
-		return string(file)
+		file, err := ioutil.ReadFile(roleKeyFile)
+		if err != nil {
+			return "", fmt.Errorf("error loading file: %v", err)
+		}
+		return string(file), err
 	}
 
 	roleKey := os.Getenv(fmt.Sprintf("%s_JWT_KEY", role))
 	if roleKey != "" {
-		return roleKey
+		return roleKey, nil
 	}
 
 	keyFile := os.Getenv("JWT_KEY_FILE")
 	if keyFile != "" {
-		file, _ := ioutil.ReadFile(keyFile)
-		return string(file)
+		file, err := ioutil.ReadFile(keyFile)
+		if err != nil {
+			return "", fmt.Errorf("error loading file: %v", err)
+		}
+		return string(file), err
 	}
 
 	key := os.Getenv("JWT_KEY")
 	if key != "" {
-		return key
+		return key, nil
 	}
 
-	return ""
+	return "", nil
 }
 
 func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
@@ -133,13 +139,23 @@ func NewOptionsFromEnv() (*Options, error) {
 		return nil, fmt.Errorf("Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got %T", subJwtAlgorithm)
 	}
 
+	pubKey, err := getJWTKey("PUBLISHER")
+	if err != nil {
+		return nil, fmt.Errorf("could not load publisher key: %s", err)
+	}
+
+	subKey, err := getJWTKey("SUBSCRIBER")
+	if err != nil {
+		return nil, fmt.Errorf("could not load subscriber key: %s", err)
+	}
+
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
 		dbPath,
 		historySize,
 		historyCleanupFrequency,
-		[]byte(getJWTKey("PUBLISHER")),
-		[]byte(getJWTKey("SUBSCRIBER")),
+		[]byte(pubKey),
+		[]byte(subKey),
 		pubJwtAlgorithm,
 		subJwtAlgorithm,
 		os.Getenv("ALLOW_ANONYMOUS") == "1",
