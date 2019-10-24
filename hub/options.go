@@ -2,6 +2,7 @@ package hub
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -37,12 +38,29 @@ type Options struct {
 }
 
 func getJWTKey(role string) string {
-	key := os.Getenv(fmt.Sprintf("%s_JWT_KEY", role))
-	if key == "" {
-		return os.Getenv("JWT_KEY")
+	roleKeyFile := os.Getenv(fmt.Sprintf("%s_JWT_KEY_FILE", role))
+	if roleKeyFile != "" {
+		file, _ := ioutil.ReadFile(roleKeyFile)
+		return string(file)
 	}
 
-	return key
+	roleKey := os.Getenv(fmt.Sprintf("%s_JWT_KEY", role))
+	if roleKey != "" {
+		return roleKey
+	}
+
+	keyFile := os.Getenv("JWT_KEY_FILE")
+	if keyFile != "" {
+		file, _ := ioutil.ReadFile(keyFile)
+		return string(file)
+	}
+
+	key := os.Getenv("JWT_KEY")
+	if key != "" {
+		return key
+	}
+
+	return ""
 }
 
 func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
