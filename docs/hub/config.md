@@ -50,7 +50,7 @@ bCd7nPuNAyYHCOOHAgMBAAE=
 
 Bash
 ```
-JWT_KEY=`cat jwt_key.pub` ./mecure
+JWT_KEY_FILE=jwt_key.pub ./mecure
 ```
 
 PowerShell
