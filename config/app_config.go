@@ -13,8 +13,10 @@ func init(){
 	viper.AutomaticEnv()
 	viper.AddConfigPath(".")
 	viper.AddConfigPath( path.Join(rootPath,".."))
-	err := viper.ReadInConfig()
-	if err != nil {
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			 log.Panic(err)
+		}
 		log.Println("Loading config from enviroment variables..")
 	}
 }
