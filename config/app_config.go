@@ -9,13 +9,17 @@ import (
 )
 
 func init(){
+	setupConfig()
+}
+
+func setupConfig(){
 	rootPath,_ := os.Getwd()
 	viper.AutomaticEnv()
 	viper.AddConfigPath(".")
 	viper.AddConfigPath( path.Join(rootPath,".."))
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			 log.Panic(err)
+			log.Panic(err)
 		}
 		log.Println("Loading config from enviroment variables..")
 	}
