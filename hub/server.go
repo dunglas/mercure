@@ -24,11 +24,17 @@ func (h *Hub) Serve() {
 		ReadTimeout:  h.options.ReadTimeout,
 		WriteTimeout: h.options.WriteTimeout,
 	}
+	idleConnsClosed := make(chan struct{})
+
 	h.server.RegisterOnShutdown(func() {
 		h.Stop()
+		select {
+		case <-idleConnsClosed:
+		default:
+			close(idleConnsClosed)
+		}
 	})
 
-	idleConnsClosed := make(chan struct{})
 	go func() {
 		sigint := make(chan os.Signal, 1)
 		signal.Notify(sigint, os.Interrupt)
@@ -38,7 +44,11 @@ func (h *Hub) Serve() {
 			log.Error(err)
 		}
 		log.Infoln("My Baby Shot Me Down")
-		close(idleConnsClosed)
+		select {
+		case <-idleConnsClosed:
+		default:
+			close(idleConnsClosed)
+		}
 	}()
 
 	acme := len(h.options.AcmeHosts) > 0

@@ -8,7 +8,6 @@ import (
 
 type subscribers struct {
 	sync.RWMutex
-	m map[chan *serializedUpdate]struct{}
 }
 
 // Subscriber represents a client subscribed to a list of topics
@@ -25,11 +24,6 @@ type Subscriber struct {
 // NewSubscriber creates a subscriber
 func NewSubscriber(allTargets bool, targets map[string]struct{}, topics []string, rawTopics []string, templateTopics []*uritemplate.Template, lastEventID string) *Subscriber {
 	return &Subscriber{allTargets, targets, topics, rawTopics, templateTopics, lastEventID, make(map[string]bool)}
-}
-
-// CanReceive checks if the update can be dispatched according to the given criteria
-func (s *Subscriber) CanReceive(u *Update) bool {
-	return s.IsAuthorized(u) && s.IsSubscribed(u)
 }
 
 // IsAuthorized checks if the subscriber can access to at least one of the update's intended targets

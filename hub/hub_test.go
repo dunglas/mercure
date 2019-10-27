@@ -6,6 +6,7 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const testAddr = "127.0.0.1:4242"
@@ -14,10 +15,6 @@ func TestNewHub(t *testing.T) {
 	h := createDummy()
 
 	assert.IsType(t, &Options{}, h.options)
-	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers.m)
-	assert.IsType(t, make(chan (chan *serializedUpdate)), h.newSubscribers)
-	assert.IsType(t, make(chan (chan *serializedUpdate)), h.removedSubscribers)
-	assert.IsType(t, make(chan *serializedUpdate), h.updates)
 }
 
 func TestNewHubFromEnv(t *testing.T) {
@@ -26,44 +23,48 @@ func TestNewHubFromEnv(t *testing.T) {
 	defer os.Unsetenv("PUBLISHER_JWT_KEY")
 	defer os.Unsetenv("JWT_KEY")
 
-	h, db, err := NewHubFromEnv()
-	defer db.Close()
-	assert.NotNil(t, h)
-	assert.NotNil(t, db)
+	h, err := NewHubFromEnv()
 	assert.Nil(t, err)
+	require.NotNil(t, h)
+	h.Stop()
 }
 
 func TestNewHubFromEnvError(t *testing.T) {
-	h, db, err := NewHubFromEnv()
+	h, err := NewHubFromEnv()
 	assert.Nil(t, h)
-	assert.Nil(t, db)
+	assert.Error(t, err)
+}
+
+func TestNewHubFromEnvErrorFromTransport(t *testing.T) {
+	os.Setenv("PUBLISHER_JWT_KEY", "foo")
+	os.Setenv("JWT_KEY", "bar")
+	os.Setenv("TRANSPORT_URL", "foo://")
+	defer os.Unsetenv("PUBLISHER_JWT_KEY")
+	defer os.Unsetenv("JWT_KEY")
+	defer os.Unsetenv("TRANSPORT_URL")
+
+	h, err := NewHubFromEnv()
+	assert.Nil(t, h)
 	assert.Error(t, err)
 }
 
 func createDummy() *Hub {
-	return NewHub(&localPublisher{}, &noHistory{}, &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), PublisherJWTAlgorithm: hmacSigningMethod, SubscriberJWTAlgorithm: hmacSigningMethod})
+	return NewHub(NewLocalTransport(), &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), PublisherJWTAlgorithm: hmacSigningMethod, SubscriberJWTAlgorithm: hmacSigningMethod})
 }
 
 func createAnonymousDummy() *Hub {
-	return NewHub(&localPublisher{}, &noHistory{}, &Options{
-		PublisherJWTKey:  []byte("publisher"),
-		SubscriberJWTKey: []byte("subscriber"),
-		PublisherJWTAlgorithm: hmacSigningMethod,
-		SubscriberJWTAlgorithm: hmacSigningMethod,
-		AllowAnonymous:   true,
-		Addr:             testAddr,
-		Compress:         true,
-	})
+	return createAnonymousDummyWithTransport(NewLocalTransport())
 }
 
-func createAnonymousDummyWithHistory(h History) *Hub {
-	return NewHub(&localPublisher{}, h, &Options{
-		PublisherJWTKey:  []byte("publisher"),
-		SubscriberJWTKey: []byte("subscriber"),
-		PublisherJWTAlgorithm: hmacSigningMethod,
+func createAnonymousDummyWithTransport(t Transport) *Hub {
+	return NewHub(t, &Options{
+		PublisherJWTKey:        []byte("publisher"),
+		SubscriberJWTKey:       []byte("subscriber"),
+		PublisherJWTAlgorithm:  hmacSigningMethod,
 		SubscriberJWTAlgorithm: hmacSigningMethod,
-		AllowAnonymous:   true,
-		Addr:             testAddr,
+		AllowAnonymous:         true,
+		Addr:                   testAddr,
+		Compress:               false,
 	})
 }
 

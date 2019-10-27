@@ -25,7 +25,6 @@ func TestForwardedHeaders(t *testing.T) {
 	h.options.Demo = true
 	h.options.UseForwardedHeaders = true
 
-	h.Start()
 	go func() {
 		h.Serve()
 	}()
@@ -63,7 +62,6 @@ func TestSecurityOptions(t *testing.T) {
 	h.options.KeyFile = "../fixtures/tls/server.key"
 	h.options.Compress = false
 
-	h.Start()
 	go func() {
 		h.Serve()
 	}()
@@ -102,7 +100,6 @@ func TestSecurityOptions(t *testing.T) {
 func TestServe(t *testing.T) {
 	h := createAnonymousDummy()
 
-	h.Start()
 	go func() {
 		h.Serve()
 	}()
@@ -171,7 +168,7 @@ func TestServeAcme(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "cert")
 	defer os.RemoveAll(dir)
 
-	h := NewHub(&localPublisher{}, &noHistory{}, &Options{
+	h := NewHub(NewLocalTransport(), &Options{
 		PublisherJWTKey:        []byte("publisher"),
 		SubscriberJWTKey:       []byte("subscriber"),
 		PublisherJWTAlgorithm:  hmacSigningMethod,
@@ -184,7 +181,6 @@ func TestServeAcme(t *testing.T) {
 		Compress:               true,
 	})
 
-	h.Start()
 	go func() {
 		h.Serve()
 	}()

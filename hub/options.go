@@ -2,8 +2,8 @@ package hub
 
 import (
 	"fmt"
+	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -12,29 +12,27 @@ import (
 
 // Options stores the hub's options
 type Options struct {
-	Debug                   bool
-	DBPath                  string
-	HistorySize             uint64
-	HistoryCleanupFrequency float64
-	PublisherJWTKey         []byte
-	SubscriberJWTKey        []byte
-	PublisherJWTAlgorithm   jwt.SigningMethod
-	SubscriberJWTAlgorithm  jwt.SigningMethod
-	AllowAnonymous          bool
-	CorsAllowedOrigins      []string
-	PublishAllowedOrigins   []string
-	Addr                    string
-	AcmeHosts               []string
-	AcmeHTTP01Addr          string
-	AcmeCertDir             string
-	CertFile                string
-	KeyFile                 string
-	HeartbeatInterval       time.Duration
-	ReadTimeout             time.Duration
-	WriteTimeout            time.Duration
-	Compress                bool
-	UseForwardedHeaders     bool
-	Demo                    bool
+	Debug                  bool
+	TransportURL           *url.URL
+	PublisherJWTKey        []byte
+	SubscriberJWTKey       []byte
+	PublisherJWTAlgorithm  jwt.SigningMethod
+	SubscriberJWTAlgorithm jwt.SigningMethod
+	AllowAnonymous         bool
+	CorsAllowedOrigins     []string
+	PublishAllowedOrigins  []string
+	Addr                   string
+	AcmeHosts              []string
+	AcmeHTTP01Addr         string
+	AcmeCertDir            string
+	CertFile               string
+	KeyFile                string
+	HeartbeatInterval      time.Duration
+	ReadTimeout            time.Duration
+	WriteTimeout           time.Duration
+	Compress               bool
+	UseForwardedHeaders    bool
+	Demo                   bool
 }
 
 func getJWTKey(role string) string {
@@ -65,29 +63,11 @@ func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
 // NewOptionsFromEnv creates a new option instance from environment
 // It returns an error if mandatory env env vars are missing
 func NewOptionsFromEnv() (*Options, error) {
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "updates.db"
-	}
-
 	var err error
 
-	historySize := uint64(0)
-	historySizeFromEnv := os.Getenv("HISTORY_SIZE")
-	if historySizeFromEnv != "" {
-		historySize, err = strconv.ParseUint(historySizeFromEnv, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("HISTORY_SIZE: %s", err)
-		}
-	}
-
-	historyCleanupFrequency := 0.3
-	historyCleanupFrequencyFromEnv := os.Getenv("HISTORY_CLEANUP_FREQUENCY")
-	if historyCleanupFrequencyFromEnv != "" {
-		historyCleanupFrequency, err = strconv.ParseFloat(historyCleanupFrequencyFromEnv, 64)
-		if err != nil {
-			return nil, fmt.Errorf("HISTORY_CLEANUP_FREQUENCY: %s", err)
-		}
+	transportURL, err := parseURLFromEnvVar("TRANSPORT_URL", "bolt://updates.db")
+	if err != nil {
+		return nil, err
 	}
 
 	heartbeatInterval, err := parseDurationFromEnvVar("HEARTBEAT_INTERVAL", time.Duration(15*time.Second))
@@ -123,9 +103,7 @@ func NewOptionsFromEnv() (*Options, error) {
 
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
-		dbPath,
-		historySize,
-		historyCleanupFrequency,
+		transportURL,
 		[]byte(getJWTKey("PUBLISHER")),
 		[]byte(getJWTKey("SUBSCRIBER")),
 		pubJwtAlgorithm,
@@ -187,5 +165,19 @@ func parseDurationFromEnvVar(k string, d time.Duration) (time.Duration, error) {
 		return dur, nil
 	}
 
-	return time.Duration(0), fmt.Errorf("%s: %s", k, err)
+	return time.Duration(0), fmt.Errorf("%s: %w", k, err)
+}
+
+func parseURLFromEnvVar(k string, d string) (*url.URL, error) {
+	v := os.Getenv(k)
+	if v == "" {
+		return url.Parse(d)
+	}
+
+	u, err := url.Parse(v)
+	if err == nil {
+		return u, nil
+	}
+
+	return nil, fmt.Errorf("%s: %w", k, err)
 }
