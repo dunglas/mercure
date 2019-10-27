@@ -58,7 +58,7 @@ func (h *Hub) Serve() {
 			h.server.TLSConfig = certManager.TLSConfig()
 
 			// Mandatory for Let's Encrypt http-01 challenge
-			go http.ListenAndServe(":http", certManager.HTTPHandler(nil))
+			go http.ListenAndServe(h.options.AcmeHTTP01Addr, certManager.HTTPHandler(nil))
 		}
 
 		log.WithFields(log.Fields{"protocol": "https", "addr": h.options.Addr}).Info("Mercure started")
