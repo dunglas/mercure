@@ -98,10 +98,9 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	// receive updates
 	h.newSubscribers <- updateChan
 
-	// Listen to the closing of the http connection via the CloseNotifier
-	notify := w.(http.CloseNotifier).CloseNotify()
+	// Listen to the closing of the http connection via the Request's Context
 	go func() {
-		<-notify
+		<-r.Context().Done()
 		h.removedSubscribers <- updateChan
 		log.WithFields(fields).Info("Subscriber disconnected")
 	}()
