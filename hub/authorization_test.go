@@ -49,7 +49,7 @@ func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 	r.Header.Add("Authorization", validEmptyHeader)
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "Invalid \"Authorization\" HTTP header")
+	assert.EqualError(t, err, "invalid \"Authorization\" HTTP header")
 	assert.Nil(t, claims)
 }
 
@@ -59,7 +59,7 @@ func TestAuthorizeMultipleAuthorizationHeaderRsa(t *testing.T) {
 	r.Header.Add("Authorization", validEmptyHeaderRsa)
 
 	claims, err := authorize(r, []byte{}, rsaSigningMethod, []string{})
-	assert.EqualError(t, err, "Invalid \"Authorization\" HTTP header")
+	assert.EqualError(t, err, "invalid \"Authorization\" HTTP header")
 	assert.Nil(t, claims)
 }
 
@@ -68,7 +68,7 @@ func TestAuthorizeAuthorizationHeaderTooShort(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer x")
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "Invalid \"Authorization\" HTTP header")
+	assert.EqualError(t, err, "invalid \"Authorization\" HTTP header")
 	assert.Nil(t, claims)
 }
 
@@ -77,7 +77,7 @@ func TestAuthorizeAuthorizationHeaderNoBearer(t *testing.T) {
 	r.Header.Add("Authorization", "Greater "+validEmptyHeader)
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "Invalid \"Authorization\" HTTP header")
+	assert.EqualError(t, err, "invalid \"Authorization\" HTTP header")
 	assert.Nil(t, claims)
 }
 
@@ -86,7 +86,7 @@ func TestAuthorizeAuthorizationHeaderNoBearerRsa(t *testing.T) {
 	r.Header.Add("Authorization", "Greater "+validEmptyHeaderRsa)
 
 	claims, err := authorize(r, []byte{}, rsaSigningMethod, []string{})
-	assert.EqualError(t, err, "Invalid \"Authorization\" HTTP header")
+	assert.EqualError(t, err, "invalid \"Authorization\" HTTP header")
 	assert.Nil(t, claims)
 }
 
@@ -162,7 +162,7 @@ func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsa)
 
 	claims, err := authorize(r, []byte(publicKeyRsa), nil, []string{})
-	assert.EqualError(t, err, "Unexpected signing method: <nil>")
+	assert.EqualError(t, err, "unexpected signing method: <nil>")
 	assert.Nil(t, claims)
 }
 
@@ -247,7 +247,7 @@ func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
 	claims, err := authorize(r, []byte("!ChangeMe!"), hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "An \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
+	assert.EqualError(t, err, "an \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
 	assert.Nil(t, claims)
 }
 
@@ -256,7 +256,7 @@ func TestAuthorizeCookieNoOriginNoRefererRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{})
-	assert.EqualError(t, err, "An \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
+	assert.EqualError(t, err, "an \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
 	assert.Nil(t, claims)
 }
 
@@ -266,7 +266,7 @@ func TestAuthorizeCookieOriginNotAllowed(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
 	claims, err := authorize(r, []byte("!ChangeMe!"), hmacSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, "The origin \"http://example.com\" is not allowed to post updates")
+	assert.EqualError(t, err, "the origin \"http://example.com\" is not allowed to post updates")
 	assert.Nil(t, claims)
 }
 
@@ -276,7 +276,7 @@ func TestAuthorizeCookieOriginNotAllowedRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, "The origin \"http://example.com\" is not allowed to post updates")
+	assert.EqualError(t, err, "the origin \"http://example.com\" is not allowed to post updates")
 	assert.Nil(t, claims)
 }
 
@@ -286,7 +286,7 @@ func TestAuthorizeCookieRefererNotAllowed(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
 	claims, err := authorize(r, []byte("!ChangeMe!"), hmacSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, "The origin \"http://example.com\" is not allowed to post updates")
+	assert.EqualError(t, err, "the origin \"http://example.com\" is not allowed to post updates")
 	assert.Nil(t, claims)
 }
 
@@ -296,7 +296,7 @@ func TestAuthorizeCookieRefererNotAllowedRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, "The origin \"http://example.com\" is not allowed to post updates")
+	assert.EqualError(t, err, "the origin \"http://example.com\" is not allowed to post updates")
 	assert.Nil(t, claims)
 }
 

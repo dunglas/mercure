@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -118,7 +119,7 @@ func (h *Hub) getURITemplate(topic string) *uritemplate.Template {
 	h.uriTemplates.Lock()
 	if tplCache, ok := h.uriTemplates.m[topic]; ok {
 		tpl = tplCache.template
-		tplCache.counter = tplCache.counter + 1
+		tplCache.counter++
 	} else {
 		if strings.Contains(topic, "{") { // If it's definitely not an URI template, skip to save some resources
 			tpl, _ = uritemplate.New(topic) // Returns nil in case of error, will be considered as a raw string
@@ -164,7 +165,7 @@ func retrieveLastEventID(r *http.Request) string {
 }
 
 // publish sends the update to the client, if authorized
-func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w http.ResponseWriter, r *http.Request) {
+func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w io.Writer, r *http.Request) {
 	fields := h.createLogFields(r, serializedUpdate.Update, subscriber)
 
 	if !subscriber.IsAuthorized(serializedUpdate.Update) {

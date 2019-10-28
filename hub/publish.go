@@ -26,8 +26,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parseFormErr := r.ParseForm()
-	if parseFormErr != nil {
+	if r.ParseForm() != nil {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -54,16 +53,12 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-
 		targets[t] = struct{}{}
 	}
 
 	var retry uint64
 	retryString := r.PostForm.Get("retry")
-	if retryString == "" {
-		retry = 0
-	} else {
-		var err error
+	if retryString != "" {
 		retry, err = strconv.ParseUint(retryString, 10, 64)
 		if err != nil {
 			http.Error(w, "Invalid \"retry\" parameter", http.StatusBadRequest)
@@ -78,8 +73,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Broadcast the update
-	err = h.dispatch(u)
-	if err != nil {
+	if err := h.dispatch(u); err != nil {
 		panic(err)
 	}
 

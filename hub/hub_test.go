@@ -82,11 +82,9 @@ func createDummyAuthorizedJWT(h *Hub, r role, targets []string) string {
 	switch r {
 	case publisherRole:
 		token.Claims = &claims{mercureClaim{Publish: targets}, jwt.StandardClaims{}}
-		break
 
 	case subscriberRole:
 		token.Claims = &claims{mercureClaim{Subscribe: targets}, jwt.StandardClaims{}}
-		break
 	}
 
 	tokenString, _ := token.SignedString(key)

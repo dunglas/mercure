@@ -27,38 +27,13 @@ func (h *Hub) Serve() {
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
-	idleConnsClosed := make(chan struct{})
-
-	h.server.RegisterOnShutdown(func() {
-		h.Stop()
-		select {
-		case <-idleConnsClosed:
-		default:
-			close(idleConnsClosed)
-		}
-	})
-
-	go func() {
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, os.Interrupt)
-		<-sigint
-
-		if err := h.server.Shutdown(context.Background()); err != nil {
-			log.Error(err)
-		}
-		log.Infoln("My Baby Shot Me Down")
-		select {
-		case <-idleConnsClosed:
-		default:
-			close(idleConnsClosed)
-		}
-	}()
 
 	acme := len(acmeHosts) > 0
-	var err error
-
 	certFile := h.config.GetString("cert_file")
 	keyFile := h.config.GetString("key_file")
+
+	done := h.listenShutdown()
+	var err error
 
 	if !acme && certFile == "" && keyFile == "" {
 		log.WithFields(log.Fields{"protocol": "http", "addr": addr}).Info("Mercure started")
@@ -89,7 +64,38 @@ func (h *Hub) Serve() {
 		log.Fatal(err)
 	}
 
-	<-idleConnsClosed
+	<-done
+}
+
+func (h *Hub) listenShutdown() chan struct{} {
+	idleConnsClosed := make(chan struct{})
+
+	h.server.RegisterOnShutdown(func() {
+		h.Stop()
+		select {
+		case <-idleConnsClosed:
+		default:
+			close(idleConnsClosed)
+		}
+	})
+
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		<-sigint
+
+		if err := h.server.Shutdown(context.Background()); err != nil {
+			log.Error(err)
+		}
+		log.Infoln("My Baby Shot Me Down")
+		select {
+		case <-idleConnsClosed:
+		default:
+			close(idleConnsClosed)
+		}
+	}()
+
+	return idleConnsClosed
 }
 
 // chainHandlers configures and chains handlers

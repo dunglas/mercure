@@ -36,7 +36,6 @@ func (h *Hub) getJWTKey(r role) []byte {
 	switch r {
 	case subscriberRole:
 		configKey = "subscriber_jwt_key"
-		break
 	case publisherRole:
 		configKey = "publisher_jwt_key"
 	}
@@ -57,7 +56,6 @@ func (h *Hub) getJWTAlgorithm(r role) jwt.SigningMethod {
 	switch r {
 	case subscriberRole:
 		configKey = "subscriber_jwt_algorithm"
-		break
 	case publisherRole:
 		configKey = "publisher_jwt_algorithm"
 	}
@@ -81,7 +79,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
-			return nil, errors.New("Invalid \"Authorization\" HTTP header")
+			return nil, errors.New("invalid \"Authorization\" HTTP header")
 		}
 
 		return validateJWT(authorizationHeaders[0][7:], jwtKey, jwtSigningAlgorithm)
@@ -103,7 +101,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 		// Try to extract the origin from the Referer, or return an error
 		referer := r.Header.Get("Referer")
 		if referer == "" {
-			return nil, errors.New("An \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
+			return nil, errors.New("an \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
 		}
 
 		u, err := url.Parse(referer)
@@ -120,7 +118,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 		}
 	}
 
-	return nil, fmt.Errorf("The origin \"%s\" is not allowed to post updates", origin)
+	return nil, fmt.Errorf("the origin \"%s\" is not allowed to post updates", origin)
 }
 
 // validateJWT validates that the provided JWT token is a valid Mercure token
@@ -147,7 +145,7 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 			return pub, nil
 		}
 
-		return nil, fmt.Errorf("Unexpected signing method: %T", signingAlgorithm)
+		return nil, fmt.Errorf("unexpected signing method: %T", signingAlgorithm)
 	})
 
 	if err != nil {
@@ -158,7 +156,7 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 		return claims, nil
 	}
 
-	return nil, errors.New("Invalid JWT")
+	return nil, errors.New("invalid JWT")
 }
 
 func authorizedTargets(claims *claims, publisher bool) (all bool, targets map[string]struct{}) {

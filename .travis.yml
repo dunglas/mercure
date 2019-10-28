@@ -10,13 +10,13 @@ services:
 
 before_install:
   - GO111MODULE=off go get github.com/mattn/goveralls
+  - curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $(go env GOPATH)/bin
 
 install:
   - go get
 
 script:
-  - go vet
-  - gofmt -e -d *.go
+  - golangci-lint run ./...
   - go build
   - $GOPATH/bin/goveralls -race -service=travis-ci
 after_success:

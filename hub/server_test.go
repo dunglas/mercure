@@ -30,14 +30,15 @@ func TestForwardedHeaders(t *testing.T) {
 		h.Serve()
 	}()
 
-	client := http.Client{Timeout: time.Duration(100 * time.Millisecond)}
+	client := http.Client{Timeout: 100 * time.Millisecond}
 	hook := test.NewGlobal()
 
 	// loop until the web server is ready
 	var resp *http.Response
 	for resp == nil {
-		resp, _ = client.Get(testURL)
+		resp, _ = client.Get(testURL) //nolint:bodyclose
 	}
+	defer resp.Body.Close()
 
 	body := url.Values{"topic": {"http://example.com/test-forwarded"}, "data": {"hello"}}
 	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
@@ -45,10 +46,9 @@ func TestForwardedHeaders(t *testing.T) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
 
-	_, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
+	resp2, err := client.Do(req)
+	require.Nil(t, err)
+	defer resp2.Body.Close()
 
 	assert.Equal(t, "192.0.2.1", hook.LastEntry().Data["remote_addr"])
 
@@ -70,15 +70,16 @@ func TestSecurityOptions(t *testing.T) {
 
 	// This is a self-signed certificate
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 	}
-	client := http.Client{Transport: transport, Timeout: time.Duration(100 * time.Millisecond)}
+	client := http.Client{Transport: transport, Timeout: 100 * time.Millisecond}
 
 	// loop until the web server is ready
 	var resp *http.Response
 	for resp == nil {
-		resp, _ = client.Get(testSecureURL)
+		resp, _ = client.Get(testSecureURL) //nolint:bodyclose
 	}
+	defer resp.Body.Close()
 
 	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
@@ -90,11 +91,13 @@ func TestSecurityOptions(t *testing.T) {
 	req.Header.Add("Origin", "https://example.com")
 	req.Header.Add("Access-Control-Request-Headers", "authorization")
 	req.Header.Add("Access-Control-Request-Method", "GET")
-	resp, _ = client.Do(req)
+	resp2, _ := client.Do(req)
+	require.NotNil(t, resp2)
+	defer resp2.Body.Close()
 
-	assert.Equal(t, "true", resp.Header.Get("Access-Control-Allow-Credentials"))
-	assert.Equal(t, "Authorization", resp.Header.Get("Access-Control-Allow-Headers"))
-	assert.Equal(t, "*", resp.Header.Get("Access-Control-Allow-Origin"))
+	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
+	assert.Equal(t, "Authorization", resp2.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "*", resp2.Header.Get("Access-Control-Allow-Origin"))
 
 	h.server.Shutdown(context.Background())
 }
@@ -108,12 +111,12 @@ func TestServe(t *testing.T) {
 
 	// loop until the web server is ready
 	var resp *http.Response
-	client := http.Client{Timeout: time.Duration(100 * time.Millisecond)}
+	client := http.Client{Timeout: 100 * time.Millisecond}
 	for resp == nil {
-		resp, _ = client.Get("http://" + testAddr + "/")
+		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose
 	}
-
 	defer resp.Body.Close()
+
 	hpBody, _ := ioutil.ReadAll(resp.Body)
 
 	assert.Contains(t, string(hpBody), "Mercure Hub")
@@ -125,9 +128,7 @@ func TestServe(t *testing.T) {
 	go func() {
 		defer wgTested.Done()
 		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1")
-		if err != nil {
-			panic(err)
-		}
+		require.Nil(t, err)
 		wgConnected.Done()
 
 		defer resp.Body.Close()
@@ -139,9 +140,7 @@ func TestServe(t *testing.T) {
 	go func() {
 		defer wgTested.Done()
 		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Falt%2F1")
-		if err != nil {
-			panic(err)
-		}
+		require.Nil(t, err)
 		wgConnected.Done()
 
 		defer resp.Body.Close()
@@ -157,10 +156,9 @@ func TestServe(t *testing.T) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
 
-	_, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
+	resp2, err := client.Do(req)
+	require.Nil(t, err)
+	defer resp2.Body.Close()
 
 	h.server.Shutdown(context.Background())
 	wgTested.Wait()
@@ -188,7 +186,7 @@ func TestServeAcme(t *testing.T) {
 
 	var resp *http.Response
 	for resp == nil {
-		resp, _ = client.Get("http://127.0.0.1:8080")
+		resp, _ = client.Get("http://127.0.0.1:8080") //nolint:bodyclose
 	}
 
 	require.NotNil(t, resp)

@@ -23,6 +23,7 @@ func TestNoAuthorizationHeader(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -37,6 +38,7 @@ func TestPublishUnauthorizedJWT(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -51,6 +53,7 @@ func TestPublishInvalidAlgJWT(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -66,6 +69,7 @@ func TestPublishBadContentType(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
@@ -79,6 +83,7 @@ func TestPublishNoTopic(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	assert.Equal(t, "Missing \"topic\" parameter\n", w.Body.String())
@@ -98,6 +103,7 @@ func TestPublishNoData(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	assert.Equal(t, "Missing \"data\" parameter\n", w.Body.String())
@@ -119,6 +125,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	assert.Equal(t, "Invalid \"retry\" parameter\n", w.Body.String())
@@ -140,6 +147,7 @@ func TestPublishNotAuthorizedTarget(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
@@ -180,6 +188,7 @@ func TestPublishOK(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -219,6 +228,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
@@ -253,6 +263,7 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
