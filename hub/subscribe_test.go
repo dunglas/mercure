@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -157,7 +158,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 		go func(w2 *sync.WaitGroup) {
 			defer w2.Done()
 			req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=string&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil)
-			w := newCloseNotifyingRecorder()
+			w := httptest.NewRecorder()
 			hub.SubscribeHandler(w, req)
 
 			if t != nil {
@@ -179,14 +180,15 @@ func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 	hub.Start()
 	assert.Equal(t, 0, len(hub.subscribers.m))
-	wr := newCloseNotifyingRecorder()
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil)
-		hub.SubscribeHandler(wr, req)
+		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil).WithContext(ctx)
+		hub.SubscribeHandler(httptest.NewRecorder(), req)
 		assert.Equal(t, 0, len(hub.subscribers.m))
 	}(&wg)
 
@@ -199,7 +201,7 @@ func TestUnsubscribe(t *testing.T) {
 		}
 	}
 
-	wr.close()
+	cancel()
 	wg.Wait()
 }
 
@@ -240,7 +242,7 @@ func TestSubscribeTarget(t *testing.T) {
 	}()
 
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
-	w := newCloseNotifyingRecorder()
+	w := httptest.NewRecorder()
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, false, []string{"foo", "bar"})})
 
 	hub.SubscribeHandler(w, req)
@@ -281,7 +283,7 @@ func TestSubscribeAllTargets(t *testing.T) {
 	}()
 
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
-	w := newCloseNotifyingRecorder()
+	w := httptest.NewRecorder()
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, false, []string{"random", "*"}))
 	hub.SubscribeHandler(w, req)
 
@@ -317,22 +319,24 @@ func TestSendMissedEvents(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	wr1 := newCloseNotifyingRecorder()
-	go func(w *sync.WaitGroup) {
-		defer w.Done()
-		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil)
-		hub.SubscribeHandler(wr1, req)
-		assert.Equal(t, ":\nid: b\ndata: d2\n\n", wr1.Body.String())
-	}(&wg)
+	ctx, cancel := context.WithCancel(context.Background())
 
-	wr2 := newCloseNotifyingRecorder()
-	go func(w *sync.WaitGroup) {
-		defer w.Done()
-		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}", nil)
+	go func() {
+		defer wg.Done()
+		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
+		w := httptest.NewRecorder()
+		hub.SubscribeHandler(w, req)
+		assert.Equal(t, ":\nid: b\ndata: d2\n\n", w.Body.String())
+	}()
+
+	go func() {
+		defer wg.Done()
+		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
 		req.Header.Add("Last-Event-ID", "a")
-		hub.SubscribeHandler(wr2, req)
-		assert.Equal(t, ":\nid: b\ndata: d2\n\n", wr2.Body.String())
-	}(&wg)
+		w := httptest.NewRecorder()
+		hub.SubscribeHandler(w, req)
+		assert.Equal(t, ":\nid: b\ndata: d2\n\n", w.Body.String())
+	}()
 
 	for {
 		hub.subscribers.RLock()
@@ -344,8 +348,7 @@ func TestSendMissedEvents(t *testing.T) {
 		}
 	}
 
-	wr1.close()
-	wr2.close()
+	cancel()
 	wg.Wait()
 }
 
@@ -376,33 +379,12 @@ func TestSubscribeHeartbeat(t *testing.T) {
 	}()
 
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil)
-	w := newCloseNotifyingRecorder()
+	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, ":\nid: b\ndata: Hello World\n\n:\n", w.Body.String())
-}
-
-// From https://github.com/go-martini/martini/blob/master/response_writer_test.go
-type closeNotifyingRecorder struct {
-	*httptest.ResponseRecorder
-	closed chan bool
-}
-
-func newCloseNotifyingRecorder() *closeNotifyingRecorder {
-	return &closeNotifyingRecorder{
-		httptest.NewRecorder(),
-		make(chan bool, 1),
-	}
-}
-
-func (c *closeNotifyingRecorder) close() {
-	c.closed <- true
-}
-
-func (c *closeNotifyingRecorder) CloseNotify() <-chan bool {
-	return c.closed
 }
 
 func BenchmarkSubscribe(b *testing.B) {
