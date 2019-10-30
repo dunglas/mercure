@@ -13,6 +13,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 	testEnv := map[string]string{
 		"ACME_CERT_DIR":             "/tmp",
 		"ACME_HOSTS":                "example.com,example.org",
+		"ACME_HTTP01_ADDR":          ":8080",
 		"ADDR":                      "127.0.0.1:8080",
 		"ALLOW_ANONYMOUS":           "1",
 		"CERT_FILE":                 "foo",
@@ -28,7 +29,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"PUBLISHER_JWT_ALGORITHM":   "HS256",
 		"PUBLISH_ALLOWED_ORIGINS":   "http://127.0.0.1:8080",
 		"SUBSCRIBER_JWT_KEY":        "bar",
-		"SUBSCRIBER_JWT_ALGORITHM":   "HS256",
+		"SUBSCRIBER_JWT_ALGORITHM":  "HS256",
 		"HEARTBEAT_INTERVAL":        "30s",
 		"READ_TIMEOUT":              "1m",
 		"WRITE_TIMEOUT":             "40s",
@@ -54,6 +55,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		[]string{"http://127.0.0.1:8080"},
 		"127.0.0.1:8080",
 		[]string{"example.com", "example.org"},
+		":8080",
 		"/tmp",
 		"foo",
 		"bar",
@@ -74,10 +76,10 @@ func TestMissingEnv(t *testing.T) {
 
 func TestWrongPublisherAlgorithmEnv(t *testing.T) {
 	testEnv := map[string]string{
-		"PUBLISHER_JWT_KEY":         "foo",
-		"PUBLISHER_JWT_ALGORITHM":   "FOO256",
-		"SUBSCRIBER_JWT_KEY":        "bar",
-		"SUBSCRIBER_JWT_ALGORITHM":  "HS256",
+		"PUBLISHER_JWT_KEY":        "foo",
+		"PUBLISHER_JWT_ALGORITHM":  "FOO256",
+		"SUBSCRIBER_JWT_KEY":       "bar",
+		"SUBSCRIBER_JWT_ALGORITHM": "HS256",
 	}
 	for k, v := range testEnv {
 		os.Setenv(k, v)
@@ -90,10 +92,10 @@ func TestWrongPublisherAlgorithmEnv(t *testing.T) {
 
 func TestWrongSubscriberAlgorithmEnv(t *testing.T) {
 	testEnv := map[string]string{
-		"PUBLISHER_JWT_KEY":         "foo",
-		"PUBLISHER_JWT_ALGORITHM":   "RS256",
-		"SUBSCRIBER_JWT_KEY":        "bar",
-		"SUBSCRIBER_JWT_ALGORITHM":  "BAR256",
+		"PUBLISHER_JWT_KEY":        "foo",
+		"PUBLISHER_JWT_ALGORITHM":  "RS256",
+		"SUBSCRIBER_JWT_KEY":       "bar",
+		"SUBSCRIBER_JWT_ALGORITHM": "BAR256",
 	}
 	for k, v := range testEnv {
 		os.Setenv(k, v)

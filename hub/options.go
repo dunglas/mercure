@@ -25,6 +25,7 @@ type Options struct {
 	PublishAllowedOrigins   []string
 	Addr                    string
 	AcmeHosts               []string
+	AcmeHTTP01Addr          string
 	AcmeCertDir             string
 	CertFile                string
 	KeyFile                 string
@@ -115,6 +116,11 @@ func NewOptionsFromEnv() (*Options, error) {
 		return nil, fmt.Errorf("Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got %T", subJwtAlgorithm)
 	}
 
+	acmeHTTP01Addr := os.Getenv("ACME_HTTP01_ADDR")
+	if acmeHTTP01Addr == "" {
+		acmeHTTP01Addr = ":http"
+	}
+
 	options := &Options{
 		os.Getenv("DEBUG") == "1",
 		dbPath,
@@ -129,6 +135,7 @@ func NewOptionsFromEnv() (*Options, error) {
 		splitVar(os.Getenv("PUBLISH_ALLOWED_ORIGINS")),
 		os.Getenv("ADDR"),
 		splitVar(os.Getenv("ACME_HOSTS")),
+		acmeHTTP01Addr,
 		os.Getenv("ACME_CERT_DIR"),
 		os.Getenv("CERT_FILE"),
 		os.Getenv("KEY_FILE"),

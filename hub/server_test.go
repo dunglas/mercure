@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const testURL = "http://" + testAddr + "/hub"
@@ -163,4 +165,51 @@ func TestServe(t *testing.T) {
 
 	h.server.Shutdown(context.Background())
 	wgTested.Wait()
+}
+
+func TestServeAcme(t *testing.T) {
+	dir, _ := ioutil.TempDir("", "cert")
+	defer os.RemoveAll(dir)
+
+	h := NewHub(&localPublisher{}, &noHistory{}, &Options{
+		PublisherJWTKey:        []byte("publisher"),
+		SubscriberJWTKey:       []byte("subscriber"),
+		PublisherJWTAlgorithm:  hmacSigningMethod,
+		SubscriberJWTAlgorithm: hmacSigningMethod,
+		AllowAnonymous:         true,
+		Addr:                   testAddr,
+		AcmeHosts:              []string{"example.com"},
+		AcmeHTTP01Addr:         ":8080",
+		AcmeCertDir:            dir,
+		Compress:               true,
+	})
+
+	h.Start()
+	go func() {
+		h.Serve()
+	}()
+
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	var resp *http.Response
+	for resp == nil {
+		resp, _ = client.Get("http://127.0.0.1:8080")
+	}
+
+	require.NotNil(t, resp)
+	assert.Equal(t, 302, resp.StatusCode)
+	resp.Body.Close()
+
+	resp, err := client.Get("http://0.0.0.0:8080/.well-known/acme-challenge/does-not-exists")
+	assert.Nil(t, err)
+	require.NotNil(t, resp)
+	defer resp.Body.Close()
+
+	assert.Equal(t, 403, resp.StatusCode)
+
+	h.server.Shutdown(context.Background())
 }
