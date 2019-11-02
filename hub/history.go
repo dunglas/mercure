@@ -20,6 +20,8 @@ type History interface {
 	// Find retrieves updates pushed since the provided Last-Event-ID matching both the provided topics and targets
 	// The onItem func will be called for every retrieved item, if its return value is false, Find will stop
 	FindFor(subscriber *Subscriber, onItem func(*Update) bool) error
+
+	sync.Locker
 }
 
 // NoHistory implements the History interface but does nothing
@@ -34,6 +36,12 @@ func (*noHistory) Add(*Update) error {
 // FindFor does nothing
 func (*noHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
 	return nil
+}
+
+func (*noHistory) Lock() {
+}
+
+func (*noHistory) Unlock() {
 }
 
 const bucketName = "updates"

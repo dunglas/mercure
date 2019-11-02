@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -95,20 +94,13 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	// receive updates
 
 	useHistory := subscriber.LastEventID != ""
-	var (
-		historyLocker   sync.Locker
-		lockableHistory bool
-	)
 	if useHistory {
-		historyLocker, lockableHistory = h.history.(sync.Locker)
-		if lockableHistory {
-			historyLocker.Lock()
-		}
+		h.history.Lock()
 		h.sendMissedEvents(w, r, subscriber)
 	}
 	h.newSubscribers <- updateChan
-	if useHistory && lockableHistory {
-		historyLocker.Unlock()
+	if useHistory {
+		h.history.Unlock()
 	}
 
 	// Listen to the closing of the http connection via the Request's Context
