@@ -181,11 +181,7 @@ func (t *BoltTransport) CreatePipe(fromID string) (*Pipe, error) {
 					return err
 				}
 
-				if !pipe.Write(update) {
-					return nil
-				}
-
-				if toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq {
+				if !pipe.Write(update) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
 					return nil
 				}
 			}
