@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,23 +28,27 @@ func TestBoltTransportHistory(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, pipe)
 
-	var count uint64
+	var wg sync.WaitGroup
 	go func() {
+		var count int
 		for {
-			_, err := pipe.Read(context.Background())
+			u, err := pipe.Read(context.Background())
 			if err == ErrClosedPipe {
 				return
 			}
-			atomic.AddUint64(&count, 1)
+
+			// the reading loop must read the #9 and #10 messages
+			assert.Equal(t, strconv.Itoa(9+count), u.ID)
+			count++
+			if count == 2 {
+				wg.Done()
+				return
+			}
 		}
 	}()
 
-	// let time to the reading loop to process as many message as it can. Then we close the pipe
-	time.Sleep(10 * time.Millisecond)
+	wg.Wait()
 	pipe.Close()
-
-	// the reading loop should have read the #9 and #10 messages
-	assert.Equal(t, uint64(2), atomic.LoadUint64(&count))
 }
 
 func TestBoltTransportHistoryAndLive(t *testing.T) {
@@ -62,25 +65,30 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, pipe)
 
-	var count uint64
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		var count int
 		for {
-			_, err := pipe.Read(context.Background())
+			u, err := pipe.Read(context.Background())
 			if err == ErrClosedPipe {
 				return
 			}
-			atomic.AddUint64(&count, 1)
+
+			// the reading loop must read the #9, #10 and #11 messages
+			assert.Equal(t, strconv.Itoa(9+count), u.ID)
+			count++
+			if count == 3 {
+				wg.Done()
+				return
+			}
 		}
 	}()
 
 	transport.Write(&Update{Event: Event{ID: "11"}})
 
-	// let time to the reading loop to process as many message as it can. Then we close the pipe
-	time.Sleep(10 * time.Millisecond)
+	wg.Wait()
 	pipe.Close()
-
-	// the reading loop should have read the #9, #10 messages then the #11
-	assert.Equal(t, uint64(3), atomic.LoadUint64(&count))
 }
 
 func TestBoltTransportPurgeHistory(t *testing.T) {
