@@ -113,9 +113,9 @@ func TestNewBoltTransport(t *testing.T) {
 	_, err = NewBoltTransport(&Options{TransportURL: url})
 	assert.EqualError(t, err, `invalid bolt "bolt:" dsn: missing path`)
 
-	url, _ = url.Parse("bolt:///root/test.db")
+	url, _ = url.Parse("bolt:///test.db")
 	_, err = NewBoltTransport(&Options{TransportURL: url})
-	assert.EqualError(t, err, `invalid bolt "bolt:///root/test.db" dsn: open /root/test.db: permission denied`)
+	assert.EqualError(t, err, `invalid bolt "bolt:///test.db" dsn: open /test.db: permission denied`)
 
 	url, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
 	_, err = NewBoltTransport(&Options{TransportURL: url})
