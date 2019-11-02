@@ -21,6 +21,7 @@ func TestBoltHistory(t *testing.T) {
 	count := 0
 	assert.Nil(t, h.FindFor(
 		NewSubscriber(false, map[string]struct{}{}, []string{}, []string{}, []*uritemplate.Template{}, ""),
+		"",
 		func(*Update) bool {
 			count++
 			return true
@@ -56,6 +57,7 @@ func TestBoltHistory(t *testing.T) {
 
 	h.FindFor(
 		NewSubscriber(false, map[string]struct{}{"foo": {}}, []string{"http://example.com/alt/3"}, []string{"http://example.com/alt/3"}, []*uritemplate.Template{}, "first"),
+		"",
 		func(u *Update) bool {
 			count++
 
@@ -100,5 +102,5 @@ func TestPurgeHistory(t *testing.T) {
 func TestNoHistory(t *testing.T) {
 	h := &noHistory{}
 	assert.Nil(t, h.Add(nil))
-	assert.Nil(t, h.FindFor(nil, func(*Update) bool { return true }))
+	assert.Nil(t, h.FindFor(nil, "", func(*Update) bool { return true }))
 }

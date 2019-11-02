@@ -18,7 +18,7 @@ type History interface {
 
 	// Find retrieves updates pushed since the provided Last-Event-ID matching both the provided topics and targets
 	// The onItem func will be called for every retrieved item, if its return value is false, Find will stop
-	FindFor(subscriber *Subscriber, onItem func(*Update) bool) error
+	FindFor(subscriber *Subscriber, lastSentEventID string, onItem func(*Update) bool) error
 }
 
 // NoHistory implements the History interface but does nothing
@@ -31,7 +31,7 @@ func (*noHistory) Add(*Update) error {
 }
 
 // FindFor does nothing
-func (*noHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
+func (*noHistory) FindFor(subscriber *Subscriber, lastSentEventID string, onItem func(*Update) bool) error {
 	return nil
 }
 
@@ -101,7 +101,7 @@ func cleanup(options *Options, bucket *bolt.Bucket, lastID uint64) error {
 }
 
 // FindFor searches in the local bolt DB
-func (b *boltHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool) error {
+func (b *boltHistory) FindFor(subscriber *Subscriber, lastSentEventID string, onItem func(*Update) bool) error {
 	b.DB.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
@@ -112,8 +112,9 @@ func (b *boltHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool)
 		c := b.Cursor()
 		afterLastEventID := false
 		for k, v := c.First(); k != nil; k, v = c.Next() {
+			eventID := string(k[8:])
 			if !afterLastEventID {
-				if string(k[8:]) == subscriber.LastEventID {
+				if eventID == subscriber.LastEventID {
 					afterLastEventID = true
 				}
 
@@ -125,7 +126,7 @@ func (b *boltHistory) FindFor(subscriber *Subscriber, onItem func(*Update) bool)
 				return err
 			}
 
-			if subscriber.CanReceive(&update) && !onItem(&update) {
+			if (subscriber.CanReceive(&update) && !onItem(&update)) || eventID == lastSentEventID {
 				return nil
 			}
 		}

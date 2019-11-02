@@ -1,15 +1,8 @@
 package hub
 
 import (
-	"sync"
-
 	"github.com/yosida95/uritemplate"
 )
-
-type subscribers struct {
-	sync.RWMutex
-	m map[chan *serializedUpdate]struct{}
-}
 
 // Subscriber represents a client subscribed to a list of topics
 type Subscriber struct {

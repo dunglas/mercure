@@ -118,9 +118,9 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			ready := len(hub.subscribers.m) == numberOfSubscribers
-			hub.subscribers.RUnlock()
+			hub.RLock()
+			ready := len(hub.subscribers) == numberOfSubscribers
+			hub.RUnlock()
 
 			if !ready {
 				continue
@@ -179,7 +179,7 @@ func TestSubscribe(t *testing.T) {
 func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 	hub.Start()
-	assert.Equal(t, 0, len(hub.subscribers.m))
+	assert.Equal(t, 0, len(hub.subscribers))
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -189,13 +189,13 @@ func TestUnsubscribe(t *testing.T) {
 		defer w.Done()
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil).WithContext(ctx)
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
-		assert.Equal(t, 0, len(hub.subscribers.m))
+		assert.Equal(t, 0, len(hub.subscribers))
 	}(&wg)
 
 	for {
-		hub.subscribers.RLock()
-		notEmpty := len(hub.subscribers.m) != 0
-		hub.subscribers.RUnlock()
+		hub.RLock()
+		notEmpty := len(hub.subscribers) != 0
+		hub.RUnlock()
 		if notEmpty {
 			break
 		}
@@ -212,9 +212,9 @@ func TestSubscribeTarget(t *testing.T) {
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			empty := len(hub.subscribers.m) == 0
-			hub.subscribers.RUnlock()
+			hub.RLock()
+			empty := len(hub.subscribers) == 0
+			hub.RUnlock()
 
 			if empty {
 				continue
@@ -258,9 +258,9 @@ func TestSubscribeAllTargets(t *testing.T) {
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			empty := len(hub.subscribers.m) == 0
-			hub.subscribers.RUnlock()
+			hub.RLock()
+			empty := len(hub.subscribers) == 0
+			hub.RUnlock()
 
 			if empty {
 				continue
@@ -339,9 +339,9 @@ func TestSendMissedEvents(t *testing.T) {
 	}()
 
 	for {
-		hub.subscribers.RLock()
-		two := len(hub.subscribers.m) == 2
-		hub.subscribers.RUnlock()
+		hub.RLock()
+		two := len(hub.subscribers) == 2
+		hub.RUnlock()
 
 		if two {
 			break
@@ -359,9 +359,9 @@ func TestSubscribeHeartbeat(t *testing.T) {
 
 	go func() {
 		for {
-			hub.subscribers.RLock()
-			empty := len(hub.subscribers.m) == 0
-			hub.subscribers.RUnlock()
+			hub.RLock()
+			empty := len(hub.subscribers) == 0
+			hub.RUnlock()
 
 			if empty {
 				continue

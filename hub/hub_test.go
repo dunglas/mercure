@@ -14,7 +14,7 @@ func TestNewHub(t *testing.T) {
 	h := createDummy()
 
 	assert.IsType(t, &Options{}, h.options)
-	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers.m)
+	assert.IsType(t, map[chan *serializedUpdate]struct{}{}, h.subscribers)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.newSubscribers)
 	assert.IsType(t, make(chan (chan *serializedUpdate)), h.removedSubscribers)
 	assert.IsType(t, make(chan *serializedUpdate), h.updates)
@@ -46,24 +46,24 @@ func createDummy() *Hub {
 
 func createAnonymousDummy() *Hub {
 	return NewHub(&localPublisher{}, &noHistory{}, &Options{
-		PublisherJWTKey:  []byte("publisher"),
-		SubscriberJWTKey: []byte("subscriber"),
-		PublisherJWTAlgorithm: hmacSigningMethod,
+		PublisherJWTKey:        []byte("publisher"),
+		SubscriberJWTKey:       []byte("subscriber"),
+		PublisherJWTAlgorithm:  hmacSigningMethod,
 		SubscriberJWTAlgorithm: hmacSigningMethod,
-		AllowAnonymous:   true,
-		Addr:             testAddr,
-		Compress:         true,
+		AllowAnonymous:         true,
+		Addr:                   testAddr,
+		Compress:               true,
 	})
 }
 
 func createAnonymousDummyWithHistory(h History) *Hub {
 	return NewHub(&localPublisher{}, h, &Options{
-		PublisherJWTKey:  []byte("publisher"),
-		SubscriberJWTKey: []byte("subscriber"),
-		PublisherJWTAlgorithm: hmacSigningMethod,
+		PublisherJWTKey:        []byte("publisher"),
+		SubscriberJWTKey:       []byte("subscriber"),
+		PublisherJWTAlgorithm:  hmacSigningMethod,
 		SubscriberJWTAlgorithm: hmacSigningMethod,
-		AllowAnonymous:   true,
-		Addr:             testAddr,
+		AllowAnonymous:         true,
+		Addr:                   testAddr,
 	})
 }
 

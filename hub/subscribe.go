@@ -87,16 +87,19 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
 	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
 
-	if subscriber.LastEventID != "" {
-		h.sendMissedEvents(w, r, subscriber)
-	}
-
 	// Create a new channel, over which the hub can send can send updates to this subscriber.
 	updateChan := make(chan *serializedUpdate)
 
+	h.RLock()
 	// Add this client to the map of those that should
 	// receive updates
+	lastSentEventID := h.lastSentEventID
 	h.newSubscribers <- updateChan
+	h.RUnlock()
+
+	if subscriber.LastEventID != "" {
+		h.sendMissedEvents(w, r, subscriber, lastSentEventID)
+	}
 
 	// Listen to the closing of the http connection via the Request's Context
 	go func() {
@@ -160,9 +163,9 @@ func retrieveLastEventID(r *http.Request) string {
 }
 
 // sendMissedEvents sends the events received since the one provided in Last-Event-ID
-func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscriber) {
+func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscriber, lastSentEventID string) {
 	f := w.(http.Flusher)
-	if err := h.history.FindFor(s, func(u *Update) bool {
+	if err := h.history.FindFor(s, lastSentEventID, func(u *Update) bool {
 		fmt.Fprint(w, u.String())
 		f.Flush()
 		log.WithFields(h.createLogFields(r, u, s)).Info("Event sent")

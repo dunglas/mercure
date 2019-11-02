@@ -23,7 +23,7 @@ type templateCache struct {
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates
 type Hub struct {
-	subscribers        subscribers
+	subscribers        map[chan *serializedUpdate]struct{}
 	updates            chan *serializedUpdate
 	options            *Options
 	newSubscribers     chan chan *serializedUpdate
@@ -32,6 +32,8 @@ type Hub struct {
 	history            History
 	server             *http.Server
 	uriTemplates       uriTemplates
+	lastSentEventID    string
+	sync.RWMutex
 }
 
 // Start starts the hub
@@ -41,32 +43,34 @@ func (h *Hub) Start() {
 			select {
 
 			case s := <-h.newSubscribers:
-				h.subscribers.Lock()
-				h.subscribers.m[s] = struct{}{}
-				h.subscribers.Unlock()
+				h.Lock()
+				h.subscribers[s] = struct{}{}
+				h.Unlock()
 
 			case s := <-h.removedSubscribers:
-				h.subscribers.Lock()
-				delete(h.subscribers.m, s)
-				h.subscribers.Unlock()
+				h.Lock()
+				delete(h.subscribers, s)
+				h.Unlock()
 				close(s)
 
 			case serializedUpdate, ok := <-h.updates:
+				h.Lock()
 				if ok {
 					if err := h.history.Add(serializedUpdate.Update); err != nil {
 						panic(err)
 					}
+
+					h.lastSentEventID = serializedUpdate.ID
 				}
 
-				h.subscribers.RLock()
-				for s := range h.subscribers.m {
+				for s := range h.subscribers {
 					if ok {
 						s <- serializedUpdate
 					} else {
 						close(s)
 					}
 				}
-				h.subscribers.RUnlock()
+				h.Unlock()
 
 				if !ok {
 					return
@@ -104,14 +108,13 @@ func NewHubFromEnv() (*Hub, *bolt.DB, error) {
 // NewHub creates a hub
 func NewHub(publisher Publisher, history History, options *Options) *Hub {
 	return &Hub{
-		subscribers{m: make(map[chan *serializedUpdate]struct{})},
-		make(chan *serializedUpdate),
-		options,
-		make(chan (chan *serializedUpdate)),
-		make(chan (chan *serializedUpdate)),
-		publisher,
-		history,
-		nil,
-		uriTemplates{m: make(map[string]*templateCache)},
+		subscribers:        make(map[chan *serializedUpdate]struct{}),
+		updates:            make(chan *serializedUpdate),
+		options:            options,
+		newSubscribers:     make(chan (chan *serializedUpdate)),
+		removedSubscribers: make(chan (chan *serializedUpdate)),
+		publisher:          publisher,
+		history:            history,
+		uriTemplates:       uriTemplates{m: make(map[string]*templateCache)},
 	}
 }
