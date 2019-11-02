@@ -101,4 +101,7 @@ func TestNoHistory(t *testing.T) {
 	h := &noHistory{}
 	assert.Nil(t, h.Add(nil))
 	assert.Nil(t, h.FindFor(nil, func(*Update) bool { return true }))
+
+	h.Lock()
+	h.Unlock()
 }
