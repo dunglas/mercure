@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -87,16 +88,28 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
 	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
 
-	if subscriber.LastEventID != "" {
-		h.sendMissedEvents(w, r, subscriber)
-	}
-
 	// Create a new channel, over which the hub can send can send updates to this subscriber.
 	updateChan := make(chan *serializedUpdate)
 
 	// Add this client to the map of those that should
 	// receive updates
+
+	useHistory := subscriber.LastEventID != ""
+	var (
+		historyLocker   sync.Locker
+		lockableHistory bool
+	)
+	if useHistory {
+		historyLocker, lockableHistory = h.history.(sync.Locker)
+		if lockableHistory {
+			historyLocker.Lock()
+		}
+		h.sendMissedEvents(w, r, subscriber)
+	}
 	h.newSubscribers <- updateChan
+	if useHistory && lockableHistory {
+		historyLocker.Unlock()
+	}
 
 	// Listen to the closing of the http connection via the Request's Context
 	go func() {

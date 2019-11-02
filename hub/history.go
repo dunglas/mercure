@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"math/rand"
+	"sync"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -41,10 +42,13 @@ const bucketName = "updates"
 type boltHistory struct {
 	*bolt.DB
 	*Options
+	sync.Mutex
 }
 
 // Add puts the update to the local bolt DB
 func (b *boltHistory) Add(update *Update) error {
+	b.Lock()
+	defer b.Unlock()
 	return b.DB.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
