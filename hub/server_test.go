@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testURL = "http://" + testAddr + "/hub"
-const testSecureURL = "https://" + testAddr + "/hub"
+const testURL = "http://" + testAddr + defaultHubURL
+const testSecureURL = "https://" + testAddr + defaultHubURL
 
 func TestForwardedHeaders(t *testing.T) {
 	h := createAnonymousDummy()
