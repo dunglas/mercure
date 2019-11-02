@@ -5,7 +5,7 @@
 Because they are delivery agnostic, Mercure plays particularly well with [GraphQL's subscriptions](https://facebook.github.io/graphql/draft/#sec-Subscription).
 
 In response to the subscription query, the GraphQL server may return a corresponding topic URL.
-The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with an URL like `https://example.com/hub?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
+The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with an URL like `https://example.com/.well-known/mercure?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
 
 Updates for the given subscription can then be sent from the GraphQL server to the clients through the Mercure hub (in the `data` property of the server-sent event).
 

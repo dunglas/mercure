@@ -61,6 +61,9 @@ interpreted as described in [@!RFC2119].
 
 # Discovery
 
+The URL of the hub **SHOULD** should be the "well-known" [@!RFC5785] fixed path
+`/.well-known/mercure`.
+
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber,
 allowing it to receive live updates when topics are updated. If more than one hub URL is specified,
 it is **RECOMMENDED** that the publisher notifies each hub, so the subscriber **MAY** subscribe to
@@ -68,9 +71,6 @@ one or more of them.
 
 The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link
 header). The target URL of these links **MUST** be a hub implementing the Mercure protocol.
-
-Note: this relation type has not been registered yet [@RFC5988]. In the meantime, the relation type
-`https://git.io/mercure` **MAY** be used instead.
 
 The publisher **MAY** provide the following target attributes in the Link Headers:
 
@@ -104,7 +104,7 @@ Host: example.com
 
 HTTP/1.1 200 Ok
 Content-type: application/ld+json
-Link: <https://example.com/hub>; rel="mercure"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
 {"@id": "/books/foo.jsonld", "foo": "bar"}
 ~~~
@@ -164,7 +164,7 @@ Example:
 ~~~ javascript
 // The subscriber subscribes to updates for the https://example.com/foo topic
 // and to any topic matching https://example.com/books/{name}
-const url = new URL('https://example.com/hub');
+const url = new URL('https://example.com/.well-known/mercure');
 url.searchParams.append('topic', 'https://example.com/foo');
 url.searchParams.append('topic', 'https://example.com/bar/{id}');
 
@@ -336,8 +336,37 @@ to encrypt the update content. The publisher **MAY** provide the relevant encryp
 contain a key encoded using the JSON Web Key Set [@!RFC7517] format. Any other out-of-band mechanism
 **MAY** be used instead to share the key between the publisher and the subscriber.
 
-Update encyption is considered a best practice to prevent mass surveillance. This is especially
+Update encryption is considered a best practice to prevent mass surveillance. This is especially
 relevant if the hub is managed by an external provider.
+
+# IANA Considerations
+
+## Well-Known URIs Registry
+
+A new "well-known" URI as described in Section 2 has been registered in the "Well-Known URIs"
+registry as described below:
+
+ *  URI Suffix: mercure
+
+ *  Change Controller: IETF
+
+ *  Specification document(s): This specification, Section 2
+
+ *  Related information: N/A
+
+## Link Relation Types Registry
+
+A new "Link Relation Type" as described in Section 2 has been registered in the "Link Relation Type"
+registry with the following entry:
+
+ *  Relation Name: mercure
+
+ *  Description: The Mercure Hub to use to subscribe to updates of this resource.
+
+ *  Reference: This specification, Section 2
+
+Note: this relation type has not been registered yet. In the meantime, the relation type
+`https://git.io/mercure` **MAY** be used instead.
 
 # Security Considerations
 

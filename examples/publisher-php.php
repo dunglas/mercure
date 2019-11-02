@@ -7,7 +7,7 @@ $postData = http_build_query([
     'data' => json_encode(['key' => 'updated value']),
 ]);
 
-echo file_get_contents('http://localhost:3000/hub', false, stream_context_create(['http' => [
+echo file_get_contents('http://localhost:3000/.well-known/mercure', false, stream_context_create(['http' => [
     'method'  => 'POST',
     'header'  => "Content-type: application/x-www-form-urlencoded\r\nAuthorization: Bearer ".DEMO_JWT,
     'content' => $postData,

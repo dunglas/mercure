@@ -16,10 +16,10 @@ Subscribing to updates from a web browser or any other platform supporting [Serv
 ```javascript
 // The subscriber subscribes to updates for the https://example.com/users/dunglas topic
 // and to any topic matching https://example.com/books/{id}
-const url = new URL('https://example.com/hub');
+const url = new URL('https://example.com/.well-known/mercure');
 url.searchParams.append('topic', 'https://example.com/books/{id}');
 url.searchParams.append('topic', 'https://example.com/users/dunglas');
-// The URL class is a convenient way to generate URLs such as https://example.com/hub?topic=https://example.com/books/{id}&topic=https://example.com/users/dunglas
+// The URL class is a convenient way to generate URLs such as https://example.com/.well-known/mercure?topic=https://example.com/books/{id}&topic=https://example.com/users/dunglas
 
 const eventSource = new EventSource(url);
 
@@ -44,7 +44,7 @@ Also optionally, the hub URL can be automatically discovered:
 Here is a snippet to extract the URL of the hub from the `Link` HTTP header.
 
 ```javascript
-fetch('https://example.com/books/1') // Has this header `Link: <https://example.com/hub>; rel="mercure"`
+fetch('https://example.com/books/1') // Has this header `Link: <https://example.com/.well-known/mercure>; rel="mercure"`
     .then(response => {
         // Extract the hub URL from the Link header
         const hubUrl = response.headers.get('Link').match(/<([^>]+)>;\s+rel=(?:mercure|"[^"]*mercure[^"]*")/)[1];
@@ -79,7 +79,7 @@ const postData = querystring.stringify({
 const req = https.request({
     hostname: 'example.com',
     port: '443',
-    path: '/hub',
+    path: '/.well-known/mercure',
     method: 'POST',
     headers: {
         Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.afLx2f2ut3YgNVFStCx95Zm_UND1mZJ69OenXaDuZL8',
