@@ -34,6 +34,7 @@ func (p *Pipe) Write(update *Update) bool {
 
 // Read returns the next unfetch update from the pipe with a context
 func (p *Pipe) Read(ctx context.Context) (*Update, error) {
+	// If you return new errors, don't forget to handle them in subscribe.go
 	select {
 	case <-p.done:
 		return nil, ErrClosedPipe

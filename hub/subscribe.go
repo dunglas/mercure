@@ -29,12 +29,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			// No heartbeat defined, just block
 			update, err := pipe.Read(context.Background())
 			if err != nil {
-				if err == ErrClosedPipe {
-					return
-				}
-
-				log.Error(err)
-				continue
+				return
 			}
 
 			h.publish(newSerializedUpdate(update), subscriber, w, r)
@@ -46,21 +41,16 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		update, err := pipe.Read(ctx)
 		cancel()
 
-		if err != nil {
-			if err == ErrClosedPipe {
-				return
-			}
+		if err == context.DeadlineExceeded {
+			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			fmt.Fprint(w, ":\n")
+			f.Flush()
 
-			if err == context.DeadlineExceeded {
-				// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-				fmt.Fprint(w, ":\n")
-				f.Flush()
-
-				continue
-			}
-
-			log.Error(err)
 			continue
+		}
+
+		if err != nil {
+			return
 		}
 
 		h.publish(newSerializedUpdate(update), subscriber, w, r)
