@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -51,7 +52,9 @@ func (rt *responseTester) Write(buf []byte) (int, error) {
 }
 
 func (rt *responseTester) WriteHeader(statusCode int) {
-	assert.Equal(rt.t, rt.expectedStatusCode, statusCode)
+	if rt.t != nil {
+		assert.Equal(rt.t, rt.expectedStatusCode, statusCode)
+	}
 }
 
 func (rt *responseTester) Flush() {
@@ -141,7 +144,6 @@ func TestSubscribeNoTopic(t *testing.T) {
 }
 
 func testSubscribe(numberOfSubscribers int, t *testing.T) {
-	log.SetLevel(log.DebugLevel)
 	hub := createAnonymousDummy()
 
 	go func() {
@@ -151,6 +153,8 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 			ready := len(s.pipes) == numberOfSubscribers
 			s.RUnlock()
 
+			// There is a problem (probably related to Logrus?) preventing the benchmark to work without this line.
+			log.Info("Waiting for the subscribers...")
 			if !ready {
 				continue
 			}
@@ -203,6 +207,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
 	testSubscribe(3, t)
 }
 
@@ -433,6 +438,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 }
 
 func BenchmarkSubscribe(b *testing.B) {
+	log.SetOutput(ioutil.Discard)
 	for n := 0; n < b.N; n++ {
 		testSubscribe(1000, nil)
 	}
