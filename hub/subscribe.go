@@ -98,9 +98,6 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		}
 	}
 
-	sendHeaders(w)
-	log.WithFields(fields).Info("New subscriber")
-
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
 	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
 
@@ -110,6 +107,9 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		log.WithFields(fields).Error(err)
 		return nil, nil, false
 	}
+
+	sendHeaders(w)
+	log.WithFields(fields).Info("New subscriber")
 
 	// Listen to the closing of the http connection via the Request's Context
 	go func() {

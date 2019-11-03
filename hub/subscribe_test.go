@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -141,6 +142,35 @@ func TestSubscribeNoTopic(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
+}
+
+type createPipeErrorTransport struct {
+}
+
+func (*createPipeErrorTransport) Write(update *Update) error {
+	return nil
+}
+
+func (*createPipeErrorTransport) CreatePipe(fromID string) (*Pipe, error) {
+	return nil, fmt.Errorf("Failed to create a pipe")
+}
+
+func (*createPipeErrorTransport) Close() error {
+	return nil
+}
+
+func TestSubscribeCreatePipeError(t *testing.T) {
+	hub := createAnonymousDummyWithTransport(&createPipeErrorTransport{})
+
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=foo", nil)
+	w := httptest.NewRecorder()
+
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusText(http.StatusInternalServerError)+"\n", w.Body.String())
 }
 
 func testSubscribe(numberOfSubscribers int, t *testing.T) {
