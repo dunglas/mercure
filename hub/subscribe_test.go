@@ -28,6 +28,35 @@ func (m *responseWriterMock) Write([]byte) (int, error) {
 func (m *responseWriterMock) WriteHeader(statusCode int) {
 }
 
+type responseTester struct {
+	body               string
+	expectedStatusCode int
+	expectedBody       string
+	cancel             context.CancelFunc
+	t                  *testing.T
+}
+
+func (rt *responseTester) Header() http.Header {
+	return http.Header{}
+}
+
+func (rt *responseTester) Write(buf []byte) (int, error) {
+	rt.body = rt.body + string(buf)
+
+	if rt.body == rt.expectedBody {
+		rt.cancel()
+	}
+
+	return len(buf), nil
+}
+
+func (rt *responseTester) WriteHeader(statusCode int) {
+	assert.Equal(rt.t, rt.expectedStatusCode, statusCode)
+}
+
+func (rt *responseTester) Flush() {
+}
+
 func TestSubscribeNotAFlusher(t *testing.T) {
 	hub := createDummy()
 
@@ -147,8 +176,6 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 				Event:  Event{Data: "string", ID: "e"},
 			})
 
-			time.Sleep(8 * time.Millisecond)
-			hub.Stop()
 			return
 		}
 	}()
@@ -156,21 +183,23 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numberOfSubscribers)
 	for i := 0; i < numberOfSubscribers; i++ {
-		go func(w2 *sync.WaitGroup) {
-			defer w2.Done()
-			req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=string&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil)
-			w := httptest.NewRecorder()
-			hub.SubscribeHandler(w, req)
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithCancel(context.Background())
+			req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=string&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
 
-			if t != nil {
-				resp := w.Result()
-				assert.Equal(t, http.StatusOK, resp.StatusCode)
-				assert.Equal(t, ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\nid: e\ndata: string\n\n", w.Body.String())
+			w := &responseTester{
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\nid: e\ndata: string\n\n",
+				t:                  t,
+				cancel:             cancel,
 			}
-		}(&wg)
+			hub.SubscribeHandler(w, req)
+		}()
 	}
 
 	wg.Wait()
+	hub.Stop()
 }
 
 func TestSubscribe(t *testing.T) {
@@ -239,22 +268,23 @@ func TestSubscribeTarget(t *testing.T) {
 				Topics:  []string{"http://example.com/reviews/23"},
 				Event:   Event{Data: "Great", ID: "c", Retry: 1},
 			})
-
-			time.Sleep(8 * time.Millisecond)
-			hub.Stop()
 			return
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
-	w := httptest.NewRecorder()
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, false, []string{"foo", "bar"})})
 
-	hub.SubscribeHandler(w, req)
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nevent: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n",
+		t:                  t,
+		cancel:             cancel,
+	}
 
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, ":\nevent: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n", w.Body.String())
+	hub.SubscribeHandler(w, req)
+	hub.Stop()
 }
 
 func TestSubscribeAllTargets(t *testing.T) {
@@ -282,20 +312,23 @@ func TestSubscribeAllTargets(t *testing.T) {
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
 			})
 
-			time.Sleep(8 * time.Millisecond)
-			hub.Stop()
 			return
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil)
-	w := httptest.NewRecorder()
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, false, []string{"random", "*"}))
-	hub.SubscribeHandler(w, req)
 
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, ":\nid: a\ndata: Foo\n\nevent: test\nid: b\ndata: Hello World\n\n", w.Body.String())
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nid: a\ndata: Foo\n\nevent: test\nid: b\ndata: Hello World\n\n",
+		t:                  t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+	hub.Stop()
 }
 
 func TestSendMissedEvents(t *testing.T) {
@@ -324,40 +357,41 @@ func TestSendMissedEvents(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	go func() {
 		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
-		w := httptest.NewRecorder()
+
+		w := &responseTester{
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
 		hub.SubscribeHandler(w, req)
-		assert.Equal(t, ":\nid: b\ndata: d2\n\n", w.Body.String())
 	}()
 
 	go func() {
 		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
 		req.Header.Add("Last-Event-ID", "a")
-		w := httptest.NewRecorder()
+
+		w := &responseTester{
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
 		hub.SubscribeHandler(w, req)
-		assert.Equal(t, ":\nid: b\ndata: d2\n\n", w.Body.String())
 	}()
 
-	for {
-		transport.RLock()
-		two := len(transport.pipes) == 2
-		transport.RUnlock()
-
-		if two {
-			break
-		}
-	}
-
-	// let time to the cursor to read history messages
-	time.Sleep(1 * time.Millisecond)
-
-	cancel()
 	wg.Wait()
+	hub.Stop()
 }
 
 func TestSubscribeHeartbeat(t *testing.T) {
@@ -380,19 +414,22 @@ func TestSubscribeHeartbeat(t *testing.T) {
 				Event:  Event{Data: "Hello World", ID: "b"},
 			})
 
-			time.Sleep(8 * time.Millisecond)
-			hub.Stop()
 			return
 		}
 	}()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil)
-	w := httptest.NewRecorder()
-	hub.SubscribeHandler(w, req)
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
 
-	resp := w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, ":\nid: b\ndata: Hello World\n\n:\n", w.Body.String())
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nid: b\ndata: Hello World\n\n:\n",
+		t:                  t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+	hub.Stop()
 }
 
 func BenchmarkSubscribe(b *testing.B) {
