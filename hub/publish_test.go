@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNoAuthorizationHeader(t *testing.T) {
@@ -145,21 +147,22 @@ func TestPublishNotAuthorizedTarget(t *testing.T) {
 func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 
+	pipe, err := hub.transport.CreatePipe("")
+	assert.Nil(t, err)
+	require.NotNil(t, pipe)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		for {
-			select {
-			case u := <-hub.updates:
-				assert.Equal(t, "id", u.ID)
-				assert.Equal(t, []string{"http://example.com/books/1"}, u.Topics)
-				assert.Equal(t, "Hello!", u.Data)
-				assert.Equal(t, struct{}{}, u.Targets["foo"])
-				assert.Equal(t, struct{}{}, u.Targets["bar"])
-				return
-			}
-		}
+		u, err := pipe.Read(context.Background())
+		assert.Nil(t, err)
+		require.NotNil(t, u)
+		assert.Equal(t, "id", u.ID)
+		assert.Equal(t, []string{"http://example.com/books/1"}, u.Topics)
+		assert.Equal(t, "Hello!", u.Data)
+		assert.Equal(t, struct{}{}, u.Targets["foo"])
+		assert.Equal(t, struct{}{}, u.Targets["bar"])
 	}(&wg)
 
 	form := url.Values{}
@@ -188,18 +191,19 @@ func TestPublishOK(t *testing.T) {
 func TestPublishGenerateUUID(t *testing.T) {
 	hub := createDummy()
 
+	pipe, err := hub.transport.CreatePipe("")
+	assert.Nil(t, err)
+	require.NotNil(t, pipe)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		for {
-			select {
-			case u := <-hub.updates:
-				_, err := uuid.FromString(u.ID)
-				assert.Nil(t, err)
-				return
-			}
-		}
+		u, err := pipe.Read(context.Background())
+		assert.Nil(t, err)
+		require.NotNil(t, u)
+		_, err = uuid.FromString(u.ID)
+		assert.Nil(t, err)
 	}(&wg)
 
 	form := url.Values{}
@@ -220,6 +224,37 @@ func TestPublishGenerateUUID(t *testing.T) {
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 	body := string(bodyBytes)
 
-	_, err := uuid.FromString(body)
+	_, err = uuid.FromString(body)
 	assert.Nil(t, err)
+}
+
+func TestPublishWithErrorInTransport(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	hub := createDummy()
+	hub.transport.Close()
+
+	form := url.Values{}
+	form.Add("id", "id")
+	form.Add("topic", "http://example.com/books/1")
+	form.Add("data", "Hello!")
+	form.Add("target", "foo")
+	form.Add("target", "bar")
+
+	req := httptest.NewRequest("POST", "http://example.com/hub", strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{"foo", "bar"}))
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "id", string(body))
 }

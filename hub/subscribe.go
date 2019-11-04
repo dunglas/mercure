@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,41 +18,47 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		panic("The Response Writer must be an instance of Flusher.")
 	}
 
-	subscriber, updateChan, ok := h.initSubscription(w, r)
+	subscriber, pipe, ok := h.initSubscription(w, r)
 	if !ok {
 		return
 	}
 	defer h.cleanup(subscriber)
 
-	for {
-		if h.options.HeartbeatInterval == time.Duration(0) {
+	if h.options.HeartbeatInterval == time.Duration(0) {
+		for {
 			// No heartbeat defined, just block
-			serializedUpdate, open := <-updateChan
-			if !open {
+			update, err := pipe.Read(context.Background())
+			if err != nil {
 				return
 			}
-			h.publish(serializedUpdate, subscriber, w, r)
+
+			h.publish(newSerializedUpdate(update), subscriber, w, r)
+		}
+	}
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), h.options.HeartbeatInterval)
+		update, err := pipe.Read(ctx)
+		cancel()
+
+		if err == context.DeadlineExceeded {
+			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			fmt.Fprint(w, ":\n")
+			f.Flush()
 
 			continue
 		}
 
-		select {
-		case serializedUpdate, open := <-updateChan:
-			if !open {
-				return
-			}
-			h.publish(serializedUpdate, subscriber, w, r)
-
-		case <-time.After(h.options.HeartbeatInterval):
-			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			fmt.Fprint(w, ":\n")
-			f.Flush()
+		if err != nil {
+			return
 		}
+
+		h.publish(newSerializedUpdate(update), subscriber, w, r)
 	}
 }
 
 // initSubscription initializes the connection
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, chan *serializedUpdate, bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, *Pipe, bool) {
 	fields := log.Fields{"remote_addr": r.RemoteAddr}
 
 	claims, err := authorize(r, h.options.SubscriberJWTKey, h.options.SubscriberJWTAlgorithm, nil)
@@ -81,31 +88,27 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		}
 	}
 
-	sendHeaders(w)
-	log.WithFields(fields).Info("New subscriber")
-
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
 	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
 
-	if subscriber.LastEventID != "" {
-		h.sendMissedEvents(w, r, subscriber)
+	pipe, err := h.transport.CreatePipe(subscriber.LastEventID)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		log.WithFields(fields).Error(err)
+		return nil, nil, false
 	}
 
-	// Create a new channel, over which the hub can send can send updates to this subscriber.
-	updateChan := make(chan *serializedUpdate)
-
-	// Add this client to the map of those that should
-	// receive updates
-	h.newSubscribers <- updateChan
+	sendHeaders(w)
+	log.WithFields(fields).Info("New subscriber")
 
 	// Listen to the closing of the http connection via the Request's Context
 	go func() {
 		<-r.Context().Done()
-		h.removedSubscribers <- updateChan
+		pipe.Close()
 		log.WithFields(fields).Info("Subscriber disconnected")
 	}()
 
-	return subscriber, updateChan, true
+	return subscriber, pipe, true
 }
 
 // getURITemplate retrieves or creates the uritemplate.Template associated with this topic, or nil if it's not a template
@@ -157,20 +160,6 @@ func retrieveLastEventID(r *http.Request) string {
 	}
 
 	return r.URL.Query().Get("Last-Event-ID")
-}
-
-// sendMissedEvents sends the events received since the one provided in Last-Event-ID
-func (h *Hub) sendMissedEvents(w http.ResponseWriter, r *http.Request, s *Subscriber) {
-	f := w.(http.Flusher)
-	if err := h.history.FindFor(s, func(u *Update) bool {
-		fmt.Fprint(w, u.String())
-		f.Flush()
-		log.WithFields(h.createLogFields(r, u, s)).Info("Event sent")
-
-		return true
-	}); err != nil {
-		panic(err)
-	}
 }
 
 // publish sends the update to the client, if authorized
