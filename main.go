@@ -1,18 +1,15 @@
 package main
 
 import (
-	"github.com/dunglas/mercure/config"
 	fluentd "github.com/joonix/log"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
-	_ "net/http/pprof"
-
-	_ "github.com/dunglas/mercure/config"
 	"github.com/dunglas/mercure/hub"
 )
 
 func init() {
-	switch config.GetString("LOG_FORMAT") {
+	switch viper.GetString("log_format") {
 	case "JSON":
 		log.SetFormatter(&log.JSONFormatter{})
 		return
@@ -20,7 +17,7 @@ func init() {
 		log.SetFormatter(fluentd.NewFormatter())
 	}
 
-	if config.GetString("DEBUG") == "1" {
+	if viper.GetBool("debug") {
 		log.SetLevel(log.DebugLevel)
 	}
 }

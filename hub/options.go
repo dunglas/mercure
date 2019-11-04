@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"github.com/dunglas/mercure/config"
-	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/spf13/viper"
 )
 
 // Options stores the hub's options
@@ -36,149 +35,126 @@ type Options struct {
 	Demo                   bool
 }
 
+// NewOptionsFromConfig creates a new option instance using Viper
+// It returns an error if mandatory env env vars are missing
+func NewOptionsFromConfig() (*Options, error) {
+	var err error
+
+	viper.SetConfigName("mercure")
+	viper.AutomaticEnv()
+	viper.AddConfigPath(".")
+	configDir := os.Getenv("XDG_CONFIG_HOME")
+	if configDir == "" {
+		configDir = "$HOME/.config"
+	}
+	viper.AddConfigPath(configDir + "/mercure/")
+	viper.AddConfigPath("/etc/mercure/")
+
+	viper.SetDefault("debug", false)
+	viper.SetDefault("transport_url", "bolt://updates.db")
+	viper.SetDefault("jwt_algorithm", "HS512")
+	viper.SetDefault("allow_anonymous", false)
+	viper.SetDefault("acme_http01_addr", ":http")
+	viper.SetDefault("heartbeat_interval", time.Duration(15*time.Second))
+	viper.SetDefault("read_timeout", time.Duration(0))
+	viper.SetDefault("write_timeout", time.Duration(0))
+	viper.SetDefault("compress", false)
+	viper.SetDefault("useForwarded_headers", false)
+	viper.SetDefault("demo", false)
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return nil, err
+		}
+		// Fallback to environment variables
+	}
+
+	transportURL, err := parseTransportURLFromConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	pubJwtAlgorithm := getJWTKeyAlgorithm("publisher")
+	if _, ok := pubJwtAlgorithm.(jwt.SigningMethod); !ok {
+		return nil, fmt.Errorf("publisher_jwt_algorithm: Invalid signing method %T", pubJwtAlgorithm)
+	}
+
+	subJwtAlgorithm := getJWTKeyAlgorithm("Subscriber")
+	if _, ok := subJwtAlgorithm.(jwt.SigningMethod); !ok {
+		return nil, fmt.Errorf("subscriber_jwt_algorithm: Invalid signing method %T", subJwtAlgorithm)
+	}
+
+	options := &Options{
+		viper.GetBool("debug"),
+		transportURL,
+		[]byte(getJWTKey("publisher")),
+		[]byte(getJWTKey("subscriber")),
+		pubJwtAlgorithm,
+		subJwtAlgorithm,
+		viper.GetBool("allow_anonymous"),
+		viper.GetStringSlice("cors_allowed_origins"),
+		viper.GetStringSlice("publish_allowed_origins"),
+		viper.GetString("addr"),
+		viper.GetStringSlice("acme_hosts"),
+		viper.GetString("acme_http01_addr"),
+		viper.GetString("acme_cert_dir"),
+		viper.GetString("cert_file"),
+		viper.GetString("key_file"),
+		viper.GetDuration("heartbeat_interval"),
+		viper.GetDuration("read_timeout"),
+		viper.GetDuration("write_timeout"),
+		viper.GetBool("compress"),
+		viper.GetBool("use_forwarded_headers"),
+		viper.GetBool("demo") || viper.GetBool("debug"),
+	}
+
+	// TODO: Use Viper directly when https://github.com/spf13/viper/pull/573 will be merged
+	missingEnv := make([]string, 0, 4)
+	if len(options.PublisherJWTKey) == 0 {
+		missingEnv = append(missingEnv, "publisher_jwt_key")
+	}
+	if len(options.SubscriberJWTKey) == 0 {
+		missingEnv = append(missingEnv, "subscriber_jwt_key")
+	}
+	if len(options.CertFile) != 0 && len(options.KeyFile) == 0 {
+		missingEnv = append(missingEnv, "key_file")
+	}
+	if len(options.KeyFile) != 0 && len(options.CertFile) == 0 {
+		missingEnv = append(missingEnv, "cert_file")
+	}
+
+	if len(missingEnv) > 0 {
+		return nil, fmt.Errorf("The following configuration parameters must be defined: %s", missingEnv)
+	}
+
+	return options, nil
+}
+
 func getJWTKey(role string) string {
-	key := config.GetString(fmt.Sprintf("%s_JWT_KEY", role))
+	key := viper.GetString(fmt.Sprintf("%s_jwt_key", role))
 	if key == "" {
-		return config.GetString("JWT_KEY")
+		return viper.GetString("jwt_key")
 	}
 
 	return key
 }
 
 func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
-	keyType := config.GetString(fmt.Sprintf("%s_JWT_ALGORITHM", role))
-
+	keyType := viper.GetString(fmt.Sprintf("%s_jwt_algorithm", role))
 	if keyType == "" {
-		keyType = config.GetString("JWT_ALGORITHM")
+		keyType = viper.GetString("jwt_algorithm")
 	}
 
-	if keyType == "" {
-		keyType = "HS512"
-	}
-
-	signingMethod := jwt.GetSigningMethod(keyType)
-
-	return signingMethod
+	return jwt.GetSigningMethod(keyType)
 }
 
-// NewOptionsFromEnv creates a new option instance from environment
-// It returns an error if mandatory env env vars are missing
-func NewOptionsFromEnv() (*Options, error) {
-	var err error
-
-	transportURL, err := parseURLFromEnvVar("TRANSPORT_URL", "bolt://updates.db")
-	if err != nil {
-		return nil, err
-	}
-
-	heartbeatInterval, err := parseDurationFromEnvVar("HEARTBEAT_INTERVAL", time.Duration(15*time.Second))
-	if err != nil {
-		return nil, err
-	}
-
-	readTimeout, err := parseDurationFromEnvVar("READ_TIMEOUT", time.Duration(0))
-	if err != nil {
-		return nil, err
-	}
-
-	writeTimeout, err := parseDurationFromEnvVar("WRITE_TIMEOUT", time.Duration(0))
-	if err != nil {
-		return nil, err
-	}
-
-	pubJwtAlgorithm := getJWTKeyAlgorithm("PUBLISHER")
-	subJwtAlgorithm := getJWTKeyAlgorithm("SUBSCRIBER")
-
-	if _, ok := pubJwtAlgorithm.(jwt.SigningMethod); !ok {
-		return nil, fmt.Errorf("Expected valid signing method for 'PUBLISHER_JWT_ALGORITHM', got %T", pubJwtAlgorithm)
-	}
-
-	if _, ok := subJwtAlgorithm.(jwt.SigningMethod); !ok {
-		return nil, fmt.Errorf("Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got %T", subJwtAlgorithm)
-	}
-
-	acmeHTTP01Addr := os.Getenv("ACME_HTTP01_ADDR")
-	if acmeHTTP01Addr == "" {
-		acmeHTTP01Addr = ":http"
-	}
-
-	options := &Options{
-		config.GetString("DEBUG") == "1",
-		transportURL,
-		[]byte(getJWTKey("PUBLISHER")),
-		[]byte(getJWTKey("SUBSCRIBER")),
-		pubJwtAlgorithm,
-		subJwtAlgorithm,
-		config.GetString("ALLOW_ANONYMOUS") == "1",
-		splitVar(config.GetString("CORS_ALLOWED_ORIGINS")),
-		splitVar(config.GetString("PUBLISH_ALLOWED_ORIGINS")),
-		config.GetString("ADDR"),
-		splitVar(config.GetString("ACME_HOSTS")),
-		acmeHTTP01Addr,
-		config.GetString("ACME_CERT_DIR"),
-		config.GetString("CERT_FILE"),
-		config.GetString("KEY_FILE"),
-		heartbeatInterval,
-		readTimeout,
-		writeTimeout,
-		config.GetString("COMPRESS") != "0",
-		config.GetString("USE_FORWARDED_HEADERS") == "1",
-		config.GetString("DEMO") == "1" || config.GetString("DEBUG") == "1",
-	}
-
-	missingEnv := make([]string, 0, 4)
-	if len(options.PublisherJWTKey) == 0 {
-		missingEnv = append(missingEnv, "PUBLISHER_JWT_KEY")
-	}
-	if len(options.SubscriberJWTKey) == 0 {
-		missingEnv = append(missingEnv, "SUBSCRIBER_JWT_KEY")
-	}
-	if len(options.CertFile) != 0 && len(options.KeyFile) == 0 {
-		missingEnv = append(missingEnv, "KEY_FILE")
-	}
-	if len(options.KeyFile) != 0 && len(options.CertFile) == 0 {
-		missingEnv = append(missingEnv, "CERT_FILE")
-	}
-
-	if len(missingEnv) > 0 {
-		return nil, fmt.Errorf("The following environment variable must be defined: %s", missingEnv)
-	}
-
-	return options, nil
-}
-
-func splitVar(v string) []string {
-	if v == "" {
-		return []string{}
-	}
-
-	return strings.Split(v, ",")
-}
-
-func parseDurationFromEnvVar(k string, d time.Duration) (time.Duration, error) {
-	v := config.GetString(k)
-	if v == "" {
-		return d, nil
-	}
-
-	dur, err := time.ParseDuration(v)
-	if err == nil {
-		return dur, nil
-	}
-
-	return time.Duration(0), fmt.Errorf("%s: %w", k, err)
-}
-
-func parseURLFromEnvVar(k string, d string) (*url.URL, error) {
-	v := config.GetString(k)
-	if v == "" {
-		return url.Parse(d)
-	}
+func parseTransportURLFromConfig() (*url.URL, error) {
+	v := viper.GetString("transport_url")
 
 	u, err := url.Parse(v)
 	if err == nil {
 		return u, nil
 	}
 
-	return nil, fmt.Errorf("%s: %w", k, err)
+	return nil, fmt.Errorf("transport_url: %w", err)
 }

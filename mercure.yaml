@@ -1,0 +1,10 @@
+addr: :3001
+allow_anonymous: true
+#cert_file: fixtures/tls/server.crt
+#key_file: fixtures/tls/server.key
+cors_allowed_origins: [http://localhost:3000, http://localhost:8000]
+transport_url: bolt://update.db
+debug: true
+jwt_key: '!ChangeMe!'
+log_format: JSON
+publish_allowed_origins: [http://localhost:3000, http://localhost:8000]

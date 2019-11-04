@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewOptionsFormNew(t *testing.T) {
+func TestNewOptionsFromConfig(t *testing.T) {
 	testEnv := map[string]string{
 		"ACME_CERT_DIR":            "/tmp",
-		"ACME_HOSTS":               "example.com,example.org",
+		"ACME_HOSTS":               "example.com example.org",
 		"ACME_HTTP01_ADDR":         ":8080",
 		"ADDR":                     "127.0.0.1:8080",
 		"ALLOW_ANONYMOUS":          "1",
@@ -26,7 +26,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"DEMO":                     "1",
 		"KEY_FILE":                 "bar",
 		"PUBLISHER_JWT_KEY":        "foo",
-		"PUBLISHER_JWT_ALGORITHM":  "HS256",
+		"JWT_ALGORITHM":            "HS256",
 		"PUBLISH_ALLOWED_ORIGINS":  "http://127.0.0.1:8080",
 		"SUBSCRIBER_JWT_KEY":       "bar",
 		"SUBSCRIBER_JWT_ALGORITHM": "HS256",
@@ -40,7 +40,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		defer os.Unsetenv(k)
 	}
 
-	opts, err := NewOptionsFromEnv()
+	opts, err := NewOptionsFromConfig()
 	require.Nil(t, err)
 	assert.Equal(t, &Options{
 		true,
@@ -70,9 +70,9 @@ func TestNewOptionsFormNew(t *testing.T) {
 	}, opts)
 }
 
-func TestMissingEnv(t *testing.T) {
-	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY]")
+func TestMissingConfig(t *testing.T) {
+	_, err := NewOptionsFromConfig()
+	assert.EqualError(t, err, "The following configuration parameters must be defined: [publisher_jwt_key subscriber_jwt_key]")
 }
 
 func TestWrongPublisherAlgorithmEnv(t *testing.T) {
@@ -87,8 +87,8 @@ func TestWrongPublisherAlgorithmEnv(t *testing.T) {
 		defer os.Unsetenv(k)
 	}
 
-	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "Expected valid signing method for 'PUBLISHER_JWT_ALGORITHM', got <nil>")
+	_, err := NewOptionsFromConfig()
+	assert.EqualError(t, err, "publisher_jwt_algorithm: Invalid signing method <nil>")
 }
 
 func TestWrongSubscriberAlgorithmEnv(t *testing.T) {
@@ -103,43 +103,29 @@ func TestWrongSubscriberAlgorithmEnv(t *testing.T) {
 		defer os.Unsetenv(k)
 	}
 
-	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got <nil>")
+	_, err := NewOptionsFromConfig()
+	assert.EqualError(t, err, "subscriber_jwt_algorithm: Invalid signing method <nil>")
 }
 
 func TestMissingKeyFile(t *testing.T) {
 	os.Setenv("CERT_FILE", "foo")
 	defer os.Unsetenv("CERT_FILE")
 
-	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY KEY_FILE]")
+	_, err := NewOptionsFromConfig()
+	assert.EqualError(t, err, "The following configuration parameters must be defined: [publisher_jwt_key subscriber_jwt_key key_file]")
 }
 
 func TestMissingCertFile(t *testing.T) {
 	os.Setenv("KEY_FILE", "foo")
 	defer os.Unsetenv("KEY_FILE")
 
-	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY CERT_FILE]")
-}
-
-func TestInvalidDuration(t *testing.T) {
-	vars := [3]string{"HEARTBEAT_INTERVAL", "READ_TIMEOUT", "WRITE_TIMEOUT"}
-	for _, elem := range vars {
-		os.Setenv(elem, "1 MN (invalid)")
-		_, err := NewOptionsFromEnv()
-		assert.EqualError(t, err, elem+": time: unknown unit  MN (invalid) in duration 1 MN (invalid)")
-
-		os.Unsetenv(elem)
-	}
+	_, err := NewOptionsFromConfig()
+	assert.EqualError(t, err, "The following configuration parameters must be defined: [publisher_jwt_key subscriber_jwt_key cert_file]")
 }
 
 func TestInvalidUrl(t *testing.T) {
-	vars := []string{"TRANSPORT_URL"}
-	for _, elem := range vars {
-		os.Setenv(elem, "http://[::1]%23")
-		defer os.Unsetenv(elem)
-		_, err := NewOptionsFromEnv()
-		assert.EqualError(t, err, elem+": parse http://[::1]%23: invalid port \"%23\" after host")
-	}
+	os.Setenv("TRANSPORT_URL", "http://[::1]%23")
+	defer os.Unsetenv("TRANSPORT_URL")
+	_, err := NewOptionsFromConfig()
+	assert.EqualError(t, err, "transport_url: parse http://[::1]%23: invalid port \"%23\" after host")
 }

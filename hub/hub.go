@@ -35,7 +35,7 @@ func (h *Hub) Stop() error {
 
 // NewHubFromEnv creates a hub using the configuration set in env vars
 func NewHubFromEnv() (*Hub, error) {
-	options, err := NewOptionsFromEnv()
+	options, err := NewOptionsFromConfig()
 	if err != nil {
 		return nil, err
 	}
