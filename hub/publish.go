@@ -14,11 +14,7 @@ func (h *Hub) dispatch(u *Update) error {
 		u.ID = uuid.Must(uuid.NewV4()).String()
 	}
 
-	if err := h.transport.Write(u); err != nil {
-		return err
-	}
-
-	return nil
+	return h.transport.Write(u)
 }
 
 // PublishHandler allows publisher to broadcast updates to all subscribers

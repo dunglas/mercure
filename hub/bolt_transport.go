@@ -79,15 +79,13 @@ func (t *BoltTransport) Write(update *Update) error {
 	default:
 	}
 
-	var (
-		err         error
-		closedPipes []*Pipe
-	)
-
 	t.RLock()
 
-	err = t.persist(update)
+	if err := t.persist(update); err != nil {
+		return err
+	}
 
+	var closedPipes []*Pipe
 	for pipe := range t.pipes {
 		if !pipe.Write(update) {
 			closedPipes = append(closedPipes, pipe)
@@ -103,7 +101,7 @@ func (t *BoltTransport) Write(update *Update) error {
 
 	t.Unlock()
 
-	return err
+	return nil
 }
 
 // persist stores update in the database
@@ -202,8 +200,8 @@ func (t *BoltTransport) Close() error {
 	case <-t.done:
 		// Already closed. Don't close again.
 	default:
-		t.RLock()
-		defer t.RUnlock()
+		t.Lock()
+		defer t.Unlock()
 		for pipe := range t.pipes {
 			pipe.Close()
 		}
