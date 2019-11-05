@@ -1,9 +1,11 @@
 package hub
 
 import (
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/dgrijalva/jwt-go"
 )
@@ -368,7 +370,7 @@ func TestAuthorizedAllTargetsPublisher(t *testing.T) {
 	assert.Empty(t, targets)
 }
 
-func TestAuthorizedTargetsSubsciber(t *testing.T) {
+func TestAuthorizedTargetsSubscriber(t *testing.T) {
 	c := &claims{Mercure: mercureClaim{
 		Subscribe: []string{"foo", "bar"},
 	}}
@@ -378,7 +380,7 @@ func TestAuthorizedTargetsSubsciber(t *testing.T) {
 	assert.Equal(t, map[string]struct{}{"foo": {}, "bar": {}}, targets)
 }
 
-func TestAuthorizedAllTargetsSubsciber(t *testing.T) {
+func TestAuthorizedAllTargetsSubscriber(t *testing.T) {
 	c := &claims{Mercure: mercureClaim{
 		Subscribe: []string{"*"},
 	}}
@@ -386,4 +388,34 @@ func TestAuthorizedAllTargetsSubsciber(t *testing.T) {
 	all, targets := authorizedTargets(c, false)
 	assert.True(t, all)
 	assert.Empty(t, targets)
+}
+
+func TestGetJWTKeyInvalid(t *testing.T) {
+	v := viper.New()
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+
+	h.config.Set("publisher_jwt_key", "")
+	assert.PanicsWithValue(t, "one of these configuration parameters must be defined: [publisher_jwt_key jwt_key]", func() {
+		h.getJWTKey(publisherRole)
+	})
+
+	h.config.Set("subscriber_jwt_key", "")
+	assert.PanicsWithValue(t, "one of these configuration parameters must be defined: [subscriber_jwt_key jwt_key]", func() {
+		h.getJWTKey(subscriberRole)
+	})
+}
+
+func TestGetJWTAlgorithmInvalid(t *testing.T) {
+	v := viper.New()
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+
+	h.config.Set("publisher_jwt_algorithm", "foo")
+	assert.PanicsWithValue(t, "invalid signing method: foo", func() {
+		h.getJWTAlgorithm(publisherRole)
+	})
+
+	h.config.Set("subscriber_jwt_algorithm", "foo")
+	assert.PanicsWithValue(t, "invalid signing method: foo", func() {
+		h.getJWTAlgorithm(subscriberRole)
+	})
 }

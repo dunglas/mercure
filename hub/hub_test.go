@@ -3,8 +3,10 @@ package hub
 import (
 	"os"
 	"testing"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +16,7 @@ const testAddr = "127.0.0.1:4242"
 func TestNewHub(t *testing.T) {
 	h := createDummy()
 
-	assert.IsType(t, &Options{}, h.options)
+	assert.IsType(t, &viper.Viper{}, h.config)
 }
 
 func TestNewHubFromEnv(t *testing.T) {
@@ -23,14 +25,14 @@ func TestNewHubFromEnv(t *testing.T) {
 	defer os.Unsetenv("PUBLISHER_JWT_KEY")
 	defer os.Unsetenv("JWT_KEY")
 
-	h, err := NewHubFromEnv()
+	h, err := NewHubFromConfig()
 	assert.Nil(t, err)
 	require.NotNil(t, h)
 	h.Stop()
 }
 
 func TestNewHubFromEnvError(t *testing.T) {
-	h, err := NewHubFromEnv()
+	h, err := NewHubFromConfig()
 	assert.Nil(t, h)
 	assert.Error(t, err)
 }
@@ -43,45 +45,51 @@ func TestNewHubFromEnvErrorFromTransport(t *testing.T) {
 	defer os.Unsetenv("JWT_KEY")
 	defer os.Unsetenv("TRANSPORT_URL")
 
-	h, err := NewHubFromEnv()
+	h, err := NewHubFromConfig()
 	assert.Nil(t, h)
 	assert.Error(t, err)
 }
 
 func createDummy() *Hub {
-	return NewHub(NewLocalTransport(), &Options{PublisherJWTKey: []byte("publisher"), SubscriberJWTKey: []byte("subscriber"), PublisherJWTAlgorithm: hmacSigningMethod, SubscriberJWTAlgorithm: hmacSigningMethod})
+	v := viper.New()
+	setConfigDefaults(v)
+	v.SetDefault("heartbeat_interval", time.Duration(0))
+	v.SetDefault("publisher_jwt_key", "publisher")
+	v.SetDefault("subscriber_jwt_key", "subscriber")
+
+	return NewHub(NewLocalTransport(), v)
 }
 
 func createAnonymousDummy() *Hub {
-	return createAnonymousDummyWithTransport(NewLocalTransport())
+	return createDummyWithTransportAndConfig(NewLocalTransport(), viper.New())
 }
 
-func createAnonymousDummyWithTransport(t Transport) *Hub {
-	return NewHub(t, &Options{
-		PublisherJWTKey:        []byte("publisher"),
-		SubscriberJWTKey:       []byte("subscriber"),
-		PublisherJWTAlgorithm:  hmacSigningMethod,
-		SubscriberJWTAlgorithm: hmacSigningMethod,
-		AllowAnonymous:         true,
-		Addr:                   testAddr,
-		Compress:               false,
-	})
+func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {
+	setConfigDefaults(v)
+	v.SetDefault("heartbeat_interval", time.Duration(0))
+	v.SetDefault("publisher_jwt_key", "publisher")
+	v.SetDefault("subscriber_jwt_key", "subscriber")
+	v.SetDefault("allow_anonymous", true)
+	v.SetDefault("addr", testAddr)
+
+	return NewHub(t, v)
 }
 
-func createDummyAuthorizedJWT(h *Hub, publisher bool, targets []string) string {
-	var key []byte
+func createDummyAuthorizedJWT(h *Hub, r role, targets []string) string {
 	token := jwt.New(jwt.SigningMethodHS256)
+	key := h.getJWTKey(r)
 
-	if publisher {
-		key = h.options.PublisherJWTKey
+	switch r {
+	case publisherRole:
 		token.Claims = &claims{mercureClaim{Publish: targets}, jwt.StandardClaims{}}
-	} else {
-		key = h.options.SubscriberJWTKey
+		break
+
+	case subscriberRole:
 		token.Claims = &claims{mercureClaim{Subscribe: targets}, jwt.StandardClaims{}}
+		break
 	}
 
 	tokenString, _ := token.SignedString(key)
-
 	return tokenString
 }
 

@@ -15,7 +15,7 @@ func (h *Hub) createLogFields(r *http.Request, u *Update, s *Subscriber) log.Fie
 		"update_topics":  u.Topics,
 		"update_targets": targetsMapToArray(u.Targets),
 	}
-	if h.options.Debug {
+	if h.config.GetBool("debug") {
 		fields["update_data"] = u.Data
 	}
 

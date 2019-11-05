@@ -3,7 +3,10 @@ package hub
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
+
+	"github.com/spf13/viper"
 )
 
 // Transport provides methods to read and write updates
@@ -22,16 +25,26 @@ type Transport interface {
 var ErrClosedTransport = errors.New("hub: read/write on closed Transport")
 
 // NewTransport create a transport using the backend matching the given TransportURL
-func NewTransport(options *Options) (Transport, error) {
-	if options.TransportURL == nil || options.TransportURL.Scheme == "null" {
+func NewTransport(config *viper.Viper) (Transport, error) {
+	tu := config.GetString("transport_url")
+	if tu == "" {
 		return NewLocalTransport(), nil
 	}
 
-	if options.TransportURL.Scheme == "bolt" {
-		return NewBoltTransport(options)
+	u, err := url.Parse(tu)
+	if err != nil {
+		return nil, fmt.Errorf("transport_url: %w", err)
 	}
 
-	return nil, fmt.Errorf(`no Transport available for "%s"`, options.TransportURL)
+	switch u.Scheme {
+	case "null":
+		return NewLocalTransport(), nil
+
+	case "bolt":
+		return NewBoltTransport(u)
+	}
+
+	return nil, fmt.Errorf(`no Transport available for "%s"`, tu)
 }
 
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates

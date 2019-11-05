@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"strconv"
 	"sync"
 
@@ -30,10 +31,9 @@ type BoltTransport struct {
 }
 
 // NewBoltTransport create a new BoltTransport
-func NewBoltTransport(options *Options) (*BoltTransport, error) {
+func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 	var err error
-	url := options.TransportURL
-	q := url.Query()
+	q := u.Query()
 	bucketName := defaultBoltBucketName
 	if q.Get("bucket_name") != "" {
 		bucketName = q.Get("bucket_name")
@@ -43,7 +43,7 @@ func NewBoltTransport(options *Options) (*BoltTransport, error) {
 	if q.Get("size") != "" {
 		size, err = strconv.ParseUint(q.Get("size"), 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`invalid bolt "%s" dsn: parameter size: %w`, url, err)
+			return nil, fmt.Errorf(`invalid bolt "%s" dsn: parameter size: %w`, u, err)
 		}
 	}
 
@@ -51,21 +51,21 @@ func NewBoltTransport(options *Options) (*BoltTransport, error) {
 	if q.Get("cleanup_frequency") != "" {
 		cleanupFrequency, err = strconv.ParseFloat(q.Get("cleanup_frequency"), 64)
 		if err != nil {
-			return nil, fmt.Errorf(`invalid bolt "%s" dsn: parameter cleanup_frequency: %w`, url, err)
+			return nil, fmt.Errorf(`invalid bolt "%s" dsn: parameter cleanup_frequency: %w`, u, err)
 		}
 	}
 
-	path := url.Path // absolute path (bolt:///path.db)
+	path := u.Path // absolute path (bolt:///path.db)
 	if path == "" {
-		path = url.Host // relative path (bolt://path.db)
+		path = u.Host // relative path (bolt://path.db)
 	}
 	if path == "" {
-		return nil, fmt.Errorf(`invalid bolt "%s" dsn: missing path`, url)
+		return nil, fmt.Errorf(`invalid bolt DSN "%s": missing path`, u)
 	}
 
 	db, err := bolt.Open(path, 0600, nil)
 	if err != nil {
-		return nil, fmt.Errorf(`invalid bolt "%s" dsn: %w`, url, err)
+		return nil, fmt.Errorf(`invalid bolt DSN "%s": %w`, u, err)
 	}
 
 	return &BoltTransport{db: db, bucketName: bucketName, size: size, cleanupFrequency: cleanupFrequency, pipes: make(map[*Pipe]struct{}), done: make(chan struct{})}, nil

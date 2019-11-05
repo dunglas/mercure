@@ -15,7 +15,7 @@ import (
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	f, ok := w.(http.Flusher)
 	if !ok {
-		panic("The Response Writer must be an instance of Flusher.")
+		panic("http.ResponseWriter must be an instance of http.Flusher")
 	}
 
 	subscriber, pipe, ok := h.initSubscription(w, r)
@@ -24,7 +24,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer h.cleanup(subscriber)
 
-	if h.options.HeartbeatInterval == time.Duration(0) {
+	hearthbeatInterval := h.config.GetDuration("heartbeat_interval")
+	if hearthbeatInterval == time.Duration(0) {
 		for {
 			// No heartbeat defined, just block
 			update, err := pipe.Read(context.Background())
@@ -37,7 +38,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), h.options.HeartbeatInterval)
+		ctx, cancel := context.WithTimeout(context.Background(), hearthbeatInterval)
 		update, err := pipe.Read(ctx)
 		cancel()
 
@@ -61,11 +62,11 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, *Pipe, bool) {
 	fields := log.Fields{"remote_addr": r.RemoteAddr}
 
-	claims, err := authorize(r, h.options.SubscriberJWTKey, h.options.SubscriberJWTAlgorithm, nil)
-	if h.options.Debug && claims != nil {
+	claims, err := authorize(r, h.getJWTKey(subscriberRole), h.getJWTAlgorithm(subscriberRole), nil)
+	if h.config.GetBool("debug") && claims != nil {
 		fields["target"] = claims.Mercure.Subscribe
 	}
-	if err != nil || (claims == nil && !h.options.AllowAnonymous) {
+	if err != nil || (claims == nil && !h.config.GetBool("allow_anonymous")) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		log.WithFields(fields).Info(err)
 		return nil, nil, false

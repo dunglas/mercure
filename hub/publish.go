@@ -19,7 +19,7 @@ func (h *Hub) dispatch(u *Update) error {
 
 // PublishHandler allows publisher to broadcast updates to all subscribers
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
-	claims, err := authorize(r, h.options.PublisherJWTKey, h.options.PublisherJWTAlgorithm, h.options.PublishAllowedOrigins)
+	claims, err := authorize(r, h.getJWTKey(publisherRole), h.getJWTAlgorithm(publisherRole), h.config.GetStringSlice("publish_allowed_origins"))
 	if err != nil || claims == nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
