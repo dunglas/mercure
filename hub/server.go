@@ -19,9 +19,11 @@ const defaultHubURL = "/.well-known/mercure"
 // Serve starts the HTTP server
 func (h *Hub) Serve() {
 	addr := h.config.GetString("addr")
+	acmeHosts := h.config.GetStringSlice("acme_hosts")
+
 	h.server = &http.Server{
 		Addr:         addr,
-		Handler:      h.chainHandlers(),
+		Handler:      h.chainHandlers(acmeHosts),
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
@@ -52,7 +54,7 @@ func (h *Hub) Serve() {
 		}
 	}()
 
-	acme := len(h.config.GetStringSlice("acme_hosts")) > 0
+	acme := len(acmeHosts) > 0
 	var err error
 
 	certFile := h.config.GetString("cert_file")
@@ -66,7 +68,7 @@ func (h *Hub) Serve() {
 		if acme {
 			certManager := &autocert.Manager{
 				Prompt:     autocert.AcceptTOS,
-				HostPolicy: autocert.HostWhitelist(h.config.GetStringSlice("acme_hosts")...),
+				HostPolicy: autocert.HostWhitelist(acmeHosts...),
 			}
 
 			acmeCertDir := h.config.GetString("acme_cert_dir")
@@ -91,7 +93,7 @@ func (h *Hub) Serve() {
 }
 
 // chainHandlers configures and chains handlers
-func (h *Hub) chainHandlers() http.Handler {
+func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	r := mux.NewRouter()
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
@@ -110,7 +112,7 @@ func (h *Hub) chainHandlers() http.Handler {
 	debug := h.config.GetBool("debug")
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         debug,
-		AllowedHosts:          h.config.GetStringSlice("acme_hosts"),
+		AllowedHosts:          acmeHosts,
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
 		BrowserXssFilter:      true,

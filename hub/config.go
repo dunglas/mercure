@@ -45,13 +45,13 @@ func NewConfig() (*viper.Viper, error) {
 func setConfigDefaults(v *viper.Viper) {
 	v.SetDefault("debug", false)
 	v.SetDefault("transport_url", "bolt://updates.db")
-	v.SetDefault("jwt_algorithm", "HS512")
+	v.SetDefault("jwt_algorithm", "HS256")
 	v.SetDefault("allow_anonymous", false)
 	v.SetDefault("acme_http01_addr", ":http")
 	v.SetDefault("heartbeat_interval", time.Duration(15*time.Second))
 	v.SetDefault("read_timeout", time.Duration(0))
 	v.SetDefault("write_timeout", time.Duration(0))
 	v.SetDefault("compress", false)
-	v.SetDefault("useForwarded_headers", false)
+	v.SetDefault("use_forwarded_headers", false)
 	v.SetDefault("demo", false)
 }

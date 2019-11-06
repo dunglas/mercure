@@ -46,7 +46,7 @@ func (h *Hub) getJWTKey(r role) []byte {
 		key = h.config.GetString("jwt_key")
 	}
 	if key == "" {
-		panic(fmt.Sprintf("one of these configuration parameters must be defined: [%s jwt_key]", configKey))
+		log.Panicf("one of these configuration parameters must be defined: [%s jwt_key]", configKey)
 	}
 
 	return []byte(key)
