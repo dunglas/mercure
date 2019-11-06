@@ -19,6 +19,7 @@ RUN chmod +x ./mercure
 # Build the actual image
 FROM scratch
 COPY --from=build /go/src/app/mercure .
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY public ./public/
 CMD ["./mercure"]
 EXPOSE 80 443
