@@ -60,7 +60,7 @@ func TestPublishBadContentType(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{}))
 	req.Header.Add("Content-Type", "text/plain; boundary=")
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -74,7 +74,7 @@ func TestPublishNoTopic(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", nil)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{}))
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -92,7 +92,7 @@ func TestPublishNoData(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -113,7 +113,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -134,7 +134,7 @@ func TestPublishNotAuthorizedTarget(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{"foo"}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{"foo"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -174,7 +174,7 @@ func TestPublishOK(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{"foo", "bar"}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{"foo", "bar"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -212,8 +212,8 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, true, []string{})})
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{}))
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, publisherRole, []string{})})
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -247,7 +247,7 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 
 	req := httptest.NewRequest("POST", "http://example.com/hub", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, true, []string{"foo", "bar"}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{"foo", "bar"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)

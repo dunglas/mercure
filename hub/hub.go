@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/spf13/viper"
 	"github.com/yosida95/uritemplate"
 )
 
@@ -22,7 +23,7 @@ type templateCache struct {
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates
 type Hub struct {
-	options      *Options
+	config       *viper.Viper
 	transport    Transport
 	server       *http.Server
 	uriTemplates uriTemplates
@@ -33,25 +34,25 @@ func (h *Hub) Stop() error {
 	return h.transport.Close()
 }
 
-// NewHubFromEnv creates a hub using the configuration set in env vars
-func NewHubFromEnv() (*Hub, error) {
-	options, err := NewOptionsFromEnv()
+// NewHubFromConfig creates a hub using the Viper configuration
+func NewHubFromConfig() (*Hub, error) {
+	config, err := NewConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	transport, err := NewTransport(options)
+	transport, err := NewTransport(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewHub(transport, options), nil
+	return NewHub(transport, config), nil
 }
 
 // NewHub creates a hub
-func NewHub(transport Transport, options *Options) *Hub {
+func NewHub(transport Transport, config *viper.Viper) *Hub {
 	return &Hub{
-		options,
+		config,
 		transport,
 		nil,
 		uriTemplates{m: make(map[string]*templateCache)},

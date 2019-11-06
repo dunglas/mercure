@@ -18,11 +18,14 @@ const defaultHubURL = "/.well-known/mercure"
 
 // Serve starts the HTTP server
 func (h *Hub) Serve() {
+	addr := h.config.GetString("addr")
+	acmeHosts := h.config.GetStringSlice("acme_hosts")
+
 	h.server = &http.Server{
-		Addr:         h.options.Addr,
-		Handler:      h.chainHandlers(),
-		ReadTimeout:  h.options.ReadTimeout,
-		WriteTimeout: h.options.WriteTimeout,
+		Addr:         addr,
+		Handler:      h.chainHandlers(acmeHosts),
+		ReadTimeout:  h.config.GetDuration("read_timeout"),
+		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
 	idleConnsClosed := make(chan struct{})
 
@@ -51,30 +54,35 @@ func (h *Hub) Serve() {
 		}
 	}()
 
-	acme := len(h.options.AcmeHosts) > 0
+	acme := len(acmeHosts) > 0
 	var err error
 
-	if !acme && h.options.CertFile == "" && h.options.KeyFile == "" {
-		log.WithFields(log.Fields{"protocol": "http", "addr": h.options.Addr}).Info("Mercure started")
+	certFile := h.config.GetString("cert_file")
+	keyFile := h.config.GetString("key_file")
+
+	if !acme && certFile == "" && keyFile == "" {
+		log.WithFields(log.Fields{"protocol": "http", "addr": addr}).Info("Mercure started")
 		err = h.server.ListenAndServe()
 	} else {
 		// TLS
 		if acme {
 			certManager := &autocert.Manager{
 				Prompt:     autocert.AcceptTOS,
-				HostPolicy: autocert.HostWhitelist(h.options.AcmeHosts...),
+				HostPolicy: autocert.HostWhitelist(acmeHosts...),
 			}
-			if h.options.AcmeCertDir != "" {
-				certManager.Cache = autocert.DirCache(h.options.AcmeCertDir)
+
+			acmeCertDir := h.config.GetString("acme_cert_dir")
+			if acmeCertDir != "" {
+				certManager.Cache = autocert.DirCache(acmeCertDir)
 			}
 			h.server.TLSConfig = certManager.TLSConfig()
 
 			// Mandatory for Let's Encrypt http-01 challenge
-			go http.ListenAndServe(h.options.AcmeHTTP01Addr, certManager.HTTPHandler(nil))
+			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil))
 		}
 
-		log.WithFields(log.Fields{"protocol": "https", "addr": h.options.Addr}).Info("Mercure started")
-		err = h.server.ListenAndServeTLS(h.options.CertFile, h.options.KeyFile)
+		log.WithFields(log.Fields{"protocol": "https", "addr": addr}).Info("Mercure started")
+		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
 	if err != http.ErrServerClosed {
@@ -85,12 +93,12 @@ func (h *Hub) Serve() {
 }
 
 // chainHandlers configures and chains handlers
-func (h *Hub) chainHandlers() http.Handler {
+func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	r := mux.NewRouter()
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
-	if h.options.Demo {
+	if h.config.GetBool("demo") {
 		r.PathPrefix("/demo").HandlerFunc(demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 	} else {
@@ -101,9 +109,10 @@ func (h *Hub) chainHandlers() http.Handler {
 		}).Methods("GET", "HEAD")
 	}
 
+	debug := h.config.GetBool("debug")
 	secureMiddleware := secure.New(secure.Options{
-		IsDevelopment:         h.options.Debug,
-		AllowedHosts:          h.options.AcmeHosts,
+		IsDevelopment:         debug,
+		AllowedHosts:          acmeHosts,
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
 		BrowserXssFilter:      true,
@@ -111,8 +120,9 @@ func (h *Hub) chainHandlers() http.Handler {
 	})
 
 	var corsHandler http.Handler
-	if len(h.options.CorsAllowedOrigins) > 0 {
-		allowedOrigins := handlers.AllowedOrigins(h.options.CorsAllowedOrigins)
+	corsAllowedOrigins := h.config.GetStringSlice("cors_allowed_origins")
+	if len(corsAllowedOrigins) > 0 {
+		allowedOrigins := handlers.AllowedOrigins(corsAllowedOrigins)
 		allowedHeaders := handlers.AllowedHeaders([]string{"authorization", "cache-control"})
 
 		corsHandler = handlers.CORS(handlers.AllowCredentials(), allowedOrigins, allowedHeaders)(r)
@@ -121,14 +131,14 @@ func (h *Hub) chainHandlers() http.Handler {
 	}
 
 	var compressHandler http.Handler
-	if h.options.Compress {
+	if h.config.GetBool("compress") {
 		compressHandler = handlers.CompressHandler(corsHandler)
 	} else {
 		compressHandler = corsHandler
 	}
 
 	var useForwardedHeadersHandlers http.Handler
-	if h.options.UseForwardedHeaders {
+	if h.config.GetBool("use_forwarded_headers") {
 		useForwardedHeadersHandlers = handlers.ProxyHeaders(compressHandler)
 	} else {
 		useForwardedHeadersHandlers = compressHandler
@@ -138,7 +148,7 @@ func (h *Hub) chainHandlers() http.Handler {
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(
 		handlers.RecoveryLogger(log.New()),
-		handlers.PrintRecoveryStack(h.options.Debug),
+		handlers.PrintRecoveryStack(debug),
 	)(loggingHandler)
 
 	return recoveryHandler

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,9 +22,9 @@ const testURL = "http://" + testAddr + defaultHubURL
 const testSecureURL = "https://" + testAddr + defaultHubURL
 
 func TestForwardedHeaders(t *testing.T) {
-	h := createAnonymousDummy()
-	h.options.Demo = true
-	h.options.UseForwardedHeaders = true
+	v := viper.New()
+	v.Set("use_forwarded_headers", true)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go func() {
 		h.Serve()
@@ -42,7 +43,7 @@ func TestForwardedHeaders(t *testing.T) {
 	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("X-Forwarded-For", "192.0.2.1")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, true, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
 
 	_, err := client.Do(req)
 	if err != nil {
@@ -55,12 +56,13 @@ func TestForwardedHeaders(t *testing.T) {
 }
 
 func TestSecurityOptions(t *testing.T) {
-	h := createAnonymousDummy()
-	h.options.Demo = true
-	h.options.CorsAllowedOrigins = []string{"*"}
-	h.options.CertFile = "../fixtures/tls/server.crt"
-	h.options.KeyFile = "../fixtures/tls/server.key"
-	h.options.Compress = false
+	v := viper.New()
+	v.Set("demo", true)
+	v.Set("cors_allowed_origins", []string{"*"})
+	v.Set("cert_file", "../fixtures/tls/server.crt")
+	v.Set("key_file", "../fixtures/tls/server.key")
+	v.Set("compress", true)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go func() {
 		h.Serve()
@@ -153,7 +155,7 @@ func TestServe(t *testing.T) {
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
 	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, true, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
 
 	_, err := client.Do(req)
 	if err != nil {
@@ -168,18 +170,11 @@ func TestServeAcme(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "cert")
 	defer os.RemoveAll(dir)
 
-	h := NewHub(NewLocalTransport(), &Options{
-		PublisherJWTKey:        []byte("publisher"),
-		SubscriberJWTKey:       []byte("subscriber"),
-		PublisherJWTAlgorithm:  hmacSigningMethod,
-		SubscriberJWTAlgorithm: hmacSigningMethod,
-		AllowAnonymous:         true,
-		Addr:                   testAddr,
-		AcmeHosts:              []string{"example.com"},
-		AcmeHTTP01Addr:         ":8080",
-		AcmeCertDir:            dir,
-		Compress:               true,
-	})
+	v := viper.New()
+	v.Set("acme_hosts", []string{"example.com"})
+	v.Set("acme_http01_addr", ":8080")
+	v.Set("acme_cert_dir", dir)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go func() {
 		h.Serve()

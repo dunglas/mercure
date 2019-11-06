@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -21,6 +22,57 @@ type claims struct {
 type mercureClaim struct {
 	Publish   []string `json:"publish"`
 	Subscribe []string `json:"subscribe"`
+}
+
+type role int
+
+const (
+	subscriberRole role = iota
+	publisherRole
+)
+
+func (h *Hub) getJWTKey(r role) []byte {
+	var configKey string
+	switch r {
+	case subscriberRole:
+		configKey = "subscriber_jwt_key"
+		break
+	case publisherRole:
+		configKey = "publisher_jwt_key"
+	}
+
+	key := h.config.GetString(configKey)
+	if key == "" {
+		key = h.config.GetString("jwt_key")
+	}
+	if key == "" {
+		log.Panicf("one of these configuration parameters must be defined: [%s jwt_key]", configKey)
+	}
+
+	return []byte(key)
+}
+
+func (h *Hub) getJWTAlgorithm(r role) jwt.SigningMethod {
+	var configKey string
+	switch r {
+	case subscriberRole:
+		configKey = "subscriber_jwt_algorithm"
+		break
+	case publisherRole:
+		configKey = "publisher_jwt_algorithm"
+	}
+
+	keyType := h.config.GetString(configKey)
+	if keyType == "" {
+		keyType = h.config.GetString("jwt_algorithm")
+	}
+
+	sm := jwt.GetSigningMethod(keyType)
+	if nil == sm {
+		log.Panicf("invalid signing method: %s", keyType)
+	}
+
+	return sm
 }
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or a "mercureAuthorization" cookie.
@@ -75,24 +127,24 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMethod) (*claims, error) {
 	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
 		switch signingAlgorithm.(type) {
-			case *jwt.SigningMethodHMAC:
-				return key, nil
-			case *jwt.SigningMethodRSA:
-				block, _ := pem.Decode(key)
+		case *jwt.SigningMethodHMAC:
+			return key, nil
+		case *jwt.SigningMethodRSA:
+			block, _ := pem.Decode(key)
 
-				if block == nil {
-					return nil, errors.New("public key error")
-				}
+			if block == nil {
+				return nil, errors.New("public key error")
+			}
 
-				pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+			pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
 
-				if err != nil {
-					return nil, err
-				}
+			if err != nil {
+				return nil, err
+			}
 
-				pub := pubInterface.(*rsa.PublicKey)
+			pub := pubInterface.(*rsa.PublicKey)
 
-				return pub, nil
+			return pub, nil
 		}
 
 		return nil, fmt.Errorf("Unexpected signing method: %T", signingAlgorithm)

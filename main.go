@@ -1,19 +1,15 @@
 package main
 
 import (
-	"os"
-
 	fluentd "github.com/joonix/log"
 	log "github.com/sirupsen/logrus"
-
-	_ "net/http/pprof"
+	"github.com/spf13/viper"
 
 	"github.com/dunglas/mercure/hub"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 func init() {
-	switch os.Getenv("LOG_FORMAT") {
+	switch viper.GetString("log_format") {
 	case "JSON":
 		log.SetFormatter(&log.JSONFormatter{})
 		return
@@ -21,13 +17,13 @@ func init() {
 		log.SetFormatter(fluentd.NewFormatter())
 	}
 
-	if os.Getenv("DEBUG") == "1" {
+	if viper.GetBool("debug") {
 		log.SetLevel(log.DebugLevel)
 	}
 }
 
 func main() {
-	hub, err := hub.NewHubFromEnv()
+	hub, err := hub.NewHubFromConfig()
 	if err != nil {
 		log.Fatalln(err)
 	}

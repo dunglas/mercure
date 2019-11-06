@@ -2,12 +2,12 @@ package hub
 
 import (
 	"context"
-	"net/url"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -148,23 +148,30 @@ func TestLivePipeReadingBlocks(t *testing.T) {
 }
 
 func TestNewTransport(t *testing.T) {
-	transport, err := NewTransport(&Options{TransportURL: nil})
+	transport, err := NewTransport(viper.New())
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
 	assert.IsType(t, &LocalTransport{}, transport)
 
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ = NewTransport(&Options{TransportURL: url})
+	v := viper.New()
+	v.Set("transport_url", "bolt://test.db")
+	transport, _ = NewTransport(v)
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
 	os.Remove("test.db")
 	assert.IsType(t, &BoltTransport{}, transport)
 
-	url, _ = url.Parse("nothing:")
-	transport, err = NewTransport(&Options{TransportURL: url})
+	v = viper.New()
+	v.Set("transport_url", "nothing:")
+	transport, err = NewTransport(v)
 	assert.Nil(t, transport)
 	assert.NotNil(t, err)
 	assert.EqualError(t, err, `no Transport available for "nothing:"`)
+
+	v = viper.New()
+	v.Set("transport_url", "http://[::1]%23")
+	_, err = NewTransport(v)
+	assert.EqualError(t, err, "transport_url: parse http://[::1]%23: invalid port \"%23\" after host")
 }

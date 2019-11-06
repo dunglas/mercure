@@ -13,6 +13,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,7 +67,7 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 
-	assert.PanicsWithValue(t, "The Response Writer must be an instance of Flusher.", func() {
+	assert.PanicsWithValue(t, "http.ResponseWriter must be an instance of http.Flusher", func() {
 		hub.SubscribeHandler(&responseWriterMock{}, req)
 	})
 }
@@ -160,7 +161,7 @@ func (*createPipeErrorTransport) Close() error {
 }
 
 func TestSubscribeCreatePipeError(t *testing.T) {
-	hub := createAnonymousDummyWithTransport(&createPipeErrorTransport{})
+	hub := createDummyWithTransportAndConfig(&createPipeErrorTransport{}, viper.New())
 
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=foo", nil)
 	w := httptest.NewRecorder()
@@ -275,7 +276,7 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestSubscribeTarget(t *testing.T) {
 	hub := createDummy()
-	hub.options.Debug = true
+	hub.config.Set("debug", true)
 	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {
@@ -309,7 +310,7 @@ func TestSubscribeTarget(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, false, []string{"foo", "bar"})})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{"foo", "bar"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -353,7 +354,7 @@ func TestSubscribeAllTargets(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, false, []string{"random", "*"}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, subscriberRole, []string{"random", "*"}))
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -367,12 +368,12 @@ func TestSubscribeAllTargets(t *testing.T) {
 }
 
 func TestSendMissedEvents(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	hub := createAnonymousDummyWithTransport(transport)
+	hub := createDummyWithTransportAndConfig(transport, viper.New())
 
 	transport.Write(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -431,7 +432,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 func TestSubscribeHeartbeat(t *testing.T) {
 	hub := createAnonymousDummy()
-	hub.options.HeartbeatInterval = 5 * time.Millisecond
+	hub.config.Set("heartbeat_interval", 5*time.Millisecond)
 	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {

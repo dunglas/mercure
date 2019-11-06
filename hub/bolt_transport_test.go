@@ -15,8 +15,8 @@ import (
 )
 
 func TestBoltTransportHistory(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -52,8 +52,8 @@ func TestBoltTransportHistory(t *testing.T) {
 }
 
 func TestBoltTransportHistoryAndLive(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -92,8 +92,8 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 }
 
 func TestBoltTransportPurgeHistory(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db?size=5&cleanup_frequency=1")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db?size=5&cleanup_frequency=1")
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -111,32 +111,32 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 }
 
 func TestNewBoltTransport(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db?bucket_name=demo")
-	transport, err := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db?bucket_name=demo")
+	transport, err := NewBoltTransport(u)
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
 
-	url, _ = url.Parse("bolt://")
-	_, err = NewBoltTransport(&Options{TransportURL: url})
-	assert.EqualError(t, err, `invalid bolt "bolt:" dsn: missing path`)
+	u, _ = url.Parse("bolt://")
+	_, err = NewBoltTransport(u)
+	assert.EqualError(t, err, `invalid bolt DSN "bolt:": missing path`)
 
-	url, _ = url.Parse("bolt:///test.db")
-	_, err = NewBoltTransport(&Options{TransportURL: url})
-	assert.EqualError(t, err, `invalid bolt "bolt:///test.db" dsn: open /test.db: permission denied`)
+	u, _ = url.Parse("bolt:///test.db")
+	_, err = NewBoltTransport(u)
+	assert.EqualError(t, err, `invalid bolt DSN "bolt:///test.db": open /test.db: permission denied`)
 
-	url, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
-	_, err = NewBoltTransport(&Options{TransportURL: url})
+	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
+	_, err = NewBoltTransport(u)
 	assert.EqualError(t, err, `invalid bolt "bolt://test.db?cleanup_frequency=invalid" dsn: parameter cleanup_frequency: strconv.ParseFloat: parsing "invalid": invalid syntax`)
 
-	url, _ = url.Parse("bolt://test.db?size=invalid")
-	_, err = NewBoltTransport(&Options{TransportURL: url})
+	u, _ = url.Parse("bolt://test.db?size=invalid")
+	_, err = NewBoltTransport(u)
 	assert.EqualError(t, err, `invalid bolt "bolt://test.db?size=invalid" dsn: parameter size: strconv.ParseUint: parsing "invalid": invalid syntax`)
 }
 
 func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
@@ -172,8 +172,8 @@ func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 }
 
 func TestBoltTransportWriteIsDispatched(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
@@ -212,8 +212,8 @@ func TestBoltTransportWriteIsDispatched(t *testing.T) {
 }
 
 func TestBoltTransportClosed(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
 	require.NotNil(t, transport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -236,8 +236,8 @@ func TestBoltTransportClosed(t *testing.T) {
 }
 
 func TestBoltCleanClosedPipes(t *testing.T) {
-	url, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(&Options{TransportURL: url})
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
 	require.NotNil(t, transport)
 	defer transport.Close()
 	defer os.Remove("test.db")
