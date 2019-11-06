@@ -23,7 +23,7 @@ func init() {
 }
 
 func main() {
-	hub, err := hub.NewHubFromEnv()
+	hub, err := hub.NewHubFromConfig()
 	if err != nil {
 		log.Fatalln(err)
 	}
