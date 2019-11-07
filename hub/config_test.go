@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"os"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -37,4 +38,14 @@ func TestSetFlags(t *testing.T) {
 	SetFlags(fs, v)
 
 	assert.Subset(t, []string{"cert_file", "compress", "demo", "jwt_algorithm", "transport_url", "acme_hosts", "acme_cert_dir", "subscriber_jwt_key", "log_format", "jwt_key", "allow_anonymous", "debug", "read_timeout", "publisher_jwt_algorithm", "write_timeout", "key_file", "use_forwarded_headers", "subscriber_jwt_algorithm", "addr", "publisher_jwt_key", "heartbeat_interval", "cors_allowed_origins", "publish_allowed_origins"}, v.AllKeys())
+}
+
+func TestInitConfig(t *testing.T) {
+	os.Setenv("JWT_KEY", "foo")
+	defer os.Unsetenv("JWT_KEY")
+
+	v := viper.New()
+	InitConfig(v)
+
+	assert.Equal(t, "foo", v.GetString("jwt_key"))
 }

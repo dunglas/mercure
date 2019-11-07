@@ -1,6 +1,8 @@
 package hub
 
 import (
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -44,6 +46,20 @@ func TestNewHubTransportValidationError(t *testing.T) {
 	h, err := NewHub(v)
 	assert.Nil(t, h)
 	assert.Error(t, err)
+}
+
+func TestStartCrash(t *testing.T) {
+	if os.Getenv("BE_START_CRASH") == "1" {
+		Start()
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestStartCrash") //nolint:gosec
+	cmd.Env = append(os.Environ(), "BE_START_CRASH=1")
+	err := cmd.Run()
+
+	e, ok := err.(*exec.ExitError)
+	require.True(t, ok)
+	assert.False(t, e.Success())
 }
 
 func createDummy() *Hub {

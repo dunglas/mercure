@@ -51,9 +51,7 @@ func InitLogrus() {
 	switch viper.GetString("log_format") {
 	case "JSON":
 		log.SetFormatter(&log.JSONFormatter{})
-		break
 	case "FLUENTD":
 		log.SetFormatter(fluentd.NewFormatter())
-		break
 	}
 }

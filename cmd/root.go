@@ -9,7 +9,7 @@ import (
 )
 
 // rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
+var rootCmd = &cobra.Command{ //nolint:gochecknoglobals
 	Use:   "mercure",
 	Short: "Start the Mercure Hub",
 	Long: `Mercure is a protocol allowing to push data updates to web browsers and
@@ -22,18 +22,19 @@ Go to https://mercure.rocks for more information!`,
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func init() {
-	cobra.OnInitialize(hub.InitConfig)
+func init() { //nolint:gochecknoinits
+	v := viper.GetViper()
+	cobra.OnInitialize(func() {
+		hub.InitConfig(v)
+	})
 	fs := rootCmd.Flags()
-	hub.SetFlags(fs, viper.GetViper())
+	hub.SetFlags(fs, v)
 
 	hub.InitLogrus()
 }
