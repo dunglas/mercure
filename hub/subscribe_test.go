@@ -65,7 +65,7 @@ func (rt *responseTester) Flush() {
 func TestSubscribeNotAFlusher(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
+	req := httptest.NewRequest("GET", defaultHubURL, nil)
 
 	assert.PanicsWithValue(t, "http.ResponseWriter must be an instance of http.Flusher", func() {
 		hub.SubscribeHandler(&responseWriterMock{}, req)
@@ -75,7 +75,7 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 func TestSubscribeNoCookie(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
+	req := httptest.NewRequest("GET", defaultHubURL, nil)
 	w := httptest.NewRecorder()
 
 	hub.SubscribeHandler(w, req)
@@ -90,7 +90,7 @@ func TestSubscribeNoCookie(t *testing.T) {
 func TestSubscribeInvalidJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
+	req := httptest.NewRequest("GET", defaultHubURL, nil)
 	w := httptest.NewRecorder()
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: "invalid"})
 
@@ -106,7 +106,7 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 func TestSubscribeUnauthorizedJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
+	req := httptest.NewRequest("GET", defaultHubURL, nil)
 	w := httptest.NewRecorder()
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
 	req.Header = http.Header{"Cookie": []string{w.Header().Get("Set-Cookie")}}
@@ -123,7 +123,7 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 func TestSubscribeInvalidAlgJWT(t *testing.T) {
 	hub := createDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
+	req := httptest.NewRequest("GET", defaultHubURL, nil)
 	w := httptest.NewRecorder()
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
 
@@ -139,7 +139,7 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 func TestSubscribeNoTopic(t *testing.T) {
 	hub := createAnonymousDummy()
 
-	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
+	req := httptest.NewRequest("GET", defaultHubURL, nil)
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
@@ -168,7 +168,7 @@ func (*createPipeErrorTransport) Close() error {
 func TestSubscribeCreatePipeError(t *testing.T) {
 	hub := createDummyWithTransportAndConfig(&createPipeErrorTransport{}, viper.New())
 
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=foo", nil)
+	req := httptest.NewRequest("GET", defaultHubURL+"?topic=foo", nil)
 	w := httptest.NewRecorder()
 
 	hub.SubscribeHandler(w, req)
@@ -227,7 +227,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 		go func() {
 			defer wg.Done()
 			ctx, cancel := context.WithCancel(context.Background())
-			req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=string&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
+			req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/books/1&topic=string&topic=http://example.com/reviews/{id}&topic=http://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
@@ -259,7 +259,7 @@ func TestUnsubscribe(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil).WithContext(ctx)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/books/1", nil).WithContext(ctx)
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
 		assert.Equal(t, 1, len(s.pipes))
 		for pipe := range s.pipes {
@@ -315,7 +315,7 @@ func TestSubscribeTarget(t *testing.T) {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
+	req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{"foo", "bar"})})
 
 	w := &responseTester{
@@ -359,7 +359,7 @@ func TestSubscribeAllTargets(t *testing.T) {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
+	req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, subscriberRole, []string{"random", "*"}))
 
 	w := &responseTester{
@@ -403,7 +403,7 @@ func TestSendMissedEvents(t *testing.T) {
 		defer wg.Done()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
@@ -419,7 +419,7 @@ func TestSendMissedEvents(t *testing.T) {
 		defer wg.Done()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
 		req.Header.Add("Last-Event-ID", "a")
 
 		w := &responseTester{
@@ -461,7 +461,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
+	req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/books/1&topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,

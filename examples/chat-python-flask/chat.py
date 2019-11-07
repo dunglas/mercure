@@ -12,13 +12,13 @@ Run (dev):
 
 Deploy on Heroku:
     heroku login
-    heroku config:set HUB_URL=https://demo.mercure.rocks/hub
+    heroku config:set HUB_URL=https://demo.mercure.rocks/.well-known/mercure
     heroku config:set COOKIE_DOMAIN=.mercure.rocks
     git subtree push --prefix examples/chat-python-flask heroku master
 
 Environment variables:
     JWT_KEY: the JWT key to use (must be shared with the Mercure hub)
-    HUB_URL: the URL of the Mercure hub (default: http://localhost:3000/hub)
+    HUB_URL: the URL of the Mercure hub (default: http://localhost:3000/.well-known/mercure)
     TOPIC: the topic to use (default: http://example.com/chat)
     TARGET: the target to use (default: chan)
     COOKIE_DOMAIN: the cookie domain (default: None)
@@ -39,12 +39,12 @@ def chat():
         algorithm='HS256'
     )
 
-    hub_url = os.environ.get('HUB_URL', 'http://localhost:3000/hub')
+    hub_url = os.environ.get('HUB_URL', 'http://localhost:3000/.well-known/mercure')
     topic = os.environ.get('TOPIC', 'http://example.com/chat')
 
     resp = make_response(render_template('chat.html', config={
                          'hubURL': hub_url, 'topic': topic}))
-    resp.set_cookie('mercureAuthorization', token, httponly=True, path='/hub',
+    resp.set_cookie('mercureAuthorization', token, httponly=True, path='/.well-known/mercure',
                     samesite="strict", domain=os.environ.get('COOKIE_DOMAIN', None), secure=request.is_secure)  # Force secure to True for real apps
 
     return resp

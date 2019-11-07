@@ -100,11 +100,13 @@ func (h *Hub) listenShutdown() chan struct{} {
 
 // chainHandlers configures and chains handlers
 func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
+	debug := h.config.GetBool("debug")
+
 	r := mux.NewRouter()
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
-	if h.config.GetBool("demo") {
+	if debug || h.config.GetBool("demo") {
 		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 	} else {
@@ -115,7 +117,6 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 		}).Methods("GET", "HEAD")
 	}
 
-	debug := h.config.GetBool("debug")
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         debug,
 		AllowedHosts:          acmeHosts,

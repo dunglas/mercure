@@ -26,7 +26,7 @@ func Demo(w http.ResponseWriter, r *http.Request) {
 
 	header := w.Header()
 	// Several Link headers are set on purpose to allow testing advanced discovery mechanism
-	header.Add("Link", "</hub>; rel=\"mercure\"")
+	header.Add("Link", "<"+defaultHubURL+">; rel=\"mercure\"")
 	header.Add("Link", fmt.Sprintf("<%s>; rel=\"self\"", url))
 	if mimeType != "" {
 		header.Set("Content-Type", mimeType)

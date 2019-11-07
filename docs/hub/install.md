@@ -35,8 +35,8 @@ If you omit this variable, the server will be exposed using a not encrypted HTTP
 
 When the server is up and running, the following endpoints are available:
 
-* `POST https://example.com/hub`: to publish updates
-* `GET https://example.com/hub`: to subscribe to updates
+* `POST https://example.com/.well-known/mercure`: to publish updates
+* `GET https://example.com/.well-known/mercure`: to subscribe to updates
 
 See [the protocol](spec/mercure.md) for further informations.
 
