@@ -11,15 +11,12 @@ First, download the archive corresponding to your operating system and architect
 
 Note: Mac OS users must use the `Darwin` binary.
 
-Then, on UNIX, run:
+Then run:
 
-    JWT_KEY='!ChangeMe!' ADDR=':3000' DEMO=1 ALLOW_ANONYMOUS=1 CORS_ALLOWED_ORIGINS=* PUBLISH_ALLOWED_ORIGINS='http://localhost:3000' ./mercure
+    ./mercure --jwt-key='!ChangeMe!' --addr=':3000' --debug --allow-anonymous --cors-allowed-origins='*' --publish-allowed-origins='http://localhost:3000'
 
-On Windows, start [PowerShell](https://docs.microsoft.com/en-us/powershell/), go into the extracted directory and run:
-
-    $env:JWT_KEY='!ChangeMe!'; $env:ADDR='localhost:3000'; $env:DEMO='1'; $env:ALLOW_ANONYMOUS='1'; $env:CORS_ALLOWED_ORIGINS='*'; $env:PUBLISH_ALLOWED_ORIGINS='http://localhost:3000'; .\mercure.exe
-
-The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it. Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
+On Windows, the Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
+Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
 
 The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
 
