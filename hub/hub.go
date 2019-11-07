@@ -34,26 +34,25 @@ func (h *Hub) Stop() error {
 	return h.transport.Close()
 }
 
-// NewHubFromConfig creates a hub using the Viper configuration
-func NewHubFromConfig() (*Hub, error) {
-	config, err := NewConfig()
+// NewHub creates a hub using the Viper configuration
+func NewHub(v *viper.Viper) (*Hub, error) {
+	if err := ValidateConfig(v); err != nil {
+		return nil, err
+	}
+
+	t, err := NewTransport(v)
 	if err != nil {
 		return nil, err
 	}
 
-	transport, err := NewTransport(config)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewHub(transport, config), nil
+	return NewHubWithTransport(v, t), nil
 }
 
-// NewHub creates a hub
-func NewHub(transport Transport, config *viper.Viper) *Hub {
+// NewHubWithTransport creates a hub
+func NewHubWithTransport(v *viper.Viper, t Transport) *Hub {
 	return &Hub{
-		config,
-		transport,
+		v,
+		t,
 		nil,
 		uriTemplates{m: make(map[string]*templateCache)},
 	}
