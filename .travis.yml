@@ -17,7 +17,7 @@ install:
 
 script:
   - golangci-lint run ./...
-  - go build
+  - CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' .
   - $GOPATH/bin/goveralls -race -service=travis-ci
 after_success:
   - test -n "$TRAVIS_TAG" && docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
