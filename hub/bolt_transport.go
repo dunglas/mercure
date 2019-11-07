@@ -156,42 +156,44 @@ func (t *BoltTransport) CreatePipe(fromID string) (*Pipe, error) {
 	}
 
 	toSeq := t.lastSeq.Load()
-	go func() {
-		err := t.db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(t.bucketName))
-			if b == nil {
-				return nil // No data
-			}
-
-			c := b.Cursor()
-			afterFromID := false
-			for k, v := c.First(); k != nil; k, v = c.Next() {
-				if !afterFromID {
-					if string(k[8:]) == fromID {
-						afterFromID = true
-					}
-
-					continue
-				}
-
-				var update *Update
-				if err := json.Unmarshal(v, &update); err != nil {
-					return err
-				}
-
-				if !pipe.Write(update) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
-					return nil
-				}
-			}
-
-			return nil
-		})
-		if err != nil {
-			log.Error(fmt.Errorf("bolt history: %w", err))
-		}
-	}()
+	go t.fetch(fromID, toSeq, pipe)
 
 	return pipe, nil
+}
+
+func (t *BoltTransport) fetch(fromID string, toSeq uint64, pipe *Pipe) {
+	err := t.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(t.bucketName))
+		if b == nil {
+			return nil // No data
+		}
+
+		c := b.Cursor()
+		afterFromID := false
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			if !afterFromID {
+				if string(k[8:]) == fromID {
+					afterFromID = true
+				}
+
+				continue
+			}
+
+			var update *Update
+			if err := json.Unmarshal(v, &update); err != nil {
+				return err
+			}
+
+			if !pipe.Write(update) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
+				return nil
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Error(fmt.Errorf("bolt history: %w", err))
+	}
 }
 
 // Close closes the Transport

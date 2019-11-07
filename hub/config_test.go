@@ -18,7 +18,7 @@ func TestNewConfigFromEnvVar(t *testing.T) {
 
 func TestMissingConfig(t *testing.T) {
 	_, err := NewConfig()
-	assert.EqualError(t, err, `One of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`)
+	assert.EqualError(t, err, `one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`)
 }
 
 func TestMissingKeyFile(t *testing.T) {
@@ -27,7 +27,7 @@ func TestMissingKeyFile(t *testing.T) {
 	defer os.Unsetenv("CERT_FILE")
 
 	_, err := NewConfig()
-	assert.EqualError(t, err, `If the "cert_file" configuration parameter is defined, "key_file" must be defined too`)
+	assert.EqualError(t, err, `if the "cert_file" configuration parameter is defined, "key_file" must be defined too`)
 }
 
 func TestMissingCertFile(t *testing.T) {
@@ -36,5 +36,5 @@ func TestMissingCertFile(t *testing.T) {
 	defer os.Unsetenv("KEY_FILE")
 
 	_, err := NewConfig()
-	assert.EqualError(t, err, `If the "key_file" configuration parameter is defined, "cert_file" must be defined too`)
+	assert.EqualError(t, err, `if the "key_file" configuration parameter is defined, "cert_file" must be defined too`)
 }

@@ -44,7 +44,7 @@ func (rt *responseTester) Header() http.Header {
 }
 
 func (rt *responseTester) Write(buf []byte) (int, error) {
-	rt.body = rt.body + string(buf)
+	rt.body += string(buf)
 
 	if rt.body == rt.expectedBody {
 		rt.cancel()
@@ -81,6 +81,7 @@ func TestSubscribeNoCookie(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -96,6 +97,7 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -107,11 +109,12 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com/hub", nil)
 	w := httptest.NewRecorder()
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
-	req.Header = http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}
+	req.Header = http.Header{"Cookie": []string{w.Header().Get("Set-Cookie")}}
 
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -127,6 +130,7 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -140,6 +144,7 @@ func TestSubscribeNoTopic(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
@@ -169,6 +174,7 @@ func TestSubscribeCreatePipeError(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
 
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusInternalServerError)+"\n", w.Body.String())
@@ -251,15 +257,15 @@ func TestUnsubscribe(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func(w *sync.WaitGroup) {
-		defer w.Done()
+	go func() {
+		defer wg.Done()
 		req := httptest.NewRequest("GET", "http://example.com/hub?topic=http://example.com/books/1", nil).WithContext(ctx)
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
 		assert.Equal(t, 1, len(s.pipes))
 		for pipe := range s.pipes {
 			assert.True(t, pipe.IsClosed())
 		}
-	}(&wg)
+	}()
 
 	for {
 		s.RLock()
