@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-// demo exposes UNSECURE demo endpoints to test discovery and authorization mechanisms
+// Demo exposes INSECURE Demo endpoints to test discovery and authorization mechanisms
 // add a query parameter named "body" to define the content to return in the response's body
 // add a query parameter named "jwt" set a "mercureAuthorization" cookie containing this token
 // the Content-Type header will automatically be set according to the URL's extension
-func demo(w http.ResponseWriter, r *http.Request) {
+func Demo(w http.ResponseWriter, r *http.Request) {
 	// JSON-LD is the preferred format
 	mime.AddExtensionType(".jsonld", "application/ld+json")
 

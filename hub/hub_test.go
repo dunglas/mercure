@@ -2,6 +2,7 @@ package hub
 
 import (
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -19,45 +20,56 @@ func TestNewHub(t *testing.T) {
 	assert.IsType(t, &viper.Viper{}, h.config)
 }
 
-func TestNewHubFromEnv(t *testing.T) {
-	os.Setenv("PUBLISHER_JWT_KEY", "foo")
-	os.Setenv("JWT_KEY", "bar")
-	defer os.Unsetenv("PUBLISHER_JWT_KEY")
-	defer os.Unsetenv("JWT_KEY")
+func TestNewHubWithConfig(t *testing.T) {
+	v := viper.New()
+	v.Set("publisher_jwt_key", "foo")
+	v.Set("jwt_key", "bar")
 
-	h, err := NewHubFromConfig()
+	h, err := NewHub(v)
 	assert.Nil(t, err)
 	require.NotNil(t, h)
 	h.Stop()
 }
 
-func TestNewHubFromEnvError(t *testing.T) {
-	h, err := NewHubFromConfig()
+func TestNewHubValidationError(t *testing.T) {
+	h, err := NewHub(viper.New())
 	assert.Nil(t, h)
 	assert.Error(t, err)
 }
 
-func TestNewHubFromEnvErrorFromTransport(t *testing.T) {
-	os.Setenv("PUBLISHER_JWT_KEY", "foo")
-	os.Setenv("JWT_KEY", "bar")
-	os.Setenv("TRANSPORT_URL", "foo://")
-	defer os.Unsetenv("PUBLISHER_JWT_KEY")
-	defer os.Unsetenv("JWT_KEY")
-	defer os.Unsetenv("TRANSPORT_URL")
+func TestNewHubTransportValidationError(t *testing.T) {
+	v := viper.New()
+	v.Set("publisher_jwt_key", "foo")
+	v.Set("jwt_key", "bar")
+	v.Set("transport_url", "foo://")
 
-	h, err := NewHubFromConfig()
+	h, err := NewHub(v)
 	assert.Nil(t, h)
 	assert.Error(t, err)
+}
+
+func TestStartCrash(t *testing.T) {
+	if os.Getenv("BE_START_CRASH") == "1" {
+		Start()
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestStartCrash") //nolint:gosec
+	cmd.Env = append(os.Environ(), "BE_START_CRASH=1")
+	err := cmd.Run()
+
+	e, ok := err.(*exec.ExitError)
+	require.True(t, ok)
+	assert.False(t, e.Success())
 }
 
 func createDummy() *Hub {
 	v := viper.New()
-	setConfigDefaults(v)
+	SetConfigDefaults(v)
 	v.SetDefault("heartbeat_interval", time.Duration(0))
 	v.SetDefault("publisher_jwt_key", "publisher")
 	v.SetDefault("subscriber_jwt_key", "subscriber")
 
-	return NewHub(NewLocalTransport(), v)
+	return NewHubWithTransport(v, NewLocalTransport())
 }
 
 func createAnonymousDummy() *Hub {
@@ -65,14 +77,14 @@ func createAnonymousDummy() *Hub {
 }
 
 func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {
-	setConfigDefaults(v)
+	SetConfigDefaults(v)
 	v.SetDefault("heartbeat_interval", time.Duration(0))
 	v.SetDefault("publisher_jwt_key", "publisher")
 	v.SetDefault("subscriber_jwt_key", "subscriber")
 	v.SetDefault("allow_anonymous", true)
 	v.SetDefault("addr", testAddr)
 
-	return NewHub(t, v)
+	return NewHubWithTransport(v, t)
 }
 
 func createDummyAuthorizedJWT(h *Hub, r role, targets []string) string {

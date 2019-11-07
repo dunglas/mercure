@@ -105,7 +105,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
 	if h.config.GetBool("demo") {
-		r.PathPrefix("/demo").HandlerFunc(demo).Methods("GET", "HEAD")
+		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 	} else {
 		r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

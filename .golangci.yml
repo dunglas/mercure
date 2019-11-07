@@ -8,7 +8,6 @@ linters:
     - errcheck
     - lll
     - wsl
-    - gochecknoinits
     
 issues:
   exclude-rules:

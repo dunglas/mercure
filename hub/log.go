@@ -3,7 +3,9 @@ package hub
 import (
 	"net/http"
 
+	fluentd "github.com/joonix/log"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 func (h *Hub) createLogFields(r *http.Request, u *Update, s *Subscriber) log.Fields {
@@ -38,4 +40,18 @@ func targetsMapToArray(t map[string]struct{}) []string {
 	}
 
 	return targets
+}
+
+// InitLogrus configures the global logger
+func InitLogrus() {
+	if viper.GetBool("debug") {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	switch viper.GetString("log_format") {
+	case "JSON":
+		log.SetFormatter(&log.JSONFormatter{})
+	case "FLUENTD":
+		log.SetFormatter(fluentd.NewFormatter())
+	}
 }

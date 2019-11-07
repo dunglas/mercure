@@ -12,7 +12,7 @@ import (
 func TestEmptyBodyAndJWT(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com/demo/foo.jsonld", nil)
 	w := httptest.NewRecorder()
-	demo(w, req)
+	Demo(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
@@ -30,7 +30,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 func TestBodyAndJWT(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
 	w := httptest.NewRecorder()
-	demo(w, req)
+	Demo(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, "application/xml", resp.Header.Get("Content-Type"))
