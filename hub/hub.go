@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"log"
 	"net/http"
 	"sync"
 
@@ -56,4 +57,20 @@ func NewHubWithTransport(v *viper.Viper, t Transport) *Hub {
 		nil,
 		uriTemplates{m: make(map[string]*templateCache)},
 	}
+}
+
+// Start is an helper method to start the Mercure Hub
+func Start() {
+	h, err := NewHub(viper.GetViper())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer func() {
+		if err = h.Stop(); err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
+	h.Serve()
 }

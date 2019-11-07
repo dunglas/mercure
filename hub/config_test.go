@@ -3,6 +3,7 @@ package hub
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,4 +29,12 @@ func TestMissingCertFile(t *testing.T) {
 
 	err := ValidateConfig(v)
 	assert.EqualError(t, err, `if the "key_file" configuration parameter is defined, "cert_file" must be defined too`)
+}
+
+func TestSetFlags(t *testing.T) {
+	v := viper.New()
+	fs := pflag.NewFlagSet("test", pflag.PanicOnError)
+	SetFlags(fs, v)
+
+	assert.Subset(t, []string{"cert_file", "compress", "demo", "jwt_algorithm", "transport_url", "acme_hosts", "acme_cert_dir", "subscriber_jwt_key", "log_format", "jwt_key", "allow_anonymous", "debug", "read_timeout", "publisher_jwt_algorithm", "write_timeout", "key_file", "use_forwarded_headers", "subscriber_jwt_algorithm", "addr", "publisher_jwt_key", "heartbeat_interval", "cors_allowed_origins", "publish_allowed_origins"}, v.AllKeys())
 }
