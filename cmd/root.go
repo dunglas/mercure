@@ -22,6 +22,7 @@ Go to https://mercure.rocks for more information!`,
 	},
 }
 
+// Execute runs the root command
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalln(err)
