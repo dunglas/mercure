@@ -99,7 +99,7 @@ func TestPublisherJwtKeyFileIsPrioritized(t *testing.T) {
 	}
 
 	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "could not load publisher key: error loading PUBLISHER_JWT_KEY: open fake-filename: no such file or directory")
+	assert.EqualError(t, err, "could not load publisher key: error loading PUBLISHER_JWT_KEY_FILE: open fake-filename: no such file or directory")
 }
 
 func TestJwtKeyFileIsPrioritized(t *testing.T) {

@@ -38,35 +38,36 @@ type Options struct {
 }
 
 func getJWTKey(role string) (string, error) {
-	roleKeyFile := os.Getenv(fmt.Sprintf("%s_JWT_KEY_FILE", role))
-	if roleKeyFile != "" {
-		file, err := ioutil.ReadFile(roleKeyFile)
-		if err != nil {
-			return "", fmt.Errorf("error loading %s_JWT_KEY: %v", role, err)
-		}
-		return string(file), err
+
+	jwtKey, err := loadEnvKeyFile(fmt.Sprintf("%s_JWT_KEY_FILE", role))
+	if err != nil || jwtKey != "" {
+		return jwtKey, err
 	}
 
-	roleKey := os.Getenv(fmt.Sprintf("%s_JWT_KEY", role))
-	if roleKey != "" {
-		return roleKey, nil
+	jwtKey = os.Getenv(fmt.Sprintf("%s_JWT_KEY", role))
+	if jwtKey != "" {
+		return jwtKey, nil
 	}
 
-	keyFile := os.Getenv("JWT_KEY_FILE")
-	if keyFile != "" {
-		file, err := ioutil.ReadFile(keyFile)
-		if err != nil {
-			return "", fmt.Errorf("error loading JWT_KEY_FILE: %v", err)
-		}
-		return string(file), err
+	jwtKey, err = loadEnvKeyFile("JWT_KEY_FILE")
+	if err != nil || jwtKey != "" {
+		return jwtKey, err
 	}
 
-	key := os.Getenv("JWT_KEY")
-	if key != "" {
-		return key, nil
+	return os.Getenv("JWT_KEY"), nil
+}
+
+func loadEnvKeyFile(jwtEnvName string) (string, error) {
+	jwtKeyFile := os.Getenv(jwtEnvName)
+	if jwtKeyFile == "" {
+		return "", nil
 	}
 
-	return "", nil
+	file, err := ioutil.ReadFile(jwtKeyFile)
+	if err != nil {
+		return "", fmt.Errorf("error loading %s: %v", jwtEnvName, err)
+	}
+	return string(file), err
 }
 
 func getJWTKeyAlgorithm(role string) jwt.SigningMethod {
