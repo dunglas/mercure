@@ -42,7 +42,7 @@ func getJWTKey(role string) (string, error) {
 	if roleKeyFile != "" {
 		file, err := ioutil.ReadFile(roleKeyFile)
 		if err != nil {
-			return "", fmt.Errorf("error loading file: %v", err)
+			return "", fmt.Errorf("error loading %s_JWT_KEY: %v", role, err)
 		}
 		return string(file), err
 	}
@@ -56,7 +56,7 @@ func getJWTKey(role string) (string, error) {
 	if keyFile != "" {
 		file, err := ioutil.ReadFile(keyFile)
 		if err != nil {
-			return "", fmt.Errorf("error loading file: %v", err)
+			return "", fmt.Errorf("error loading JWT_KEY_FILE: %v", err)
 		}
 		return string(file), err
 	}
@@ -176,10 +176,10 @@ func NewOptionsFromEnv() (*Options, error) {
 
 	missingEnv := make([]string, 0, 4)
 	if len(options.PublisherJWTKey) == 0 {
-		missingEnv = append(missingEnv, "PUBLISHER_JWT_KEY")
+		missingEnv = append(missingEnv, "PUBLISHER_JWT_KEY PUBLISHER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY")
 	}
 	if len(options.SubscriberJWTKey) == 0 {
-		missingEnv = append(missingEnv, "SUBSCRIBER_JWT_KEY")
+		missingEnv = append(missingEnv, "SUBSCRIBER_JWT_KEY SUBSCRIBER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY")
 	}
 	if len(options.CertFile) != 0 && len(options.KeyFile) == 0 {
 		missingEnv = append(missingEnv, "KEY_FILE")

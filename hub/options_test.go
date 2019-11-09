@@ -28,7 +28,7 @@ func TestNewOptionsFormNew(t *testing.T) {
 		"PUBLISHER_JWT_ALGORITHM":   "HS256",
 		"PUBLISH_ALLOWED_ORIGINS":   "http://127.0.0.1:8080",
 		"SUBSCRIBER_JWT_KEY":        "bar",
-		"SUBSCRIBER_JWT_ALGORITHM":   "HS256",
+		"SUBSCRIBER_JWT_ALGORITHM":  "HS256",
 		"HEARTBEAT_INTERVAL":        "30s",
 		"READ_TIMEOUT":              "1m",
 		"WRITE_TIMEOUT":             "40s",
@@ -69,15 +69,15 @@ func TestNewOptionsFormNew(t *testing.T) {
 
 func TestMissingEnv(t *testing.T) {
 	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY]")
+	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY PUBLISHER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY SUBSCRIBER_JWT_KEY SUBSCRIBER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY]")
 }
 
 func TestWrongPublisherAlgorithmEnv(t *testing.T) {
 	testEnv := map[string]string{
-		"PUBLISHER_JWT_KEY":         "foo",
-		"PUBLISHER_JWT_ALGORITHM":   "FOO256",
-		"SUBSCRIBER_JWT_KEY":        "bar",
-		"SUBSCRIBER_JWT_ALGORITHM":  "HS256",
+		"PUBLISHER_JWT_KEY":        "foo",
+		"PUBLISHER_JWT_ALGORITHM":  "FOO256",
+		"SUBSCRIBER_JWT_KEY":       "bar",
+		"SUBSCRIBER_JWT_ALGORITHM": "HS256",
 	}
 	for k, v := range testEnv {
 		os.Setenv(k, v)
@@ -88,12 +88,40 @@ func TestWrongPublisherAlgorithmEnv(t *testing.T) {
 	assert.EqualError(t, err, "Expected valid signing method for 'PUBLISHER_JWT_ALGORITHM', got <nil>")
 }
 
+func TestPublisherJwtKeyFileIsPrioritized(t *testing.T) {
+	testEnv := map[string]string{
+		"PUBLISHER_JWT_KEY_FILE":  "fake-filename",
+		"PUBLISHER_JWT_ALGORITHM": "RS256",
+	}
+	for k, v := range testEnv {
+		os.Setenv(k, v)
+		defer os.Unsetenv(k)
+	}
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "could not load publisher key: error loading PUBLISHER_JWT_KEY: open fake-filename: no such file or directory")
+}
+
+func TestJwtKeyFileIsPrioritized(t *testing.T) {
+	testEnv := map[string]string{
+		"JWT_KEY_FILE":  "fake-filename",
+		"JWT_ALGORITHM": "RS256",
+	}
+	for k, v := range testEnv {
+		os.Setenv(k, v)
+		defer os.Unsetenv(k)
+	}
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "could not load publisher key: error loading JWT_KEY_FILE: open fake-filename: no such file or directory")
+}
+
 func TestWrongSubscriberAlgorithmEnv(t *testing.T) {
 	testEnv := map[string]string{
-		"PUBLISHER_JWT_KEY":         "foo",
-		"PUBLISHER_JWT_ALGORITHM":   "RS256",
-		"SUBSCRIBER_JWT_KEY":        "bar",
-		"SUBSCRIBER_JWT_ALGORITHM":  "BAR256",
+		"PUBLISHER_JWT_KEY":        "foo",
+		"PUBLISHER_JWT_ALGORITHM":  "RS256",
+		"SUBSCRIBER_JWT_KEY":       "bar",
+		"SUBSCRIBER_JWT_ALGORITHM": "BAR256",
 	}
 	for k, v := range testEnv {
 		os.Setenv(k, v)
@@ -104,12 +132,20 @@ func TestWrongSubscriberAlgorithmEnv(t *testing.T) {
 	assert.EqualError(t, err, "Expected valid signing method for 'SUBSCRIBER_JWT_ALGORITHM', got <nil>")
 }
 
+func TestMissingJwtPublisherKeyFile(t *testing.T) {
+	os.Setenv("CERT_FILE", "foo")
+	defer os.Unsetenv("CERT_FILE")
+
+	_, err := NewOptionsFromEnv()
+	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY PUBLISHER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY SUBSCRIBER_JWT_KEY SUBSCRIBER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY KEY_FILE]")
+}
+
 func TestMissingKeyFile(t *testing.T) {
 	os.Setenv("CERT_FILE", "foo")
 	defer os.Unsetenv("CERT_FILE")
 
 	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY KEY_FILE]")
+	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY PUBLISHER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY SUBSCRIBER_JWT_KEY SUBSCRIBER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY KEY_FILE]")
 }
 
 func TestMissingCertFile(t *testing.T) {
@@ -117,7 +153,7 @@ func TestMissingCertFile(t *testing.T) {
 	defer os.Unsetenv("KEY_FILE")
 
 	_, err := NewOptionsFromEnv()
-	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY SUBSCRIBER_JWT_KEY CERT_FILE]")
+	assert.EqualError(t, err, "The following environment variable must be defined: [PUBLISHER_JWT_KEY PUBLISHER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY SUBSCRIBER_JWT_KEY SUBSCRIBER_JWT_KEY_FILE JWT_KEY_FILE JWT_KEY CERT_FILE]")
 }
 
 func TestInvalidDuration(t *testing.T) {
