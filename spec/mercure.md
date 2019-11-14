@@ -5,7 +5,7 @@ workgroup = "Network Working Group"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-dunglas-mercure-04"
+value = "draft-dunglas-mercure-05"
 stream = "IETF"
 status = "informational"
 
@@ -162,7 +162,8 @@ JSON-LD, the document **SHOULD** contain an `@id` property containing the IRI of
 Example:
 
 ~~~ javascript
-// The subscriber subscribes to updates for the https://example.com/foo topic
+// The subscriber subscribes to updates
+// for the https://example.com/foo topic
 // and to any topic matching https://example.com/books/{name}
 const url = new URL('https://example.com/.well-known/mercure');
 url.searchParams.append('topic', 'https://example.com/foo');
