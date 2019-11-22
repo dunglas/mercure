@@ -18,6 +18,7 @@
 * [Python (publish and subscribe)](https://github.com/vitorluis/python-mercure)
 * [Dart (publish and subscribe)](https://github.com/wallforfry/dart_mercure)
 * [Amphp (publish)](https://github.com/eislambey/amp-mercure-publisher)
+* [Java (publish)](https://github.com/vitorluis/java-mercure)
 
 ## Frameworks and Services Integrations
 
