@@ -13,8 +13,8 @@ It is especially useful to publish async and real-time updates of resources serv
 
 ![Subscriptions Schema](spec/subscriptions.png)
 
-* [Getting started](docs/getting-started.md)
-* [Full documentation](docs/)
+* [Getting started](https://mercure.rocks/docs/getting-started)
+* [Full documentation](https://mercure.rocks/docs)
 * [Demo](https://demo.mercure.rocks/)
 
 The protocol has been published as [an Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) that [is maintained in this repository](spec/mercure.md).
