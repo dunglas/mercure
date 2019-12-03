@@ -9,6 +9,7 @@
 * [Frequently Asked Questions](spec/faq.md)
 * [Use Cases](spec/use-cases.md)
 * [OpenAPI spec](https://github.com/dunglas/mercure/blob/master/spec/openapi.yaml)
+* [Upgrade to newest versions](UPGRADE.md)
 
 ## Hub
 
@@ -16,6 +17,7 @@
 * [Configuration](hub/config.md)
 * [Cookbooks](hub/cookbooks.md)
 * [Troubleshooting](hub/troubleshooting.md)
+* [Upgrade to newest versions](UPGRADE.md)
 * [Load Testing](hub/load-test.md)
 
 ## Ecosystem
