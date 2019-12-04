@@ -11,14 +11,18 @@ First, download the archive corresponding to your operating system and architect
 
 Note: Mac OS users must use the `Darwin` binary.
 
-Then run:
+Then, on Linux and Mac OS X, run:
 
     ./mercure --jwt-key='!ChangeMe!' --addr=':3000' --debug --allow-anonymous --cors-allowed-origins='*' --publish-allowed-origins='http://localhost:3000'
 
-On Windows, the Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
+On Windows, start PowerShell, go into the extracted directory and run:
+
+    $env:JWT_KEY='!ChangeMe!; $env:ADDR='localhost:3000'; $env:DEMO='1'; $env:ALLOW_ANONYMOUS='1'; $env:CORS_ALLOWED_ORIGINS='*'; $env:PUBLISH_ALLOWED_ORIGINS='http://localhost:3000'; .\mercure.exe
+
+The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
 Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
 
-The server is now available on `http://localhost:3000`, with the demo mode enabled. Because `ALLOW_ANONYMOUS` is set to `1`, anonymous subscribers are allowed.
+The server is now available on `http://localhost:3000`, with the demo mode enabled. Because the `allow_anonymous` option is enabled, anonymous subscribers are allowed.
 
 To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
 
@@ -37,7 +41,7 @@ When the server is up and running, the following endpoints are available:
 
 See [the protocol](spec/mercure.md) for further informations.
 
-To compile the development version and register the demo page, see [../../CONTRIBUTING.md](CONTRIBUTING.md#hub).
+To compile the development version and register the demo page, see [https://github.com/dunglas/mercure/blob/master/CONTRIBUTING.md](CONTRIBUTING.md#hub).
 
 ## Docker Image
 
@@ -72,4 +76,3 @@ Mercure is available [on the AUR](https://aur.archlinux.org/packages/mercure), y
     yaourt -S mercure
 
 Or download the `PKGBUILD` and compile and install it: `makepkg -sri`.
-
