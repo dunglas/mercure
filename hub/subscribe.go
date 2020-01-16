@@ -141,7 +141,7 @@ func sendHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/event-stream")
 
 	// Disable cache, even for old browsers and proxies
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expire", "0")
 
