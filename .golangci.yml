@@ -8,7 +8,8 @@ linters:
     - errcheck
     - lll
     - wsl
-    
+    - gomnd
+
 issues:
   exclude-rules:
     - path: _test\.go
