@@ -1,4 +1,4 @@
-<h1 align="center"><img src="public/mercure.svg" alt="Mercure: Live Updates Made Easy" title="Live Updates Made Easy"></h1>
+<h1 align="center"><a href="https://api-platform.com"><img src="public/mercure.svg" alt="Mercure: Real-time Made Easy" title="Live Updates Made Easy"></a></h1>
 
 *Protocol and Reference Implementation*
 
