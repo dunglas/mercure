@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -47,6 +48,9 @@ func (rt *responseTester) Write(buf []byte) (int, error) {
 	rt.body += string(buf)
 
 	if rt.body == rt.expectedBody {
+		rt.cancel()
+	} else if !strings.HasPrefix(rt.expectedBody, rt.body) {
+		rt.t.Errorf(`Received body "%s" doesn't match expected body "%s"`, rt.body, rt.expectedBody)
 		rt.cancel()
 	}
 
@@ -244,7 +248,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.ErrorLevel)
 	testSubscribe(3, t)
 }
 
@@ -326,6 +330,90 @@ func TestSubscribeTarget(t *testing.T) {
 	}
 
 	hub.SubscribeHandler(w, req)
+	hub.Stop()
+}
+
+func TestSubscriptionEvents(t *testing.T) {
+	hub := createDummy()
+	hub.config.Set("dispatch_subscriptions", true)
+	hub.config.Set("subscriptions_include_ip", true)
+
+	var wg sync.WaitGroup
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	wg.Add(3)
+	go func() {
+		// Authorized to receive connection events
+		defer wg.Done()
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=https://mercure.rocks/subscriptions/{topic}/{connectionID}", nil).WithContext(ctx1)
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{"https://mercure.rocks/targets/subscriptions"})})
+		w := httptest.NewRecorder()
+		hub.SubscribeHandler(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		bodyContent := string(body)
+		assert.Contains(t, bodyContent, `data:   "@id": "https://mercure.rocks/subscriptions/https%3A%2F%2Fexample.com/`)
+		assert.Contains(t, bodyContent, `data:   "@type": "https://mercure.rocks/Subscription",`)
+		assert.Contains(t, bodyContent, `data:   "topic": "https://example.com",`)
+		assert.Contains(t, bodyContent, `data:   "publish": [],`)
+		assert.Contains(t, bodyContent, `data:   "subscribe": []`)
+		assert.Contains(t, bodyContent, `data:   "active": true,`)
+		assert.Contains(t, bodyContent, `data:   "active": false,`)
+		assert.Contains(t, bodyContent, `data:   "address": "`)
+	}()
+
+	go func() {
+		// Not authorized to receive connection events
+		defer wg.Done()
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=https://mercure.rocks/subscriptions/{topic}/{connectionID}", nil).WithContext(ctx2)
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{})})
+		w := httptest.NewRecorder()
+		hub.SubscribeHandler(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, ":\n", string(body))
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		s, _ := hub.transport.(*LocalTransport)
+		for {
+			s.RLock()
+			ready := len(s.pipes) == 2
+			s.RUnlock()
+
+			log.Info("Waiting for subscriber...")
+			if ready {
+				break
+			}
+		}
+
+		ctx, cancelRequest2 := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=https://example.com", nil).WithContext(ctx)
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{})})
+
+		w := &responseTester{
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\n",
+			t:                  t,
+			cancel:             cancelRequest2,
+		}
+		hub.SubscribeHandler(w, req)
+		time.Sleep(1 * time.Second) // TODO: find a better way to wait for the disconnection update to be dispatched
+		cancel2()
+		cancel1()
+	}()
+
+	wg.Wait()
 	hub.Stop()
 }
 
