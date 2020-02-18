@@ -32,7 +32,8 @@ The `EventSource` class is available [in all modern web browsers](https://canius
 ## Closing Connection
 
 It is important to close this connection between the client and the hub if it is no longer needed.
-Opened connections have continous buffer that will be drain your application resources; this is especially true when using Single Page Applications based on ReactJS for example.
+Opened connections have continous buffer that will be drain your application resources.
+This is especially true when using Single Page Applications based on ReactJS for example: the connection is maintained when the component that created it is unmounted.
 
 ```javascript
 if(eventSource !== null) {
