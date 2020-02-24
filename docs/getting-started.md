@@ -29,6 +29,19 @@ eventSource.onmessage = e => console.log(e); // do something with the payload
 
 The `EventSource` class is available [in all modern web browsers](https://caniuse.com/#feat=eventsource). And for legacy browsers, [there are polyfills](ecosystem/awesome.md#useful-related-libraries).
 
+## Closing Connection
+
+It is important to close this connection between the client and the hub if it is no longer needed.
+Opened connections have a continuous buffer that will drain your application resources. 
+This is especially true when using Single Page Applications (based on e.g. ReactJS): the connection is maintained even if the component that created it is unmounted.
+
+```javascript
+if(eventSource !== null) {
+    eventSource.close();
+    eventSource = null;
+}
+```
+
 ## Sending Private Updates
 
 Optionally, [the authorization mechanism](../spec/mercure.md#authorization) can be used to subscribe to private updates.
