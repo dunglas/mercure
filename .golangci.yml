@@ -16,3 +16,4 @@ issues:
       linters:
         - gochecknoglobals
         - funlen
+        - godox

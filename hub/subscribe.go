@@ -2,15 +2,28 @@ package hub
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
 )
+
+type subscription struct {
+	ID     string `json:"@id"`
+	Type   string `json:"@type"`
+	Topic  string `json:"topic"`
+	Active bool   `json:"active"`
+	mercureClaim
+	Address string `json:"address,omitempty"`
+}
 
 // SubscribeHandler create a keep alive connection and send the events to the subscribers
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
@@ -80,8 +93,46 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	}
 	fields["subscriber_topics"] = topics
 
-	var rawTopics = make([]string, 0, len(topics))
-	var templateTopics = make([]*uritemplate.Template, 0, len(topics))
+	rawTopics, templateTopics := h.parseTopics(topics)
+
+	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
+	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
+
+	encodedTopics := escapeTopics(topics)
+
+	// Connection events must be sent before creating the pipe to prevent a deadlock
+	connectionID := uuid.Must(uuid.NewV4()).String()
+	var address string
+	if h.config.GetBool("subscriptions_include_ip") {
+		address, _, _ = net.SplitHostPort(r.RemoteAddr)
+	}
+	h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, true, address)
+	pipe, err := h.transport.CreatePipe(subscriber.LastEventID)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, false, address)
+		log.WithFields(fields).Error(err)
+		return nil, nil, false
+	}
+	sendHeaders(w)
+
+	log.WithFields(fields).Info("New subscriber")
+
+	// Listen to the closing of the http connection via the Request's Context
+	go func() {
+		<-r.Context().Done()
+		pipe.Close()
+
+		h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, false, address)
+		log.WithFields(fields).Info("Subscriber disconnected")
+	}()
+
+	return subscriber, pipe, true
+}
+
+func (h *Hub) parseTopics(topics []string) (rawTopics []string, templateTopics []*uritemplate.Template) {
+	rawTopics = make([]string, 0, len(topics))
+	templateTopics = make([]*uritemplate.Template, 0, len(topics))
 	for _, topic := range topics {
 		if tpl := h.getURITemplate(topic); tpl == nil {
 			rawTopics = append(rawTopics, topic)
@@ -90,27 +141,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		}
 	}
 
-	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
-	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
-
-	pipe, err := h.transport.CreatePipe(subscriber.LastEventID)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		log.WithFields(fields).Error(err)
-		return nil, nil, false
-	}
-
-	sendHeaders(w)
-	log.WithFields(fields).Info("New subscriber")
-
-	// Listen to the closing of the http connection via the Request's Context
-	go func() {
-		<-r.Context().Done()
-		pipe.Close()
-		log.WithFields(fields).Info("Subscriber disconnected")
-	}()
-
-	return subscriber, pipe, true
+	return rawTopics, templateTopics
 }
 
 // getURITemplate retrieves or creates the uritemplate.Template associated with this topic, or nil if it's not a template
@@ -201,4 +232,54 @@ func (h *Hub) cleanup(s *Subscriber) {
 		}
 	}
 	h.uriTemplates.Unlock()
+}
+
+func (h *Hub) dispatchSubscriptionUpdate(topics, encodedTopics []string, connectionID string, claims *claims, active bool, address string) {
+	if !h.config.GetBool("dispatch_subscriptions") {
+		return
+	}
+
+	for k, topic := range topics {
+		connection := &subscription{
+			ID:      "https://mercure.rocks/subscriptions/" + encodedTopics[k] + "/" + connectionID,
+			Type:    "https://mercure.rocks/Subscription",
+			Topic:   topic,
+			Active:  active,
+			Address: address,
+		}
+
+		if claims == nil {
+			connection.mercureClaim.Publish = []string{}
+			connection.mercureClaim.Subscribe = []string{}
+		} else {
+			if connection.mercureClaim.Publish == nil {
+				connection.mercureClaim.Publish = []string{}
+			}
+			if connection.mercureClaim.Subscribe == nil {
+				connection.mercureClaim.Subscribe = []string{}
+			}
+		}
+
+		json, err := json.MarshalIndent(connection, "", "  ")
+		if err != nil {
+			panic(err)
+		}
+
+		u := &Update{
+			Topics:  []string{connection.ID},
+			Targets: map[string]struct{}{"https://mercure.rocks/targets/subscriptions": {}, "https://mercure.rocks/targets/subscriptions/" + encodedTopics[k]: {}},
+			Event:   Event{Data: string(json), ID: uuid.Must(uuid.NewV4()).String()},
+		}
+
+		h.transport.Write(u)
+	}
+}
+
+func escapeTopics(topics []string) []string {
+	encodedTopics := make([]string, 0, len(topics))
+	for _, topic := range topics {
+		encodedTopics = append(encodedTopics, url.QueryEscape(topic))
+	}
+
+	return encodedTopics
 }
