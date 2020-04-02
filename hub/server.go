@@ -23,7 +23,7 @@ func (h *Hub) Serve() {
 
 	h.server = &http.Server{
 		Addr:         addr,
-		Handler:      h.chainHandlers(acmeHosts),
+		Handler:      addHealthCheck(h.chainHandlers(acmeHosts)),
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
@@ -159,4 +159,15 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	)(loggingHandler)
 
 	return recoveryHandler
+}
+
+// addHealthCheck adds a /healthz URL for health checks that doesn't pollute the HTTP logs
+func addHealthCheck(r http.Handler) http.Handler {
+	mainRouter := mux.NewRouter()
+	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "ok")
+	}).Methods("GET", "HEAD")
+	mainRouter.PathPrefix("/").Handler(r)
+
+	return mainRouter
 }

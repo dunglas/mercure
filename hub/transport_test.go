@@ -173,5 +173,5 @@ func TestNewTransport(t *testing.T) {
 	v = viper.New()
 	v.Set("transport_url", "http://[::1]%23")
 	_, err = NewTransport(v)
-	assert.EqualError(t, err, "transport_url: parse http://[::1]%23: invalid port \"%23\" after host")
+	assert.EqualError(t, err, `transport_url: parse "http://[::1]%23": invalid port "%23" after host`)
 }

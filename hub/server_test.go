@@ -118,8 +118,13 @@ func TestServe(t *testing.T) {
 	defer resp.Body.Close()
 
 	hpBody, _ := ioutil.ReadAll(resp.Body)
-
 	assert.Contains(t, string(hpBody), "Mercure Hub")
+
+	respHealthz, _ := client.Get("http://" + testAddr + "/healthz")
+	defer respHealthz.Body.Close()
+
+	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
+	assert.Contains(t, string(healthzBody), "ok")
 
 	var wgConnected, wgTested sync.WaitGroup
 	wgConnected.Add(2)
