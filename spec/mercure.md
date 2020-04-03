@@ -51,7 +51,7 @@ interpreted as described in [@!RFC2119].
     Progressive Web App or a Mobile App, but can also be a server.
 
  *  Target: A subscriber, or a group of subscribers. A publisher is able to securely dispatch
-    updates to specific targets. The target **MUST** be identified by an IRI [!@RFC3987] or by a
+    updates to specific targets. The target **MUST** be identified by an IRI [@!RFC3987] or by a
     string. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI is **RECOMMENDED**.
 
  *  Hub: A server that handles subscription requests and distributes the content to subscribers when
@@ -350,7 +350,7 @@ least the following properties:
 
  *  `publish`: the publication targets provided by the subscriber (see section #Authorization)
 
- *  `address` (optional): the IP address ([@!RFC791], [@!RFC8200]) of the subscriber
+ *  `address` (optional): the IP address ([@!RFC0791], [@!RFC8200]) of the subscriber
 
 The JSON-LD document **MAY** contain other properties.
 
