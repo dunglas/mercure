@@ -306,7 +306,7 @@ func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
 	claims, err := authorize(r, []byte("!ChangeMe!"), hmacSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, "parse http://192.168.0.%31/: invalid URL escape \"%31\"")
+	assert.EqualError(t, err, `parse "http://192.168.0.%31/": invalid URL escape "%31"`)
 	assert.Nil(t, claims)
 }
 
@@ -316,7 +316,7 @@ func TestAuthorizeCookieInvalidRefererRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, "parse http://192.168.0.%31/: invalid URL escape \"%31\"")
+	assert.EqualError(t, err, `parse "http://192.168.0.%31/": invalid URL escape "%31"`)
 	assert.Nil(t, claims)
 }
 
