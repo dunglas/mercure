@@ -120,9 +120,9 @@ func TestServe(t *testing.T) {
 	hpBody, _ := ioutil.ReadAll(resp.Body)
 	assert.Contains(t, string(hpBody), "Mercure Hub")
 
-	respHealthz, _ := client.Get("http://" + testAddr + "/healthz")
+	respHealthz, err := client.Get("http://" + testAddr + "/healthz")
+	require.Nil(t, err)
 	defer respHealthz.Body.Close()
-
 	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
 	assert.Contains(t, string(healthzBody), "ok")
 
