@@ -126,6 +126,12 @@ func TestServe(t *testing.T) {
 	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
 	assert.Contains(t, string(healthzBody), "ok")
 
+	respMetrics, err := client.Get("http://" + testAddr + "/metrics")
+	require.Nil(t, err)
+	defer respMetrics.Body.Close()
+	metricsBody, _ := ioutil.ReadAll(respMetrics.Body)
+	assert.NotEmpty(t, metricsBody)
+
 	var wgConnected, wgTested sync.WaitGroup
 	wgConnected.Add(2)
 	wgTested.Add(2)

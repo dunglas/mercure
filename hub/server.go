@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/unrolled/secure"
 	"golang.org/x/crypto/acme/autocert"
@@ -104,6 +105,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 
 	r := mux.NewRouter()
 
+	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
 	if debug || h.config.GetBool("demo") {
