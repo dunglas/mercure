@@ -28,6 +28,7 @@ type Hub struct {
 	transport    Transport
 	server       *http.Server
 	uriTemplates uriTemplates
+	metrics      Metrics
 }
 
 // Stop stops disconnect all connected clients
@@ -46,16 +47,22 @@ func NewHub(v *viper.Viper) (*Hub, error) {
 		return nil, err
 	}
 
-	return NewHubWithTransport(v, t), nil
+	m, err := NewMetrics()
+	if err != nil {
+		return nil, err
+	}
+
+	return NewHubWithTransport(v, t, m), nil
 }
 
 // NewHubWithTransport creates a hub
-func NewHubWithTransport(v *viper.Viper, t Transport) *Hub {
+func NewHubWithTransport(v *viper.Viper, t Transport, m Metrics) *Hub {
 	return &Hub{
 		v,
 		t,
 		nil,
 		uriTemplates{m: make(map[string]*templateCache)},
+		m,
 	}
 }
 

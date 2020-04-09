@@ -69,7 +69,9 @@ func createDummy() *Hub {
 	v.SetDefault("publisher_jwt_key", "publisher")
 	v.SetDefault("subscriber_jwt_key", "subscriber")
 
-	return NewHubWithTransport(v, NewLocalTransport())
+	m, _ := NewMetrics()
+
+	return NewHubWithTransport(v, NewLocalTransport(), m)
 }
 
 func createAnonymousDummy() *Hub {
@@ -84,7 +86,9 @@ func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {
 	v.SetDefault("allow_anonymous", true)
 	v.SetDefault("addr", testAddr)
 
-	return NewHubWithTransport(v, t)
+	m, _ := NewMetrics()
+
+	return NewHubWithTransport(v, t, m)
 }
 
 func createDummyAuthorizedJWT(h *Hub, r role, targets []string) string {
