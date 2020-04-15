@@ -115,11 +115,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 	} else {
-		r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, `<!DOCTYPE html>
-<title>Mercure Hub</title>
-<h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
-		}).Methods("GET", "HEAD")
+		r.HandleFunc("/", welcomeHandler).Methods("GET", "HEAD")
 	}
 
 	secureMiddleware := secure.New(secure.Options{
@@ -175,4 +171,10 @@ func addHealthCheck(r http.Handler) http.Handler {
 	mainRouter.PathPrefix("/").Handler(r)
 
 	return mainRouter
+}
+
+func welcomeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, `<!DOCTYPE html>
+<title>Mercure Hub</title>
+<h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
 }
