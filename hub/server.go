@@ -105,7 +105,10 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 
 	r := mux.NewRouter()
 
-	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
+	if h.config.GetBool("metrics") {
+		r.Handle("/metrics", promhttp.Handler()).Methods("GET")
+	}
+
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
 	if debug || h.config.GetBool("demo") {

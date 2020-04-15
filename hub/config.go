@@ -25,6 +25,7 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("demo", false)
 	v.SetDefault("dispatch_subscriptions", false)
 	v.SetDefault("subscriptions_include_ip", false)
+	v.SetDefault("metrics", false)
 }
 
 // ValidateConfig validates a Viper instance
@@ -68,6 +69,7 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.StringP("log-format", "l", "", "the log format (JSON, FLUENTD or TEXT)")
 	fs.BoolP("dispatch-subscriptions", "s", false, "dispatch updates when subscriptions are created or terminated")
 	fs.BoolP("subscriptions-include-ip", "I", false, "include the IP address of the subscriber in the subscription update")
+	fs.BoolP("metrics", "m", false, "enable metrics")
 
 	fs.VisitAll(func(f *pflag.Flag) {
 		v.BindPFlag(strings.ReplaceAll(f.Name, "-", "_"), fs.Lookup(f.Name))
