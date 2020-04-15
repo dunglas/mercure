@@ -7,7 +7,6 @@ import (
 )
 
 func TestNewMetrics(t *testing.T) {
-	metrics, err := NewMetrics()
-	assert.Nil(t, err)
+	metrics := NewMetrics()
 	assert.IsType(t, &PrometheusMetrics{}, metrics)
 }

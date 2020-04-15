@@ -47,10 +47,7 @@ func NewHub(v *viper.Viper) (*Hub, error) {
 		return nil, err
 	}
 
-	m, err := NewMetrics()
-	if err != nil {
-		return nil, err
-	}
+	m := NewMetrics()
 
 	return NewHubWithTransport(v, t, m), nil
 }

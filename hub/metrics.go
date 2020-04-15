@@ -8,6 +8,6 @@ type Metrics interface {
 	Handler() http.Handler
 }
 
-func NewMetrics() (Metrics, error) {
-	return &PrometheusMetrics{}, nil
+func NewMetrics() Metrics {
+	return &PrometheusMetrics{}
 }
