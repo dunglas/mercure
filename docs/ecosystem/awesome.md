@@ -7,6 +7,10 @@
 * [PHP: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-php.php)
 * [Ruby: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-ruby.rb)
 
+## Documentation and Code Generation
+
+* The Mercure protocol is natively supported by [the AsyncAPI ecosystem](https://www.asyncapi.com/)
+
 ## Hubs and Server Libraries
 
 * [Go Hub and Server library](https://mercure.rocks)
