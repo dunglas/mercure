@@ -21,10 +21,11 @@ const defaultHubURL = "/.well-known/mercure"
 func (h *Hub) Serve() {
 	addr := h.config.GetString("addr")
 	acmeHosts := h.config.GetStringSlice("acme_hosts")
+	metrics := h.config.GetBool("metrics")
 
 	h.server = &http.Server{
 		Addr:         addr,
-		Handler:      addHealthCheck(h.chainHandlers(acmeHosts)),
+		Handler:      addHealthCheck(h.chainHandlers(acmeHosts), metrics),
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
@@ -105,10 +106,6 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 
 	r := mux.NewRouter()
 
-	if h.config.GetBool("metrics") {
-		r.Handle("/metrics", promhttp.Handler()).Methods("GET")
-	}
-
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
 	if debug || h.config.GetBool("demo") {
@@ -162,12 +159,17 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	return recoveryHandler
 }
 
-// addHealthCheck adds a /healthz URL for health checks that doesn't pollute the HTTP logs
-func addHealthCheck(r http.Handler) http.Handler {
+// addHealthCheck adds a /healthz URL for health checks and /metrics if enable that doesn't pollute the HTTP logs
+func addHealthCheck(r http.Handler, enableMetrics bool) http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")
+
+	if enableMetrics {
+		mainRouter.Handle("/metrics", promhttp.Handler()).Methods("GET")
+	}
+
 	mainRouter.PathPrefix("/").Handler(r)
 
 	return mainRouter
