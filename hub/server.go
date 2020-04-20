@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/unrolled/secure"
 	"golang.org/x/crypto/acme/autocert"
@@ -20,10 +21,11 @@ const defaultHubURL = "/.well-known/mercure"
 func (h *Hub) Serve() {
 	addr := h.config.GetString("addr")
 	acmeHosts := h.config.GetStringSlice("acme_hosts")
+	metrics := h.config.GetBool("metrics")
 
 	h.server = &http.Server{
 		Addr:         addr,
-		Handler:      addHealthCheck(h.chainHandlers(acmeHosts)),
+		Handler:      addHealthCheck(h.chainHandlers(acmeHosts), metrics),
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
@@ -110,11 +112,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 	} else {
-		r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, `<!DOCTYPE html>
-<title>Mercure Hub</title>
-<h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
-		}).Methods("GET", "HEAD")
+		r.HandleFunc("/", welcomeHandler).Methods("GET", "HEAD")
 	}
 
 	secureMiddleware := secure.New(secure.Options{
@@ -161,13 +159,24 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	return recoveryHandler
 }
 
-// addHealthCheck adds a /healthz URL for health checks that doesn't pollute the HTTP logs
-func addHealthCheck(r http.Handler) http.Handler {
+// addHealthCheck adds a /healthz URL for health checks and /metrics if enable that doesn't pollute the HTTP logs
+func addHealthCheck(r http.Handler, enableMetrics bool) http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")
+
+	if enableMetrics {
+		mainRouter.Handle("/metrics", promhttp.Handler()).Methods("GET")
+	}
+
 	mainRouter.PathPrefix("/").Handler(r)
 
 	return mainRouter
+}
+
+func welcomeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, `<!DOCTYPE html>
+<title>Mercure Hub</title>
+<h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
 }

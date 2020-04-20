@@ -126,6 +126,11 @@ func TestServe(t *testing.T) {
 	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
 	assert.Contains(t, string(healthzBody), "ok")
 
+	respMetrics, err := client.Get("http://" + testAddr + "/metrics")
+	require.Nil(t, err)
+	defer respMetrics.Body.Close()
+	assert.Equal(t, 404, respMetrics.StatusCode)
+
 	var wgConnected, wgTested sync.WaitGroup
 	wgConnected.Add(2)
 	wgTested.Add(2)
@@ -204,6 +209,28 @@ func TestServeAcme(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, 403, resp.StatusCode)
+
+	h.server.Shutdown(context.Background())
+}
+
+func TestMetricsAccess(t *testing.T) {
+	v := viper.New()
+	v.Set("metrics", true)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+
+	go func() {
+		h.Serve()
+	}()
+
+	client := http.Client{Timeout: 100 * time.Millisecond}
+
+	var resp *http.Response
+	for resp == nil {
+		resp, _ = client.Get("http://" + testAddr + "/metrics") //nolint:bodyclose
+	}
+	defer resp.Body.Close()
+
+	assert.Equal(t, 200, resp.StatusCode)
 
 	h.server.Shutdown(context.Background())
 }
