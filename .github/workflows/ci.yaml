@@ -1,10 +1,13 @@
-name: Quality
+name: CI
+
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   push:
-    branches:
-    - master
+  pull_request:
+
+env:
+  CGO_ENABLED: '0' # https://github.com/golang/go/issues/26988
+  GO111MODULE: 'on'
+
 jobs:
   lint:
     name: Lint
@@ -18,22 +21,29 @@ jobs:
         args: golangci-lint run ./...
 
   test:
-    name: Test with Coverage
+    name: Test (Go ${{ matrix.go }})
     runs-on: ubuntu-latest
+    container:
+      image: golang:${{ matrix.go }}-alpine
+    strategy:
+      matrix:
+        go:
+          - '1.14'
+      fail-fast: false
     steps:
-    - name: Check out code
+    - name: Checkout
       uses: actions/checkout@master
-    - name: Set up Go
+    - name: Install Go
       uses: actions/setup-go@v1
       with:
-        go-version: 1.13
-    - name: Install dependencies
-      run: |
-        go mod download
-    - name: Run Unit tests
-      run: |
-        go test -race -covermode atomic -coverprofile=profile.cov ./...
-    - name: Send coverage
+        go-version: '1.14'
+    - name: Install project dependencies
+      run: go get
+    - name: Build
+      run: go build
+    - name: Test
+      run: go test -race -covermode atomic -coverprofile=profile.cov ./...
+    - name: Upload coverage results
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
