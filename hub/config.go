@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// SetConfigDefaults sets defaults on a Viper instance
+// SetConfigDefaults sets defaults on a Viper instance.
 func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("debug", false)
 	v.SetDefault("transport_url", "bolt://updates.db")
@@ -28,7 +28,7 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("metrics", false)
 }
 
-// ValidateConfig validates a Viper instance
+// ValidateConfig validates a Viper instance.
 func ValidateConfig(v *viper.Viper) error {
 	if v.GetString("publisher_jwt_key") == "" && v.GetString("jwt_key") == "" {
 		return fmt.Errorf(`one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`)
@@ -42,7 +42,7 @@ func ValidateConfig(v *viper.Viper) error {
 	return nil
 }
 
-// SetFlags creates flags and bind them to Viper
+// SetFlags creates flags and bind them to Viper.
 func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.BoolP("debug", "d", false, "enable the debug mode")
 	fs.StringP("transport-url", "t", "", "transport and history system to use")

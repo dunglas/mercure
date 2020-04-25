@@ -1,15 +1,15 @@
 package hub
 
-// Update represents an update to send to subscribers
+// Update represents an update to send to subscribers.
 type Update struct {
-	// The target audience
+	// The target audience.
 	Targets map[string]struct{}
 
-	// The topics' Internationalized Resource Identifier (RFC3987) (will most likely be URLs)
-	// The first one is the canonical IRI, while next ones are alternate IRIs
+	// The topics' Internationalized Resource Identifier (RFC3987) (will most likely be URLs).
+	// The first one is the canonical IRI, while next ones are alternate IRIs.
 	Topics []string
 
-	// The Server-Sent Event to send
+	// The Server-Sent Event to send.
 	Event
 }
 

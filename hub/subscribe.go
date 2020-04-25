@@ -25,7 +25,7 @@ type subscription struct {
 	Address string `json:"address,omitempty"`
 }
 
-// SubscribeHandler create a keep alive connection and send the events to the subscribers
+// SubscribeHandler create a keep alive connection and send the events to the subscribers.
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	f, ok := w.(http.Flusher)
 	if !ok {
@@ -72,7 +72,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// initSubscription initializes the connection
+// initSubscription initializes the connection.
 func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, *Pipe, bool) {
 	fields := log.Fields{"remote_addr": r.RemoteAddr}
 
@@ -144,7 +144,7 @@ func (h *Hub) parseTopics(topics []string) (rawTopics []string, templateTopics [
 	return rawTopics, templateTopics
 }
 
-// getURITemplate retrieves or creates the uritemplate.Template associated with this topic, or nil if it's not a template
+// getURITemplate retrieves or creates the uritemplate.Template associated with this topic, or nil if it's not a template.
 func (h *Hub) getURITemplate(topic string) *uritemplate.Template {
 	var tpl *uritemplate.Template
 	h.uriTemplates.Lock()
@@ -163,7 +163,7 @@ func (h *Hub) getURITemplate(topic string) *uritemplate.Template {
 	return tpl
 }
 
-// sendHeaders sends correct HTTP headers to create a keep-alive connection
+// sendHeaders sends correct HTTP headers to create a keep-alive connection.
 func sendHeaders(w http.ResponseWriter) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
@@ -185,8 +185,7 @@ func sendHeaders(w http.ResponseWriter) {
 	w.(http.Flusher).Flush()
 }
 
-// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header
-// with a fallback on the query parameter
+// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
 func retrieveLastEventID(r *http.Request) string {
 	if id := r.Header.Get("Last-Event-ID"); id != "" {
 		return id
@@ -195,7 +194,7 @@ func retrieveLastEventID(r *http.Request) string {
 	return r.URL.Query().Get("Last-Event-ID")
 }
 
-// publish sends the update to the client, if authorized
+// publish sends the update to the client, if authorized.
 func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w io.Writer, r *http.Request) {
 	fields := h.createLogFields(r, serializedUpdate.Update, subscriber)
 
@@ -214,7 +213,7 @@ func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber
 	log.WithFields(fields).Info("Event sent")
 }
 
-// cleanup removes unused uritemplate.Template instances from memory
+// cleanup removes unused uritemplate.Template instances from memory.
 func (h *Hub) cleanup(s *Subscriber) {
 	keys := make([]string, 0, len(s.RawTopics)+len(s.TemplateTopics))
 	copy(s.RawTopics, keys)

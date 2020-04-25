@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Event is the actual Server Sent Event that will be dispatched
+// Event is the actual Server Sent Event that will be dispatched.
 type Event struct {
 	// The updates' data, encoded in the sever-sent event format: every line starts with the string "data: "
 	// https://www.w3.org/TR/eventsource/#dispatchMessage
@@ -21,7 +21,7 @@ type Event struct {
 	Retry uint64
 }
 
-// String serializes the event in a "text/event-stream" representation
+// String serializes the event in a "text/event-stream" representation.
 func (e *Event) String() string {
 	var b strings.Builder
 

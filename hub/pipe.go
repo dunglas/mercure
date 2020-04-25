@@ -8,13 +8,13 @@ import (
 // ErrClosedPipe is returned by the Pipe's Write and Read methods after a call to Close.
 var ErrClosedPipe = errors.New("hub: read/write on closed Pipe")
 
-// Pipe convey Update to reader in a closable chan
+// Pipe convey Update to reader in a closable chan.
 type Pipe struct {
 	updates chan *Update
 	done    chan struct{}
 }
 
-// NewPipe creates pipes
+// NewPipe creates pipes.
 func NewPipe() *Pipe {
 	return &Pipe{make(chan *Update, 1), make(chan struct{})}
 }
@@ -32,7 +32,7 @@ func (p *Pipe) Write(update *Update) bool {
 	return true
 }
 
-// Read returns the next unfetch update from the pipe with a context
+// Read returns the next unfetch update from the pipe with a context.
 func (p *Pipe) Read(ctx context.Context) (*Update, error) {
 	// If you return new errors, don't forget to handle them in subscribe.go
 	select {
@@ -45,7 +45,7 @@ func (p *Pipe) Read(ctx context.Context) (*Update, error) {
 	}
 }
 
-// IsClosed returns true if the pipe is closed
+// IsClosed returns true if the pipe is closed.
 func (p *Pipe) IsClosed() bool {
 	select {
 	case <-p.done:
@@ -55,7 +55,7 @@ func (p *Pipe) IsClosed() bool {
 	}
 }
 
-// Close closes the pipe
+// Close closes the pipe.
 func (p *Pipe) Close() {
 	select {
 	case <-p.done:

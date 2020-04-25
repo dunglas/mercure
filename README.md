@@ -7,7 +7,7 @@ It is especially useful to publish async and real-time updates of resources serv
 
 [![Awesome](https://awesome.re/badge.svg)](docs/ecosystem/awesome.md)
 [![GoDoc](https://godoc.org/github.com/dunglas/mercure?status.svg)](https://godoc.org/github.com/dunglas/mercure/hub)
-[![Build Status](https://travis-ci.com/dunglas/mercure.svg?branch=master)](https://travis-ci.com/dunglas/mercure)
+![CI](https://github.com/dunglas/mercure/workflows/CI/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/dunglas/mercure/badge.svg?branch=master)](https://coveralls.io/github/dunglas/mercure?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/dunglas/mercure)](https://goreportcard.com/report/github.com/dunglas/mercure)
 

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{ //nolint:gochecknoglobals
 	Use:   "mercure",
 	Short: "Start the Mercure Hub",
@@ -22,7 +22,7 @@ Go to https://mercure.rocks for more information!`,
 	},
 }
 
-// Execute runs the root command
+// Execute runs the root command.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalln(err)
