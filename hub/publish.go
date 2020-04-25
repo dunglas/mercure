@@ -17,7 +17,7 @@ func (h *Hub) dispatch(u *Update) error {
 	return h.transport.Write(u)
 }
 
-// PublishHandler allows publisher to broadcast updates to all subscribers
+// PublishHandler allows publisher to broadcast updates to all subscribers.
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := authorize(r, h.getJWTKey(publisherRole), h.getJWTAlgorithm(publisherRole), h.config.GetStringSlice("publish_allowed_origins"))
 	if err != nil || claims == nil || claims.Mercure.Publish == nil {

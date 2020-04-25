@@ -9,7 +9,7 @@ import (
 	"github.com/yosida95/uritemplate"
 )
 
-// uriTemplates caches uritemplate.Template to improve memory and CPU usage
+// uriTemplates caches uritemplate.Template to improve memory and CPU usage.
 type uriTemplates struct {
 	sync.RWMutex
 	m map[string]*templateCache
@@ -22,7 +22,7 @@ type templateCache struct {
 	template *uritemplate.Template
 }
 
-// Hub stores channels with clients currently subscribed and allows to dispatch updates
+// Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
 	config       *viper.Viper
 	transport    Transport
@@ -30,12 +30,12 @@ type Hub struct {
 	uriTemplates uriTemplates
 }
 
-// Stop stops disconnect all connected clients
+// Stop stops disconnect all connected clients.
 func (h *Hub) Stop() error {
 	return h.transport.Close()
 }
 
-// NewHub creates a hub using the Viper configuration
+// NewHub creates a hub using the Viper configuration.
 func NewHub(v *viper.Viper) (*Hub, error) {
 	if err := ValidateConfig(v); err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func NewHub(v *viper.Viper) (*Hub, error) {
 	return NewHubWithTransport(v, t), nil
 }
 
-// NewHubWithTransport creates a hub
+// NewHubWithTransport creates a hub.
 func NewHubWithTransport(v *viper.Viper, t Transport) *Hub {
 	return &Hub{
 		v,
@@ -59,7 +59,7 @@ func NewHubWithTransport(v *viper.Viper, t Transport) *Hub {
 	}
 }
 
-// Start is an helper method to start the Mercure Hub
+// Start is an helper method to start the Mercure Hub.
 func Start() {
 	h, err := NewHub(viper.GetViper())
 	if err != nil {

@@ -17,7 +17,7 @@ import (
 
 const defaultHubURL = "/.well-known/mercure"
 
-// Serve starts the HTTP server
+// Serve starts the HTTP server.
 func (h *Hub) Serve() {
 	addr := h.config.GetString("addr")
 	acmeHosts := h.config.GetStringSlice("acme_hosts")
@@ -100,7 +100,7 @@ func (h *Hub) listenShutdown() chan struct{} {
 	return idleConnsClosed
 }
 
-// chainHandlers configures and chains handlers
+// chainHandlers configures and chains handlers.
 func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	debug := h.config.GetBool("debug")
 
@@ -159,7 +159,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	return recoveryHandler
 }
 
-// addHealthCheck adds a /healthz URL for health checks and /metrics if enable that doesn't pollute the HTTP logs
+// addHealthCheck adds a /healthz URL for health checks and /metrics if enable that doesn't pollute the HTTP logs.
 func addHealthCheck(r http.Handler, enableMetrics bool) http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {

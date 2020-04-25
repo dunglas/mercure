@@ -18,7 +18,7 @@ import (
 
 const defaultBoltBucketName = "updates"
 
-// BoltTransport implements the TransportInterface using the Bolt database
+// BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
 	sync.RWMutex
 	db               *bolt.DB
@@ -30,7 +30,7 @@ type BoltTransport struct {
 	lastSeq          atomic.Uint64
 }
 
-// NewBoltTransport create a new BoltTransport
+// NewBoltTransport create a new BoltTransport.
 func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 	var err error
 	q := u.Query()
@@ -71,7 +71,7 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 	return &BoltTransport{db: db, bucketName: bucketName, size: size, cleanupFrequency: cleanupFrequency, pipes: make(map[*Pipe]struct{}), done: make(chan struct{})}, nil
 }
 
-// Write pushes updates in the Transport
+// Write pushes updates in the Transport.
 func (t *BoltTransport) Write(update *Update) error {
 	select {
 	case <-t.done:
@@ -104,7 +104,7 @@ func (t *BoltTransport) Write(update *Update) error {
 	return nil
 }
 
-// persist stores update in the database
+// persist stores update in the database.
 func (t *BoltTransport) persist(update *Update) error {
 	return t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
@@ -138,7 +138,7 @@ func (t *BoltTransport) persist(update *Update) error {
 	})
 }
 
-// CreatePipe returns a pipe fetching updates from the given point in time
+// CreatePipe returns a pipe fetching updates from the given point in time.
 func (t *BoltTransport) CreatePipe(fromID string) (*Pipe, error) {
 	t.Lock()
 	defer t.Unlock()
@@ -196,7 +196,7 @@ func (t *BoltTransport) fetch(fromID string, toSeq uint64, pipe *Pipe) {
 	}
 }
 
-// Close closes the Transport
+// Close closes the Transport.
 func (t *BoltTransport) Close() error {
 	select {
 	case <-t.done:
@@ -214,7 +214,7 @@ func (t *BoltTransport) Close() error {
 	return nil
 }
 
-// cleanup removes entries in the history above the size limit, triggered probabilistically
+// cleanup removes entries in the history above the size limit, triggered probabilistically.
 func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	if t.size == 0 ||
 		t.cleanupFrequency == 0 ||

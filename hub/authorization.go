@@ -13,7 +13,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-// Claims contains Mercure's JWT claims
+// claims contains Mercure's JWT claims.
 type claims struct {
 	Mercure mercureClaim `json:"mercure"`
 	jwt.StandardClaims
@@ -121,7 +121,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 	return nil, fmt.Errorf("the origin \"%s\" is not allowed to post updates", origin)
 }
 
-// validateJWT validates that the provided JWT token is a valid Mercure token
+// validateJWT validates that the provided JWT token is a valid Mercure token.
 func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMethod) (*claims, error) {
 	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
 		switch signingAlgorithm.(type) {

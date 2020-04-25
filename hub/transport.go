@@ -9,22 +9,22 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Transport provides methods to read and write updates
+// Transport provides methods to read and write updates.
 type Transport interface {
-	// Write pushes updates in the Transport
+	// Write pushes updates in the Transport.
 	Write(update *Update) error
 
-	// CreatePipe returns a pipe fetching updates from the given point in time
+	// CreatePipe returns a pipe fetching updates from the given point in time.
 	CreatePipe(fromID string) (*Pipe, error)
 
-	// Close closes the Transport
+	// Close closes the Transport.
 	Close() error
 }
 
 // ErrClosedTransport is returned by the Transport's Write and CreatePipe methods after a call to Close.
 var ErrClosedTransport = errors.New("hub: read/write on closed Transport")
 
-// NewTransport create a transport using the backend matching the given TransportURL
+// NewTransport create a transport using the backend matching the given TransportURL.
 func NewTransport(config *viper.Viper) (Transport, error) {
 	tu := config.GetString("transport_url")
 	if tu == "" {
@@ -47,19 +47,19 @@ func NewTransport(config *viper.Viper) (Transport, error) {
 	return nil, fmt.Errorf(`no Transport available for "%s"`, tu)
 }
 
-// LocalTransport implements the TransportInterface without database and simply broadcast the live Updates
+// LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
 type LocalTransport struct {
 	sync.RWMutex
 	pipes map[*Pipe]struct{}
 	done  chan struct{}
 }
 
-// NewLocalTransport create a new LocalTransport
+// NewLocalTransport create a new LocalTransport.
 func NewLocalTransport() *LocalTransport {
 	return &LocalTransport{pipes: make(map[*Pipe]struct{}), done: make(chan struct{})}
 }
 
-// Write pushes updates in the Transport
+// Write pushes updates in the Transport.
 func (t *LocalTransport) Write(update *Update) error {
 	select {
 	case <-t.done:
@@ -92,7 +92,7 @@ func (t *LocalTransport) Write(update *Update) error {
 	return err
 }
 
-// CreatePipe returns a pipe fetching updates from the given point in time
+// CreatePipe returns a pipe fetching updates from the given point in time.
 func (t *LocalTransport) CreatePipe(fromID string) (*Pipe, error) {
 	t.Lock()
 	defer t.Unlock()
@@ -109,7 +109,7 @@ func (t *LocalTransport) CreatePipe(fromID string) (*Pipe, error) {
 	return pipe, nil
 }
 
-// Close closes the Transport
+// Close closes the Transport.
 func (t *LocalTransport) Close() error {
 	select {
 	case <-t.done:

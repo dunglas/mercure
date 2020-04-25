@@ -42,7 +42,7 @@ func targetsMapToArray(t map[string]struct{}) []string {
 	return targets
 }
 
-// InitLogrus configures the global logger
+// InitLogrus configures the global logger.
 func InitLogrus() {
 	if viper.GetBool("debug") {
 		log.SetLevel(log.DebugLevel)
