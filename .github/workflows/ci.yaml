@@ -22,13 +22,6 @@ jobs:
   test:
     name: Test (Go ${{ matrix.go }})
     runs-on: ubuntu-latest
-    container:
-      image: golang:${{ matrix.go }}-alpine
-    strategy:
-      matrix:
-        go:
-          - '1.14'
-      fail-fast: false
     steps:
     - name: Checkout
       uses: actions/checkout@master
@@ -39,7 +32,7 @@ jobs:
     - name: Install project dependencies
       run: go get
     - name: Build
-      run: go build
+      run: CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' .
     - name: Test
       run: go test -race -covermode atomic -coverprofile=profile.cov ./...
     - name: Upload coverage results
