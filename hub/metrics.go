@@ -6,12 +6,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Metrics store Hub collected metrics.
 type Metrics struct {
 	subscribersTotal *prometheus.CounterVec
 	subscribers      *prometheus.GaugeVec
 	updatesTotal     *prometheus.CounterVec
 }
 
+// NewMetrics creates a Prometheus metrics collector.
 func NewMetrics() *Metrics {
 	return &Metrics{
 		subscribersTotal: prometheus.NewCounterVec(
@@ -38,6 +40,7 @@ func NewMetrics() *Metrics {
 	}
 }
 
+// Register configure the Prometheus registry with all collected metrics.
 func (m *Metrics) Register(r *mux.Router) {
 	registry := prometheus.NewRegistry()
 
@@ -54,6 +57,7 @@ func (m *Metrics) Register(r *mux.Router) {
 	r.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{})).Methods("GET")
 }
 
+// NewSubscriber collect metrics about new subscriber event.
 func (m *Metrics) NewSubscriber(topics []string) {
 	for _, t := range topics {
 		m.subscribersTotal.WithLabelValues(t).Inc()
@@ -61,12 +65,14 @@ func (m *Metrics) NewSubscriber(topics []string) {
 	}
 }
 
+// SubscriberDisconnect collect metrics about subscriber disconnection event.
 func (m *Metrics) SubscriberDisconnect(topics []string) {
 	for _, t := range topics {
 		m.subscribers.WithLabelValues(t).Dec()
 	}
 }
 
+// NewUpdate collect metrics on new update event.
 func (m *Metrics) NewUpdate(topics []string) {
 	for _, t := range topics {
 		m.updatesTotal.WithLabelValues(t).Inc()
