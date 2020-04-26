@@ -3,7 +3,8 @@ package hub
 import (
 	"log"
 	"net/http"
-	"sync"
+
+	"github.com/sasha-s/go-deadlock"
 
 	"github.com/spf13/viper"
 	"github.com/yosida95/uritemplate"
@@ -11,7 +12,7 @@ import (
 
 // uriTemplates caches uritemplate.Template to improve memory and CPU usage.
 type uriTemplates struct {
-	sync.RWMutex
+	deadlock.RWMutex
 	m map[string]*templateCache
 }
 

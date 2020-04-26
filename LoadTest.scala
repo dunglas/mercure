@@ -6,9 +6,15 @@
  * Available environment variables (all optional):
  *   - HUB_URL: the URL of the hub to test
  *   - JWT: the JWT to use for authenticating the publisher
- *   - SUBSCRIBERS: the number of concurrent subscribers
- *   - PUBLISHERS: the number of concurrent publishers
-*/
+ *   - INITIAL_SUBSCRIBERS: the number of concurrent subscribers initially connected
+ *   - SUBSCRIBERS_RATE_FROM: minimum rate (per second) of additional subscribers to connect
+ *   - SUBSCRIBERS_RATE_TO: maximum rate (per second) of additional subscribers to connect
+ *   - PUBLISHERS_RATE_FROM: minimum rate (per second) of publications
+ *   - PUBLISHERS_RATE_TO: maximum rate (per second) of publications
+ *   - INJECTION_DURATION: duration of the publishers injection
+ *   - CONNECTION_DURATION: duration of subscribers' connection
+ *   - RANDOM_CONNECTION_DURATION: to randomize the connection duration (will longs CONNECTION_DURATION at max)
+ */
 
 package mercure
 
@@ -19,19 +25,31 @@ import scala.util.Properties
 
 class LoadTest extends Simulation {
   /** The hub URL */
-  val HubUrl = Properties.envOrElse("HUB_URL", "http://localhost:3001/.well-known/mercure" )
+  val HubUrl = Properties.envOrElse("HUB_URL", "http://localhost:3001/.well-known/mercure")
   /** JWT to use to publish */
   val Jwt = Properties.envOrElse("JWT", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.afLx2f2ut3YgNVFStCx95Zm_UND1mZJ69OenXaDuZL8")
-  /** Number of concurrent subscribers to connect */
-  val ConcurrentSubscribers = Properties.envOrElse("SUBSCRIBERS", "10000").toInt
-  /** Number of concurent publishers */
-  val ConcurrentPublishers = Properties.envOrElse("PUBLISHERS", "2").toInt
+  /** Number of concurrent subscribers initially connected */
+  val InitialSubscribers = Properties.envOrElse("INITIAL_SUBSCRIBERS", "100").toInt
+  /** Additional subscribers rate (per second) */
+  val SubscribersRateFrom = Properties.envOrElse("SUBSCRIBERS_RATE_FROM", "2").toInt
+  val SubscribersRateTo = Properties.envOrElse("SUBSCRIBERS_RATE_TO", "10").toInt
+  /** Publishers rate (per second) */
+  val PublishersRateFrom = Properties.envOrElse("PUBLISHERS_RATE_FROM", "2").toInt
+  val PublishersRateTo = Properties.envOrElse("PUBLISHERS_RATE_TO", "20").toInt
+  /** Duration of injection (in seconds) */
+  val InjectionDuration = Properties.envOrElse("INJECTION_DURATION", "3600").toInt
+  /** How long a subscriber can stay connected at max (in seconds) */
+  val ConnectionDuration = Properties.envOrElse("CONNECTION_DURATION", "300").toInt
+  /** Randomize the connection duration? */
+  val RandomConnectionDuration = Properties.envOrElse("RANDOM_CONNECTION_DURATION", "true").toBoolean
+
+  val rnd = new scala.util.Random
 
   val httpProtocol = http
     .baseUrl(HubUrl)
 
+  val startTime = System.nanoTime
   val scenarioPublish = scenario("Publish")
-    .pause(2) // Wait for subscribers
     .exec(
       http("Publish")
         .post("")
@@ -47,11 +65,17 @@ class LoadTest extends Simulation {
           sse.checkMessage("Check content").check(regex("""(.*)Hi(.*)"""))
         )
     )
-    .pause(15)
+    .pause(if (RandomConnectionDuration) rnd.nextInt(ConnectionDuration) else ConnectionDuration)
     .exec(sse("Close").close())
 
   setUp(
-    scenarioSubscribe.inject(atOnceUsers(ConcurrentSubscribers)).protocols(httpProtocol),
-    scenarioPublish.inject(atOnceUsers(ConcurrentPublishers)).protocols(httpProtocol)
+    scenarioSubscribe.inject(
+      atOnceUsers(InitialSubscribers),
+      rampUsersPerSec(SubscribersRateFrom) to SubscribersRateTo during (InjectionDuration seconds) randomized
+    ).protocols(httpProtocol),
+    scenarioPublish.inject(
+      nothingFor(4 seconds), // Wait for subscribers
+      rampUsersPerSec(PublishersRateFrom) to PublishersRateTo during (InjectionDuration + ConnectionDuration seconds) randomized
+    ).protocols(httpProtocol)
   )
 }

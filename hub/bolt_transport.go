@@ -8,7 +8,8 @@ import (
 	"math/rand"
 	"net/url"
 	"strconv"
-	"sync"
+
+	"github.com/sasha-s/go-deadlock"
 
 	bolt "go.etcd.io/bbolt"
 	"go.uber.org/atomic"
@@ -20,7 +21,7 @@ const defaultBoltBucketName = "updates"
 
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
-	sync.RWMutex
+	deadlock.RWMutex
 	db               *bolt.DB
 	bucketName       string
 	size             uint64

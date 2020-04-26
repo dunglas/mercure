@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sasha-s/go-deadlock"
+
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +29,7 @@ func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 	var (
 		readUpdate *Update
 		readError  error
-		m          sync.Mutex
+		m          deadlock.Mutex
 		wg         sync.WaitGroup
 	)
 	wg.Add(1)
@@ -63,7 +65,7 @@ func TestLocalTransportWriteIsDispatched(t *testing.T) {
 	var (
 		readUpdate *Update
 		readError  error
-		m          sync.Mutex
+		m          deadlock.Mutex
 		wg         sync.WaitGroup
 	)
 	wg.Add(1)
