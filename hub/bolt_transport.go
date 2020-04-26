@@ -80,7 +80,9 @@ func (t *BoltTransport) Write(update *Update) error {
 	default:
 	}
 
-	t.RLock()
+	// We cannot use RLock() because Bolt allows only one read-write transaction at a time
+	t.Lock()
+	defer t.Unlock()
 
 	if err := t.persist(update); err != nil {
 		return err
@@ -93,14 +95,9 @@ func (t *BoltTransport) Write(update *Update) error {
 		}
 	}
 
-	t.RUnlock()
-	t.Lock()
-
 	for _, pipe := range closedPipes {
 		delete(t.pipes, pipe)
 	}
-
-	t.Unlock()
 
 	return nil
 }
