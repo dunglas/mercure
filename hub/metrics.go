@@ -9,6 +9,7 @@ import (
 type Metrics struct {
 	subscribersTotal *prometheus.CounterVec
 	subscribers      *prometheus.GaugeVec
+	updatesTotal     *prometheus.CounterVec
 }
 
 func NewMetrics() *Metrics {
@@ -27,6 +28,13 @@ func NewMetrics() *Metrics {
 			},
 			[]string{"topic"},
 		),
+		updatesTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "mercure_updates_total",
+				Help: "Total number of handled updates",
+			},
+			[]string{"topic"},
+		),
 	}
 }
 
@@ -36,6 +44,8 @@ func (m *Metrics) Register(r *mux.Router) {
 	// Metrics about the Hub
 	registry.MustRegister(m.subscribers)
 	registry.MustRegister(m.subscribersTotal)
+	registry.MustRegister(m.updatesTotal)
+
 	// Go-specific metrics about the process (GC stats, goroutines, etc.).
 	registry.MustRegister(prometheus.NewGoCollector())
 	// Go-unrelated process metrics (memory usage, file descriptors, etc.).
@@ -57,3 +67,8 @@ func (m *Metrics) SubscriberDisconnect(topics []string) {
 	}
 }
 
+func (m *Metrics) NewUpdate(topics []string) {
+	for _, t := range topics {
+		m.updatesTotal.WithLabelValues(t).Inc()
+	}
+}

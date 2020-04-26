@@ -45,6 +45,18 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	assertCounterValue(t, 2.0, m.subscribersTotal, "topic2")
 }
 
+func TestTotalOfHandledUpdates(t *testing.T) {
+	m := NewMetrics()
+
+	m.NewUpdate([]string{"topic1", "topic2"})
+	m.NewUpdate([]string{"topic2", "topic3"})
+	m.NewUpdate([]string{"topic2"})
+	m.NewUpdate([]string{"topic3"})
+
+	assertCounterValue(t, 1.0, m.updatesTotal, "topic1")
+	assertCounterValue(t, 3.0, m.updatesTotal, "topic2")
+	assertCounterValue(t, 2.0, m.updatesTotal, "topic3")
+}
 
 func assertGaugeLabelValue(t *testing.T, v float64, g *prometheus.GaugeVec, l string) {
 	var metricOut dto.Metric
