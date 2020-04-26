@@ -9,7 +9,6 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/unrolled/secure"
 	"golang.org/x/crypto/acme/autocert"
@@ -21,11 +20,10 @@ const defaultHubURL = "/.well-known/mercure"
 func (h *Hub) Serve() {
 	addr := h.config.GetString("addr")
 	acmeHosts := h.config.GetStringSlice("acme_hosts")
-	metrics := h.config.GetBool("metrics")
 
 	h.server = &http.Server{
 		Addr:         addr,
-		Handler:      addHealthCheck(h.chainHandlers(acmeHosts), metrics),
+		Handler:      h.healthCheck(acmeHosts),
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
@@ -160,17 +158,18 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 }
 
 // addHealthCheck adds a /healthz URL for health checks and /metrics if enable that doesn't pollute the HTTP logs.
-func addHealthCheck(r http.Handler, enableMetrics bool) http.Handler {
+func (h *Hub) healthCheck(acmeHosts []string) http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")
 
-	if enableMetrics {
-		mainRouter.Handle("/metrics", promhttp.Handler()).Methods("GET")
+	if h.config.GetBool("metrics") {
+		h.metrics.Register(mainRouter)
 	}
 
-	mainRouter.PathPrefix("/").Handler(r)
+	handler := h.chainHandlers(acmeHosts)
+	mainRouter.PathPrefix("/").Handler(handler)
 
 	return mainRouter
 }
