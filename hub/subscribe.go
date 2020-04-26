@@ -116,12 +116,16 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	}
 	sendHeaders(w)
 
+	h.metrics.NewSubscriber(topics)
+
 	log.WithFields(fields).Info("New subscriber")
 
 	// Listen to the closing of the http connection via the Request's Context
 	go func() {
 		<-r.Context().Done()
 		pipe.Close()
+
+		h.metrics.SubscriberDisconnect(topics)
 
 		h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, false, address)
 		log.WithFields(fields).Info("Subscriber disconnected")
