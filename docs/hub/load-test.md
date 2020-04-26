@@ -8,7 +8,7 @@ To test your own infrastructure, we provide a [Gatling](https://gatling.io)-base
 
 1. Download [Gatling version 3](https://gatling.io/open-source/)
 2. Clone the Mercure repository and go into it: `git clone https://github.com/dunglas/mercure && cd mercure`
-3. Run `path/to/gatling/bin/gatling.sh` --simulations-folder .
+3. Run `path/to/gatling/bin/gatling.sh --simulations-folder .`
 
 ## Configuration
 
