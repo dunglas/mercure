@@ -22,7 +22,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.3
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/unrolled/secure v1.0.7
 	github.com/yosida95/uritemplate v0.0.0-20170413134207-5c22f358020b
 	go.etcd.io/bbolt v1.3.4
@@ -32,7 +32,7 @@ require (
 	golang.org/x/net v0.0.0-20200425230154-ff2c4b7c35a0 // indirect
 	golang.org/x/sys v0.0.0-20200420163511-1957bb5e6d1f // indirect
 	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/tools v0.0.0-20200402223321-bcf690261a44 // indirect
+	golang.org/x/tools v0.0.0-20200426102838-f3a5411a4c3b // indirect
 	google.golang.org/genproto v0.0.0-20200424135956-bca184e23272 // indirect
 	gopkg.in/ini.v1 v1.55.0 // indirect
 )
