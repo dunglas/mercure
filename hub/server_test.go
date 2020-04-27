@@ -240,9 +240,12 @@ func TestMetricsCollect(t *testing.T) {
 	v.Set("metrics", true)
 	server := newTestServer(t, v)
 
-	server.newSubscriber("http://example.com/foo/1")
-	server.newSubscriber("http://example.com/alt/1")
-	server.newSubscriber("http://example.com/alt/1")
+	server.newSubscriber("http://example.com/foo/1", nil)
+	server.newSubscriber("http://example.com/alt/1", nil)
+	server.newSubscriber("http://example.com/alt/1", nil)
+	server.newSubscriber("http://example.com/alt/1", func(r *http.Response) {
+		r.Body.Close() // Close the subscriber connection
+	})
 	server.waitSubscribers()
 
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
@@ -254,7 +257,7 @@ func TestMetricsCollect(t *testing.T) {
 	server.assertMetric("mercure_subcribers{topic=\"http://example.com/foo/1\"} 1")
 	server.assertMetric("mercure_subcribers{topic=\"http://example.com/alt/1\"} 2")
 	server.assertMetric("mercure_subcribers_total{topic=\"http://example.com/foo/1\"} 1")
-	server.assertMetric("mercure_subcribers_total{topic=\"http://example.com/alt/1\"} 2")
+	server.assertMetric("mercure_subcribers_total{topic=\"http://example.com/alt/1\"} 3")
 	server.assertMetric("mercure_updates_total{topic=\"http://example.com/foo/1\"} 2")
 	server.assertMetric("mercure_updates_total{topic=\"http://example.com/alt/1\"} 1")
 
@@ -298,15 +301,19 @@ func (s *testServer) shutdown() {
 	s.wgTested.Wait()
 }
 
-func (s *testServer) newSubscriber(topic string) {
+func (s *testServer) newSubscriber(topic string, fn func(*http.Response)) {
 	s.wgConnected.Add(1)
 	s.wgTested.Add(1)
 
 	go func() {
 		defer s.wgTested.Done()
-		_, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
+		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic)) //nolint:bodyclose
 		require.Nil(s.t, err)
 		s.wgConnected.Done()
+
+		if fn != nil {
+			fn(resp)
+		}
 	}()
 }
 
