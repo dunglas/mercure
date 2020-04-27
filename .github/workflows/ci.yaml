@@ -33,6 +33,8 @@ jobs:
       run: go get
     - name: Build
       run: CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' .
+    - name: Use go-deadlock
+      run: ./tests/use-go-deadlock.sh
     - name: Test
       run: go test -race -covermode atomic -coverprofile=profile.cov ./...
     - name: Upload coverage results

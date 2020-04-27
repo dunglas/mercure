@@ -48,7 +48,6 @@ class LoadTest extends Simulation {
   val httpProtocol = http
     .baseUrl(HubUrl)
 
-  val startTime = System.nanoTime
   val scenarioPublish = scenario("Publish")
     .exec(
       http("Publish")
@@ -74,7 +73,6 @@ class LoadTest extends Simulation {
       rampUsersPerSec(SubscribersRateFrom) to SubscribersRateTo during (InjectionDuration seconds) randomized
     ).protocols(httpProtocol),
     scenarioPublish.inject(
-      nothingFor(4 seconds), // Wait for subscribers
       rampUsersPerSec(PublishersRateFrom) to PublishersRateTo during (InjectionDuration + ConnectionDuration seconds) randomized
     ).protocols(httpProtocol)
   )

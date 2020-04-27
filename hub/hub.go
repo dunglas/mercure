@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/sasha-s/go-deadlock"
+	"sync"
 
 	"github.com/spf13/viper"
 	"github.com/yosida95/uritemplate"
@@ -12,7 +12,7 @@ import (
 
 // uriTemplates caches uritemplate.Template to improve memory and CPU usage.
 type uriTemplates struct {
-	deadlock.RWMutex
+	sync.RWMutex
 	m map[string]*templateCache
 }
 

@@ -42,20 +42,14 @@ When you send a PR, just make sure that:
 * You make the PR on the same branch you based your changes on. If you see commits
   that you did not make in your PR, you're doing it wrong.
 
-### Finding deadlocks
+### Finding Deadlocks
 
 To debug potential deadlocks:
 
-1. install `go-deadlock`:
-
-       go get github.com/sasha-s/go-deadlock/...@master
-       find . -name "*.go" | xargs -n 1 sed -i '' 's#"sync"#"sync"\
-           "github.com/sasha-s/go-deadlock"#'
-        find . -name "*.go" | xargs -n 1 sed -i '' 's#sync.RWMutex#deadlock.RWMutex#'
-        find . -name "*.go" | xargs -n 1 sed -i '' 's#sync.Mutex#deadlock.Mutex#'
-
-2. Run the load test (`LoadTest.scala`)
-3. Be sure to remove go-deadlock before committing
+1. Install `go-deadlock`: `./tests/use-go-deadlock.sh`
+2. Run the tests in race mode: `go test -race ./... -v`
+3. To stress test the app, run the load test (see `docs/load-testing.md`)
+4. Be sure to remove `go-deadlock` before committing
 
 ## Protocol
 

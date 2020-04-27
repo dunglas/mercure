@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sasha-s/go-deadlock"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
@@ -153,7 +151,7 @@ func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 	var (
 		readUpdate *Update
 		readError  error
-		m          deadlock.Mutex
+		m          sync.Mutex
 		wg         sync.WaitGroup
 	)
 	wg.Add(1)
@@ -191,7 +189,7 @@ func TestBoltTransportWriteIsDispatched(t *testing.T) {
 	var (
 		readUpdate *Update
 		readError  error
-		m          deadlock.Mutex
+		m          sync.Mutex
 		wg         sync.WaitGroup
 	)
 	wg.Add(1)

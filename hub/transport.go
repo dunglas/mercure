@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/sasha-s/go-deadlock"
+	"sync"
 
 	"github.com/spf13/viper"
 )
@@ -50,7 +50,7 @@ func NewTransport(config *viper.Viper) (Transport, error) {
 
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
 type LocalTransport struct {
-	deadlock.RWMutex
+	sync.RWMutex
 	pipes map[*Pipe]struct{}
 	done  chan struct{}
 }
