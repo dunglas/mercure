@@ -29,6 +29,7 @@ func TestBoltTransportHistory(t *testing.T) {
 	require.NotNil(t, pipe)
 
 	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		var count int
 		for {
