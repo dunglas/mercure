@@ -47,7 +47,7 @@ func (rt *responseTester) Header() http.Header {
 func (rt *responseTester) Write(buf []byte) (int, error) {
 	rt.body += string(buf)
 
-	if rt.body == rt.expectedBody {
+	if strings.HasPrefix(rt.body, rt.expectedBody) {
 		rt.cancel()
 	} else if !strings.HasPrefix(rt.expectedBody, rt.body) {
 		rt.t.Errorf(`Received body "%s" doesn't match expected body "%s"`, rt.body, rt.expectedBody)

@@ -47,12 +47,14 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		if hearthbeatInterval != time.Duration(0) {
 			ctx, cancel = context.WithTimeout(ctx, hearthbeatInterval)
-			defer cancel()
 		}
 
 		select {
 		case <-r.Context().Done():
 			// Listen to the closing of the http connection via the Request's Context
+			if nil != cancel {
+				cancel()
+			}
 			return
 		case <-ctx.Done():
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
