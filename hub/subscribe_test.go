@@ -267,7 +267,8 @@ func TestUnsubscribe(t *testing.T) {
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
 		assert.Equal(t, 1, len(s.pipes))
 		for pipe := range s.pipes {
-			assert.True(t, pipe.IsClosed())
+			_, ok := <-pipe.done
+			assert.False(t, ok)
 		}
 	}()
 

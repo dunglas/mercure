@@ -195,18 +195,26 @@ func (t *BoltTransport) fetch(fromID string, toSeq uint64, pipe *Pipe) {
 
 // Close closes the Transport.
 func (t *BoltTransport) Close() error {
+	// See https://go101.org/article/channel-closing.html
 	select {
 	case <-t.done:
-		// Already closed. Don't close again.
+		return nil
 	default:
-		t.Lock()
-		defer t.Unlock()
-		for pipe := range t.pipes {
-			pipe.Close()
-		}
-		close(t.done)
-		t.db.Close()
 	}
+
+	select {
+	case <-t.done:
+		return nil
+	default:
+	}
+
+	t.Lock()
+	defer t.Unlock()
+	for pipe := range t.pipes {
+		close(pipe.updates)
+	}
+	close(t.done)
+	t.db.Close()
 
 	return nil
 }
