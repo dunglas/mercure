@@ -58,23 +58,23 @@ func (m *Metrics) Register(r *mux.Router) {
 }
 
 // NewSubscriber collect metrics about new subscriber event.
-func (m *Metrics) NewSubscriber(topics []string) {
-	for _, t := range topics {
+func (m *Metrics) NewSubscriber(s *Subscriber) {
+	for _, t := range s.Topics {
 		m.subscribersTotal.WithLabelValues(t).Inc()
 		m.subscribers.WithLabelValues(t).Inc()
 	}
 }
 
 // SubscriberDisconnect collect metrics about subscriber disconnection event.
-func (m *Metrics) SubscriberDisconnect(topics []string) {
-	for _, t := range topics {
+func (m *Metrics) SubscriberDisconnect(s *Subscriber) {
+	for _, t := range s.Topics {
 		m.subscribers.WithLabelValues(t).Dec()
 	}
 }
 
 // NewUpdate collect metrics on new update event.
-func (m *Metrics) NewUpdate(topics []string) {
-	for _, t := range topics {
+func (m *Metrics) NewUpdate(u *Update) {
+	for _, t := range u.Topics {
 		m.updatesTotal.WithLabelValues(t).Inc()
 	}
 }

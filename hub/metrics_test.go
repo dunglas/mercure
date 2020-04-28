@@ -11,20 +11,21 @@ import (
 func TestNumberOfRunningSubscribers(t *testing.T) {
 	m := NewMetrics()
 
-	m.NewSubscriber([]string{"topic1", "topic2"})
+	s1 := NewSubscriber(false, nil, []string{"topic1", "topic2"}, []string{"topic1", "topic2"}, nil, "lid1")
+	m.NewSubscriber(s1)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
 
-	m.NewSubscriber([]string{"topic2"})
+	s2 := NewSubscriber(false, nil, []string{"topic2"}, []string{"topic2"}, nil, "lid2")
+	m.NewSubscriber(s2)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 2.0, m.subscribers, "topic2")
 
-	m.SubscriberDisconnect([]string{"topic1"})
+	m.SubscriberDisconnect(s1)
 	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic1")
-	assertGaugeLabelValue(t, 2.0, m.subscribers, "topic2")
+	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
 
-	m.SubscriberDisconnect([]string{"topic2"})
-	m.SubscriberDisconnect([]string{"topic2"})
+	m.SubscriberDisconnect(s2)
 	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic2")
 }
@@ -32,15 +33,19 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	m := NewMetrics()
 
-	m.NewSubscriber([]string{"topic1", "topic2"})
+	s1 := NewSubscriber(false, nil, []string{"topic1", "topic2"}, []string{"topic1", "topic2"}, nil, "lid1")
+	m.NewSubscriber(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic2")
 
-	m.NewSubscriber([]string{"topic2"})
+	s2 := NewSubscriber(false, nil, []string{"topic2"}, []string{"topic2"}, nil, "lid2")
+	m.NewSubscriber(s2)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 2.0, m.subscribersTotal, "topic2")
 
-	m.SubscriberDisconnect([]string{"topic2"})
+	m.SubscriberDisconnect(s1)
+	m.SubscriberDisconnect(s2)
+
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 2.0, m.subscribersTotal, "topic2")
 }
@@ -48,10 +53,18 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 func TestTotalOfHandledUpdates(t *testing.T) {
 	m := NewMetrics()
 
-	m.NewUpdate([]string{"topic1", "topic2"})
-	m.NewUpdate([]string{"topic2", "topic3"})
-	m.NewUpdate([]string{"topic2"})
-	m.NewUpdate([]string{"topic3"})
+	m.NewUpdate(&Update{
+		Topics: []string{"topic1", "topic2"},
+	})
+	m.NewUpdate(&Update{
+		Topics: []string{"topic2", "topic3"},
+	})
+	m.NewUpdate(&Update{
+		Topics: []string{"topic2"},
+	})
+	m.NewUpdate(&Update{
+		Topics: []string{"topic3"},
+	})
 
 	assertCounterValue(t, 1.0, m.updatesTotal, "topic1")
 	assertCounterValue(t, 3.0, m.updatesTotal, "topic2")
