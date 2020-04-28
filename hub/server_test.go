@@ -341,12 +341,10 @@ func TestMetricsCollect(t *testing.T) {
 	v.Set("metrics", true)
 	server := newTestServer(t, v)
 
-	server.newSubscriber("http://example.com/foo/1", nil)
-	server.newSubscriber("http://example.com/alt/1", nil)
-	server.newSubscriber("http://example.com/alt/1", nil)
-	server.newSubscriber("http://example.com/alt/1", func(r *http.Response) {
-		r.Body.Close() // Close the subscriber connection
-	})
+	server.newSubscriber("http://example.com/foo/1", true)
+	server.newSubscriber("http://example.com/alt/1", true)
+	server.newSubscriber("http://example.com/alt/1", true)
+	server.newSubscriber("http://example.com/alt/1", false)
 	server.waitSubscribers()
 
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
@@ -369,6 +367,7 @@ type testServer struct {
 	h           *Hub
 	client      http.Client
 	t           *testing.T
+	wgShutdown  *sync.WaitGroup
 	wgConnected sync.WaitGroup
 	wgTested    sync.WaitGroup
 }
@@ -388,10 +387,14 @@ func newTestServer(t *testing.T, v *viper.Viper) testServer {
 	}
 	defer resp.Body.Close()
 
+	var wgShutdown sync.WaitGroup
+	wgShutdown.Add(1)
+
 	return testServer{
 		h,
 		client,
 		t,
+		&wgShutdown,
 		sync.WaitGroup{},
 		sync.WaitGroup{},
 	}
@@ -399,21 +402,23 @@ func newTestServer(t *testing.T, v *viper.Viper) testServer {
 
 func (s *testServer) shutdown() {
 	s.h.server.Shutdown(context.Background())
+	s.wgShutdown.Done()
 	s.wgTested.Wait()
 }
 
-func (s *testServer) newSubscriber(topic string, fn func(*http.Response)) {
+func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 	s.wgConnected.Add(1)
 	s.wgTested.Add(1)
 
 	go func() {
 		defer s.wgTested.Done()
-		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic)) //nolint:bodyclose
+		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
 		require.Nil(s.t, err)
+		defer resp.Body.Close()
 		s.wgConnected.Done()
 
-		if fn != nil {
-			fn(resp)
+		if keepAlive {
+			s.wgShutdown.Wait()
 		}
 	}()
 }
