@@ -178,7 +178,6 @@ func TestServe(t *testing.T) {
 func TestClientClosesThenReconnects(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
 	transport, _ := NewBoltTransport(u)
-	defer transport.Close()
 	defer os.Remove("test.db")
 
 	h := createDummyWithTransportAndConfig(transport, viper.New())
