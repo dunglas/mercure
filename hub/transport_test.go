@@ -26,7 +26,7 @@ func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 
 	var (
 		readUpdate *Update
-		readError  error
+		ok         bool
 		m          sync.Mutex
 		wg         sync.WaitGroup
 	)
@@ -38,7 +38,11 @@ func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
 		go wg.Done()
-		readUpdate, readError = pipe.Read(ctx)
+
+		select {
+		case readUpdate, ok = <-pipe.Read():
+		case <-ctx.Done():
+		}
 	}()
 
 	wg.Wait()
@@ -47,7 +51,7 @@ func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 	m.Lock()
 	defer m.Unlock()
 	assert.Nil(t, readUpdate)
-	assert.Equal(t, ErrClosedPipe, readError)
+	assert.False(t, ok)
 }
 
 func TestLocalTransportWriteIsDispatched(t *testing.T) {
@@ -62,7 +66,7 @@ func TestLocalTransportWriteIsDispatched(t *testing.T) {
 
 	var (
 		readUpdate *Update
-		readError  error
+		ok         bool
 		m          sync.Mutex
 		wg         sync.WaitGroup
 	)
@@ -74,7 +78,10 @@ func TestLocalTransportWriteIsDispatched(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
 		go wg.Done()
-		readUpdate, readError = pipe.Read(ctx)
+		select {
+		case readUpdate, ok = <-pipe.Read():
+		case <-ctx.Done():
+		}
 	}()
 
 	wg.Wait()
@@ -84,7 +91,7 @@ func TestLocalTransportWriteIsDispatched(t *testing.T) {
 	m.Lock()
 	defer m.Unlock()
 
-	assert.Nil(t, readError)
+	assert.True(t, ok)
 	assert.NotNil(t, readUpdate)
 }
 
@@ -105,8 +112,8 @@ func TestLocalTransportClosed(t *testing.T) {
 	err = transport.Write(&Update{})
 	assert.Equal(t, err, ErrClosedTransport)
 
-	_, err = pipe.Read(context.Background())
-	assert.Equal(t, err, ErrClosedPipe)
+	_, ok := <-pipe.Read()
+	assert.False(t, ok)
 }
 
 func TestLiveCleanClosedPipes(t *testing.T) {
@@ -142,8 +149,8 @@ func TestLivePipeReadingBlocks(t *testing.T) {
 	}()
 
 	wg.Done()
-	u, err := pipe.Read(context.Background())
-	assert.Nil(t, err)
+	u, ok := <-pipe.Read()
+	assert.True(t, ok)
 	assert.NotNil(t, u)
 }
 

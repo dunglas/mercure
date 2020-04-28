@@ -42,6 +42,15 @@ When you send a PR, just make sure that:
 * You make the PR on the same branch you based your changes on. If you see commits
   that you did not make in your PR, you're doing it wrong.
 
+### Finding Deadlocks
+
+To debug potential deadlocks:
+
+1. Install `go-deadlock`: `./tests/use-go-deadlock.sh`
+2. Run the tests in race mode: `go test -race ./... -v`
+3. To stress test the app, run the load test (see `docs/load-testing.md`)
+4. Be sure to remove `go-deadlock` before committing
+
 ## Protocol
 
 The protocol is written in Markdown, compatible with [Mmark](https://mmark.miek.nl/).

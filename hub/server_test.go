@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"crypto/tls"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -172,6 +173,106 @@ func TestServe(t *testing.T) {
 
 	h.server.Shutdown(context.Background())
 	wgTested.Wait()
+}
+
+func TestClientClosesThenReconnects(t *testing.T) {
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	defer os.Remove("test.db")
+
+	h := createDummyWithTransportAndConfig(transport, viper.New())
+
+	go func() {
+		h.Serve()
+	}()
+
+	// loop until the web server is ready
+	var resp *http.Response
+	client := http.Client{Timeout: 10 * time.Second}
+	for resp == nil {
+		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose
+	}
+	resp.Body.Close()
+
+	var wg sync.WaitGroup
+
+	subscribe := func(expectedBodyData string) {
+		cx, cancel := context.WithCancel(context.Background())
+		req, _ := http.NewRequest("GET", testURL+"?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req = req.WithContext(cx)
+		resp, err := http.DefaultClient.Do(req)
+		require.Nil(t, err)
+
+		receivedBody := ""
+		buf := make([]byte, 1)
+		for {
+			_, err := resp.Body.Read(buf)
+			if err == io.EOF {
+				panic("EOF")
+			}
+
+			receivedBody += string(buf)
+			if strings.Contains(receivedBody, "data: "+expectedBodyData+"\n") {
+				cancel()
+				break
+			}
+		}
+
+		resp.Body.Close()
+		wg.Done()
+	}
+
+	publish := func(data string, waitForSubscribers int) {
+		for {
+			transport.RLock()
+			l := len(transport.pipes)
+			transport.RUnlock()
+			if l >= waitForSubscribers {
+				break
+			}
+		}
+
+		body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {data}, "id": {data}}
+		req, err := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+		require.Nil(t, err)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
+
+		resp, err := client.Do(req)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp.Body.Close()
+
+		wg.Done()
+	}
+
+	nbSubscribers := 10
+	wg.Add(nbSubscribers + 1)
+	for i := 0; i < nbSubscribers; i++ {
+		go subscribe("first")
+	}
+
+	publish("first", nbSubscribers)
+	wg.Wait()
+
+	nbPublishers := 5
+	wg.Add(nbPublishers)
+	for i := 0; i < nbPublishers; i++ {
+		go publish("lost", 0)
+	}
+	wg.Wait()
+
+	nbSubscribers = 20
+	nbPublishers = 10
+	wg.Add(nbSubscribers + nbPublishers)
+	for i := 0; i < nbSubscribers; i++ {
+		go subscribe("second")
+	}
+	for i := 0; i < nbPublishers; i++ {
+		go publish("second", nbSubscribers)
+	}
+	wg.Wait()
+	h.server.Shutdown(context.Background())
 }
 
 func TestServeAcme(t *testing.T) {
