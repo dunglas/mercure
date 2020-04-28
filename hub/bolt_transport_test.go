@@ -28,28 +28,16 @@ func TestBoltTransportHistory(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, pipe)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		var count int
-		for {
-			u, err := pipe.Read(context.Background())
-			if err == ErrClosedPipe {
-				return
-			}
-
-			// the reading loop must read the #9 and #10 messages
-			assert.Equal(t, strconv.Itoa(9+count), u.ID)
-			count++
-			if count == 2 {
-				wg.Done()
-				return
-			}
+	var count int
+	for {
+		u := <-pipe.Read()
+		// the reading loop must read the #9 and #10 messages
+		assert.Equal(t, strconv.Itoa(9+count), u.ID)
+		count++
+		if count == 2 {
+			return
 		}
-	}()
-
-	wg.Wait()
-	pipe.Close()
+	}
 }
 
 func TestBoltTransportHistoryAndLive(t *testing.T) {
@@ -71,8 +59,8 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 	go func() {
 		var count int
 		for {
-			u, err := pipe.Read(context.Background())
-			if err == ErrClosedPipe {
+			u, ok := <-pipe.Read()
+			if !ok {
 				return
 			}
 
@@ -89,7 +77,6 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 	transport.Write(&Update{Event: Event{ID: "11"}})
 
 	wg.Wait()
-	pipe.Close()
 }
 
 func TestBoltTransportPurgeHistory(t *testing.T) {
@@ -150,7 +137,7 @@ func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 
 	var (
 		readUpdate *Update
-		readError  error
+		ok         bool
 		m          sync.Mutex
 		wg         sync.WaitGroup
 	)
@@ -158,11 +145,13 @@ func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 	go func() {
 		m.Lock()
 		defer m.Unlock()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer cancel()
 		go wg.Done()
-		readUpdate, readError = pipe.Read(ctx)
+
+		select {
+		case readUpdate = <-pipe.Read():
+		case <-pipe.done:
+			ok = true
+		}
 	}()
 
 	wg.Wait()
@@ -171,7 +160,7 @@ func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 	m.Lock()
 	defer m.Unlock()
 	assert.Nil(t, readUpdate)
-	assert.Equal(t, ErrClosedPipe, readError)
+	assert.True(t, ok)
 }
 
 func TestBoltTransportWriteIsDispatched(t *testing.T) {
@@ -188,7 +177,7 @@ func TestBoltTransportWriteIsDispatched(t *testing.T) {
 
 	var (
 		readUpdate *Update
-		readError  error
+		ok         bool
 		m          sync.Mutex
 		wg         sync.WaitGroup
 	)
@@ -200,7 +189,10 @@ func TestBoltTransportWriteIsDispatched(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 		go wg.Done()
-		readUpdate, readError = pipe.Read(ctx)
+		select {
+		case readUpdate, ok = <-pipe.Read():
+		case <-ctx.Done():
+		}
 	}()
 
 	wg.Wait()
@@ -210,7 +202,7 @@ func TestBoltTransportWriteIsDispatched(t *testing.T) {
 	m.Lock()
 	defer m.Unlock()
 
-	assert.Nil(t, readError)
+	assert.True(t, ok)
 	assert.NotNil(t, readUpdate)
 }
 
@@ -234,8 +226,8 @@ func TestBoltTransportClosed(t *testing.T) {
 	err = transport.Write(&Update{})
 	assert.Equal(t, err, ErrClosedTransport)
 
-	_, err = pipe.Read(context.Background())
-	assert.Equal(t, err, ErrClosedPipe)
+	_, ok := <-pipe.Read()
+	assert.False(t, ok)
 }
 
 func TestBoltCleanClosedPipes(t *testing.T) {

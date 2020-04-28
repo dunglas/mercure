@@ -1,7 +1,6 @@
 package hub
 
 import (
-	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -163,8 +162,8 @@ func TestPublishOK(t *testing.T) {
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		u, err := pipe.Read(context.Background())
-		assert.Nil(t, err)
+		u, ok := <-pipe.Read()
+		assert.True(t, ok)
 		require.NotNil(t, u)
 		assert.Equal(t, "id", u.ID)
 		assert.Equal(t, []string{"http://example.com/books/1"}, u.Topics)
@@ -208,8 +207,8 @@ func TestPublishGenerateUUID(t *testing.T) {
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		u, err := pipe.Read(context.Background())
-		assert.Nil(t, err)
+		u, ok := <-pipe.Read()
+		assert.True(t, ok)
 		require.NotNil(t, u)
 		_, err = uuid.FromString(u.ID)
 		assert.Nil(t, err)

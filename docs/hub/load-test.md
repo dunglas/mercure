@@ -7,14 +7,20 @@ To test your own infrastructure, we provide a [Gatling](https://gatling.io)-base
 ## Running the Load Test
 
 1. Download [Gatling version 3](https://gatling.io/open-source/)
-2. Clone the Mercure repository and go into it: `git clone https://github.com/dunglas/mercure && cd mercure`
-3. Run `path/to/gatling/bin/gatling.sh --simulations-folder .`
+2. Clone the Mercure repository: `git clone https://github.com/dunglas/mercure`
+3. Run `path/to/gatling/bin/gatling.sh --simulations-folder mercure/gatling/`
 
 ## Configuration
 
 Available environment variables (all are optional):
 
-* `HUB_URL`: the URL of the hub to test
-* `JWT`: the JWT to use for authenticating the publisher
-* `SUBSCRIBERS`: the number of concurrent subscribers
-* `PUBLISHERS`: the number of concurrent publishers
+ * `HUB_URL`: the URL of the hub to test
+ * `JWT`: the JWT to use for authenticating the publisher
+ * `INITIAL_SUBSCRIBERS`: the number of concurrent subscribers initially connected
+ * `SUBSCRIBERS_RATE_FROM`: minimum rate (per second) of additional subscribers to connect
+ * `SUBSCRIBERS_RATE_TO`: maximum rate (per second) of additional subscribers to connect
+ * `PUBLISHERS_RATE_FROM`: minimum rate (per second) of publications
+ * `PUBLISHERS_RATE_TO`: maximum rate (per second) of publications
+ * `INJECTION_DURATION`: duration of the publishers injection
+ * `CONNECTION_DURATION`: duration of subscribers' connection
+ * `RANDOM_CONNECTION_DURATION`: to randomize the connection duration (will longs `CONNECTION_DURATION` at max)

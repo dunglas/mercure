@@ -79,9 +79,16 @@ func (t *BoltTransport) Write(update *Update) error {
 	default:
 	}
 
-	t.RLock()
+	updateJSON, err := json.Marshal(*update)
+	if err != nil {
+		return err
+	}
 
-	if err := t.persist(update); err != nil {
+	// We cannot use RLock() because Bolt allows only one read-write transaction at a time
+	t.Lock()
+	defer t.Unlock()
+
+	if err := t.persist(update.ID, updateJSON); err != nil {
 		return err
 	}
 
@@ -92,27 +99,17 @@ func (t *BoltTransport) Write(update *Update) error {
 		}
 	}
 
-	t.RUnlock()
-	t.Lock()
-
 	for _, pipe := range closedPipes {
 		delete(t.pipes, pipe)
 	}
-
-	t.Unlock()
 
 	return nil
 }
 
 // persist stores update in the database.
-func (t *BoltTransport) persist(update *Update) error {
+func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 	return t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
-		if err != nil {
-			return err
-		}
-
-		buf, err := json.Marshal(*update)
 		if err != nil {
 			return err
 		}
@@ -126,7 +123,7 @@ func (t *BoltTransport) persist(update *Update) error {
 		binary.BigEndian.PutUint64(prefix, seq)
 
 		// The sequence value is prepended to the update id to create an ordered list
-		key := bytes.Join([][]byte{prefix, []byte(update.ID)}, []byte{})
+		key := bytes.Join([][]byte{prefix, []byte(updateID)}, []byte{})
 
 		if err := t.cleanup(bucket, seq); err != nil {
 			return err
@@ -134,7 +131,7 @@ func (t *BoltTransport) persist(update *Update) error {
 
 		// The DB is append only
 		bucket.FillPercent = 1
-		return bucket.Put(key, buf)
+		return bucket.Put(key, updateJSON)
 	})
 }
 
@@ -198,18 +195,26 @@ func (t *BoltTransport) fetch(fromID string, toSeq uint64, pipe *Pipe) {
 
 // Close closes the Transport.
 func (t *BoltTransport) Close() error {
+	// See https://go101.org/article/channel-closing.html
 	select {
 	case <-t.done:
-		// Already closed. Don't close again.
+		return nil
 	default:
-		t.Lock()
-		defer t.Unlock()
-		for pipe := range t.pipes {
-			pipe.Close()
-		}
-		close(t.done)
-		t.db.Close()
 	}
+
+	select {
+	case <-t.done:
+		return nil
+	default:
+	}
+
+	t.Lock()
+	defer t.Unlock()
+	for pipe := range t.pipes {
+		close(pipe.Read())
+	}
+	close(t.done)
+	t.db.Close()
 
 	return nil
 }

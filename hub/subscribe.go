@@ -32,48 +32,48 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		panic("http.ResponseWriter must be an instance of http.Flusher")
 	}
 
-	subscriber, pipe, ok := h.initSubscription(w, r)
+	subscriber, pipe, unsubscribed, ok := h.initSubscription(w, r)
 	if !ok {
 		return
 	}
 	defer h.cleanup(subscriber)
+	defer unsubscribed()
+	defer pipe.Close()
 
 	hearthbeatInterval := h.config.GetDuration("heartbeat_interval")
-	if hearthbeatInterval == time.Duration(0) {
-		for {
-			// No heartbeat defined, just block
-			update, err := pipe.Read(context.Background())
-			if err != nil {
-				return
-			}
-
-			h.publish(newSerializedUpdate(update), subscriber, w, r)
-		}
-	}
+	var cancel context.CancelFunc
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), hearthbeatInterval)
-		update, err := pipe.Read(ctx)
-		cancel()
-
-		if err == context.DeadlineExceeded {
-			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			fmt.Fprint(w, ":\n")
-			f.Flush()
-
-			continue
+		ctx := context.Background()
+		if hearthbeatInterval != time.Duration(0) {
+			ctx, cancel = context.WithTimeout(ctx, hearthbeatInterval)
+			defer cancel()
 		}
 
-		if err != nil {
+		select {
+		case <-r.Context().Done():
+			// Listen to the closing of the http connection via the Request's Context
 			return
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+				fmt.Fprint(w, ":\n")
+				f.Flush()
+			}
+		case update, ok := <-pipe.Read():
+			if !ok {
+				return
+			}
+			if nil != cancel {
+				cancel()
+			}
+			h.publish(newSerializedUpdate(update), subscriber, w, r)
 		}
-
-		h.publish(newSerializedUpdate(update), subscriber, w, r)
 	}
 }
 
 // initSubscription initializes the connection.
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, *Pipe, bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, *Pipe, func(), bool) {
 	fields := log.Fields{"remote_addr": r.RemoteAddr}
 
 	claims, err := authorize(r, h.getJWTKey(subscriberRole), h.getJWTAlgorithm(subscriberRole), nil)
@@ -83,13 +83,13 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	if err != nil || (claims == nil && !h.config.GetBool("allow_anonymous")) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		log.WithFields(fields).Info(err)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 
 	topics := r.URL.Query()["topic"]
 	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 	fields["subscriber_topics"] = topics
 
@@ -112,22 +112,17 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, false, address)
 		log.WithFields(fields).Error(err)
-		return nil, nil, false
+		return nil, nil, nil, false
 	}
 	sendHeaders(w)
-
 	log.WithFields(fields).Info("New subscriber")
 
-	// Listen to the closing of the http connection via the Request's Context
-	go func() {
-		<-r.Context().Done()
-		pipe.Close()
-
+	unsubscribed := func() {
 		h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, false, address)
 		log.WithFields(fields).Info("Subscriber disconnected")
-	}()
+	}
 
-	return subscriber, pipe, true
+	return subscriber, pipe, unsubscribed, true
 }
 
 func (h *Hub) parseTopics(topics []string) (rawTopics []string, templateTopics []*uritemplate.Template) {

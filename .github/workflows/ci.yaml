@@ -26,13 +26,15 @@ jobs:
     - name: Checkout
       uses: actions/checkout@master
     - name: Install Go
-      uses: actions/setup-go@v1
+      uses: actions/setup-go@v2
       with:
         go-version: '1.14'
     - name: Install project dependencies
       run: go get
     - name: Build
       run: CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' .
+    - name: Use go-deadlock
+      run: ./tests/use-go-deadlock.sh
     - name: Test
       run: go test -race -covermode atomic -coverprofile=profile.cov ./...
     - name: Upload coverage results
