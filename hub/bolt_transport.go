@@ -20,7 +20,7 @@ const defaultBoltBucketName = "updates"
 
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
-	sync.RWMutex
+	sync.Mutex
 	db               *bolt.DB
 	bucketName       string
 	size             uint64
@@ -92,15 +92,10 @@ func (t *BoltTransport) Write(update *Update) error {
 		return err
 	}
 
-	var closedPipes []*Pipe
 	for pipe := range t.pipes {
 		if !pipe.Write(update) {
-			closedPipes = append(closedPipes, pipe)
+			delete(t.pipes, pipe)
 		}
-	}
-
-	for _, pipe := range closedPipes {
-		delete(t.pipes, pipe)
 	}
 
 	return nil
@@ -195,13 +190,6 @@ func (t *BoltTransport) fetch(fromID string, toSeq uint64, pipe *Pipe) {
 
 // Close closes the Transport.
 func (t *BoltTransport) Close() error {
-	// See https://go101.org/article/channel-closing.html
-	select {
-	case <-t.done:
-		return nil
-	default:
-	}
-
 	select {
 	case <-t.done:
 		return nil

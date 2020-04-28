@@ -2,6 +2,7 @@ package hub
 
 import (
 	"errors"
+	"time"
 )
 
 // ErrClosedPipe is returned by the Pipe's Write and Read methods after a call to Close.
@@ -15,23 +16,28 @@ type Pipe struct {
 
 // NewPipe creates pipes.
 func NewPipe() *Pipe {
-	return &Pipe{make(chan *Update, 1), make(chan struct{})}
+	return &Pipe{
+		make(chan *Update, 5),
+		make(chan struct{}),
+	}
 }
 
 // Write pushes updates in the pipe. Returns true is the update is pushed, false otherwise.
 func (p *Pipe) Write(update *Update) bool {
-	// See https://go101.org/article/channel-closing.html
 	select {
 	case <-p.done:
 		return false
 	default:
 	}
 
+	// The updates channel is buffered, if the buffer is full and it blocks for too long we close it
+	// TODO: prevent slowing down all writes by buffering in an intermediate goroutine
 	select {
-	case <-p.done:
-		return false
 	case p.updates <- update:
 		return true
+	case <-time.After(1 * time.Second):
+		close(p.updates)
+		return false
 	}
 }
 

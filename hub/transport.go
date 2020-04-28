@@ -67,24 +67,15 @@ func (t *LocalTransport) Write(update *Update) error {
 	default:
 	}
 
-	var (
-		err         error
-		closedPipes []*Pipe
-	)
-
 	t.Lock()
 	defer t.Unlock()
 	for pipe := range t.pipes {
 		if !pipe.Write(update) {
-			closedPipes = append(closedPipes, pipe)
+			delete(t.pipes, pipe)
 		}
 	}
 
-	for _, pipe := range closedPipes {
-		delete(t.pipes, pipe)
-	}
-
-	return err
+	return nil
 }
 
 // CreatePipe returns a pipe fetching updates from the given point in time.
@@ -106,13 +97,6 @@ func (t *LocalTransport) CreatePipe(fromID string) (*Pipe, error) {
 
 // Close closes the Transport.
 func (t *LocalTransport) Close() error {
-	// See https://go101.org/article/channel-closing.html
-	select {
-	case <-t.done:
-		return nil
-	default:
-	}
-
 	select {
 	case <-t.done:
 		return nil

@@ -27,9 +27,7 @@ func TestForwardedHeaders(t *testing.T) {
 	v.Set("use_forwarded_headers", true)
 	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
-	go func() {
-		h.Serve()
-	}()
+	go h.Serve()
 
 	client := http.Client{Timeout: 100 * time.Millisecond}
 	hook := test.NewGlobal()
@@ -65,9 +63,7 @@ func TestSecurityOptions(t *testing.T) {
 	v.Set("compress", true)
 	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
-	go func() {
-		h.Serve()
-	}()
+	go h.Serve()
 
 	// This is a self-signed certificate
 	transport := &http.Transport{
@@ -106,9 +102,7 @@ func TestSecurityOptions(t *testing.T) {
 func TestServe(t *testing.T) {
 	h := createAnonymousDummy()
 
-	go func() {
-		h.Serve()
-	}()
+	go h.Serve()
 
 	// loop until the web server is ready
 	var resp *http.Response
@@ -181,10 +175,8 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	defer os.Remove("test.db")
 
 	h := createDummyWithTransportAndConfig(transport, viper.New())
-
-	go func() {
-		h.Serve()
-	}()
+	defer h.Stop()
+	go h.Serve()
 
 	// loop until the web server is ready
 	var resp *http.Response
@@ -224,9 +216,9 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 	publish := func(data string, waitForSubscribers int) {
 		for {
-			transport.RLock()
+			transport.Lock()
 			l := len(transport.pipes)
-			transport.RUnlock()
+			transport.Unlock()
 			if l >= waitForSubscribers {
 				break
 			}
@@ -285,9 +277,7 @@ func TestServeAcme(t *testing.T) {
 	v.Set("acme_cert_dir", dir)
 	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
-	go func() {
-		h.Serve()
-	}()
+	go h.Serve()
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -319,9 +309,7 @@ func TestMetricsAccess(t *testing.T) {
 	v.Set("metrics", true)
 	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
-	go func() {
-		h.Serve()
-	}()
+	go h.Serve()
 
 	client := http.Client{Timeout: 100 * time.Millisecond}
 
