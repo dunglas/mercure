@@ -40,7 +40,7 @@ func NewMetrics() *Metrics {
 	}
 }
 
-// Register configure the Prometheus registry with all collected metrics.
+// Register configures the Prometheus registry with all collected metrics.
 func (m *Metrics) Register(r *mux.Router) {
 	registry := prometheus.NewRegistry()
 
@@ -57,7 +57,7 @@ func (m *Metrics) Register(r *mux.Router) {
 	r.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{})).Methods("GET")
 }
 
-// NewSubscriber collect metrics about new subscriber event.
+// NewSubscriber collects metrics about new subscriber events.
 func (m *Metrics) NewSubscriber(s *Subscriber) {
 	for _, t := range s.Topics {
 		m.subscribersTotal.WithLabelValues(t).Inc()
@@ -65,14 +65,14 @@ func (m *Metrics) NewSubscriber(s *Subscriber) {
 	}
 }
 
-// SubscriberDisconnect collect metrics about subscriber disconnection event.
+// SubscriberDisconnect collects metrics about subscriber disconnection events.
 func (m *Metrics) SubscriberDisconnect(s *Subscriber) {
 	for _, t := range s.Topics {
 		m.subscribers.WithLabelValues(t).Dec()
 	}
 }
 
-// NewUpdate collect metrics on new update event.
+// NewUpdate collects metrics on new update event.
 func (m *Metrics) NewUpdate(u *Update) {
 	for _, t := range u.Topics {
 		m.updatesTotal.WithLabelValues(t).Inc()
