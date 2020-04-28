@@ -211,7 +211,7 @@ func (t *BoltTransport) Close() error {
 	t.Lock()
 	defer t.Unlock()
 	for pipe := range t.pipes {
-		close(pipe.updates)
+		close(pipe.Read())
 	}
 	close(t.done)
 	t.db.Close()

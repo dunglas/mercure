@@ -1,36 +1,34 @@
 package hub
 
-/*func TestPipeReadWrite(t *testing.T) {
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestPipeReadWrite(t *testing.T) {
 	var u *Update
 	pipe := NewPipe()
 
 	pipe.Write(u)
 
-
-	update, err := pipe.Read(context.Background())
-	assert.Nil(t, err)
+	update, ok := <-pipe.Read()
+	assert.True(t, ok)
 	assert.Equal(t, u, update)
-}*/
-
-/*func TestPipeReadClosed(t *testing.T) {
-	pipe := NewPipe()
-
-	close(pipe.updates)
-
-	update, err := pipe.Read(context.Background())
-	assert.Nil(t, update)
-	assert.Equal(t, ErrClosedPipe, err)
 }
 
-func TestPipeReadWithContext(t *testing.T) {
+func TestPipeReadClosed(t *testing.T) {
 	pipe := NewPipe()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
-	defer cancel()
+	assert.False(t, pipe.IsClosed())
+	pipe.Close()
 
-	update, err := pipe.Read(ctx)
+	assert.True(t, pipe.IsClosed())
+
+	close(pipe.Read())
+	update, ok := <-pipe.Read()
 	assert.Nil(t, update)
-	assert.Equal(t, context.DeadlineExceeded, err)
+	assert.False(t, ok)
 }
 
 func TestPipeWriteClosed(t *testing.T) {
@@ -42,4 +40,4 @@ func TestPipeWriteClosed(t *testing.T) {
 	pipe.Close()
 
 	assert.False(t, pipe.Write(u))
-}*/
+}

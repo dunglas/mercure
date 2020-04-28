@@ -38,38 +38,37 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer h.cleanup(subscriber)
 	defer unsubscribed()
-	defer close(pipe.done)
+	defer pipe.Close()
 
 	hearthbeatInterval := h.config.GetDuration("heartbeat_interval")
-	ctx := context.Background()
 	var cancel context.CancelFunc
 
 	for {
+		ctx := context.Background()
 		if hearthbeatInterval != time.Duration(0) {
 			ctx, cancel = context.WithTimeout(ctx, hearthbeatInterval)
+			defer cancel()
 		}
 
 		select {
 		case <-r.Context().Done():
+			log.Printf("cancelled by the client")
 			// Listen to the closing of the http connection via the Request's Context
-			if nil != cancel {
-				cancel()
-			}
 			return
 		case <-ctx.Done():
-			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			fmt.Fprint(w, ":\n")
-			f.Flush()
-		case update, ok := <-pipe.updates:
+			if ctx.Err() == context.DeadlineExceeded {
+				// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+				fmt.Fprint(w, ":\n")
+				f.Flush()
+			}
+		case update, ok := <-pipe.Read():
+			if !ok {
+				return
+			}
 			if nil != cancel {
 				cancel()
 			}
-			if ok {
-				h.publish(newSerializedUpdate(update), subscriber, w, r)
-			} else {
-				// Closed pipe
-				return
-			}
+			h.publish(newSerializedUpdate(update), subscriber, w, r)
 		}
 	}
 }

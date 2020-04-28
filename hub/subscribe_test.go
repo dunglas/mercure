@@ -47,7 +47,7 @@ func (rt *responseTester) Header() http.Header {
 func (rt *responseTester) Write(buf []byte) (int, error) {
 	rt.body += string(buf)
 
-	if strings.HasPrefix(rt.body, rt.expectedBody) {
+	if rt.body == rt.expectedBody {
 		rt.cancel()
 	} else if !strings.HasPrefix(rt.expectedBody, rt.body) {
 		rt.t.Errorf(`Received body "%s" doesn't match expected body "%s"`, rt.body, rt.expectedBody)
@@ -267,8 +267,7 @@ func TestUnsubscribe(t *testing.T) {
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
 		assert.Equal(t, 1, len(s.pipes))
 		for pipe := range s.pipes {
-			_, ok := <-pipe.done
-			assert.False(t, ok)
+			assert.True(t, pipe.IsClosed())
 		}
 	}()
 

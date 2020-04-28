@@ -3,7 +3,9 @@ package hub
 import (
 	"context"
 	"crypto/tls"
+	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -172,6 +175,112 @@ func TestServe(t *testing.T) {
 
 	h.server.Shutdown(context.Background())
 	wgTested.Wait()
+}
+
+func TestClientClosesThenReconnects(t *testing.T) {
+	h := createAnonymousDummy()
+
+	go func() {
+		h.Serve()
+	}()
+
+	// loop until the web server is ready
+	var resp *http.Response
+	client := http.Client{Timeout: 10 * time.Second}
+	for resp == nil {
+		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose
+	}
+	resp.Body.Close()
+
+	transport, _ := h.transport.(*LocalTransport)
+
+	var wg sync.WaitGroup
+
+	subscribe := func(expectedBodyData string) {
+		uid := uuid.Must(uuid.NewV4()).String()
+
+		cx, cancel := context.WithCancel(context.Background())
+		req, _ := http.NewRequest("GET", testURL+"?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req = req.WithContext(cx)
+		resp, err := http.DefaultClient.Do(req)
+		require.Nil(t, err)
+
+		receivedBody := ""
+		buf := make([]byte, 1)
+		log.Printf("%s - subscribe", uid)
+		for {
+			_, err := resp.Body.Read(buf)
+			if err == io.EOF {
+				panic("EOF")
+			}
+
+			receivedBody = receivedBody + string(buf)
+			if strings.Contains(receivedBody, "data: "+expectedBodyData+"\n") {
+				cancel()
+				log.Printf("%s - cancelled", uid)
+
+				break
+			}
+		}
+
+		resp.Body.Close()
+		wg.Done()
+	}
+
+	publish := func(data string, waitForSubscribers int) {
+		for len(transport.pipes) < waitForSubscribers {
+			continue
+		}
+
+		uid := uuid.Must(uuid.NewV4()).String()
+
+		body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {data}, "id": {data}}
+		req, err := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+		require.Nil(t, err)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
+
+		resp, err := client.Do(req)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp.Body.Close()
+
+		log.Printf("%s - published", uid)
+		wg.Done()
+	}
+
+	nbSubscribers := 10
+	wg.Add(nbSubscribers + 1)
+	for i := 0; i < nbSubscribers; i++ {
+		go subscribe("first")
+	}
+
+	publish("first", nbSubscribers)
+	wg.Wait()
+
+	wg.Add(1)
+	publish("lost", 0) // Triggers the cleanup
+	//require.Len(t, transport.pipes, 0)
+
+	nbPublishers := 5
+	wg.Add(nbPublishers)
+	for i := 0; i < nbPublishers; i++ {
+		go publish("lost", 0)
+	}
+	wg.Wait()
+	require.Len(t, transport.pipes, 0)
+
+	nbSubscribers = 20
+	nbPublishers = 10
+	wg.Add(nbSubscribers + nbPublishers)
+	for i := 0; i < nbSubscribers; i++ {
+		go subscribe("second")
+	}
+	for i := 0; i < nbPublishers; i++ {
+		go publish("second", nbSubscribers)
+	}
+	wg.Wait()
+	h.server.Shutdown(context.Background())
 }
 
 func TestServeAcme(t *testing.T) {

@@ -3,7 +3,6 @@ package hub
 import (
 	"log"
 	"net/http"
-
 	"sync"
 
 	"github.com/spf13/viper"

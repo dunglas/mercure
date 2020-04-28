@@ -46,7 +46,7 @@ func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 	}()
 
 	wg.Wait()
-	close(pipe.done)
+	pipe.Close()
 
 	m.Lock()
 	defer m.Unlock()

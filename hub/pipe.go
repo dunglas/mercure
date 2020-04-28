@@ -35,35 +35,29 @@ func (p *Pipe) Write(update *Update) bool {
 	}
 }
 
-// Read returns the next unfetch update from the pipe with a context.
-/*func (p *Pipe) Read(ctx context.Context) (*Update, error) {
-	// If you return new errors, don't forget to handle them in subscribe.go
-	select {
-	case <-p.done:
-		return nil, ErrClosedPipe
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case update := <-p.updates:
-		return update, nil
-	}
-}*/
+// Read returns a channel containing updates.
+func (p *Pipe) Read() chan *Update {
+	return p.updates
+}
 
 // IsClosed returns true if the pipe is closed.
-/*func (p *Pipe) IsClosed() bool {
+func (p *Pipe) IsClosed() bool {
 	select {
 	case <-p.done:
 		return true
 	default:
-		return false
 	}
-}*/
+
+	return false
+}
 
 // Close closes the pipe.
-/*func (p *Pipe) Close() {
+func (p *Pipe) Close() {
 	select {
 	case <-p.done:
 		// Already closed. Don't close again.
 	default:
-		close(p.done)
 	}
-}*/
+
+	close(p.done)
+}

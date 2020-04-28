@@ -155,7 +155,7 @@ func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 	}()
 
 	wg.Wait()
-	close(pipe.done)
+	pipe.Close()
 
 	m.Lock()
 	defer m.Unlock()
@@ -173,7 +173,7 @@ func TestBoltTransportWriteIsDispatched(t *testing.T) {
 	pipe, err := transport.CreatePipe("")
 	assert.Nil(t, err)
 	require.NotNil(t, pipe)
-	defer close(pipe.done)
+	defer pipe.Close()
 
 	var (
 		readUpdate *Update
@@ -242,7 +242,7 @@ func TestBoltCleanClosedPipes(t *testing.T) {
 
 	assert.Len(t, transport.pipes, 1)
 
-	close(pipe.done)
+	pipe.Close()
 	assert.Len(t, transport.pipes, 1)
 
 	transport.Write(&Update{})

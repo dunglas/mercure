@@ -3,8 +3,8 @@ package hub
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
-
 	"sync"
 
 	"github.com/spf13/viper"
@@ -73,22 +73,21 @@ func (t *LocalTransport) Write(update *Update) error {
 		closedPipes []*Pipe
 	)
 
-	t.RLock()
-
+	t.Lock()
+	defer t.Unlock()
 	for pipe := range t.pipes {
 		if !pipe.Write(update) {
 			closedPipes = append(closedPipes, pipe)
+		} else {
+			log.Printf("pipe not closed yet")
 		}
 	}
 
-	t.RUnlock()
-	t.Lock()
-
+	log.Printf("%d pipes to delete", len(closedPipes))
 	for _, pipe := range closedPipes {
 		delete(t.pipes, pipe)
 	}
-
-	t.Unlock()
+	log.Printf("remaining %d pipes", len(t.pipes))
 
 	return err
 }
@@ -128,7 +127,7 @@ func (t *LocalTransport) Close() error {
 	t.RLock()
 	defer t.RUnlock()
 	for pipe := range t.pipes {
-		close(pipe.updates)
+		close(pipe.Read())
 	}
 	close(t.done)
 
