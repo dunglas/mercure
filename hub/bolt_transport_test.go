@@ -30,7 +30,7 @@ func TestBoltTransportHistory(t *testing.T) {
 
 	var count int
 	for {
-		u := <-pipe.updates
+		u := <-pipe.Read()
 		// the reading loop must read the #9 and #10 messages
 		assert.Equal(t, strconv.Itoa(9+count), u.ID)
 		count++
@@ -59,7 +59,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 	go func() {
 		var count int
 		for {
-			u, ok := <-pipe.updates
+			u, ok := <-pipe.Read()
 			if !ok {
 				return
 			}
@@ -148,7 +148,7 @@ func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 		go wg.Done()
 
 		select {
-		case readUpdate = <-pipe.updates:
+		case readUpdate = <-pipe.Read():
 		case <-pipe.done:
 			ok = true
 		}
@@ -190,7 +190,7 @@ func TestBoltTransportWriteIsDispatched(t *testing.T) {
 		defer cancel()
 		go wg.Done()
 		select {
-		case readUpdate, ok = <-pipe.updates:
+		case readUpdate, ok = <-pipe.Read():
 		case <-ctx.Done():
 		}
 	}()
@@ -226,7 +226,7 @@ func TestBoltTransportClosed(t *testing.T) {
 	err = transport.Write(&Update{})
 	assert.Equal(t, err, ErrClosedTransport)
 
-	_, ok := <-pipe.updates
+	_, ok := <-pipe.Read()
 	assert.False(t, ok)
 }
 

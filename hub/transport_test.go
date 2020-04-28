@@ -40,7 +40,7 @@ func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 		go wg.Done()
 
 		select {
-		case readUpdate, ok = <-pipe.updates:
+		case readUpdate, ok = <-pipe.Read():
 		case <-ctx.Done():
 		}
 	}()
@@ -62,7 +62,7 @@ func TestLocalTransportWriteIsDispatched(t *testing.T) {
 	pipe, err := transport.CreatePipe("")
 	assert.Nil(t, err)
 	require.NotNil(t, pipe)
-	defer close(pipe.done)
+	defer pipe.Close()
 
 	var (
 		readUpdate *Update
@@ -79,7 +79,7 @@ func TestLocalTransportWriteIsDispatched(t *testing.T) {
 		defer cancel()
 		go wg.Done()
 		select {
-		case readUpdate, ok = <-pipe.updates:
+		case readUpdate, ok = <-pipe.Read():
 		case <-ctx.Done():
 		}
 	}()
@@ -112,7 +112,7 @@ func TestLocalTransportClosed(t *testing.T) {
 	err = transport.Write(&Update{})
 	assert.Equal(t, err, ErrClosedTransport)
 
-	_, ok := <-pipe.updates
+	_, ok := <-pipe.Read()
 	assert.False(t, ok)
 }
 
@@ -125,7 +125,7 @@ func TestLiveCleanClosedPipes(t *testing.T) {
 
 	assert.Len(t, transport.pipes, 1)
 
-	close(pipe.done)
+	pipe.Close()
 	assert.Len(t, transport.pipes, 1)
 
 	transport.Write(&Update{})
@@ -149,7 +149,7 @@ func TestLivePipeReadingBlocks(t *testing.T) {
 	}()
 
 	wg.Done()
-	u, ok := <-pipe.updates
+	u, ok := <-pipe.Read()
 	assert.True(t, ok)
 	assert.NotNil(t, u)
 }

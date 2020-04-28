@@ -162,7 +162,7 @@ func TestPublishOK(t *testing.T) {
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		u, ok := <-pipe.updates
+		u, ok := <-pipe.Read()
 		assert.True(t, ok)
 		require.NotNil(t, u)
 		assert.Equal(t, "id", u.ID)
@@ -207,7 +207,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		u, ok := <-pipe.updates
+		u, ok := <-pipe.Read()
 		assert.True(t, ok)
 		require.NotNil(t, u)
 		_, err = uuid.FromString(u.ID)

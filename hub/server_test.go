@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -178,7 +176,12 @@ func TestServe(t *testing.T) {
 }
 
 func TestClientClosesThenReconnects(t *testing.T) {
-	h := createAnonymousDummy()
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	h := createDummyWithTransportAndConfig(transport, viper.New())
 
 	go func() {
 		h.Serve()
@@ -192,13 +195,9 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	transport, _ := h.transport.(*LocalTransport)
-
 	var wg sync.WaitGroup
 
 	subscribe := func(expectedBodyData string) {
-		uid := uuid.Must(uuid.NewV4()).String()
-
 		cx, cancel := context.WithCancel(context.Background())
 		req, _ := http.NewRequest("GET", testURL+"?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
@@ -207,18 +206,15 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 		receivedBody := ""
 		buf := make([]byte, 1)
-		log.Printf("%s - subscribe", uid)
 		for {
 			_, err := resp.Body.Read(buf)
 			if err == io.EOF {
 				panic("EOF")
 			}
 
-			receivedBody = receivedBody + string(buf)
+			receivedBody += string(buf)
 			if strings.Contains(receivedBody, "data: "+expectedBodyData+"\n") {
 				cancel()
-				log.Printf("%s - cancelled", uid)
-
 				break
 			}
 		}
@@ -228,11 +224,14 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	}
 
 	publish := func(data string, waitForSubscribers int) {
-		for len(transport.pipes) < waitForSubscribers {
-			continue
+		for {
+			transport.RLock()
+			l := len(transport.pipes)
+			transport.RUnlock()
+			if l >= waitForSubscribers {
+				break
+			}
 		}
-
-		uid := uuid.Must(uuid.NewV4()).String()
 
 		body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {data}, "id": {data}}
 		req, err := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
@@ -245,7 +244,6 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		resp.Body.Close()
 
-		log.Printf("%s - published", uid)
 		wg.Done()
 	}
 
@@ -258,17 +256,12 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	publish("first", nbSubscribers)
 	wg.Wait()
 
-	wg.Add(1)
-	publish("lost", 0) // Triggers the cleanup
-	//require.Len(t, transport.pipes, 0)
-
 	nbPublishers := 5
 	wg.Add(nbPublishers)
 	for i := 0; i < nbPublishers; i++ {
 		go publish("lost", 0)
 	}
 	wg.Wait()
-	require.Len(t, transport.pipes, 0)
 
 	nbSubscribers = 20
 	nbPublishers = 10

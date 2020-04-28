@@ -3,7 +3,6 @@ package hub
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"sync"
 
@@ -78,16 +77,12 @@ func (t *LocalTransport) Write(update *Update) error {
 	for pipe := range t.pipes {
 		if !pipe.Write(update) {
 			closedPipes = append(closedPipes, pipe)
-		} else {
-			log.Printf("pipe not closed yet")
 		}
 	}
 
-	log.Printf("%d pipes to delete", len(closedPipes))
 	for _, pipe := range closedPipes {
 		delete(t.pipes, pipe)
 	}
-	log.Printf("remaining %d pipes", len(t.pipes))
 
 	return err
 }

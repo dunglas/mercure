@@ -52,7 +52,6 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 		select {
 		case <-r.Context().Done():
-			log.Printf("cancelled by the client")
 			// Listen to the closing of the http connection via the Request's Context
 			return
 		case <-ctx.Done():

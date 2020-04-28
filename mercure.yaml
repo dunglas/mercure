@@ -1,5 +1,5 @@
 addr: :3001
-debug: false
+debug: true
 allow_anonymous: true
 #cert_file: fixtures/tls/server.crt
 #key_file: fixtures/tls/server.key
