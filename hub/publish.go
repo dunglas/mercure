@@ -71,10 +71,10 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	h.metrics.NewUpdate(topics)
-
 	io.WriteString(w, u.ID)
 	log.WithFields(h.createLogFields(r, u, nil)).Info("Update published")
+
+	h.metrics.NewUpdate(topics)
 }
 
 func getAuthorizedTargets(claims *claims, t []string) (map[string]struct{}, error) {
