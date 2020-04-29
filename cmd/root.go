@@ -33,9 +33,8 @@ func init() { //nolint:gochecknoinits
 	v := viper.GetViper()
 	cobra.OnInitialize(func() {
 		hub.InitConfig(v)
+		hub.InitLogrus()
 	})
 	fs := rootCmd.Flags()
 	hub.SetFlags(fs, v)
-
-	hub.InitLogrus()
 }
