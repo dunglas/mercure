@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"time"
 
 	bolt "go.etcd.io/bbolt"
 	"go.uber.org/atomic"
@@ -20,18 +21,20 @@ const defaultBoltBucketName = "updates"
 
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
-	sync.RWMutex
-	db               *bolt.DB
-	bucketName       string
-	size             uint64
-	cleanupFrequency float64
-	pipes            map[*Pipe]struct{}
-	done             chan struct{}
-	lastSeq          atomic.Uint64
+	sync.Mutex
+	db                *bolt.DB
+	bucketName        string
+	size              uint64
+	cleanupFrequency  float64
+	pipes             map[*Pipe]struct{}
+	done              chan struct{}
+	lastSeq           atomic.Uint64
+	bufferSize        int
+	bufferFullTimeout time.Duration
 }
 
 // NewBoltTransport create a new BoltTransport.
-func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
+func NewBoltTransport(u *url.URL, bufferSize int, bufferFullTimeout time.Duration) (*BoltTransport, error) {
 	var err error
 	q := u.Query()
 	bucketName := defaultBoltBucketName
@@ -68,7 +71,15 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 		return nil, fmt.Errorf(`invalid bolt DSN "%s": %w`, u, err)
 	}
 
-	return &BoltTransport{db: db, bucketName: bucketName, size: size, cleanupFrequency: cleanupFrequency, pipes: make(map[*Pipe]struct{}), done: make(chan struct{})}, nil
+	return &BoltTransport{
+		db:               db,
+		bucketName:       bucketName,
+		size:             size,
+		cleanupFrequency: cleanupFrequency,
+		pipes:            make(map[*Pipe]struct{}), done: make(chan struct{}),
+		bufferSize:        bufferSize,
+		bufferFullTimeout: bufferFullTimeout,
+	}, nil
 }
 
 // Write pushes updates in the Transport.
@@ -92,15 +103,10 @@ func (t *BoltTransport) Write(update *Update) error {
 		return err
 	}
 
-	var closedPipes []*Pipe
 	for pipe := range t.pipes {
 		if !pipe.Write(update) {
-			closedPipes = append(closedPipes, pipe)
+			delete(t.pipes, pipe)
 		}
-	}
-
-	for _, pipe := range closedPipes {
-		delete(t.pipes, pipe)
 	}
 
 	return nil
@@ -146,7 +152,7 @@ func (t *BoltTransport) CreatePipe(fromID string) (*Pipe, error) {
 	default:
 	}
 
-	pipe := NewPipe()
+	pipe := NewPipe(t.bufferSize, t.bufferFullTimeout)
 	t.pipes[pipe] = struct{}{}
 	if fromID == "" {
 		return pipe, nil
@@ -195,13 +201,6 @@ func (t *BoltTransport) fetch(fromID string, toSeq uint64, pipe *Pipe) {
 
 // Close closes the Transport.
 func (t *BoltTransport) Close() error {
-	// See https://go101.org/article/channel-closing.html
-	select {
-	case <-t.done:
-		return nil
-	default:
-	}
-
 	select {
 	case <-t.done:
 		return nil

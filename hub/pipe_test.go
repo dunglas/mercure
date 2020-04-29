@@ -2,13 +2,14 @@ package hub
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPipeReadWrite(t *testing.T) {
 	var u *Update
-	pipe := NewPipe()
+	pipe := NewPipe(5, time.Second)
 
 	pipe.Write(u)
 
@@ -18,7 +19,7 @@ func TestPipeReadWrite(t *testing.T) {
 }
 
 func TestPipeReadClosed(t *testing.T) {
-	pipe := NewPipe()
+	pipe := NewPipe(5, time.Second)
 
 	assert.False(t, pipe.IsClosed())
 	pipe.Close()
@@ -33,7 +34,7 @@ func TestPipeReadClosed(t *testing.T) {
 
 func TestPipeWriteClosed(t *testing.T) {
 	var u *Update
-	pipe := NewPipe()
+	pipe := NewPipe(5, time.Second)
 
 	assert.True(t, pipe.Write(u))
 

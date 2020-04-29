@@ -67,7 +67,7 @@ func (h *Hub) Serve() {
 	<-done
 }
 
-func (h *Hub) listenShutdown() chan struct{} {
+func (h *Hub) listenShutdown() <-chan struct{} {
 	idleConnsClosed := make(chan struct{})
 
 	h.server.RegisterOnShutdown(func() {

@@ -463,7 +463,7 @@ func TestSubscribeAllTargets(t *testing.T) {
 
 func TestSendMissedEvents(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u)
+	transport, _ := NewBoltTransport(u, 5, time.Second)
 	defer transport.Close()
 	defer os.Remove("test.db")
 

@@ -13,7 +13,7 @@ import (
 )
 
 func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(5, time.Second)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -55,7 +55,7 @@ func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
 }
 
 func TestLocalTransportWriteIsDispatched(t *testing.T) {
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(5, time.Second)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -96,7 +96,7 @@ func TestLocalTransportWriteIsDispatched(t *testing.T) {
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(5, time.Second)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -117,7 +117,7 @@ func TestLocalTransportClosed(t *testing.T) {
 }
 
 func TestLiveCleanClosedPipes(t *testing.T) {
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(5, time.Second)
 	defer transport.Close()
 
 	pipe, _ := transport.CreatePipe("")
@@ -133,7 +133,7 @@ func TestLiveCleanClosedPipes(t *testing.T) {
 }
 
 func TestLivePipeReadingBlocks(t *testing.T) {
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(5, time.Second)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
