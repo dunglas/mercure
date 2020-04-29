@@ -12,15 +12,17 @@ var ErrClosedPipe = errors.New("hub: read/write on closed Pipe")
 
 // Pipe convey Update to reader in a closable chan.
 type Pipe struct {
-	updates chan *Update
-	done    chan struct{}
+	updates           chan *Update
+	done              chan struct{}
+	bufferFullTimeout time.Duration
 }
 
 // NewPipe creates pipes.
-func NewPipe() *Pipe {
+func NewPipe(bufferSize int, bufferFullTimeout time.Duration) *Pipe {
 	return &Pipe{
-		make(chan *Update, 5),
+		make(chan *Update, bufferSize),
 		make(chan struct{}),
+		bufferFullTimeout,
 	}
 }
 
@@ -36,7 +38,7 @@ func (p *Pipe) Write(update *Update) bool {
 	select {
 	case p.updates <- update:
 		return true
-	case <-time.After(1 * time.Second):
+	case <-time.After(p.bufferFullTimeout):
 		close(p.updates)
 		log.Info("Messages blocked, pipe closed.")
 		return false

@@ -25,7 +25,7 @@ const testSecureURL = "https://" + testAddr + defaultHubURL
 func TestForwardedHeaders(t *testing.T) {
 	v := viper.New()
 	v.Set("use_forwarded_headers", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
 
 	go h.Serve()
 
@@ -61,7 +61,7 @@ func TestSecurityOptions(t *testing.T) {
 	v.Set("cert_file", "../fixtures/tls/server.crt")
 	v.Set("key_file", "../fixtures/tls/server.key")
 	v.Set("compress", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
 
 	go h.Serve()
 
@@ -171,11 +171,10 @@ func TestServe(t *testing.T) {
 
 func TestClientClosesThenReconnects(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u)
+	transport, _ := NewBoltTransport(u, 5, time.Second)
 	defer os.Remove("test.db")
 
 	h := createDummyWithTransportAndConfig(transport, viper.New())
-	defer h.Stop()
 	go h.Serve()
 
 	// loop until the web server is ready
@@ -275,7 +274,7 @@ func TestServeAcme(t *testing.T) {
 	v.Set("acme_hosts", []string{"example.com"})
 	v.Set("acme_http01_addr", ":8080")
 	v.Set("acme_cert_dir", dir)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
 
 	go h.Serve()
 
@@ -307,7 +306,7 @@ func TestServeAcme(t *testing.T) {
 func TestMetricsAccess(t *testing.T) {
 	v := viper.New()
 	v.Set("metrics", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
 
 	go h.Serve()
 
@@ -361,7 +360,7 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T, v *viper.Viper) testServer {
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
 
 	go func() {
 		h.Serve()
