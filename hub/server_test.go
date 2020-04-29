@@ -301,29 +301,60 @@ func TestServeAcme(t *testing.T) {
 	h.server.Shutdown(context.Background())
 }
 
-func TestMetricsAccess(t *testing.T) {
+func TestMetricsAccessWithDisableAuthentication(t *testing.T) {
 	v := viper.New()
 	v.Set("metrics", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	server := newTestServer(t, v)
+	defer server.shutdown()
 
-	go h.Serve()
-
-	client := http.Client{Timeout: 100 * time.Millisecond}
-
-	var resp *http.Response
-	for resp == nil {
-		resp, _ = client.Get("http://" + testAddr + "/metrics") //nolint:bodyclose
-	}
+	resp, err := server.client.Get("http://" + testAddr + "/metrics")
+	require.Nil(t, err)
 	defer resp.Body.Close()
 
 	assert.Equal(t, 200, resp.StatusCode)
-	h.server.Shutdown(context.Background())
+}
+
+func TestMetricsAccessWithRequiredAuthentication(t *testing.T) {
+	v := viper.New()
+	v.Set("metrics", true)
+	v.Set("metrics_login", "foo")
+	v.Set("metrics_password", "bar")
+	server := newTestServer(t, v)
+	defer server.shutdown()
+
+	req, _ := http.NewRequest("GET", "http://"+testAddr+"/metrics", nil)
+	req.SetBasicAuth("foo", "bar")
+
+	resp, err := server.client.Do(req)
+	require.Nil(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestMetricsAccessWithWrongAuthentication(t *testing.T) {
+	v := viper.New()
+	v.Set("metrics", true)
+	v.Set("metrics_login", "foo")
+	v.Set("metrics_password", "bar")
+	server := newTestServer(t, v)
+	defer server.shutdown()
+
+	req, _ := http.NewRequest("GET", "http://"+testAddr+"/metrics", nil)
+	req.SetBasicAuth("john", "doe")
+
+	resp, err := server.client.Do(req)
+	require.Nil(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, 401, resp.StatusCode)
 }
 
 func TestMetricsCollect(t *testing.T) {
 	v := viper.New()
 	v.Set("metrics", true)
 	server := newTestServer(t, v)
+	defer server.shutdown()
 
 	server.newSubscriber("http://example.com/foo/1", true)
 	server.newSubscriber("http://example.com/alt/1", true)
@@ -343,8 +374,6 @@ func TestMetricsCollect(t *testing.T) {
 	server.assertMetric("mercure_subcribers_total{topic=\"http://example.com/alt/1\"} 3")
 	server.assertMetric("mercure_updates_total{topic=\"http://example.com/foo/1\"} 2")
 	server.assertMetric("mercure_updates_total{topic=\"http://example.com/alt/1\"} 1")
-
-	server.shutdown()
 }
 
 type testServer struct {
