@@ -3,6 +3,8 @@ package hub
 import (
 	"errors"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // ErrClosedPipe is returned by the Pipe's Write and Read methods after a call to Close.
@@ -31,12 +33,12 @@ func (p *Pipe) Write(update *Update) bool {
 	}
 
 	// The updates channel is buffered, if the buffer is full and it blocks for too long we close it
-	// TODO: prevent slowing down all writes by buffering in an intermediate goroutine
 	select {
 	case p.updates <- update:
 		return true
 	case <-time.After(1 * time.Second):
 		close(p.updates)
+		log.Info("Messages blocked, pipe closed.")
 		return false
 	}
 }

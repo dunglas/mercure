@@ -199,6 +199,7 @@ func (t *BoltTransport) Close() error {
 	t.Lock()
 	defer t.Unlock()
 	for pipe := range t.pipes {
+		log.Printf("Shutdown... Pipe closed.")
 		close(pipe.Read())
 	}
 	close(t.done)

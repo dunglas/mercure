@@ -67,7 +67,6 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			if h.publish(newSerializedUpdate(update), subscriber, w, r) && nil != cancel {
 				cancel()
 			}
-
 		}
 	}
 }
