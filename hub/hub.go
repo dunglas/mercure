@@ -28,6 +28,7 @@ type Hub struct {
 	transport    Transport
 	server       *http.Server
 	uriTemplates uriTemplates
+	metrics      *Metrics
 }
 
 // Stop stops disconnect all connected clients.
@@ -56,6 +57,7 @@ func NewHubWithTransport(v *viper.Viper, t Transport) *Hub {
 		t,
 		nil,
 		uriTemplates{m: make(map[string]*templateCache)},
+		NewMetrics(),
 	}
 }
 

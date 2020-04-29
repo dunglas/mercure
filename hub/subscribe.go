@@ -117,9 +117,13 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 	sendHeaders(w)
 	log.WithFields(fields).Info("New subscriber")
 
+	h.metrics.NewSubscriber(subscriber)
+
 	unsubscribed := func() {
 		h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, false, address)
 		log.WithFields(fields).Info("Subscriber disconnected")
+
+		h.metrics.SubscriberDisconnect(subscriber)
 	}
 
 	return subscriber, pipe, unsubscribed, true

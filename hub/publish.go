@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -43,17 +44,10 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, true)
-	targets := make(map[string]struct{}, len(r.PostForm["target"]))
-	for _, t := range r.PostForm["target"] {
-		if !authorizedAlltargets {
-			_, ok := authorizedTargets[t]
-			if !ok {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				return
-			}
-		}
-		targets[t] = struct{}{}
+	targets, err := getAuthorizedTargets(claims, r.PostForm["target"])
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
 	}
 
 	var retry uint64
@@ -79,4 +73,22 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	io.WriteString(w, u.ID)
 	log.WithFields(h.createLogFields(r, u, nil)).Info("Update published")
+
+	h.metrics.NewUpdate(u)
+}
+
+func getAuthorizedTargets(claims *claims, t []string) (map[string]struct{}, error) {
+	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, true)
+	targets := make(map[string]struct{}, len(t))
+	for _, t := range t {
+		if !authorizedAlltargets {
+			_, ok := authorizedTargets[t]
+			if !ok {
+				return nil, errors.New("Target " + t + " is not authorized")
+			}
+		}
+		targets[t] = struct{}{}
+	}
+
+	return targets, nil
 }

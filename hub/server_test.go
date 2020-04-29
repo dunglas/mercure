@@ -335,3 +335,115 @@ func TestMetricsAccess(t *testing.T) {
 
 	h.server.Shutdown(context.Background())
 }
+
+func TestMetricsCollect(t *testing.T) {
+	v := viper.New()
+	v.Set("metrics", true)
+	server := newTestServer(t, v)
+
+	server.newSubscriber("http://example.com/foo/1", true)
+	server.newSubscriber("http://example.com/alt/1", true)
+	server.newSubscriber("http://example.com/alt/1", true)
+	server.newSubscriber("http://example.com/alt/1", false)
+	server.waitSubscribers()
+
+	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
+	server.publish(body)
+
+	body = url.Values{"topic": {"http://example.com/foo/1"}, "data": {"second hello"}, "id": {"second"}}
+	server.publish(body)
+
+	server.assertMetric("mercure_subcribers{topic=\"http://example.com/foo/1\"} 1")
+	server.assertMetric("mercure_subcribers{topic=\"http://example.com/alt/1\"} 2")
+	server.assertMetric("mercure_subcribers_total{topic=\"http://example.com/foo/1\"} 1")
+	server.assertMetric("mercure_subcribers_total{topic=\"http://example.com/alt/1\"} 3")
+	server.assertMetric("mercure_updates_total{topic=\"http://example.com/foo/1\"} 2")
+	server.assertMetric("mercure_updates_total{topic=\"http://example.com/alt/1\"} 1")
+
+	server.shutdown()
+}
+
+type testServer struct {
+	h           *Hub
+	client      http.Client
+	t           *testing.T
+	wgShutdown  *sync.WaitGroup
+	wgConnected sync.WaitGroup
+	wgTested    sync.WaitGroup
+}
+
+func newTestServer(t *testing.T, v *viper.Viper) testServer {
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+
+	go func() {
+		h.Serve()
+	}()
+
+	// loop until the web server is ready
+	var resp *http.Response
+	client := http.Client{Timeout: 100 * time.Millisecond}
+	for resp == nil {
+		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose
+	}
+	defer resp.Body.Close()
+
+	var wgShutdown sync.WaitGroup
+	wgShutdown.Add(1)
+
+	return testServer{
+		h,
+		client,
+		t,
+		&wgShutdown,
+		sync.WaitGroup{},
+		sync.WaitGroup{},
+	}
+}
+
+func (s *testServer) shutdown() {
+	s.h.server.Shutdown(context.Background())
+	s.wgShutdown.Done()
+	s.wgTested.Wait()
+}
+
+func (s *testServer) newSubscriber(topic string, keepAlive bool) {
+	s.wgConnected.Add(1)
+	s.wgTested.Add(1)
+
+	go func() {
+		defer s.wgTested.Done()
+		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
+		require.Nil(s.t, err)
+		defer resp.Body.Close()
+		s.wgConnected.Done()
+
+		if keepAlive {
+			s.wgShutdown.Wait()
+		}
+	}()
+}
+
+func (s *testServer) publish(body url.Values) {
+	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(s.h, publisherRole, []string{}))
+
+	resp, err := s.client.Do(req)
+	require.Nil(s.t, err)
+	defer resp.Body.Close()
+}
+
+func (s *testServer) waitSubscribers() {
+	s.wgConnected.Wait()
+}
+
+func (s *testServer) assertMetric(metric string) {
+	resp, err := s.client.Get("http://" + testAddr + "/metrics")
+	assert.Nil(s.t, err)
+	defer resp.Body.Close()
+
+	b, err := ioutil.ReadAll(resp.Body)
+	assert.Nil(s.t, err)
+
+	assert.Contains(s.t, string(b), metric)
+}
