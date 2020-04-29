@@ -15,6 +15,7 @@
 
 * [Installing the Hub](hub/install.md)
 * [Configuration](hub/config.md)
+* [Creating a cluster of Hubs](hub/cluster.md)
 * [Cookbooks](hub/cookbooks.md)
 * [Troubleshooting](hub/troubleshooting.md)
 * [Upgrade to newest versions](UPGRADE.md)

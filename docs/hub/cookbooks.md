@@ -1,5 +1,17 @@
 # Cookbooks
 
+## Handling More Simultaneous Connections
+
+If you have errors such as `accept: too many open files.` in your logs, you may need to increase the maximum number of file descriptors allowed by the operating system. To do so, use the `ulimit -n` command.
+
+Example:
+
+    ulimit -n 100000
+
+You may also be interested in spreading the load across several servers using [the HA version](cluster.md).
+
+To reproduce the problem, we provide [a load test](load-test.md) that you can use to stress your infrastructure.
+
 ## Monitoring the Hub Using Supervisor
 
 Use the following file as a template to run the Mercure hub with [Supervisor](http://supervisord.org):
