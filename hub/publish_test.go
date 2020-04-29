@@ -205,14 +205,14 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func(w *sync.WaitGroup) {
-		defer w.Done()
+	go func() {
+		defer wg.Done()
 		u, ok := <-pipe.Read()
 		assert.True(t, ok)
 		require.NotNil(t, u)
 		_, err = uuid.FromString(u.ID)
 		assert.Nil(t, err)
-	}(&wg)
+	}()
 
 	form := url.Values{}
 	form.Add("topic", "http://example.com/books/1")
@@ -235,6 +235,8 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	_, err = uuid.FromString(body)
 	assert.Nil(t, err)
+
+	wg.Wait()
 }
 
 func TestPublishWithErrorInTransport(t *testing.T) {
