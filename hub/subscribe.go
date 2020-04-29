@@ -64,10 +64,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			if nil != cancel {
+			if h.publish(newSerializedUpdate(update), subscriber, w, r) && nil != cancel {
 				cancel()
 			}
-			h.publish(newSerializedUpdate(update), subscriber, w, r)
+
 		}
 	}
 }
@@ -194,22 +194,24 @@ func retrieveLastEventID(r *http.Request) string {
 }
 
 // publish sends the update to the client, if authorized.
-func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w io.Writer, r *http.Request) {
+func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w io.Writer, r *http.Request) bool {
 	fields := h.createLogFields(r, serializedUpdate.Update, subscriber)
 
 	if !subscriber.IsAuthorized(serializedUpdate.Update) {
 		log.WithFields(fields).Debug("Subscriber not authorized to receive this update (no targets matching)")
-		return
+		return false
 	}
 
 	if !subscriber.IsSubscribed(serializedUpdate.Update) {
 		log.WithFields(fields).Debug("Subscriber has not subscribed to this update (no topics matching)")
-		return
+		return false
 	}
 
 	fmt.Fprint(w, serializedUpdate.event)
 	w.(http.Flusher).Flush()
 	log.WithFields(fields).Info("Event sent")
+
+	return true
 }
 
 // cleanup removes unused uritemplate.Template instances from memory.
