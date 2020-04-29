@@ -38,6 +38,8 @@
 * [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
+* [Server-Sent Events client for Android and Java](https://github.com/heremaps/oksse)
+* [Server-Sent Events client for Swift](https://github.com/inaka/EventSource)
 * [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
 * [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
 
