@@ -14,10 +14,10 @@ import (
 )
 
 // version is the running Hub version and is dynamically set at build
-var version = "dev"
+var version = "dev" //nolint:gochecknoglobals
 
 // buildDate stores the build date and is dynamically set at build
-var buildDate = ""
+var buildDate = "" //nolint:gochecknoglobals
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{ //nolint:gochecknoglobals
@@ -56,7 +56,7 @@ func init() { //nolint:gochecknoinits
 }
 
 func buildVersion() string {
-	if version == "DEV" {
+	if version == "dev" {
 		info, ok := debug.ReadBuildInfo()
 		if ok && info.Main.Version != "(devel)" {
 			version = info.Main.Version
