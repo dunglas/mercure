@@ -1,0 +1,8 @@
+{% extends "layout.html" %}
+{% block content %}
+    <h1>Join the chat</h1>
+    <form method="POST" action="{{ url_for('chat') }}">
+        <input name="username" placeholder="Username" size="10" required>
+        <input type="submit" value="Join the chat">
+    </form>
+{% endblock %}

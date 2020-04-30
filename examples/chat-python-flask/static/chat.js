@@ -1,35 +1,84 @@
-const { hubURL, topic } = JSON.parse(document.getElementById('config').textContent)
+const type = "https://chat.example.com/Message";
+const topic = "https://chat.example.com/messages/{id}";
+const { hubURL, userIRI, connectedUsers } = JSON.parse(
+  document.getElementById("config").textContent
+);
 
-const subscribeURL = new URL(hubURL)
-subscribeURL.searchParams.append('topic', topic)
+const userList = new Map(
+  connectedUsers.reduce((acc, val) => {
+    acc.push([val, true]);
+    return acc;
+  }, [])
+);
 
-const es = new EventSource(subscribeURL, { withCredentials: true })
-let ul = null
+const subscribeURL = new URL(hubURL);
+subscribeURL.searchParams.append("Last-Event-ID", config.lastEventID);
+subscribeURL.searchParams.append("topic", topic);
+subscribeURL.searchParams.append(
+  "topic",
+  `https://mercure.rocks/subscriptions/${encodeURIComponent(
+    topic
+  )}/{subscriptionID}`
+);
+
+const es = new EventSource(subscribeURL, { withCredentials: true });
+let ul = null;
 es.onmessage = ({ data }) => {
-    const { username, message } = JSON.parse(data)
-    if (!username || !message) throw new Error('Invalid payload')
+  const update = JSON.parse(data);
 
-    if (!ul) {
-        ul = document.createElement('ul')
+  switch (update["@type"]) {
+    case type:
+      displayMessage(update);
+      return;
+    case "https://mercure.rocks/Subscription":
+      updateUserList(update);
+      return;
+    default:
+      console.error("Unknown update type");
+  }
+};
 
-        const messages = document.getElementById('messages')
-        messages.innerHTML = ''
-        messages.append(ul)
-    }
+const displayMessage = ({ user, message }) => {
+  if (!ul) {
+    ul = document.createElement("ul");
 
-    const li = document.createElement('li')
-    li.append(document.createTextNode(`<${username}> ${message}`))
-    ul.append(li)
-}
+    const messages = document.getElementById("messages");
+    messages.innerHTML = "";
+    messages.append(ul);
+  }
 
-document.querySelector('form').onsubmit = function (e) {
-    e.preventDefault()
+  const username = user.replace(/^https:\/\/chat.example.com\/users\//, "");
+  const li = document.createElement("li");
+  li.append(document.createTextNode(`<${username}> ${message}`));
+  ul.append(li);
+};
 
-    const body = new URLSearchParams({
-        data: JSON.stringify({ username: this.elements.username.value, message: this.elements.message.value }),
-        topic,
-    })
-    fetch(hubURL, { method: 'POST', body, credentials: 'include' })
-    this.elements.message.value = ''
-    this.elements.message.focus()
-}
+const updateUserList = ({ active, subscribe }) => {
+  const user = subscribe.find((u) =>
+    u.startsWith("https://chat.example.com/users/")
+  );
+  active ? userList.set(user, true) : userList.delete(user);
+
+  console.log(userList);
+};
+
+document.querySelector("form").onsubmit = function (e) {
+  e.preventDefault();
+
+  const uid = window.crypto.getRandomValues(new Uint8Array(10)).join("");
+  const iri = topic.replace("{id}", uid);
+
+  const body = new URLSearchParams({
+    data: JSON.stringify({
+      "@type": type,
+      "@id": iri,
+      user: userIRI,
+      message: this.elements.message.value,
+    }),
+    topic: iri,
+    target: "https://chat.example.com/user",
+  });
+  fetch(hubURL, { method: "POST", body, credentials: "include" });
+  this.elements.message.value = "";
+  this.elements.message.focus();
+};
