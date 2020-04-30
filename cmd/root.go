@@ -1,12 +1,23 @@
 package cmd
 
 import (
+	"fmt"
+	"regexp"
+	"runtime/debug"
+	"strings"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/dunglas/mercure/hub"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// version is the running Hub version and is dynamically set at build
+var version = "dev"
+
+// buildDate stores the build date and is dynamically set at build
+var buildDate = ""
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{ //nolint:gochecknoglobals
@@ -37,4 +48,36 @@ func init() { //nolint:gochecknoinits
 	})
 	fs := rootCmd.Flags()
 	hub.SetFlags(fs, v)
+
+	rootCmd.Version = buildVersion()
+
+	versionTemplate := fmt.Sprintf("mercure version %s\n%s\n", rootCmd.Version, changelogURL(version))
+	rootCmd.SetVersionTemplate(versionTemplate)
+}
+
+func buildVersion() string {
+	if version == "DEV" {
+		info, ok := debug.ReadBuildInfo()
+		if ok && info.Main.Version != "(devel)" {
+			version = info.Main.Version
+		}
+	}
+
+	version = strings.TrimPrefix(version, "v")
+
+	if buildDate == "" {
+		return version
+	}
+
+	return fmt.Sprintf("%s (%s)", version, buildDate)
+}
+
+func changelogURL(version string) string {
+	path := "https://github.com/dunglas/mercure"
+	r := regexp.MustCompile(`^v?\d+\.\d+\.\d+(-[\w.]+)?$`)
+	if !r.MatchString(version) {
+		return fmt.Sprintf("%s/releases/latest", path)
+	}
+
+	return fmt.Sprintf("%s/releases/tag/v%s", path, strings.TrimPrefix(version, "v"))
 }
