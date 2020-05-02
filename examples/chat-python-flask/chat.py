@@ -67,6 +67,7 @@ def chat():
     local_last_event_id = last_event_id
     cu = list(connected_users.keys())
     lock.release()
+    cu.sort()
 
     resp = make_response(render_template('chat.html', config={
                          'hubURL': HUB_URL, 'userIRI': user_iri, 'connectedUsers': cu, 'lastEventID': local_last_event_id}))
@@ -99,25 +100,34 @@ def sse_listener():
         headers={'Authorization': b'Bearer '+token},
     )
     for update in updates:
+        app.logger.debug("Update received: %s", update)
         data = json.loads(update.data)
 
         if data['@type'] == 'https://chat.example.com/Message':
             # Store the chat history somewhere if you want to
+            lock.acquire()
+            last_event_id = update.id
+            lock.release()
             break
 
         if data['@type'] == 'https://mercure.rocks/Subscription':
+            # Instead of maintaining a local user list, you may want to use Redis or similar service
+
             user = next((x for x in data['subscribe'] if x.startswith(
                 'https://chat.example.com/users/')), None)
 
             if user is None:
                 break
 
-            # Instead of maintaining a local user list, you may want to use Redis or similar service
             lock.acquire()
             last_event_id = update.id
             if data['active']:
                 connected_users[user] = True
-            else:
+            elif user in connected_users:
                 del connected_users[user]
             lock.release()
-            print(connected_users)
+
+            cu = list(connected_users.keys())
+            cu.sort()
+
+            app.logger.info("Connected users: %s", cu)

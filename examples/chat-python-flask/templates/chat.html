@@ -1,14 +1,19 @@
 {% extends "layout.html" %}
 {% block content %}
-    <form>
-        <input name="message" placeholder="Your message..." size="50" autocomplete="off" required>
-        <input type="submit" value="Post">
-    </form>
-    <hr>
+    <section>
+        <h2>User list</h2>
+        <div id="userList"></div>
+        <div id="username"></div>
+    </section>
 
-    <div id="messages">
-        No messages
-    </div>
+    <section id="messages">No messages</section>
+
+    <section>
+        <form>
+            <input name="message" placeholder="Your message..." size="50" autocomplete="off" required>
+            <input type="submit" value="Post">
+        </form>
+    </section>
 
     <script type="application/json" id="config">
         {{ config|tojson|safe }}

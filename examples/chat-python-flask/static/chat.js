@@ -4,12 +4,47 @@ const { hubURL, userIRI, connectedUsers } = JSON.parse(
   document.getElementById("config").textContent
 );
 
-const userList = new Map(
-  connectedUsers.reduce((acc, val) => {
-    acc.push([val, true]);
-    return acc;
-  }, [])
+const iriToUserName = (iri) =>
+  iri.replace(/^https:\/\/chat.example.com\/users\//, "");
+document.getElementById("username").textContent = iriToUserName(userIRI);
+
+const $messages = document.getElementById("messages");
+const $userList = document.getElementById("userList");
+let $userListUL = null;
+let $messagesUL = null;
+
+let userList = new Map(
+  connectedUsers
+    .reduce((acc, val) => {
+      if (val !== userIRI) acc.push([val, true]);
+      return acc;
+    }, [])
+    .sort()
 );
+
+const updateUserListView = () => {
+  if (userList.size === 0) {
+    $userList.textContent = "No other users";
+    $messagesUL = null;
+    return;
+  }
+
+  $userList.textContent = "";
+  if ($userListUL === null) {
+    $userListUL = document.createElement("ul");
+  } else {
+    $userListUL.textContent = "";
+  }
+
+  userList.forEach((v, userIRI) => {
+    const li = document.createElement("li");
+    li.append(document.createTextNode(iriToUserName(userIRI)));
+    $userListUL.append(li);
+  });
+  $userList.append($userListUL);
+};
+
+updateUserListView();
 
 const subscribeURL = new URL(hubURL);
 subscribeURL.searchParams.append("Last-Event-ID", config.lastEventID);
@@ -22,7 +57,6 @@ subscribeURL.searchParams.append(
 );
 
 const es = new EventSource(subscribeURL, { withCredentials: true });
-let ul = null;
 es.onmessage = ({ data }) => {
   const update = JSON.parse(data);
 
@@ -39,27 +73,29 @@ es.onmessage = ({ data }) => {
 };
 
 const displayMessage = ({ user, message }) => {
-  if (!ul) {
-    ul = document.createElement("ul");
+  if (!$messagesUL) {
+    $messagesUL = document.createElement("ul");
 
-    const messages = document.getElementById("messages");
-    messages.innerHTML = "";
-    messages.append(ul);
+    $messages.innerText = "";
+    $messages.append($messagesUL);
   }
 
-  const username = user.replace(/^https:\/\/chat.example.com\/users\//, "");
   const li = document.createElement("li");
-  li.append(document.createTextNode(`<${username}> ${message}`));
-  ul.append(li);
+  li.append(document.createTextNode(`<${iriToUserName(user)}> ${message}`));
+  $messagesUL.append(li);
 };
 
 const updateUserList = ({ active, subscribe }) => {
   const user = subscribe.find((u) =>
     u.startsWith("https://chat.example.com/users/")
   );
+  if (user === userIRI) return;
+
   active ? userList.set(user, true) : userList.delete(user);
 
-  console.log(userList);
+  userList = new Map([...userList.entries()].sort());
+
+  updateUserListView();
 };
 
 document.querySelector("form").onsubmit = function (e) {
