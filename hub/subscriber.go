@@ -1,24 +1,11 @@
 package hub
 
 import (
-	"errors"
-	"sync"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
 )
 
-// ErrSubscriberDisconnected is returned when the subscriber is disconnected.
-var ErrSubscriberDisconnected = errors.New("subscriber: disconnected")
-
-// ErrSubscriberNotAuthorized is returned when the subscriber is not authorized to receive this update.
-var ErrSubscriberNotAuthorized = errors.New("subscriber: not authorized")
-
-// ErrSubscriberNotSubscribed is returned when the subscriber is not subscribed to any topic of this update.
-var ErrSubscriberNotSubscribed = errors.New("subscriber: not subscribed")
-
 type updateSrc struct {
-	sync.Mutex
 	In     chan *Update
 	buffer []*Update
 }
@@ -82,13 +69,17 @@ func (s *Subscriber) start() {
 		case <-s.ServerDisconnect:
 			return
 		case u, ok := <-s.HistorySrc.In:
-			if ok {
-				s.HistorySrc.buffer = append(s.HistorySrc.buffer, u)
+			if !ok {
+				s.HistorySrc.In = nil
 				break
 			}
-			s.HistorySrc.In = nil
+			if s.CanDispatch(u) {
+				s.HistorySrc.buffer = append(s.HistorySrc.buffer, u)
+			}
 		case u := <-s.LiveSrc.In:
-			s.LiveSrc.buffer = append(s.LiveSrc.buffer, u)
+			if s.CanDispatch(u) {
+				s.LiveSrc.buffer = append(s.LiveSrc.buffer, u)
+			}
 		case s.outChan() <- s.nextUpdate():
 			if len(s.HistorySrc.buffer) > 0 {
 				s.HistorySrc.buffer = s.HistorySrc.buffer[1:]
@@ -121,6 +112,21 @@ func (s *Subscriber) nextUpdate() *Update {
 	}
 
 	return nil
+}
+
+// CanDispatch checks if an update can be dispatched to this subsriber.
+func (s *Subscriber) CanDispatch(u *Update) bool {
+	if !s.IsAuthorized(u) {
+		log.WithFields(createBaseLogFields(s.debug, s.RemoteAddr, u, s)).Debug("Subscriber not authorized to receive this update (no targets matching)")
+		return false
+	}
+
+	if !s.IsSubscribed(u) {
+		log.WithFields(createBaseLogFields(s.debug, s.RemoteAddr, u, s)).Debug("Subscriber has not subscribed to this update (no topics matching)")
+		return false
+	}
+
+	return true
 }
 
 // IsAuthorized checks if the subscriber can access to at least one of the update's intended targets.
@@ -170,33 +176,22 @@ func (s *Subscriber) IsSubscribed(u *Update) bool {
 	return false
 }
 
-// Dispatch an update to the subscriber
-func (s *Subscriber) Dispatch(u *Update, fromHistory bool) error {
+// Dispatch an update to the subscriber.
+func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
+	var in chan<- *Update
+	if fromHistory {
+		in = s.HistorySrc.In
+	} else {
+		in = s.LiveSrc.In
+	}
+
 	select {
 	case <-s.ServerDisconnect:
-		return ErrSubscriberDisconnected
+		return false
 	case <-s.ClientDisconnect:
-		return ErrSubscriberDisconnected
-	default:
+		return false
+	case in <- u:
 	}
 
-	fields := createBaseLogFields(s.debug, s.RemoteAddr, u, s)
-
-	if !s.IsAuthorized(u) {
-		log.WithFields(fields).Debug("Subscriber not authorized to receive this update (no targets matching)")
-		return ErrSubscriberNotAuthorized
-	}
-
-	if !s.IsSubscribed(u) {
-		log.WithFields(fields).Debug("Subscriber has not subscribed to this update (no topics matching)")
-		return ErrSubscriberNotSubscribed
-	}
-
-	if fromHistory {
-		s.HistorySrc.In <- u
-		return nil
-	}
-
-	s.LiveSrc.In <- u
-	return nil
+	return true
 }

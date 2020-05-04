@@ -102,7 +102,7 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 	}
 
 	for subscriber := range t.subscribers {
-		if subscriber.Dispatch(update, false) == ErrSubscriberDisconnected {
+		if !subscriber.Dispatch(update, false) {
 			delete(t.subscribers, subscriber)
 		}
 	}
@@ -186,7 +186,7 @@ func (t *BoltTransport) dispatchFromHistory(lastEventID string, toSeq uint64, s 
 				return err
 			}
 
-			if s.Dispatch(update, true) == ErrSubscriberDisconnected || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
+			if !s.Dispatch(update, true) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
 				return nil
 			}
 		}

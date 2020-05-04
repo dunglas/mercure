@@ -77,7 +77,7 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 	t.Lock()
 	defer t.Unlock()
 	for subscriber := range t.subscribers {
-		if subscriber.Dispatch(update, false) == ErrSubscriberDisconnected {
+		if !subscriber.Dispatch(update, false) {
 			delete(t.subscribers, subscriber)
 		}
 	}
