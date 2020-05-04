@@ -8,17 +8,28 @@ import (
 	"github.com/spf13/viper"
 )
 
+// TODO: delete me
 func (h *Hub) createLogFields(r *http.Request, u *Update, s *Subscriber) log.Fields {
+	return createBaseLogFields(h.config.GetBool("debug"), r.RemoteAddr, u, s)
+}
+
+// TODO: rename me
+func createBaseLogFields(debug bool, remoteAddr string, u *Update, s *Subscriber) log.Fields {
 	fields := log.Fields{
-		"remote_addr":    r.RemoteAddr,
-		"event_id":       u.ID,
-		"event_type":     u.Type,
-		"event_retry":    u.Retry,
-		"update_topics":  u.Topics,
-		"update_targets": targetsMapToArray(u.Targets),
+		"remote_addr": remoteAddr,
 	}
-	if h.config.GetBool("debug") {
-		fields["update_data"] = u.Data
+
+	if u != nil {
+		fields["event_id"] = u.ID
+		fields["event_type"] = u.Type
+		fields["event_retry"] = u.Retry
+		fields["update_topics"] = u.Topics
+		fields["update_targets"] = targetsMapToArray(u.Targets)
+
+		if debug {
+			fields["update_data"] = u.Data
+		}
+
 	}
 
 	if s != nil {

@@ -28,91 +28,96 @@ type subscription struct {
 
 // SubscribeHandler create a keep alive connection and send the events to the subscribers.
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
-	f, ok := w.(http.Flusher)
+	_, ok := w.(http.Flusher)
 	if !ok {
 		panic("http.ResponseWriter must be an instance of http.Flusher")
 	}
 
-	subscriber, pipe, unsubscribed, ok := h.initSubscription(w, r)
+	subscriber, unsubscribed, ok := h.initSubscription(w, r)
 	if !ok {
 		return
 	}
 	defer h.cleanup(subscriber)
 	defer unsubscribed()
-	defer pipe.Close()
+	// Notify that the client is closing the connection
+	defer close(subscriber.ClientDisconnect)
 
 	hearthbeatInterval := h.config.GetDuration("heartbeat_interval")
-	var cancel context.CancelFunc
-
+	var cancelHearthbeatTimeout context.CancelFunc
 	for {
-		ctx := context.Background()
+		ctxHearthbeat := context.Background()
 		if hearthbeatInterval != time.Duration(0) {
-			ctx, cancel = context.WithTimeout(ctx, hearthbeatInterval)
-			defer cancel()
+			ctxHearthbeat, cancelHearthbeatTimeout = context.WithTimeout(ctxHearthbeat, hearthbeatInterval)
+			defer cancelHearthbeatTimeout()
 		}
 
 		select {
-		case <-r.Context().Done():
-			// Listen to the closing of the http connection via the Request's Context
+		case <-subscriber.ServerDisconnect:
+			// Server closes the connection
 			return
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-				fmt.Fprint(w, ":\n")
-				f.Flush()
-			}
-		case update, ok := <-pipe.Read():
-			if !ok {
+		case <-r.Context().Done():
+			// Client closes the connection
+			return
+		case <-ctxHearthbeat.Done():
+			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			if errors.Is(ctxHearthbeat.Err(), context.DeadlineExceeded) && !h.write(w, r, subscriber, ":\n") {
 				return
 			}
-			if h.publish(newSerializedUpdate(update), subscriber, w, r) && nil != cancel {
-				cancel()
+		case update := <-subscriber.Out:
+			if !h.write(w, r, subscriber, newSerializedUpdate(update).event) {
+				return
 			}
+			if cancelHearthbeatTimeout != nil {
+				cancelHearthbeatTimeout()
+			}
+
+			fields := createBaseLogFields(subscriber.debug, r.RemoteAddr, update, subscriber)
+			log.WithFields(fields).Info("Event sent")
 		}
 	}
 }
 
 // initSubscription initializes the connection.
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, *Pipe, func(), bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscriber, func(), bool) {
 	fields := log.Fields{"remote_addr": r.RemoteAddr}
 
 	claims, err := authorize(r, h.getJWTKey(subscriberRole), h.getJWTAlgorithm(subscriberRole), nil)
-	if h.config.GetBool("debug") && claims != nil {
+	debug := h.config.GetBool("debug")
+	if debug && claims != nil {
 		fields["target"] = claims.Mercure.Subscribe
 	}
 	if err != nil || (claims == nil && !h.config.GetBool("allow_anonymous")) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		log.WithFields(fields).Info(err)
-		return nil, nil, nil, false
+		return nil, nil, false
 	}
 
 	topics := r.URL.Query()["topic"]
 	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
-		return nil, nil, nil, false
+		return nil, nil, false
 	}
 	fields["subscriber_topics"] = topics
 
 	rawTopics, templateTopics := h.parseTopics(topics)
 
 	authorizedAlltargets, authorizedTargets := authorizedTargets(claims, false)
-	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r))
-
+	subscriber := NewSubscriber(authorizedAlltargets, authorizedTargets, topics, rawTopics, templateTopics, retrieveLastEventID(r), r.RemoteAddr, debug)
 	encodedTopics := escapeTopics(topics)
 
-	// Connection events must be sent before creating the pipe to prevent a deadlock
+	// TODO: move this to the subscriber struct
 	connectionID := uuid.Must(uuid.NewV4()).String()
 	var address string
 	if h.config.GetBool("subscriptions_include_ip") {
 		address, _, _ = net.SplitHostPort(r.RemoteAddr)
 	}
+	// TODO: dispatchSubscriptionUpdate(subscriber)
 	h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, true, address)
-	pipe, err := h.transport.CreatePipe(subscriber.LastEventID)
-	if err != nil {
+	if h.transport.AddSubscriber(subscriber) != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		h.dispatchSubscriptionUpdate(topics, encodedTopics, connectionID, claims, false, address)
 		log.WithFields(fields).Error(err)
-		return nil, nil, nil, false
+		return nil, nil, false
 	}
 	sendHeaders(w)
 	log.WithFields(fields).Info("New subscriber")
@@ -126,7 +131,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (*Subscri
 		h.metrics.SubscriberDisconnect(subscriber)
 	}
 
-	return subscriber, pipe, unsubscribed, true
+	return subscriber, unsubscribed, true
 }
 
 func (h *Hub) parseTopics(topics []string) (rawTopics []string, templateTopics []*uritemplate.Template) {
@@ -193,25 +198,32 @@ func retrieveLastEventID(r *http.Request) string {
 	return r.URL.Query().Get("Last-Event-ID")
 }
 
-// publish sends the update to the client, if authorized.
-func (h *Hub) publish(serializedUpdate *serializedUpdate, subscriber *Subscriber, w io.Writer, r *http.Request) bool {
-	fields := h.createLogFields(r, serializedUpdate.Update, subscriber)
-
-	if !subscriber.IsAuthorized(serializedUpdate.Update) {
-		log.WithFields(fields).Debug("Subscriber not authorized to receive this update (no targets matching)")
-		return false
+// Write sends the given string to the client.
+// It returns false if the dispatch timed out.
+// The current write cannot be cancelled because of https://github.com/golang/go/issues/16100
+func (h *Hub) write(w io.Writer, r *http.Request, s *Subscriber, data string) bool {
+	d := h.config.GetDuration("dispatch_timeout")
+	if d == time.Duration(0) {
+		fmt.Fprint(w, data)
+		w.(http.Flusher).Flush()
+		return true
 	}
 
-	if !subscriber.IsSubscribed(serializedUpdate.Update) {
-		log.WithFields(fields).Debug("Subscriber has not subscribed to this update (no topics matching)")
+	done := make(chan struct{})
+	go func() {
+		fmt.Fprint(w, data)
+		w.(http.Flusher).Flush()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return true
+	case <-time.After(d):
+		fields := createBaseLogFields(s.debug, r.RemoteAddr, nil, s)
+		log.WithFields(fields).Warn("Dispatch timeout reached")
 		return false
 	}
-
-	fmt.Fprint(w, serializedUpdate.event)
-	w.(http.Flusher).Flush()
-	log.WithFields(fields).Info("Event sent")
-
-	return true
 }
 
 // cleanup removes unused uritemplate.Template instances from memory.
@@ -271,7 +283,7 @@ func (h *Hub) dispatchSubscriptionUpdate(topics, encodedTopics []string, connect
 			Event:   Event{Data: string(json), ID: uuid.Must(uuid.NewV4()).String()},
 		}
 
-		h.transport.Write(u)
+		h.transport.Dispatch(u)
 	}
 }
 
