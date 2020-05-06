@@ -15,8 +15,8 @@ type AppVersionInfo struct {
 var AppVersion AppVersionInfo //nolint:gochecknoglobals
 
 // these variables are dynamically set at build.
-var version = "dev" //nolint:gochecknoglobals
-var buildDate = ""  //nolint:gochecknoglobals
+var version = "dev"
+var buildDate = "" //nolint:gochecknoglobals
 
 func (v *AppVersionInfo) Shortline() string {
 	if v.BuildDate == "" {
