@@ -112,7 +112,7 @@ func (t *LocalTransport) Close() error {
 	t.RLock()
 	defer t.RUnlock()
 	for subscriber := range t.subscribers {
-		close(subscriber.ServerDisconnect)
+		subscriber.Disconnect()
 		delete(t.subscribers, subscriber)
 	}
 	close(t.done)

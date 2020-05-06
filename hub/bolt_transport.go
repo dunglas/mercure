@@ -141,29 +141,29 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 
 // AddSubscriber adds a new subscriber to the transport.
 func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
-	t.Lock()
-	defer t.Unlock()
-
 	select {
 	case <-t.done:
 		return ErrClosedTransport
 	default:
 	}
 
+	t.Lock()
 	t.subscribers[s] = struct{}{}
-	if s.LastEventID == "" {
+	if s.History.In == nil {
+		t.Unlock()
 		return nil
 	}
+	t.Unlock()
 
 	toSeq := t.lastSeq.Load()
-	t.dispatchFromHistory(s.LastEventID, toSeq, s)
+	t.dispatchFromHistory(s.lastEventID, toSeq, s)
 
 	return nil
 }
 
 func (t *BoltTransport) dispatchFromHistory(lastEventID string, toSeq uint64, s *Subscriber) {
 	t.db.View(func(tx *bolt.Tx) error {
-		defer close(s.HistorySrc.In)
+		defer close(s.History.In)
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
 			return nil // No data
@@ -206,7 +206,7 @@ func (t *BoltTransport) Close() error {
 	t.Lock()
 	defer t.Unlock()
 	for subscriber := range t.subscribers {
-		close(subscriber.ServerDisconnect)
+		subscriber.Disconnect()
 		delete(t.subscribers, subscriber)
 	}
 	close(t.done)

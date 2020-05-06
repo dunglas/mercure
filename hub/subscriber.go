@@ -1,98 +1,83 @@
 package hub
 
 import (
+	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
 )
 
-type updateSrc struct {
+type updateSource struct {
 	In     chan *Update
 	buffer []*Update
 }
 
 // Subscriber represents a client subscribed to a list of topics.
 type Subscriber struct {
-	AllTargets     bool
-	Targets        map[string]struct{}
-	Topics         []string
-	RawTopics      []string
-	TemplateTopics []*uritemplate.Template
-	LastEventID    string
-	RemoteAddr     string
+	ID      string
+	History updateSource
+	Live    updateSource
+	Out     chan *Update
 
-	HistorySrc updateSrc
-	LiveSrc    updateSrc
-	Out        chan *Update
+	disconnected   chan struct{}
+	claims         *claims
+	allTargets     bool
+	targets        map[string]struct{}
+	topics         []string
+	escapedTopics  []string
+	rawTopics      []string
+	templateTopics []*uritemplate.Template
+	lastEventID    string
+	remoteAddr     string
+	remoteHost     string
+	debug          bool
 
-	ClientDisconnect chan struct{}
-	ServerDisconnect chan struct{}
-
-	debug      bool
+	logFields  log.Fields
 	matchCache map[string]bool
 }
 
-// NewSubscriber creates a subscriber.
-func NewSubscriber(allTargets bool, targets map[string]struct{}, topics []string, rawTopics []string, templateTopics []*uritemplate.Template, lastEventID string, remoteAddr string, debug bool) *Subscriber {
-	s := &Subscriber{
-		allTargets,
-		targets,
-		topics,
-		rawTopics,
-		templateTopics,
-		lastEventID,
-		remoteAddr,
-
-		updateSrc{},
-		updateSrc{In: make(chan *Update)},
-		make(chan *Update),
-
-		make(chan struct{}),
-		make(chan struct{}),
-
-		debug,
-		make(map[string]bool),
+func newSubscriber() *Subscriber {
+	id := uuid.Must(uuid.NewV4()).String()
+	return &Subscriber{
+		ID:           id,
+		History:      updateSource{},
+		Live:         updateSource{In: make(chan *Update)},
+		Out:          make(chan *Update),
+		disconnected: make(chan struct{}),
+		logFields:    log.Fields{"subscriber_id": id},
+		matchCache:   make(map[string]bool),
 	}
-
-	if lastEventID != "" {
-		s.HistorySrc.In = make(chan *Update)
-	}
-	go s.start()
-
-	return s
 }
 
 func (s *Subscriber) start() {
 	for {
 		select {
-		case <-s.ClientDisconnect:
+		case <-s.disconnected:
 			return
-		case <-s.ServerDisconnect:
-			return
-		case u, ok := <-s.HistorySrc.In:
+		case u, ok := <-s.History.In:
 			if !ok {
-				s.HistorySrc.In = nil
+				s.History.In = nil
 				break
 			}
 			if s.CanDispatch(u) {
-				s.HistorySrc.buffer = append(s.HistorySrc.buffer, u)
+				s.History.buffer = append(s.History.buffer, u)
 			}
-		case u := <-s.LiveSrc.In:
+		case u := <-s.Live.In:
 			if s.CanDispatch(u) {
-				s.LiveSrc.buffer = append(s.LiveSrc.buffer, u)
+				s.Live.buffer = append(s.Live.buffer, u)
 			}
 		case s.outChan() <- s.nextUpdate():
-			if len(s.HistorySrc.buffer) > 0 {
-				s.HistorySrc.buffer = s.HistorySrc.buffer[1:]
+			if len(s.History.buffer) > 0 {
+				s.History.buffer = s.History.buffer[1:]
 				break
 			}
 
-			s.LiveSrc.buffer = s.LiveSrc.buffer[1:]
+			s.Live.buffer = s.Live.buffer[1:]
 		}
 	}
 }
 
 func (s *Subscriber) outChan() chan *Update {
-	if len(s.LiveSrc.buffer) > 0 || len(s.HistorySrc.buffer) > 0 {
+	if len(s.Live.buffer) > 0 || len(s.History.buffer) > 0 {
 		return s.Out
 	}
 	return nil
@@ -100,15 +85,15 @@ func (s *Subscriber) outChan() chan *Update {
 
 func (s *Subscriber) nextUpdate() *Update {
 	// Always flush the history buffer first to preserve order
-	if s.HistorySrc.In != nil || len(s.HistorySrc.buffer) > 0 {
-		if len(s.HistorySrc.buffer) > 0 {
-			return s.HistorySrc.buffer[0]
+	if s.History.In != nil || len(s.History.buffer) > 0 {
+		if len(s.History.buffer) > 0 {
+			return s.History.buffer[0]
 		}
 		return nil
 	}
 
-	if len(s.LiveSrc.buffer) > 0 {
-		return s.LiveSrc.buffer[0]
+	if len(s.Live.buffer) > 0 {
+		return s.Live.buffer[0]
 	}
 
 	return nil
@@ -117,12 +102,12 @@ func (s *Subscriber) nextUpdate() *Update {
 // CanDispatch checks if an update can be dispatched to this subsriber.
 func (s *Subscriber) CanDispatch(u *Update) bool {
 	if !s.IsAuthorized(u) {
-		log.WithFields(createBaseLogFields(s.debug, s.RemoteAddr, u, s)).Debug("Subscriber not authorized to receive this update (no targets matching)")
+		log.WithFields(createFields(u, s)).Debug("Subscriber not authorized to receive this update (no targets matching)")
 		return false
 	}
 
 	if !s.IsSubscribed(u) {
-		log.WithFields(createBaseLogFields(s.debug, s.RemoteAddr, u, s)).Debug("Subscriber has not subscribed to this update (no topics matching)")
+		log.WithFields(createFields(u, s)).Debug("Subscriber has not subscribed to this update (no topics matching)")
 		return false
 	}
 
@@ -132,11 +117,11 @@ func (s *Subscriber) CanDispatch(u *Update) bool {
 // IsAuthorized checks if the subscriber can access to at least one of the update's intended targets.
 // Don't forget to also call IsSubscribed.
 func (s *Subscriber) IsAuthorized(u *Update) bool {
-	if s.AllTargets || len(u.Targets) == 0 {
+	if s.allTargets || len(u.Targets) == 0 {
 		return true
 	}
 
-	for t := range s.Targets {
+	for t := range s.targets {
 		if _, ok := u.Targets[t]; ok {
 			return true
 		}
@@ -156,14 +141,14 @@ func (s *Subscriber) IsSubscribed(u *Update) bool {
 			continue
 		}
 
-		for _, rt := range s.RawTopics {
+		for _, rt := range s.rawTopics {
 			if ut == rt {
 				s.matchCache[ut] = true
 				return true
 			}
 		}
 
-		for _, tt := range s.TemplateTopics {
+		for _, tt := range s.templateTopics {
 			if tt.Match(ut) != nil {
 				s.matchCache[ut] = true
 				return true
@@ -180,18 +165,26 @@ func (s *Subscriber) IsSubscribed(u *Update) bool {
 func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	var in chan<- *Update
 	if fromHistory {
-		in = s.HistorySrc.In
+		in = s.History.In
 	} else {
-		in = s.LiveSrc.In
+		in = s.Live.In
 	}
 
 	select {
-	case <-s.ServerDisconnect:
-		return false
-	case <-s.ClientDisconnect:
+	case <-s.disconnected:
 		return false
 	case in <- u:
 	}
 
 	return true
+}
+
+func (s *Subscriber) Disconnect() {
+	select {
+	case <-s.disconnected:
+		return
+	default:
+	}
+
+	close(s.disconnected)
 }

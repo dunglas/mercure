@@ -69,11 +69,11 @@ func createDummy() *Hub {
 	v.SetDefault("publisher_jwt_key", "publisher")
 	v.SetDefault("subscriber_jwt_key", "subscriber")
 
-	return NewHubWithTransport(v, NewLocalTransport(5, time.Second))
+	return NewHubWithTransport(v, NewLocalTransport())
 }
 
 func createAnonymousDummy() *Hub {
-	return createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), viper.New())
+	return createDummyWithTransportAndConfig(NewLocalTransport(), viper.New())
 }
 
 func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {

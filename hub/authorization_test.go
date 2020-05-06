@@ -3,7 +3,6 @@ package hub
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -393,7 +392,7 @@ func TestAuthorizedAllTargetsSubscriber(t *testing.T) {
 
 func TestGetJWTKeyInvalid(t *testing.T) {
 	v := viper.New()
-	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	h.config.Set("publisher_jwt_key", "")
 	assert.PanicsWithValue(t, "one of these configuration parameters must be defined: [publisher_jwt_key jwt_key]", func() {
@@ -408,7 +407,7 @@ func TestGetJWTKeyInvalid(t *testing.T) {
 
 func TestGetJWTAlgorithmInvalid(t *testing.T) {
 	v := viper.New()
-	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	h.config.Set("publisher_jwt_algorithm", "foo")
 	assert.PanicsWithValue(t, "invalid signing method: foo", func() {

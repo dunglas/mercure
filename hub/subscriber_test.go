@@ -7,7 +7,9 @@ import (
 )
 
 func TestIsSubscribed(t *testing.T) {
-	s := NewSubscriber(false, nil, []string{"foo", "bar"}, []string{"foo", "bar"}, nil, "lid")
+	s := newSubscriber()
+	s.topics = []string{"foo", "bar"}
+	s.rawTopics = s.topics
 
 	assert.Len(t, s.matchCache, 0)
 	assert.False(t, s.IsSubscribed(&Update{Topics: []string{"baz", "bat"}}))
