@@ -22,8 +22,12 @@ type Transport interface {
 	Close() error
 }
 
-// ErrClosedTransport is returned by the Transport's Write and CreatePipe methods after a call to Close.
-var ErrClosedTransport = errors.New("hub: read/write on closed Transport")
+var (
+	// ErrInvalidTransportDSN is returned when the Transport's DSN is invalid
+	ErrInvalidTransportDSN = errors.New("invalid transport DSN")
+	// ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
+	ErrClosedTransport = errors.New("hub: read/write on closed Transport")
+)
 
 // NewTransport create a transport using the backend matching the given TransportURL.
 func NewTransport(config *viper.Viper) (Transport, error) {
@@ -47,7 +51,7 @@ func NewTransport(config *viper.Viper) (Transport, error) {
 		return NewBoltTransport(u, bs, bt)
 	}
 
-	return nil, fmt.Errorf(`no Transport available for "%s"`, tu)
+	return nil, fmt.Errorf("%q: no such transport available: %w", tu, ErrInvalidTransportDSN)
 }
 
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.

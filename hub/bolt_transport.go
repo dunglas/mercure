@@ -43,18 +43,20 @@ func NewBoltTransport(u *url.URL, bufferSize int, bufferFullTimeout time.Duratio
 	}
 
 	size := uint64(0)
-	if q.Get("size") != "" {
-		size, err = strconv.ParseUint(q.Get("size"), 10, 64)
+	sizeParameter := q.Get("size")
+	if sizeParameter != "" {
+		size, err = strconv.ParseUint(sizeParameter, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`invalid bolt "%s" dsn: parameter size: %w`, u, err)
+			return nil, fmt.Errorf(`%q: invalid "size" parameter %q: %s: %w`, u, sizeParameter, err, ErrInvalidTransportDSN)
 		}
 	}
 
 	cleanupFrequency := 0.3
-	if q.Get("cleanup_frequency") != "" {
-		cleanupFrequency, err = strconv.ParseFloat(q.Get("cleanup_frequency"), 64)
+	cleanupFrequencyParameter := q.Get("cleanup_frequency")
+	if cleanupFrequencyParameter != "" {
+		cleanupFrequency, err = strconv.ParseFloat(cleanupFrequencyParameter, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`invalid bolt "%s" dsn: parameter cleanup_frequency: %w`, u, err)
+			return nil, fmt.Errorf(`%q: invalid "cleanup_frequency" parameter %q: %w`, u, cleanupFrequencyParameter, ErrInvalidTransportDSN)
 		}
 	}
 
@@ -63,12 +65,12 @@ func NewBoltTransport(u *url.URL, bufferSize int, bufferFullTimeout time.Duratio
 		path = u.Host // relative path (bolt://path.db)
 	}
 	if path == "" {
-		return nil, fmt.Errorf(`invalid bolt DSN "%s": missing path`, u)
+		return nil, fmt.Errorf(`%q: missing path: %w`, u, ErrInvalidTransportDSN)
 	}
 
 	db, err := bolt.Open(path, 0600, nil)
 	if err != nil {
-		return nil, fmt.Errorf(`invalid bolt DSN "%s": %w`, u, err)
+		return nil, fmt.Errorf(`%q: %s: %w`, u, err, ErrInvalidTransportDSN)
 	}
 
 	return &BoltTransport{

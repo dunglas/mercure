@@ -31,6 +31,15 @@ const (
 	publisherRole
 )
 
+var (
+	ErrInvalidAuthorizationHeader = errors.New(`invalid "Authorization" HTTP header`)
+	ErrNoOrigin                   = errors.New(`an "Origin" or a "Referer" HTTP header must be present to use the cookie-based authorization mechanism`)
+	ErrOriginNotAllowed           = errors.New("origin not allowed to post updates")
+	ErrUnexpectedSigningMethod    = errors.New("unexpected signing method")
+	ErrInvalidJWT                 = errors.New("invalid JWT")
+	ErrPublicKey                  = errors.New("public key error")
+)
+
 func (h *Hub) getJWTKey(r role) []byte {
 	var configKey string
 	switch r {
@@ -79,7 +88,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
-			return nil, errors.New("invalid \"Authorization\" HTTP header")
+			return nil, ErrInvalidAuthorizationHeader
 		}
 
 		return validateJWT(authorizationHeaders[0][7:], jwtKey, jwtSigningAlgorithm)
@@ -101,7 +110,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 		// Try to extract the origin from the Referer, or return an error
 		referer := r.Header.Get("Referer")
 		if referer == "" {
-			return nil, errors.New("an \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
+			return nil, ErrNoOrigin
 		}
 
 		u, err := url.Parse(referer)
@@ -118,7 +127,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 		}
 	}
 
-	return nil, fmt.Errorf("the origin \"%s\" is not allowed to post updates", origin)
+	return nil, fmt.Errorf("%q: %w", origin, ErrOriginNotAllowed)
 }
 
 // validateJWT validates that the provided JWT token is a valid Mercure token.
@@ -131,7 +140,7 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 			block, _ := pem.Decode(key)
 
 			if block == nil {
-				return nil, errors.New("public key error")
+				return nil, ErrPublicKey
 			}
 
 			pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
@@ -145,7 +154,7 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 			return pub, nil
 		}
 
-		return nil, fmt.Errorf("unexpected signing method: %T", signingAlgorithm)
+		return nil, fmt.Errorf("%T: %w", signingAlgorithm, ErrUnexpectedSigningMethod)
 	})
 
 	if err != nil {
@@ -156,7 +165,7 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid JWT")
+	return nil, ErrInvalidJWT
 }
 
 func authorizedTargets(claims *claims, publisher bool) (all bool, targets map[string]struct{}) {

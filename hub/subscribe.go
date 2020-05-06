@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -55,7 +56,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			// Listen to the closing of the http connection via the Request's Context
 			return
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
 				fmt.Fprint(w, ":\n")
 				f.Flush()

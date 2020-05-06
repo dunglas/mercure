@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
+
+var ErrInvalidConfig = errors.New("invalid config")
 
 // SetConfigDefaults sets defaults on a Viper instance.
 func SetConfigDefaults(v *viper.Viper) {
@@ -33,13 +36,13 @@ func SetConfigDefaults(v *viper.Viper) {
 // ValidateConfig validates a Viper instance.
 func ValidateConfig(v *viper.Viper) error {
 	if v.GetString("publisher_jwt_key") == "" && v.GetString("jwt_key") == "" {
-		return fmt.Errorf(`one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`)
+		return fmt.Errorf(`%w: one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`, ErrInvalidConfig)
 	}
 	if v.GetString("cert_file") != "" && v.GetString("key_file") == "" {
-		return fmt.Errorf(`if the "cert_file" configuration parameter is defined, "key_file" must be defined too`)
+		return fmt.Errorf(`%w: if the "cert_file" configuration parameter is defined, "key_file" must be defined too`, ErrInvalidConfig)
 	}
 	if v.GetString("key_file") != "" && v.GetString("cert_file") == "" {
-		return fmt.Errorf(`if the "key_file" configuration parameter is defined, "cert_file" must be defined too`)
+		return fmt.Errorf(`%w: if the "key_file" configuration parameter is defined, "cert_file" must be defined too`, ErrInvalidConfig)
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package hub
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -9,6 +10,8 @@ import (
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 )
+
+var ErrTargetNotAuthorized = errors.New("target not authorized")
 
 func (h *Hub) dispatch(u *Update) error {
 	if u.ID == "" {
@@ -84,7 +87,7 @@ func getAuthorizedTargets(claims *claims, t []string) (map[string]struct{}, erro
 		if !authorizedAlltargets {
 			_, ok := authorizedTargets[t]
 			if !ok {
-				return nil, errors.New("Target " + t + " is not authorized")
+				return nil, fmt.Errorf("%q: %w", t, ErrTargetNotAuthorized)
 			}
 		}
 		targets[t] = struct{}{}

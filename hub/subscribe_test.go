@@ -2,7 +2,7 @@ package hub
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -154,6 +154,8 @@ func TestSubscribeNoTopic(t *testing.T) {
 	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
 }
 
+var errFailedToCreatePipe = errors.New("failed to create a pipe")
+
 type createPipeErrorTransport struct {
 }
 
@@ -162,7 +164,7 @@ func (*createPipeErrorTransport) Write(update *Update) error {
 }
 
 func (*createPipeErrorTransport) CreatePipe(fromID string) (*Pipe, error) {
-	return nil, fmt.Errorf("Failed to create a pipe")
+	return nil, errFailedToCreatePipe
 }
 
 func (*createPipeErrorTransport) Close() error {
