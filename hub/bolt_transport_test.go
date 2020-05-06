@@ -107,21 +107,21 @@ func TestNewBoltTransport(t *testing.T) {
 
 	u, _ = url.Parse("bolt://")
 	_, err = NewBoltTransport(u, 5, time.Second)
-	assert.EqualError(t, err, `invalid bolt DSN "bolt:": missing path`)
+	assert.EqualError(t, err, `"bolt:": missing path: invalid transport DSN`)
 
 	u, _ = url.Parse("bolt:///test.db")
 	_, err = NewBoltTransport(u, 5, time.Second)
 
 	// The exact error message depends of the OS
-	assert.Contains(t, err.Error(), `invalid bolt DSN "bolt:///test.db": open /test.db: `)
+	assert.Contains(t, err.Error(), "open /test.db:")
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
 	_, err = NewBoltTransport(u, 5, time.Second)
-	assert.EqualError(t, err, `invalid bolt "bolt://test.db?cleanup_frequency=invalid" dsn: parameter cleanup_frequency: strconv.ParseFloat: parsing "invalid": invalid syntax`)
+	assert.EqualError(t, err, `"bolt://test.db?cleanup_frequency=invalid": invalid "cleanup_frequency" parameter "invalid": invalid transport DSN`)
 
 	u, _ = url.Parse("bolt://test.db?size=invalid")
 	_, err = NewBoltTransport(u, 5, time.Second)
-	assert.EqualError(t, err, `invalid bolt "bolt://test.db?size=invalid" dsn: parameter size: strconv.ParseUint: parsing "invalid": invalid syntax`)
+	assert.EqualError(t, err, `"bolt://test.db?size=invalid": invalid "size" parameter "invalid": strconv.ParseUint: parsing "invalid": invalid syntax: invalid transport DSN`)
 }
 
 func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {

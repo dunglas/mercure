@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -60,7 +61,7 @@ func (h *Hub) Serve() {
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
-	if err != http.ErrServerClosed {
+	if !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
 
