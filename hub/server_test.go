@@ -25,7 +25,7 @@ const testSecureURL = "https://" + testAddr + defaultHubURL
 func TestForwardedHeaders(t *testing.T) {
 	v := viper.New()
 	v.Set("use_forwarded_headers", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go h.Serve()
 
@@ -61,7 +61,7 @@ func TestSecurityOptions(t *testing.T) {
 	v.Set("cert_file", "../fixtures/tls/server.crt")
 	v.Set("key_file", "../fixtures/tls/server.key")
 	v.Set("compress", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go h.Serve()
 
@@ -171,7 +171,7 @@ func TestServe(t *testing.T) {
 
 func TestClientClosesThenReconnects(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	defer os.Remove("test.db")
 
 	h := createDummyWithTransportAndConfig(transport, viper.New())
@@ -216,7 +216,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	publish := func(data string, waitForSubscribers int) {
 		for {
 			transport.Lock()
-			l := len(transport.pipes)
+			l := len(transport.subscribers)
 			transport.Unlock()
 			if l >= waitForSubscribers {
 				break
@@ -274,10 +274,9 @@ func TestServeAcme(t *testing.T) {
 	v.Set("acme_hosts", []string{"example.com"})
 	v.Set("acme_http01_addr", ":8080")
 	v.Set("acme_cert_dir", dir)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go h.Serve()
-
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -299,14 +298,13 @@ func TestServeAcme(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, 403, resp.StatusCode)
-
 	h.server.Shutdown(context.Background())
 }
 
 func TestMetricsAccess(t *testing.T) {
 	v := viper.New()
 	v.Set("metrics", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go h.Serve()
 
@@ -319,7 +317,6 @@ func TestMetricsAccess(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, 200, resp.StatusCode)
-
 	h.server.Shutdown(context.Background())
 }
 
@@ -360,11 +357,9 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T, v *viper.Viper) testServer {
-	h := createDummyWithTransportAndConfig(NewLocalTransport(5, time.Second), v)
+	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
-	go func() {
-		h.Serve()
-	}()
+	go h.Serve()
 
 	// loop until the web server is ready
 	var resp *http.Response

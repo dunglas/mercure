@@ -7,19 +7,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
 var ErrTargetNotAuthorized = errors.New("target not authorized")
-
-func (h *Hub) dispatch(u *Update) error {
-	if u.ID == "" {
-		u.ID = uuid.Must(uuid.NewV4()).String()
-	}
-
-	return h.transport.Write(u)
-}
 
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,19 +54,15 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	u := &Update{
-		Targets: targets,
-		Topics:  topics,
-		Event:   Event{data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
-	}
+	u := newUpdate(Event{data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry}, topics, targets)
 
 	// Broadcast the update
-	if err := h.dispatch(u); err != nil {
+	if err := h.transport.Dispatch(u); err != nil {
 		panic(err)
 	}
 
 	io.WriteString(w, u.ID)
-	log.WithFields(h.createLogFields(r, u, nil)).Info("Update published")
+	log.WithFields(addUpdateFields(log.Fields{"remote_addr": r.RemoteAddr}, u, h.config.GetBool("debug"))).Info("Update published")
 
 	h.metrics.NewUpdate(u)
 }

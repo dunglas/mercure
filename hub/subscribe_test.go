@@ -154,25 +154,25 @@ func TestSubscribeNoTopic(t *testing.T) {
 	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
 }
 
-var errFailedToCreatePipe = errors.New("failed to create a pipe")
+var errFailedToAddSubscriber = errors.New("failed to add a subscriber")
 
-type createPipeErrorTransport struct {
+type addSubscriberErrorTransport struct {
 }
 
-func (*createPipeErrorTransport) Write(update *Update) error {
+func (*addSubscriberErrorTransport) Dispatch(*Update) error {
 	return nil
 }
 
-func (*createPipeErrorTransport) CreatePipe(fromID string) (*Pipe, error) {
-	return nil, errFailedToCreatePipe
+func (*addSubscriberErrorTransport) AddSubscriber(*Subscriber) error {
+	return errFailedToAddSubscriber
 }
 
-func (*createPipeErrorTransport) Close() error {
+func (*addSubscriberErrorTransport) Close() error {
 	return nil
 }
 
-func TestSubscribeCreatePipeError(t *testing.T) {
-	hub := createDummyWithTransportAndConfig(&createPipeErrorTransport{}, viper.New())
+func TestSubscribeAddSubscriberError(t *testing.T) {
+	hub := createDummyWithTransportAndConfig(&addSubscriberErrorTransport{}, viper.New())
 
 	req := httptest.NewRequest("GET", defaultHubURL+"?topic=foo", nil)
 	w := httptest.NewRecorder()
@@ -182,8 +182,8 @@ func TestSubscribeCreatePipeError(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-	assert.Equal(t, http.StatusText(http.StatusInternalServerError)+"\n", w.Body.String())
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	assert.Equal(t, http.StatusText(http.StatusServiceUnavailable)+"\n", w.Body.String())
 }
 
 func testSubscribe(numberOfSubscribers int, t *testing.T) {
@@ -193,7 +193,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 		for {
 			s, _ := hub.transport.(*LocalTransport)
 			s.RLock()
-			ready := len(s.pipes) == numberOfSubscribers
+			ready := len(s.subscribers) == numberOfSubscribers
 			s.RUnlock()
 
 			// There is a problem (probably related to Logrus?) preventing the benchmark to work without this line.
@@ -202,23 +202,23 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 				continue
 			}
 
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Topics: []string{"http://example.com/not-subscribed"},
 				Event:  Event{Data: "Hello World", ID: "a"},
 			})
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Topics: []string{"http://example.com/books/1"},
 				Event:  Event{Data: "Hello World", ID: "b"},
 			})
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Topics: []string{"http://example.com/reviews/22"},
 				Event:  Event{Data: "Great", ID: "c"},
 			})
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Topics: []string{"http://example.com/hub?topic=faulty{iri"},
 				Event:  Event{Data: "Faulty IRI", ID: "d"},
 			})
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Topics: []string{"string"},
 				Event:  Event{Data: "string", ID: "e"},
 			})
@@ -258,7 +258,7 @@ func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 
 	s, _ := hub.transport.(*LocalTransport)
-	assert.Equal(t, 0, len(s.pipes))
+	assert.Equal(t, 0, len(s.subscribers))
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
@@ -267,15 +267,16 @@ func TestUnsubscribe(t *testing.T) {
 		defer wg.Done()
 		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/books/1", nil).WithContext(ctx)
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
-		assert.Equal(t, 1, len(s.pipes))
-		for pipe := range s.pipes {
-			assert.True(t, pipe.IsClosed())
+		assert.Equal(t, 1, len(s.subscribers))
+		for s := range s.subscribers {
+			_, ok := <-s.disconnected
+			assert.False(t, ok)
 		}
 	}()
 
 	for {
 		s.RLock()
-		notEmpty := len(s.pipes) != 0
+		notEmpty := len(s.subscribers) != 0
 		s.RUnlock()
 		if notEmpty {
 			break
@@ -294,24 +295,24 @@ func TestSubscribeTarget(t *testing.T) {
 	go func() {
 		for {
 			s.RLock()
-			empty := len(s.pipes) == 0
+			empty := len(s.subscribers) == 0
 			s.RUnlock()
 
 			if empty {
 				continue
 			}
 
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Targets: map[string]struct{}{"baz": {}},
 				Topics:  []string{"http://example.com/reviews/21"},
 				Event:   Event{Data: "Foo", ID: "a"},
 			})
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Targets: map[string]struct{}{},
 				Topics:  []string{"http://example.com/reviews/22"},
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
 			})
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Targets: map[string]struct{}{"hello": {}, "bar": {}},
 				Topics:  []string{"http://example.com/reviews/23"},
 				Event:   Event{Data: "Great", ID: "c", Retry: 1},
@@ -390,7 +391,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		s, _ := hub.transport.(*LocalTransport)
 		for {
 			s.RLock()
-			ready := len(s.pipes) == 2
+			ready := len(s.subscribers) == 2
 			s.RUnlock()
 
 			log.Info("Waiting for subscriber...")
@@ -426,19 +427,19 @@ func TestSubscribeAllTargets(t *testing.T) {
 	go func() {
 		for {
 			s.RLock()
-			empty := len(s.pipes) == 0
+			empty := len(s.subscribers) == 0
 			s.RUnlock()
 
 			if empty {
 				continue
 			}
 
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Targets: map[string]struct{}{"foo": {}},
 				Topics:  []string{"http://example.com/reviews/21"},
 				Event:   Event{Data: "Foo", ID: "a"},
 			})
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Targets: map[string]struct{}{"bar": {}},
 				Topics:  []string{"http://example.com/reviews/22"},
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
@@ -465,20 +466,20 @@ func TestSubscribeAllTargets(t *testing.T) {
 
 func TestSendMissedEvents(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
 	hub := createDummyWithTransportAndConfig(transport, viper.New())
 
-	transport.Write(&Update{
+	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
 		Event: Event{
 			ID:   "a",
 			Data: "d1",
 		},
 	})
-	transport.Write(&Update{
+	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/b"},
 		Event: Event{
 			ID:   "b",
@@ -534,14 +535,14 @@ func TestSubscribeHeartbeat(t *testing.T) {
 	go func() {
 		for {
 			s.RLock()
-			empty := len(s.pipes) == 0
+			empty := len(s.subscribers) == 0
 			s.RUnlock()
 
 			if empty {
 				continue
 			}
 
-			hub.transport.Write(&Update{
+			hub.transport.Dispatch(&Update{
 				Topics: []string{"http://example.com/books/1"},
 				Event:  Event{Data: "Hello World", ID: "b"},
 			})

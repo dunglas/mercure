@@ -1,13 +1,11 @@
 package hub
 
 import (
-	"context"
 	"net/url"
 	"os"
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,21 +14,29 @@ import (
 
 func TestBoltTransportHistory(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
+	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		transport.Write(&Update{Event: Event{ID: strconv.Itoa(i)}})
+		transport.Dispatch(&Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: topics,
+		})
 	}
 
-	pipe, err := transport.CreatePipe("8")
+	s := newSubscriber("8")
+	s.Topics = topics
+	s.RawTopics = topics
+	go s.start()
+
+	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
-	require.NotNil(t, pipe)
 
 	var count int
 	for {
-		u := <-pipe.Read()
+		u := <-s.Receive()
 		// the reading loop must read the #9 and #10 messages
 		assert.Equal(t, strconv.Itoa(9+count), u.ID)
 		count++
@@ -42,51 +48,62 @@ func TestBoltTransportHistory(t *testing.T) {
 
 func TestBoltTransportHistoryAndLive(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
+	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		transport.Write(&Update{Event: Event{ID: strconv.Itoa(i)}})
+		transport.Dispatch(&Update{
+			Topics: topics,
+			Event:  Event{ID: strconv.Itoa(i)},
+		})
 	}
 
-	pipe, err := transport.CreatePipe("8")
+	s := newSubscriber("8")
+	s.Topics = topics
+	s.RawTopics = topics
+	go s.start()
+
+	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
-	require.NotNil(t, pipe)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		var count int
 		for {
-			u, ok := <-pipe.Read()
-			if !ok {
-				return
-			}
+			u := <-s.Receive()
 
 			// the reading loop must read the #9, #10 and #11 messages
 			assert.Equal(t, strconv.Itoa(9+count), u.ID)
 			count++
 			if count == 3 {
-				wg.Done()
 				return
 			}
 		}
 	}()
 
-	transport.Write(&Update{Event: Event{ID: "11"}})
+	transport.Dispatch(&Update{
+		Event:  Event{ID: "11"},
+		Topics: topics,
+	})
 
 	wg.Wait()
 }
 
 func TestBoltTransportPurgeHistory(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db?size=5&cleanup_frequency=1")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
 	for i := 0; i < 12; i++ {
-		transport.Write(&Update{Event: Event{ID: strconv.Itoa(i)}})
+		transport.Dispatch(&Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{"https://example.com/foo"},
+		})
 	}
 
 	transport.db.View(func(tx *bolt.Tx) error {
@@ -100,151 +117,147 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 
 func TestNewBoltTransport(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db?bucket_name=demo")
-	transport, err := NewBoltTransport(u, 5, time.Second)
+	transport, err := NewBoltTransport(u)
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
 
 	u, _ = url.Parse("bolt://")
-	_, err = NewBoltTransport(u, 5, time.Second)
+	_, err = NewBoltTransport(u)
 	assert.EqualError(t, err, `"bolt:": missing path: invalid transport DSN`)
 
 	u, _ = url.Parse("bolt:///test.db")
-	_, err = NewBoltTransport(u, 5, time.Second)
+	_, err = NewBoltTransport(u)
 
 	// The exact error message depends of the OS
 	assert.Contains(t, err.Error(), "open /test.db:")
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
-	_, err = NewBoltTransport(u, 5, time.Second)
+	_, err = NewBoltTransport(u)
 	assert.EqualError(t, err, `"bolt://test.db?cleanup_frequency=invalid": invalid "cleanup_frequency" parameter "invalid": invalid transport DSN`)
 
 	u, _ = url.Parse("bolt://test.db?size=invalid")
-	_, err = NewBoltTransport(u, 5, time.Second)
+	_, err = NewBoltTransport(u)
 	assert.EqualError(t, err, `"bolt://test.db?size=invalid": invalid "size" parameter "invalid": strconv.ParseUint: parsing "invalid": invalid syntax: invalid transport DSN`)
 }
 
-func TestBoltTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
+func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	defer transport.Close()
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	pipe, err := transport.CreatePipe("")
+	s := newSubscriber("")
+	go s.start()
+
+	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
-	require.NotNil(t, pipe)
 
 	var (
 		readUpdate *Update
 		ok         bool
-		m          sync.Mutex
 		wg         sync.WaitGroup
 	)
 	wg.Add(1)
 	go func() {
-		m.Lock()
-		defer m.Unlock()
-		go wg.Done()
-
 		select {
-		case readUpdate = <-pipe.Read():
-		case <-pipe.done:
+		case readUpdate = <-s.Receive():
+		case <-s.disconnected:
 			ok = true
 		}
+
+		wg.Done()
 	}()
 
-	wg.Wait()
-	pipe.Close()
+	s.Disconnect()
 
-	m.Lock()
-	defer m.Unlock()
+	wg.Wait()
 	assert.Nil(t, readUpdate)
 	assert.True(t, ok)
 }
 
-func TestBoltTransportWriteIsDispatched(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+func TestBoltTransportDispatch(t *testing.T) {
+	ur, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(ur)
 	defer transport.Close()
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	pipe, err := transport.CreatePipe("")
-	assert.Nil(t, err)
-	require.NotNil(t, pipe)
-	defer pipe.Close()
+	s := newSubscriber("")
+	s.Topics = []string{"https://example.com/foo"}
+	s.RawTopics = s.Topics
+	go s.start()
 
-	var (
-		readUpdate *Update
-		ok         bool
-		m          sync.Mutex
-		wg         sync.WaitGroup
-	)
-	wg.Add(1)
-	go func() {
-		m.Lock()
-		defer m.Unlock()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer cancel()
-		go wg.Done()
-		select {
-		case readUpdate, ok = <-pipe.Read():
-		case <-ctx.Done():
-		}
-	}()
-
-	wg.Wait()
-	err = transport.Write(&Update{})
+	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
 
-	m.Lock()
-	defer m.Unlock()
+	u := &Update{Topics: s.Topics}
 
-	assert.True(t, ok)
-	assert.NotNil(t, readUpdate)
+	err = transport.Dispatch(u)
+	assert.Nil(t, err)
+
+	readUpdate := <-s.Receive()
+	assert.Equal(t, u, readUpdate)
 }
 
 func TestBoltTransportClosed(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	require.NotNil(t, transport)
 	defer transport.Close()
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	pipe, _ := transport.CreatePipe("")
-	require.NotNil(t, pipe)
+	s := newSubscriber("")
+	s.Topics = []string{"https://example.com/foo"}
+	s.RawTopics = s.Topics
+	go s.start()
 
-	err := transport.Close()
+	err := transport.AddSubscriber(s)
+	require.Nil(t, err)
+
+	err = transport.Close()
 	assert.Nil(t, err)
 
-	_, err = transport.CreatePipe("")
+	err = transport.AddSubscriber(s)
 	assert.Equal(t, err, ErrClosedTransport)
 
-	err = transport.Write(&Update{})
+	err = transport.Dispatch(&Update{Topics: s.Topics})
 	assert.Equal(t, err, ErrClosedTransport)
 
-	_, ok := <-pipe.Read()
+	_, ok := <-s.disconnected
 	assert.False(t, ok)
 }
 
-func TestBoltCleanClosedPipes(t *testing.T) {
+func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, 5, time.Second)
+	transport, _ := NewBoltTransport(u)
 	require.NotNil(t, transport)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	pipe, _ := transport.CreatePipe("")
-	require.NotNil(t, pipe)
+	s1 := newSubscriber("")
+	go s1.start()
+	err := transport.AddSubscriber(s1)
+	require.Nil(t, err)
 
-	assert.Len(t, transport.pipes, 1)
+	s2 := newSubscriber("")
+	go s2.start()
+	err = transport.AddSubscriber(s2)
+	require.Nil(t, err)
 
-	pipe.Close()
-	assert.Len(t, transport.pipes, 1)
+	assert.Len(t, transport.subscribers, 2)
 
-	transport.Write(&Update{})
-	assert.Len(t, transport.pipes, 0)
+	s1.Disconnect()
+	assert.Len(t, transport.subscribers, 2)
+
+	transport.Dispatch(&Update{Topics: s1.Topics})
+	assert.Len(t, transport.subscribers, 1)
+
+	s2.Disconnect()
+	assert.Len(t, transport.subscribers, 1)
+
+	transport.Dispatch(&Update{})
+	assert.Len(t, transport.subscribers, 0)
 }

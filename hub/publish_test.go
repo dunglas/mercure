@@ -153,16 +153,22 @@ func TestPublishNotAuthorizedTarget(t *testing.T) {
 
 func TestPublishOK(t *testing.T) {
 	hub := createDummy()
+	defer hub.Stop()
 
-	pipe, err := hub.transport.CreatePipe("")
+	s := newSubscriber("")
+	s.Topics = []string{"http://example.com/books/1"}
+	s.RawTopics = s.Topics
+	s.Targets = map[string]struct{}{"foo": {}}
+	go s.start()
+
+	err := hub.transport.AddSubscriber(s)
 	assert.Nil(t, err)
-	require.NotNil(t, pipe)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		u, ok := <-pipe.Read()
+		u, ok := <-s.Receive()
 		assert.True(t, ok)
 		require.NotNil(t, u)
 		assert.Equal(t, "id", u.ID)
@@ -197,20 +203,25 @@ func TestPublishOK(t *testing.T) {
 }
 
 func TestPublishGenerateUUID(t *testing.T) {
-	hub := createDummy()
+	h := createDummy()
+	defer h.Stop()
 
-	pipe, err := hub.transport.CreatePipe("")
-	assert.Nil(t, err)
-	require.NotNil(t, pipe)
+	s := newSubscriber("")
+	s.Topics = []string{"http://example.com/books/1"}
+	s.RawTopics = s.Topics
+	s.Targets = map[string]struct{}{"foo": {}}
+	go s.start()
+
+	h.transport.AddSubscriber(s)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		u, ok := <-pipe.Read()
-		assert.True(t, ok)
+		u := <-s.Receive()
 		require.NotNil(t, u)
-		_, err = uuid.FromString(u.ID)
+
+		_, err := uuid.FromString(u.ID)
 		assert.Nil(t, err)
 	}()
 
@@ -220,11 +231,11 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	req := httptest.NewRequest("POST", defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, publisherRole, []string{})})
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{}))
+	//req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, publisherRole, []string{})})
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
 
 	w := httptest.NewRecorder()
-	hub.PublishHandler(w, req)
+	h.PublishHandler(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
@@ -233,7 +244,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 	body := string(bodyBytes)
 
-	_, err = uuid.FromString(body)
+	_, err := uuid.FromString(body)
 	assert.Nil(t, err)
 
 	wg.Wait()

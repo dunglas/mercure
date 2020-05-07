@@ -1,157 +1,151 @@
 package hub
 
 import (
-	"context"
 	"os"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestLocalTransportWriteIsNotDispatchedUntilListen(t *testing.T) {
-	transport := NewLocalTransport(5, time.Second)
+func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
+	transport := NewLocalTransport()
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	err := transport.Write(&Update{})
-	assert.Nil(t, err)
+	u := &Update{
+		Topics: []string{"http://example.com/books/1"},
+	}
+	err := transport.Dispatch(u)
+	require.Nil(t, err)
 
-	pipe, err := transport.CreatePipe("")
-	assert.Nil(t, err)
-	require.NotNil(t, pipe)
+	s := newSubscriber("")
+	s.Topics = u.Topics
+	s.RawTopics = u.Topics
+	s.Targets = map[string]struct{}{"foo": {}}
+	go s.start()
+
+	err = transport.AddSubscriber(s)
+	require.Nil(t, err)
 
 	var (
+		wg         sync.WaitGroup
 		readUpdate *Update
 		ok         bool
-		m          sync.Mutex
-		wg         sync.WaitGroup
 	)
 	wg.Add(1)
 	go func() {
-		m.Lock()
-		defer m.Unlock()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-		defer cancel()
-		go wg.Done()
-
+		defer wg.Done()
 		select {
-		case readUpdate, ok = <-pipe.Read():
-		case <-ctx.Done():
+		case readUpdate = <-s.Receive():
+		case <-s.disconnected:
+			ok = true
 		}
 	}()
 
-	wg.Wait()
-	pipe.Close()
+	s.Disconnect()
 
-	m.Lock()
-	defer m.Unlock()
+	wg.Wait()
 	assert.Nil(t, readUpdate)
-	assert.False(t, ok)
+	assert.True(t, ok)
 }
 
-func TestLocalTransportWriteIsDispatched(t *testing.T) {
-	transport := NewLocalTransport(5, time.Second)
+func TestLocalTransportDispatch(t *testing.T) {
+	transport := NewLocalTransport()
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	pipe, err := transport.CreatePipe("")
-	assert.Nil(t, err)
-	require.NotNil(t, pipe)
-	defer pipe.Close()
+	s := newSubscriber("")
+	s.Topics = []string{"http://example.com/foo"}
+	s.RawTopics = s.Topics
+	go s.start()
 
-	var (
-		readUpdate *Update
-		ok         bool
-		m          sync.Mutex
-		wg         sync.WaitGroup
-	)
-	wg.Add(1)
-	go func() {
-		m.Lock()
-		defer m.Unlock()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-		defer cancel()
-		go wg.Done()
-		select {
-		case readUpdate, ok = <-pipe.Read():
-		case <-ctx.Done():
-		}
-	}()
-
-	wg.Wait()
-	err = transport.Write(&Update{})
+	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
 
-	m.Lock()
-	defer m.Unlock()
+	u := &Update{Topics: s.Topics}
 
-	assert.True(t, ok)
-	assert.NotNil(t, readUpdate)
+	err = transport.Dispatch(u)
+	assert.Nil(t, err)
+
+	readUpdate := <-s.Receive()
+	assert.Equal(t, u, readUpdate)
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	transport := NewLocalTransport(5, time.Second)
+	transport := NewLocalTransport()
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	pipe, _ := transport.CreatePipe("")
-	require.NotNil(t, pipe)
+	s := newSubscriber("")
+	err := transport.AddSubscriber(s)
+	require.Nil(t, err)
 
-	err := transport.Close()
+	err = transport.Close()
 	assert.Nil(t, err)
 
-	_, err = transport.CreatePipe("")
+	err = transport.AddSubscriber(newSubscriber(""))
 	assert.Equal(t, err, ErrClosedTransport)
 
-	err = transport.Write(&Update{})
+	err = transport.Dispatch(&Update{})
 	assert.Equal(t, err, ErrClosedTransport)
 
-	_, ok := <-pipe.Read()
+	_, ok := <-s.disconnected
 	assert.False(t, ok)
 }
 
-func TestLiveCleanClosedPipes(t *testing.T) {
-	transport := NewLocalTransport(5, time.Second)
+func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
+	transport := NewLocalTransport()
 	defer transport.Close()
 
-	pipe, _ := transport.CreatePipe("")
-	require.NotNil(t, pipe)
+	s1 := newSubscriber("")
+	go s1.start()
 
-	assert.Len(t, transport.pipes, 1)
+	err := transport.AddSubscriber(s1)
+	require.Nil(t, err)
 
-	pipe.Close()
-	assert.Len(t, transport.pipes, 1)
+	s2 := newSubscriber("")
+	go s2.start()
 
-	transport.Write(&Update{})
-	assert.Len(t, transport.pipes, 0)
+	err = transport.AddSubscriber(s2)
+	require.Nil(t, err)
+
+	assert.Len(t, transport.subscribers, 2)
+
+	s1.Disconnect()
+	assert.Len(t, transport.subscribers, 2)
+
+	transport.Dispatch(&Update{Topics: s1.Topics})
+	assert.Len(t, transport.subscribers, 1)
+
+	s2.Disconnect()
+	assert.Len(t, transport.subscribers, 1)
+
+	transport.Dispatch(&Update{})
+	assert.Len(t, transport.subscribers, 0)
 }
 
-func TestLivePipeReadingBlocks(t *testing.T) {
-	transport := NewLocalTransport(5, time.Second)
+func TestLiveReading(t *testing.T) {
+	transport := NewLocalTransport()
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	pipe, err := transport.CreatePipe("")
-	assert.Nil(t, err)
-	require.NotNil(t, pipe)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		wg.Wait()
-		err := transport.Write(&Update{})
-		assert.Nil(t, err)
-	}()
+	s := newSubscriber("")
+	s.Topics = []string{"https://example.com"}
+	s.RawTopics = s.Topics
+	go s.start()
 
-	wg.Done()
-	u, ok := <-pipe.Read()
-	assert.True(t, ok)
-	assert.NotNil(t, u)
+	err := transport.AddSubscriber(s)
+	assert.Nil(t, err)
+
+	u := &Update{Topics: s.Topics}
+	err = transport.Dispatch(u)
+	assert.Nil(t, err)
+
+	receivedUpdate := <-s.Receive()
+	assert.Equal(t, u, receivedUpdate)
 }
 
 func TestNewTransport(t *testing.T) {

@@ -1,5 +1,7 @@
 package hub
 
+import "github.com/gofrs/uuid"
+
 // Update represents an update to send to subscribers.
 type Update struct {
 	// The target audience.
@@ -16,6 +18,19 @@ type Update struct {
 type serializedUpdate struct {
 	*Update
 	event string
+}
+
+func newUpdate(event Event, topics []string, targets map[string]struct{}) *Update {
+	u := &Update{
+		Event:   event,
+		Topics:  topics,
+		Targets: targets,
+	}
+	if u.ID == "" {
+		u.ID = uuid.Must(uuid.NewV4()).String()
+	}
+
+	return u
 }
 
 func newSerializedUpdate(u *Update) *serializedUpdate {
