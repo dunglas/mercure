@@ -20,11 +20,11 @@ type serializedUpdate struct {
 	event string
 }
 
-func newUpdate(targets map[string]struct{}, topics []string, event Event) *Update {
+func newUpdate(event Event, topics []string, targets map[string]struct{}) *Update {
 	u := &Update{
-		Targets: targets,
-		Topics:  topics,
 		Event:   event,
+		Topics:  topics,
+		Targets: targets,
 	}
 	if u.ID == "" {
 		u.ID = uuid.Must(uuid.NewV4()).String()

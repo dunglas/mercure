@@ -277,7 +277,6 @@ func TestServeAcme(t *testing.T) {
 	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go h.Serve()
-
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -299,7 +298,6 @@ func TestServeAcme(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, 403, resp.StatusCode)
-
 	h.server.Shutdown(context.Background())
 }
 
@@ -319,7 +317,6 @@ func TestMetricsAccess(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, 200, resp.StatusCode)
-
 	h.server.Shutdown(context.Background())
 }
 
@@ -362,9 +359,7 @@ type testServer struct {
 func newTestServer(t *testing.T, v *viper.Viper) testServer {
 	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
-	go func() {
-		h.Serve()
-	}()
+	go h.Serve()
 
 	// loop until the web server is ready
 	var resp *http.Response

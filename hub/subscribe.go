@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
 )
@@ -78,7 +77,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug bool) *Subscriber {
-	s := newSubscriber("")
+	s := newSubscriber(retrieveLastEventID(r))
 	s.Debug = debug
 	s.LogFields["remote_addr"] = r.RemoteAddr
 
@@ -105,11 +104,6 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 	s.AllTargets, s.Targets = authorizedTargets(claims, false)
 	s.RemoteAddr = r.RemoteAddr
 
-	s.LastEventID = retrieveLastEventID(r)
-	if s.LastEventID != "" {
-		s.history.In = make(chan *Update)
-		s.LogFields["last_event_id"] = s.LastEventID
-	}
 	go s.start()
 
 	if h.config.GetBool("subscriptions_include_ip") {
@@ -148,17 +142,18 @@ func (h *Hub) parseTopics(topics []string) (rawTopics []string, templateTopics [
 func (h *Hub) getURITemplate(topic string) *uritemplate.Template {
 	var tpl *uritemplate.Template
 	h.uriTemplates.Lock()
+	defer h.uriTemplates.Unlock()
 	if tplCache, ok := h.uriTemplates.m[topic]; ok {
 		tpl = tplCache.template
 		tplCache.counter++
-	} else {
-		if strings.Contains(topic, "{") { // If it's definitely not an URI template, skip to save some resources
-			tpl, _ = uritemplate.New(topic) // Returns nil in case of error, will be considered as a raw string
-		}
 
-		h.uriTemplates.m[topic] = &templateCache{1, tpl}
+		return tpl
 	}
-	h.uriTemplates.Unlock()
+	if strings.Contains(topic, "{") { // If it's definitely not an URI template, skip to save some resources
+		tpl, _ = uritemplate.New(topic) // Returns nil in case of error, will be considered as a raw string
+	}
+
+	h.uriTemplates.m[topic] = &templateCache{1, tpl}
 
 	return tpl
 }
@@ -261,16 +256,14 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 			Address: s.RemoteHost,
 		}
 
-		if s.Claims == nil {
+		if s.Claims != nil {
+			connection.mercureClaim = s.Claims.Mercure
+		}
+		if s.Claims == nil || connection.mercureClaim.Publish == nil {
 			connection.mercureClaim.Publish = []string{}
+		}
+		if s.Claims == nil || connection.mercureClaim.Subscribe == nil {
 			connection.mercureClaim.Subscribe = []string{}
-		} else {
-			if connection.mercureClaim.Publish == nil {
-				connection.mercureClaim.Publish = []string{}
-			}
-			if connection.mercureClaim.Subscribe == nil {
-				connection.mercureClaim.Subscribe = []string{}
-			}
 		}
 
 		json, err := json.MarshalIndent(connection, "", "  ")
@@ -278,11 +271,11 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 			panic(err)
 		}
 
-		u := &Update{
-			Topics:  []string{connection.ID},
-			Targets: map[string]struct{}{"https://mercure.rocks/targets/subscriptions": {}, "https://mercure.rocks/targets/subscriptions/" + s.EscapedTopics[k]: {}},
-			Event:   Event{Data: string(json), ID: uuid.Must(uuid.NewV4()).String()},
-		}
+		u := newUpdate(
+			Event{Data: string(json)},
+			[]string{connection.ID},
+			map[string]struct{}{"https://mercure.rocks/targets/subscriptions": {}, "https://mercure.rocks/targets/subscriptions/" + s.EscapedTopics[k]: {}},
+		)
 
 		h.transport.Dispatch(u)
 	}

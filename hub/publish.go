@@ -54,7 +54,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	u := newUpdate(targets, topics, Event{data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry})
+	u := newUpdate(Event{data, r.PostForm.Get("id"), r.PostForm.Get("type"), retry}, topics, targets)
 
 	// Broadcast the update
 	if err := h.transport.Dispatch(u); err != nil {

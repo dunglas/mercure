@@ -7,7 +7,7 @@ import (
 )
 
 type updateSource struct {
-	In     chan *Update
+	in     chan *Update
 	buffer []*Update
 }
 
@@ -37,18 +37,21 @@ type Subscriber struct {
 func newSubscriber(lastEventID string) *Subscriber {
 	id := uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
-		ID:           id,
-		LastEventID:  lastEventID,
-		LogFields:    log.Fields{"subscriber_id": id},
+		ID:          id,
+		LastEventID: lastEventID,
+		LogFields: log.Fields{
+			"subscriber_id": id,
+			"last_event_id": lastEventID,
+		},
 		history:      updateSource{},
-		live:         updateSource{In: make(chan *Update)},
+		live:         updateSource{in: make(chan *Update)},
 		out:          make(chan *Update),
 		disconnected: make(chan struct{}),
 		matchCache:   make(map[string]bool),
 	}
 
 	if lastEventID != "" {
-		s.history.In = make(chan *Update)
+		s.history.in = make(chan *Update)
 	}
 
 	return s
@@ -61,15 +64,15 @@ func (s *Subscriber) start() {
 		select {
 		case <-s.disconnected:
 			return
-		case u, ok := <-s.history.In:
+		case u, ok := <-s.history.in:
 			if !ok {
-				s.history.In = nil
+				s.history.in = nil
 				break
 			}
 			if s.CanDispatch(u) {
 				s.history.buffer = append(s.history.buffer, u)
 			}
-		case u := <-s.live.In:
+		case u := <-s.live.in:
 			if s.CanDispatch(u) {
 				s.live.buffer = append(s.live.buffer, u)
 			}
@@ -96,7 +99,7 @@ func (s *Subscriber) outChan() chan<- *Update {
 // The history is always entirely flushed before starting to dispatch live updates.
 func (s *Subscriber) nextUpdate() *Update {
 	// Always flush the history buffer first to preserve order
-	if s.history.In != nil || len(s.history.buffer) > 0 {
+	if s.history.in != nil || len(s.history.buffer) > 0 {
 		if len(s.history.buffer) > 0 {
 			return s.history.buffer[0]
 		}
@@ -114,9 +117,9 @@ func (s *Subscriber) nextUpdate() *Update {
 func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	var in chan<- *Update
 	if fromHistory {
-		in = s.history.In
+		in = s.history.in
 	} else {
-		in = s.live.In
+		in = s.live.in
 	}
 
 	select {
@@ -135,7 +138,7 @@ func (s *Subscriber) Receive() <-chan *Update {
 
 // HistoryDispatched must be called when all messages coming from the history have been dispatched.
 func (s *Subscriber) HistoryDispatched() {
-	close(s.history.In)
+	close(s.history.in)
 }
 
 // Disconnect disconnects the subscriber.
