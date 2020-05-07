@@ -18,7 +18,7 @@ paths:
     get:
       summary: Subscribe to updates
       externalDocs:
-        description: Sucbriptions specification
+        description: Subscriptions specification
         url: https://github.com/dunglas/mercure/blob/master/spec/mercure.md#subscriptions
       parameters:
         - name: topic
