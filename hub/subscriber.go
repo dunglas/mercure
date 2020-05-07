@@ -15,7 +15,6 @@ type updateSource struct {
 type Subscriber struct {
 	ID             string
 	Claims         *claims
-	AllTargets     bool
 	Targets        map[string]struct{}
 	Topics         []string
 	EscapedTopics  []string
@@ -24,14 +23,15 @@ type Subscriber struct {
 	LastEventID    string
 	RemoteAddr     string
 	RemoteHost     string
-	Debug          bool
 	LogFields      log.Fields
+	AllTargets     bool
+	Debug          bool
 
-	history      updateSource
-	live         updateSource
 	out          chan *Update
 	disconnected chan struct{}
 	matchCache   map[string]bool
+	history      updateSource
+	live         updateSource
 }
 
 func newSubscriber(lastEventID string) *Subscriber {
@@ -55,7 +55,7 @@ func newSubscriber(lastEventID string) *Subscriber {
 }
 
 // start stores incoming updates in an history and a live buffer and dispatch them.
-// updates coming from the history are always dispatched first
+// Updates coming from the history are always dispatched first.
 func (s *Subscriber) start() {
 	for {
 		select {
@@ -84,7 +84,7 @@ func (s *Subscriber) start() {
 	}
 }
 
-// outChan returns the out channel if buffers aren't empty, or nil to block
+// outChan returns the out channel if buffers aren't empty, or nil to block.
 func (s *Subscriber) outChan() chan<- *Update {
 	if len(s.live.buffer) > 0 || len(s.history.buffer) > 0 {
 		return s.out
@@ -93,7 +93,7 @@ func (s *Subscriber) outChan() chan<- *Update {
 }
 
 // nextUpdate returns the next update to dispatch.
-// the history is always entirely flushed before starting to dispatch live updates
+// The history is always entirely flushed before starting to dispatch live updates.
 func (s *Subscriber) nextUpdate() *Update {
 	// Always flush the history buffer first to preserve order
 	if s.history.In != nil || len(s.history.buffer) > 0 {
@@ -128,11 +128,12 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	return true
 }
 
-// Receive
+// Receive returns a chan when incoming updates are dispatched.
 func (s *Subscriber) Receive() <-chan *Update {
 	return s.out
 }
 
+// HistoryDispatched must be called when all messages coming from the history have been dispatched.
 func (s *Subscriber) HistoryDispatched() {
 	close(s.history.In)
 }
@@ -148,6 +149,7 @@ func (s *Subscriber) Disconnect() {
 	close(s.disconnected)
 }
 
+// Disconnected allows to check if the subscriber is disconnected.
 func (s *Subscriber) Disconnected() <-chan struct{} {
 	return s.disconnected
 }

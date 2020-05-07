@@ -57,12 +57,12 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-timerC:
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(w, r, s, ":\n") {
+			if !h.write(w, s, ":\n") {
 				return
 			}
 			timer.Reset(hearthbeatInterval)
 		case update := <-s.Receive():
-			if !h.write(w, r, s, newSerializedUpdate(update).event) {
+			if !h.write(w, s, newSerializedUpdate(update).event) {
 				return
 			}
 			if timer != nil {
@@ -197,7 +197,7 @@ func retrieveLastEventID(r *http.Request) string {
 // Write sends the given string to the client.
 // It returns false if the dispatch timed out.
 // The current write cannot be cancelled because of https://github.com/golang/go/issues/16100
-func (h *Hub) write(w io.Writer, r *http.Request, s *Subscriber, data string) bool {
+func (h *Hub) write(w io.Writer, s *Subscriber, data string) bool {
 	d := h.config.GetDuration("dispatch_timeout")
 	if d == time.Duration(0) {
 		fmt.Fprint(w, data)
