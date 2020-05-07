@@ -21,10 +21,10 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	err := transport.Dispatch(u)
 	require.Nil(t, err)
 
-	s := newSubscriber()
-	s.topics = u.Topics
-	s.rawTopics = u.Topics
-	s.targets = map[string]struct{}{"foo": {}}
+	s := newSubscriber("")
+	s.Topics = u.Topics
+	s.RawTopics = u.Topics
+	s.Targets = map[string]struct{}{"foo": {}}
 	go s.start()
 
 	err = transport.AddSubscriber(s)
@@ -39,7 +39,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		select {
-		case readUpdate = <-s.Out:
+		case readUpdate = <-s.Receive():
 		case <-s.disconnected:
 			ok = true
 		}
@@ -57,20 +57,20 @@ func TestLocalTransportDispatch(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber()
-	s.topics = []string{"http://example.com/foo"}
-	s.rawTopics = s.topics
+	s := newSubscriber("")
+	s.Topics = []string{"http://example.com/foo"}
+	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
 
-	u := &Update{Topics: s.topics}
+	u := &Update{Topics: s.Topics}
 
 	err = transport.Dispatch(u)
 	assert.Nil(t, err)
 
-	readUpdate := <-s.Out
+	readUpdate := <-s.Receive()
 	assert.Equal(t, u, readUpdate)
 }
 
@@ -79,14 +79,14 @@ func TestLocalTransportClosed(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber()
+	s := newSubscriber("")
 	err := transport.AddSubscriber(s)
 	require.Nil(t, err)
 
 	err = transport.Close()
 	assert.Nil(t, err)
 
-	err = transport.AddSubscriber(newSubscriber())
+	err = transport.AddSubscriber(newSubscriber(""))
 	assert.Equal(t, err, ErrClosedTransport)
 
 	err = transport.Dispatch(&Update{})
@@ -100,13 +100,13 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	transport := NewLocalTransport()
 	defer transport.Close()
 
-	s1 := newSubscriber()
+	s1 := newSubscriber("")
 	go s1.start()
 
 	err := transport.AddSubscriber(s1)
 	require.Nil(t, err)
 
-	s2 := newSubscriber()
+	s2 := newSubscriber("")
 	go s2.start()
 
 	err = transport.AddSubscriber(s2)
@@ -117,7 +117,7 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	s1.Disconnect()
 	assert.Len(t, transport.subscribers, 2)
 
-	transport.Dispatch(&Update{Topics: s1.topics})
+	transport.Dispatch(&Update{Topics: s1.Topics})
 	assert.Len(t, transport.subscribers, 1)
 
 	s2.Disconnect()
@@ -132,19 +132,19 @@ func TestLiveReading(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber()
-	s.topics = []string{"https://example.com"}
-	s.rawTopics = s.topics
+	s := newSubscriber("")
+	s.Topics = []string{"https://example.com"}
+	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
 
-	u := &Update{Topics: s.topics}
+	u := &Update{Topics: s.Topics}
 	err = transport.Dispatch(u)
 	assert.Nil(t, err)
 
-	receivedUpdate := <-s.Out
+	receivedUpdate := <-s.Receive()
 	assert.Equal(t, u, receivedUpdate)
 }
 

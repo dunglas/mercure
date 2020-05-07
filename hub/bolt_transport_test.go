@@ -26,11 +26,9 @@ func TestBoltTransportHistory(t *testing.T) {
 		})
 	}
 
-	s := newSubscriber()
-	s.topics = topics
-	s.rawTopics = topics
-	s.lastEventID = "8"
-	s.History.In = make(chan *Update)
+	s := newSubscriber("8")
+	s.Topics = topics
+	s.RawTopics = topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -38,7 +36,7 @@ func TestBoltTransportHistory(t *testing.T) {
 
 	var count int
 	for {
-		u := <-s.Out
+		u := <-s.Receive()
 		// the reading loop must read the #9 and #10 messages
 		assert.Equal(t, strconv.Itoa(9+count), u.ID)
 		count++
@@ -62,11 +60,9 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		})
 	}
 
-	s := newSubscriber()
-	s.topics = topics
-	s.rawTopics = topics
-	s.lastEventID = "8"
-	s.History.In = make(chan *Update)
+	s := newSubscriber("8")
+	s.Topics = topics
+	s.RawTopics = topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -78,7 +74,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		defer wg.Done()
 		var count int
 		for {
-			u := <-s.Out
+			u := <-s.Receive()
 
 			// the reading loop must read the #9, #10 and #11 messages
 			assert.Equal(t, strconv.Itoa(9+count), u.ID)
@@ -152,7 +148,7 @@ func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber()
+	s := newSubscriber("")
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -166,7 +162,7 @@ func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		select {
-		case readUpdate = <-s.Out:
+		case readUpdate = <-s.Receive():
 		case <-s.disconnected:
 			ok = true
 		}
@@ -188,20 +184,20 @@ func TestBoltTransportDispatch(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber()
-	s.topics = []string{"https://example.com/foo"}
-	s.rawTopics = s.topics
+	s := newSubscriber("")
+	s.Topics = []string{"https://example.com/foo"}
+	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
 	assert.Nil(t, err)
 
-	u := &Update{Topics: s.topics}
+	u := &Update{Topics: s.Topics}
 
 	err = transport.Dispatch(u)
 	assert.Nil(t, err)
 
-	readUpdate := <-s.Out
+	readUpdate := <-s.Receive()
 	assert.Equal(t, u, readUpdate)
 }
 
@@ -213,9 +209,9 @@ func TestBoltTransportClosed(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber()
-	s.topics = []string{"https://example.com/foo"}
-	s.rawTopics = s.topics
+	s := newSubscriber("")
+	s.Topics = []string{"https://example.com/foo"}
+	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -227,7 +223,7 @@ func TestBoltTransportClosed(t *testing.T) {
 	err = transport.AddSubscriber(s)
 	assert.Equal(t, err, ErrClosedTransport)
 
-	err = transport.Dispatch(&Update{Topics: s.topics})
+	err = transport.Dispatch(&Update{Topics: s.Topics})
 	assert.Equal(t, err, ErrClosedTransport)
 
 	_, ok := <-s.disconnected
@@ -241,12 +237,12 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	s1 := newSubscriber()
+	s1 := newSubscriber("")
 	go s1.start()
 	err := transport.AddSubscriber(s1)
 	require.Nil(t, err)
 
-	s2 := newSubscriber()
+	s2 := newSubscriber("")
 	go s2.start()
 	err = transport.AddSubscriber(s2)
 	require.Nil(t, err)
@@ -256,7 +252,7 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	s1.Disconnect()
 	assert.Len(t, transport.subscribers, 2)
 
-	transport.Dispatch(&Update{Topics: s1.topics})
+	transport.Dispatch(&Update{Topics: s1.Topics})
 	assert.Len(t, transport.subscribers, 1)
 
 	s2.Disconnect()

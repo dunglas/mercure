@@ -149,21 +149,21 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 
 	t.Lock()
 	t.subscribers[s] = struct{}{}
-	if s.History.In == nil {
+	if s.LastEventID == "" {
 		t.Unlock()
 		return nil
 	}
 	t.Unlock()
 
 	toSeq := t.lastSeq.Load()
-	t.dispatchFromHistory(s.lastEventID, toSeq, s)
+	t.dispatchHistory(s, toSeq)
 
 	return nil
 }
 
-func (t *BoltTransport) dispatchFromHistory(lastEventID string, toSeq uint64, s *Subscriber) {
+func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 	t.db.View(func(tx *bolt.Tx) error {
-		defer close(s.History.In)
+		defer s.HistoryDispatched()
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
 			return nil // No data
@@ -173,7 +173,7 @@ func (t *BoltTransport) dispatchFromHistory(lastEventID string, toSeq uint64, s 
 		afterFromID := false
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if !afterFromID {
-				if string(k[8:]) == lastEventID {
+				if string(k[8:]) == s.LastEventID {
 					afterFromID = true
 				}
 

@@ -21,8 +21,8 @@ func addUpdateFields(f log.Fields, u *Update, debug bool) log.Fields {
 }
 
 func createFields(u *Update, s *Subscriber) log.Fields {
-	f := addUpdateFields(log.Fields{}, u, s.debug)
-	for k, v := range s.logFields {
+	f := addUpdateFields(log.Fields{}, u, s.Debug)
+	for k, v := range s.LogFields {
 		f[k] = v
 	}
 

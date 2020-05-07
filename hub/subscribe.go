@@ -49,7 +49,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		select {
-		case <-s.disconnected:
+		case <-s.Disconnected():
 			// Server closes the connection
 			return
 		case <-r.Context().Done():
@@ -61,7 +61,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			timer.Reset(hearthbeatInterval)
-		case update := <-s.Out:
+		case update := <-s.Receive():
 			if !h.write(w, r, s, newSerializedUpdate(update).event) {
 				return
 			}
@@ -78,52 +78,52 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug bool) *Subscriber {
-	s := newSubscriber()
-	s.debug = debug
-	s.logFields["remote_addr"] = r.RemoteAddr
+	s := newSubscriber("")
+	s.Debug = debug
+	s.LogFields["remote_addr"] = r.RemoteAddr
 
 	claims, err := authorize(r, h.getJWTKey(subscriberRole), h.getJWTAlgorithm(subscriberRole), nil)
 	if claims != nil {
-		s.claims = claims
-		s.logFields["subscriber_targets"] = claims.Mercure.Subscribe
+		s.Claims = claims
+		s.LogFields["subscriber_targets"] = claims.Mercure.Subscribe
 	}
 	if err != nil || (claims == nil && !h.config.GetBool("allow_anonymous")) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		log.WithFields(s.logFields).Info(err)
+		log.WithFields(s.LogFields).Info(err)
 		return nil
 	}
 
-	s.topics = r.URL.Query()["topic"]
-	if len(s.topics) == 0 {
+	s.Topics = r.URL.Query()["topic"]
+	if len(s.Topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
 		return nil
 	}
-	s.logFields["subscriber_topics"] = s.topics
+	s.LogFields["subscriber_topics"] = s.Topics
 
-	s.rawTopics, s.templateTopics = h.parseTopics(s.topics)
-	s.escapedTopics = escapeTopics(s.topics)
-	s.allTargets, s.targets = authorizedTargets(claims, false)
-	s.remoteAddr = r.RemoteAddr
+	s.RawTopics, s.TemplateTopics = h.parseTopics(s.Topics)
+	s.EscapedTopics = escapeTopics(s.Topics)
+	s.AllTargets, s.Targets = authorizedTargets(claims, false)
+	s.RemoteAddr = r.RemoteAddr
 
-	s.lastEventID = retrieveLastEventID(r)
-	if s.lastEventID != "" {
-		s.History.In = make(chan *Update)
-		s.logFields["last_event_id"] = s.lastEventID
+	s.LastEventID = retrieveLastEventID(r)
+	if s.LastEventID != "" {
+		s.history.In = make(chan *Update)
+		s.LogFields["last_event_id"] = s.LastEventID
 	}
 	go s.start()
 
 	if h.config.GetBool("subscriptions_include_ip") {
-		s.remoteHost, _, _ = net.SplitHostPort(r.RemoteAddr)
+		s.RemoteHost, _, _ = net.SplitHostPort(r.RemoteAddr)
 	}
 	h.dispatchSubscriptionUpdate(s, true)
 	if h.transport.AddSubscriber(s) != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(s, false)
-		log.WithFields(s.logFields).Error(err)
+		log.WithFields(s.LogFields).Error(err)
 		return nil
 	}
 	sendHeaders(w)
-	log.WithFields(s.logFields).Info("New subscriber")
+	log.WithFields(s.LogFields).Info("New subscriber")
 
 	h.metrics.NewSubscriber(s)
 
@@ -216,7 +216,7 @@ func (h *Hub) write(w io.Writer, r *http.Request, s *Subscriber, data string) bo
 	case <-done:
 		return true
 	case <-time.After(d):
-		log.WithFields(s.logFields).Warn("Dispatch timeout reached")
+		log.WithFields(s.LogFields).Warn("Dispatch timeout reached")
 		return false
 	}
 }
@@ -225,13 +225,13 @@ func (h *Hub) shutdown(s *Subscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
 	h.dispatchSubscriptionUpdate(s, false)
-	log.WithFields(s.logFields).Info("Subscriber disconnected")
+	log.WithFields(s.LogFields).Info("Subscriber disconnected")
 	h.metrics.SubscriberDisconnect(s)
 
 	// Remove unused uritemplate.Template instances from memory.
-	keys := make([]string, 0, len(s.rawTopics)+len(s.templateTopics))
-	copy(s.rawTopics, keys)
-	for _, uriTemplate := range s.templateTopics {
+	keys := make([]string, 0, len(s.RawTopics)+len(s.TemplateTopics))
+	copy(s.RawTopics, keys)
+	for _, uriTemplate := range s.TemplateTopics {
 		keys = append(keys, uriTemplate.Raw())
 	}
 
@@ -252,16 +252,16 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 		return
 	}
 
-	for k, topic := range s.topics {
+	for k, topic := range s.Topics {
 		connection := &subscription{
-			ID:      "https://mercure.rocks/subscriptions/" + s.escapedTopics[k] + "/" + s.ID,
+			ID:      "https://mercure.rocks/subscriptions/" + s.EscapedTopics[k] + "/" + s.ID,
 			Type:    "https://mercure.rocks/Subscription",
 			Topic:   topic,
 			Active:  active,
-			Address: s.remoteHost,
+			Address: s.RemoteHost,
 		}
 
-		if s.claims == nil {
+		if s.Claims == nil {
 			connection.mercureClaim.Publish = []string{}
 			connection.mercureClaim.Subscribe = []string{}
 		} else {
@@ -280,7 +280,7 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 
 		u := &Update{
 			Topics:  []string{connection.ID},
-			Targets: map[string]struct{}{"https://mercure.rocks/targets/subscriptions": {}, "https://mercure.rocks/targets/subscriptions/" + s.escapedTopics[k]: {}},
+			Targets: map[string]struct{}{"https://mercure.rocks/targets/subscriptions": {}, "https://mercure.rocks/targets/subscriptions/" + s.EscapedTopics[k]: {}},
 			Event:   Event{Data: string(json), ID: uuid.Must(uuid.NewV4()).String()},
 		}
 

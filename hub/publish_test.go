@@ -155,10 +155,10 @@ func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 	defer hub.Stop()
 
-	s := newSubscriber()
-	s.topics = []string{"http://example.com/books/1"}
-	s.rawTopics = s.topics
-	s.targets = map[string]struct{}{"foo": {}}
+	s := newSubscriber("")
+	s.Topics = []string{"http://example.com/books/1"}
+	s.RawTopics = s.Topics
+	s.Targets = map[string]struct{}{"foo": {}}
 	go s.start()
 
 	err := hub.transport.AddSubscriber(s)
@@ -168,7 +168,7 @@ func TestPublishOK(t *testing.T) {
 	wg.Add(1)
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
-		u, ok := <-s.Out
+		u, ok := <-s.Receive()
 		assert.True(t, ok)
 		require.NotNil(t, u)
 		assert.Equal(t, "id", u.ID)
@@ -206,10 +206,10 @@ func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 	defer h.Stop()
 
-	s := newSubscriber()
-	s.topics = []string{"http://example.com/books/1"}
-	s.rawTopics = s.topics
-	s.targets = map[string]struct{}{"foo": {}}
+	s := newSubscriber("")
+	s.Topics = []string{"http://example.com/books/1"}
+	s.RawTopics = s.Topics
+	s.Targets = map[string]struct{}{"foo": {}}
 	go s.start()
 
 	h.transport.AddSubscriber(s)
@@ -218,7 +218,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		u := <-s.Out
+		u := <-s.Receive()
 		require.NotNil(t, u)
 
 		_, err := uuid.FromString(u.ID)
