@@ -107,9 +107,12 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
+
+	csp := "default-src 'self'"
 	if debug || h.config.GetBool("demo") {
 		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
+		csp += " mercure.rocks cdn.jsdelivr.net"
 	} else {
 		r.HandleFunc("/", welcomeHandler).Methods("GET", "HEAD")
 	}
@@ -120,7 +123,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
 		BrowserXssFilter:      true,
-		ContentSecurityPolicy: "default-src 'self'",
+		ContentSecurityPolicy: csp,
 	})
 
 	var corsHandler http.Handler
