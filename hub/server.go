@@ -166,7 +166,15 @@ func (h *Hub) healthCheck(acmeHosts []string) http.Handler {
 	}).Methods("GET", "HEAD")
 
 	if h.config.GetBool("metrics") {
-		h.metrics.Register(mainRouter)
+		r := mainRouter.PathPrefix("/").Subrouter()
+
+		expectedLogin := h.config.GetString("metrics_login")
+		expectedPassword := h.config.GetString("metrics_password")
+		if expectedLogin != "" && expectedPassword != "" {
+			r.Use(basicAuthMiddleware(expectedLogin, expectedPassword))
+		}
+
+		h.metrics.Register(r)
 	}
 
 	handler := h.chainHandlers(acmeHosts)
@@ -179,4 +187,19 @@ func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
 <title>Mercure Hub</title>
 <h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
+}
+
+func basicAuthMiddleware(expectedLogin, expectedPassword string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			login, password, ok := r.BasicAuth()
+			if !ok || login != expectedLogin || password != expectedPassword {
+				w.Header().Add("WWW-Authenticate", `Basic realm="Mercure"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

@@ -30,6 +30,8 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("dispatch_subscriptions", false)
 	v.SetDefault("subscriptions_include_ip", false)
 	v.SetDefault("metrics", false)
+	v.SetDefault("metrics_login", "")
+	v.SetDefault("metrics_password", "")
 }
 
 // ValidateConfig validates a Viper instance.
@@ -42,6 +44,14 @@ func ValidateConfig(v *viper.Viper) error {
 	}
 	if v.GetString("key_file") != "" && v.GetString("cert_file") == "" {
 		return fmt.Errorf(`%w: if the "key_file" configuration parameter is defined, "cert_file" must be defined too`, ErrInvalidConfig)
+	}
+	if v.GetBool("metrics") {
+		if v.GetString("metrics_login") != "" && v.GetString("metrics_password") == "" {
+			return fmt.Errorf(`%w: if the "metrics_login" configuration parameter is defined, "metrics_password" must be defined too`, ErrInvalidConfig)
+		}
+		if v.GetString("metrics_password") != "" && v.GetString("metrics_login") == "" {
+			return fmt.Errorf(`%w: if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`, ErrInvalidConfig)
+		}
 	}
 	return nil
 }
@@ -75,6 +85,8 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.BoolP("dispatch-subscriptions", "s", false, "dispatch updates when subscriptions are created or terminated")
 	fs.BoolP("subscriptions-include-ip", "I", false, "include the IP address of the subscriber in the subscription update")
 	fs.BoolP("metrics", "m", false, "enable metrics")
+	fs.StringP("metrics_login", "", "", "the user login allowed to access metrics")
+	fs.StringP("metrics_password", "", "", "the user password allowed to access metrics")
 
 	fs.VisitAll(func(f *pflag.Flag) {
 		v.BindPFlag(strings.ReplaceAll(f.Name, "-", "_"), fs.Lookup(f.Name))
