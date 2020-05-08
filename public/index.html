@@ -3,17 +3,20 @@
 
 <head>
     <title>Mercure</title>
-    <link rel="stylesheet" href="bulma.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8/css/bulma.min.css">
     <link rel="stylesheet" href="app.css">
 </head>
 
 <body>
-    <div class="hero is-dark">
-        <div class="hero-body">
+    <div class="hero is-light">
+        <div class="hero-body has-text-centered">
             <div class="container">
-                <h1 class="title is-2">
-                    <a href="https://mercure.rocks">Mercure</a> Debugging Tools
-                </h1>
+                <div class="column is-three-fifths is-offset-one-fifth">
+                    <h1 class="title">
+                        <a href="https://mercure.rocks"><img src="https://mercure.rocks/static/logo.svg" alt="Mercure"></a>
+                    </h1>
+                    <h2 class="subtitle is-2">Debugging Tools</h2>
+                </div>
             </div>
         </div>
     </div>
@@ -128,11 +131,11 @@
                             </div>
                         </div>
 
-                        <input class="button is-primary" type="submit" value="Subscribe" name="subscribe">
-                        <button class="button is-warning" name="unsubscribe" disabled>Unsubscribe</button>
+                        <button class="button is-primary" name="subscribe">Subscribe</button>
+                        <button type="button" class="button is-warning" name="unsubscribe" disabled>Unsubscribe</button>
                     </form>
 
-                    <main id="updates">No updates pushed yet.</main>
+                    <main id="updates">Not subscribed.</main>
 
                     <template id="update">
                         <li>
