@@ -74,7 +74,7 @@ func TestMetricsPasswordIsRequiredIfLoginFilled(t *testing.T) {
 	v.Set("metrics_login", "foo")
 
 	err := ValidateConfig(v)
-	assert.EqualError(t, err, `if the "metrics_login" configuration parameter is defined, "metrics_password" must be defined too`)
+	assert.EqualError(t, err, `invalid config: if the "metrics_login" configuration parameter is defined, "metrics_password" must be defined too`)
 }
 
 func TestMetricsLoginIsRequiredIfPasswordFilled(t *testing.T) {
@@ -84,5 +84,5 @@ func TestMetricsLoginIsRequiredIfPasswordFilled(t *testing.T) {
 	v.Set("metrics_password", "foo")
 
 	err := ValidateConfig(v)
-	assert.EqualError(t, err, `if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`)
+	assert.EqualError(t, err, `invalid config: if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`)
 }

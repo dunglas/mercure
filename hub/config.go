@@ -47,10 +47,10 @@ func ValidateConfig(v *viper.Viper) error {
 	}
 	if v.GetBool("metrics") {
 		if v.GetString("metrics_login") != "" && v.GetString("metrics_password") == "" {
-			return fmt.Errorf(`if the "metrics_login" configuration parameter is defined, "metrics_password" must be defined too`)
+			return fmt.Errorf(`%w: if the "metrics_login" configuration parameter is defined, "metrics_password" must be defined too`, ErrInvalidConfig)
 		}
 		if v.GetString("metrics_password") != "" && v.GetString("metrics_login") == "" {
-			return fmt.Errorf(`if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`)
+			return fmt.Errorf(`%w: if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`, ErrInvalidConfig)
 		}
 	}
 	return nil
