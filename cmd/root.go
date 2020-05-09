@@ -44,6 +44,6 @@ func init() { //nolint:gochecknoinits
 	appVersion := common.AppVersion
 	rootCmd.Version = appVersion.Shortline()
 
-	versionTemplate := fmt.Sprintf("mercure version %s\n%s\n", rootCmd.Version, appVersion.ChangelogURL())
+	versionTemplate := fmt.Sprintf("Mercure.rocks Hub version %s\n%s\n", rootCmd.Version, appVersion.ChangelogURL())
 	rootCmd.SetVersionTemplate(versionTemplate)
 }
