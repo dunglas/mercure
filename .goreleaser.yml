@@ -4,7 +4,7 @@ before:
 builds:
 - <<: &build_defaults
     ldflags:
-      - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .Commit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
+      - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .ShortCommit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
   env:
     - CGO_ENABLED=0
   goos:
