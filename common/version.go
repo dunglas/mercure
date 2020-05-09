@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"regexp"
 	"runtime/debug"
 	"strings"
 )
@@ -36,8 +35,8 @@ func (v *AppVersionInfo) Shortline() string {
 
 func (v *AppVersionInfo) ChangelogURL() string {
 	path := "https://github.com/dunglas/mercure"
-	r := regexp.MustCompile(`^v?\d+\.\d+\.\d+(-[\w.]+)?$`)
-	if !r.MatchString(v.Version) {
+
+	if v.Version == "dev" {
 		return fmt.Sprintf("%s/releases/latest", path)
 	}
 
