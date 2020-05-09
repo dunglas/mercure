@@ -10,6 +10,7 @@ import (
 type AppVersionInfo struct {
 	Version   string
 	BuildDate string
+	Commit    string
 }
 
 var AppVersion AppVersionInfo //nolint:gochecknoglobals
@@ -17,13 +18,20 @@ var AppVersion AppVersionInfo //nolint:gochecknoglobals
 // these variables are dynamically set at build.
 var version = "dev"
 var buildDate = "" //nolint:gochecknoglobals
+var commit = ""    //nolint:gochecknoglobals
 
 func (v *AppVersionInfo) Shortline() string {
-	if v.BuildDate == "" {
-		return v.Version
+	shortline := v.Version
+
+	if v.Commit != "" {
+		shortline += fmt.Sprintf(", commit %s", v.Commit)
 	}
 
-	return fmt.Sprintf("%s (%s)", v.Version, v.BuildDate)
+	if v.BuildDate != "" {
+		shortline += fmt.Sprintf(", built at %s", v.BuildDate)
+	}
+
+	return shortline
 }
 
 func (v *AppVersionInfo) ChangelogURL() string {
@@ -49,5 +57,6 @@ func init() { //nolint:gochecknoinits
 	AppVersion = AppVersionInfo{
 		Version:   version,
 		BuildDate: buildDate,
+		Commit:    commit,
 	}
 }
