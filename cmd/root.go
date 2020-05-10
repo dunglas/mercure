@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 
+	"github.com/dunglas/mercure/common"
 	"github.com/dunglas/mercure/hub"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -37,4 +40,10 @@ func init() { //nolint:gochecknoinits
 	})
 	fs := rootCmd.Flags()
 	hub.SetFlags(fs, v)
+
+	appVersion := common.AppVersion
+	rootCmd.Version = appVersion.Shortline()
+
+	versionTemplate := fmt.Sprintf("Mercure.rocks Hub version %s\n%s\n", rootCmd.Version, appVersion.ChangelogURL())
+	rootCmd.SetVersionTemplate(versionTemplate)
 }
