@@ -28,7 +28,7 @@ organization = "Les-Tilleuls.coop"
 
 Mercure is a protocol enabling the pushing of data updates to web browsers and other HTTP clients in
 a fast, reliable and battery-efficient way. It is especially useful for publishing real-time updates
-of resources served through web APIs to reactive web and mobile apps.
+of resources served through web APIs to web and mobile apps.
 
 {mainmatter}
 
@@ -77,16 +77,16 @@ The publisher **MAY** provide the following target attributes in the Link Header
     at the time of the generation of this resource. If provided, it **MUST** be passed to the
     hub through a query parameter called `Last-Event-ID` and will be used to ensure that possible
     updates having been made during between the resource generation time and the connection to the
-    hub are not lost. See section #Re-Connection-and-State-Reconciliation. If this attribute is
-    provided, the publisher **MUST** always set the `id` parameter when sending updates to the hub.
+    hub are not lost. See (#reconciliation). If this attribute is provided, the publisher **MUST**
+    always set the `id` parameter when sending updates to the hub.
 
  *  `content-type`: the content type of the updates that will pushed by the hub. If omitted, the
     subscriber **MUST** assume that the content type will be the same as that of the original
     resource. Setting the `content-type` attribute is especially useful to hint that partial updates
     will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 
- *  `key-set=<JWKS>`: the key(s) to decrypt updates encoded in the JWKS (JSON Web Key Set) format
-    (see the Encryption section).
+ *  `key-set=<JWKS>`: the key(s) to decrypt updates encoded in the JWKS (JSON Web Key Set) format.
+    See (#encryption).
 
 All these attributes are optional.
 
@@ -101,26 +101,23 @@ Minimal example:
 GET /books/foo.jsonld HTTP/1.1
 Host: example.com
 
-HTTP/1.1 200 Ok
+HTTP/1.1 200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
 {"@id": "/books/foo.jsonld", "foo": "bar"}
 ~~~
 
-Links embedded in HTML or XML documents (as defined in the WebSub recommendation) **MAY** also be
-supported by subscribers.
-
-Note: the discovery mechanism described in this section [is strongly inspired from the one specified
-in the WebSub recommendation](https://www.w3.org/TR/websub/#discovery).
+Links embedded in HTML or XML documents as defined in the WebSub recommendation
+[@W3C.REC-websub-20180123] **MAY** also be supported by subscribers.
 
 # Subscription
 
 The subscriber subscribes to a URL exposed by a hub to receive updates from one or many topics.
-To subscribe to updates, the client opens an HTTPS connection following the [Server-Sent Events
-specification](https://html.spec.whatwg.org/multipage/server-sent-events.html) to the hub's
-subscription URL advertised by the publisher. The `GET` HTTP method must be used. The connection
-**SHOULD** use HTTP/2 to leverage mutliplexing and other advanced features of this protocol.
+To subscribe to updates, the client opens an HTTPS connection following the Server-Sent Events
+specification [@!W3C.REC-eventsource-20150203] to the hub's subscription URL advertised by the
+publisher. The `GET` HTTP method must be used. The connection **SHOULD** use HTTP/2 to leverage
+mutliplexing and other advanced features of this protocol.
 
 The subscriber specifies the list of topics to get updates from by using one or several query
 parameters named `topic`. The value of these query parameters **MUST** be URI templates [@!RFC6570].
@@ -130,21 +127,19 @@ Note: a URL is also a valid URI template.
 The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub
 **MAY** apply an arbitrary limit.
 
-The [EventSource JavaScript
+[The EventSource JavaScript
 interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface)
-**MAY** be used to establish the connection. Any other
-appropriate mechanism including, but not limited to, [readable
-streams](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API/Using_readable_streams) and
-[XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest)
-(used by popular polyfills) **MAY** also be used.
+**MAY** be used to establish the connection. Any other appropriate mechanism
+including, but not limited to, readable streams [@W3C.NOTE-streams-api-20161129] and
+[XMLHttpRequest](https://xhr.spec.whatwg.org/) (used by popular polyfills) **MAY** also be used.
 
-The hub sends updates concerning all subscribed resources matching the provided URI templates
-and the provided targets (see section #Authorization). If no targets are specified, the update is
-dispatched to all subscribers. The hub **MUST** send these updates as [text/event-stream compliant
-events](https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model).
+The hub sends updates concerning all subscribed resources matching the provided URI templates and
+the provided targets. See (#authorization). If no targets are specified, the update is dispatched
+to all subscribers. The hub **MUST** send these updates as `text/event-stream` compliant events
+[!@W3C.REC-eventsource-20150203].
 
 The `data` property **MUST** contain the new version of the topic. It can be the full resource, or a
-partial update by using formats such as JSON Patch `@RFC6902` or JSON Merge Patch `@RFC7386`.
+partial update by using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 
 All other properties defined in the Server-Sent Events specification **MAY** be used and **SHOULD**
 be supported by hubs.
@@ -180,14 +175,14 @@ The hub **MAY** require that subscribers are authorized to receive updates.
 
 # Publication
 
-The publisher send updates by issuing `POST` HTTPS requests on the hub URL. When it receives an
+The publisher sends updates by issuing `POST` HTTPS requests on the hub URL. When it receives an
 update, the hub dispatches it to subscribers using the established server-sent events connections.
 
-An application CAN send events directly to subscribers without using an external hub server, if it
-is able to do so. In this case, it **MAY NOT** implement the endpoint to publish updates.
+An application **CAN** send events directly to subscribers without using an external hub server, if
+it is able to do so. In this case, it **MAY NOT** implement the endpoint to publish updates.
 
-The request **MUST** be encoded using the `application/x-www-form-urlencoded` format and contain the
-following data:
+The request **MUST** be encoded using the `application/x-www-form-urlencoded` format and contains
+the following data:
 
  *  `topic`: IRIs of the updated topic. If this key is present several times, the first occurrence
     is considered to be the canonical URL of the topic, and other ones are considered to be
@@ -197,7 +192,7 @@ following data:
  *  `data`: the content of the new version of this topic.
 
  *  `target` (optional): target audience of this update. This key can be present several times. See
-    section #Authorization for further information.
+    (#authorization) for further information.
 
  *  `id` (optional): the topic's revision identifier: it will be used as the SSE's `id` property. If
     omitted, the hub **MUST** generate a valid globally unique id. It **MAY** be a UUID [@RFC4122].
@@ -209,7 +204,7 @@ following data:
 
 In the event of success, the HTTP response's body **MUST** be the `id` associated to this update
 generated by the hub and a success HTTP status code **MUST** be returned. The publisher **MUST** be
-authorized to publish updates. See section #Authorization.
+authorized to publish updates. See (#authorization).
 
 # Authorization
 
@@ -229,21 +224,22 @@ HTTP header. This `Authorization` header **MUST** contain the string `Bearer` fo
 The hub will check that the JWS conforms to the rules (defined later) ensuring that the client is
 authorized to publish or subscribe to updates.
 
-By the `EventSource` specification, web browsers can not set custom HTTP headers for such
-connections, and they can only be estabilished using the `GET` HTTP method. However, cookies
-are supported and can be included even in cross-domain requests if [the CORS credentials are
+By the `EventSource` specification [@W3C.REC-eventsource-20150203], web browsers
+can not set custom HTTP headers for such connections, and they can only be
+established using the `GET` HTTP method. However, cookies are supported and
+can be included even in cross-domain requests if [the CORS credentials are
 set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials):
 
 If the publisher or the subscriber is a web browser, it **SHOULD** send a cookie called
 `mercureAuthorization` containing the JWS when connecting to the hub.
 
 Whenever possible, the `mercureAuthorization` cookie **SHOULD** be set during the discovery to
-improve the overall security. See section #Discovery. Consequently, if the cookie is set during the
-discovery, both the publisher and the hub have to share the same second level domain. The `Domain`
-attribute **MAY** be used to allow the publisher and the hub to use different subdomains.
+improve the overall security. Consequently, if the cookie is set during the discovery, both the
+publisher and the hub have to share the same second level domain. The `Domain` attribute **MAY** be
+used to allow the publisher and the hub to use different subdomains. See (#discovery).
 
 The cookie **SHOULD** have the `Secure`, `HttpOnly` and `SameSite` attributes set. The cookie's
-`Path` attribute **SHOULD** also be set to the hub's URL. See section #Security-Considerations.
+`Path` attribute **SHOULD** also be set to the hub's URL. See (#security-considerations).
 
 When using authorization mechanisms, the connection **MUST** use an encryption layer such as HTTPS.
 
@@ -293,7 +289,7 @@ the specified targets.
 If the `mercure.subscribe` array contains the reserved string value `*`, then the subscriber is
 authorized to receive updates destined for all targets.
 
-# Reconnection and State Reconciliation
+# Reconnection and State Reconciliation {#reconciliation}
 
 To allow re-establishment in case of connection lost, events dispatched by the hub **SHOULD**
 include an `id` property. The value contained in this `id` property **SHOULD** be a globally unique
@@ -308,7 +304,7 @@ The server-sent events specification doesn't allow this HTTP header to be set du
 connection (before a reconnection). In order to fetch any update dispatched between the initial
 resource generation by the publisher and the connection to the hub, the subscriber **MUST** send the
 event id provided during the discovery in the `last-event-id` link's attribute in a query parameter
-named `Last-Event-ID` when connecting to the hub.
+named `Last-Event-ID` when connecting to the hub. See (#discovery).
 
 If both the `Last-Event-ID` HTTP header and the query parameter are present, the HTTP header
 **MUST** take precedence.
@@ -346,9 +342,9 @@ least the following properties:
 
  *  `active`: `true` when the subscription is created, and `false` when it is terminated
 
- *  `subscribe`: the subscription targets provided by the subscriber (see section #Authorization)
+ *  `subscribe`: the subscription targets provided by the subscriber, see (#authorization)
 
- *  `publish`: the publication targets provided by the subscriber (see section #Authorization)
+ *  `publish`: the publication targets provided by the subscriber, see (#authorization)
 
  *  `address` (optional): the IP address ([@!RFC0791], [@!RFC8200]) of the subscriber
 
@@ -371,9 +367,10 @@ the hub.
 To make sure that the message content can not be read by the hub, the publisher **MAY** encode the
 message before sending it to the hub. The publisher **SHOULD** use JSON Web Encryption [@!RFC7516]
 to encrypt the update content. The publisher **MAY** provide the relevant encryption key(s) in the
-`key-set` attribute of the Link HTTP header during the discovery. The `key-set` attribute **SHOULD**
-contain a key encoded using the JSON Web Key Set [@!RFC7517] format. Any other out-of-band mechanism
-**MAY** be used instead to share the key between the publisher and the subscriber.
+`key-set` attribute of the Link HTTP header during the discovery. See (#discovery). The `key-set`
+attribute **SHOULD** contain a key encoded using the JSON Web Key Set [@!RFC7517] format. Any
+other out-of-band mechanism **MAY** be used instead to share the key between the publisher and the
+subscriber.
 
 Update encryption is considered a best practice to prevent mass surveillance. This is especially
 relevant if the hub is managed by an external provider.
@@ -382,30 +379,27 @@ relevant if the hub is managed by an external provider.
 
 ## Well-Known URIs Registry
 
-A new "well-known" URI as described in Section 2 has been registered in the "Well-Known URIs"
+A new "well-known" URI as described in (#discovery) has been registered in the "Well-Known URIs"
 registry as described below:
 
  *  URI Suffix: mercure
 
  *  Change Controller: IETF
 
- *  Specification document(s): This specification, Section 2
+ *  Specification document(s): This specification, (#discovery)
 
  *  Related information: N/A
 
 ## Link Relation Types Registry
 
-A new "Link Relation Type" as described in Section 2 has been registered in the "Link Relation Type"
-registry with the following entry:
+A new "Link Relation Type" as described in (#discovery) has been registered in the "Link Relation
+Type" registry with the following entry:
 
  *  Relation Name: mercure
 
  *  Description: The Mercure Hub to use to subscribe to updates of this resource.
 
- *  Reference: This specification, Section 2
-
-Note: this relation type has not been registered yet. In the meantime, the relation type
-`https://git.io/mercure` **MAY** be used instead.
+ *  Reference: This specification, (#discovery)
 
 # Security Considerations
 
@@ -418,18 +412,17 @@ confidentiality **MUST** therefore be ensured. To do so, JWTs **MUST** only be t
 secure connections.
 
 Also, when the client is a web browser, the JWT **SHOULD** not be made accessible
-to JavaScript scripts for resilience against [Cross-site Scription (XSS)
-attacks](https://www.owasp.org/index.php/Cross-site_Scripting_(XSS)). It's the main reason why,
-when the client is a web browser, using `HttpOnly` cookies as the authorization mechanism **SHOULD**
-always be preferred.
+to JavaScript scripts for resilience against [Cross-site Scripting (XSS)
+attacks](https://owasp.org/www-community/attacks/xss/). It's the main reason why, when the client
+is a web browser, using `HttpOnly` cookies as the authorization mechanism **SHOULD** always be
+preferred.
 
 In the event of compromission, revoking JWTs before their expiration is often difficult. To that
 end, using short-lived tokens is strongly **RECOMMENDED**.
 
 The publish endpoint of the hub may be targeted by [Cross-Site Request Forgery (CSRF)
-attacks](https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)) when the cookie-based
-authorization mechanism is used. Therefore, implementations supporting this mechanism **MUST**
-mitigate such attacks.
+attacks](https://owasp.org/www-community/attacks/csrf) when the cookie-based authorization mechanism
+is used. Therefore, implementations supporting this mechanism **MUST** mitigate such attacks.
 
 The first prevention method to implement is to set the `mercureAuthorization`
 cookie's `SameSite` attribute. However, [some web browsers still not support this
@@ -440,6 +433,11 @@ available, the hub **SHOULD** discard the request.
 
 CSRF prevention techniques, including those previously mentioned, are described
 in depth in [OWASP's Cross-Site Request Forgery (CSRF) Prevention Cheat
-Sheet](https://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)*Prevention*Cheat_Sheet).
+Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
 
 {backmatter}
+
+# Acknowledgements
+
+Parts of this specification have been adapted from the WebSub recommendation
+[@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this specification.
