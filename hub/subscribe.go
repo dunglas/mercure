@@ -110,7 +110,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 		s.RemoteHost, _, _ = net.SplitHostPort(r.RemoteAddr)
 	}
 	h.dispatchSubscriptionUpdate(s, true)
-	if h.transport.AddSubscriber(s) != nil {
+	if err := h.transport.AddSubscriber(s); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(s, false)
 		log.WithFields(s.LogFields).Error(err)
