@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -374,6 +375,24 @@ func TestMetricsCollect(t *testing.T) {
 	server.assertMetric("mercure_subcribers_total{topic=\"http://example.com/alt/1\"} 3")
 	server.assertMetric("mercure_updates_total{topic=\"http://example.com/foo/1\"} 2")
 	server.assertMetric("mercure_updates_total{topic=\"http://example.com/alt/1\"} 1")
+}
+
+func TestMetricsVersionIsAccessible(t *testing.T) {
+	v := viper.New()
+	v.Set("metrics", true)
+	server := newTestServer(t, v)
+	defer server.shutdown()
+
+	resp, err := server.client.Get("http://" + testAddr + "/metrics")
+	assert.Nil(t, err)
+	defer resp.Body.Close()
+
+	b, err := ioutil.ReadAll(resp.Body)
+	assert.Nil(t, err)
+
+	pattern := "mercure_version_info{architecture=\".+\",built_at=\".*\",commit=\".*\",go_version=\".+\",os=\".+\",version=\"dev\"} 1"
+	assert.Regexp(t, regexp.MustCompile(pattern), string(b))
+	server.assertMetric("mercure_version_info")
 }
 
 type testServer struct {
