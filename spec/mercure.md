@@ -60,13 +60,24 @@ interpreted as described in [@!RFC2119].
 
 # Discovery
 
+The discovery mechanism aims at identifying at least 2 URLs.
+
+1.  The URL of one or more hubs designated by the publisher.
+
+2.  The canonical URL for the topic to which subscribers are expected to use for subscriptions.
+
 The URL of the hub **SHOULD** should be the "well-known" [@!RFC5785] fixed path
 `/.well-known/mercure`.
 
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber,
 allowing it to receive live updates when topics are updated. If more than one hub URL is specified,
-it is **RECOMMENDED** that the publisher notifies each hub, so the subscriber **MAY** subscribe to
-one or more of them.
+the publisher **MUST** notifies each hub, so the subscriber **MAY** subscribe to one or more of
+them.
+
+Note: Publishers may wish to advertise and publish to more than one hub for fault tolerance and
+redundancy. If one hub fails to propagate an update to the document, then using multiple independent
+hub is a way to increase the likelihood of delivery to subscribers. As such, subscribers may
+subscribe to one or more of the advertised hubs.
 
 The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link
 header). The target URL of these links **MUST** be a hub implementing the Mercure protocol.
@@ -98,18 +109,78 @@ to use for subscriptions. If the Link with `rel=self` is omitted, the current UR
 Minimal example:
 
 ~~~ http
-GET /books/foo.jsonld HTTP/1.1
+GET /books/foo HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
-{"@id": "/books/foo.jsonld", "foo": "bar"}
+{"@id": "/books/foo", "foo": "bar"}
 ~~~
 
 Links embedded in HTML or XML documents as defined in the WebSub recommendation
-[@W3C.REC-websub-20180123] **MAY** also be supported by subscribers.
+[@W3C.REC-websub-20180123] **MAY** also be supported by subscribers. If both a header and an
+embedded link are provided, the header **MUST** be preferred.
+
+## Content Negotiation
+
+For practical purposes, it is important that the `rel=self` URL only offers a single representation.
+As the hub has no way of knowing what Media Type ([@RFC6838]) or language may have been requested
+by the subscriber upon discovery, it would not be able to deliver the content using the appropriate
+representation of the document.
+
+It is, however, possible to perform content negotiation by returning an appropriate `rel=self`
+URL according to the HTTP headers used in the initial discovery request. For example, a request
+to `/books/foo` with an `Accept` header containing `application/ld+json` could return a `rel=self`
+value of `/books/foo.jsonld`.
+
+The example below illustrates how a topic URL can return different `Link` headers depending on the
+`Accept` header that was sent.
+
+~~~ http
+GET /books/foo HTTP/1.1
+Host: example.com
+Accept: application/ld+json
+
+HTTP/1.1 200 OK
+Content-type: application/ld+json
+Link: </books/foo.jsonld>; rel="self"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+
+{"@id": "/books/foo", "foo": "bar"}
+~~~
+
+~~~ http
+GET /books/foo HTTP/1.1
+Host: example.com
+Accept: text/html
+
+HTTP/1.1 200 OK
+Content-type: text/html
+Link: </books/foo.html>; rel="self"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+
+<!doctype html>
+<title>foo: bar</title>
+~~~
+
+Similarly, the technique can also be used to return a different `rel=self` URL depending on the
+language requested by the `Accept-Language` header.
+
+~~~ http
+GET /books/foo HTTP/1.1
+Host: example.com
+Accept-Language: fr-FR
+
+HTTP/1.1 200 OK
+Content-type: application/ld+json
+Content-Language: fr-FR
+Link: </books/foo-fr-FR.jsonld>; rel="self"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+
+{"@id": "/books/foo", "foo": "bar", "@context": {"@language": "fr-FR"}}
+~~~
 
 # Subscription
 
@@ -120,7 +191,8 @@ publisher. The `GET` HTTP method must be used. The connection **SHOULD** use HTT
 mutliplexing and other advanced features of this protocol.
 
 The subscriber specifies the list of topics to get updates from by using one or several query
-parameters named `topic`. The value of these query parameters **MUST** be URI templates [@!RFC6570].
+parameters named `topic`. The value of these query parameters **SHOULD** be a URI templates
+[@!RFC6570].
 
 Note: a URL is also a valid URI template.
 
@@ -133,10 +205,11 @@ interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-ev
 including, but not limited to, readable streams [@W3C.NOTE-streams-api-20161129] and
 [XMLHttpRequest](https://xhr.spec.whatwg.org/) (used by popular polyfills) **MAY** also be used.
 
-The hub sends updates concerning all subscribed resources matching the provided URI templates and
-the provided targets. See (#authorization). If no targets are specified, the update is dispatched
-to all subscribers. The hub **MUST** send these updates as `text/event-stream` compliant events
-[!@W3C.REC-eventsource-20150203].
+The hub sends to the subscriber updates for resources matching the provided URI templates and the
+provided targets (see (#authorization)). If the value of a `topic` parameter is not a valid URI
+template, then the provided identifier **MUST** match exactly the resource identifier. If no targets
+are specified, the update is dispatched to all subscribers. The hub **MUST** send these updates as
+`text/event-stream` compliant events [!@W3C.REC-eventsource-20150203].
 
 The `data` property **MUST** contain the new version of the topic. It can be the full resource, or a
 partial update by using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
@@ -439,5 +512,6 @@ Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery
 
 # Acknowledgements
 
-Parts of this specification have been adapted from the WebSub recommendation
-[@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this specification.
+Parts of this specification, especially (#discovery) have been adapted from the WebSub
+recommendation [@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this
+specification.
