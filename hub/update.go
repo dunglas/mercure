@@ -27,7 +27,7 @@ func newUpdate(event Event, topics []string, targets map[string]struct{}) *Updat
 		Targets: targets,
 	}
 	if u.ID == "" {
-		u.ID = uuid.Must(uuid.NewV4()).String()
+		u.ID = "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	}
 
 	return u

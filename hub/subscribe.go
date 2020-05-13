@@ -249,7 +249,7 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 
 	for k, topic := range s.Topics {
 		connection := &subscription{
-			ID:      "https://mercure.rocks/subscriptions/" + s.EscapedTopics[k] + "/" + s.ID,
+			ID:      "https://mercure.rocks/subscriptions/" + s.EscapedTopics[k] + "/" + s.EscapedID,
 			Type:    "https://mercure.rocks/Subscription",
 			Topic:   topic,
 			Active:  active,
