@@ -12,7 +12,7 @@ func TestVersionInfo(t *testing.T) {
 		Version:      "dev",
 		BuildDate:    "",
 		Commit:       "",
-		GOVersion:    "go1.14.2",
+		GoVersion:    "go1.14.2",
 		OS:           "linux",
 		Architecture: "amd64",
 	}
@@ -26,7 +26,7 @@ func TestVersionInfoWithBuildDate(t *testing.T) {
 		Version:      "1.0.0",
 		BuildDate:    "2020-05-03T18:42:44Z",
 		Commit:       "",
-		GOVersion:    "go1.14.2",
+		GoVersion:    "go1.14.2",
 		OS:           "linux",
 		Architecture: "amd64",
 	}
@@ -40,7 +40,7 @@ func TestVersionInfoWithCommit(t *testing.T) {
 		Version:      "1.0.0",
 		BuildDate:    "",
 		Commit:       "96ee2b9",
-		GOVersion:    "go1.14.2",
+		GoVersion:    "go1.14.2",
 		OS:           "linux",
 		Architecture: "amd64",
 	}
@@ -54,7 +54,7 @@ func TestVersionInfoWithBuildDateAndCommit(t *testing.T) {
 		Version:      "1.0.0",
 		BuildDate:    "2020-05-03T18:42:44Z",
 		Commit:       "96ee2b9",
-		GOVersion:    "go1.14.2",
+		GoVersion:    "go1.14.2",
 		OS:           "linux",
 		Architecture: "amd64",
 	}
@@ -70,7 +70,7 @@ func TestVersionMetricsCollectorInitialization(t *testing.T) {
 		Version:      "1.0.0",
 		BuildDate:    "2020-05-03T18:42:44Z",
 		Commit:       "96ee2b9",
-		GOVersion:    "go1.14.2",
+		GoVersion:    "go1.14.2",
 		OS:           "linux",
 		Architecture: "amd64",
 	}
@@ -81,7 +81,7 @@ func TestVersionMetricsCollectorInitialization(t *testing.T) {
 		"version":      v.Version,
 		"built_at":     v.BuildDate,
 		"commit":       v.Commit,
-		"go_version":   v.GOVersion,
+		"go_version":   v.GoVersion,
 		"os":           v.OS,
 		"architecture": v.Architecture,
 	}

@@ -13,7 +13,7 @@ type AppVersionInfo struct {
 	Version      string
 	BuildDate    string
 	Commit       string
-	GOVersion    string
+	GoVersion    string
 	OS           string
 	Architecture string
 }
@@ -54,7 +54,7 @@ func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {
 		"version":      v.Version,
 		"built_at":     v.BuildDate,
 		"commit":       v.Commit,
-		"go_version":   v.GOVersion,
+		"go_version":   v.GoVersion,
 		"os":           v.OS,
 		"architecture": v.Architecture,
 	}
@@ -90,7 +90,7 @@ func init() { //nolint:gochecknoinits
 		Version:      version,
 		BuildDate:    buildDate,
 		Commit:       commit,
-		GOVersion:    runtime.Version(),
+		GoVersion:    runtime.Version(),
 		OS:           runtime.GOOS,
 		Architecture: runtime.GOARCH,
 	}
