@@ -1,6 +1,8 @@
 package hub
 
 import (
+	"net/url"
+
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/yosida95/uritemplate"
@@ -14,6 +16,7 @@ type updateSource struct {
 // Subscriber represents a client subscribed to a list of topics.
 type Subscriber struct {
 	ID             string
+	EscapedID      string
 	Claims         *claims
 	Targets        map[string]struct{}
 	Topics         []string
@@ -35,9 +38,10 @@ type Subscriber struct {
 }
 
 func newSubscriber(lastEventID string) *Subscriber {
-	id := uuid.Must(uuid.NewV4()).String()
+	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
 		ID:          id,
+		EscapedID:   url.QueryEscape(id),
 		LastEventID: lastEventID,
 		LogFields: log.Fields{
 			"subscriber_id": id,

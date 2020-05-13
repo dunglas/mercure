@@ -394,7 +394,6 @@ func TestSubscriptionEvents(t *testing.T) {
 			ready := len(s.subscribers) == 2
 			s.RUnlock()
 
-			log.Info("Waiting for subscriber...")
 			if ready {
 				break
 			}

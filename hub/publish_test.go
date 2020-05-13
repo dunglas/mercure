@@ -221,7 +221,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 		u := <-s.Receive()
 		require.NotNil(t, u)
 
-		_, err := uuid.FromString(u.ID)
+		_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
 		assert.Nil(t, err)
 	}()
 
@@ -244,7 +244,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 	body := string(bodyBytes)
 
-	_, err := uuid.FromString(body)
+	_, err := uuid.FromString(strings.TrimPrefix(body, "urn:uuid:"))
 	assert.Nil(t, err)
 
 	wg.Wait()
