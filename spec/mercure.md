@@ -45,13 +45,15 @@ interpreted as described in [@!RFC2119].
  *  Update: The message containing the updated version of the topic. An update can be marked as
     private, consequently, it must be dispatched only to subscribers allowed to receive it.
 
+ *  Topic selector: An expression matching one or several topics.
+
  *  Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub
     systems might call the publisher the "source". Typically a website or a web API, but can also be
     a web browser.
 
- *  Subscriber: A client application that subscribes to real-time updates of topics. Typically a web
-    or a mobile application, but can also be a server.
+ *  Subscriber: A client application that subscribes to real-time updates of topics using topic
+    selectors. Typically a web or a mobile application, but can also be a server.
 
  *  Hub: A server that handles subscription requests and distributes the content to subscribers when
     the corresponding topics have been updated. Any hub **MAY** implement its own policies on who
@@ -182,6 +184,29 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 {"@id": "/books/foo", "foo": "bar", "@context": {"@language": "fr-FR"}}
 ~~~
 
+# Topic Selector
+
+A topic selector is an expression intended to be matched by one or several topics. A topic selector
+can also be used to match other topic selectors for authorization purposes. See (#authorization).
+
+A topic selector can be a any string including URI Templates [@!RFC6570] and the reserved string `*`
+that matches all topics. It is **RECOMMENDED** to use IRIs, URI Templates or the reserved string `*`
+as topic selectors.
+
+Note: a URL is a valid URI template.
+
+To determine if a string matches a selector, the following steps must be followed:
+
+1.  If the topic selector is `*` then the string matches the selector.
+
+2.  If the topic selector and the string are exactly the same, the string matches the selector. This
+    characteristic allows to compare a URI Template with another one.
+
+3.  If the topic selector is a valid URI Template, and that the string matches this URI Template,
+    the string matches the selector.
+
+4.  Otherwise the string does not match the selector.
+
 # Subscription
 
 The subscriber subscribes to a URL exposed by a hub to receive updates from one or many topics.
@@ -191,10 +216,8 @@ publisher. The `GET` HTTP method must be used. The connection **SHOULD** use HTT
 mutliplexing and other advanced features of this protocol.
 
 The subscriber specifies the list of topics to get updates from by using one or several query
-parameters named `topic`. The value of these query parameters **SHOULD** be URI templates
-[@!RFC6570].
-
-Note: a URL is also a valid URI template.
+parameters named `topic`. The `topic` query parameters **MUST** contain topic selectors. See
+(#topic-selectors).
 
 The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub
 **MAY** apply an arbitrary limit.
@@ -205,9 +228,7 @@ interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-ev
 including, but not limited to, readable streams [@W3C.NOTE-streams-api-20161129] and
 [XMLHttpRequest](https://xhr.spec.whatwg.org/) (used by popular polyfills) **MAY** also be used.
 
-The hub sends to the subscriber updates for resources matching the provided URI templates. If the
-value of a `topic` parameter is not a valid URI template, then the provided identifier **MUST**
-match exactly the resource identifier.
+The hub sends to the subscriber updates for topics matching the provided topic selectors.
 
 If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscribers not authorized
 to receive it. See (#authorization).
@@ -263,12 +284,12 @@ it is able to do so. In this case, it **MAY NOT** implement the endpoint to publ
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
 [@W3C.REC-html52-20171214] and contains the following name-value tuples:
 
- *  `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an URL as
+ *  `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an IRI as
     identifier. If this name is present several times, the first occurrence is considered to be the
-    canonical URL of the topic, and other ones are considered to be alternate URLs. The hub **MUST**
-    dispatch this update to subscribers that are subscribed to both canonical or alternate URLs.
+    canonical IRI of the topic, and other ones are considered to be alternate IRIs. The hub **MUST**
+    dispatch this update to subscribers that are subscribed to both canonical or alternate IRIs.
 
- *  `data`: the content of the new version of this topic.
+ *  `data` (optional): the content of the new version of this topic.
 
  *  `private` (optional): if this name is set, the update **MUST NOT** be dispatched to subscribers
     not authorized to receive it. See (#authorization). It is recommended to set the value to `on`
@@ -314,7 +335,7 @@ set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsou
 If the publisher or the subscriber is a web browser, it **SHOULD** send a cookie called
 `mercureAuthorization` containing the JWS when connecting to the hub.
 
-Whenever possible, the `mercureAuthorization` cookie **SHOULD** be set during the discovery (see
+Whenever possible, the `mercureAuthorization` cookie **SHOULD** be set during discovery (see
 (#discovery)) to improve the overall security. Consequently, if the cookie is set during the
 discovery, both the publisher and the hub have to share the same second level domain. The `Domain`
 attribute **MAY** be used to allow the publisher and the hub to use different subdomains. See
@@ -336,23 +357,20 @@ authorized to send updates for the specified topics.
 
 To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim
 called `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
-array of topic identifiers. An identifier **SHOULD** be an IRI.
+array of topic selectors. See (#topic-selectors).
 
 If `mercure.publish`:
 
- *  is not defined or contains an empty array, then the publisher **MUST NOT** be authorized to
-    dispatch any update
+ *  is not defined, then the publisher **MUST NOT** be authorized to dispatch any update
 
- *  contains the reserved string `*` as an array value, then the publisher is authorized to dispatch
-    updates for all topics
+ *  contains an empty array, the publisher **MUST NOT** be authorized to publish private updates,
+    but can publish public updates for all topics.
 
 Otherwise, the hub **MUST** check that every topics of the update to dispatch matches at least one
-of the URI templates contained in `mercure.publish`. When a value in `mercure.publish` is not a
-valid URI template, it **MUST** exactly match the topic it is compared with.
+of the topic selectors contained in `mercure.publish`.
 
-If the publisher is not authorized for at least one topic of an update, the hub **MUST NOT**
-dispatch the update (even if some topics in the list are allowed) and **MUST** return a 403 HTTP
-status code.
+If the publisher is not authorized for all the topics of an update, the hub **MUST NOT** dispatch
+the update (even if some topics in the list are allowed) and **MUST** return a 403 HTTP status code.
 
 ## Subscribers
 
@@ -360,14 +378,12 @@ To receive updates marked as `private`, a subscriber **MUST** prove that it is a
 least one of the topics of this update. If the subscriber is not authorized to receive an update
 marked as `private`, it **MUST NOT** receive it.
 
-To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a claim
-named `mercure` with a key named `subscribe` that contains an array of topic identifiers. The hub
-**MUST** check that at least one topic of the update to dispatch matches at least one URI template
-provided in `mercure.subscribe`. When a value in `mercure.subscribe` is not a valid URI template, it
-**MUST** exactly match the topic it is compared with.
+To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a
+claim named `mercure` with a key named `subscribe` that contains an array of topic selectors. See
+(#topic-selectors).
 
-If the `mercure.subscribe` array contains the reserved string value `*`, then the subscriber is
-authorized to receive all updates regardless of their topics.
+The hub **MUST** check that at least one topic of the update to dispatch matches at least one topic
+selector provided in `mercure.subscribe`.
 
 ## Payload
 
