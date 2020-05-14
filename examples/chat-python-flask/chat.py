@@ -20,7 +20,6 @@ Environment variables:
     JWT_KEY: the JWT key to use (must be shared with the Mercure hub)
     HUB_URL: the URL of the Mercure hub (default: http://localhost:3000/.well-known/mercure)
     TOPIC: the topic to use (default: http://example.com/chat)
-    TARGET: the target to use (default: chan)
     COOKIE_DOMAIN: the cookie domain (default: None)
 """
 
@@ -32,16 +31,14 @@ app = Flask(__name__)
 
 @app.route("/")
 def chat():
-    targets = [os.environ.get('TARGET', 'chan')]
+    topic = os.environ.get('TOPIC', 'http://example.com/chat')
     token = jwt.encode(
-        {'mercure': {'subscribe': targets, 'publish': targets}},
+        {'mercure': {'subscribe': [topics], 'publish': [topics]}},
         os.environ.get('JWT_KEY', '!ChangeMe!'),
         algorithm='HS256'
     )
 
     hub_url = os.environ.get('HUB_URL', 'http://localhost:3000/.well-known/mercure')
-    topic = os.environ.get('TOPIC', 'http://example.com/chat')
-
     resp = make_response(render_template('chat.html', config={
                          'hubURL': hub_url, 'topic': topic}))
     resp.set_cookie('mercureAuthorization', token, httponly=True, path='/.well-known/mercure',

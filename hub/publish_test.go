@@ -96,7 +96,7 @@ func TestPublishNoData(t *testing.T) {
 
 	req := httptest.NewRequest("POST", defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{"*"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -104,8 +104,7 @@ func TestPublishNoData(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Equal(t, "Missing \"data\" parameter\n", w.Body.String())
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestPublishInvalidRetry(t *testing.T) {
@@ -130,13 +129,13 @@ func TestPublishInvalidRetry(t *testing.T) {
 	assert.Equal(t, "Invalid \"retry\" parameter\n", w.Body.String())
 }
 
-func TestPublishNotAuthorizedTarget(t *testing.T) {
+func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 	hub := createDummy()
 
 	form := url.Values{}
 	form.Add("topic", "http://example.com/books/1")
 	form.Add("data", "foo")
-	form.Add("target", "not-allowed")
+	form.Add("private", "on")
 
 	req := httptest.NewRequest("POST", defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -155,10 +154,9 @@ func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 	defer hub.Stop()
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"http://example.com/books/1"}
-	s.RawTopics = s.Topics
-	s.Targets = map[string]struct{}{"foo": {}}
+	s.Claims = &claims{Mercure: mercureClaim{Subscribe: s.Topics}}
 	go s.start()
 
 	err := hub.transport.AddSubscriber(s)
@@ -172,22 +170,20 @@ func TestPublishOK(t *testing.T) {
 		assert.True(t, ok)
 		require.NotNil(t, u)
 		assert.Equal(t, "id", u.ID)
-		assert.Equal(t, []string{"http://example.com/books/1"}, u.Topics)
+		assert.Equal(t, s.Topics, u.Topics)
 		assert.Equal(t, "Hello!", u.Data)
-		assert.Equal(t, struct{}{}, u.Targets["foo"])
-		assert.Equal(t, struct{}{}, u.Targets["bar"])
+		assert.True(t, u.Private)
 	}(&wg)
 
 	form := url.Values{}
 	form.Add("id", "id")
 	form.Add("topic", "http://example.com/books/1")
 	form.Add("data", "Hello!")
-	form.Add("target", "foo")
-	form.Add("target", "bar")
+	form.Add("private", "on")
 
 	req := httptest.NewRequest("POST", defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{"foo", "bar"}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, s.Topics))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -206,10 +202,8 @@ func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 	defer h.Stop()
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"http://example.com/books/1"}
-	s.RawTopics = s.Topics
-	s.Targets = map[string]struct{}{"foo": {}}
 	go s.start()
 
 	h.transport.AddSubscriber(s)
@@ -231,7 +225,6 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	req := httptest.NewRequest("POST", defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	//req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, publisherRole, []string{})})
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, publisherRole, []string{}))
 
 	w := httptest.NewRecorder()
@@ -264,12 +257,11 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 	form.Add("id", "id")
 	form.Add("topic", "http://example.com/books/1")
 	form.Add("data", "Hello!")
-	form.Add("target", "foo")
-	form.Add("target", "bar")
+	form.Add("private", "on")
 
 	req := httptest.NewRequest("POST", defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{"foo", "bar"}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, publisherRole, []string{"foo", "http://example.com/books/1"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)

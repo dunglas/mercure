@@ -62,11 +62,11 @@
                         Claim structure to use:
                         <pre><code>{
   "mercure": {
-    "subscribe": ["list of authorized targets, * for all, omit for public only"],
-    "publish": ["list of authorized targets, * for all, omit to not allow to publish"]
+    "subscribe": ["list of topic selectors, * for all, omit for public only"],
+    "publish": ["list of topic selectors, * for all, omit to not allow to publish"]
   }
 }</code></pre><br>
-                        <a href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.afLx2f2ut3YgNVFStCx95Zm_UND1mZJ69OenXaDuZL8" target="_blank" class="button is-link is-small">Create a token</a>
+                        <a href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwiaHR0cDovL2xvY2FsaG9zdDozMDAwL2RlbW8vYm9va3Mve2lkfS5qc29ubGQiXSwicGF5bG9hZCI6eyJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIiwicmVtb3RlX2FkZHIiOiIxMjcuMC4wLjEifX19.bRUavgS2H9GyCHq7eoPUL_rZm2L7fGujtyyzUhiOsnw" target="_blank" rel="noopener noreferrer" class="button is-link is-small">Create a token</a>
                         (demo key: <code>!ChangeMe!</code>)
                     </p>
                 </div>
@@ -119,6 +119,7 @@
 
                             <p class="help">
                                 One <a href="https://tools.ietf.org/html/rfc6570">URI template</a> or string per line (<a href="https://uri-template-tester.mercure.rocks/">try the tester</a>).<br>
+                                Use <code>*</code> to subscribe to all topics.<br>
                                 Examples:
                                 <pre><code id="subscribeTopicsExamples"></code></pre><br>
                             </p>
@@ -127,7 +128,7 @@
                         <div class="field">
                             <label class="label" for="lastEventId">Last Event ID</label>
                             <div class="control">
-                                <input class="input" name="lastEventId" id="lastEventId">
+                                <input class="input is-small" name="lastEventId" id="lastEventId">
                             </div>
                         </div>
 
@@ -159,44 +160,42 @@
                         </div>
 
                         <p class="help">
-                            First line: canonical <a href="https://tools.ietf.org/html/rfc4622">IRI</a>.<br>
-                            Next lines: alternate IRIs.</p>
+                            First line: canonical <a href="https://tools.ietf.org/html/rfc4622">IRI</a> or string.<br>
+                            Next lines: alternate IRIs or strings.</p>
                     </div>
 
                     <div class="field">
-                        <label class="label" for="data">Data*</label>
-                        <div class="control">
-                            <textarea class="textarea" name="data" id="data" required></textarea>
-                        </div>
+                        <label class="checkbox">
+                            <input type="checkbox" name="priv" id="priv">
+                            <b>Private</b>
+                        </label>
                     </div>
 
                     <div class="field">
-                        <label class="label" for="targets">Targets</label>
+                        <label class="label" for="data">Data</label>
                         <div class="control">
-                            <textarea class="textarea" name="targets" id="targets"></textarea>
+                            <textarea class="textarea" name="data" id="data"></textarea>
                         </div>
-
-                        <p class="help">One string per line.</p>
                     </div>
 
                     <div class="field">
                         <label class="label" for="eventId">Event ID</label>
                         <div class="control">
-                            <input class="input" name="id" id="eventId">
+                            <input class="input is-small" name="id" id="eventId">
                         </div>
                     </div>
 
                     <div class="field">
                         <label class="label" for="eventType">Event Type</label>
                         <div class="control">
-                            <input class="input" name="type" id="eventType">
+                            <input class="input is-small" name="type" id="eventType">
                         </div>
                     </div>
 
                     <div class="field">
                         <label class="label" for="eventRetry">Event Retry</label>
                         <div class="control">
-                            <input class="input" name="retry" id="eventRetry">
+                            <input class="input is-small" name="retry" id="eventRetry">
                         </div>
                     </div>
 

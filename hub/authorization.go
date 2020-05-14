@@ -168,26 +168,36 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 	return nil, ErrInvalidJWT
 }
 
-func authorizedTargets(claims *claims, publisher bool) (all bool, targets map[string]struct{}) {
-	if claims == nil {
-		return false, map[string]struct{}{}
+func canReceive(s *topicSelectorStore, topics, topicSelectors []string) bool {
+	for _, topic := range topics {
+		for _, topicSelector := range topicSelectors {
+			if s.match(topic, topicSelector, true) {
+				return true
+			}
+		}
 	}
 
-	var providedTargets []string
-	if publisher {
-		providedTargets = claims.Mercure.Publish
-	} else {
-		providedTargets = claims.Mercure.Subscribe
-	}
+	return false
+}
 
-	authorizedTargets := make(map[string]struct{}, len(providedTargets))
-	for _, target := range providedTargets {
-		if target == "*" {
-			return true, nil
+func canDispatch(s *topicSelectorStore, topics, topicSelectors []string) bool {
+	for _, topic := range topics {
+		var matched bool
+		for _, topicSelector := range topicSelectors {
+			if topicSelector == "*" {
+				return true
+			}
+
+			if s.match(topic, topicSelector, false) {
+				matched = true
+				break
+			}
 		}
 
-		authorizedTargets[target] = struct{}{}
+		if !matched {
+			return false
+		}
 	}
 
-	return false, authorizedTargets
+	return true
 }

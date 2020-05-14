@@ -344,50 +344,24 @@ func TestAuthorizeCookieOriginHasPriorityRsa(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestAuthorizedNilClaim(t *testing.T) {
-	all, targets := authorizedTargets(nil, true)
-	assert.False(t, all)
-	assert.Empty(t, targets)
+func TestCanReceive(t *testing.T) {
+	s := newTopicSelectorStore()
+	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"foo", "bar"}))
+	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"bar"}))
+	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"*"}))
+	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{}))
+	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz"}))
+	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz", "bat"}))
 }
 
-func TestAuthorizedTargetsPublisher(t *testing.T) {
-	c := &claims{Mercure: mercureClaim{
-		Publish: []string{"foo", "bar"},
-	}}
-
-	all, targets := authorizedTargets(c, true)
-	assert.False(t, all)
-	assert.Equal(t, map[string]struct{}{"foo": {}, "bar": {}}, targets)
-}
-
-func TestAuthorizedAllTargetsPublisher(t *testing.T) {
-	c := &claims{Mercure: mercureClaim{
-		Publish: []string{"*"},
-	}}
-
-	all, targets := authorizedTargets(c, true)
-	assert.True(t, all)
-	assert.Empty(t, targets)
-}
-
-func TestAuthorizedTargetsSubscriber(t *testing.T) {
-	c := &claims{Mercure: mercureClaim{
-		Subscribe: []string{"foo", "bar"},
-	}}
-
-	all, targets := authorizedTargets(c, false)
-	assert.False(t, all)
-	assert.Equal(t, map[string]struct{}{"foo": {}, "bar": {}}, targets)
-}
-
-func TestAuthorizedAllTargetsSubscriber(t *testing.T) {
-	c := &claims{Mercure: mercureClaim{
-		Subscribe: []string{"*"},
-	}}
-
-	all, targets := authorizedTargets(c, false)
-	assert.True(t, all)
-	assert.Empty(t, targets)
+func TestCanDispatch(t *testing.T) {
+	s := newTopicSelectorStore()
+	assert.True(t, canDispatch(s, []string{"foo", "bar"}, []string{"foo", "bar"}))
+	assert.True(t, canDispatch(s, []string{"foo", "bar"}, []string{"*"}))
+	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{}))
+	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"foo"}))
+	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"baz"}))
+	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"baz", "bat"}))
 }
 
 func TestGetJWTKeyInvalid(t *testing.T) {

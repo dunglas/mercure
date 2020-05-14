@@ -5,7 +5,6 @@ import (
 
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
-	"github.com/yosida95/uritemplate"
 )
 
 type updateSource struct {
@@ -15,29 +14,24 @@ type updateSource struct {
 
 // Subscriber represents a client subscribed to a list of topics.
 type Subscriber struct {
-	ID             string
-	EscapedID      string
-	Claims         *claims
-	Targets        map[string]struct{}
-	Topics         []string
-	EscapedTopics  []string
-	RawTopics      []string
-	TemplateTopics []*uritemplate.Template
-	LastEventID    string
-	RemoteAddr     string
-	RemoteHost     string
-	LogFields      log.Fields
-	AllTargets     bool
-	Debug          bool
+	ID            string
+	EscapedID     string
+	Claims        *claims
+	Topics        []string
+	EscapedTopics []string
+	LastEventID   string
+	RemoteAddr    string
+	LogFields     log.Fields
+	Debug         bool
 
-	out          chan *Update
-	disconnected chan struct{}
-	matchCache   map[string]bool
-	history      updateSource
-	live         updateSource
+	out                chan *Update
+	disconnected       chan struct{}
+	history            updateSource
+	live               updateSource
+	topicSelectorStore *topicSelectorStore
 }
 
-func newSubscriber(lastEventID string) *Subscriber {
+func newSubscriber(lastEventID string, uriTemplates *topicSelectorStore) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
 		ID:          id,
@@ -47,11 +41,11 @@ func newSubscriber(lastEventID string) *Subscriber {
 			"subscriber_id": id,
 			"last_event_id": lastEventID,
 		},
-		history:      updateSource{},
-		live:         updateSource{in: make(chan *Update)},
-		out:          make(chan *Update),
-		disconnected: make(chan struct{}),
-		matchCache:   make(map[string]bool),
+		history:            updateSource{},
+		live:               updateSource{in: make(chan *Update)},
+		out:                make(chan *Update),
+		disconnected:       make(chan struct{}),
+		topicSelectorStore: uriTemplates,
 	}
 
 	if lastEventID != "" {
@@ -64,6 +58,7 @@ func newSubscriber(lastEventID string) *Subscriber {
 // start stores incoming updates in an history and a live buffer and dispatch them.
 // Updates coming from the history are always dispatched first.
 func (s *Subscriber) start() {
+	defer s.cleanup()
 	for {
 		select {
 		case <-s.disconnected:
@@ -88,6 +83,13 @@ func (s *Subscriber) start() {
 
 			s.live.buffer = s.live.buffer[1:]
 		}
+	}
+}
+
+func (s *Subscriber) cleanup() {
+	s.topicSelectorStore.cleanup(s.Topics)
+	if s.Claims != nil && s.Claims.Mercure.Subscribe != nil {
+		s.topicSelectorStore.cleanup(s.Claims.Mercure.Subscribe)
 	}
 }
 
@@ -163,62 +165,15 @@ func (s *Subscriber) Disconnected() <-chan struct{} {
 
 // CanDispatch checks if an update can be dispatched to this subsriber.
 func (s *Subscriber) CanDispatch(u *Update) bool {
-	if !s.IsAuthorized(u) {
-		log.WithFields(createFields(u, s)).Debug("Subscriber not authorized to receive this update (no targets matching)")
+	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics) {
+		log.WithFields(createFields(u, s)).Debug("Subscriber has not subscribed to this update")
 		return false
 	}
 
-	if !s.IsSubscribed(u) {
-		log.WithFields(createFields(u, s)).Debug("Subscriber has not subscribed to this update (no topics matching)")
+	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe)) {
+		log.WithFields(createFields(u, s)).Debug("Subscriber not authorized to receive this update")
 		return false
 	}
 
 	return true
-}
-
-// IsAuthorized checks if the subscriber can access to at least one of the update's intended targets.
-// Don't forget to also call IsSubscribed.
-func (s *Subscriber) IsAuthorized(u *Update) bool {
-	if s.AllTargets || len(u.Targets) == 0 {
-		return true
-	}
-
-	for t := range s.Targets {
-		if _, ok := u.Targets[t]; ok {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsSubscribed checks if the subscriber has subscribed to this update.
-// Don't forget to also call IsAuthorized.
-func (s *Subscriber) IsSubscribed(u *Update) bool {
-	for _, ut := range u.Topics {
-		if match, ok := s.matchCache[ut]; ok {
-			if match {
-				return true
-			}
-			continue
-		}
-
-		for _, rt := range s.RawTopics {
-			if ut == rt {
-				s.matchCache[ut] = true
-				return true
-			}
-		}
-
-		for _, tt := range s.TemplateTopics {
-			if tt.Match(ut) != nil {
-				s.matchCache[ut] = true
-				return true
-			}
-		}
-
-		s.matchCache[ut] = false
-	}
-
-	return false
 }

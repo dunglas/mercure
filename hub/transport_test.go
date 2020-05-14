@@ -15,16 +15,12 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	u := &Update{
-		Topics: []string{"http://example.com/books/1"},
-	}
+	u := &Update{Topics: []string{"http://example.com/books/1"}}
 	err := transport.Dispatch(u)
 	require.Nil(t, err)
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = u.Topics
-	s.RawTopics = u.Topics
-	s.Targets = map[string]struct{}{"foo": {}}
 	go s.start()
 
 	err = transport.AddSubscriber(s)
@@ -57,9 +53,8 @@ func TestLocalTransportDispatch(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"http://example.com/foo"}
-	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -79,14 +74,16 @@ func TestLocalTransportClosed(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber("")
+	tss := newTopicSelectorStore()
+
+	s := newSubscriber("", tss)
 	err := transport.AddSubscriber(s)
 	require.Nil(t, err)
 
 	err = transport.Close()
 	assert.Nil(t, err)
 
-	err = transport.AddSubscriber(newSubscriber(""))
+	err = transport.AddSubscriber(newSubscriber("", tss))
 	assert.Equal(t, err, ErrClosedTransport)
 
 	err = transport.Dispatch(&Update{})
@@ -100,13 +97,15 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	transport := NewLocalTransport()
 	defer transport.Close()
 
-	s1 := newSubscriber("")
+	tss := newTopicSelectorStore()
+
+	s1 := newSubscriber("", tss)
 	go s1.start()
 
 	err := transport.AddSubscriber(s1)
 	require.Nil(t, err)
 
-	s2 := newSubscriber("")
+	s2 := newSubscriber("", tss)
 	go s2.start()
 
 	err = transport.AddSubscriber(s2)
@@ -132,9 +131,8 @@ func TestLiveReading(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"https://example.com"}
-	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)

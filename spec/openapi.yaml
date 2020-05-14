@@ -66,11 +66,9 @@ paths:
                   data:
                     description: The content of the new version of this topic.
                     type: string
-                  target:
-                    description: Target audience of this update. If not provided, this update will be public.
-                    type: array
-                    items:
-                      type: string
+                  private:
+                    description: To mark an update as private. If not provided, this update will be public.
+                    type: boolean
                   id:
                     description: "The topic's revision identifier: it will be used as the SSE's `id` property."
                     type: string
