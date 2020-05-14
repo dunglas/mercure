@@ -57,6 +57,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			timer.Reset(hearthbeatInterval)
 		case update := <-s.Receive():
+			if update.PreviousID != "" {
+				w.Header().Set("Last-Event-ID", update.PreviousID)
+			}
+
 			if !h.write(w, s, newSerializedUpdate(update).event) {
 				return
 			}
@@ -107,7 +111,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 		log.WithFields(s.LogFields).Error(err)
 		return nil
 	}
-	sendHeaders(w)
+	sendHeaders(w, s.LastEventID == "")
 	log.WithFields(s.LogFields).Info("New subscriber")
 
 	h.metrics.NewSubscriber(s)
@@ -116,7 +120,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func sendHeaders(w http.ResponseWriter) {
+func sendHeaders(w http.ResponseWriter, flush bool) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
 
@@ -131,10 +135,12 @@ func sendHeaders(w http.ResponseWriter) {
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	// Write a comment in the body
-	// Go currently doesn't provide a better way to flush the headers
-	fmt.Fprint(w, ":\n")
-	w.(http.Flusher).Flush()
+	if flush {
+		// Write a comment in the body
+		// Go currently doesn't provide a better way to flush the headers
+		fmt.Fprint(w, ":\n")
+		w.(http.Flusher).Flush()
+	}
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.

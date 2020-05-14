@@ -45,6 +45,39 @@ func TestBoltTransportHistory(t *testing.T) {
 	}
 }
 
+func TestBoltTransportRetrieveAllHistory(t *testing.T) {
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	topics := []string{"https://example.com/foo"}
+	for i := 1; i <= 10; i++ {
+		transport.Dispatch(&Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: topics,
+		})
+	}
+
+	s := newSubscriber("-1", newTopicSelectorStore())
+	s.Topics = topics
+	go s.start()
+
+	err := transport.AddSubscriber(s)
+	assert.Nil(t, err)
+
+	var count int
+	for {
+		u := <-s.Receive()
+		// the reading loop must read all messages
+		count++
+		assert.Equal(t, strconv.Itoa(count), u.ID)
+		if count == 10 {
+			return
+		}
+	}
+}
+
 func TestBoltTransportHistoryAndLive(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
 	transport, _ := NewBoltTransport(u)

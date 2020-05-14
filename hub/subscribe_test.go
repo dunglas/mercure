@@ -496,7 +496,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			expectedBody:       "id: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
@@ -513,7 +513,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			expectedBody:       "id: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
