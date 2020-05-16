@@ -92,11 +92,21 @@ func createDummyAuthorizedJWT(h *Hub, r role, topicSelectors []string) string {
 	key := h.getJWTKey(r)
 
 	switch r {
-	case publisherRole:
+	case rolePublisher:
 		token.Claims = &claims{mercureClaim{Publish: topicSelectors}, jwt.StandardClaims{}}
 
-	case subscriberRole:
-		token.Claims = &claims{mercureClaim{Subscribe: topicSelectors}, jwt.StandardClaims{}}
+	case roleSubscriber:
+		var payload struct {
+			Foo string `json:"foo"`
+		}
+		payload.Foo = "bar"
+		token.Claims = &claims{
+			mercureClaim{
+				Subscribe: topicSelectors,
+				Payload:   payload,
+			},
+			jwt.StandardClaims{},
+		}
 	}
 
 	tokenString, _ := token.SignedString(key)

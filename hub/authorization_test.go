@@ -370,12 +370,12 @@ func TestGetJWTKeyInvalid(t *testing.T) {
 
 	h.config.Set("publisher_jwt_key", "")
 	assert.PanicsWithValue(t, "one of these configuration parameters must be defined: [publisher_jwt_key jwt_key]", func() {
-		h.getJWTKey(publisherRole)
+		h.getJWTKey(rolePublisher)
 	})
 
 	h.config.Set("subscriber_jwt_key", "")
 	assert.PanicsWithValue(t, "one of these configuration parameters must be defined: [subscriber_jwt_key jwt_key]", func() {
-		h.getJWTKey(subscriberRole)
+		h.getJWTKey(roleSubscriber)
 	})
 }
 
@@ -385,11 +385,11 @@ func TestGetJWTAlgorithmInvalid(t *testing.T) {
 
 	h.config.Set("publisher_jwt_algorithm", "foo")
 	assert.PanicsWithValue(t, "invalid signing method: foo", func() {
-		h.getJWTAlgorithm(publisherRole)
+		h.getJWTAlgorithm(rolePublisher)
 	})
 
 	h.config.Set("subscriber_jwt_algorithm", "foo")
 	assert.PanicsWithValue(t, "invalid signing method: foo", func() {
-		h.getJWTAlgorithm(subscriberRole)
+		h.getJWTAlgorithm(roleSubscriber)
 	})
 }

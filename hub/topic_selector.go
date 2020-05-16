@@ -8,7 +8,7 @@ import (
 )
 
 type selector struct {
-	sync.Mutex
+	sync.RWMutex
 	// counter stores the number of subsribers currently using this topic
 	counter uint32
 	// the uritemplate.Template instance, of nil if it's a raw string
@@ -18,7 +18,7 @@ type selector struct {
 
 // topicSelectorStore caches uritemplate.Template to improve memory and CPU usage.
 type topicSelectorStore struct {
-	sync.Mutex
+	sync.RWMutex
 	m map[string]*selector
 }
 
@@ -27,35 +27,47 @@ func newTopicSelectorStore() *topicSelectorStore {
 }
 
 func (tss *topicSelectorStore) match(topic, topicSelector string, addToCache bool) bool {
-	// Always do an exact matching comparision first
+	// Always do an exact matching comparison first
 	// Also check if the topic selector is the reserved keyword *
 	if topicSelector == "*" || topic == topicSelector {
 		return true
 	}
 
 	templateStore := tss.getTemplateStore(topicSelector, addToCache)
-	templateStore.Lock()
-	defer templateStore.Unlock()
-	if match, ok := templateStore.matchCache[topic]; ok {
+	templateStore.RLock()
+	match, ok := templateStore.matchCache[topic]
+	templateStore.RUnlock()
+	if ok {
 		return match
 	}
 
-	match := templateStore.template != nil && templateStore.template.Match(topic) != nil
+	match = templateStore.template != nil && templateStore.template.Match(topic) != nil
+	templateStore.Lock()
 	templateStore.matchCache[topic] = match
+	templateStore.Unlock()
 
 	return match
 }
 
 // getTemplateStore retrieves or creates the uritemplate.Template associated with this topic, or nil if it's not a template.
-func (tss *topicSelectorStore) getTemplateStore(topicSelector string, addToCache bool) (s *selector) {
-	tss.Lock()
-	defer tss.Unlock()
-	if store, ok := tss.m[topicSelector]; ok {
+func (tss *topicSelectorStore) getTemplateStore(topicSelector string, addToCache bool) *selector {
+	if addToCache {
+		tss.Lock()
+		defer tss.Unlock()
+	} else {
+		tss.RLock()
+	}
+
+	s, ok := tss.m[topicSelector]
+	if !addToCache {
+		tss.RUnlock()
+	}
+	if ok {
 		if addToCache {
-			store.counter++
+			s.counter++
 		}
 
-		return store
+		return s
 	}
 
 	s = &selector{matchCache: make(map[string]bool)}
@@ -76,11 +88,12 @@ func (tss *topicSelectorStore) cleanup(topics []string) {
 	defer tss.Unlock()
 	for _, topic := range topics {
 		if tc, ok := tss.m[topic]; ok {
-			if tc.counter <= 0 {
+			if tc.counter == 0 {
 				delete(tss.m, topic)
-			} else {
-				tc.counter--
+				continue
 			}
+
+			tc.counter--
 		}
 	}
 }

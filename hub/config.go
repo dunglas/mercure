@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// ErrInvalidConfig is returned when the configuration is invalid.
 var ErrInvalidConfig = errors.New("invalid config")
 
 // SetConfigDefaults sets defaults on a Viper instance.
