@@ -26,9 +26,8 @@ func TestBoltTransportHistory(t *testing.T) {
 		})
 	}
 
-	s := newSubscriber("8")
+	s := newSubscriber("8", newTopicSelectorStore())
 	s.Topics = topics
-	s.RawTopics = topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -41,6 +40,39 @@ func TestBoltTransportHistory(t *testing.T) {
 		assert.Equal(t, strconv.Itoa(9+count), u.ID)
 		count++
 		if count == 2 {
+			return
+		}
+	}
+}
+
+func TestBoltTransportRetrieveAllHistory(t *testing.T) {
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	topics := []string{"https://example.com/foo"}
+	for i := 1; i <= 10; i++ {
+		transport.Dispatch(&Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: topics,
+		})
+	}
+
+	s := newSubscriber("-1", newTopicSelectorStore())
+	s.Topics = topics
+	go s.start()
+
+	err := transport.AddSubscriber(s)
+	assert.Nil(t, err)
+
+	var count int
+	for {
+		u := <-s.Receive()
+		// the reading loop must read all messages
+		count++
+		assert.Equal(t, strconv.Itoa(count), u.ID)
+		if count == 10 {
 			return
 		}
 	}
@@ -60,9 +92,8 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		})
 	}
 
-	s := newSubscriber("8")
+	s := newSubscriber("8", newTopicSelectorStore())
 	s.Topics = topics
-	s.RawTopics = topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -148,7 +179,7 @@ func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -184,9 +215,8 @@ func TestBoltTransportDispatch(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"https://example.com/foo"}
-	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -209,9 +239,8 @@ func TestBoltTransportClosed(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"https://example.com/foo"}
-	s.RawTopics = s.Topics
 	go s.start()
 
 	err := transport.AddSubscriber(s)
@@ -237,12 +266,14 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	s1 := newSubscriber("")
+	tss := newTopicSelectorStore()
+
+	s1 := newSubscriber("", tss)
 	go s1.start()
 	err := transport.AddSubscriber(s1)
 	require.Nil(t, err)
 
-	s2 := newSubscriber("")
+	s2 := newSubscriber("", tss)
 	go s2.start()
 	err = transport.AddSubscriber(s2)
 	require.Nil(t, err)

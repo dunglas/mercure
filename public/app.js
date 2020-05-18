@@ -4,7 +4,7 @@
   const origin = window.location.origin;
   const defaultTopic = origin + "/demo/books/1.jsonld";
   const defaultJwt =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyJmb28iLCJiYXIiXSwicHVibGlzaCI6WyJmb28iXX19.afLx2f2ut3YgNVFStCx95Zm_UND1mZJ69OenXaDuZL8";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwiaHR0cDovL2xvY2FsaG9zdDozMDAwL2RlbW8vYm9va3Mve2lkfS5qc29ubGQiXSwicGF5bG9hZCI6eyJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIiwicmVtb3RlX2FkZHIiOiIxMjcuMC4wLjEifX19.bRUavgS2H9GyCHq7eoPUL_rZm2L7fGujtyyzUhiOsnw";
 
   const updates = document.querySelector("#updates");
   const settingsForm = document.forms.settings;
@@ -146,7 +146,7 @@ foo`;
   publishForm.onsubmit = function (e) {
     e.preventDefault();
     const {
-      elements: { topics, data, targets, id, type, retry },
+      elements: { topics, data, priv, id, type, retry },
     } = this;
 
     const body = new URLSearchParams({
@@ -157,10 +157,7 @@ foo`;
     });
 
     topics.value.split("\n").forEach((topic) => body.append("topic", topic));
-    targets.value !== "" &&
-      targets.value
-        .split("\n")
-        .forEach((target) => body.append("target", target));
+    priv.checked && body.append("private", "on")
 
     const opt = { method: "POST", body };
     if (settingsForm.authorization.value === "header")

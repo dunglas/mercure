@@ -33,6 +33,7 @@ func (m *responseWriterMock) WriteHeader(statusCode int) {
 }
 
 type responseTester struct {
+	header             http.Header
 	body               string
 	expectedStatusCode int
 	expectedBody       string
@@ -41,7 +42,11 @@ type responseTester struct {
 }
 
 func (rt *responseTester) Header() http.Header {
-	return http.Header{}
+	if rt.header == nil {
+		return http.Header{}
+	}
+
+	return rt.header
 }
 
 func (rt *responseTester) Write(buf []byte) (int, error) {
@@ -287,7 +292,7 @@ func TestUnsubscribe(t *testing.T) {
 	wg.Wait()
 }
 
-func TestSubscribeTarget(t *testing.T) {
+func TestSubscribePrivate(t *testing.T) {
 	hub := createDummy()
 	hub.config.Set("debug", true)
 	s, _ := hub.transport.(*LocalTransport)
@@ -303,19 +308,19 @@ func TestSubscribeTarget(t *testing.T) {
 			}
 
 			hub.transport.Dispatch(&Update{
-				Targets: map[string]struct{}{"baz": {}},
 				Topics:  []string{"http://example.com/reviews/21"},
 				Event:   Event{Data: "Foo", ID: "a"},
+				Private: true,
 			})
 			hub.transport.Dispatch(&Update{
-				Targets: map[string]struct{}{},
 				Topics:  []string{"http://example.com/reviews/22"},
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+				Private: true,
 			})
 			hub.transport.Dispatch(&Update{
-				Targets: map[string]struct{}{"hello": {}, "bar": {}},
 				Topics:  []string{"http://example.com/reviews/23"},
 				Event:   Event{Data: "Great", ID: "c", Retry: 1},
+				Private: true,
 			})
 			return
 		}
@@ -323,7 +328,7 @@ func TestSubscribeTarget(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{"foo", "bar"})})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"http://example.com/reviews/22", "http://example.com/reviews/23"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -339,7 +344,6 @@ func TestSubscribeTarget(t *testing.T) {
 func TestSubscriptionEvents(t *testing.T) {
 	hub := createDummy()
 	hub.config.Set("dispatch_subscriptions", true)
-	hub.config.Set("subscriptions_include_ip", true)
 
 	var wg sync.WaitGroup
 	ctx1, cancel1 := context.WithCancel(context.Background())
@@ -348,8 +352,8 @@ func TestSubscriptionEvents(t *testing.T) {
 	go func() {
 		// Authorized to receive connection events
 		defer wg.Done()
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=https://mercure.rocks/subscriptions/{topic}/{connectionID}", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{"https://mercure.rocks/targets/subscriptions"})})
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{subscriptionID}/{topic}", nil).WithContext(ctx1)
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"/.well-known/mercure/subscriptions/{subscriptionID}/{topic}"})})
 		w := httptest.NewRecorder()
 		hub.SubscribeHandler(w, req)
 
@@ -359,21 +363,21 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		bodyContent := string(body)
-		assert.Contains(t, bodyContent, `data:   "@id": "https://mercure.rocks/subscriptions/https%3A%2F%2Fexample.com/`)
+		assert.Contains(t, bodyContent, `data:   "@id": "/.well-known/mercure/subscriptions/`)
+		assert.Contains(t, bodyContent, `/https%3A%2F%2Fexample.com`)
 		assert.Contains(t, bodyContent, `data:   "@type": "https://mercure.rocks/Subscription",`)
 		assert.Contains(t, bodyContent, `data:   "topic": "https://example.com",`)
-		assert.Contains(t, bodyContent, `data:   "publish": [],`)
-		assert.Contains(t, bodyContent, `data:   "subscribe": []`)
 		assert.Contains(t, bodyContent, `data:   "active": true,`)
 		assert.Contains(t, bodyContent, `data:   "active": false,`)
-		assert.Contains(t, bodyContent, `data:   "address": "`)
+		assert.Contains(t, bodyContent, `data:   "payload": {`)
+		assert.Contains(t, bodyContent, `data:     "foo": "bar"`)
 	}()
 
 	go func() {
 		// Not authorized to receive connection events
 		defer wg.Done()
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=https://mercure.rocks/subscriptions/{topic}/{connectionID}", nil).WithContext(ctx2)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{})})
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{subscriptionID}/{topic}", nil).WithContext(ctx2)
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{})})
 		w := httptest.NewRecorder()
 		hub.SubscribeHandler(w, req)
 
@@ -401,7 +405,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		ctx, cancelRequest2 := context.WithCancel(context.Background())
 		req := httptest.NewRequest("GET", defaultHubURL+"?topic=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, subscriberRole, []string{})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{})})
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
@@ -419,7 +423,7 @@ func TestSubscriptionEvents(t *testing.T) {
 	hub.Stop()
 }
 
-func TestSubscribeAllTargets(t *testing.T) {
+func TestSubscribeAll(t *testing.T) {
 	hub := createDummy()
 	s, _ := hub.transport.(*LocalTransport)
 
@@ -434,14 +438,14 @@ func TestSubscribeAllTargets(t *testing.T) {
 			}
 
 			hub.transport.Dispatch(&Update{
-				Targets: map[string]struct{}{"foo": {}},
 				Topics:  []string{"http://example.com/reviews/21"},
 				Event:   Event{Data: "Foo", ID: "a"},
+				Private: true,
 			})
 			hub.transport.Dispatch(&Update{
-				Targets: map[string]struct{}{"bar": {}},
 				Topics:  []string{"http://example.com/reviews/22"},
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+				Private: true,
 			})
 
 			return
@@ -450,7 +454,7 @@ func TestSubscribeAllTargets(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, subscriberRole, []string{"random", "*"}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, roleSubscriber, []string{"random", "*"}))
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -497,7 +501,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			expectedBody:       "id: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
@@ -514,12 +518,79 @@ func TestSendMissedEvents(t *testing.T) {
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			expectedBody:       "id: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
 
 		hub.SubscribeHandler(w, req)
+	}()
+
+	wg.Wait()
+	hub.Stop()
+}
+
+func TestSendAllEvents(t *testing.T) {
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	hub := createDummyWithTransportAndConfig(transport, viper.New())
+
+	transport.Dispatch(&Update{
+		Topics: []string{"http://example.com/foos/a"},
+		Event: Event{
+			ID:   "a",
+			Data: "d1",
+		},
+	})
+	transport.Dispatch(&Update{
+		Topics: []string{"http://example.com/foos/b"},
+		Event: Event{
+			ID:   "b",
+			Data: "d2",
+		},
+	})
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=-1", nil).WithContext(ctx)
+
+		w := &responseTester{
+			header:             http.Header{},
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "id: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
+		hub.SubscribeHandler(w, req)
+		assert.Equal(t, "-1", w.Header().Get("Last-Event-ID"))
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
+		req.Header.Add("Last-Event-ID", "-1")
+
+		w := &responseTester{
+			header:             http.Header{},
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "id: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
+		hub.SubscribeHandler(w, req)
+		assert.Equal(t, "-1", w.Header().Get("Last-Event-ID"))
 	}()
 
 	wg.Wait()

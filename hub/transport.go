@@ -22,7 +22,7 @@ type Transport interface {
 }
 
 var (
-	// ErrInvalidTransportDSN is returned when the Transport's DSN is invalid
+	// ErrInvalidTransportDSN is returned when the Transport's DSN is invalid.
 	ErrInvalidTransportDSN = errors.New("invalid transport DSN")
 	// ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
 	ErrClosedTransport = errors.New("hub: read/write on closed Transport")

@@ -170,11 +170,13 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 		}
 
 		c := b.Cursor()
-		afterFromID := false
+		afterFromID := s.LastEventID == "-1"
+		previousID := "-1"
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if !afterFromID {
 				if string(k[8:]) == s.LastEventID {
 					afterFromID = true
+					previousID = ""
 				}
 
 				continue
@@ -185,6 +187,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 				log.Error(fmt.Errorf("bolt history: %w", err))
 				return err
 			}
+			update.PreviousID = previousID
 
 			if !s.Dispatch(update, true) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
 				return nil

@@ -7,25 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIsSubscribed(t *testing.T) {
-	s := newSubscriber("")
-	s.Topics = []string{"foo", "bar"}
-	s.RawTopics = s.Topics
-
-	assert.Len(t, s.matchCache, 0)
-	assert.False(t, s.IsSubscribed(&Update{Topics: []string{"baz", "bat"}}))
-	assert.True(t, s.IsSubscribed(&Update{Topics: []string{"baz", "bar"}}))
-	assert.Len(t, s.matchCache, 3)
-
-	// assert cache is used
-	assert.True(t, s.IsSubscribed(&Update{Topics: []string{"bar", "qux"}}))
-	assert.Len(t, s.matchCache, 3)
-}
-
 func TestDispatch(t *testing.T) {
-	s := newSubscriber("1")
+	s := newSubscriber("1", newTopicSelectorStore())
 	s.Topics = []string{"http://example.com"}
-	s.RawTopics = s.Topics
 	go s.start()
 	defer s.Disconnect()
 
@@ -44,7 +28,7 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
-	s := newSubscriber("")
+	s := newSubscriber("", newTopicSelectorStore())
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()

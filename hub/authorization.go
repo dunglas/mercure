@@ -20,32 +20,39 @@ type claims struct {
 }
 
 type mercureClaim struct {
-	Publish   []string `json:"publish"`
-	Subscribe []string `json:"subscribe"`
+	Publish   []string    `json:"publish"`
+	Subscribe []string    `json:"subscribe"`
+	Payload   interface{} `json:"payload"`
 }
 
 type role int
 
 const (
-	subscriberRole role = iota
-	publisherRole
+	roleSubscriber role = iota
+	rolePublisher
 )
 
 var (
+	// ErrInvalidAuthorizationHeader is returned when the Authorization header is invalid.
 	ErrInvalidAuthorizationHeader = errors.New(`invalid "Authorization" HTTP header`)
-	ErrNoOrigin                   = errors.New(`an "Origin" or a "Referer" HTTP header must be present to use the cookie-based authorization mechanism`)
-	ErrOriginNotAllowed           = errors.New("origin not allowed to post updates")
-	ErrUnexpectedSigningMethod    = errors.New("unexpected signing method")
-	ErrInvalidJWT                 = errors.New("invalid JWT")
-	ErrPublicKey                  = errors.New("public key error")
+	// ErrNoOrigin is returned when the cookie authorization mechanism is used and no Origin nor Referer headers are presents.
+	ErrNoOrigin = errors.New(`an "Origin" or a "Referer" HTTP header must be present to use the cookie-based authorization mechanism`)
+	// ErrOriginNotAllowed is returned when the Origin is not allowed to post updates.
+	ErrOriginNotAllowed = errors.New("origin not allowed to post updates")
+	// ErrUnexpectedSigningMethod is returned when the signing JWT method is not supported.
+	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+	// ErrInvalidJWT is returned when the JWT is invalid.
+	ErrInvalidJWT = errors.New("invalid JWT")
+	// ErrPublicKey is returned when there is an error with the public key.
+	ErrPublicKey = errors.New("public key error")
 )
 
 func (h *Hub) getJWTKey(r role) []byte {
 	var configKey string
 	switch r {
-	case subscriberRole:
+	case roleSubscriber:
 		configKey = "subscriber_jwt_key"
-	case publisherRole:
+	case rolePublisher:
 		configKey = "publisher_jwt_key"
 	}
 
@@ -63,9 +70,9 @@ func (h *Hub) getJWTKey(r role) []byte {
 func (h *Hub) getJWTAlgorithm(r role) jwt.SigningMethod {
 	var configKey string
 	switch r {
-	case subscriberRole:
+	case roleSubscriber:
 		configKey = "subscriber_jwt_algorithm"
-	case publisherRole:
+	case rolePublisher:
 		configKey = "publisher_jwt_algorithm"
 	}
 
@@ -168,26 +175,36 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 	return nil, ErrInvalidJWT
 }
 
-func authorizedTargets(claims *claims, publisher bool) (all bool, targets map[string]struct{}) {
-	if claims == nil {
-		return false, map[string]struct{}{}
+func canReceive(s *topicSelectorStore, topics, topicSelectors []string) bool {
+	for _, topic := range topics {
+		for _, topicSelector := range topicSelectors {
+			if s.match(topic, topicSelector, true) {
+				return true
+			}
+		}
 	}
 
-	var providedTargets []string
-	if publisher {
-		providedTargets = claims.Mercure.Publish
-	} else {
-		providedTargets = claims.Mercure.Subscribe
-	}
+	return false
+}
 
-	authorizedTargets := make(map[string]struct{}, len(providedTargets))
-	for _, target := range providedTargets {
-		if target == "*" {
-			return true, nil
+func canDispatch(s *topicSelectorStore, topics, topicSelectors []string) bool {
+	for _, topic := range topics {
+		var matched bool
+		for _, topicSelector := range topicSelectors {
+			if topicSelector == "*" {
+				return true
+			}
+
+			if s.match(topic, topicSelector, false) {
+				matched = true
+				break
+			}
 		}
 
-		authorizedTargets[target] = struct{}{}
+		if !matched {
+			return false
+		}
 	}
 
-	return false, authorizedTargets
+	return true
 }

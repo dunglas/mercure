@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// ErrInvalidConfig is returned when the configuration is invalid.
 var ErrInvalidConfig = errors.New("invalid config")
 
 // SetConfigDefaults sets defaults on a Viper instance.
@@ -28,7 +29,6 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("use_forwarded_headers", false)
 	v.SetDefault("demo", false)
 	v.SetDefault("dispatch_subscriptions", false)
-	v.SetDefault("subscriptions_include_ip", false)
 	v.SetDefault("metrics", false)
 	v.SetDefault("metrics_login", "")
 	v.SetDefault("metrics_password", "")

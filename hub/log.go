@@ -11,7 +11,7 @@ func addUpdateFields(f log.Fields, u *Update, debug bool) log.Fields {
 	f["event_type"] = u.Type
 	f["event_retry"] = u.Retry
 	f["update_topics"] = u.Topics
-	f["update_targets"] = targetsMapToSlice(u.Targets)
+	f["update_private"] = u.Private
 
 	if debug {
 		f["update_data"] = u.Data
@@ -27,18 +27,6 @@ func createFields(u *Update, s *Subscriber) log.Fields {
 	}
 
 	return f
-}
-
-func targetsMapToSlice(t map[string]struct{}) []string {
-	targets := make([]string, len(t))
-
-	var i int
-	for target := range t {
-		targets[i] = target
-		i++
-	}
-
-	return targets
 }
 
 // InitLogrus configures the global logger.

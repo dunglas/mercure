@@ -87,16 +87,26 @@ func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {
 	return NewHubWithTransport(v, t)
 }
 
-func createDummyAuthorizedJWT(h *Hub, r role, targets []string) string {
+func createDummyAuthorizedJWT(h *Hub, r role, topicSelectors []string) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 	key := h.getJWTKey(r)
 
 	switch r {
-	case publisherRole:
-		token.Claims = &claims{mercureClaim{Publish: targets}, jwt.StandardClaims{}}
+	case rolePublisher:
+		token.Claims = &claims{mercureClaim{Publish: topicSelectors}, jwt.StandardClaims{}}
 
-	case subscriberRole:
-		token.Claims = &claims{mercureClaim{Subscribe: targets}, jwt.StandardClaims{}}
+	case roleSubscriber:
+		var payload struct {
+			Foo string `json:"foo"`
+		}
+		payload.Foo = "bar"
+		token.Claims = &claims{
+			mercureClaim{
+				Subscribe: topicSelectors,
+				Payload:   payload,
+			},
+			jwt.StandardClaims{},
+		}
 	}
 
 	tokenString, _ := token.SignedString(key)
