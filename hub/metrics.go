@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"github.com/dunglas/mercure/common"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -43,6 +44,9 @@ func NewMetrics() *Metrics {
 // Register configures the Prometheus registry with all collected metrics.
 func (m *Metrics) Register(r *mux.Router) {
 	registry := prometheus.NewRegistry()
+
+	// Metrics about current version
+	registry.MustRegister(common.AppVersion.NewMetricsCollector())
 
 	// Metrics about the Hub
 	registry.MustRegister(m.subscribers)

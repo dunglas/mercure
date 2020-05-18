@@ -2,14 +2,20 @@ package common
 
 import (
 	"fmt"
+	"runtime"
 	"runtime/debug"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type AppVersionInfo struct {
-	Version   string
-	BuildDate string
-	Commit    string
+	Version      string
+	BuildDate    string
+	Commit       string
+	GoVersion    string
+	OS           string
+	Architecture string
 }
 
 var AppVersion AppVersionInfo //nolint:gochecknoglobals
@@ -43,6 +49,33 @@ func (v *AppVersionInfo) ChangelogURL() string {
 	return fmt.Sprintf("%s/releases/tag/v%s", path, strings.TrimPrefix(v.Version, "v"))
 }
 
+func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {
+	labels := map[string]string{
+		"version":      v.Version,
+		"built_at":     v.BuildDate,
+		"commit":       v.Commit,
+		"go_version":   v.GoVersion,
+		"os":           v.OS,
+		"architecture": v.Architecture,
+	}
+
+	labelNames := make([]string, 0, len(labels))
+	for n := range labels {
+		labelNames = append(labelNames, n)
+	}
+
+	buildInfo := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mercure_version_info",
+			Help: "A metric with a constant '1' value labeled by different build stats fields.",
+		},
+		labelNames,
+	)
+	buildInfo.With(labels).Set(1)
+
+	return buildInfo
+}
+
 func init() { //nolint:gochecknoinits
 	if version == "dev" {
 		info, ok := debug.ReadBuildInfo()
@@ -54,8 +87,11 @@ func init() { //nolint:gochecknoinits
 	version = strings.TrimPrefix(version, "v")
 
 	AppVersion = AppVersionInfo{
-		Version:   version,
-		BuildDate: buildDate,
-		Commit:    commit,
+		Version:      version,
+		BuildDate:    buildDate,
+		Commit:       commit,
+		GoVersion:    runtime.Version(),
+		OS:           runtime.GOOS,
+		Architecture: runtime.GOARCH,
 	}
 }
