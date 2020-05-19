@@ -468,12 +468,15 @@ If a subscriber has several subscriptions, it **MUST** be identified by the same
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
 least the following properties:
 
- *  `@id`: the identifier of this update, it **MUST** be the same value as the subscription update's
+ *  `@context`: the fixed value `https://mercure.rocks/`. `@context` can be omitted if already
+    defined in a parent node. See (#json-ld-context).
+
+ *  `id`: the identifier of this update, it **MUST** be the same value as the subscription update's
     topic
 
- *  `@type`: the fixed value `https://mercure.rocks/Subscription`
+ *  `type`: the fixed value `Subscription`
 
- *  `topicSelector`: the topic selector used of this subscription
+ *  `topic`: the topic selector used of this subscription
 
  *  `subscriber`: the topic identifier of the subscriber. It **SHOULD** be an IRI.
 
@@ -491,9 +494,9 @@ Example:
 
 ~~~ json
 {
-   "@id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-   "@type": "https://mercure.rocks/Subscription",
-   "topicSelector": "https://example.com/{selector}",
+   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "type": "Subscription",
+   "topic": "https://example.com/{selector}",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"}
@@ -536,9 +539,12 @@ them.
 
 Collection endpoints **MUST** return JSON-LD documents containing at least the following properties:
 
- *  `@id`: the URL used to retrieve the document
+ *  `@context`: the fixed value `https://mercure.rocks/`. `@context` can be omitted if already
+    defined in a parent node. See (#json-ld-context).
 
- *  `@type`: the fixed value `https://mercure.rocks/Subscriptions`
+ *  `id`: the URL used to retrieve the document
+
+ *  `type`: the fixed value `Subscriptions`
 
  *  `lastEventID`: the identifier of the last event dispatched by the hub at the time of this
     request (see (#reconciliation)). The value **MUST** be `-1` if no events have been dispatched
@@ -563,30 +569,31 @@ ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
 Cache-control: must-revalidate
 
 {
-   "@id": "/.well-known/subscriptions"
-   "@type": "https://mercure.rocks/Subscriptions",
-   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+   "@context": "https://mercure.rocks/",
+   "id": "/.well-known/subscriptions",
+   "type": "Subscriptions",
+   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "@id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-         "@type": "https://mercure.rocks/Subscription",
-         "topicSelector": "https://example.com/{selector}",
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "@id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
-         "@type": "https://mercure.rocks/Subscription",
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
+         "type": "Subscription",
          "topicSelector": "https://example.com/a-topic",
          "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "active": true,
          "payload": {"baz": "bat"}
       },
       {
-         "@id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
-         "@type": "https://mercure.rocks/Subscription",
-         "topicSelector": "https://example.com/{selector}",
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -606,22 +613,23 @@ ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
 Cache-control: must-revalidate
 
 {
-   "@id": "/.well-known/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D"
-   "@type": "https://mercure.rocks/Subscriptions",
-   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+   "@context": "https://mercure.rocks/",
+   "id": "/.well-known/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D",
+   "type": "Subscriptions",
+   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "@id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-         "@type": "https://mercure.rocks/Subscription",
-         "topicSelector": "https://example.com/{selector}",
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "@id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
-         "@type": "https://mercure.rocks/Subscription",
-         "topicSelector": "https://example.com/{selector}",
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -641,12 +649,34 @@ ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
 Cache-control: must-revalidate
 
 {
-   "@id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-   "@type": "https://mercure.rocks/Subscription",
-   "topicSelector": "https://example.com/{selector}",
+   "@context": "https://mercure.rocks/",
+   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "type": "Subscription",
+   "topic": "https://example.com/{selector}",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"}
+}
+~~~
+
+# JSON-LD Context
+
+The JSON-LD context available at `https://mercure.rocks` is the following:
+
+~~~ json
+{
+"@context": {
+   "@vocab": "_:",
+   "mercure": "https://mercure.rocks/",
+   "id": "@id",
+   "type": "@type",
+   "Subscription": "mercure:Subscription",
+   "Subscriptions": "mercure:Subscriptions",
+   "subscriptions": "mercure:subscriptions",
+   "topic": "mercure:topic",
+   "subscriber": "mercure:subscriber",
+   "active": "mercure:active",
+   "payload": "mercure:payload"
 }
 ~~~
 
