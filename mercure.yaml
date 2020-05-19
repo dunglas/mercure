@@ -8,5 +8,5 @@ transport_url: bolt://update.db
 jwt_key: '!ChangeMe!'
 #log_format: JSON
 publish_allowed_origins: [http://localhost:3000, http://localhost:3001, http://localhost:8000]
-dispatch_subscriptions: true
+subscriptions: true
 dispatch_timeout: 5s

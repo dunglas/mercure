@@ -192,10 +192,10 @@ A topic selector is an expression intended to be matched by one or several topic
 can also be used to match other topic selectors for authorization purposes. See (#authorization).
 
 A topic selector can be a any string including URI Templates [@!RFC6570] and the reserved string `*`
-that matches all topics. It is **RECOMMENDED** to use IRIs, URI Templates or the reserved string `*`
+that matches all topics. It is **RECOMMENDED** to use URI Templates or the reserved string `*`
 as topic selectors.
 
-Note: a URL is a valid URI template.
+Note: URLs and IRIs are valid URI templates.
 
 To determine if a string matches a selector, the following steps must be followed:
 
