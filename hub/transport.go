@@ -9,6 +9,9 @@ import (
 	"github.com/spf13/viper"
 )
 
+// EarliestLastEventID is the reserved value representing the earliest available event id.
+const EarliestLastEventID = "earliest"
+
 // Transport provides methods to dispatch and persist updates.
 type Transport interface {
 	// Dispatch dispatches an update to all subscribers.

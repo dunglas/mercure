@@ -560,7 +560,7 @@ func TestSendAllEvents(t *testing.T) {
 		defer wg.Done()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=-1", nil).WithContext(ctx)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID="+EarliestLastEventID, nil).WithContext(ctx)
 
 		w := &responseTester{
 			header:             http.Header{},
@@ -571,7 +571,7 @@ func TestSendAllEvents(t *testing.T) {
 		}
 
 		hub.SubscribeHandler(w, req)
-		assert.Equal(t, "-1", w.Header().Get("Last-Event-ID"))
+		assert.Equal(t, EarliestLastEventID, w.Header().Get("Last-Event-ID"))
 	}()
 
 	go func() {
@@ -579,7 +579,7 @@ func TestSendAllEvents(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
-		req.Header.Add("Last-Event-ID", "-1")
+		req.Header.Add("Last-Event-ID", EarliestLastEventID)
 
 		w := &responseTester{
 			header:             http.Header{},
@@ -590,7 +590,7 @@ func TestSendAllEvents(t *testing.T) {
 		}
 
 		hub.SubscribeHandler(w, req)
-		assert.Equal(t, "-1", w.Header().Get("Last-Event-ID"))
+		assert.Equal(t, EarliestLastEventID, w.Header().Get("Last-Event-ID"))
 	}()
 
 	wg.Wait()
