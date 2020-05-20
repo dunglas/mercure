@@ -428,14 +428,14 @@ If both the `Last-Event-ID` HTTP header and the query parameter are present, the
 If the `Last-Event-ID` HTTP header or query parameter exists, the hub **SHOULD** send all events
 published following the one bearing this identifier to the subscriber.
 
-The reserved value `earliest` can be used to hint the hub to send all updates it has for the subscribed
-topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
+The reserved value `earliest` can be used to hint the hub to send all updates it has for the
+subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
 
 The hub **MAY** discard some events for operational reasons. If the hub is not able to send all
 requested events, it **MUST** set a `Last-Event-ID` header on the HTTP response containing the id of
 event preceding the first sent to the subscriber. If such event doesn't exist, the hub **MUST** set
-the `Last-Event-ID` header it sends to the reserved value `earliest`. This value indicates that all events
-stored for the subscribed topics have been sent to the subscriber.
+the `Last-Event-ID` header it sends to the reserved value `earliest`. This value indicates that all
+events stored for the subscribed topics have been sent to the subscriber.
 
 The subscriber **MUST NOT** assume that no events will be lost (it may happen, for example after
 a long disconnection time). In some cases (for instance when sending partial updates in the JSON
@@ -457,12 +457,12 @@ implemented by the hub, an update **MUST** be dispatched every time that a subsc
 or terminated.
 
 The topic of these updates **MUST** follow the pattern
-`/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}` where `{topic-selector}` is the
-URL-encoded topic selector used for this subscription and `{subscriberID}` is an unique identifier
-for the subscriber.
+`/.well-known/mercure/subscriptions/{topic}/{subscriber}` where `{topic}` is the URL-encoded topic
+selector used for this subscription and `{subscriber}` is an URL-encoded unique identifier for the
+subscriber.
 
-If a subscriber has several subscriptions, it **MUST** be identified by the same identifier.
-`{subscriberID}` **SHOULD** be an URL-encoded IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
+If a subscriber has several subscriptions, it **SHOULD** be identified by the same identifier.
+`{subscriber}` **SHOULD** be an URL-encoded IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
 [@W3C.WD-did-core-20200421] **MAY** be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
@@ -516,10 +516,9 @@ The web API **MUST** expose endpoints following these patterns:
 
  *  `/.well-known/subscriptions`: the collection of subscriptions
 
- *  `/.well-known/subscriptions/{topicSelector}`: the collection subscriptions for the given topic
-    selector
+ *  `/.well-known/subscriptions/{topic}`: the collection subscriptions for the given topic selector
 
- *  `/.well-known/subscriptions/{topicSelector}/{subscriberID}`: a specific subscription
+ *  `/.well-known/subscriptions/{topic}/{subscriber}`: a specific subscription
 
 To access to the URLs exposed by the web API, clients **MUST** be authorized according to the rules
 defined in (#authorization). The requested URL **MUST** match at least one of the topic selectors
@@ -528,9 +527,9 @@ provided in the `mercure.subscribe` key of the JWS.
 The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
 
 URLs returning a single subscription (following the pattern
-`/.well-known/subscriptions/{topicSelector}/{subscriberID}`) **MUST** expose the same JSON-LD
-document as described in (#subscription-events). If the requested subscription does not exist, a
-`404` status code **MUST** be returned.
+`/.well-known/subscriptions/{topic}/{subscriber}`) **MUST** expose the same JSON-LD document as
+described in (#subscription-events). If the requested subscription does not exist, a `404` status
+code **MUST** be returned.
 
 If the requested subscription isn't active anymore, the hub can either return the JSON-LD document
 with the `active` property set to `false` or return a `404` status code. Accordingly, collection
@@ -547,9 +546,9 @@ Collection endpoints **MUST** return JSON-LD documents containing at least the f
  *  `type`: the fixed value `Subscriptions`
 
  *  `lastEventID`: the identifier of the last event dispatched by the hub at the time of this
-    request (see (#reconciliation)). The value **MUST** be `-1` if no events have been dispatched
-    yet. The value of this property **SHOULD** be passed back to the hub when subscribing to
-    subscription events to prevent data loss.
+    request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
+    dispatched yet. The value of this property **SHOULD** be passed back to the hub when subscribing
+    to subscription events to prevent data loss.
 
  *  `subscriptions`: an array of subscription documents as described in (#subscription-events)
 
@@ -585,7 +584,7 @@ Cache-control: must-revalidate
       {
          "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "type": "Subscription",
-         "topicSelector": "https://example.com/a-topic",
+         "topic": "https://example.com/a-topic",
          "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "active": true,
          "payload": {"baz": "bat"}
