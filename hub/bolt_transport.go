@@ -78,8 +78,26 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 		cleanupFrequency: cleanupFrequency,
 		subscribers:      make(map[*Subscriber]struct{}),
 		done:             make(chan struct{}),
-		lastEventID:      EarliestLastEventID, // TODO: fetch this value from the bolt DB
+		lastEventID:      getDBLastEventID(db, bucketName),
 	}, nil
+}
+
+func getDBLastEventID(db *bolt.DB, bucketName string) string {
+	lastEventID := EarliestLastEventID
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return nil // No data
+		}
+
+		if k, _ := b.Cursor().Last(); k != nil {
+			lastEventID = string(k[8:])
+		}
+
+		return nil
+	})
+
+	return lastEventID
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in BoltDB.

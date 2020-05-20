@@ -178,7 +178,7 @@ func (s *Subscriber) CanDispatch(u *Update) bool {
 	return true
 }
 
-// getSubscriptions return the list of subscriptions associated to this subscriber
+// getSubscriptions return the list of subscriptions associated to this subscriber.
 func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
 	subscriptions := make([]subscription, 0, len(s.Topics))
 

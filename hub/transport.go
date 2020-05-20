@@ -116,7 +116,7 @@ func (t *LocalTransport) GetSubscribers() (lastEventID string, subscribers []*Su
 	defer t.RUnlock()
 	subscribers = make([]*Subscriber, len(t.subscribers))
 
-	for subscriber, _ := range t.subscribers {
+	for subscriber := range t.subscribers {
 		subscribers = append(subscribers, subscriber)
 	}
 

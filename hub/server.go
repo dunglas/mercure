@@ -104,14 +104,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	debug := h.config.GetBool("debug")
 
 	r := mux.NewRouter()
-	r.UseEncodedPath()
-	r.SkipClean(true)
-
-	if h.config.GetBool("subscriptions") {
-		r.HandleFunc(subscriptionURL, h.SubscriptionHandler).Methods("GET")
-		r.HandleFunc(subscriptionsForTopicURL, h.SubscriptionsHandler).Methods("GET")
-		r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods("GET")
-	}
+	h.registerSubscriptionHandlers(r)
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
@@ -167,6 +160,19 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	)(loggingHandler)
 
 	return recoveryHandler
+}
+
+func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
+	if !h.config.GetBool("subscriptions") {
+		return
+	}
+
+	r.UseEncodedPath()
+	r.SkipClean(true)
+
+	r.HandleFunc(subscriptionURL, h.SubscriptionHandler).Methods("GET")
+	r.HandleFunc(subscriptionsForTopicURL, h.SubscriptionsHandler).Methods("GET")
+	r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods("GET")
 }
 
 func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
