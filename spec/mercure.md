@@ -55,6 +55,9 @@ interpreted as described in [@!RFC2119].
  *  Subscriber: A client application that subscribes to real-time updates of topics using topic
     selectors. Typically a web or a mobile application, but can also be a server.
 
+ *  Subscription: A topic selector used by a subscriber to receive updates. A single subscriber can
+    have several subscriptions, when it provides several topic selectors.
+
  *  Hub: A server that handles subscription requests and distributes the content to subscribers when
     the corresponding topics have been updated. Any hub **MAY** implement its own policies on who
     can use it.
@@ -67,8 +70,7 @@ The discovery mechanism aims at identifying at least 2 URLs.
 
 2.  The canonical URL for the topic to which subscribers are expected to use for subscriptions.
 
-The URL of the hub **SHOULD** should be the "well-known" [@!RFC5785] fixed path
-`/.well-known/mercure`.
+The URL of the hub **MUST** be the "well-known" [@!RFC5785] fixed path `/.well-known/mercure`.
 
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber,
 allowing it to receive live updates when topics are updated. If more than one hub URL is specified,
@@ -220,7 +222,8 @@ parameters named `topic`. The `topic` query parameters **MUST** contain topic se
 (#topic-selectors).
 
 The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub
-**MAY** apply an arbitrary limit.
+**MAY** apply an arbitrary limit. A subscription is created for every provided `topic` parameter.
+See (#subscription-events).
 
 [The EventSource JavaScript
 interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface)
@@ -389,7 +392,7 @@ selector provided in `mercure.subscribe`.
 
 The `mercure` claim of the JWS **CAN** also contain user-defined values under the `payload` key.
 This JSON document will be attached to the subscription and made available in subscription events.
-See (#subscriptions).
+See (#subscription-events).
 
 For instance, `mercure.payload` can contain the user ID of the subscriber, a list of groups it
 belongs to, or its IP address. Storing data in `mercure.payload` is a convenient way to share data
@@ -425,14 +428,14 @@ If both the `Last-Event-ID` HTTP header and the query parameter are present, the
 If the `Last-Event-ID` HTTP header or query parameter exists, the hub **SHOULD** send all events
 published following the one bearing this identifier to the subscriber.
 
-The reserved value `earliest` can be used to hint the hub to send all updates it has for the subscribed
-topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
+The reserved value `earliest` can be used to hint the hub to send all updates it has for the
+subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
 
 The hub **MAY** discard some events for operational reasons. If the hub is not able to send all
 requested events, it **MUST** set a `Last-Event-ID` header on the HTTP response containing the id of
 event preceding the first sent to the subscriber. If such event doesn't exist, the hub **MUST** set
-the `Last-Event-ID` header it sends to the reserved value `earliest`. This value indicates that all events
-stored for the subscribed topics have been sent to the subscriber.
+the `Last-Event-ID` header it sends to the reserved value `earliest`. This value indicates that all
+events stored for the subscribed topics have been sent to the subscriber.
 
 The subscriber **MUST NOT** assume that no events will be lost (it may happen, for example after
 a long disconnection time). In some cases (for instance when sending partial updates in the JSON
@@ -447,29 +450,37 @@ response, however polyfills and server-sent events clients in most programming l
 The hub **CAN** also specify the reconnection time using the `retry` key, as specified in the
 server-sent events format.
 
-# Subscription Events {#subscriptions}
+# Subscription Events
 
-The hub **MAY** publish an update when a subscription to a topic is created or terminated. If this
-feature is implemented by the hub, an update **MUST** be dispatched every time that a subscription
-is created or terminated, and for each topic to which the client subscribes.
+The hub **MAY** publish an update when a subscription is created or terminated. If this feature is
+implemented by the hub, an update **MUST** be dispatched every time that a subscription is created
+or terminated.
 
-The topic of this update **MUST** follow the pattern
-`/.well-known/mercure/subscriptions/{subscriptionID}/{topic}` where `subscriptionID` is an
-unique identifier for this subscription and `topic` is the URL-encoded value of the subscribed
-topic. `subscriptionID` **SHOULD** be an URL-encoded IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
+The topic of these updates **MUST** follow the pattern
+`/.well-known/mercure/subscriptions/{topic}/{subscriber}` where `{topic}` is the URL-encoded topic
+selector used for this subscription and `{subscriber}` is an URL-encoded unique identifier for the
+subscriber.
+
+If a subscriber has several subscriptions, it **SHOULD** be identified by the same identifier.
+`{subscriber}` **SHOULD** be an URL-encoded IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
 [@W3C.WD-did-core-20200421] **MAY** be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
 least the following properties:
 
- *  `@id`: the identifier of this update, it **MUST** be the same value as the main subscription
-    update's topic
+ *  `@context`: the fixed value `https://mercure.rocks/`. `@context` can be omitted if already
+    defined in a parent node. See (#json-ld-context).
 
- *  `@type`: the fixed value `https://mercure.rocks/Subscription`
+ *  `id`: the identifier of this update, it **MUST** be the same value as the subscription update's
+    topic
 
- *  `topic`: the topic to which the subscription refers
+ *  `type`: the fixed value `Subscription`
 
- *  `active`: `true` when the subscription is created, and `false` when it is terminated
+ *  `topic`: the topic selector used of this subscription
+
+ *  `subscriber`: the topic identifier of the subscriber. It **SHOULD** be an IRI.
+
+ *  `active`: `true` when the subscription is active, and `false` when it is terminated
 
  *  `payload` (optional): the content of `mercure.payload` in the subscriber's JWS (see
     (#authorization))
@@ -478,6 +489,195 @@ The JSON-LD document **MAY** contain other properties.
 
 In order to only allow authorized subscribers to receive subscription events, the subscription
 update **MUST** be marked as `private`.
+
+Example:
+
+~~~ json
+{
+   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "type": "Subscription",
+   "topic": "https://example.com/{selector}",
+   "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "active": true,
+   "payload": {"foo": "bar"}
+}
+~~~
+
+# Subscription API
+
+If the hub supports subscription events (see (#subscription-events)), it **MUST** also expose active
+subscriptions through a web API.
+
+For instance, subscribers interested in maintaining a list of active subscriptions can call the web
+API to retrieve them, and then use subscription events (see (#subscription-events)) to keep it up to
+date.
+
+The web API **MUST** expose endpoints following these patterns:
+
+ *  `/.well-known/subscriptions`: the collection of subscriptions
+
+ *  `/.well-known/subscriptions/{topic}`: the collection subscriptions for the given topic selector
+
+ *  `/.well-known/subscriptions/{topic}/{subscriber}`: a specific subscription
+
+To access to the URLs exposed by the web API, clients **MUST** be authorized according to the rules
+defined in (#authorization). The requested URL **MUST** match at least one of the topic selectors
+provided in the `mercure.subscribe` key of the JWS.
+
+The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
+
+URLs returning a single subscription (following the pattern
+`/.well-known/subscriptions/{topic}/{subscriber}`) **MUST** expose the same JSON-LD document as
+described in (#subscription-events). If the requested subscription does not exist, a `404` status
+code **MUST** be returned.
+
+If the requested subscription isn't active anymore, the hub can either return the JSON-LD document
+with the `active` property set to `false` or return a `404` status code. Accordingly, collection
+endpoints **CAN** return terminated connections with the `active` property set to `false` or omit
+them.
+
+Collection endpoints **MUST** return JSON-LD documents containing at least the following properties:
+
+ *  `@context`: the fixed value `https://mercure.rocks/`. `@context` can be omitted if already
+    defined in a parent node. See (#json-ld-context).
+
+ *  `id`: the URL used to retrieve the document
+
+ *  `type`: the fixed value `Subscriptions`
+
+ *  `lastEventID`: the identifier of the last event dispatched by the hub at the time of this
+    request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
+    dispatched yet. The value of this property **SHOULD** be passed back to the hub when subscribing
+    to subscription events to prevent data loss.
+
+ *  `subscriptions`: an array of subscription documents as described in (#subscription-events)
+
+As data returned by this web API is volatile, clients **SHOULD** validate that a response coming
+from cache is still valid before using it.
+
+Examples:
+
+~~~ http
+GET /.well-known/subscriptions HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 OK
+Content-type: application/ld+json
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+Cache-control: must-revalidate
+
+{
+   "@context": "https://mercure.rocks/",
+   "id": "/.well-known/subscriptions",
+   "type": "Subscriptions",
+   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
+   "subscriptions": [
+      {
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
+         "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "active": true,
+         "payload": {"foo": "bar"}
+      },
+      {
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
+         "type": "Subscription",
+         "topic": "https://example.com/a-topic",
+         "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
+         "active": true,
+         "payload": {"baz": "bat"}
+      },
+      {
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
+         "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
+         "active": true,
+         "payload": {"foo": "bap"}
+      }
+   ]
+}
+~~~
+
+~~~ http
+GET /.well-known/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 OK
+Content-type: application/ld+json
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+Cache-control: must-revalidate
+
+{
+   "@context": "https://mercure.rocks/",
+   "id": "/.well-known/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D",
+   "type": "Subscriptions",
+   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
+   "subscriptions": [
+      {
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
+         "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "active": true,
+         "payload": {"foo": "bar"}
+      },
+      {
+         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "type": "Subscription",
+         "topic": "https://example.com/{selector}",
+         "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
+         "active": true,
+         "payload": {"foo": "bap"}
+      }
+   ]
+}
+~~~
+
+~~~ http
+GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
+Host: example.com
+
+HTTP/1.1 200 OK
+Content-type: application/ld+json
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+Cache-control: must-revalidate
+
+{
+   "@context": "https://mercure.rocks/",
+   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "type": "Subscription",
+   "topic": "https://example.com/{selector}",
+   "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "active": true,
+   "payload": {"foo": "bar"}
+}
+~~~
+
+# JSON-LD Context
+
+The JSON-LD context available at `https://mercure.rocks` is the following:
+
+~~~ json
+{
+"@context": {
+   "@vocab": "_:",
+   "mercure": "https://mercure.rocks/",
+   "id": "@id",
+   "type": "@type",
+   "Subscription": "mercure:Subscription",
+   "Subscriptions": "mercure:Subscriptions",
+   "subscriptions": "mercure:subscriptions",
+   "topic": "mercure:topic",
+   "subscriber": "mercure:subscriber",
+   "active": "mercure:active",
+   "payload": "mercure:payload"
+}
+~~~
 
 # Encryption
 
