@@ -170,8 +170,8 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 		}
 
 		c := b.Cursor()
-		afterFromID := s.LastEventID == "-1"
-		previousID := "-1"
+		afterFromID := s.LastEventID == EarliestLastEventID
+		previousID := EarliestLastEventID
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if !afterFromID {
 				if string(k[8:]) == s.LastEventID {

@@ -425,13 +425,13 @@ If both the `Last-Event-ID` HTTP header and the query parameter are present, the
 If the `Last-Event-ID` HTTP header or query parameter exists, the hub **SHOULD** send all events
 published following the one bearing this identifier to the subscriber.
 
-The reserved value `-1` can be used to hint the hub to send all updates it has for the subscribed
+The reserved value `earliest` can be used to hint the hub to send all updates it has for the subscribed
 topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
 
 The hub **MAY** discard some events for operational reasons. If the hub is not able to send all
 requested events, it **MUST** set a `Last-Event-ID` header on the HTTP response containing the id of
 event preceding the first sent to the subscriber. If such event doesn't exist, the hub **MUST** set
-the `Last-Event-ID` header it sends to the reserved value `-1`. This value indicates that all events
+the `Last-Event-ID` header it sends to the reserved value `earliest`. This value indicates that all events
 stored for the subscribed topics have been sent to the subscriber.
 
 The subscriber **MUST NOT** assume that no events will be lost (it may happen, for example after

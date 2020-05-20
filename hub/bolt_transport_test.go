@@ -59,7 +59,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 		})
 	}
 
-	s := newSubscriber("-1", newTopicSelectorStore())
+	s := newSubscriber(EarliestLastEventID, newTopicSelectorStore())
 	s.Topics = topics
 	go s.start()
 
