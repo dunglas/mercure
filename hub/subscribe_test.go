@@ -356,8 +356,8 @@ func TestSubscriptionEvents(t *testing.T) {
 	go func() {
 		// Authorized to receive connection events
 		defer wg.Done()
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topic}/{subscriberID}", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriberID}"})})
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topic}/{subscriber}", nil).WithContext(ctx1)
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriber}"})})
 		w := httptest.NewRecorder()
 		hub.SubscribeHandler(w, req)
 
@@ -381,7 +381,7 @@ func TestSubscriptionEvents(t *testing.T) {
 	go func() {
 		// Not authorized to receive connection events
 		defer wg.Done()
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}", nil).WithContext(ctx2)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topicSelector}/{subscriber}", nil).WithContext(ctx2)
 		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{})})
 		w := httptest.NewRecorder()
 		hub.SubscribeHandler(w, req)
