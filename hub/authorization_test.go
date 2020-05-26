@@ -346,12 +346,12 @@ func TestAuthorizeCookieOriginHasPriorityRsa(t *testing.T) {
 
 func TestCanReceive(t *testing.T) {
 	s := newTopicSelectorStore()
-	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"foo", "bar"}))
-	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"bar"}))
-	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"*"}))
-	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{}))
-	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz"}))
-	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz", "bat"}))
+	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"foo", "bar"}, true))
+	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"bar"}, true))
+	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"*"}, true))
+	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{}, true))
+	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz"}, true))
+	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz", "bat"}, true))
 }
 
 func TestCanDispatch(t *testing.T) {

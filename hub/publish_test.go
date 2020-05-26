@@ -159,8 +159,7 @@ func TestPublishOK(t *testing.T) {
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: s.Topics}}
 	go s.start()
 
-	err := hub.transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	require.Nil(t, hub.transport.AddSubscriber(s))
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -206,7 +205,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	s.Topics = []string{"http://example.com/books/1"}
 	go s.start()
 
-	h.transport.AddSubscriber(s)
+	require.Nil(t, h.transport.AddSubscriber(s))
 
 	var wg sync.WaitGroup
 	wg.Add(1)

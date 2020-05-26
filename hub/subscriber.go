@@ -165,15 +165,43 @@ func (s *Subscriber) Disconnected() <-chan struct{} {
 
 // CanDispatch checks if an update can be dispatched to this subsriber.
 func (s *Subscriber) CanDispatch(u *Update) bool {
-	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics) {
+	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics, true) {
 		log.WithFields(createFields(u, s)).Debug("Subscriber has not subscribed to this update")
 		return false
 	}
 
-	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe)) {
+	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe, true)) {
 		log.WithFields(createFields(u, s)).Debug("Subscriber not authorized to receive this update")
 		return false
 	}
 
 	return true
+}
+
+// getSubscriptions return the list of subscriptions associated to this subscriber.
+func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
+	subscriptions := make([]subscription, 0, len(s.Topics))
+
+	for k, t := range s.Topics {
+		if topic != "" && !canReceive(s.topicSelectorStore, []string{t}, []string{topic}, false) {
+			continue
+		}
+
+		subscription := subscription{
+			Context:    context,
+			ID:         "/.well-known/mercure/subscriptions/" + s.EscapedTopics[k] + "/" + s.EscapedID,
+			Type:       "Subscription",
+			Subscriber: s.ID,
+			Topic:      t,
+			Active:     active,
+		}
+
+		if s.Claims != nil && s.Claims.Mercure.Payload != nil {
+			subscription.Payload = s.Claims.Mercure.Payload
+		}
+
+		subscriptions = append(subscriptions, subscription)
+	}
+
+	return subscriptions
 }

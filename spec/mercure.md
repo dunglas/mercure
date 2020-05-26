@@ -192,10 +192,10 @@ A topic selector is an expression intended to be matched by one or several topic
 can also be used to match other topic selectors for authorization purposes. See (#authorization).
 
 A topic selector can be a any string including URI Templates [@!RFC6570] and the reserved string `*`
-that matches all topics. It is **RECOMMENDED** to use IRIs, URI Templates or the reserved string `*`
-as topic selectors.
+that matches all topics. It is **RECOMMENDED** to use URI Templates or the reserved string `*` as
+topic selectors.
 
-Note: a URL is a valid URI template.
+Note: URLs and IRIs are valid URI templates.
 
 To determine if a string matches a selector, the following steps must be followed:
 
@@ -450,19 +450,30 @@ response, however polyfills and server-sent events clients in most programming l
 The hub **CAN** also specify the reconnection time using the `retry` key, as specified in the
 server-sent events format.
 
-# Subscription Events
+# Active Subscriptions
 
-The hub **MAY** publish an update when a subscription is created or terminated. If this feature is
-implemented by the hub, an update **MUST** be dispatched every time that a subscription is created
-or terminated.
+Mercure provides a mechanism to track active subscriptions. If the hub support this optional set
+of features, updates will be published when a subscription is created, or terminated, and a web API
+exposes the list of active subscriptions.
 
-The topic of these updates **MUST** follow the pattern
-`/.well-known/mercure/subscriptions/{topic}/{subscriber}` where `{topic}` is the URL-encoded topic
-selector used for this subscription and `{subscriber}` is an URL-encoded unique identifier for the
-subscriber.
+Variables are templated and expanded in accordance with [@!RFC6570].
 
-If a subscriber has several subscriptions, it **SHOULD** be identified by the same identifier.
-`{subscriber}` **SHOULD** be an URL-encoded IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
+## Subscription Events
+
+If the hub supports the active subscription feature, it **MUST** publish an update when a
+subscription is created or terminated. If this feature is implemented by the hub, an update **MUST**
+be dispatched every time that a subscription is created or terminated.
+
+The topic of these updates **MUST** be an expansion of
+`/.well-known/mercure/subscriptions/{topic}/{subscriber}`. `{topic}` is the topic selector used for
+this subscription and `{subscriber}` is an unique identifier for the subscriber.
+
+Note: Because it is recommended to use URI Templates and IRIs for the `{topic}` and `{subscriber}`
+variables, values will usually contain the `:`, `/`, `{` and `}` characters. Per [@!RFC6570], these
+characters are reserved. They **MUST** be percent encoded during the expansion process.
+
+If a subscriber has several subscriptions, it **SHOULD** be identified by the same
+identifier. `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
 [@W3C.WD-did-core-20200421] **MAY** be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
@@ -503,7 +514,7 @@ Example:
 }
 ~~~
 
-# Subscription API
+## Subscription API
 
 If the hub supports subscription events (see (#subscription-events)), it **MUST** also expose active
 subscriptions through a web API.
@@ -545,12 +556,15 @@ Collection endpoints **MUST** return JSON-LD documents containing at least the f
 
  *  `type`: the fixed value `Subscriptions`
 
+ *  `subscriptions`: an array of subscription documents as described in (#subscription-events)
+
+In addition, all endpoints **MUST** set the `lastEventID` property at the root of the returned
+JSON-LD document:
+
  *  `lastEventID`: the identifier of the last event dispatched by the hub at the time of this
     request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
     dispatched yet. The value of this property **SHOULD** be passed back to the hub when subscribing
     to subscription events to prevent data loss.
-
- *  `subscriptions`: an array of subscription documents as described in (#subscription-events)
 
 As data returned by this web API is volatile, clients **SHOULD** validate that a response coming
 from cache is still valid before using it.
@@ -654,7 +668,8 @@ Cache-control: must-revalidate
    "topic": "https://example.com/{selector}",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
-   "payload": {"foo": "bar"}
+   "payload": {"foo": "bar"},
+   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 }
 ~~~
 
@@ -675,7 +690,8 @@ The JSON-LD context available at `https://mercure.rocks` is the following:
    "topic": "mercure:topic",
    "subscriber": "mercure:subscriber",
    "active": "mercure:active",
-   "payload": "mercure:payload"
+   "payload": "mercure:payload",
+   "lastEventID": "mercure:lastEventID"
 }
 ~~~
 

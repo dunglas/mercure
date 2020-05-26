@@ -62,6 +62,7 @@ func TestSecurityOptions(t *testing.T) {
 	v.Set("cert_file", "../fixtures/tls/server.crt")
 	v.Set("key_file", "../fixtures/tls/server.key")
 	v.Set("compress", true)
+	v.Set("subscriptions", true)
 	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
 
 	go h.Serve()
@@ -77,12 +78,12 @@ func TestSecurityOptions(t *testing.T) {
 	for resp == nil {
 		resp, _ = client.Get(testSecureURL) //nolint:bodyclose
 	}
-	defer resp.Body.Close()
 
 	assert.Equal(t, "default-src 'self' mercure.rocks cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
+	resp.Body.Close()
 
 	// Preflight request
 	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil)
@@ -91,11 +92,18 @@ func TestSecurityOptions(t *testing.T) {
 	req.Header.Add("Access-Control-Request-Method", "GET")
 	resp2, _ := client.Do(req)
 	require.NotNil(t, resp2)
-	defer resp2.Body.Close()
 
 	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
 	assert.Equal(t, "Authorization", resp2.Header.Get("Access-Control-Allow-Headers"))
 	assert.Equal(t, "*", resp2.Header.Get("Access-Control-Allow-Origin"))
+	resp2.Body.Close()
+
+	// Subscriptions
+	req, _ = http.NewRequest("GET", testSecureURL+"/subscriptions", nil)
+	resp3, _ := client.Do(req)
+	require.NotNil(t, resp3)
+	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
+	resp3.Body.Close()
 
 	h.server.Shutdown(context.Background())
 }

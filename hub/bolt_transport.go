@@ -20,7 +20,7 @@ const defaultBoltBucketName = "updates"
 
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
-	sync.Mutex
+	sync.RWMutex
 	db               *bolt.DB
 	bucketName       string
 	size             uint64
@@ -28,6 +28,7 @@ type BoltTransport struct {
 	subscribers      map[*Subscriber]struct{}
 	done             chan struct{}
 	lastSeq          atomic.Uint64
+	lastEventID      string
 }
 
 // NewBoltTransport create a new BoltTransport.
@@ -77,7 +78,26 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 		cleanupFrequency: cleanupFrequency,
 		subscribers:      make(map[*Subscriber]struct{}),
 		done:             make(chan struct{}),
+		lastEventID:      getDBLastEventID(db, bucketName),
 	}, nil
+}
+
+func getDBLastEventID(db *bolt.DB, bucketName string) string {
+	lastEventID := EarliestLastEventID
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return nil // No data
+		}
+
+		if k, _ := b.Cursor().Last(); k != nil {
+			lastEventID = string(k[8:])
+		}
+
+		return nil
+	})
+
+	return lastEventID
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in BoltDB.
@@ -123,6 +143,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 			return err
 		}
 		t.lastSeq.Store(seq)
+		t.lastEventID = updateID
 		prefix := make([]byte, 8)
 		binary.BigEndian.PutUint64(prefix, seq)
 
@@ -159,6 +180,21 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 	t.dispatchHistory(s, toSeq)
 
 	return nil
+}
+
+// GetSubscribers get the list of active subscribers.
+func (t *BoltTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
+	t.RLock()
+	defer t.RUnlock()
+	subscribers = make([]*Subscriber, len(t.subscribers))
+
+	i := 0
+	for subscriber := range t.subscribers {
+		subscribers[i] = subscriber
+		i++
+	}
+
+	return t.lastEventID, subscribers
 }
 
 func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {

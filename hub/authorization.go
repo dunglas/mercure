@@ -175,10 +175,10 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 	return nil, ErrInvalidJWT
 }
 
-func canReceive(s *topicSelectorStore, topics, topicSelectors []string) bool {
+func canReceive(s *topicSelectorStore, topics, topicSelectors []string, addToCache bool) bool {
 	for _, topic := range topics {
 		for _, topicSelector := range topicSelectors {
-			if s.match(topic, topicSelector, true) {
+			if s.match(topic, topicSelector, addToCache) {
 				return true
 			}
 		}

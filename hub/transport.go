@@ -20,6 +20,9 @@ type Transport interface {
 	// AddSubscriber adds a new subscriber to the transport.
 	AddSubscriber(s *Subscriber) error
 
+	// GetSubscribers gets the last event ID and the list of active subscribers at this time
+	GetSubscribers() (string, []*Subscriber)
+
 	// Close closes the Transport.
 	Close() error
 }
@@ -59,6 +62,7 @@ type LocalTransport struct {
 	sync.RWMutex
 	subscribers map[*Subscriber]struct{}
 	done        chan struct{}
+	lastEventID string
 }
 
 // NewLocalTransport create a new LocalTransport.
@@ -66,6 +70,7 @@ func NewLocalTransport() *LocalTransport {
 	return &LocalTransport{
 		subscribers: make(map[*Subscriber]struct{}),
 		done:        make(chan struct{}),
+		lastEventID: EarliestLastEventID,
 	}
 }
 
@@ -84,6 +89,7 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 			delete(t.subscribers, subscriber)
 		}
 	}
+	t.lastEventID = update.ID
 
 	return nil
 }
@@ -102,6 +108,21 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 	t.subscribers[s] = struct{}{}
 
 	return nil
+}
+
+// GetSubscribers get the list of active subscribers.
+func (t *LocalTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
+	t.RLock()
+	defer t.RUnlock()
+	subscribers = make([]*Subscriber, len(t.subscribers))
+
+	i := 0
+	for subscriber := range t.subscribers {
+		subscribers[i] = subscriber
+		i++
+	}
+
+	return t.lastEventID, subscribers
 }
 
 // Close closes the Transport.

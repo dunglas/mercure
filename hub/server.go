@@ -24,7 +24,7 @@ func (h *Hub) Serve() {
 
 	h.server = &http.Server{
 		Addr:         addr,
-		Handler:      h.healthCheck(acmeHosts),
+		Handler:      h.baseHandler(acmeHosts),
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
@@ -104,6 +104,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	debug := h.config.GetBool("debug")
 
 	r := mux.NewRouter()
+	h.registerSubscriptionHandlers(r)
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
@@ -161,9 +162,25 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	return recoveryHandler
 }
 
-// addHealthCheck adds a /healthz URL for health checks and /metrics if enable that doesn't pollute the HTTP logs.
-func (h *Hub) healthCheck(acmeHosts []string) http.Handler {
+func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
+	if !h.config.GetBool("subscriptions") {
+		return
+	}
+
+	r.UseEncodedPath()
+	r.SkipClean(true)
+
+	r.HandleFunc(subscriptionURL, h.SubscriptionHandler).Methods("GET")
+	r.HandleFunc(subscriptionsForTopicURL, h.SubscriptionsHandler).Methods("GET")
+	r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods("GET")
+}
+
+func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	mainRouter := mux.NewRouter()
+	mainRouter.UseEncodedPath()
+	mainRouter.SkipClean(true)
+
+	// Register /healthz and /metrics (if enabledà in way that doesn't pollute the HTTP logs.
 	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")

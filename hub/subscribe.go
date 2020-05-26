@@ -11,14 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type subscription struct {
-	ID      string      `json:"@id"`
-	Type    string      `json:"@type"`
-	Topic   string      `json:"topic"`
-	Active  bool        `json:"active"`
-	Payload interface{} `json:"payload,omitempty"`
-}
-
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	_, ok := w.(http.Flusher)
@@ -188,29 +180,19 @@ func (h *Hub) shutdown(s *Subscriber) {
 }
 
 func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
-	if !h.config.GetBool("dispatch_subscriptions") {
+	if !h.config.GetBool("subscriptions") {
 		return
 	}
 
-	for k, topic := range s.Topics {
-		connection := &subscription{
-			ID:     "/.well-known/mercure/subscriptions/" + s.EscapedID + "/" + s.EscapedTopics[k],
-			Type:   "https://mercure.rocks/Subscription",
-			Topic:  topic,
-			Active: active,
-		}
-
-		if s.Claims != nil && s.Claims.Mercure.Payload != nil {
-			connection.Payload = s.Claims.Mercure.Payload
-		}
-
-		json, err := json.MarshalIndent(connection, "", "  ")
+	for _, subscription := range s.getSubscriptions("", jsonldContext, active) {
+		json, err := json.MarshalIndent(subscription, "", "  ")
 		if err != nil {
 			panic(err)
 		}
 
-		u := newUpdate([]string{connection.ID}, true, Event{Data: string(json)})
+		u := newUpdate([]string{subscription.ID}, true, Event{Data: string(json)})
 		h.transport.Dispatch(u)
+		log.Printf("%v", u)
 	}
 }
 

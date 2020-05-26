@@ -13,7 +13,7 @@ func TestMatch(t *testing.T) {
 	assert.Empty(t, tss.m)
 	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar", true))
 	assert.False(t, tss.match("https://example.com/foo/bar/baz", "https://example.com/{foo}/bar", true))
-	assert.NotNil(t, tss.m["https://example.com/{foo}/bar"].template)
+	assert.NotNil(t, tss.m["https://example.com/{foo}/bar"].regexp)
 	assert.True(t, tss.m["https://example.com/{foo}/bar"].matchCache["https://example.com/foo/bar"])
 	assert.False(t, tss.m["https://example.com/{foo}/bar"].matchCache["https://example.com/foo/bar/baz"])
 	assert.Equal(t, tss.m["https://example.com/{foo}/bar"].counter, uint32(1))
