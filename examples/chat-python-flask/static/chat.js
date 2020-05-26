@@ -1,26 +1,59 @@
 const type = "https://chat.example.com/Message";
-const topic = "https://chat.example.com/messages/{id}";
-const { hubURL, userIRI, connectedUsers } = JSON.parse(
+const { hubURL, messageTemplate, subscriptionsTopic, username } = JSON.parse(
   document.getElementById("config").textContent
 );
 
-const iriToUserName = (iri) =>
-  iri.replace(/^https:\/\/chat.example.com\/users\//, "");
-document.getElementById("username").textContent = iriToUserName(userIRI);
+document.getElementById("username").textContent = username;
 
 const $messages = document.getElementById("messages");
 const $userList = document.getElementById("userList");
 let $userListUL = null;
 let $messagesUL = null;
 
-let userList = new Map(
-  connectedUsers
-    .reduce((acc, val) => {
-      if (val !== userIRI) acc.push([val, true]);
-      return acc;
-    }, [])
-    .sort()
-);
+let userList, es;
+(async () => {
+  const resp = await fetch(new URL(subscriptionsTopic, hubURL), {
+    credentials: "include",
+  });
+  const subscriptionCollection = await resp.json();
+  userList = new Map(
+    subscriptionCollection.subscriptions
+      .reduce((acc, { payload }) => {
+        if (payload.username != username) acc.push([payload.username, true]);
+        return acc;
+      }, [])
+      .sort()
+  );
+  updateUserListView();
+
+  const subscribeURL = new URL(hubURL);
+  subscribeURL.searchParams.append(
+    "Last-Event-ID",
+    subscriptionCollection.lastEventID
+  );
+  subscribeURL.searchParams.append("topic", messageTemplate);
+  subscribeURL.searchParams.append(
+    "topic",
+    `${subscriptionsTopic}{/subscriber}`
+  );
+
+  const es = new EventSource(subscribeURL, { withCredentials: true });
+  es.onmessage = ({ data }) => {
+    const update = JSON.parse(data);
+
+    if (update["@type"] === type) {
+      displayMessage(update);
+      return;
+    }
+
+    if (update["type"] === "Subscription") {
+      updateUserList(update);
+      return;
+    }
+
+    console.warn("Received an unsupported update type", update);
+  };
+})();
 
 const updateUserListView = () => {
   if (userList.size === 0) {
@@ -36,43 +69,15 @@ const updateUserListView = () => {
     $userListUL.textContent = "";
   }
 
-  userList.forEach((v, userIRI) => {
+  userList.forEach((_, username) => {
     const li = document.createElement("li");
-    li.append(document.createTextNode(iriToUserName(userIRI)));
+    li.append(document.createTextNode(username));
     $userListUL.append(li);
   });
   $userList.append($userListUL);
 };
 
-updateUserListView();
-
-const subscribeURL = new URL(hubURL);
-subscribeURL.searchParams.append("Last-Event-ID", config.lastEventID);
-subscribeURL.searchParams.append("topic", topic);
-subscribeURL.searchParams.append(
-  "topic",
-  `https://mercure.rocks/subscriptions/${encodeURIComponent(
-    topic
-  )}/{subscriptionID}`
-);
-
-const es = new EventSource(subscribeURL, { withCredentials: true });
-es.onmessage = ({ data }) => {
-  const update = JSON.parse(data);
-
-  switch (update["@type"]) {
-    case type:
-      displayMessage(update);
-      return;
-    case "https://mercure.rocks/Subscription":
-      updateUserList(update);
-      return;
-    default:
-      console.error("Unknown update type");
-  }
-};
-
-const displayMessage = ({ user, message }) => {
+const displayMessage = ({ username, message }) => {
   if (!$messagesUL) {
     $messagesUL = document.createElement("ul");
 
@@ -81,18 +86,14 @@ const displayMessage = ({ user, message }) => {
   }
 
   const li = document.createElement("li");
-  li.append(document.createTextNode(`<${iriToUserName(user)}> ${message}`));
+  li.append(document.createTextNode(`<${username}> ${message}`));
   $messagesUL.append(li);
 };
 
-const updateUserList = ({ active, subscribe }) => {
-  const user = subscribe.find((u) =>
-    u.startsWith("https://chat.example.com/users/")
-  );
-  if (user === userIRI) return;
+const updateUserList = ({ active, payload }) => {
+  if (username === payload.username) return;
 
-  active ? userList.set(user, true) : userList.delete(user);
-
+  active ? userList.set(payload.username, true) : userList.delete(payload.username);
   userList = new Map([...userList.entries()].sort());
 
   updateUserListView();
@@ -102,17 +103,17 @@ document.querySelector("form").onsubmit = function (e) {
   e.preventDefault();
 
   const uid = window.crypto.getRandomValues(new Uint8Array(10)).join("");
-  const iri = topic.replace("{id}", uid);
+  const messageTopic = messageTemplate.replace("{id}", uid);
 
   const body = new URLSearchParams({
     data: JSON.stringify({
       "@type": type,
-      "@id": iri,
-      user: userIRI,
+      "@id": messageTopic,
+      username: username,
       message: this.elements.message.value,
     }),
-    topic: iri,
-    target: "https://chat.example.com/user",
+    topic: messageTopic,
+    private: true,
   });
   fetch(hubURL, { method: "POST", body, credentials: "include" });
   this.elements.message.value = "";

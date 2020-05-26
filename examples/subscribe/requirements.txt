@@ -1,0 +1,2 @@
+PyJWT>=1.7.1
+sseclient>=0.0.26

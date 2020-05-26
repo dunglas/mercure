@@ -26,19 +26,17 @@ from flask import Flask, make_response, request, render_template, abort
 from sseclient import SSEClient
 import jwt
 import os
-import threading
 import json
-import urllib.parse
+from uritemplate import expand
 
 HUB_URL = os.environ.get(
     'HUB_URL', 'http://localhost:3000/.well-known/mercure')
 JWT_KEY = os.environ.get('JWT_KEY', '!ChangeMe!')
-TOPIC = 'https://chat.example.com/messages/{id}'
-SUBSCRIPTION_TOPIC = 'https://mercure.rocks/subscriptions/https%3A%2F%2Fchat.example.com%2Fmessages%2F%7Bid%7D/{subscriptionID}'
+MESSAGE_TEMPLATE = os.environ.get(
+    'MESSAGE_TEMPLATE', 'https://chat.example.com/messages/{id}')
 
-lock = threading.Lock()
-last_event_id = None
-connected_users = {}
+SUBSCRIPTIONS_TEMPLATE = '/.well-known/mercure/subscriptions/{topic}{/subscriber}'
+SUBSCRIPTIONS_TOPIC = expand(SUBSCRIPTIONS_TEMPLATE, topic=MESSAGE_TEMPLATE)
 
 app = Flask(__name__)
 
@@ -54,80 +52,21 @@ def chat():
     if not username:
         abort(400)
 
-    user_iri = 'https://chat.example.com/users/'+username
-    targets = ['https://chat.example.com/user', user_iri,
-               'https://mercure.rocks/targets/subscriptions/'+urllib.parse.quote(TOPIC, safe='')]
     token = jwt.encode(
-        {'mercure': {'subscribe': targets, 'publish': targets}},
+        {'mercure':
+            {
+                'subscribe': [MESSAGE_TEMPLATE, SUBSCRIPTIONS_TEMPLATE],
+                'publish': [MESSAGE_TEMPLATE],
+                'payload': {'username': username}
+            }
+         },
         JWT_KEY,
         algorithm='HS256',
     )
 
-    lock.acquire()
-    local_last_event_id = last_event_id
-    cu = list(connected_users.keys())
-    lock.release()
-    cu.sort()
-
     resp = make_response(render_template('chat.html', config={
-                         'hubURL': HUB_URL, 'userIRI': user_iri, 'connectedUsers': cu, 'lastEventID': local_last_event_id}))
+                         'hubURL': HUB_URL, 'messageTemplate': MESSAGE_TEMPLATE, 'subscriptionsTopic': SUBSCRIPTIONS_TOPIC, 'username': username}))
     resp.set_cookie('mercureAuthorization', token, httponly=True, path='/.well-known/mercure',
                     samesite="strict", domain=os.environ.get('COOKIE_DOMAIN', None), secure=request.is_secure)  # Force secure to True for real apps
 
     return resp
-
-
-@app.before_first_request
-def start_sse_listener():
-    t = threading.Thread(target=sse_listener)
-    t.start()
-
-
-def sse_listener():
-    global connected_users
-    global last_event_id
-
-    token = jwt.encode(
-        {'mercure': {'subscribe': ['https://chat.example.com/user',
-                                   'https://mercure.rocks/targets/subscriptions/'+urllib.parse.quote(TOPIC, safe='')]}},
-        JWT_KEY,
-        algorithm='HS256',
-    )
-
-    updates = SSEClient(
-        HUB_URL,
-        params={'topic': [TOPIC, SUBSCRIPTION_TOPIC]},
-        headers={'Authorization': b'Bearer '+token},
-    )
-    for update in updates:
-        app.logger.debug("Update received: %s", update)
-        data = json.loads(update.data)
-
-        if data['@type'] == 'https://chat.example.com/Message':
-            # Store the chat history somewhere if you want to
-            lock.acquire()
-            last_event_id = update.id
-            lock.release()
-            break
-
-        if data['@type'] == 'https://mercure.rocks/Subscription':
-            # Instead of maintaining a local user list, you may want to use Redis or similar service
-
-            user = next((x for x in data['subscribe'] if x.startswith(
-                'https://chat.example.com/users/')), None)
-
-            if user is None:
-                break
-
-            lock.acquire()
-            last_event_id = update.id
-            if data['active']:
-                connected_users[user] = True
-            elif user in connected_users:
-                del connected_users[user]
-            lock.release()
-
-            cu = list(connected_users.keys())
-            cu.sort()
-
-            app.logger.info("Connected users: %s", cu)
