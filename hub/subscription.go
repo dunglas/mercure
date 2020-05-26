@@ -12,13 +12,14 @@ import (
 const jsonldContext = "https://mercure.rocks/"
 
 type subscription struct {
-	Context    string      `json:"@context,omitempty"`
-	ID         string      `json:"id"`
-	Type       string      `json:"type"`
-	Subscriber string      `json:"subscriber"`
-	Topic      string      `json:"topic"`
-	Active     bool        `json:"active"`
-	Payload    interface{} `json:"payload,omitempty"`
+	Context     string      `json:"@context,omitempty"`
+	ID          string      `json:"id"`
+	Type        string      `json:"type"`
+	Subscriber  string      `json:"subscriber"`
+	Topic       string      `json:"topic"`
+	Active      bool        `json:"active"`
+	LastEventID string      `json:"lastEventID,omitempty"`
+	Payload     interface{} `json:"payload,omitempty"`
 }
 
 type subscriptionCollection struct {
@@ -65,7 +66,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	currentURL := r.URL.String()
-	_, subscribers, ok := h.initSubscription(currentURL, w, r)
+	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
 	if !ok {
 		return
 	}
@@ -84,6 +85,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
+			subscription.LastEventID = lastEventID
 			json, err := json.MarshalIndent(subscription, "", "  ")
 			if err != nil {
 				panic(err)

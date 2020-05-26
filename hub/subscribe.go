@@ -192,6 +192,7 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 
 		u := newUpdate([]string{subscription.ID}, true, Event{Data: string(json)})
 		h.transport.Dispatch(u)
+		log.Printf("%v", u)
 	}
 }
 

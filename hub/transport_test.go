@@ -22,9 +22,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = u.Topics
 	go s.start()
-
-	err = transport.AddSubscriber(s)
-	require.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
 	var (
 		wg         sync.WaitGroup
@@ -56,17 +54,11 @@ func TestLocalTransportDispatch(t *testing.T) {
 	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"http://example.com/foo"}
 	go s.start()
-
-	err := transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	assert.Nil(t, transport.AddSubscriber(s))
 
 	u := &Update{Topics: s.Topics}
-
-	err = transport.Dispatch(u)
-	assert.Nil(t, err)
-
-	readUpdate := <-s.Receive()
-	assert.Equal(t, u, readUpdate)
+	require.Nil(t, transport.Dispatch(u))
+	assert.Equal(t, u, <-s.Receive())
 }
 
 func TestLocalTransportClosed(t *testing.T) {
@@ -77,17 +69,11 @@ func TestLocalTransportClosed(t *testing.T) {
 	tss := newTopicSelectorStore()
 
 	s := newSubscriber("", tss)
-	err := transport.AddSubscriber(s)
-	require.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
-	err = transport.Close()
-	assert.Nil(t, err)
-
-	err = transport.AddSubscriber(newSubscriber("", tss))
-	assert.Equal(t, err, ErrClosedTransport)
-
-	err = transport.Dispatch(&Update{})
-	assert.Equal(t, err, ErrClosedTransport)
+	assert.Nil(t, transport.Close())
+	assert.Equal(t, transport.AddSubscriber(newSubscriber("", tss)), ErrClosedTransport)
+	assert.Equal(t, transport.Dispatch(&Update{}), ErrClosedTransport)
 
 	_, ok := <-s.disconnected
 	assert.False(t, ok)
@@ -101,15 +87,11 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 
 	s1 := newSubscriber("", tss)
 	go s1.start()
-
-	err := transport.AddSubscriber(s1)
-	require.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s1))
 
 	s2 := newSubscriber("", tss)
 	go s2.start()
-
-	err = transport.AddSubscriber(s2)
-	require.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s2))
 
 	assert.Len(t, transport.subscribers, 2)
 
@@ -134,13 +116,10 @@ func TestLiveReading(t *testing.T) {
 	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"https://example.com"}
 	go s.start()
-
-	err := transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
 	u := &Update{Topics: s.Topics}
-	err = transport.Dispatch(u)
-	assert.Nil(t, err)
+	assert.Nil(t, transport.Dispatch(u))
 
 	receivedUpdate := <-s.Receive()
 	assert.Equal(t, u, receivedUpdate)
@@ -173,4 +152,26 @@ func TestNewTransport(t *testing.T) {
 	v.Set("transport_url", "http://[::1]%23")
 	_, err = NewTransport(v)
 	assert.EqualError(t, err, `transport_url: parse "http://[::1]%23": invalid port "%23" after host`)
+}
+
+func TestLocalTransportGetSubscribers(t *testing.T) {
+	transport := NewLocalTransport()
+	defer transport.Close()
+	require.NotNil(t, transport)
+
+	tss := newTopicSelectorStore()
+
+	s1 := newSubscriber("", tss)
+	go s1.start()
+	require.Nil(t, transport.AddSubscriber(s1))
+
+	s2 := newSubscriber("", tss)
+	go s2.start()
+	require.Nil(t, transport.AddSubscriber(s2))
+
+	lastEventID, subscribers := transport.GetSubscribers()
+	assert.Equal(t, EarliestLastEventID, lastEventID)
+	assert.Len(t, subscribers, 2)
+	assert.Contains(t, subscribers, s1)
+	assert.Contains(t, subscribers, s2)
 }

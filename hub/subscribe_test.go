@@ -397,13 +397,9 @@ func TestSubscriptionEvents(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
-		s, _ := hub.transport.(*LocalTransport)
 		for {
-			s.RLock()
-			ready := len(s.subscribers) == 2
-			s.RUnlock()
-
-			if ready {
+			_, s := hub.transport.GetSubscribers()
+			if len(s) == 2 {
 				break
 			}
 		}

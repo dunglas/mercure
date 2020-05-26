@@ -1,6 +1,8 @@
 package hub
 
 import (
+	"bytes"
+	"encoding/binary"
 	"net/url"
 	"os"
 	"strconv"
@@ -30,8 +32,7 @@ func TestBoltTransportHistory(t *testing.T) {
 	s.Topics = topics
 	go s.start()
 
-	err := transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
 	var count int
 	for {
@@ -62,9 +63,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	s := newSubscriber(EarliestLastEventID, newTopicSelectorStore())
 	s.Topics = topics
 	go s.start()
-
-	err := transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
 	var count int
 	for {
@@ -95,9 +94,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 	s := newSubscriber("8", newTopicSelectorStore())
 	s.Topics = topics
 	go s.start()
-
-	err := transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -181,9 +178,7 @@ func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 
 	s := newSubscriber("", newTopicSelectorStore())
 	go s.start()
-
-	err := transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
 	var (
 		readUpdate *Update
@@ -219,16 +214,11 @@ func TestBoltTransportDispatch(t *testing.T) {
 	s.Topics = []string{"https://example.com/foo"}
 	go s.start()
 
-	err := transport.AddSubscriber(s)
-	assert.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s))
 
 	u := &Update{Topics: s.Topics}
-
-	err = transport.Dispatch(u)
-	assert.Nil(t, err)
-
-	readUpdate := <-s.Receive()
-	assert.Equal(t, u, readUpdate)
+	require.Nil(t, transport.Dispatch(u))
+	assert.Equal(t, u, <-s.Receive())
 }
 
 func TestBoltTransportClosed(t *testing.T) {
@@ -242,18 +232,12 @@ func TestBoltTransportClosed(t *testing.T) {
 	s := newSubscriber("", newTopicSelectorStore())
 	s.Topics = []string{"https://example.com/foo"}
 	go s.start()
+	require.Nil(t, transport.AddSubscriber(s))
 
-	err := transport.AddSubscriber(s)
-	require.Nil(t, err)
+	require.Nil(t, transport.Close())
+	require.NotNil(t, transport.AddSubscriber(s))
 
-	err = transport.Close()
-	assert.Nil(t, err)
-
-	err = transport.AddSubscriber(s)
-	assert.Equal(t, err, ErrClosedTransport)
-
-	err = transport.Dispatch(&Update{Topics: s.Topics})
-	assert.Equal(t, err, ErrClosedTransport)
+	assert.Equal(t, transport.Dispatch(&Update{Topics: s.Topics}), ErrClosedTransport)
 
 	_, ok := <-s.disconnected
 	assert.False(t, ok)
@@ -270,13 +254,11 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 
 	s1 := newSubscriber("", tss)
 	go s1.start()
-	err := transport.AddSubscriber(s1)
-	require.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s1))
 
 	s2 := newSubscriber("", tss)
 	go s2.start()
-	err = transport.AddSubscriber(s2)
-	require.Nil(t, err)
+	require.Nil(t, transport.AddSubscriber(s2))
 
 	assert.Len(t, transport.subscribers, 2)
 
@@ -291,4 +273,61 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 
 	transport.Dispatch(&Update{})
 	assert.Len(t, transport.subscribers, 0)
+}
+
+func TestBoltGetSubscribers(t *testing.T) {
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	require.NotNil(t, transport)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	tss := newTopicSelectorStore()
+
+	s1 := newSubscriber("", tss)
+	go s1.start()
+	require.Nil(t, transport.AddSubscriber(s1))
+
+	s2 := newSubscriber("", tss)
+	go s2.start()
+	require.Nil(t, transport.AddSubscriber(s2))
+
+	lastEventID, subscribers := transport.GetSubscribers()
+	assert.Equal(t, EarliestLastEventID, lastEventID)
+	assert.Len(t, subscribers, 2)
+	assert.Contains(t, subscribers, s1)
+	assert.Contains(t, subscribers, s2)
+}
+
+func TestBoltLastEventID(t *testing.T) {
+	db, err := bolt.Open("test.db", 0600, nil)
+	defer os.Remove("test.db")
+	require.Nil(t, err)
+
+	db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(defaultBoltBucketName))
+		require.Nil(t, err)
+
+		seq, err := bucket.NextSequence()
+		require.Nil(t, err)
+
+		prefix := make([]byte, 8)
+		binary.BigEndian.PutUint64(prefix, seq)
+
+		// The sequence value is prepended to the update id to create an ordered list
+		key := bytes.Join([][]byte{prefix, []byte("foo")}, []byte{})
+
+		// The DB is append only
+		bucket.FillPercent = 1
+		return bucket.Put(key, []byte("invalid"))
+	})
+	require.Nil(t, db.Close())
+
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	require.NotNil(t, transport)
+	defer transport.Close()
+
+	lastEventID, _ := transport.GetSubscribers()
+	assert.Equal(t, "foo", lastEventID)
 }

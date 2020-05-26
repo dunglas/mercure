@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"regexp"
 	"strings"
 	"sync"
 
@@ -11,12 +12,12 @@ type selector struct {
 	sync.RWMutex
 	// counter stores the number of subsribers currently using this topic
 	counter uint32
-	// the uritemplate.Template instance, of nil if it's a raw string
-	template   *uritemplate.Template
+	// the regexp.Regexp instance, of nil if it's a raw string
+	regexp     *regexp.Regexp
 	matchCache map[string]bool
 }
 
-// topicSelectorStore caches uritemplate.Template to improve memory and CPU usage.
+// topicSelectorStore caches compiled templates to improve memory and CPU usage.
 type topicSelectorStore struct {
 	sync.RWMutex
 	m map[string]*selector
@@ -41,7 +42,9 @@ func (tss *topicSelectorStore) match(topic, topicSelector string, addToCache boo
 		return match
 	}
 
-	match = templateStore.template != nil && templateStore.template.Match(topic) != nil
+	// Use template.Regexp() instead of template.Match() for performance
+	// See https://github.com/yosida95/uritemplate/pull/7
+	match = templateStore.regexp != nil && templateStore.regexp.MatchString(topic)
 	templateStore.Lock()
 	templateStore.matchCache[topic] = match
 	templateStore.Unlock()
@@ -49,7 +52,7 @@ func (tss *topicSelectorStore) match(topic, topicSelector string, addToCache boo
 	return match
 }
 
-// getTemplateStore retrieves or creates the uritemplate.Template associated with this topic, or nil if it's not a template.
+// getTemplateStore retrieves or creates the compiled template associated with this topic, or nil if it's not a template.
 func (tss *topicSelectorStore) getTemplateStore(topicSelector string, addToCache bool) *selector {
 	if addToCache {
 		tss.Lock()
@@ -71,8 +74,12 @@ func (tss *topicSelectorStore) getTemplateStore(topicSelector string, addToCache
 	}
 
 	s = &selector{matchCache: make(map[string]bool)}
-	if strings.Contains(topicSelector, "{") { // If it's definitely not an URI template, skip to save some resources
-		s.template, _ = uritemplate.New(topicSelector) // Returns nil in case of error, will be considered as a raw string
+	// If it's definitely not an URI template, skip to save some resources
+	if strings.Contains(topicSelector, "{") {
+		// If an error occurs, it's a raw string
+		if tpl, err := uritemplate.New(topicSelector); err == nil {
+			s.regexp = tpl.Regexp()
+		}
 	}
 
 	if addToCache {
@@ -82,7 +89,7 @@ func (tss *topicSelectorStore) getTemplateStore(topicSelector string, addToCache
 	return s
 }
 
-// Remove unused uritemplate.Template instances from memory.
+// cleanup removes unused compiled templates from memory.
 func (tss *topicSelectorStore) cleanup(topics []string) {
 	tss.Lock()
 	defer tss.Unlock()
