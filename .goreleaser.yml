@@ -42,6 +42,8 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+release:
+  prerelease: auto
 dockers:
 -
   image_templates:
