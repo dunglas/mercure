@@ -32,11 +32,11 @@ from uritemplate import expand
 HUB_URL = os.environ.get(
     'HUB_URL', 'http://localhost:3000/.well-known/mercure')
 JWT_KEY = os.environ.get('JWT_KEY', '!ChangeMe!')
-MESSAGE_TEMPLATE = os.environ.get(
-    'MESSAGE_TEMPLATE', 'https://chat.example.com/messages/{id}')
+MESSAGE_URI_TEMPLATE = os.environ.get(
+    'MESSAGE_URI_TEMPLATE', 'https://chat.example.com/messages/{id}')
 
 SUBSCRIPTIONS_TEMPLATE = '/.well-known/mercure/subscriptions/{topic}{/subscriber}'
-SUBSCRIPTIONS_TOPIC = expand(SUBSCRIPTIONS_TEMPLATE, topic=MESSAGE_TEMPLATE)
+SUBSCRIPTIONS_TOPIC = expand(SUBSCRIPTIONS_TEMPLATE, topic=MESSAGE_URI_TEMPLATE)
 
 app = Flask(__name__)
 
@@ -55,8 +55,8 @@ def chat():
     token = jwt.encode(
         {'mercure':
             {
-                'subscribe': [MESSAGE_TEMPLATE, SUBSCRIPTIONS_TEMPLATE],
-                'publish': [MESSAGE_TEMPLATE],
+                'subscribe': [MESSAGE_URI_TEMPLATE, SUBSCRIPTIONS_TEMPLATE],
+                'publish': [MESSAGE_URI_TEMPLATE],
                 'payload': {'username': username}
             }
          },
@@ -65,7 +65,7 @@ def chat():
     )
 
     resp = make_response(render_template('chat.html', config={
-                         'hubURL': HUB_URL, 'messageTemplate': MESSAGE_TEMPLATE, 'subscriptionsTopic': SUBSCRIPTIONS_TOPIC, 'username': username}))
+                         'hubURL': HUB_URL, 'messageURITemplate': MESSAGE_URI_TEMPLATE, 'subscriptionsTopic': SUBSCRIPTIONS_TOPIC, 'username': username}))
     resp.set_cookie('mercureAuthorization', token, httponly=True, path='/.well-known/mercure',
                     samesite="strict", domain=os.environ.get('COOKIE_DOMAIN', None), secure=request.is_secure)  # Force secure to True for real apps
 

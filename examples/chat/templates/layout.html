@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>A chat using Mercure</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8/css/bulma.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5/css/all.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+
+  <body>
+      <div class="hero is-light is-small">
+        <div class="hero-body has-text-centered">
+            <div class="container">
+                <div class="column is-three-fifths is-offset-one-fifth">
+                    <h1 class="title">
+                        <a href="https://mercure.rocks"><img src="https://mercure.rocks/static/logo.svg" alt="Mercure"></a>
+                    </h1>
+                    <h2 class="subtitle">Demo Chat App (<a href="https://github.com/dunglas/mercure/tree/master/examples/chat">sources</a>)</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <main role="main" class="container">{% block content %}{% endblock %}</main>
+    <footer class="footer">
+      <div class="content has-text-centered">
+        <p>
+          This is a demo chat using <a href="https://mercure.rocks">Mercure</a>.<br><a href="https://github.com/dunglas/mercure/tree/master/examples/chat">Source code</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

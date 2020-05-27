@@ -2,7 +2,7 @@
 
 ## Examples
 
-* [A chat with the list of connected users (using subscriptions, written in JavaScript and Python/Flask)](https://github.com/dunglas/mercure/tree/master/examples/chat-python-flask)
+* [A chat with the list of connected users (using subscriptions, written in JavaScript and Python/Flask)](https://github.com/dunglas/mercure/tree/master/examples/chat)
 
 ### Publish
 

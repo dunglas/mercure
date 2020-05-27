@@ -1,14 +1,14 @@
 const type = "https://chat.example.com/Message";
-const { hubURL, messageTemplate, subscriptionsTopic, username } = JSON.parse(
+const { hubURL, messageURITemplate, subscriptionsTopic, username } = JSON.parse(
   document.getElementById("config").textContent
 );
 
 document.getElementById("username").textContent = username;
 
 const $messages = document.getElementById("messages");
-const $userList = document.getElementById("userList");
-let $userListUL = null;
-let $messagesUL = null;
+const $messageTemplate = document.getElementById("message");
+const $userList = document.getElementById("user-list");
+const $onlineUserTemplate = document.getElementById("online-user");
 
 let userList, es;
 (async () => {
@@ -31,7 +31,7 @@ let userList, es;
     "Last-Event-ID",
     subscriptionCollection.lastEventID
   );
-  subscribeURL.searchParams.append("topic", messageTemplate);
+  subscribeURL.searchParams.append("topic", messageURITemplate);
   subscribeURL.searchParams.append(
     "topic",
     `${subscriptionsTopic}{/subscriber}`
@@ -56,38 +56,22 @@ let userList, es;
 })();
 
 const updateUserListView = () => {
-  if (userList.size === 0) {
-    $userList.textContent = "No other users";
-    $messagesUL = null;
-    return;
-  }
-
   $userList.textContent = "";
-  if ($userListUL === null) {
-    $userListUL = document.createElement("ul");
-  } else {
-    $userListUL.textContent = "";
-  }
-
   userList.forEach((_, username) => {
-    const li = document.createElement("li");
-    li.append(document.createTextNode(username));
-    $userListUL.append(li);
+    const el = document.importNode($onlineUserTemplate.content, true);
+    el.querySelector(".username").textContent = username;
+    $userList.append(el);
   });
-  $userList.append($userListUL);
 };
 
 const displayMessage = ({ username, message }) => {
-  if (!$messagesUL) {
-    $messagesUL = document.createElement("ul");
+  const el = document.importNode($messageTemplate.content, true);
+  el.querySelector(".username").textContent = username;
+  el.querySelector(".msg").textContent = message;
+  $messages.append(el);
 
-    $messages.innerText = "";
-    $messages.append($messagesUL);
-  }
-
-  const li = document.createElement("li");
-  li.append(document.createTextNode(`<${username}> ${message}`));
-  $messagesUL.append(li);
+  // scroll at the bottom when a new message is received
+  $messages.scrollTop = $messages.scrollHeight;
 };
 
 const updateUserList = ({ active, payload }) => {
@@ -103,7 +87,7 @@ document.querySelector("form").onsubmit = function (e) {
   e.preventDefault();
 
   const uid = window.crypto.getRandomValues(new Uint8Array(10)).join("");
-  const messageTopic = messageTemplate.replace("{id}", uid);
+  const messageTopic = messageURITemplate.replace("{id}", uid);
 
   const body = new URLSearchParams({
     data: JSON.stringify({
