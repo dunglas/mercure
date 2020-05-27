@@ -1,23 +1,11 @@
 # Frequently Asked Questions
 
-## How to Use Mercure with GraphQL?
+## What's the Difference Between Mercure and WebSockets?
 
-Because they are delivery agnostic, Mercure plays particularly well with [GraphQL's subscriptions](https://facebook.github.io/graphql/draft/#sec-Subscription).
+In a nutshell [the WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is low level, Mercure is a high level.
+Mercure provides convenient built-in features such as authorization, re-connection, state reconciliation and a presence API ; while with WebSockets, you need to implement them yourself.
 
-In response to the subscription query, the GraphQL server may return a corresponding topic URL.
-The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with an URL like `https://example.com/.well-known/mercure?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
-
-Updates for the given subscription can then be sent from the GraphQL server to the clients through the Mercure hub (in the `data` property of the server-sent event).
-
-To unsubscribe, the client just calls `EventSource.close()`.
-
-Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated transport](https://github.com/apollographql/graphql-subscriptions).
-
-## What's the Difference Between Mercure and WebSocket?
-
-[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is a low level protocol, Mercure is a high level one.
-Mercure provides convenient built-in features such as authorization, re-connection and state reconciliation ; while with WebSocket, you need to implement them yourself.
-Also, unlike Mercure (which is built on top of HTTP and Server-Sent Events), WebSocket [is not designed to leverage HTTP/2](https://www.infoq.com/articles/websocket-and-http2-coexist).
+Also WebSockets [are not designed to leverage HTTP/2+](https://www.infoq.com/articles/websocket-and-http2-coexist) and are known to be [hard to secure](https://gravitational.com/blog/kubernetes-websocket-upgrade-security-vulnerability/). On the other hand Mercure relies on plain HTTP connections and benefits from the performance an security improvement built in the latest versions of this protocol.
 
 HTTP/2 connections are multiplexed and bidirectional by default (it was not the case of HTTP/1).
 When using Mercure over a h2 connection (recommended), your app can receive data through Server-Sent Events, and send data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
@@ -40,3 +28,25 @@ In most implementations, the size of the payload to dispatch is very limited, an
 On the other hand, Mercure is a duplex protocol designed to send live updates to devices currently connected to the web or mobile app. The payload is not limited, and the message goes directly from your servers to the clients.
 
 In summary, use the Push API to send notifications to offline users (that will be available in Chrome, Android and iOS's notification centers), and use Mercure to receive and publish live updates when the user is using the app.
+
+## What's the Maximum Number of Open Connections Per Browser?
+
+When using HTTP/2+ ([the default for almost all users](https://caniuse.com/#feat=http2)), the maximum number of simultaneous HTTP **streams** is negotiated between the server and the client (it defaults to 100).
+When using HTTP 1.1, this limit is of 6.
+
+By using template selectors and by passing several `topic` parameters, it's possible to subscribe to an unlimited of topics using a single HTTP connection.
+
+## How to Use Mercure with GraphQL?
+
+Because they are delivery agnostic, Mercure plays particularly well with [GraphQL's subscriptions](https://facebook.github.io/graphql/draft/#sec-Subscription).
+
+For instance, [the API Platform framework has native support for GraphQL subscriptions thanks to Mercure](https://api-platform.com/docs/master/core/graphql/#subscriptions).
+
+In response to the subscription query, the GraphQL server may return a corresponding topic URL.
+The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with an URL like `https://example.com/.well-known/mercure?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
+
+Updates for the given subscription can then be sent from the GraphQL server to the clients through the Mercure hub (in the `data` property of the server-sent event).
+
+To unsubscribe, the client just calls `EventSource.close()`.
+
+Also, Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated transport](https://github.com/apollographql/graphql-subscriptions).

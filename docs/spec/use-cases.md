@@ -1,9 +1,13 @@
 
 # Use Cases
 
+From building a chat room to expose a fully-featured event store, Mercure covers a broad spectrum of use cases related to realtime and async APIs.
+
 Example of usage: the Mercure integration in [API Platform](https://api-platform.com/docs/client-generator):
 
 ![API Platform screencast](https://api-platform.com/d20c0f7f49b5655a3788d9c570c1c80a/client-generator-demo.gif)
+
+Here are some popular use cases:
 
 ## Live Availability
 
@@ -23,3 +27,5 @@ Example of usage: the Mercure integration in [API Platform](https://api-platform
 * changes made are immediately broadcasted to all connected users
 
 **Mercure gets you covered!**
+
+See also, [the examples](../ecosystem/awesome.md#examples).
