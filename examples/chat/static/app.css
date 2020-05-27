@@ -1,0 +1,19 @@
+.hero img {
+    width: 40%;
+}
+
+#chat #messages, #chat .panel  {
+    height: 100%;
+    overflow-y: scroll;
+}
+
+#chat .columns {
+    height: 70vh;
+}
+
+#chat .box {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+}

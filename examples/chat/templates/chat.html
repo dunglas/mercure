@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block content %}
+    <section class="section" id="chat">
+        <div class="columns">
+            <div class="column is-three-quarters">
+                <div class="box">
+                    <template id="message">
+                        <div><strong class="username">Kévin</strong>: <span class="msg"></span></div>
+                    </template>
+                    <div id="messages"></div>
+
+                    <form>
+                        <div class="field has-addons">
+                            <div class="control is-expanded">
+                                <input name="message" placeholder="Your message..." autocomplete="off" required class="input is-small is-fullwidth">
+                            </div>
+                            <div class="control">
+                                <button class="button is-primary is-small">Post</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="column">
+                <div class="panel">
+                    <p class="panel-heading">Online</p>
+
+                    <template id="online-user">
+                        <div class="panel-block">
+                            <span class="panel-icon">
+                                <i class="fas fa-user" aria-hidden="true"></i>
+                            </span>
+                            <span class="username"></span>
+                        </div>
+                    </template>
+
+                    <div class="panel-block is-active">
+                        <span class="panel-icon">
+                            <i class="fas fa-smile" aria-hidden="true"></i>
+                        </span>
+                        <span id="username" title="This is you"></span>
+                    </div>
+
+                    <div id="user-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script type="application/json" id="config">
+        {{ config|tojson|safe }}
+    </script>
+    <script src="/static/chat.js"></script>
+{% endblock %}

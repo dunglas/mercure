@@ -1,0 +1,4 @@
+Flask>=1.1.2
+PyJWT>=1.7.1
+uritemplate>=3.0.1
+gunicorn>=20.0.4

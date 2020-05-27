@@ -2,10 +2,19 @@
 
 ## Examples
 
-* [Python/Flask: chat application](https://github.com/dunglas/mercure/tree/master/examples/chat-python-flask) ([live demo](https://python-chat.mercure.rocks/))
-* [Node.js: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-node.js)
-* [PHP: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-php.php)
-* [Ruby: publishing](https://github.com/dunglas/mercure/tree/master/examples/publisher-ruby.rb)
+* [A chat with the list of connected users (using subscriptions, written in JavaScript and Python/Flask)](https://github.com/dunglas/mercure/tree/master/examples/chat)
+
+### Publish
+
+* [Node.js](https://github.com/dunglas/mercure/tree/master/examples/publish/node.js)
+* [PHP](https://github.com/dunglas/mercure/tree/master/examples/publish/php.php)
+* [Ruby](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
+* [JavaScript (the official debug interface)](https://github.com/dunglas/mercure/tree/master/public/app.js)
+
+### Subscribe
+
+* [Python](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
+* [JavaScript (the official debug interface)](https://github.com/dunglas/mercure/tree/master/public/app.js)
 
 ## Documentation and Code Generation
 
