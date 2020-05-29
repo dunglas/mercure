@@ -13,8 +13,7 @@ import (
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
-	_, ok := w.(http.Flusher)
-	if !ok {
+	if _, ok := w.(http.Flusher); !ok {
 		panic("http.ResponseWriter must be an instance of http.Flusher")
 	}
 

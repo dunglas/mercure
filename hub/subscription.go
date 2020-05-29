@@ -107,8 +107,12 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 		return "", nil, false
 	}
 
-	lastEventID, subscribers = h.transport.GetSubscribers()
+	transport, ok := h.transport.(TransportSubscribers)
+	if !ok {
+		panic("The transport isn't an instance of hub.TransportSubscribers")
+	}
 
+	lastEventID, subscribers = transport.GetSubscribers()
 	if r.Header.Get("If-None-Match") == lastEventID {
 		w.WriteHeader(http.StatusNotModified)
 		return "", nil, false

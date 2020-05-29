@@ -20,11 +20,14 @@ type Transport interface {
 	// AddSubscriber adds a new subscriber to the transport.
 	AddSubscriber(s *Subscriber) error
 
-	// GetSubscribers gets the last event ID and the list of active subscribers at this time.
-	GetSubscribers() (string, []*Subscriber)
-
 	// Close closes the Transport.
 	Close() error
+}
+
+// TransportSubscribers provide a method to retrieve the list of active subscribers.
+type TransportSubscribers interface {
+	// GetSubscribers gets the last event ID and the list of active subscribers at this time.
+	GetSubscribers() (string, []*Subscriber)
 }
 
 var (
