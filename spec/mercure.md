@@ -516,7 +516,7 @@ Example:
 
 ## Subscription API
 
-If the hub supports subscription events (see (#subscription-events)), it **MUST** also expose active
+If the hub supports subscription events (see (#subscription-events)), it **SHOULD** also expose active
 subscriptions through a web API.
 
 For instance, subscribers interested in maintaining a list of active subscriptions can call the web
