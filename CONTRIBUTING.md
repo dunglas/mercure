@@ -9,6 +9,31 @@ Be sure to you have the right to do that (if you are a professional, ask your co
 
 If you include code from another project, please mention it in the Pull Request description and credit the original author.
 
+## Commit Messages
+
+The commit message must follow the [Conventional Commits specification](https://www.conventionalcommits.org/).
+The following types are allowed:
+
+* `fix`: bug fix
+* `feat`: new feature
+* `docs`: change in the documentation
+* `spec`: spec change
+* `test`: test-related change
+* `perf`: performance optimization
+* `ci`: CI-related change
+
+Examples:
+
+    fix: Fix something
+
+    feat: Introduce X
+
+    feat!: Introduce Y, BC break
+
+    docs: Add docs for X
+
+    spec: Z disambiguation
+
 ## Hub
 
 Clone the project:
@@ -51,9 +76,9 @@ To debug potential deadlocks:
 3. To stress test the app, run the load test (see `docs/load-testing.md`)
 4. Be sure to remove `go-deadlock` before committing
 
-## Protocol
+## Spec
 
-The protocol is written in Markdown, compatible with [Mmark](https://mmark.miek.nl/).
+The spec is written in Markdown, compatible with [Mmark](https://mmark.miek.nl/).
 It is then converted in the [the "xml2rfc" Version 3 Vocabulary](https://tools.ietf.org/html/rfc7991).
 
 To contribute to the protocol itself:
