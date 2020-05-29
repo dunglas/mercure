@@ -30,7 +30,7 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("demo", false)
 	v.SetDefault("subscriptions", false)
 	v.SetDefault("metrics", false)
-	v.SetDefault("metrics_login", "")
+	v.SetDefault("metrics_login", "mercure")
 	v.SetDefault("metrics_password", "")
 }
 
@@ -84,7 +84,7 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.StringP("log-format", "l", "", "the log format (JSON, FLUENTD or TEXT)")
 	fs.BoolP("subscriptions", "s", false, "dispatch updates when subscriptions are created or terminated")
 	fs.BoolP("metrics", "m", false, "enable metrics")
-	fs.StringP("metrics_login", "", "", "the user login allowed to access metrics")
+	fs.StringP("metrics_login", "", "mercure", "the user login allowed to access metrics")
 	fs.StringP("metrics_password", "", "", "the user password allowed to access metrics")
 
 	fs.VisitAll(func(f *pflag.Flag) {
