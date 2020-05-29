@@ -2,6 +2,7 @@ package hub
 
 import (
 	"net/url"
+	"sync"
 
 	"github.com/gofrs/uuid"
 	log "github.com/sirupsen/logrus"
@@ -24,11 +25,12 @@ type Subscriber struct {
 	LogFields     log.Fields
 	Debug         bool
 
-	out                chan *Update
-	disconnected       chan struct{}
-	history            updateSource
-	live               updateSource
-	topicSelectorStore *topicSelectorStore
+	closeDisconnectedOnce sync.Once
+	out                   chan *Update
+	disconnected          chan struct{}
+	history               updateSource
+	live                  updateSource
+	topicSelectorStore    *topicSelectorStore
 }
 
 func newSubscriber(lastEventID string, uriTemplates *topicSelectorStore) *Subscriber {
@@ -149,13 +151,9 @@ func (s *Subscriber) HistoryDispatched() {
 
 // Disconnect disconnects the subscriber.
 func (s *Subscriber) Disconnect() {
-	select {
-	case <-s.disconnected:
-		return
-	default:
-	}
-
-	close(s.disconnected)
+	s.closeDisconnectedOnce.Do(func() {
+		close(s.disconnected)
+	})
 }
 
 // Disconnected allows to check if the subscriber is disconnected.
