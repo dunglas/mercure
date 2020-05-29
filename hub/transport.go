@@ -20,7 +20,7 @@ type Transport interface {
 	// AddSubscriber adds a new subscriber to the transport.
 	AddSubscriber(s *Subscriber) error
 
-	// GetSubscribers gets the last event ID and the list of active subscribers at this time
+	// GetSubscribers gets the last event ID and the list of active subscribers at this time.
 	GetSubscribers() (string, []*Subscriber)
 
 	// Close closes the Transport.
@@ -61,15 +61,16 @@ func NewTransport(config *viper.Viper) (Transport, error) {
 type LocalTransport struct {
 	sync.RWMutex
 	subscribers map[*Subscriber]struct{}
-	done        chan struct{}
 	lastEventID string
+	closed      chan struct{}
+	closedOnce  sync.Once
 }
 
 // NewLocalTransport create a new LocalTransport.
 func NewLocalTransport() *LocalTransport {
 	return &LocalTransport{
 		subscribers: make(map[*Subscriber]struct{}),
-		done:        make(chan struct{}),
+		closed:      make(chan struct{}),
 		lastEventID: EarliestLastEventID,
 	}
 }
@@ -77,7 +78,7 @@ func NewLocalTransport() *LocalTransport {
 // Dispatch dispatches an update to all subscribers.
 func (t *LocalTransport) Dispatch(update *Update) error {
 	select {
-	case <-t.done:
+	case <-t.closed:
 		return ErrClosedTransport
 	default:
 	}
@@ -100,7 +101,7 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 	defer t.Unlock()
 
 	select {
-	case <-t.done:
+	case <-t.closed:
 		return ErrClosedTransport
 	default:
 	}
@@ -126,20 +127,16 @@ func (t *LocalTransport) GetSubscribers() (lastEventID string, subscribers []*Su
 }
 
 // Close closes the Transport.
-func (t *LocalTransport) Close() error {
-	select {
-	case <-t.done:
-		return nil
-	default:
-	}
-
-	t.RLock()
-	defer t.RUnlock()
-	for subscriber := range t.subscribers {
-		subscriber.Disconnect()
-		delete(t.subscribers, subscriber)
-	}
-	close(t.done)
+func (t *LocalTransport) Close() (err error) {
+	t.closedOnce.Do(func() {
+		t.Lock()
+		defer t.Unlock()
+		close(t.closed)
+		for subscriber := range t.subscribers {
+			subscriber.Disconnect()
+			delete(t.subscribers, subscriber)
+		}
+	})
 
 	return nil
 }
