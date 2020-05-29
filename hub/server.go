@@ -166,6 +166,9 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	if !h.config.GetBool("subscriptions") {
 		return
 	}
+	if _, ok := h.transport.(TransportSubscribers); !ok {
+		return
+	}
 
 	r.UseEncodedPath()
 	r.SkipClean(true)

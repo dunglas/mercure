@@ -398,7 +398,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		defer wg.Done()
 
 		for {
-			_, s := hub.transport.GetSubscribers()
+			_, s := hub.transport.(TransportSubscribers).GetSubscribers()
 			if len(s) == 2 {
 				break
 			}

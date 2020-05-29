@@ -111,7 +111,7 @@ func TestSubscriptionsHandler(t *testing.T) {
 	assert.Equal(t, subscriptionsURL, subscriptions.ID)
 	assert.Equal(t, "Subscriptions", subscriptions.Type)
 
-	lastEventID, subscribers := hub.transport.GetSubscribers()
+	lastEventID, subscribers := hub.transport.(TransportSubscribers).GetSubscribers()
 
 	assert.Equal(t, lastEventID, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
@@ -162,7 +162,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	assert.Equal(t, defaultHubURL+"/subscriptions/"+escapedBarTopic, subscriptions.ID)
 	assert.Equal(t, "Subscriptions", subscriptions.Type)
 
-	lastEventID, subscribers := hub.transport.GetSubscribers()
+	lastEventID, subscribers := hub.transport.(TransportSubscribers).GetSubscribers()
 
 	assert.Equal(t, lastEventID, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
@@ -206,7 +206,7 @@ func TestSubscriptionHandler(t *testing.T) {
 	var subscription subscription
 	json.Unmarshal(w.Body.Bytes(), &subscription)
 	expectedSub := s.getSubscriptions(s.Topics[1], "https://mercure.rocks/", true)[1]
-	expectedSub.LastEventID, _ = hub.transport.GetSubscribers()
+	expectedSub.LastEventID, _ = hub.transport.(TransportSubscribers).GetSubscribers()
 	assert.Equal(t, expectedSub, subscription)
 
 	req = httptest.NewRequest("GET", defaultHubURL+"/subscriptions/notexist/"+s.EscapedID, nil)
