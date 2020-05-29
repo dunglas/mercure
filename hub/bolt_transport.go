@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	bolt "go.etcd.io/bbolt"
-	"go.uber.org/atomic"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -26,8 +25,9 @@ type BoltTransport struct {
 	size             uint64
 	cleanupFrequency float64
 	subscribers      map[*Subscriber]struct{}
-	done             chan struct{}
-	lastSeq          atomic.Uint64
+	closed           chan struct{}
+	closedOnce       sync.Once
+	lastSeq          uint64
 	lastEventID      string
 }
 
@@ -77,7 +77,7 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 		size:             size,
 		cleanupFrequency: cleanupFrequency,
 		subscribers:      make(map[*Subscriber]struct{}),
-		done:             make(chan struct{}),
+		closed:           make(chan struct{}),
 		lastEventID:      getDBLastEventID(db, bucketName),
 	}, nil
 }
@@ -103,7 +103,7 @@ func getDBLastEventID(db *bolt.DB, bucketName string) string {
 // Dispatch dispatches an update to all subscribers and persists it in BoltDB.
 func (t *BoltTransport) Dispatch(update *Update) error {
 	select {
-	case <-t.done:
+	case <-t.closed:
 		return ErrClosedTransport
 	default:
 	}
@@ -142,42 +142,41 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		if err != nil {
 			return err
 		}
-		t.lastSeq.Store(seq)
-		t.lastEventID = updateID
 		prefix := make([]byte, 8)
 		binary.BigEndian.PutUint64(prefix, seq)
 
 		// The sequence value is prepended to the update id to create an ordered list
 		key := bytes.Join([][]byte{prefix, []byte(updateID)}, []byte{})
 
-		if err := t.cleanup(bucket, seq); err != nil {
+		// The DB is append only
+		bucket.FillPercent = 1
+
+		t.lastSeq = seq
+		t.lastEventID = updateID
+		if err := bucket.Put(key, updateJSON); err != nil {
 			return err
 		}
 
-		// The DB is append only
-		bucket.FillPercent = 1
-		return bucket.Put(key, updateJSON)
+		return t.cleanup(bucket, seq)
 	})
 }
 
 // AddSubscriber adds a new subscriber to the transport.
 func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 	select {
-	case <-t.done:
+	case <-t.closed:
 		return ErrClosedTransport
 	default:
 	}
 
 	t.Lock()
 	t.subscribers[s] = struct{}{}
-	if s.LastEventID == "" {
-		t.Unlock()
-		return nil
-	}
+	toSeq := t.lastSeq
 	t.Unlock()
 
-	toSeq := t.lastSeq.Load()
-	t.dispatchHistory(s, toSeq)
+	if s.LastEventID != "" {
+		t.dispatchHistory(s, toSeq)
+	}
 
 	return nil
 }
@@ -235,23 +234,20 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 }
 
 // Close closes the Transport.
-func (t *BoltTransport) Close() error {
-	select {
-	case <-t.done:
-		return nil
-	default:
-	}
+func (t *BoltTransport) Close() (err error) {
+	t.closedOnce.Do(func() {
+		close(t.closed)
 
-	t.Lock()
-	defer t.Unlock()
-	for subscriber := range t.subscribers {
-		subscriber.Disconnect()
-		delete(t.subscribers, subscriber)
-	}
-	close(t.done)
-	t.db.Close()
+		t.Lock()
+		for subscriber := range t.subscribers {
+			subscriber.Disconnect()
+			delete(t.subscribers, subscriber)
+		}
+		t.Unlock()
 
-	return nil
+		err = t.db.Close()
+	})
+	return err
 }
 
 // cleanup removes entries in the history above the size limit, triggered probabilistically.
