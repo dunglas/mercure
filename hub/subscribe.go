@@ -48,10 +48,6 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			timer.Reset(hearthbeatInterval)
 		case update := <-s.Receive():
-			if update.PreviousID != "" {
-				w.Header().Set("Last-Event-ID", update.PreviousID)
-			}
-
 			if !h.write(w, s, newSerializedUpdate(update).event) {
 				return
 			}
@@ -89,10 +85,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 		return nil
 	}
 	s.LogFields["subscriber_topics"] = s.Topics
-
 	s.EscapedTopics = escapeTopics(s.Topics)
-	s.RemoteAddr = r.RemoteAddr
-
 	go s.start()
 
 	h.dispatchSubscriptionUpdate(s, true)
@@ -102,16 +95,17 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 		log.WithFields(s.LogFields).Error(err)
 		return nil
 	}
-	sendHeaders(w, s.LastEventID == "")
-	log.WithFields(s.LogFields).Info("New subscriber")
 
+	sendHeaders(w, s)
+
+	log.WithFields(s.LogFields).Info("New subscriber")
 	h.metrics.NewSubscriber(s)
 
 	return s
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func sendHeaders(w http.ResponseWriter, flush bool) {
+func sendHeaders(w http.ResponseWriter, s *Subscriber) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
 
@@ -126,12 +120,14 @@ func sendHeaders(w http.ResponseWriter, flush bool) {
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	if flush {
-		// Write a comment in the body
-		// Go currently doesn't provide a better way to flush the headers
-		fmt.Fprint(w, ":\n")
-		w.(http.Flusher).Flush()
+	if s.RequestLastEventID != "" {
+		w.Header().Set("Last-Event-ID", <-s.responseLastEventID)
 	}
+
+	// Write a comment in the body
+	// Go currently doesn't provide a better way to flush the headers
+	fmt.Fprint(w, ":\n")
+	w.(http.Flusher).Flush()
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
@@ -191,7 +187,6 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 
 		u := newUpdate([]string{subscription.ID}, true, Event{Data: string(json)})
 		h.transport.Dispatch(u)
-		log.Printf("%v", u)
 	}
 }
 

@@ -20,7 +20,7 @@ jobs:
         args: golangci-lint run ./...
 
   test:
-    name: Test (Go ${{ matrix.go }})
+    name: Test
     runs-on: ubuntu-latest
     steps:
     - name: Checkout

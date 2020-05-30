@@ -15,34 +15,36 @@ type updateSource struct {
 
 // Subscriber represents a client subscribed to a list of topics.
 type Subscriber struct {
-	ID            string
-	EscapedID     string
-	Claims        *claims
-	Topics        []string
-	EscapedTopics []string
-	LastEventID   string
-	RemoteAddr    string
-	LogFields     log.Fields
-	Debug         bool
+	ID                 string
+	EscapedID          string
+	Claims             *claims
+	Topics             []string
+	EscapedTopics      []string
+	RequestLastEventID string
+	LogFields          log.Fields
+	Debug              bool
 
-	disconnectedOnce   sync.Once
-	out                chan *Update
-	disconnected       chan struct{}
-	history            updateSource
-	live               updateSource
-	topicSelectorStore *topicSelectorStore
+	disconnectedOnce    sync.Once
+	out                 chan *Update
+	disconnected        chan struct{}
+	responseLastEventID chan string
+	history             updateSource
+	live                updateSource
+	topicSelectorStore  *topicSelectorStore
 }
 
 func newSubscriber(lastEventID string, uriTemplates *topicSelectorStore) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
-		ID:          id,
-		EscapedID:   url.QueryEscape(id),
-		LastEventID: lastEventID,
+		ID:                 id,
+		EscapedID:          url.QueryEscape(id),
+		RequestLastEventID: lastEventID,
 		LogFields: log.Fields{
 			"subscriber_id": id,
 			"last_event_id": lastEventID,
 		},
+		responseLastEventID: make(chan string, 1),
+
 		history:            updateSource{},
 		live:               updateSource{in: make(chan *Update)},
 		out:                make(chan *Update),
@@ -145,7 +147,8 @@ func (s *Subscriber) Receive() <-chan *Update {
 }
 
 // HistoryDispatched must be called when all messages coming from the history have been dispatched.
-func (s *Subscriber) HistoryDispatched() {
+func (s *Subscriber) HistoryDispatched(responseLastEventID string) {
+	s.responseLastEventID <- responseLastEventID
 	close(s.history.in)
 }
 

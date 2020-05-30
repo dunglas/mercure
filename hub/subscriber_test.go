@@ -19,7 +19,7 @@ func TestDispatch(t *testing.T) {
 	s.Dispatch(&Update{Topics: s.Topics, Event: Event{ID: "1"}}, true)
 	s.Dispatch(&Update{Topics: s.Topics, Event: Event{ID: "4"}}, false)
 	s.Dispatch(&Update{Topics: s.Topics, Event: Event{ID: "2"}}, true)
-	s.HistoryDispatched()
+	s.HistoryDispatched("")
 
 	for i := 1; i <= 4; i++ {
 		u := <-s.Receive()

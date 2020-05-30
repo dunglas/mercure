@@ -174,7 +174,7 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 	toSeq := t.lastSeq
 	t.Unlock()
 
-	if s.LastEventID != "" {
+	if s.RequestLastEventID != "" {
 		t.dispatchHistory(s, toSeq)
 	}
 
@@ -198,20 +198,20 @@ func (t *BoltTransport) GetSubscribers() (lastEventID string, subscribers []*Sub
 
 func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 	t.db.View(func(tx *bolt.Tx) error {
-		defer s.HistoryDispatched()
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
+			s.HistoryDispatched(EarliestLastEventID)
 			return nil // No data
 		}
 
 		c := b.Cursor()
-		afterFromID := s.LastEventID == EarliestLastEventID
-		previousID := EarliestLastEventID
+		responseLastEventID := EarliestLastEventID
+		afterFromID := s.RequestLastEventID == EarliestLastEventID
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if !afterFromID {
-				if string(k[8:]) == s.LastEventID {
+				responseLastEventID = string(k[8:])
+				if responseLastEventID == s.RequestLastEventID {
 					afterFromID = true
-					previousID = ""
 				}
 
 				continue
@@ -219,15 +219,17 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 
 			var update *Update
 			if err := json.Unmarshal(v, &update); err != nil {
+				s.HistoryDispatched(responseLastEventID)
 				log.Error(fmt.Errorf("bolt history: %w", err))
 				return err
 			}
-			update.PreviousID = previousID
 
 			if !s.Dispatch(update, true) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
+				s.HistoryDispatched(responseLastEventID)
 				return nil
 			}
 		}
+		s.HistoryDispatched(responseLastEventID)
 
 		return nil
 	})
