@@ -431,18 +431,21 @@ published following the one bearing this identifier to the subscriber.
 The reserved value `earliest` can be used to hint the hub to send all updates it has for the
 subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
 
-The hub **MAY** discard some events for operational reasons. If the hub is not able to send all
-requested events, it **MUST** set a `Last-Event-ID` header on the HTTP response containing the id of
-event preceding the first sent to the subscriber. If such event doesn't exist, the hub **MUST** set
-the `Last-Event-ID` header it sends to the reserved value `earliest`. This value indicates that all
-events stored for the subscribed topics have been sent to the subscriber.
+The hub **MAY** discard some events for operational reasons. When the request contains a
+`Last-Event-ID` HTTP header or query parameter the hub **MUST** set a `Last-Event-ID` header on
+the HTTP response. The value of the `Last-Event-ID` response header **MUST** be the id of the event
+preceding the first one sent to the subscriber, or the reserved value `earliest` if there is no
+preceding event (it happens when the hub history is empty, when the subscriber requests the earliest
+event or when the subscriber requests an event that doesn't exist).
 
-The subscriber **MUST NOT** assume that no events will be lost (it may happen, for example after
-a long disconnection time). In some cases (for instance when sending partial updates in the JSON
-Patch [@RFC6902] format, or when using the hub as an event store), updates lost can cause data lost.
-To check if a data lost ocurred, the subscriber **CAN** check if the requested last event id and
-the value of the received `Last-Event-ID` match. In case of data lost, the subscriber **SHOULD**
-re-fetch the original topic.
+The subscriber **SHOULD NOT** assume that no events will be lost (it may happen, for example if the
+hub stores only a limited number of events in its history). In some cases (for instance when sending
+partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an event store),
+updates lost can cause data lost.
+
+To detect if a data lost ocurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
+response HTTP header with `Last-Event-ID` it requested. In case of data lost, the subscriber
+**SHOULD** re-fetch the original topic.
 
 Note: Native `EventSource` implementations don't give access to headers associated with the HTTP
 response, however polyfills and server-sent events clients in most programming languages allow it.
@@ -516,8 +519,8 @@ Example:
 
 ## Subscription API
 
-If the hub supports subscription events (see (#subscription-events)), it **SHOULD** also expose active
-subscriptions through a web API.
+If the hub supports subscription events (see (#subscription-events)), it **SHOULD** also expose
+active subscriptions through a web API.
 
 For instance, subscribers interested in maintaining a list of active subscriptions can call the web
 API to retrieve them, and then use subscription events (see (#subscription-events)) to keep it up to
