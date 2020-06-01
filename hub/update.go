@@ -11,10 +11,6 @@ type Update struct {
 	// Private updates can only be dispatched to subscribers authorized to receive them.
 	Private bool
 
-	// PreviousID contains the ID of the previous update
-	// This value must be sent only if the request Last-Event-ID cannot be found, and only on the first update available
-	PreviousID string
-
 	// The Server-Sent Event to send.
 	Event
 }

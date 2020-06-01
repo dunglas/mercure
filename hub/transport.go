@@ -110,6 +110,9 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 	}
 
 	t.subscribers[s] = struct{}{}
+	if s.RequestLastEventID != "" {
+		s.HistoryDispatched(EarliestLastEventID)
+	}
 
 	return nil
 }

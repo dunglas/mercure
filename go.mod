@@ -27,8 +27,8 @@ require (
 	github.com/yosida95/uritemplate v2.0.0+incompatible
 	go.etcd.io/bbolt v1.3.4
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
-	golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2 // indirect
+	golang.org/x/net v0.0.0-20200528225125-3c3fba18258b // indirect
 	golang.org/x/sys v0.0.0-20200523222454-059865788121 // indirect
-	google.golang.org/genproto v0.0.0-20200521103424-e9a78aa275b7 // indirect
-	gopkg.in/ini.v1 v1.56.0 // indirect
+	google.golang.org/genproto v0.0.0-20200528191852-705c0b31589b // indirect
+	gopkg.in/ini.v1 v1.57.0 // indirect
 )

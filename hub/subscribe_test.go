@@ -502,7 +502,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       "id: b\ndata: d2\n\n",
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
@@ -519,7 +519,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       "id: b\ndata: d2\n\n",
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
@@ -566,7 +566,135 @@ func TestSendAllEvents(t *testing.T) {
 		w := &responseTester{
 			header:             http.Header{},
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       "id: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+			expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
+		hub.SubscribeHandler(w, req)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
+		req.Header.Add("Last-Event-ID", EarliestLastEventID)
+
+		w := &responseTester{
+			header:             http.Header{},
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
+		hub.SubscribeHandler(w, req)
+	}()
+
+	wg.Wait()
+	hub.Stop()
+}
+
+func TestUnknownLastEventID(t *testing.T) {
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	hub := createDummyWithTransportAndConfig(transport, viper.New())
+
+	transport.Dispatch(&Update{
+		Topics: []string{"http://example.com/foos/a"},
+		Event: Event{
+			ID:   "a",
+			Data: "d1",
+		},
+	})
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=unknown", nil).WithContext(ctx)
+
+		w := &responseTester{
+			header:             http.Header{},
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
+		hub.SubscribeHandler(w, req)
+		assert.Equal(t, "a", w.Header().Get("Last-Event-ID"))
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
+		req.Header.Add("Last-Event-ID", "unknown")
+
+		w := &responseTester{
+			header:             http.Header{},
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
+		hub.SubscribeHandler(w, req)
+		assert.Equal(t, "a", w.Header().Get("Last-Event-ID"))
+	}()
+
+	for {
+		transport.RLock()
+		done := len(transport.subscribers) == 2
+		transport.RUnlock()
+
+		if done {
+			break
+		}
+	}
+
+	transport.Dispatch(&Update{
+		Topics: []string{"http://example.com/foos/b"},
+		Event: Event{
+			ID:   "b",
+			Data: "d2",
+		},
+	})
+
+	wg.Wait()
+	hub.Stop()
+}
+
+func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	hub := createDummyWithTransportAndConfig(transport, viper.New())
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=unknown", nil).WithContext(ctx)
+
+		w := &responseTester{
+			header:             http.Header{},
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
@@ -580,12 +708,12 @@ func TestSendAllEvents(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}", nil).WithContext(ctx)
-		req.Header.Add("Last-Event-ID", EarliestLastEventID)
+		req.Header.Add("Last-Event-ID", "unknown")
 
 		w := &responseTester{
 			header:             http.Header{},
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       "id: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
 			t:                  t,
 			cancel:             cancel,
 		}
@@ -593,6 +721,24 @@ func TestSendAllEvents(t *testing.T) {
 		hub.SubscribeHandler(w, req)
 		assert.Equal(t, EarliestLastEventID, w.Header().Get("Last-Event-ID"))
 	}()
+
+	for {
+		transport.RLock()
+		done := len(transport.subscribers) == 2
+		transport.RUnlock()
+
+		if done {
+			break
+		}
+	}
+
+	transport.Dispatch(&Update{
+		Topics: []string{"http://example.com/foos/b"},
+		Event: Event{
+			ID:   "b",
+			Data: "d2",
+		},
+	})
 
 	wg.Wait()
 	hub.Stop()
