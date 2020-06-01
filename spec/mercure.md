@@ -186,7 +186,7 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 {"@id": "/books/foo", "foo": "bar", "@context": {"@language": "fr-FR"}}
 ~~~
 
-# Topic Selector
+# Topic Selectors
 
 A topic selector is an expression intended to be matched by one or several topics. A topic selector
 can also be used to match other topic selectors for authorization purposes. See (#authorization).
@@ -300,7 +300,7 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 
  *  `id` (optional): the topic's revision identifier: it will be used as the SSE's `id` property.
     If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
-    [@W3C.WD-did-core-20200421] **MAY** be used. Even if provided, the hub **MAY** ignore the id
+    (@W3C.WD-did-core-20200421) **MAY** be used. Even if provided, the hub **MAY** ignore the id
     provided by the client and generate its own id.
 
  *  `type` (optional): the SSE's `event` property (a specific event type).
@@ -405,7 +405,7 @@ The protocol allows to reconciliate states after a reconnection. It can also be 
 
 To allow re-establishment in case of connection lost, events dispatched by the hub **MUST** include
 an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987]. An
-UUID [@RFC4122] or a DID [@W3C.WD-did-core-20200421] **MAY** be used.
+UUID [@RFC4122] or a DID (@W3C.WD-did-core-20200421) **MAY** be used.
 
 According to the server-sent events specification, in case of connection
 lost the subscriber will try to automatically re-connect. During the
@@ -474,7 +474,7 @@ characters are reserved. They **MUST** be percent encoded during the expansion p
 
 If a subscriber has several subscriptions, it **SHOULD** be identified by the same
 identifier. `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
-[@W3C.WD-did-core-20200421] **MAY** be used.
+(@W3C.WD-did-core-20200421) **MAY** be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
 least the following properties:
@@ -516,8 +516,8 @@ Example:
 
 ## Subscription API
 
-If the hub supports subscription events (see (#subscription-events)), it **SHOULD** also expose active
-subscriptions through a web API.
+If the hub supports subscription events (see (#subscription-events)), it **SHOULD** also expose
+active subscriptions through a web API.
 
 For instance, subscribers interested in maintaining a list of active subscriptions can call the web
 API to retrieve them, and then use subscription events (see (#subscription-events)) to keep it up to
@@ -772,10 +772,435 @@ CSRF prevention techniques, including those previously mentioned, are described
 in depth in [OWASP's Cross-Site Request Forgery (CSRF) Prevention Cheat
 Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
 
-{backmatter}
+# Implementation Status
+
+[RFC Editor Note: Please remove this entire seciton prior to publication as an RFC.]
+
+This section records the status of known implementations of the protocol defined by this
+specification at the time of posting of this Internet-Draft, and is based on a proposal described
+in [@RFC6982]. The description of implementations in this section is intended to assist the IETF in
+its decision processes in progressing drafts to RFCs. Please note that the listing of any individual
+implementation here does not imply endorsement by the IETF. Furthermore, no effort has been spent to
+verify the information presented here that was supplied by IETF contributors. This is not intended
+as, and must not be construed to be, a catalog of available implementations or their features.
+Readers are advised to note that other implementations may exist. According to RFC 6982, "this will
+allow reviewers and working groups to assign due consideration to documents that have the benefit
+of running code, which may serve as evidence of valuable experimentation and feedback that have
+made the implemented protocols more mature. It is up to the individual working groups to use this
+information as they see fit."
+
+## Mercure.rocks Hub
+
+Organization responsible for the implementation:
+
+Dunglas Services SAS Les-Tilleuls.coop
+
+Implementation Name and Details:
+
+Mercure.rocks, available at <https://mercure.rocks>
+
+Brief Description:
+
+This is the reference implementation of the Mercure hub. It is written in Go and is optimized for
+performance.
+
+Level of Maturity:
+
+Widely used.
+
+Coverage:
+
+All the features of the protocol.
+
+Version compatibility:
+
+The implementation follows the latest draft.
+
+Licensing:
+
+All code is covered under the GNU Affero Public License version 3 or later.
+
+Implementation Experience:
+
+Used in production.
+
+Contact Information:
+
+Kévin Dunglas, [dunglas+mercure@gmail.com](mailto:dunglas+mercure@gmail.com)
+<https://mercure.rocks>
+
+Interoperability:
+
+Reported compatible with all major browsers and server-side tools.
+
+## Ilshidur/node-mercure
+
+Implementation Name and Details:
+
+Ilshidur/node-mercure, <https://github.com/Ilshidur/node-mercure>
+
+Brief Description:
+
+Hub and Publisher implemented in Node.
+
+Level of Maturity:
+
+Beta, not suitable for production.
+
+Coverage:
+
+All the features of the protocol except the subscription events.
+
+Version compatibility:
+
+The implementation currently follows the revision 5 of the draft.
+
+Licensing:
+
+All code is covered under the GNU Public License version 3 or later.
+
+Contact Information:
+
+<https://github.com/Ilshidur/node-mercure>
+
+Interoperability:
+
+Reported compatible with all major browsers and server-side tools.
+
+## Symfony
+
+Implementation Name and Details:
+
+Symfony Mercure Component, available at <https://symfony.com/doc/current/components/mercure.html>
+
+Brief Description:
+
+This a publisher library written in PHP. It also provides support for Mercure in the Symfony web
+framework.
+
+Level of Maturity:
+
+Widely used.
+
+Coverage:
+
+All the publisher features of the protocol.
+
+Version compatibility:
+
+The implementation follows the latest draft.
+
+Licensing:
+
+All code is covered under the MIT license.
+
+Implementation Experience:
+
+Used in production.
+
+Contact Information:
+
+<https://symfony.com>
+
+Interoperability:
+
+Reported compatible with the Mercure.rocks Hub.
+
+## API Platform
+
+Implementation Name and Details:
+
+API Platform, available at <https://api-platform.com/docs/core/mercure/>
+
+Brief Description:
+
+The API Platform framework, allows to create async APIs implementing the Mercure protocol and to
+generate clients for these APIs.
+
+Level of Maturity:
+
+Widely used.
+
+Coverage:
+
+All the publisher and consumer features of the protocol.
+
+Version compatibility:
+
+The implementation follows the latest draft.
+
+Licensing:
+
+All code is covered under the MIT license.
+
+Implementation Experience:
+
+Used in production.
+
+Contact Information:
+
+<https://api-platform.com>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## Laravel Mercure Broadcaster
+
+Implementation Name and Details:
+
+Laravel Mercure Broadcaster, available at
+<https://github.com/mvanduijker/laravel-mercure-broadcaster>
+
+Brief Description:
+
+Laravel broadcaster for Mercure. Use the Mercure protocol as transport for Laravel Broadcast.
+
+Level of Maturity:
+
+Production
+
+Coverage:
+
+All the publisher features of the protocol.
+
+Version compatibility:
+
+The implementation currently follows the revision 5 of the draft. An open Pull Request adds support
+for the latest version of the draft.
+
+Licensing:
+
+All code is covered under the MIT license.
+
+Implementation Experience:
+
+Used in production.
+
+Contact Information:
+
+<https://github.com/mvanduijker/laravel-mercure-broadcaster>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## dart_mercure
+
+Implementation Name and Details:
+
+dart*mercure, available at <https://github.com/wallforfry/dart>*mercure
+
+Brief Description:
+
+Publisher and Subscriber library for Dart / Flutter.
+
+Level of Maturity:
+
+Stable
+
+Coverage:
+
+All the publisher and subscriber features of the protocol.
+
+Version compatibility:
+
+The implementation follows the latest draft.
+
+Licensing:
+
+All code is covered under the BSD 2-Clause "Simplified" License.
+
+Contact Information:
+
+<https://github.com/wallforfry/dart_mercure>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## pymercure
+
+Implementation Name and Details:
+
+pymercure, available at <https://github.com/vitorluis/python-mercure>
+
+Brief Description:
+
+Publisher and Subscriber library for Python.
+
+Level of Maturity:
+
+Alpha
+
+Coverage:
+
+All the publisher and subscriber features of the protocol.
+
+Version compatibility:
+
+The implementation currently follows the revision 5 of the draft. An open Pull Request adds support
+for the latest version of the draft.
+
+Licensing:
+
+All code is covered under the BSD 2-Clause "Simplified" License.
+
+Contact Information:
+
+<https://github.com/vitorluis/python-mercure>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## Amphp Mercure Publisher
+
+Implementation Name and Details:
+
+Amphp Mercure Publisher, available at <https://github.com/eislambey/amp-mercure-publisher>
+
+Brief Description:
+
+Async Mercure publisher based on Amphp.
+
+Level of Maturity:
+
+Stable
+
+Coverage:
+
+All the publisher features of the protocol.
+
+Version compatibility:
+
+The implementation currently follows the revision 5 of the draft. An open Pull Request adds support
+for the latest version of the draft.
+
+Licensing:
+
+All code is covered under the MIT license.
+
+Contact Information:
+
+<https://github.com/eislambey/amp-mercure-publisher>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## Java Library for Mercure
+
+Implementation Name and Details:
+
+Java Library for Mercure, available at <https://github.com/vitorluis/java-mercure>
+
+Brief Description:
+
+Java library to publish messages to a Mercure Hub!
+
+Level of Maturity:
+
+Alpha
+
+Coverage:
+
+All the publisher features of the protocol.
+
+Version compatibility:
+
+The implementation currently follows the revision 5 of the draft. An open Pull Request adds support
+for the latest version of the draft.
+
+Licensing:
+
+All code is covered under the MIT license.
+
+Contact Information:
+
+<https://github.com/vitorluis/java-mercure>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## Yii 2 Mercure behavior
+
+Implementation Name and Details:
+
+Yii 2 Mercure behavior, available at <https://github.com/bizley/mercure-behavior>
+
+Brief Description:
+
+Yii 2 behavior to automatically publish updates to a Mercure hub.
+
+Level of Maturity:
+
+Stable
+
+Coverage:
+
+All the publisher features of the protocol.
+
+Version compatibility:
+
+The implementation currently follows the revision 5 of the draft.
+
+Licensing:
+
+All code is covered under the Apache License 2.0.
+
+Contact Information:
+
+<https://github.com/bizley/mercure-behavior>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## GitHub Action for Mercure
+
+Implementation Name and Details:
+
+GitHub Action for Mercure, available at
+<https://github.com/marketplace/actions/github-action-for-mercure>
+
+Brief Description:
+
+Send a Mercure update when a GitHub event occurs.
+
+Level of Maturity:
+
+Stable
+
+Coverage:
+
+All the publisher features of the protocol.
+
+Version compatibility:
+
+The implementation currently follows the latest version of the draft.
+
+Licensing:
+
+All code is covered under the GNU Public License version 3 or later.
+
+Contact Information:
+
+<https://github.com/Ilshidur/action-mercure>
+
+Interoperability:
+
+Reported compatible with the reference implementation of the Mercure Hub.
+
+## Other Implementations
+
+Other implementations can be found on GitHub: <https://github.com/topics/mercure>
 
 # Acknowledgements
 
 Parts of this specification, especially (#discovery) have been adapted from the WebSub
 recommendation [@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this
 specification.
+
+{backmatter}
