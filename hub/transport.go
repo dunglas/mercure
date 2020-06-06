@@ -86,6 +86,7 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 	default:
 	}
 
+	AssignUUID(update)
 	t.Lock()
 	defer t.Unlock()
 	for subscriber := range t.subscribers {

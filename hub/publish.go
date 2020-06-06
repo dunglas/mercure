@@ -44,16 +44,16 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := newUpdate(
-		topics,
-		private,
-		Event{
+	u := &Update{
+		Topics:  topics,
+		Private: private,
+		Event: Event{
 			r.PostForm.Get("data"),
 			r.PostForm.Get("id"),
 			r.PostForm.Get("type"),
 			retry,
 		},
-	)
+	}
 
 	// Broadcast the update
 	if err := h.transport.Dispatch(u); err != nil {

@@ -20,17 +20,11 @@ type serializedUpdate struct {
 	event string
 }
 
-func newUpdate(topics []string, private bool, event Event) *Update {
-	u := &Update{
-		Topics:  topics,
-		Private: private,
-		Event:   event,
-	}
+// AssignUUID generates a new UUID an assign it to the given update if no ID is already set.
+func AssignUUID(u *Update) {
 	if u.ID == "" {
 		u.ID = "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	}
-
-	return u
 }
 
 func newSerializedUpdate(u *Update) *serializedUpdate {

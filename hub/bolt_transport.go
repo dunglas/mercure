@@ -108,6 +108,7 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 	default:
 	}
 
+	AssignUUID(update)
 	updateJSON, err := json.Marshal(*update)
 	if err != nil {
 		return err
