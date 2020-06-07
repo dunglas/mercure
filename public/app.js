@@ -133,7 +133,7 @@ foo`;
       li.querySelector("pre").textContent = e.data;
       ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
     };
-    eventSource.onerror = console.error;
+    eventSource.onerror = console.log;
     this.elements.unsubscribe.disabled = false;
   };
   subscribeForm.elements.unsubscribe.onclick = function () {

@@ -24,13 +24,22 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer h.shutdown(s)
 
-	hearthbeatInterval := h.config.GetDuration("heartbeat_interval")
+	heartbeatInterval := h.config.GetDuration("heartbeat_interval")
 
-	var timer *time.Timer
-	var timerC <-chan time.Time
-	if hearthbeatInterval != time.Duration(0) {
-		timer = time.NewTimer(hearthbeatInterval)
-		timerC = timer.C
+	var heartbeatTimer *time.Timer
+	var heartbeatTimerC <-chan time.Time
+	if heartbeatInterval != time.Duration(0) {
+		heartbeatTimer = time.NewTimer(heartbeatInterval)
+		heartbeatTimerC = heartbeatTimer.C
+	}
+
+	dispatchTimeout := h.config.GetDuration("dispatch_timeout")
+	writeTimeout := h.config.GetDuration("write_timeout")
+	var writeTimer *time.Timer
+	var writeTimerC <-chan time.Time
+	if writeTimeout != 0 {
+		writeTimer = time.NewTimer(writeTimeout - dispatchTimeout)
+		writeTimerC = writeTimer.C
 	}
 
 	for {
@@ -41,21 +50,24 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			// Client closes the connection
 			return
-		case <-timerC:
+		case <-writeTimerC:
+			// Close properly the connection before the write timeout
+			return
+		case <-heartbeatTimerC:
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(w, s, ":\n") {
+			if !h.write(w, s, ":\n", dispatchTimeout) {
 				return
 			}
-			timer.Reset(hearthbeatInterval)
+			heartbeatTimer.Reset(heartbeatInterval)
 		case update := <-s.Receive():
-			if !h.write(w, s, newSerializedUpdate(update).event) {
+			if !h.write(w, s, newSerializedUpdate(update).event, dispatchTimeout) {
 				return
 			}
-			if timer != nil {
-				if !timer.Stop() {
-					<-timer.C
+			if heartbeatTimer != nil {
+				if !heartbeatTimer.Stop() {
+					<-heartbeatTimer.C
 				}
-				timer.Reset(hearthbeatInterval)
+				heartbeatTimer.Reset(heartbeatInterval)
 			}
 			log.WithFields(createFields(update, s)).Info("Event sent")
 		}
@@ -142,8 +154,7 @@ func retrieveLastEventID(r *http.Request) string {
 // Write sends the given string to the client.
 // It returns false if the dispatch timed out.
 // The current write cannot be cancelled because of https://github.com/golang/go/issues/16100
-func (h *Hub) write(w io.Writer, s *Subscriber, data string) bool {
-	d := h.config.GetDuration("dispatch_timeout")
+func (h *Hub) write(w io.Writer, s *Subscriber, data string, d time.Duration) bool {
 	if d == time.Duration(0) {
 		fmt.Fprint(w, data)
 		w.(http.Flusher).Flush()
