@@ -79,13 +79,13 @@ foo`;
         if (hubUrl) settingsForm.hubUrl.value = new URL(hubUrl, topic.value);
 
         const subscribeTopics = subscribeForm.topics;
-        if (!subscribeTopics.value) subscribeTopics.value = topic.value;
+        if (subscribeTopics.value === "https://example.com/my-private-topic")
+          subscribeTopics.value = topic.value;
 
         // Set publish default values
         const publishTopics = publishForm.topics;
-        if (!publishTopics.value) {
+        if (publishTopics.value === "https://example.com/my-private-topic")
           publishTopics.value = topic.value;
-        }
 
         return response.text();
       })
@@ -98,11 +98,6 @@ foo`;
   let eventSource;
   subscribeForm.onsubmit = function (e) {
     e.preventDefault();
-
-    if (settingsForm.authorization.value === "header") {
-      alert("EventSource do not support setting HTTP headers.");
-      return;
-    }
 
     eventSource && eventSource.close();
     updates.innerText = "No updates pushed yet.";
@@ -118,7 +113,15 @@ foo`;
       u.searchParams.append("Last-Event-ID", lastEventId.value);
 
     let ol = null;
-    eventSource = new EventSource(u);
+    if (settingsForm.authorization.value === "header") {
+      eventSource = new EventSourcePolyfill(u, {
+        headers: {
+          Authorization: `Bearer ${settingsForm.jwt.value}`,
+        },
+      });
+    } else {
+      eventSource = new EventSource(u);
+    }
     eventSource.onmessage = function (e) {
       if (!ol) {
         ol = document.createElement("ol");
