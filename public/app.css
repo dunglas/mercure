@@ -1,3 +1,7 @@
-h1 {
-  margin-top: 15px;
+.hero {
+  margin-bottom: 15px;
+}
+
+.hero img {
+  width: 40%;
 }

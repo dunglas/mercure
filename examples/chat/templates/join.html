@@ -1,19 +1,19 @@
 {% extends "layout.html" %}
 {% block content %}
-    <section class="section has-text-centered">
-        <h1 class="title">Join the chat</h1>
-        <form method="POST" action="{{ url_for('chat') }}">
-            <div class="field is-grouped is-grouped-centered">
-                <div class="control has-icons-left">
-                    <input name="username" placeholder="Username" size="20" required class="input">
-                    <span class="icon is-small is-left">
-                        <i class="fas fa-smile"></i>
-                    </span>
-                </div>
-                <div class="control">
-                    <button class="button is-primary">Join!</button>
-                </div>
+<section class="section has-text-centered">
+    <h1 class="title">Join the chat</h1>
+    <form method="POST" action="{{ url_for('chat') }}">
+        <div class="field is-grouped is-grouped-centered">
+            <div class="control has-icons-left">
+                <input name="username" placeholder="Username" size="20" required class="input">
+                <span class="icon is-small is-left">
+                    <i class="fas fa-smile"></i>
+                </span>
             </div>
-        </form>
-    </section>
+            <div class="control">
+                <button class="button is-primary">Join!</button>
+            </div>
+        </div>
+    </form>
+</section>
 {% endblock %}
