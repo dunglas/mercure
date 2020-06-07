@@ -185,7 +185,11 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 			panic(err)
 		}
 
-		u := newUpdate([]string{subscription.ID}, true, Event{Data: string(json)})
+		u := &Update{
+			Topics:  []string{subscription.ID},
+			Private: true,
+			Event:   Event{Data: string(json)},
+		}
 		h.transport.Dispatch(u)
 	}
 }
