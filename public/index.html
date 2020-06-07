@@ -9,108 +9,112 @@
 </head>
 
 <body>
-    <div class="hero is-light">
+    <div class="hero is-light is-small">
         <div class="hero-body has-text-centered">
             <div class="container">
                 <div class="column is-three-fifths is-offset-one-fifth">
                     <h1 class="title">
-                        <a href="https://mercure.rocks"><img src="https://mercure.rocks/static/logo.svg" alt="Mercure"></a>
+                        <a href="https://mercure.rocks"><img src="https://mercure.rocks/static/logo.svg"
+                                alt="Mercure"></a>
                     </h1>
-                    <h2 class="subtitle is-2">Debugging Tools</h2>
+                    <h2 class="subtitle">Debugging Tools</h2>
                 </div>
             </div>
         </div>
     </div>
+
     <div class="container">
-        <section>
-            <h1 class="title is-2">Settings</h1>
+        <div class="columns">
+            <section class="column is-half">
+                <h2 class="title">Settings</h2>
 
-            <form name="settings">
-                <div class="field">
-                    <label class="label" for="hubUrl">Hub URL*</label>
-                    <input class="input" type="url" name="hubUrl" id="hubUrl" required>
+                <form name="settings">
+                    <div class="field">
+                        <label class="label" for="hubUrl">Hub URL*</label>
+                        <input class="input" type="url" name="hubUrl" id="hubUrl" required>
 
-                    <p class="help">
-                        Will be filled automatically if you <a href="#discover">discover</a> a resource.
-                    </p>
-                </div>
-
-                <div class="field">
-                    <label class="label">Authorization type</label>
-
-                    <div class="control">
-                        <label class="radio">
-                            <input type="radio" name="authorization" value="cookie" checked>
-                            <code>mercureAuthorization</code> cookie
-                        </label>
-                        <label class="radio">
-                            <input type="radio" name="authorization" value="header">
-                            <code>Authorization</code> HTTP Header
-                        </label>
+                        <p class="help">
+                            Will be filled automatically if you <a href="#discover">discover</a> a resource.
+                        </p>
                     </div>
 
-                    <p class="help">
-                        The <code>mercureAuthorization</code> cookie will be set automatically by the server only if you <a href="#discover">discover</a> a <b>demo</b> endpoint.
-                    </p>
-                </div>
+                    <div class="field">
+                        <label class="label">Authorization type</label>
 
-                <div class="field">
-                    <label class="label" for="jwt">JWT</label>
-                    <input class="input" type="text" name="jwt" id="jwt" required>
+                        <div class="control">
+                            <label class="radio">
+                                <input type="radio" name="authorization" value="cookie" checked>
+                                <code>mercureAuthorization</code> cookie
+                            </label>
+                            <label class="radio">
+                                <input type="radio" name="authorization" value="header">
+                                <code>Authorization</code> HTTP Header
+                            </label>
+                        </div>
 
-                    <p class="help">
-                        Required to publish, or to subscribe to private updates.<br>
-                        Claim structure to use:
-                        <pre><code>{
+                        <p class="help">
+                            The <code>mercureAuthorization</code> cookie will be set automatically by the server only if
+                            you <a href="#discover">discover</a> a <b>demo</b> endpoint.
+                        </p>
+                    </div>
+
+                    <div class="field">
+                        <label class="label" for="jwt">JWT</label>
+                        <input class="input" type="text" name="jwt" id="jwt" required>
+
+                        <div class="help">
+                            <p>Required to publish, or to subscribe to private updates.<br>
+                                Claim structure to use:</p>
+                            <pre><code>{
   "mercure": {
     "subscribe": ["list of topic selectors, * for all, omit for public only"],
     "publish": ["list of topic selectors, * for all, omit to not allow to publish"]
   }
 }</code></pre><br>
-                        <a href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.z5YrkHwtkz3O_nOnhC_FP7_bmeISe3eykAkGbAl5K7c" target="_blank" rel="noopener noreferrer" class="button is-link is-small">Create a token</a>
-                        (demo key: <code>!ChangeMe!</code>)
-                    </p>
-                </div>
-            </form>
-        </section>
+                            <a href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.z5YrkHwtkz3O_nOnhC_FP7_bmeISe3eykAkGbAl5K7c"
+                                target="_blank" rel="noopener noreferrer" class="button is-link is-small">Create a
+                                token</a>
+                            (demo key: <code>!ChangeMe!</code>)
+                        </div>
+                    </div>
+                </form>
+            </section>
 
-        <hr>
+            <section id="discover" class="column is-half">
+                <h2 class="title">Discover</h2>
 
-        <section id="discover">
-            <h1 class="title is-2">Discover</h1>
+                <form name="discover">
+                    <div class="field">
+                        <label class="label" for="topic">Topic*</label>
+                        <div class="control">
+                            <input class="input" type="url" name="topic" id="topic" required>
+                        </div>
 
-            <form name="discover">
-                <div class="field">
-                    <label class="label" for="topic">Topic*</label>
-                    <div class="control">
-                        <input class="input" type="url" name="topic" id="topic" required>
+                        <p class="help">
+                            URL returning a <code>Link rel="mercure"</code> HTTP header to init the discovery.<br>
+                            Demo endpoints: any subpath of <code>/demo</code>.
+                        </p>
                     </div>
 
-                    <p class="help">
-                        URL returning a <code>Link rel="mercure"</code> HTTP header to init the discovery.<br>
-                        Demo endpoints: any subpath of <code>/demo</code>.
-                    </p>
-                </div>
-
-                <div class="field">
-                    <label class="label" for="body">Demo body</label>
-                    <div class="control">
-                        <textarea class="textarea" name="body" id="body">
+                    <div class="field">
+                        <label class="label" for="body">Demo body</label>
+                        <div class="control">
+                            <textarea class="textarea" name="body" id="body">
 
                         </textarea>
+                        </div>
+
+                        <p class="help">Data to return. Supported only by <b>demo</b> endpoints.</p>
                     </div>
 
-                    <p class="help">Data to return. Supported only by <b>demo</b> endpoints.</p>
-                </div>
-
-                <input class="button is-primary" type="submit" value="Discover" name="discover">
-            </form>
-        </section>
-
+                    <input class="button is-primary" type="submit" value="Discover" name="discover">
+                </form>
+            </section>
+        </div>
         <div class="columns">
-            <section class="column is-half">
+            <div class="column is-half">
                 <section>
-                    <h1 class="title is-2">Subscribe</h1>
+                    <h2 class="title">Subscribe</h2>
                     <form name="subscribe">
                         <div class="field">
                             <label class="label" for="subscribeTopics">Topics to get updates for*</label>
@@ -118,12 +122,13 @@
                                 <textarea class="textarea" name="topics" id="subscribeTopics" required></textarea>
                             </div>
 
-                            <p class="help">
-                                One <a href="https://tools.ietf.org/html/rfc6570">URI template</a> or string per line (<a href="https://uri-template-tester.mercure.rocks/">try the tester</a>).<br>
-                                Use <code>*</code> to subscribe to all topics.<br>
-                                Examples:
-                                <pre><code id="subscribeTopicsExamples"></code></pre><br>
-                            </p>
+                            <div class="help">
+                                <p>One <a href="https://tools.ietf.org/html/rfc6570">URI template</a> or string per line
+                                    (<a href="https://uri-template-tester.mercure.rocks/">try the tester</a>).</p>
+                                <p>Use <code>*</code> to subscribe to all topics.</p>
+                                <p>Examples:</p>
+                                <pre><code id="subscribeTopicsExamples"></code></pre>
+                            </div>
                         </div>
 
                         <div class="field">
@@ -137,21 +142,21 @@
                         <button type="button" class="button is-warning" name="unsubscribe" disabled>Unsubscribe</button>
                     </form>
 
-                    <main id="updates">Not subscribed.</main>
+                    <div id="updates">Not subscribed.</div>
 
                     <template id="update">
                         <li>
                             <article>
-                                <h1></h1>
+                                <h2></h2>
                                 <pre></pre>
                             </article>
                         </li>
                     </template>
                 </section>
-            </section>
+            </div>
 
             <section class="column is-half">
-                <h1 class="title is-2">Publish</h1>
+                <h2 class="title">Publish</h2>
 
                 <form name="publish">
                     <div class="field">

@@ -15,7 +15,7 @@
   function error(e) {
     const message = e.toString();
     console.error(e);
-    alert(message === "[object Event]" ? "EventSource error" : message);
+    alert(message);
   }
 
   function getHubUrl(response) {
@@ -123,17 +123,17 @@ foo`;
       if (!ol) {
         ol = document.createElement("ol");
         ol.reversed = true;
-  
+
         updates.textContent = "";
         updates.appendChild(ol);
       }
 
       const li = document.importNode(template.content, true);
-      li.querySelector("h1").textContent = e.lastEventId;
+      li.querySelector("h2").textContent = e.lastEventId;
       li.querySelector("pre").textContent = e.data;
       ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
     };
-    eventSource.onerror = error;
+    eventSource.onerror = console.error;
     this.elements.unsubscribe.disabled = false;
   };
   subscribeForm.elements.unsubscribe.onclick = function () {
@@ -157,7 +157,7 @@ foo`;
     });
 
     topics.value.split("\n").forEach((topic) => body.append("topic", topic));
-    priv.checked && body.append("private", "on")
+    priv.checked && body.append("private", "on");
 
     const opt = { method: "POST", body };
     if (settingsForm.authorization.value === "header")
