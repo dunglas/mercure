@@ -191,7 +191,7 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 A topic selector is an expression intended to be matched by one or several topics. A topic selector
 can also be used to match other topic selectors for authorization purposes. See (#authorization).
 
-A topic selector can be a any string including URI Templates [@!RFC6570] and the reserved string `*`
+A topic selector can be any string including URI Templates [@!RFC6570] and the reserved string `*`
 that matches all topics. It is **RECOMMENDED** to use URI Templates or the reserved string `*` as
 topic selectors.
 
@@ -299,9 +299,12 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     but it **CAN** contain any value including an empty string.
 
  *  `id` (optional): the topic's revision identifier: it will be used as the SSE's `id` property.
-    If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
-    (@W3C.WD-did-core-20200421) **MAY** be used. Even if provided, the hub **MAY** ignore the id
-    provided by the client and generate its own id.
+    The provided id **MUST NOT** start with the `#` character. The provided id **SHOULD** be a valid
+    IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a DID
+    (@W3C.WD-did-core-20200421) **MAY** be used. Alternatively the hub **MAY** generate a relative
+    URI composed of a fragment (starting with `#`). This is convenient to return an offset or a
+    sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the id provided
+    by the client and generate its own id.
 
  *  `type` (optional): the SSE's `event` property (a specific event type).
 
