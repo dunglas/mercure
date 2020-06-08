@@ -5,3 +5,12 @@
 .hero img {
   width: 40%;
 }
+
+#updates {
+  height: 250px;
+  overflow: scroll;
+}
+
+#subscriptions .card-header-title {
+  overflow-wrap: anywhere;
+}
