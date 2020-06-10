@@ -35,7 +35,7 @@ const subscriptionsForTopicURL = defaultHubURL + "/subscriptions/{topic}"
 const subscriptionsURL = defaultHubURL + "/subscriptions"
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
-	currentURL := r.URL.String()
+	currentURL := r.URL.RequestURI()
 	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
 	if !ok {
 		return
@@ -65,7 +65,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
-	currentURL := r.URL.String()
+	currentURL := r.URL.RequestURI()
 	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
 	if !ok {
 		return
@@ -103,7 +103,11 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 	claims, err := authorize(r, h.getJWTKey(roleSubscriber), h.getJWTAlgorithm(roleSubscriber), nil)
 	if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe, false) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
+		if err == nil {
+			log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("topic selectors not matched or not provided")
+		} else {
+			log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
+		}
 		return "", nil, false
 	}
 
