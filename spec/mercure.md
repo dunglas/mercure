@@ -5,7 +5,7 @@ workgroup = "Network Working Group"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-dunglas-mercure-05"
+value = "draft-dunglas-mercure-06"
 stream = "IETF"
 status = "informational"
 
