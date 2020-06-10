@@ -142,7 +142,9 @@ foo`;
     updateEventSource.onerror = console.log;
     this.elements.unsubscribe.disabled = false;
   };
-  $subscribeForm.elements.unsubscribe.onclick = function () {
+  $subscribeForm.elements.unsubscribe.onclick = function (e) {
+    e.preventDefault();
+
     updateEventSource.close();
     this.disabled = true;
     $updates.textContent = "Unsubscribed.";
