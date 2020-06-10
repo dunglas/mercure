@@ -206,41 +206,47 @@ foo`;
     subscriptionEventSource && subscriptionEventSource.close();
     $subscriptions.textContent = "";
 
-    const opt =
-      $settingsForm.authorization.value === "header"
-        ? { Authorization: `Bearer ${$settingsForm.jwt.value}` }
-        : undefined;
-    const resp = await fetch(
-      `${$settingsForm.hubUrl.value}/subscriptions`,
-      opt
-    );
-    const json = await resp.json();
+    try {
+      const opt =
+        $settingsForm.authorization.value === "header"
+          ? { headers: { Authorization: `Bearer ${$settingsForm.jwt.value}` } }
+          : undefined;
+      const resp = await fetch(
+        `${$settingsForm.hubUrl.value}/subscriptions`,
+        opt
+      );
+      if (!resp.ok) throw new Error(resp.statusText);
+      const json = await resp.json();
 
-    json.subscriptions.forEach(addSubscription);
+      json.subscriptions.forEach(addSubscription);
 
-    const u = new URL($settingsForm.hubUrl.value);
-    u.searchParams.append(
-      "topic",
-      "/.well-known/mercure/subscriptions{/topic}{/subscriber}"
-    );
-    u.searchParams.append("Last-Event-ID", json.lastEventID);
+      const u = new URL($settingsForm.hubUrl.value);
+      u.searchParams.append(
+        "topic",
+        "/.well-known/mercure/subscriptions{/topic}{/subscriber}"
+      );
+      u.searchParams.append("Last-Event-ID", json.lastEventID);
 
-    if (opt) subscriptionEventSource = new EventSourcePolyfill(u, opt);
-    else subscriptionEventSource = new EventSource(u);
+      if (opt) subscriptionEventSource = new EventSourcePolyfill(u, opt);
+      else subscriptionEventSource = new EventSource(u);
 
-    subscriptionEventSource.onmessage = function (e) {
-      const s = JSON.parse(e.data);
+      subscriptionEventSource.onmessage = function (e) {
+        const s = JSON.parse(e.data);
 
-      if (s.active) {
-        addSubscription(s);
-        return;
-      }
+        if (s.active) {
+          addSubscription(s);
+          return;
+        }
 
-      document.getElementById(s.id).remove();
-    };
-    subscriptionEventSource.onerror = console.log;
+        document.getElementById(s.id).remove();
+      };
+      subscriptionEventSource.onerror = console.log;
 
-    $subscriptionsForm.elements.unsubscribe.disabled = false;
+      $subscriptionsForm.elements.unsubscribe.disabled = false;
+    } catch (e) {
+      error(e);
+      return;
+    }
   };
   $subscriptionsForm.elements.unsubscribe.onclick = function (e) {
     e.preventDefault();
