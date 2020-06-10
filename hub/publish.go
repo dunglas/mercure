@@ -13,7 +13,11 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := authorize(r, h.getJWTKey(rolePublisher), h.getJWTAlgorithm(rolePublisher), h.config.GetStringSlice("publish_allowed_origins"))
 	if err != nil || claims == nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
+		if err == nil {
+			log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("topic selectors not matched or not provided")
+		} else {
+			log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
+		}
 		return
 	}
 
