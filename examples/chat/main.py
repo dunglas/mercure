@@ -23,7 +23,6 @@ Environment variables:
 """
 
 from flask import Flask, make_response, request, render_template, abort
-from sseclient import SSEClient
 import jwt
 import os
 import json
