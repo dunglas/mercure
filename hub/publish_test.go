@@ -154,7 +154,7 @@ func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 	defer hub.Stop()
 
-	s := newSubscriber("", newTopicSelectorStore())
+	s := NewSubscriber("", NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com/books/1"}
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: s.Topics}}
 	go s.start()
@@ -201,7 +201,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 	defer h.Stop()
 
-	s := newSubscriber("", newTopicSelectorStore())
+	s := NewSubscriber("", NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com/books/1"}
 	go s.start()
 
