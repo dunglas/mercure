@@ -18,16 +18,17 @@ type selector struct {
 }
 
 // topicSelectorStore caches compiled templates to improve memory and CPU usage.
-type topicSelectorStore struct {
+type TopicSelectorStore struct {
 	sync.RWMutex
 	m map[string]*selector
 }
 
-func newTopicSelectorStore() *topicSelectorStore {
-	return &topicSelectorStore{m: make(map[string]*selector)}
+// NewTopicSelectorStore creates a new topic selector store.
+func NewTopicSelectorStore() *TopicSelectorStore {
+	return &TopicSelectorStore{m: make(map[string]*selector)}
 }
 
-func (tss *topicSelectorStore) match(topic, topicSelector string, addToCache bool) bool {
+func (tss *TopicSelectorStore) match(topic, topicSelector string, addToCache bool) bool {
 	// Always do an exact matching comparison first
 	// Also check if the topic selector is the reserved keyword *
 	if topicSelector == "*" || topic == topicSelector {
@@ -53,7 +54,7 @@ func (tss *topicSelectorStore) match(topic, topicSelector string, addToCache boo
 }
 
 // getTemplateStore retrieves or creates the compiled template associated with this topic, or nil if it's not a template.
-func (tss *topicSelectorStore) getTemplateStore(topicSelector string, addToCache bool) *selector {
+func (tss *TopicSelectorStore) getTemplateStore(topicSelector string, addToCache bool) *selector {
 	if addToCache {
 		tss.Lock()
 		defer tss.Unlock()
@@ -90,7 +91,7 @@ func (tss *topicSelectorStore) getTemplateStore(topicSelector string, addToCache
 }
 
 // cleanup removes unused compiled templates from memory.
-func (tss *topicSelectorStore) cleanup(topics []string) {
+func (tss *TopicSelectorStore) cleanup(topics []string) {
 	tss.Lock()
 	defer tss.Unlock()
 	for _, topic := range topics {

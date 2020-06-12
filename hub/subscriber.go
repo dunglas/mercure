@@ -30,10 +30,11 @@ type Subscriber struct {
 	responseLastEventID chan string
 	history             updateSource
 	live                updateSource
-	topicSelectorStore  *topicSelectorStore
+	topicSelectorStore  *TopicSelectorStore
 }
 
-func newSubscriber(lastEventID string, uriTemplates *topicSelectorStore) *Subscriber {
+// NewSubscriber creates a new subscriber.
+func NewSubscriber(lastEventID string, tss *TopicSelectorStore) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
 		ID:                 id,
@@ -49,7 +50,7 @@ func newSubscriber(lastEventID string, uriTemplates *topicSelectorStore) *Subscr
 		live:               updateSource{in: make(chan *Update)},
 		out:                make(chan *Update),
 		disconnected:       make(chan struct{}),
-		topicSelectorStore: uriTemplates,
+		topicSelectorStore: tss,
 	}
 
 	if lastEventID != "" {

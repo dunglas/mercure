@@ -7,7 +7,7 @@ import (
 )
 
 func TestMatch(t *testing.T) {
-	tss := newTopicSelectorStore()
+	tss := NewTopicSelectorStore()
 
 	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar", false))
 	assert.Empty(t, tss.m)

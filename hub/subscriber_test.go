@@ -8,7 +8,7 @@ import (
 )
 
 func TestDispatch(t *testing.T) {
-	s := newSubscriber("1", newTopicSelectorStore())
+	s := NewSubscriber("1", NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com"}
 	go s.start()
 	defer s.Disconnect()
@@ -28,7 +28,7 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
-	s := newSubscriber("", newTopicSelectorStore())
+	s := NewSubscriber("", NewTopicSelectorStore())
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()

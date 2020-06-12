@@ -76,7 +76,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug bool) *Subscriber {
-	s := newSubscriber(retrieveLastEventID(r), h.topicSelectorStore)
+	s := NewSubscriber(retrieveLastEventID(r), h.topicSelectorStore)
 	s.Debug = debug
 	s.LogFields["remote_addr"] = r.RemoteAddr
 
