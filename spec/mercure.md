@@ -832,7 +832,7 @@ Used in production.
 
 Contact Information:
 
-Kévin Dunglas, [dunglas+mercure@gmail.com](mailto:dunglas+mercure@gmail.com)
+Kévin Dunglas, [kevin+mercure@dunglas.fr](mailto:kevin+mercure@dunglas.fr)
 <https://mercure.rocks>
 
 Interoperability:

@@ -1,20 +1,20 @@
 # Awesome Mercure
 
+## Demos
+
+* [Demo hub and debug UI](https://demo-chat.mercure.rocks) ([source code](https://github.com/dunglas/mercure/tree/master/public)): a managed demo hub and the official debugging tools (written in JavaScript)
+* [Chat](https://demo-chat.mercure.rocks/) ([source code](https://github.com/dunglas/mercure/tree/master/examples/chat)): a chat, including the list of currently connected users (written in JavaScript and Python)
+
 ## Examples
 
-* [A chat with the list of connected users (using subscriptions, written in JavaScript and Python/Flask)](https://github.com/dunglas/mercure/tree/master/examples/chat)
-
-### Publish
-
-* [Node.js](https://github.com/dunglas/mercure/tree/master/examples/publish/node.js)
-* [PHP](https://github.com/dunglas/mercure/tree/master/examples/publish/php.php)
-* [Ruby](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
-* [JavaScript (the official debug interface)](https://github.com/dunglas/mercure/tree/master/public/app.js)
-
-### Subscribe
-
-* [Python](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
-* [JavaScript (the official debug interface)](https://github.com/dunglas/mercure/tree/master/public/app.js)
+* [JavaScript (publish, subscribe and presence API)](https://github.com/dunglas/mercure/blob/master/public/app.js)
+* [JavaScript (subscribe and presence API)](https://github.com/dunglas/mercure/blob/master/examples/chat/static/chat.js)
+* [Node.js (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/node.js)
+* [PHP (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/php.php)
+* [Ruby (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
+* [Python (subscribe)](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
+* [Python (cookie authorization)](https://github.com/dunglas/mercure/blob/master/examples/chat/chat.py)
+* [API Platform (publish and subscribe)](https://github.com/api-platform/demo): a book catalog updated in real-time using Mercure
 
 ## Documentation and Code Generation
 
@@ -35,7 +35,7 @@
 
 ## Frameworks and Services Integrations
 
-* [Official Mercure support for the Symfony framework](https://github.com/symfony/mercure-bundle)
+* [Official Mercure support for the Symfony framework](https://symfony.com/doc/current/mercure.html)
 * [Official Mercure support for the API Platform framework](https://api-platform.com/docs/core/mercure/)
 * [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 * [Yii Mercure Behavior](https://github.com/bizley/mercure-behavior)

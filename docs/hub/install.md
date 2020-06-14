@@ -3,7 +3,7 @@
 ## Managed and HA Versions
 
 A managed and an on-premise high-scalability version of Mercure are available in private beta.
-[Drop us a mail](mailto:dunglas+mercure@gmail.com?subject=I%27m%20interested%20in%20Mercure%27s%20private%20beta) for details and pricing.
+[Drop us a mail](mailto:kevin+mercure@dunglas.fr?subject=I%27m%20interested%20in%20Mercure%27s%20private%20beta) for details and pricing.
 
 ## Prebuilt Binary
 
