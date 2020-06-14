@@ -6,20 +6,18 @@ info:
   contact:
     name: Kévin Dunglas
     url: https://mercure.rocks
-    email: dunglas+mercure@gmail.com
+    email: kevin+mercure@dunglas.fr
   license:
     name: GNU Affero General Public License v3.0 or later
     url: https://github.com/dunglas/mercure/blob/master/LICENSE
     x-spdx: AGPL-3.0-or-later
-servers:
-  - url: /.well-known/mercure
 paths:
-  /:
+  "/.well-known/mercure":
     get:
       summary: Subscribe to updates
       externalDocs:
-        description: Subscriptions specification
-        url: https://github.com/dunglas/mercure/blob/master/spec/mercure.md#subscriptions
+        description: Subscription specification
+        url: https://mercure.rocks/spec#subscription
       parameters:
         - name: topic
           in: query
@@ -40,22 +38,22 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Event stream opened.
           content:
-            'text/event-stream': {}
-        '401':
-          description: Not authorized (missing or invalid JWT).
-        '400':
+            "text/event-stream": {}
+        "401":
+          $ref: "#/components/responses/401"
+        "400":
           description: Missing topic parameter or invalid URI template.
     post:
       summary: Publish an update
       externalDocs:
         description: Publishing specification
-        url: https://github.com/dunglas/mercure/blob/master/spec/mercure.md#publication
+        url: https://mercure.rocks/spec#publication
       requestBody:
         content:
-          'application/x-www-form-urlencoded':
+          "application/x-www-form-urlencoded":
             schema:
               properties:
                   topic: 
@@ -82,29 +80,147 @@ paths:
                 - topic
                 - data
       responses:
-        '200':
+        "200":
           description: The id of this update
           content:
-            'text/plain': {}
-        '401':
-          description: Not authorized (missing or invalid JWT)
+            "text/plain": {}
+        "401":
+          $ref: "#/components/responses/401"
         '400':
           description: Invalid request
+  "/.well-known/mercure/subscriptions":
+    get:
+      summary: Active subscriptions
+      externalDocs:
+        description: Subscription API
+        url: https://mercure.rocks/spec#subscription-api
+      responses:
+        "200":
+          description: The list of active subscriptions
+          content:
+            "application/ld+json":
+              schema:
+                $ref: "#/components/schemas/Subscriptions"
+        "401":
+          $ref: "#/components/responses/401"
+  "/.well-known/mercure/subscriptions/{topic}":
+    get:
+      summary: Active subscriptions for the given topic
+      externalDocs:
+        description: Subscription API
+        url: https://mercure.rocks/spec#subscription-api
+      parameters:
+        - in: path
+          name: topic
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The list of active subscriptions
+          content:
+            "application/ld+json":
+              schema:
+                $ref: "#/components/schemas/Subscriptions"
+        "401":
+          $ref: "#/components/responses/401"
+  "/.well-known/mercure/subscriptions/{topic}/{subscriber}":
+    get:
+      summary: Active subscription for the given topic and subscriber
+      externalDocs:
+        description: Subscription API
+        url: https://mercure.rocks/spec#active-subscriptions
+      parameters:
+        - in: path
+          name: topic
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: subscriber
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The list of active subscriptions
+          content:
+            "application/ld+json":
+              schema:
+                $ref: "#/components/schemas/Subscriptions"
+        "401":
+          $ref: "#/components/responses/401"
 components:
+  schemas:
+    Subscriptions:
+      type: object
+      required: ["@context", "id", "type", "lastEventID", "subscriptions"]
+      properties:
+        "@context":
+          type: string
+          format: iri
+          example: https://mercure.rocks/
+        id:
+          type: string
+          format: iri-reference
+          example: /.well-known/subscriptions
+        type:
+          type: string
+          format: iri-reference
+          example: Subscriptions
+        lastEventID:
+          type: string
+          example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+        subscriptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subscription'
+    Subscription:
+      type: object
+      required: ["id", "type", "topic", "subscriber", "active"]
+      properties:
+        "@context":
+          type: string
+          format: iri
+          example: https://mercure.rocks/
+        id:
+          type: string
+          format: iri-reference
+          example: /.well-known/subscriptions
+        type:
+          type: string
+          format: iri-reference
+          example: Subscription
+        topic:
+          type: string
+          example: https://example.com/{selector}
+        subscriber:
+          type: string
+          example: urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6
+        active:
+          type: boolean
+        payload:
+          type: object
+        lastEventID:
+          type: string
+          example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+  responses:
+    "401":
+      description: Not authorized (missing or invalid JWT).
   securitySchemes:
     Bearer:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Prefered for server to server
+      description: Preferred for server to server
     Cookie:
       type: apiKey
       in: cookie
       name: mercureAuthorization
-      description: Prefered for web browsers
+      description: Preferred for web browsers
 security:
   - Bearer: []
   - Cookie: []
 externalDocs:
   description: The Mercure protocol specification
-  url: https://github.com/dunglas/mercure/blob/master/spec/mercure.md
+  url: https://mercure.rocks/spec
