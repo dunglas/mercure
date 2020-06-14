@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "mercure-example-chat.fullname" . }}-test-connection"
+  labels:
+    {{- include "mercure-example-chat.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "mercure-example-chat.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never
