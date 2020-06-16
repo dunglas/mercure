@@ -13,4 +13,4 @@
 
 ## Training
 
-[Masterclass](https://masterclass.les-tilleuls.coop) organizes [official training sessions about the Mercure protocol](https://masterclass.les-tilleuls.coop/trainings/decouvrir-le-protocole-mercure) (available in English and in French).
+[Masterclass](https://masterclass.les-tilleuls.coop) organizes [official training sessions about the Mercure protocol](https://masterclass.les-tilleuls.coop/en/trainings/discover-mercure) (available in English and in French).
