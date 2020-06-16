@@ -2,7 +2,7 @@
 
 ## Demos
 
-* [Demo hub and debug UI](https://demo-chat.mercure.rocks) ([source code](https://github.com/dunglas/mercure/tree/master/public)): a managed demo hub and the official debugging tools (written in JavaScript)
+* [Demo hub and debug UI](https://demo.mercure.rocks) ([source code](https://github.com/dunglas/mercure/tree/master/public)): a managed demo hub and the official debugging tools (written in JavaScript)
 * [Chat](https://demo-chat.mercure.rocks/) ([source code](https://github.com/dunglas/mercure/tree/master/examples/chat)): a chat, including the list of currently connected users (written in JavaScript and Python)
 
 ## Examples
