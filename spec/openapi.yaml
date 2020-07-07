@@ -163,7 +163,7 @@ components:
         id:
           type: string
           format: iri-reference
-          example: /.well-known/subscriptions
+          example: /.well-known/mercure/subscriptions
         type:
           type: string
           format: iri-reference
@@ -186,7 +186,7 @@ components:
         id:
           type: string
           format: iri-reference
-          example: /.well-known/subscriptions
+          example: /.well-known/mercure/subscriptions
         type:
           type: string
           format: iri-reference

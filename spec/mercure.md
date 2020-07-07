@@ -531,11 +531,12 @@ date.
 
 The web API **MUST** expose endpoints following these patterns:
 
- *  `/.well-known/subscriptions`: the collection of subscriptions
+ *  `/.well-known/mercure/subscriptions`: the collection of subscriptions
 
- *  `/.well-known/subscriptions/{topic}`: the collection subscriptions for the given topic selector
+ *  `/.well-known/mercure/subscriptions/{topic}`: the collection subscriptions for the given topic
+    selector
 
- *  `/.well-known/subscriptions/{topic}/{subscriber}`: a specific subscription
+ *  `/.well-known/mercure/subscriptions/{topic}/{subscriber}`: a specific subscription
 
 To access to the URLs exposed by the web API, clients **MUST** be authorized according to the rules
 defined in (#authorization). The requested URL **MUST** match at least one of the topic selectors
@@ -544,8 +545,8 @@ provided in the `mercure.subscribe` key of the JWS.
 The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
 
 URLs returning a single subscription (following the pattern
-`/.well-known/subscriptions/{topic}/{subscriber}`) **MUST** expose the same JSON-LD document as
-described in (#subscription-events). If the requested subscription does not exist, a `404` status
+`/.well-known/mercure/subscriptions/{topic}/{subscriber}`) **MUST** expose the same JSON-LD document
+as described in (#subscription-events). If the requested subscription does not exist, a `404` status
 code **MUST** be returned.
 
 If the requested subscription isn't active anymore, the hub can either return the JSON-LD document
@@ -578,7 +579,7 @@ from cache is still valid before using it.
 Examples:
 
 ~~~ http
-GET /.well-known/subscriptions HTTP/1.1
+GET /.well-known/mercure/subscriptions HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
@@ -589,7 +590,7 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/subscriptions",
+   "id": "/.well-known/mercure/subscriptions",
    "type": "Subscriptions",
    "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
@@ -622,7 +623,7 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D HTTP/1.1
+GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
@@ -633,7 +634,7 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D",
+   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D",
    "type": "Subscriptions",
    "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
@@ -746,7 +747,8 @@ Type" registry with the following entry:
 
 ## JSON Web Token (JWT) Registry
 
-A new "JSON Web Token Claim" as described in (#authorization) **will be** registered in the "JSON Web Token (JWT)" with the following entry:
+A new "JSON Web Token Claim" as described in (#authorization) **will be** registered in the "JSON
+Web Token (JWT)" with the following entry:
 
  *  Claim Name: mercure
 
@@ -842,8 +844,7 @@ Used in production.
 
 Contact Information:
 
-Kévin Dunglas, [kevin+mercure@dunglas.fr](mailto:kevin+mercure@dunglas.fr)
-<https://mercure.rocks>
+Kévin Dunglas, [kevin+mercure@dunglas.fr](mailto:kevin+mercure@dunglas.fr) <https://mercure.rocks>
 
 Interoperability:
 
