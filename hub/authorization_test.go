@@ -10,11 +10,15 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-const validEmptyHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30._esyynAyo2Z6PyGe0mM_SuQ3c-C7sMQJ1YxVLvlj80A"
-const validFullHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.e7USPnr2YHHqLYSu9-jEVsynuTXGtAQUDAZuzoR8lxQ"
+const (
+	validEmptyHeader = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30._esyynAyo2Z6PyGe0mM_SuQ3c-C7sMQJ1YxVLvlj80A"
+	validFullHeader  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.e7USPnr2YHHqLYSu9-jEVsynuTXGtAQUDAZuzoR8lxQ"
+)
 
-const validEmptyHeaderRsa = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.YbkSeO9GIBYedph1uSQz0Y6zp1NwDEB8O7ek3cc3Vw4Fjh6DwrJAwmXoNSqT6FhHDv14QG70qPIuyzsR0Q9nHFo7hGEqE8E85F8z3Pj5eBjHKBMJFno7jww514Vyp35c490ZHD6_d3F9PmxWrPkKezc1mcwlCegwiMJIS2CeR7k"
-const validFullHeaderRsa = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.B-ZBdmCbtDaP27wB_DvF9xIetQm88M2Q1d-LP2DZoEHrz6lYDuHkgXzSDnFdbLCZ653e0r_VOaKxe2Pc6R4F0ok2vksC6P5gHhqIUcQuTSlzNFyTrg4tyy4mMkcm1h85te9gkV4LR6TABfZpFPqqIS4t7fpCMxvtAkyf_RR5Fq4"
+const (
+	validEmptyHeaderRsa = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.YbkSeO9GIBYedph1uSQz0Y6zp1NwDEB8O7ek3cc3Vw4Fjh6DwrJAwmXoNSqT6FhHDv14QG70qPIuyzsR0Q9nHFo7hGEqE8E85F8z3Pj5eBjHKBMJFno7jww514Vyp35c490ZHD6_d3F9PmxWrPkKezc1mcwlCegwiMJIS2CeR7k"
+	validFullHeaderRsa  = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.B-ZBdmCbtDaP27wB_DvF9xIetQm88M2Q1d-LP2DZoEHrz6lYDuHkgXzSDnFdbLCZ653e0r_VOaKxe2Pc6R4F0ok2vksC6P5gHhqIUcQuTSlzNFyTrg4tyy4mMkcm1h85te9gkV4LR6TABfZpFPqqIS4t7fpCMxvtAkyf_RR5Fq4"
+)
 
 const publicKeyRsa = `-----BEGIN PUBLIC KEY-----
 MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHVwuJsFmzsFnOkGj+OgAp4lTNqR
@@ -23,6 +27,7 @@ WIxK2GqoAVjLjK8HzThSPQpgv2AjiEXD6iAERHeySLGjYAUgfMrVJ01J5fNSL+O+
 bCd7nPuNAyYHCOOHAgMBAAE=
 -----END PUBLIC KEY-----
 `
+
 const privateKeyRsa = `-----BEGIN RSA PRIVATE KEY-----
 MIICWwIBAAKBgHVwuJsFmzsFnOkGj+OgAp4lTNqRCF0RZSmjY+ECWOJ3sSEzQ8qt
 kJe61uSjr/PKmqvBxxex0YtUL7waSS4jvq3ws8BmWIxK2GqoAVjLjK8HzThSPQpg
@@ -40,8 +45,10 @@ Ki0jUpg2xzzwyA+nEI6Bf6CDaHKnCqxL7x0yk2XqeA==
 -----END RSA PRIVATE KEY-----
 `
 
-var hmacSigningMethod = jwt.GetSigningMethod("HS256")
-var rsaSigningMethod = jwt.GetSigningMethod("RS256")
+var (
+	hmacSigningMethod = jwt.GetSigningMethod("HS256")
+	rsaSigningMethod  = jwt.GetSigningMethod("RS256")
+)
 
 func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
@@ -54,7 +61,7 @@ func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 }
 
 func TestAuthorizeMultipleAuthorizationHeaderRsa(t *testing.T) {
-	r, _ := http.NewRequest("GET", defaultHubURL, nil)
+	r, _ := http.NewRequest("GET", defaultHubURL, nil) // nolint:noctx
 	r.Header.Add("Authorization", validEmptyHeaderRsa)
 	r.Header.Add("Authorization", validEmptyHeaderRsa)
 
@@ -148,7 +155,7 @@ func TestAuthorizeAuthorizationHeader(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderRsa(t *testing.T) {
-	r, _ := http.NewRequest("GET", defaultHubURL, nil)
+	r, _ := http.NewRequest("GET", defaultHubURL, nil) // nolint:noctx
 	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsa)
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{})
@@ -158,7 +165,7 @@ func TestAuthorizeAuthorizationHeaderRsa(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
-	r, _ := http.NewRequest("GET", defaultHubURL, nil)
+	r, _ := http.NewRequest("GET", defaultHubURL, nil) // nolint:noctx
 	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsa)
 
 	claims, err := authorize(r, []byte(publicKeyRsa), nil, []string{})
@@ -167,7 +174,7 @@ func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
 }
 
 func TestAuthorizeCookieInvalidAlg(t *testing.T) {
-	r, _ := http.NewRequest("GET", defaultHubURL, nil)
+	r, _ := http.NewRequest("GET", defaultHubURL, nil) // nolint:noctx
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
@@ -185,7 +192,7 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 }
 
 func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
-	r, _ := http.NewRequest("GET", defaultHubURL, nil)
+	r, _ := http.NewRequest("GET", defaultHubURL, nil) // nolint:noctx
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, []byte{}, rsaSigningMethod, []string{})
@@ -252,7 +259,7 @@ func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 }
 
 func TestAuthorizeCookieNoOriginNoRefererRsa(t *testing.T) {
-	r, _ := http.NewRequest("POST", defaultHubURL, nil)
+	r, _ := http.NewRequest("POST", defaultHubURL, nil) // nolint:noctx
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{})
@@ -311,7 +318,7 @@ func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 }
 
 func TestAuthorizeCookieInvalidRefererRsa(t *testing.T) {
-	r, _ := http.NewRequest("POST", defaultHubURL, nil)
+	r, _ := http.NewRequest("POST", defaultHubURL, nil) // nolint:noctx
 	r.Header.Add("Referer", "http://192.168.0.%31/")
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
 
@@ -333,7 +340,7 @@ func TestAuthorizeCookieOriginHasPriority(t *testing.T) {
 }
 
 func TestAuthorizeCookieOriginHasPriorityRsa(t *testing.T) {
-	r, _ := http.NewRequest("POST", defaultHubURL, nil)
+	r, _ := http.NewRequest("POST", defaultHubURL, nil) // nolint:noctx
 	r.Header.Add("Origin", "http://example.net")
 	r.Header.Add("Referer", "http://example.com")
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})

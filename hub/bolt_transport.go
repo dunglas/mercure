@@ -66,7 +66,7 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 		return nil, fmt.Errorf(`%q: missing path: %w`, u, ErrInvalidTransportDSN)
 	}
 
-	db, err := bolt.Open(path, 0600, nil)
+	db, err := bolt.Open(path, 0o600, nil)
 	if err != nil {
 		return nil, fmt.Errorf(`%q: %s: %w`, u, err, ErrInvalidTransportDSN)
 	}

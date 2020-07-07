@@ -30,9 +30,11 @@ type subscriptionCollection struct {
 	Subscriptions []subscription `json:"subscriptions"`
 }
 
-const subscriptionURL = defaultHubURL + "/subscriptions/{topic}/{subscriber}"
-const subscriptionsForTopicURL = defaultHubURL + "/subscriptions/{topic}"
-const subscriptionsURL = defaultHubURL + "/subscriptions"
+const (
+	subscriptionURL          = defaultHubURL + "/subscriptions/{topic}/{subscriber}"
+	subscriptionsForTopicURL = defaultHubURL + "/subscriptions/{topic}"
+	subscriptionsURL         = defaultHubURL + "/subscriptions"
+)
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	currentURL := r.URL.RequestURI()
