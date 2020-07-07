@@ -300,7 +300,7 @@ func TestBoltGetSubscribers(t *testing.T) {
 }
 
 func TestBoltLastEventID(t *testing.T) {
-	db, err := bolt.Open("test.db", 0600, nil)
+	db, err := bolt.Open("test.db", 0o600, nil)
 	defer os.Remove("test.db")
 	require.Nil(t, err)
 

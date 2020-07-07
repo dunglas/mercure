@@ -151,7 +151,6 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 			}
 
 			pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
-
 			if err != nil {
 				return nil, err
 			}
@@ -163,7 +162,6 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 
 		return nil, fmt.Errorf("%T: %w", signingAlgorithm, ErrUnexpectedSigningMethod)
 	})
-
 	if err != nil {
 		return nil, err
 	}
