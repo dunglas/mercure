@@ -744,6 +744,16 @@ Type" registry with the following entry:
 
  *  Reference: This specification, (#discovery)
 
+## JSON Web Token (JWT) Registry
+
+A new "JSON Web Token Claim" as described in (#authorization) **will be** registered in the "JSON Web Token (JWT)" with the following entry:
+
+ *  Claim Name: mercure
+
+ *  Description: Mercure data.
+
+ *  Reference: This specification, (#authorization)
+
 # Security Considerations
 
 The confidentiality of the secret key(s) used to generate the JWSs is a primary concern. The
