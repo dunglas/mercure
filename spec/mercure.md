@@ -283,6 +283,9 @@ authorization rules not defined in this specification.
 The publisher sends updates by issuing `POST` HTTPS requests on the hub URL. When it receives an
 update, the hub dispatches it to subscribers using the established server-sent events connections.
 
+The hub **MAY** also dispatch this update using other protocols such as WebSub
+[@W3C.REC-websub-20180123] or ActivityPub [@W3C.REC-activitypub-20180123].
+
 An application **CAN** send events directly to subscribers without using an external hub server, if
 it is able to do so. In this case, it **MAY NOT** implement the endpoint to publish updates.
 
