@@ -66,8 +66,6 @@ func (s *Subscriber) start() {
 	defer s.cleanup()
 	for {
 		select {
-		case <-s.disconnected:
-			return
 		case u, ok := <-s.history.in:
 			if !ok {
 				s.history.in = nil
@@ -76,7 +74,11 @@ func (s *Subscriber) start() {
 			if s.CanDispatch(u) {
 				s.history.buffer = append(s.history.buffer, u)
 			}
-		case u := <-s.live.in:
+		case u, ok := <-s.live.in:
+			if !ok {
+				// chan drained
+				return
+			}
 			if s.CanDispatch(u) {
 				s.live.buffer = append(s.live.buffer, u)
 			}
@@ -135,7 +137,17 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 
 	select {
 	case <-s.disconnected:
+		close(s.live.in)
 		return false
+
+	default:
+	}
+
+	select {
+	case <-s.disconnected:
+		close(s.live.in)
+		return false
+
 	case in <- u:
 	}
 
@@ -158,11 +170,6 @@ func (s *Subscriber) Disconnect() {
 	s.disconnectedOnce.Do(func() {
 		close(s.disconnected)
 	})
-}
-
-// Disconnected allows to check if the subscriber is disconnected.
-func (s *Subscriber) Disconnected() <-chan struct{} {
-	return s.disconnected
 }
 
 // CanDispatch checks if an update can be dispatched to this subsriber.

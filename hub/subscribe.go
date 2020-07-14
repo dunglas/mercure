@@ -44,9 +44,6 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		select {
-		case <-s.Disconnected():
-			// Server closes the connection
-			return
 		case <-r.Context().Done():
 			// Client closes the connection
 			return
@@ -59,8 +56,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			heartbeatTimer.Reset(heartbeatInterval)
-		case update := <-s.Receive():
-			if !h.write(w, s, newSerializedUpdate(update).event, dispatchTimeout) {
+		case update, ok := <-s.Receive():
+			if !ok || !h.write(w, s, newSerializedUpdate(update).event, dispatchTimeout) {
 				return
 			}
 			if heartbeatTimer != nil {
