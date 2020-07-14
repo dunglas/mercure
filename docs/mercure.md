@@ -13,7 +13,7 @@ The Mercure protocol:
 * can work with old browsers (IE7+) using an `EventSource` polyfill
 * [connection-less push](https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource-push) in controlled environments (e.g. browsers on mobile handsets tied to specific carriers)
 
-The mercure.rocks hub implementation:
+The Mercure.rocks hub implementation:
 
 * Fast, written in Go
 * Works everywhere: static binaries and Docker images available
