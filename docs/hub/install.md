@@ -1,8 +1,8 @@
-# Install
+# Install the Mercure.rocks hub
 
 ## Managed and HA Versions
 
-[Managed and High Availability versions of Mercure](https://mercure.rocks/pricing) are available, give them a try!
+[Managed and High Availability versions of Mercure.rocks](https://mercure.rocks/pricing) are available, give them a try!
 
 ## Prebuilt Binary
 
@@ -23,7 +23,7 @@ Allow it for both public and private networks. If you use an antivirus, or anoth
 
 The server is now available on `http://localhost:3000`, with the demo mode enabled. Because the `allow_anonymous` option is enabled, anonymous subscribers are allowed.
 
-To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, just run the following command as root:
+To run it in production mode, and generate automatically a Let's Encrypt TLS certificate, run the following command as root:
 
     JWT_KEY='!ChangeMe!' ACME_HOSTS='example.com' ./mercure
 
@@ -38,7 +38,7 @@ When the server is up and running, the following endpoints are available:
 * `POST https://example.com/.well-known/mercure`: to publish updates
 * `GET https://example.com/.well-known/mercure`: to subscribe to updates
 
-See [the protocol](spec/mercure.md) for further informations.
+See [the protocol](spec/mercure.md) for more details about these endpoints.
 
 To compile the development version and register the demo page, see [https://github.com/dunglas/mercure/blob/master/CONTRIBUTING.md](CONTRIBUTING.md#hub).
 
@@ -64,13 +64,13 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 
 ## Kubernetes
 
-To install Mercure in a [Kubernetes](https://kubernetes.io) cluster, use the official [Helm Chart](https://hub.helm.sh/charts/stable/mercure):
+To install Mercure.rocks in a [Kubernetes](https://kubernetes.io) cluster, use the official [Helm Chart](https://hub.helm.sh/charts/stable/mercure):
 
     helm install stable/mercure
 
 ## Arch Linux
 
-Mercure is available [on the AUR](https://aur.archlinux.org/packages/mercure), you can install it with your favorite AUR wrapper:
+Mercure.rocks is available [on the AUR](https://aur.archlinux.org/packages/mercure), you can install it with your favorite AUR wrapper:
 
     yay -S mercure
 

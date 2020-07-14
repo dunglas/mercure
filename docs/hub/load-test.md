@@ -1,7 +1,7 @@
 # Load Test
 
-According to a benchmark made by Glory4Gamers, the open source version of the Mercure hub is able to 40k concurrent connections on a single EC2 t3.micro instance.
-It's even possible to handle way more connections by using [the HA version of the Mercure Hub](cluster.md).
+According to a benchmark made by Glory4Gamers, the open source version of the Mercure.rocks hub is able to 40k concurrent connections on a single EC2 t3.micro instance.
+It's even possible to handle way more connections by using [the HA version of the Mercure.rocks Hub](cluster.md).
 
 To test your own infrastructure, we provide a [Gatling](https://gatling.io)-based load test. It allows to test any implementation of the protocol, including the open source Hub.
 

@@ -14,7 +14,7 @@ To reproduce the problem, we provide [a load test](load-test.md) that you can us
 
 ## Monitoring the Hub Using Supervisor
 
-Use the following file as a template to run the Mercure hub with [Supervisor](http://supervisord.org):
+Use the following file as a template to run the Mercure.rocks hub with [Supervisor](http://supervisord.org):
 
 ```ini
 [program:mercure]
@@ -36,7 +36,7 @@ stderr_logfile=/path/to/logs/mercure.error.log
 ```
 
 Save this file to `/etc/supervisor/conf.d/mercure.conf`.
-Run `supervisorctl reread` and `supervisorctl update` to activate and start the Mercure hub.
+Run `supervisorctl reread` and `supervisorctl update` to activate and start the Mercure.rocks hub.
 
 ## Using NGINX as an HTTP/2 Reverse Proxy in Front of the Hub
 
