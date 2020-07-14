@@ -1,5 +1,7 @@
 # Mercure in a Few Words
 
+The Mercure protocol:
+
 * native browser support, no lib nor SDK required (built on top of HTTP and [server-sent events](https://www.smashingmagazine.com/2018/02/sse-websockets-data-flow-http2/))
 * compatible with all existing servers, even those who don't support persistent connections (serverless architecture, PHP, FastCGI...)
 * built-in connection re-establishment and state reconciliation
@@ -11,7 +13,7 @@
 * can work with old browsers (IE7+) using an `EventSource` polyfill
 * [connection-less push](https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource-push) in controlled environments (e.g. browsers on mobile handsets tied to specific carriers)
 
-The reference hub implementation:
+The Mercure.rocks hub implementation:
 
 * Fast, written in Go
 * Works everywhere: static binaries and Docker images available

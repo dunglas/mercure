@@ -22,7 +22,7 @@ The protocol has been published as [an Internet Draft](https://datatracker.ietf.
 A reference, production-grade, implementation of [**a Mercure hub**](https://mercure.rocks/docs/hub/install) (the server) is also available in this repository.
 It's a free software (AGPL) written in Go. It is provided along with a library that can be used in any Go application to implement the Mercure protocol directly (without a hub) and an official Docker image.
 
-In addition, a managed and high-scalability version of Mercure is [available on Mercure.rocks](https://mercure.rocks/pricing).
+In addition, a managed and high-scalability version of the Mercure.rocks hub is [available on Mercure.rocks](https://mercure.rocks/pricing).
 
 ## Contributing
 

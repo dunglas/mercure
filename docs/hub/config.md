@@ -1,6 +1,6 @@
 # Configuration
 
-The Mercure Hub is configurable using [environment variables](https://en.wikipedia.org/wiki/Environment_variable) (recommended in production, [twelve-factor app methodology](https://12factor.net/)), command line flags and configuration files (JSON, TOML, YAML, HCL, envfile and Java properties files are supported).
+The Mercure.rocks Hub is configurable using [environment variables](https://en.wikipedia.org/wiki/Environment_variable) (recommended in production, [twelve-factor app methodology](https://12factor.net/)), command line flags and configuration files (JSON, TOML, YAML, HCL, envfile and Java properties files are supported).
 
 Environment variables must be the name of the configuration parameter in uppercase.
 Run `./mercure -h` to see all available command line flags.
