@@ -848,7 +848,7 @@ Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery
 
 # Implementation Status
 
-[RFC Editor Note: Please remove this entire seciton prior to publication as an RFC.]
+[RFC Editor Note: Please remove this entire section prior to publication as an RFC.]
 
 This section records the status of known implementations of the protocol defined by this
 specification at the time of posting of this Internet-Draft, and is based on a proposal described
@@ -900,7 +900,7 @@ Used in production.
 
 Contact Information:
 
-Kévin Dunglas, [kevin+mercure@dunglas.fr](mailto:kevin+mercure@dunglas.fr) <https://mercure.rocks>
+Kévin Dunglas, [contact@mercure.rocks](mailto:contact@mercure.rocks) <https://mercure.rocks>
 
 Interoperability:
 

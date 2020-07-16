@@ -28,6 +28,10 @@ In addition, a managed and high-scalability version of the Mercure.rocks hub is 
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## License and Copyright 
+
+See https://mercure.rocks/docs/hub/license.
+
 ## Credits
 
 Created by [Kévin Dunglas](https://dunglas.fr). Graphic design by [Laury Sorriaux](https://github.com/ginifizz).
