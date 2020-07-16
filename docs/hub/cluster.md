@@ -41,7 +41,7 @@ For more details (and a benchmark), [refer to the case study presented by the iG
 
 ### Purchasing
 
-To purchase the On Premise version of the Mercure.rocks Hub, drop us a mail: [kevin+mercure@dunglas.fr](mailto:kevin+mercure@dunglas.fr?subject=I%27m%20interested%20in%20Mercure%20on%20premise)
+To purchase the On Premise version of the Mercure.rocks Hub, drop us a mail: [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=I%27m%20interested%20in%20Mercure%20on%20premise)
 
 ### Setting the License
 
