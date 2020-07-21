@@ -29,10 +29,10 @@ import json
 from uritemplate import expand
 
 HUB_URL = os.environ.get(
-    'HUB_URL', 'http://localhost:3000/.well-known/mercure')
+    'HUB_URL', 'http://mercure:3000/.well-known/mercure')
 JWT_KEY = os.environ.get('JWT_KEY', '!ChangeMe!')
 MESSAGE_URI_TEMPLATE = os.environ.get(
-    'MESSAGE_URI_TEMPLATE', 'https://chat.example.com/messages/{id}')
+    'MESSAGE_URI_TEMPLATE', 'http://chat/messages/{id}')
 
 SUBSCRIPTIONS_TEMPLATE = '/.well-known/mercure/subscriptions/{topic}{/subscriber}'
 SUBSCRIPTIONS_TOPIC = expand(SUBSCRIPTIONS_TEMPLATE, topic=MESSAGE_URI_TEMPLATE)

@@ -11,7 +11,7 @@ token = jwt.encode(
 updates = SSEClient(
     os.environ.get('HUB_URL', 'http://localhost:3001/.well-known/mercure'),
     params={'topic': ['*']},
-    headers={'Authorization': b'Bearer '+token},
+    headers={'Authorization': b'Bearer '+token, 'Last-Event-ID': 'earliest'},
 )
 for update in updates:
     print("Update received: ", update)
