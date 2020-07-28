@@ -32,6 +32,9 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("metrics", false)
 	v.SetDefault("metrics_login", "mercure")
 	v.SetDefault("metrics_password", "")
+
+	v.SetDefault("telemetry.enabled", false)
+	v.SetDefault("telemetry.addr", "127.0.0.1:3002")
 }
 
 // ValidateConfig validates a Viper instance.
@@ -51,6 +54,15 @@ func ValidateConfig(v *viper.Viper) error {
 		}
 		if v.GetString("metrics_password") != "" && v.GetString("metrics_login") == "" {
 			return fmt.Errorf(`%w: if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`, ErrInvalidConfig)
+		}
+	}
+	if v.GetBool("telemetry.enabled") {
+		if v.GetString("telemetry.addr") == "" {
+			return fmt.Errorf(`%w: "telemetry.addr" must be defined when telemetry is enabled`, ErrInvalidConfig)
+		}
+
+		if v.GetString("telemetry.addr") == v.GetString("addr") {
+			return fmt.Errorf(`%w: "telemetry.addr" must not be the same as "addr"`, ErrInvalidConfig)
 		}
 	}
 
@@ -87,6 +99,11 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.BoolP("metrics", "m", false, "enable metrics")
 	fs.StringP("metrics_login", "", "mercure", "the user login allowed to access metrics")
 	fs.StringP("metrics_password", "", "", "the user password allowed to access metrics")
+
+	fs.Bool("telemetry-enabled", false, "enable telemetry")
+	_ = v.BindPFlag("telemetry.enabled", fs.Lookup("telemetry-enabled"))
+	fs.String("telemetry-addr", "127.0.0.1:3002", "telemetry HTTP server address")
+	_ = v.BindPFlag("telemetry.addr", fs.Lookup("telemetry-addr"))
 
 	fs.VisitAll(func(f *pflag.Flag) {
 		v.BindPFlag(strings.ReplaceAll(f.Name, "-", "_"), fs.Lookup(f.Name))

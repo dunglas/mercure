@@ -29,6 +29,18 @@ func (h *Hub) Serve() {
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
 
+	if h.config.GetBool("telemetry.enabled") {
+		addr := h.config.GetString("telemetry.addr")
+
+		server := &http.Server{
+			Addr:    addr,
+			Handler: h.telemetryHandler(),
+		}
+
+		log.WithFields(log.Fields{"addr": addr}).Info("Mercure telemetry started")
+		go server.ListenAndServe()
+	}
+
 	acme := len(acmeHosts) > 0
 	certFile := h.config.GetString("cert_file")
 	keyFile := h.config.GetString("key_file")
@@ -204,6 +216,18 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	mainRouter.PathPrefix("/").Handler(handler)
 
 	return mainRouter
+}
+
+func (h *Hub) telemetryHandler() http.Handler {
+	router := mux.NewRouter()
+
+	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "ok")
+	}).Methods("GET", "HEAD")
+
+	h.metrics.Register(router.PathPrefix("/").Subrouter())
+
+	return router
 }
 
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {

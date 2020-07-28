@@ -11,3 +11,8 @@ publish_allowed_origins: [http://localhost:3000, http://localhost:3001, http://l
 subscriptions: true
 dispatch_timeout: 5s
 #write_timeout: 10s
+
+telemetry:
+    enabled: true
+
+    addr: 127.0.0.1:3002
