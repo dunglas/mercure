@@ -200,7 +200,7 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")
 
-	if h.config.GetBool("metrics") {
+	if h.config.GetBool("metrics") && !h.config.GetBool("telemetry.enabled") {
 		r := mainRouter.PathPrefix("/").Subrouter()
 
 		expectedLogin := h.config.GetString("metrics_login")
