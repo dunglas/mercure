@@ -22,7 +22,7 @@ To use it, just configure your custom domain name (if any) and your secret JWT k
 
 ## High Availability Version
 
-The High Availability Mercure.rocks Hub is a drop-in replacement for the free Hub which allows to spread the load accros as many servers as you want. It is designed to run on your own servers and is fault tolerant by default.
+The High Availability Mercure.rocks Hub is a drop-in replacement for the free Hub which allows to spread the load across as many servers as you want. It is designed to run on your own servers and is fault tolerant by default.
 
 The HA version is shipped with transports having node synchronization capabilities.
 These transports can rely on:
