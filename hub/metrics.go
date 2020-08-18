@@ -20,7 +20,7 @@ func NewMetrics() *Metrics {
 		subscribersTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "mercure_subscribers_total",
-				Help: "Total number of handled subscribers",
+				Help: "Total number of handled subscriber",
 			},
 			[]string{"topic"},
 		),
