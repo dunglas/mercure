@@ -19,14 +19,14 @@ func NewMetrics() *Metrics {
 	return &Metrics{
 		subscribersTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "mercure_subcribers_total",
-				Help: "Total number of handled subsribers",
+				Name: "mercure_subscribers_total",
+				Help: "Total number of handled subscribers",
 			},
 			[]string{"topic"},
 		),
 		subscribers: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "mercure_subcribers",
+				Name: "mercure_subscribers",
 				Help: "The current number of running subscribers",
 			},
 			[]string{"topic"},
