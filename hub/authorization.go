@@ -195,6 +195,7 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 
 			if s.match(topic, topicSelector, false) {
 				matched = true
+
 				break
 			}
 		}

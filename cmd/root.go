@@ -3,10 +3,9 @@ package cmd
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/dunglas/mercure/common"
 	"github.com/dunglas/mercure/hub"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
