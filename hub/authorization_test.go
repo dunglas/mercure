@@ -4,10 +4,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/dgrijalva/jwt-go"
 )
 
 const (

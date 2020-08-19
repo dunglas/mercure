@@ -319,6 +319,7 @@ func TestBoltLastEventID(t *testing.T) {
 
 		// The DB is append only
 		bucket.FillPercent = 1
+
 		return bucket.Put(key, []byte("invalid"))
 	})
 	require.Nil(t, db.Close())

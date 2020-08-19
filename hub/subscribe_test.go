@@ -326,6 +326,7 @@ func TestSubscribePrivate(t *testing.T) {
 				Event:   Event{Data: "Great", ID: "c", Retry: 1},
 				Private: true,
 			})
+
 			return
 		}
 	}()

@@ -219,6 +219,7 @@ func basicAuthMiddleware(expectedLogin, expectedPassword string) func(next http.
 			if !ok || login != expectedLogin || password != expectedPassword {
 				w.Header().Add("WWW-Authenticate", `Basic realm="Mercure"`)
 				w.WriteHeader(http.StatusUnauthorized)
+
 				return
 			}
 

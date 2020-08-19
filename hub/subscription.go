@@ -94,6 +94,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			w.Write(json)
+
 			return
 		}
 	}
@@ -110,6 +111,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 		} else {
 			log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
 		}
+
 		return "", nil, false
 	}
 
@@ -121,6 +123,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 	lastEventID, subscribers = transport.GetSubscribers()
 	if r.Header.Get("If-None-Match") == lastEventID {
 		w.WriteHeader(http.StatusNotModified)
+
 		return "", nil, false
 	}
 

@@ -216,6 +216,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 			receivedBody += string(buf)
 			if strings.Contains(receivedBody, "data: "+expectedBodyData+"\n") {
 				cancel()
+
 				break
 			}
 		}

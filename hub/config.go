@@ -53,6 +53,7 @@ func ValidateConfig(v *viper.Viper) error {
 			return fmt.Errorf(`%w: if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`, ErrInvalidConfig)
 		}
 	}
+
 	return nil
 }
 

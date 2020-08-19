@@ -51,6 +51,7 @@ func TestNewHubTransportValidationError(t *testing.T) {
 func TestStartCrash(t *testing.T) {
 	if os.Getenv("BE_START_CRASH") == "1" {
 		Start()
+
 		return
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=TestStartCrash") // nolint:gosec
@@ -110,6 +111,7 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 	}
 
 	tokenString, _ := token.SignedString(key)
+
 	return tokenString
 }
 

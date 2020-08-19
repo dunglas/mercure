@@ -98,6 +98,7 @@ func (tss *TopicSelectorStore) cleanup(topics []string) {
 		if tc, ok := tss.m[topic]; ok {
 			if tc.counter == 0 {
 				delete(tss.m, topic)
+
 				continue
 			}
 

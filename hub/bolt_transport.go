@@ -10,9 +10,8 @@ import (
 	"strconv"
 	"sync"
 
-	bolt "go.etcd.io/bbolt"
-
 	log "github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 )
 
 const defaultBoltBucketName = "updates"
@@ -202,6 +201,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
 			s.HistoryDispatched(EarliestLastEventID)
+
 			return nil // No data
 		}
 
@@ -222,11 +222,13 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 			if err := json.Unmarshal(v, &update); err != nil {
 				s.HistoryDispatched(responseLastEventID)
 				log.Error(fmt.Errorf("bolt history: %w", err))
+
 				return err
 			}
 
 			if !s.Dispatch(update, true) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
 				s.HistoryDispatched(responseLastEventID)
+
 				return nil
 			}
 		}
@@ -250,6 +252,7 @@ func (t *BoltTransport) Close() (err error) {
 
 		err = t.db.Close()
 	})
+
 	return err
 }
 
@@ -258,7 +261,7 @@ func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	if t.size == 0 ||
 		t.cleanupFrequency == 0 ||
 		t.size >= lastID ||
-		(t.cleanupFrequency != 1 && rand.Float64() < t.cleanupFrequency) {
+		(t.cleanupFrequency != 1 && rand.Float64() < t.cleanupFrequency) { // nolint:gosec
 		return nil
 	}
 
