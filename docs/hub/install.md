@@ -44,6 +44,8 @@ To compile the development version and register the demo page, see [https://gith
 
 ## Docker Image
 
+### Docker
+
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
     docker run \
@@ -61,6 +63,32 @@ In production, run:
         dunglas/mercure
 
 Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let's Encrypt TLS certificate will be automatically generated.
+
+### Docker Compose
+
+You can use this docker image in your compose stack:
+
+    mercure:
+        image: dunglas/mercure
+        ports:
+            - 80:80
+        environment:
+            - JWT_KEY=!ChangeMe!
+            - DEMO=1
+            - ALLOW_ANONYMOUS=1
+            - CORS_ALLOWED_ORIGINS=*
+            - PUBLISH_ALLOWED_ORIGINS=http://localhost
+
+In production:
+
+    mercure:
+        image: dunglas/mercure
+        ports:
+            - 80:80
+            - 443:443
+        environment:
+            - JWT_KEY=!ChangeMe!
+            - ACMS_HOSTS=example.com
 
 ## Kubernetes
 
