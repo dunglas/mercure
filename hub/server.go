@@ -29,15 +29,15 @@ func (h *Hub) Serve() {
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
 
-	if h.config.GetBool("telemetry.enabled") {
-		addr := h.config.GetString("telemetry.addr")
+	if h.config.GetBool("metrics_enabled") {
+		addr := h.config.GetString("metrics_addr")
 
 		server := &http.Server{
 			Addr:    addr,
-			Handler: h.telemetryHandler(),
+			Handler: h.metricsHandler(),
 		}
 
-		log.WithFields(log.Fields{"addr": addr}).Info("Mercure telemetry started")
+		log.WithFields(log.Fields{"addr": addr}).Info("Mercure metrics started")
 		go server.ListenAndServe()
 	}
 
@@ -200,25 +200,13 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")
 
-	if h.config.GetBool("metrics") && !h.config.GetBool("telemetry.enabled") {
-		r := mainRouter.PathPrefix("/").Subrouter()
-
-		expectedLogin := h.config.GetString("metrics_login")
-		expectedPassword := h.config.GetString("metrics_password")
-		if expectedLogin != "" && expectedPassword != "" {
-			r.Use(basicAuthMiddleware(expectedLogin, expectedPassword))
-		}
-
-		h.metrics.Register(r)
-	}
-
 	handler := h.chainHandlers(acmeHosts)
 	mainRouter.PathPrefix("/").Handler(handler)
 
 	return mainRouter
 }
 
-func (h *Hub) telemetryHandler() http.Handler {
+func (h *Hub) metricsHandler() http.Handler {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -234,20 +222,4 @@ func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
 <title>Mercure Hub</title>
 <h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
-}
-
-func basicAuthMiddleware(expectedLogin, expectedPassword string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			login, password, ok := r.BasicAuth()
-			if !ok || login != expectedLogin || password != expectedPassword {
-				w.Header().Add("WWW-Authenticate", `Basic realm="Mercure"`)
-				w.WriteHeader(http.StatusUnauthorized)
-
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
 }

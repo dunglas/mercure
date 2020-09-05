@@ -37,7 +37,7 @@ func TestSetFlags(t *testing.T) {
 	fs := pflag.NewFlagSet("test", pflag.PanicOnError)
 	SetFlags(fs, v)
 
-	assert.Subset(t, v.AllKeys(), []string{"cert_file", "compress", "demo", "jwt_algorithm", "transport_url", "acme_hosts", "acme_cert_dir", "subscriber_jwt_key", "log_format", "jwt_key", "allow_anonymous", "debug", "read_timeout", "publisher_jwt_algorithm", "write_timeout", "key_file", "use_forwarded_headers", "subscriber_jwt_algorithm", "addr", "publisher_jwt_key", "heartbeat_interval", "cors_allowed_origins", "publish_allowed_origins", "subscriptions", "metrics", "metrics_login", "metrics_password", "dispatch_timeout"})
+	assert.Subset(t, v.AllKeys(), []string{"cert_file", "compress", "demo", "jwt_algorithm", "transport_url", "acme_hosts", "acme_cert_dir", "subscriber_jwt_key", "log_format", "jwt_key", "allow_anonymous", "debug", "read_timeout", "publisher_jwt_algorithm", "write_timeout", "key_file", "use_forwarded_headers", "subscriber_jwt_algorithm", "addr", "publisher_jwt_key", "heartbeat_interval", "cors_allowed_origins", "publish_allowed_origins", "subscriptions", "dispatch_timeout"})
 }
 
 func TestInitConfig(t *testing.T) {
@@ -54,35 +54,5 @@ func TestMetricsAreDisabledByDefault(t *testing.T) {
 	v := viper.New()
 	SetConfigDefaults(v)
 
-	assert.False(t, v.GetBool("metrics"))
-}
-
-func TestMetricsAuthenticationConfigurationIgnoreIfMetricsDisabled(t *testing.T) {
-	v := viper.New()
-	v.Set("jwt_key", "key")
-	v.Set("metrics", false)
-	v.Set("metrics_login", "foo")
-
-	err := ValidateConfig(v)
-	assert.Nil(t, err)
-}
-
-func TestMetricsPasswordIsRequiredIfLoginFilled(t *testing.T) {
-	v := viper.New()
-	v.Set("jwt_key", "key")
-	v.Set("metrics", true)
-	v.Set("metrics_login", "foo")
-
-	err := ValidateConfig(v)
-	assert.EqualError(t, err, `invalid config: if the "metrics_login" configuration parameter is defined, "metrics_password" must be defined too`)
-}
-
-func TestMetricsLoginIsRequiredIfPasswordFilled(t *testing.T) {
-	v := viper.New()
-	v.Set("jwt_key", "key")
-	v.Set("metrics", true)
-	v.Set("metrics_password", "foo")
-
-	err := ValidateConfig(v)
-	assert.EqualError(t, err, `invalid config: if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`)
+	assert.False(t, v.GetBool("metrics_enabled"))
 }
