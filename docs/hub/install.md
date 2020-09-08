@@ -66,29 +66,33 @@ Be sure to update the value of `ACME_HOSTS` to match your domain name(s), a Let'
 
 ### Docker Compose
 
-You can use this docker image in your compose stack:
+You can use this Docker image in your Compose stack:
 
-    mercure:
-        image: dunglas/mercure
-        ports:
-            - 80:80
-        environment:
-            - JWT_KEY=!ChangeMe!
-            - DEMO=1
-            - ALLOW_ANONYMOUS=1
-            - CORS_ALLOWED_ORIGINS=*
-            - PUBLISH_ALLOWED_ORIGINS=http://localhost
+```yaml
+mercure:
+    image: dunglas/mercure
+    ports:
+        - 80:80
+    environment:
+        - JWT_KEY=!ChangeMe!
+        - DEMO=1
+        - ALLOW_ANONYMOUS=1
+        - CORS_ALLOWED_ORIGINS=*
+        - PUBLISH_ALLOWED_ORIGINS=http://localhost
+```
 
 In production:
 
-    mercure:
-        image: dunglas/mercure
-        ports:
-            - 80:80
-            - 443:443
-        environment:
-            - JWT_KEY=!ChangeMe!
-            - ACMS_HOSTS=example.com
+```yaml
+mercure:
+    image: dunglas/mercure
+    ports:
+        - 80:80
+        - 443:443
+    environment:
+        - JWT_KEY=!ChangeMe!
+        - ACMS_HOSTS=example.com
+```
 
 ## Kubernetes
 
