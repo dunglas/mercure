@@ -91,7 +91,7 @@ mercure:
         - 443:443
     environment:
         - JWT_KEY=!ChangeMe!
-        - ACMS_HOSTS=example.com
+        - ACME_HOSTS=example.com
 ```
 
 ## Kubernetes
