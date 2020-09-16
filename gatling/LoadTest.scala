@@ -28,6 +28,8 @@ class LoadTest extends Simulation {
   val HubUrl = Properties.envOrElse("HUB_URL", "http://localhost:3001/.well-known/mercure")
   /** JWT to use to publish */
   val Jwt = Properties.envOrElse("JWT", "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.z5YrkHwtkz3O_nOnhC_FP7_bmeISe3eykAkGbAl5K7c")
+  /** JWT to use to subscribe */
+  val SubscriberJwt = Properties.envOrElse("SUBSCRIBER_JWT", null)
   /** Number of concurrent subscribers initially connected */
   val InitialSubscribers = Properties.envOrElse("INITIAL_SUBSCRIBERS", "100").toInt
   /** Additional subscribers rate (per second) */
@@ -42,6 +44,19 @@ class LoadTest extends Simulation {
   val ConnectionDuration = Properties.envOrElse("CONNECTION_DURATION", "300").toInt
   /** Randomize the connection duration? */
   val RandomConnectionDuration = Properties.envOrElse("RANDOM_CONNECTION_DURATION", "true").toBoolean
+  /** Subscriber test as a function to handle conditional Authorization header */
+  def subscriberTest() = {
+
+    var requestBuilder = sse("Subscribe").connect("?topic=http://example.com")
+
+    if(SubscriberJwt != null){
+      requestBuilder = requestBuilder.header("Authorization", "Bearer " + SubscriberJwt)
+    }
+
+    requestBuilder.await(10)(
+      sse.checkMessage("Check content").check(regex("""(.*)Hi(.*)"""))
+    )
+  }
 
   val rnd = new scala.util.Random
 
@@ -59,10 +74,7 @@ class LoadTest extends Simulation {
 
   val scenarioSubscribe = scenario("Subscribe")
     .exec(
-      sse("Subscribe").connect("?topic=http://example.com")
-        .await(10)(
-          sse.checkMessage("Check content").check(regex("""(.*)Hi(.*)"""))
-        )
+      subscriberTest()
     )
     .pause(if (RandomConnectionDuration) rnd.nextInt(ConnectionDuration) else ConnectionDuration)
     .exec(sse("Close").close())
