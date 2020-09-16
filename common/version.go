@@ -18,13 +18,13 @@ type AppVersionInfo struct {
 	Architecture string
 }
 
-var AppVersion AppVersionInfo // nolint:gochecknoglobals
+var AppVersion AppVersionInfo //nolint:gochecknoglobals
 
 // these variables are dynamically set at build.
 var (
 	version   = "dev"
-	buildDate = "" // nolint:gochecknoglobals
-	commit    = "" // nolint:gochecknoglobals
+	buildDate = "" //nolint:gochecknoglobals
+	commit    = "" //nolint:gochecknoglobals
 )
 
 func (v *AppVersionInfo) Shortline() string {
@@ -78,7 +78,7 @@ func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {
 	return buildInfo
 }
 
-func init() { // nolint:gochecknoinits
+func init() { //nolint:gochecknoinits
 	if version == "dev" {
 		info, ok := debug.ReadBuildInfo()
 		if ok && info.Main.Version != "(devel)" {

@@ -261,7 +261,7 @@ func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	if t.size == 0 ||
 		t.cleanupFrequency == 0 ||
 		t.size >= lastID ||
-		(t.cleanupFrequency != 1 && rand.Float64() < t.cleanupFrequency) { // nolint:gosec
+		(t.cleanupFrequency != 1 && rand.Float64() < t.cleanupFrequency) { //nolint:gosec
 		return nil
 	}
 
