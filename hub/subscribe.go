@@ -30,6 +30,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	var heartbeatTimerC <-chan time.Time
 	if heartbeatInterval != time.Duration(0) {
 		heartbeatTimer = time.NewTimer(heartbeatInterval)
+		defer heartbeatTimer.Stop()
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
@@ -39,6 +40,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	var writeTimerC <-chan time.Time
 	if writeTimeout != 0 {
 		writeTimer = time.NewTimer(writeTimeout - dispatchTimeout)
+		defer writeTimer.Stop()
 		writeTimerC = writeTimer.C
 	}
 
@@ -169,10 +171,12 @@ func (h *Hub) write(w io.Writer, s *Subscriber, data string, d time.Duration) bo
 		close(done)
 	}()
 
+	timeout := time.NewTimer(d)
+	defer timeout.Stop()
 	select {
 	case <-done:
 		return true
-	case <-time.After(d):
+	case <-timeout.C:
 		log.WithFields(s.LogFields).Warn("Dispatch timeout reached")
 
 		return false
