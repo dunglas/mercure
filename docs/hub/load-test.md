@@ -17,6 +17,7 @@ Available environment variables (all are optional):
 
  * `HUB_URL`: the URL of the hub to test
  * `JWT`: the JWT to use for authenticating the publisher
+ * `SUBSCRIBER_JWT`: the JWT to use for authenticating the subsribers
  * `INITIAL_SUBSCRIBERS`: the number of concurrent subscribers initially connected
  * `SUBSCRIBERS_RATE_FROM`: minimum rate (per second) of additional subscribers to connect
  * `SUBSCRIBERS_RATE_TO`: maximum rate (per second) of additional subscribers to connect
