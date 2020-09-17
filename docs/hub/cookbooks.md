@@ -8,7 +8,7 @@ Example:
 
     ulimit -n 100000
 
-You may also be interested in spreading the load across several servers using [the HA version](cluster.md).
+You may also be interested in spreading the load across several servers using [the HA version](/docs/hub/cluster.md).
 
 To reproduce the problem, we provide [a load test](load-test.md) that you can use to stress your infrastructure.
 
