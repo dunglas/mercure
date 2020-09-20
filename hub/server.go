@@ -32,13 +32,13 @@ func (h *Hub) Serve() {
 	if h.config.GetBool("metrics_enabled") {
 		addr := h.config.GetString("metrics_addr")
 
-		server := &http.Server{
+		h.metricsServer = &http.Server{
 			Addr:    addr,
 			Handler: h.metricsHandler(),
 		}
 
 		log.WithFields(log.Fields{"addr": addr}).Info("Mercure metrics started")
-		go server.ListenAndServe()
+		go h.metricsServer.ListenAndServe()
 	}
 
 	acme := len(acmeHosts) > 0

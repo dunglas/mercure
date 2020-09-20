@@ -402,6 +402,7 @@ func newTestServer(t *testing.T, v *viper.Viper) testServer {
 
 func (s *testServer) shutdown() {
 	s.h.server.Shutdown(context.Background())
+	s.h.metricsServer.Shutdown(context.Background())
 	s.wgShutdown.Done()
 	s.wgTested.Wait()
 }
