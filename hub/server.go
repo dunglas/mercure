@@ -196,9 +196,7 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	mainRouter.SkipClean(true)
 
 	// Register /healthz (if enabled, in a way that doesn't pollute the HTTP logs).
-	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "ok")
-	}).Methods("GET", "HEAD")
+	registerHealthz(mainRouter)
 
 	handler := h.chainHandlers(acmeHosts)
 	mainRouter.PathPrefix("/").Handler(handler)
@@ -209,13 +207,16 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 func (h *Hub) metricsHandler() http.Handler {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "ok")
-	}).Methods("GET", "HEAD")
-
+	registerHealthz(router)
 	h.metrics.Register(router.PathPrefix("/").Subrouter())
 
 	return router
+}
+
+func registerHealthz(router *mux.Router) {
+	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "ok")
+	}).Methods("GET", "HEAD")
 }
 
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
