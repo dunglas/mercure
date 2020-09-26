@@ -87,9 +87,7 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.BoolP("subscriptions", "s", false, "dispatch updates when subscriptions are created or terminated")
 
 	fs.Bool("metrics-enabled", false, "enable metrics")
-	_ = v.BindPFlag("metrics_enabled", fs.Lookup("metrics-enabled"))
 	fs.String("metrics-addr", "127.0.0.1:3002", "metrics HTTP server address")
-	_ = v.BindPFlag("metrics_addr", fs.Lookup("metrics-addr"))
 
 	fs.VisitAll(func(f *pflag.Flag) {
 		v.BindPFlag(strings.ReplaceAll(f.Name, "-", "_"), fs.Lookup(f.Name))
