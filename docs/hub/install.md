@@ -40,7 +40,7 @@ When the server is up and running, the following endpoints are available:
 
 See [the protocol](spec/mercure.md) for more details about these endpoints.
 
-To compile the development version and register the demo page, see [https://github.com/dunglas/mercure/blob/master/CONTRIBUTING.md](CONTRIBUTING.md#hub).
+To compile the development version and register the demo page, see [https://github.com/dunglas/mercure/blob/master/CONTRIBUTING.md](https://github.com/dunglas/mercure/blob/master/CONTRIBUTING.md).
 
 ## Docker Image
 
