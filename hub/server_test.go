@@ -314,7 +314,11 @@ func TestMetricsAccess(t *testing.T) {
 	server := newTestServer(t, v)
 	defer server.shutdown()
 
-	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") //nolint:noctx
+	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") // nolint:noctx
+	require.Nil(t, err)
+	defer resp.Body.Close()
+
+	resp, err = server.client.Get("http://" + testMetricsAddr + "/healthz") // nolint:noctx
 	require.Nil(t, err)
 	defer resp.Body.Close()
 
