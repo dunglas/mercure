@@ -100,6 +100,9 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 		if err := h.server.Shutdown(context.Background()); err != nil {
 			log.Error(err)
 		}
+		if err := h.metricsServer.Shutdown(context.Background()); err != nil {
+			log.Error(err)
+		}
 		log.Infoln("My Baby Shot Me Down")
 		select {
 		case <-idleConnsClosed:
