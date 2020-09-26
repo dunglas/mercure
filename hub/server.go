@@ -195,7 +195,7 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	mainRouter.UseEncodedPath()
 	mainRouter.SkipClean(true)
 
-	// Register /healthz and /metrics (if enabled in way that doesn't pollute the HTTP logs).
+	// Register /healthz (if enabled, in a way that doesn't pollute the HTTP logs).
 	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")
