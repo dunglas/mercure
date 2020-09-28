@@ -29,6 +29,18 @@ func (h *Hub) Serve() {
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
 
+	if h.config.GetBool("metrics_enabled") {
+		addr := h.config.GetString("metrics_addr")
+
+		h.metricsServer = &http.Server{
+			Addr:    addr,
+			Handler: h.metricsHandler(),
+		}
+
+		log.WithFields(log.Fields{"addr": addr}).Info("Mercure metrics started")
+		go h.metricsServer.ListenAndServe()
+	}
+
 	acme := len(acmeHosts) > 0
 	certFile := h.config.GetString("cert_file")
 	keyFile := h.config.GetString("key_file")
@@ -86,6 +98,9 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 		<-sigint
 
 		if err := h.server.Shutdown(context.Background()); err != nil {
+			log.Error(err)
+		}
+		if err := h.metricsServer.Shutdown(context.Background()); err != nil {
 			log.Error(err)
 		}
 		log.Infoln("My Baby Shot Me Down")
@@ -183,22 +198,8 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	mainRouter.UseEncodedPath()
 	mainRouter.SkipClean(true)
 
-	// Register /healthz and /metrics (if enabledà in way that doesn't pollute the HTTP logs.
-	mainRouter.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "ok")
-	}).Methods("GET", "HEAD")
-
-	if h.config.GetBool("metrics") {
-		r := mainRouter.PathPrefix("/").Subrouter()
-
-		expectedLogin := h.config.GetString("metrics_login")
-		expectedPassword := h.config.GetString("metrics_password")
-		if expectedLogin != "" && expectedPassword != "" {
-			r.Use(basicAuthMiddleware(expectedLogin, expectedPassword))
-		}
-
-		h.metrics.Register(r)
-	}
+	// Register /healthz (if enabled, in a way that doesn't pollute the HTTP logs).
+	registerHealthz(mainRouter)
 
 	handler := h.chainHandlers(acmeHosts)
 	mainRouter.PathPrefix("/").Handler(handler)
@@ -206,24 +207,23 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	return mainRouter
 }
 
+func (h *Hub) metricsHandler() http.Handler {
+	router := mux.NewRouter()
+
+	registerHealthz(router)
+	h.metrics.Register(router.PathPrefix("/").Subrouter())
+
+	return router
+}
+
+func registerHealthz(router *mux.Router) {
+	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "ok")
+	}).Methods("GET", "HEAD")
+}
+
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
 <title>Mercure Hub</title>
 <h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
-}
-
-func basicAuthMiddleware(expectedLogin, expectedPassword string) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			login, password, ok := r.BasicAuth()
-			if !ok || login != expectedLogin || password != expectedPassword {
-				w.Header().Add("WWW-Authenticate", `Basic realm="Mercure"`)
-				w.WriteHeader(http.StatusUnauthorized)
-
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
 }

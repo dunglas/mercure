@@ -12,6 +12,7 @@ type Hub struct {
 	config             *viper.Viper
 	transport          Transport
 	server             *http.Server
+	metricsServer      *http.Server
 	topicSelectorStore *TopicSelectorStore
 	metrics            *Metrics
 }
@@ -40,6 +41,7 @@ func NewHubWithTransport(v *viper.Viper, t Transport, tss *TopicSelectorStore) *
 	return &Hub{
 		v,
 		t,
+		nil,
 		nil,
 		tss,
 		NewMetrics(),

@@ -29,9 +29,9 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("use_forwarded_headers", false)
 	v.SetDefault("demo", false)
 	v.SetDefault("subscriptions", false)
-	v.SetDefault("metrics", false)
-	v.SetDefault("metrics_login", "mercure")
-	v.SetDefault("metrics_password", "")
+
+	v.SetDefault("metrics_enabled", false)
+	v.SetDefault("metrics_addr", "127.0.0.1:3002")
 }
 
 // ValidateConfig validates a Viper instance.
@@ -45,12 +45,13 @@ func ValidateConfig(v *viper.Viper) error {
 	if v.GetString("key_file") != "" && v.GetString("cert_file") == "" {
 		return fmt.Errorf(`%w: if the "key_file" configuration parameter is defined, "cert_file" must be defined too`, ErrInvalidConfig)
 	}
-	if v.GetBool("metrics") {
-		if v.GetString("metrics_login") != "" && v.GetString("metrics_password") == "" {
-			return fmt.Errorf(`%w: if the "metrics_login" configuration parameter is defined, "metrics_password" must be defined too`, ErrInvalidConfig)
+	if v.GetBool("metrics_enabled") {
+		if v.GetString("metrics_addr") == "" {
+			return fmt.Errorf(`%w: "metrics_addr" must be defined when metrics is enabled`, ErrInvalidConfig)
 		}
-		if v.GetString("metrics_password") != "" && v.GetString("metrics_login") == "" {
-			return fmt.Errorf(`%w: if the "metrics_password" configuration parameter is defined, "metrics_login" must be defined too`, ErrInvalidConfig)
+
+		if v.GetString("metrics_addr") == v.GetString("addr") {
+			return fmt.Errorf(`%w: "metrics_addr" must not be the same as "addr"`, ErrInvalidConfig)
 		}
 	}
 
@@ -84,9 +85,9 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.BoolP("demo", "D", false, "enable the demo mode")
 	fs.StringP("log-format", "l", "", "the log format (JSON, FLUENTD or TEXT)")
 	fs.BoolP("subscriptions", "s", false, "dispatch updates when subscriptions are created or terminated")
-	fs.BoolP("metrics", "m", false, "enable metrics")
-	fs.StringP("metrics_login", "", "mercure", "the user login allowed to access metrics")
-	fs.StringP("metrics_password", "", "", "the user password allowed to access metrics")
+
+	fs.Bool("metrics-enabled", false, "enable metrics")
+	fs.String("metrics-addr", "127.0.0.1:3002", "metrics HTTP server address")
 
 	fs.VisitAll(func(f *pflag.Flag) {
 		v.BindPFlag(strings.ReplaceAll(f.Name, "-", "_"), fs.Lookup(f.Name))

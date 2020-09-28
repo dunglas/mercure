@@ -132,11 +132,6 @@ func TestServe(t *testing.T) {
 	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
 	assert.Contains(t, string(healthzBody), "ok")
 
-	respMetrics, err := client.Get("http://" + testAddr + "/metrics") //nolint:noctx
-	require.Nil(t, err)
-	defer respMetrics.Body.Close()
-	assert.Equal(t, 404, respMetrics.StatusCode)
-
 	var wgConnected, wgTested sync.WaitGroup
 	wgConnected.Add(2)
 	wgTested.Add(2)
@@ -313,58 +308,26 @@ func TestServeAcme(t *testing.T) {
 	h.server.Shutdown(context.Background())
 }
 
-func TestMetricsAccessWithDisableAuthentication(t *testing.T) {
+func TestMetricsAccess(t *testing.T) {
 	v := viper.New()
-	v.Set("metrics", true)
+	v.Set("metrics_enabled", true)
 	server := newTestServer(t, v)
 	defer server.shutdown()
 
-	resp, err := server.client.Get("http://" + testAddr + "/metrics") //nolint:noctx
+	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") // nolint:noctx
+	require.Nil(t, err)
+	defer resp.Body.Close()
+
+	resp, err = server.client.Get("http://" + testMetricsAddr + "/healthz") // nolint:noctx
 	require.Nil(t, err)
 	defer resp.Body.Close()
 
 	assert.Equal(t, 200, resp.StatusCode)
-}
-
-func TestMetricsAccessWithRequiredAuthentication(t *testing.T) {
-	v := viper.New()
-	v.Set("metrics", true)
-	v.Set("metrics_login", "foo")
-	v.Set("metrics_password", "bar")
-	server := newTestServer(t, v)
-	defer server.shutdown()
-
-	req, _ := http.NewRequest("GET", "http://"+testAddr+"/metrics", nil) //nolint:noctx
-	req.SetBasicAuth("foo", "bar")
-
-	resp, err := server.client.Do(req)
-	require.Nil(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, 200, resp.StatusCode)
-}
-
-func TestMetricsAccessWithWrongAuthentication(t *testing.T) {
-	v := viper.New()
-	v.Set("metrics", true)
-	v.Set("metrics_login", "foo")
-	v.Set("metrics_password", "bar")
-	server := newTestServer(t, v)
-	defer server.shutdown()
-
-	req, _ := http.NewRequest("GET", "http://"+testAddr+"/metrics", nil) //nolint:noctx
-	req.SetBasicAuth("john", "doe")
-
-	resp, err := server.client.Do(req)
-	require.Nil(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, 401, resp.StatusCode)
 }
 
 func TestMetricsCollect(t *testing.T) {
 	v := viper.New()
-	v.Set("metrics", true)
+	v.Set("metrics_enabled", true)
 	server := newTestServer(t, v)
 	defer server.shutdown()
 
@@ -390,11 +353,11 @@ func TestMetricsCollect(t *testing.T) {
 
 func TestMetricsVersionIsAccessible(t *testing.T) {
 	v := viper.New()
-	v.Set("metrics", true)
+	v.Set("metrics_enabled", true)
 	server := newTestServer(t, v)
 	defer server.shutdown()
 
-	resp, err := server.client.Get("http://" + testAddr + "/metrics") //nolint:noctx
+	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") //nolint:noctx
 	assert.Nil(t, err)
 	defer resp.Body.Close()
 
@@ -443,6 +406,7 @@ func newTestServer(t *testing.T, v *viper.Viper) testServer {
 
 func (s *testServer) shutdown() {
 	s.h.server.Shutdown(context.Background())
+	s.h.metricsServer.Shutdown(context.Background())
 	s.wgShutdown.Done()
 	s.wgTested.Wait()
 }
@@ -479,7 +443,7 @@ func (s *testServer) waitSubscribers() {
 }
 
 func (s *testServer) assertMetric(metric string) {
-	resp, err := s.client.Get("http://" + testAddr + "/metrics") //nolint:noctx
+	resp, err := s.client.Get("http://" + testMetricsAddr + "/metrics") //nolint:noctx
 	assert.Nil(s.t, err)
 	defer resp.Body.Close()
 

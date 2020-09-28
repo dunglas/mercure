@@ -12,7 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testAddr = "127.0.0.1:4242"
+const (
+	testAddr        = "127.0.0.1:4242"
+	testMetricsAddr = "127.0.0.1:4243"
+)
 
 func TestNewHub(t *testing.T) {
 	h := createDummy()
@@ -84,6 +87,7 @@ func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {
 	v.SetDefault("subscriber_jwt_key", "subscriber")
 	v.SetDefault("allow_anonymous", true)
 	v.SetDefault("addr", testAddr)
+	v.SetDefault("metrics_addr", testMetricsAddr)
 
 	return NewHubWithTransport(v, t, NewTopicSelectorStore())
 }
