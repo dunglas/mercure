@@ -16,6 +16,8 @@ import (
 // claims contains Mercure's JWT claims.
 type claims struct {
 	Mercure mercureClaim `json:"mercure"`
+	// Optional fallback
+	MercureNamespaced *mercureClaim `json:"https://mercure.rocks/"`
 	jwt.StandardClaims
 }
 
@@ -167,6 +169,10 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 	}
 
 	if claims, ok := token.Claims.(*claims); ok && token.Valid {
+		if claims.MercureNamespaced != nil {
+			claims.Mercure = *claims.MercureNamespaced
+		}
+
 		return claims, nil
 	}
 

@@ -98,7 +98,7 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{mercureClaim{Publish: topics}, jwt.StandardClaims{}}
+		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, StandardClaims: jwt.StandardClaims{}}
 
 	case roleSubscriber:
 		var payload struct {
@@ -106,11 +106,11 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 		}
 		payload.Foo = "bar"
 		token.Claims = &claims{
-			mercureClaim{
+			Mercure: mercureClaim{
 				Subscribe: topics,
 				Payload:   payload,
 			},
-			jwt.StandardClaims{},
+			StandardClaims: jwt.StandardClaims{},
 		}
 	}
 
