@@ -15,8 +15,9 @@ const (
 )
 
 const (
-	validEmptyHeaderRsa = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.YbkSeO9GIBYedph1uSQz0Y6zp1NwDEB8O7ek3cc3Vw4Fjh6DwrJAwmXoNSqT6FhHDv14QG70qPIuyzsR0Q9nHFo7hGEqE8E85F8z3Pj5eBjHKBMJFno7jww514Vyp35c490ZHD6_d3F9PmxWrPkKezc1mcwlCegwiMJIS2CeR7k"
-	validFullHeaderRsa  = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.B-ZBdmCbtDaP27wB_DvF9xIetQm88M2Q1d-LP2DZoEHrz6lYDuHkgXzSDnFdbLCZ653e0r_VOaKxe2Pc6R4F0ok2vksC6P5gHhqIUcQuTSlzNFyTrg4tyy4mMkcm1h85te9gkV4LR6TABfZpFPqqIS4t7fpCMxvtAkyf_RR5Fq4"
+	validEmptyHeaderRsa          = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.YbkSeO9GIBYedph1uSQz0Y6zp1NwDEB8O7ek3cc3Vw4Fjh6DwrJAwmXoNSqT6FhHDv14QG70qPIuyzsR0Q9nHFo7hGEqE8E85F8z3Pj5eBjHKBMJFno7jww514Vyp35c490ZHD6_d3F9PmxWrPkKezc1mcwlCegwiMJIS2CeR7k"
+	validFullHeaderRsa           = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.B-ZBdmCbtDaP27wB_DvF9xIetQm88M2Q1d-LP2DZoEHrz6lYDuHkgXzSDnFdbLCZ653e0r_VOaKxe2Pc6R4F0ok2vksC6P5gHhqIUcQuTSlzNFyTrg4tyy4mMkcm1h85te9gkV4LR6TABfZpFPqqIS4t7fpCMxvtAkyf_RR5Fq4"
+	validFullHeaderNamespacedRsa = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwczovL21lcmN1cmUucm9ja3MvIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.SmTVZkxlNbzHlaF4MfA3Fp5d1W2COmHlYPgc6SodAJOQtHh1Uxz0jkhA611w0OSwCaA8C5gqUd-GgekgHVPCBkIzV0qPmmhhJpTtotkeCX3N7oBOJOi58xXouNCNt0vnUH6xACqiZJq_FhNG9ZqP5saa4xNd1E-F1E9Vo1mFji4"
 )
 
 const publicKeyRsa = `-----BEGIN PUBLIC KEY-----
@@ -156,6 +157,16 @@ func TestAuthorizeAuthorizationHeader(t *testing.T) {
 func TestAuthorizeAuthorizationHeaderRsa(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil) //nolint:noctx
 	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsa)
+
+	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{})
+	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
+	assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+	assert.Nil(t, err)
+}
+
+func TestAuthorizeAuthorizationHeaderNamespacedRsa(t *testing.T) {
+	r, _ := http.NewRequest("GET", defaultHubURL, nil) //nolint:noctx
+	r.Header.Add("Authorization", "Bearer "+validFullHeaderNamespacedRsa)
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{})
 	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)

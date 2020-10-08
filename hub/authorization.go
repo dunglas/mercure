@@ -16,6 +16,8 @@ import (
 // claims contains Mercure's JWT claims.
 type claims struct {
 	Mercure mercureClaim `json:"mercure"`
+	// Optional fallback
+	MercureNamespaced *mercureClaim `json:"https://mercure.rocks/"`
 	jwt.StandardClaims
 }
 
@@ -107,7 +109,7 @@ func authorize(r *http.Request, jwtKey []byte, jwtSigningAlgorithm jwt.SigningMe
 		return nil, nil
 	}
 
-	// CSRF attacks cannot occurs when using safe methods
+	// CSRF attacks cannot occur when using safe methods
 	if r.Method != "POST" {
 		return validateJWT(cookie.Value, jwtKey, jwtSigningAlgorithm)
 	}
@@ -167,6 +169,10 @@ func validateJWT(encodedToken string, key []byte, signingAlgorithm jwt.SigningMe
 	}
 
 	if claims, ok := token.Claims.(*claims); ok && token.Valid {
+		if claims.MercureNamespaced != nil {
+			claims.Mercure = *claims.MercureNamespaced
+		}
+
 		return claims, nil
 	}
 
