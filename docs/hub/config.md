@@ -49,7 +49,9 @@ When using environment variables, list must be space separated. As flags paramet
 If `acme_hosts` or both `cert_file` and `key_file` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
 
-When using RSA public keys for verification make sure the key is properly formatted.
+## JWT verification
+
+When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm via `jwt_algorithm` (for example `RS512`).
 
 ```
 -----BEGIN PUBLIC KEY-----
