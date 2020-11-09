@@ -61,7 +61,7 @@ func (e *ErrInvalidTransportDSN) Unwrap() error {
 }
 
 // NewTransport create a transport using the backend matching the given TransportURL.
-func NewTransport(config *viper.Viper) (Transport, error) {
+func NewTransport(config *viper.Viper, logger Logger) (Transport, error) {
 	tu := config.GetString("transport_url")
 	if tu == "" {
 		return NewLocalTransport(), nil
@@ -77,7 +77,7 @@ func NewTransport(config *viper.Viper) (Transport, error) {
 		return NewLocalTransport(), nil
 
 	case "bolt":
-		return NewBoltTransport(u)
+		return NewBoltTransport(u, logger)
 	}
 
 	return nil, &ErrInvalidTransportDSN{dsn: tu, msg: "no such transport available"}

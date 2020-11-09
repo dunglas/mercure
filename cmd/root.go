@@ -5,7 +5,6 @@ import (
 
 	"github.com/dunglas/mercure/common"
 	"github.com/dunglas/mercure/hub"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -27,7 +26,7 @@ Go to https://mercure.rocks for more information!`,
 // Execute runs the root command.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 }
 
@@ -35,7 +34,6 @@ func init() { //nolint:gochecknoinits
 	v := viper.GetViper()
 	cobra.OnInitialize(func() {
 		hub.InitConfig(v)
-		hub.InitLogrus()
 	})
 	fs := rootCmd.Flags()
 	hub.SetFlags(fs, v)

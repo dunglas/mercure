@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
@@ -68,25 +68,25 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				heartbeatTimer.Reset(heartbeatInterval)
 			}
-			log.WithFields(createFields(update, s)).Info("Event sent")
+			h.logger.Info("Update sent", zap.Object("subscriber", s), zap.Object("update", update))
 		}
 	}
 }
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug bool) *Subscriber {
-	s := NewSubscriber(retrieveLastEventID(r), h.topicSelectorStore)
+	s := NewSubscriber(retrieveLastEventID(r), h.logger, h.topicSelectorStore)
 	s.Debug = debug
-	s.LogFields["remote_addr"] = r.RemoteAddr
+	s.RemoteAddr = r.RemoteAddr
 
 	claims, err := authorize(r, h.getJWTKey(roleSubscriber), h.getJWTAlgorithm(roleSubscriber), nil)
 	if claims != nil {
 		s.Claims = claims
-		s.LogFields["subscriber_topic_selectors"] = claims.Mercure.Subscribe
+		s.TopicSelectors = claims.Mercure.Subscribe
 	}
 	if err != nil || (claims == nil && !h.config.GetBool("allow_anonymous")) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		log.WithFields(s.LogFields).Info(err)
+		h.logger.Info("Subscriber unauthorized", zap.Object("subscriber", s), zap.Error(err))
 
 		return nil
 	}
@@ -97,7 +97,6 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 
 		return nil
 	}
-	s.LogFields["subscriber_topics"] = s.Topics
 	s.EscapedTopics = escapeTopics(s.Topics)
 	go s.start()
 
@@ -105,14 +104,14 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 	if err := h.transport.AddSubscriber(s); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(s, false)
-		log.WithFields(s.LogFields).Error(err)
+		h.logger.Error("Unable to add subscriber", zap.Object("subscriber", s), zap.Error(err))
 
 		return nil
 	}
 
 	sendHeaders(w, s)
 
-	log.WithFields(s.LogFields).Info("New subscriber")
+	h.logger.Info("New subscriber", zap.Object("subscriber", s))
 	h.metrics.NewSubscriber(s)
 
 	return s
@@ -177,7 +176,7 @@ func (h *Hub) write(w io.Writer, s *Subscriber, data string, d time.Duration) bo
 	case <-done:
 		return true
 	case <-timeout.C:
-		log.WithFields(s.LogFields).Warn("Dispatch timeout reached")
+		h.logger.Warn("Dispatch timeout reached", zap.Object("subscriber", s))
 
 		return false
 	}
@@ -187,7 +186,7 @@ func (h *Hub) shutdown(s *Subscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
 	h.dispatchSubscriptionUpdate(s, false)
-	log.WithFields(s.LogFields).Info("Subscriber disconnected")
+	h.logger.Info("Subscriber disconnected", zap.Object("subscriber", s))
 	h.metrics.SubscriberDisconnect(s)
 }
 

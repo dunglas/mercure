@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestDispatch(t *testing.T) {
-	s := NewSubscriber("1", NewTopicSelectorStore())
+	s := NewSubscriber("1", zap.NewNop(), NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com"}
 	go s.start()
 	defer s.Disconnect()
@@ -28,7 +29,7 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
-	s := NewSubscriber("", NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()

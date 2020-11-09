@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
+	"go.uber.org/zap"
 )
 
 const defaultBoltBucketName = "updates"
@@ -19,6 +19,7 @@ const defaultBoltBucketName = "updates"
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
 	sync.RWMutex
+	logger           Logger
 	db               *bolt.DB
 	bucketName       string
 	size             uint64
@@ -31,7 +32,7 @@ type BoltTransport struct {
 }
 
 // NewBoltTransport create a new BoltTransport.
-func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
+func NewBoltTransport(u *url.URL, logger Logger) (*BoltTransport, error) {
 	var err error
 	q := u.Query()
 	bucketName := defaultBoltBucketName
@@ -71,6 +72,7 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 	}
 
 	return &BoltTransport{
+		logger:           logger,
 		db:               db,
 		bucketName:       bucketName,
 		size:             size,
@@ -221,7 +223,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 			var update *Update
 			if err := json.Unmarshal(v, &update); err != nil {
 				s.HistoryDispatched(responseLastEventID)
-				log.Error(fmt.Errorf("bolt history: %w", err))
+				t.logger.Error("Unable to unmarshal update coming from the Bolt DB", zap.Error(err))
 
 				return fmt.Errorf("unable to unmarshal update: %w", err)
 			}

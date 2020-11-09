@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 const jsonldContext = "https://mercure.rocks/"
@@ -106,11 +106,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 	claims, err := authorize(r, h.getJWTKey(roleSubscriber), h.getJWTAlgorithm(roleSubscriber), nil)
 	if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe, false) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		if err == nil {
-			log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("topic selectors not matched or not provided")
-		} else {
-			log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
-		}
+		h.logger.Info("Topic selectors not matched or not provided", zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
 
 		return "", nil, false
 	}

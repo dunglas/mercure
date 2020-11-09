@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestNumberOfRunningSubscribers(t *testing.T) {
@@ -13,13 +14,13 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 
 	sst := NewTopicSelectorStore()
 
-	s1 := NewSubscriber("", sst)
+	s1 := NewSubscriber("", zap.NewNop(), sst)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.NewSubscriber(s1)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
 
-	s2 := NewSubscriber("", sst)
+	s2 := NewSubscriber("", zap.NewNop(), sst)
 	s2.Topics = []string{"topic2"}
 	m.NewSubscriber(s2)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
@@ -39,13 +40,13 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 
 	sst := NewTopicSelectorStore()
 
-	s1 := NewSubscriber("", sst)
+	s1 := NewSubscriber("", zap.NewNop(), sst)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.NewSubscriber(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic2")
 
-	s2 := NewSubscriber("", sst)
+	s2 := NewSubscriber("", zap.NewNop(), sst)
 	s2.Topics = []string{"topic2"}
 	m.NewSubscriber(s2)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
