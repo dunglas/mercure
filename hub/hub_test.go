@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"testing"
@@ -61,8 +62,8 @@ func TestStartCrash(t *testing.T) {
 	cmd.Env = append(os.Environ(), "BE_START_CRASH=1")
 	err := cmd.Run()
 
-	e, ok := err.(*exec.ExitError)
-	require.True(t, ok)
+	var e *exec.ExitError
+	require.True(t, errors.As(err, &e))
 	assert.False(t, e.Success())
 }
 

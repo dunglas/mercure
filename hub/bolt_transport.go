@@ -44,7 +44,7 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 	if sizeParameter != "" {
 		size, err = strconv.ParseUint(sizeParameter, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`%q: invalid "size" parameter %q: %s: %w`, u, sizeParameter, err, ErrInvalidTransportDSN)
+			return nil, &ErrInvalidTransportDSN{u.String(), fmt.Sprintf(`invalid "size" parameter %q`, sizeParameter), err}
 		}
 	}
 
@@ -53,7 +53,7 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 	if cleanupFrequencyParameter != "" {
 		cleanupFrequency, err = strconv.ParseFloat(cleanupFrequencyParameter, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`%q: invalid "cleanup_frequency" parameter %q: %w`, u, cleanupFrequencyParameter, ErrInvalidTransportDSN)
+			return nil, &ErrInvalidTransportDSN{u.String(), fmt.Sprintf(`invalid "cleanup_frequency" parameter %q`, cleanupFrequencyParameter), err}
 		}
 	}
 
@@ -62,12 +62,12 @@ func NewBoltTransport(u *url.URL) (*BoltTransport, error) {
 		path = u.Host // relative path (bolt://path.db)
 	}
 	if path == "" {
-		return nil, fmt.Errorf(`%q: missing path: %w`, u, ErrInvalidTransportDSN)
+		return nil, &ErrInvalidTransportDSN{u.String(), "missing path", err}
 	}
 
 	db, err := bolt.Open(path, 0o600, nil)
 	if err != nil {
-		return nil, fmt.Errorf(`%q: %s: %w`, u, err, ErrInvalidTransportDSN)
+		return nil, &ErrInvalidTransportDSN{dsn: u.String(), err: err}
 	}
 
 	return &BoltTransport{
@@ -99,7 +99,7 @@ func getDBLastEventID(db *bolt.DB, bucketName string) string {
 	return lastEventID
 }
 
-// Dispatch dispatches an update to all subscribers and persists it in BoltDB.
+// Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
 func (t *BoltTransport) Dispatch(update *Update) error {
 	select {
 	case <-t.closed:
@@ -110,7 +110,7 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 	AssignUUID(update)
 	updateJSON, err := json.Marshal(*update)
 	if err != nil {
-		return err
+		return fmt.Errorf("error when marshaling update: %w", err)
 	}
 
 	// We cannot use RLock() because Bolt allows only one read-write transaction at a time
@@ -135,12 +135,12 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 	return t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
 		if err != nil {
-			return err
+			return fmt.Errorf("error when creating Bolt DB bucket: %w", err)
 		}
 
 		seq, err := bucket.NextSequence()
 		if err != nil {
-			return err
+			return fmt.Errorf("error when generating Bolt DB sequence: %w", err)
 		}
 		prefix := make([]byte, 8)
 		binary.BigEndian.PutUint64(prefix, seq)
@@ -154,7 +154,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		t.lastSeq = seq
 		t.lastEventID = updateID
 		if err := bucket.Put(key, updateJSON); err != nil {
-			return err
+			return fmt.Errorf("unable to put value in Bolt DB: %w", err)
 		}
 
 		return t.cleanup(bucket, seq)
@@ -223,7 +223,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 				s.HistoryDispatched(responseLastEventID)
 				log.Error(fmt.Errorf("bolt history: %w", err))
 
-				return err
+				return fmt.Errorf("unable to unmarshal update: %w", err)
 			}
 
 			if !s.Dispatch(update, true) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
@@ -253,7 +253,11 @@ func (t *BoltTransport) Close() (err error) {
 		err = t.db.Close()
 	})
 
-	return err
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("unable to close Bolt DB: %w", err)
 }
 
 // cleanup removes entries in the history above the size limit, triggered probabilistically.
@@ -273,7 +277,7 @@ func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 		}
 
 		if err := bucket.Delete(k); err != nil {
-			return err
+			return fmt.Errorf("unable to delete value in Bolt DB: %w", err)
 		}
 	}
 

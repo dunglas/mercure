@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -204,7 +205,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		buf := make([]byte, 1)
 		for {
 			_, err := resp.Body.Read(buf)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				panic("EOF")
 			}
 

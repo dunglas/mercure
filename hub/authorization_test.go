@@ -102,7 +102,7 @@ func TestAuthorizeAuthorizationHeaderInvalidAlg(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+createDummyNoneSignedJWT())
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "'none' signature type is not allowed")
+	assert.EqualError(t, err, "unable to parse JWT: 'none' signature type is not allowed")
 	assert.Nil(t, claims)
 }
 
@@ -111,7 +111,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKey(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validEmptyHeader)
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "signature is invalid")
+	assert.EqualError(t, err, "unable to parse JWT: signature is invalid")
 	assert.Nil(t, claims)
 }
 
@@ -120,7 +120,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKeyRsa(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validEmptyHeaderRsa)
 
 	claims, err := authorize(r, []byte{}, rsaSigningMethod, []string{})
-	assert.EqualError(t, err, "public key error")
+	assert.EqualError(t, err, "unable to parse JWT: public key error")
 	assert.Nil(t, claims)
 }
 
@@ -179,7 +179,7 @@ func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsa)
 
 	claims, err := authorize(r, []byte(publicKeyRsa), nil, []string{})
-	assert.EqualError(t, err, "<nil>: unexpected signing method")
+	assert.EqualError(t, err, "unable to parse JWT: <nil>: unexpected signing method")
 	assert.Nil(t, claims)
 }
 
@@ -188,7 +188,7 @@ func TestAuthorizeCookieInvalidAlg(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "'none' signature type is not allowed")
+	assert.EqualError(t, err, "unable to parse JWT: 'none' signature type is not allowed")
 	assert.Nil(t, claims)
 }
 
@@ -197,7 +197,7 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeader})
 
 	claims, err := authorize(r, []byte{}, hmacSigningMethod, []string{})
-	assert.EqualError(t, err, "signature is invalid")
+	assert.EqualError(t, err, "unable to parse JWT: signature is invalid")
 	assert.Nil(t, claims)
 }
 
@@ -206,7 +206,7 @@ func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, []byte{}, rsaSigningMethod, []string{})
-	assert.EqualError(t, err, "public key error")
+	assert.EqualError(t, err, "unable to parse JWT: public key error")
 	assert.Nil(t, claims)
 }
 
@@ -215,7 +215,7 @@ func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, []byte(privateKeyRsa), rsaSigningMethod, []string{})
-	assert.EqualError(t, err, "asn1: structure error: tags don't match (16 vs {class:0 tag:2 length:1 isCompound:false}) {optional:false explicit:false application:false private:false defaultValue:<nil> tag:<nil> stringType:0 timeType:0 set:false omitEmpty:false} AlgorithmIdentifier @2")
+	assert.EqualError(t, err, "unable to parse JWT: unable to parse PKIX public key: asn1: structure error: tags don't match (16 vs {class:0 tag:2 length:1 isCompound:false}) {optional:false explicit:false application:false private:false defaultValue:<nil> tag:<nil> stringType:0 timeType:0 set:false omitEmpty:false} AlgorithmIdentifier @2")
 	assert.Nil(t, claims)
 }
 
@@ -323,7 +323,7 @@ func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
 
 	claims, err := authorize(r, []byte("!ChangeMe!"), hmacSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, `parse "http://192.168.0.%31/": invalid URL escape "%31"`)
+	assert.EqualError(t, err, `unable to parse referer: parse "http://192.168.0.%31/": invalid URL escape "%31"`)
 	assert.Nil(t, claims)
 }
 
@@ -333,7 +333,7 @@ func TestAuthorizeCookieInvalidRefererRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, []byte(publicKeyRsa), rsaSigningMethod, []string{"http://example.net"})
-	assert.EqualError(t, err, `parse "http://192.168.0.%31/": invalid URL escape "%31"`)
+	assert.EqualError(t, err, `unable to parse referer: parse "http://192.168.0.%31/": invalid URL escape "%31"`)
 	assert.Nil(t, claims)
 }
 

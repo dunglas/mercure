@@ -10,6 +10,7 @@ linters:
     - wsl
     - gomnd
     - testpackage
+    - exhaustivestruct
 
 issues:
   exclude-rules:

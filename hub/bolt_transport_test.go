@@ -162,7 +162,7 @@ func TestNewBoltTransport(t *testing.T) {
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
 	_, err = NewBoltTransport(u)
-	assert.EqualError(t, err, `"bolt://test.db?cleanup_frequency=invalid": invalid "cleanup_frequency" parameter "invalid": invalid transport DSN`)
+	assert.EqualError(t, err, `"bolt://test.db?cleanup_frequency=invalid": invalid "cleanup_frequency" parameter "invalid": strconv.ParseFloat: parsing "invalid": invalid syntax: invalid transport DSN`)
 
 	u, _ = url.Parse("bolt://test.db?size=invalid")
 	_, err = NewBoltTransport(u)
