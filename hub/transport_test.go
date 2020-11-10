@@ -146,7 +146,7 @@ func TestNewTransport(t *testing.T) {
 	transport, err = NewTransport(v)
 	assert.Nil(t, transport)
 	assert.NotNil(t, err)
-	assert.EqualError(t, err, `"nothing:": no such transport available: invalid transport DSN`)
+	assert.EqualError(t, err, `"nothing:": invalid transport DSN`)
 
 	v = viper.New()
 	v.Set("transport_url", "http://[::1]%23")
