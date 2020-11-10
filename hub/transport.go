@@ -80,7 +80,7 @@ func NewTransport(config *viper.Viper) (Transport, error) {
 		return NewBoltTransport(u)
 	}
 
-	return nil, &ErrInvalidTransportDSN{dsn: tu}
+	return nil, &ErrInvalidTransportDSN{dsn: tu, msg: "no such transport available"}
 }
 
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
