@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
@@ -155,7 +156,7 @@ func retrieveLastEventID(r *http.Request) string {
 // Write sends the given string to the client.
 // It returns false if the dispatch timed out.
 // The current write cannot be cancelled because of https://github.com/golang/go/issues/16100
-func (h *Hub) write(w io.Writer, s *Subscriber, data string, d time.Duration) bool {
+func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string, d time.Duration) bool {
 	if d == time.Duration(0) {
 		fmt.Fprint(w, data)
 		w.(http.Flusher).Flush()
@@ -204,6 +205,7 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 		u := &Update{
 			Topics:  []string{subscription.ID},
 			Private: true,
+			Debug:   h.config.GetBool("debug"),
 			Event:   Event{Data: string(json)},
 		}
 		h.transport.Dispatch(u)

@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -41,7 +42,7 @@ func NewHub(v *viper.Viper) (*Hub, error) {
 		logger, err = zap.NewProduction()
 	}
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("can't initialize zap logger: %w", err)
 	}
 
 	t, err := NewTransport(v, logger)

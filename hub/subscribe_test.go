@@ -205,8 +205,6 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 			ready := len(s.subscribers) == numberOfSubscribers
 			s.RUnlock()
 
-			// There is a problem (probably related to Logrus?) preventing the benchmark to work without this line.
-			t.Log("Waiting for the subscribers...")
 			if !ready {
 				continue
 			}

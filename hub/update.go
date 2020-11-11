@@ -14,6 +14,9 @@ type Update struct {
 	// Private updates can only be dispatched to subscribers authorized to receive them.
 	Private bool
 
+	// To print debug informations
+	Debug bool
+
 	// The Server-Sent Event to send.
 	Event
 }
@@ -25,8 +28,9 @@ func (u *Update) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddArray("topics", stringArray(u.Topics))
 	enc.AddBool("private", u.Private)
 
-	// TODO: only in debug mode
-	enc.AddString("data", u.Data)
+	if u.Debug {
+		enc.AddString("data", u.Data)
+	}
 
 	return nil
 }

@@ -52,6 +52,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	u := &Update{
 		Topics:  topics,
 		Private: private,
+		Debug:   h.config.GetBool("debug"),
 		Event: Event{
 			r.PostForm.Get("data"),
 			r.PostForm.Get("id"),

@@ -12,13 +12,14 @@ func (ss stringArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
 	return nil
 }
 
-type Field = zapcore.Field
+// LogField is an alias of zapcore.Field, it could be replaced by a custom contract when Go will support generics.
+type LogField = zapcore.Field
 
 type Logger interface {
-	Debug(msg string, fields ...Field)
-	Info(msg string, fields ...Field)
-	Warn(msg string, fields ...Field)
-	Error(msg string, fields ...Field)
-	Fatal(msg string, fields ...Field)
+	Debug(msg string, fields ...LogField)
+	Info(msg string, fields ...LogField)
+	Warn(msg string, fields ...LogField)
+	Error(msg string, fields ...LogField)
+	Fatal(msg string, fields ...LogField)
 	Sync() error
 }
