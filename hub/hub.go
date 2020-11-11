@@ -73,7 +73,6 @@ func Start() {
 		log.Fatalln(err)
 	}
 
-	defer h.logger.Sync()
 	defer func() {
 		if err = h.Stop(); err != nil {
 			log.Fatalln(err)

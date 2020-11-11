@@ -74,7 +74,7 @@ func (h *Hub) Serve() {
 	}
 
 	if !errors.Is(err, http.ErrServerClosed) {
-		h.logger.Fatal("Unexpected error", zap.Error(err))
+		h.logger.Error("Unexpected error", zap.Error(err))
 	}
 
 	<-done
