@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 const (
@@ -74,7 +75,7 @@ func createDummy() *Hub {
 	v.SetDefault("publisher_jwt_key", "publisher")
 	v.SetDefault("subscriber_jwt_key", "subscriber")
 
-	return NewHubWithTransport(v, NewLocalTransport(), NewTopicSelectorStore())
+	return NewHubWithTransport(v, NewLocalTransport(), zap.NewNop(), NewTopicSelectorStore())
 }
 
 func createAnonymousDummy() *Hub {
@@ -82,6 +83,10 @@ func createAnonymousDummy() *Hub {
 }
 
 func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {
+	return createDummyWithTransportConfigAndLogger(t, v, zap.NewNop())
+}
+
+func createDummyWithTransportConfigAndLogger(t Transport, v *viper.Viper, logger Logger) *Hub {
 	SetConfigDefaults(v)
 	v.SetDefault("heartbeat_interval", time.Duration(0))
 	v.SetDefault("publisher_jwt_key", "publisher")
@@ -90,7 +95,7 @@ func createDummyWithTransportAndConfig(t Transport, v *viper.Viper) *Hub {
 	v.SetDefault("addr", testAddr)
 	v.SetDefault("metrics_addr", testMetricsAddr)
 
-	return NewHubWithTransport(v, t, NewTopicSelectorStore())
+	return NewHubWithTransport(v, t, logger, NewTopicSelectorStore())
 }
 
 func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {

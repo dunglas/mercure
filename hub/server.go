@@ -10,8 +10,8 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	"github.com/unrolled/secure"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -37,7 +37,7 @@ func (h *Hub) Serve() {
 			Handler: h.metricsHandler(),
 		}
 
-		log.WithFields(log.Fields{"addr": addr}).Info("Mercure metrics started")
+		h.logger.Info("Mercure metrics started", zap.String("addr", addr))
 		go h.metricsServer.ListenAndServe()
 	}
 
@@ -49,7 +49,7 @@ func (h *Hub) Serve() {
 	var err error
 
 	if !acme && certFile == "" && keyFile == "" {
-		log.WithFields(log.Fields{"protocol": "http", "addr": addr}).Info("Mercure started")
+		h.logger.Info("Mercure started", zap.String("protocol", "http"), zap.String("addr", addr))
 		err = h.server.ListenAndServe()
 	} else {
 		// TLS
@@ -69,12 +69,12 @@ func (h *Hub) Serve() {
 			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil))
 		}
 
-		log.WithFields(log.Fields{"protocol": "https", "addr": addr}).Info("Mercure started")
+		h.logger.Info("Mercure started", zap.String("protocol", "https"), zap.String("addr", addr))
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
 	if !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
+		h.logger.Error("Unexpected error", zap.Error(err))
 	}
 
 	<-done
@@ -98,12 +98,13 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 		<-sigint
 
 		if err := h.server.Shutdown(context.Background()); err != nil {
-			log.Error(err)
+			h.logger.Error("Unexpected error during server shutdown", zap.Error(err))
 		}
 		if err := h.metricsServer.Shutdown(context.Background()); err != nil {
-			log.Error(err)
+			h.logger.Error("Unexpected error during metrics server shutdown", zap.Error(err))
 		}
-		log.Infoln("My Baby Shot Me Down")
+		h.logger.Info("My Baby Shot Me Down")
+
 		select {
 		case <-idleConnsClosed:
 		default:
@@ -170,7 +171,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	secureHandler := secureMiddleware.Handler(useForwardedHeadersHandlers)
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(
-		handlers.RecoveryLogger(log.New()),
+		handlers.RecoveryLogger(zapRecoveryHandlerLogger{h.logger}),
 		handlers.PrintRecoveryStack(debug),
 	)(loggingHandler)
 
@@ -226,4 +227,12 @@ func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
 <title>Mercure Hub</title>
 <h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
+}
+
+type zapRecoveryHandlerLogger struct {
+	logger Logger
+}
+
+func (z zapRecoveryHandlerLogger) Println(args ...interface{}) {
+	z.logger.Error(fmt.Sprint(args...))
 }

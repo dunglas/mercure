@@ -5,7 +5,8 @@ import (
 	"sync"
 
 	"github.com/gofrs/uuid"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type updateSource struct {
@@ -21,7 +22,8 @@ type Subscriber struct {
 	Topics             []string
 	EscapedTopics      []string
 	RequestLastEventID string
-	LogFields          log.Fields
+	RemoteAddr         string
+	TopicSelectors     []string
 	Debug              bool
 
 	disconnectedOnce    sync.Once
@@ -30,26 +32,25 @@ type Subscriber struct {
 	responseLastEventID chan string
 	history             updateSource
 	live                updateSource
+	logger              Logger
 	topicSelectorStore  *TopicSelectorStore
 }
 
 // NewSubscriber creates a new subscriber.
-func NewSubscriber(lastEventID string, tss *TopicSelectorStore) *Subscriber {
+func NewSubscriber(lastEventID string, logger Logger, tss *TopicSelectorStore) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
 		ID:                 id,
 		EscapedID:          url.QueryEscape(id),
 		RequestLastEventID: lastEventID,
-		LogFields: log.Fields{
-			"subscriber_id": id,
-			"last_event_id": lastEventID,
-		},
+
 		responseLastEventID: make(chan string, 1),
 
 		history:            updateSource{},
 		live:               updateSource{in: make(chan *Update)},
 		out:                make(chan *Update),
 		disconnected:       make(chan struct{}),
+		logger:             logger,
 		topicSelectorStore: tss,
 	}
 
@@ -181,13 +182,13 @@ func (s *Subscriber) Disconnect() {
 // CanDispatch checks if an update can be dispatched to this subsriber.
 func (s *Subscriber) CanDispatch(u *Update) bool {
 	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics, true) {
-		log.WithFields(createFields(u, s)).Debug("Subscriber has not subscribed to this update")
+		s.logger.Debug("Subscriber has not subscribed to this update", zap.Object("subscriber", s), zap.Object("update", u))
 
 		return false
 	}
 
 	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe, true)) {
-		log.WithFields(createFields(u, s)).Debug("Subscriber not authorized to receive this update")
+		s.logger.Debug("Subscriber not authorized to receive this update", zap.Object("subscriber", s), zap.Object("update", u))
 
 		return false
 	}
@@ -221,4 +222,20 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 	}
 
 	return subscriptions
+}
+
+func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("id", s.ID)
+	enc.AddString("last_event_id", s.RequestLastEventID)
+	if s.RemoteAddr != "" {
+		enc.AddString("remote_addr", s.RemoteAddr)
+	}
+	if s.TopicSelectors != nil {
+		enc.AddArray("topic_selectors", stringArray(s.TopicSelectors))
+	}
+	if s.Topics != nil {
+		enc.AddArray("topics", stringArray(s.Topics))
+	}
+
+	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
@@ -19,7 +20,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	err := transport.Dispatch(u)
 	require.Nil(t, err)
 
-	s := NewSubscriber("", NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
 	s.Topics = u.Topics
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
@@ -51,7 +52,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com/foo"}
 	go s.start()
 	assert.Nil(t, transport.AddSubscriber(s))
@@ -68,11 +69,11 @@ func TestLocalTransportClosed(t *testing.T) {
 
 	tss := NewTopicSelectorStore()
 
-	s := NewSubscriber("", tss)
+	s := NewSubscriber("", zap.NewNop(), tss)
 	require.Nil(t, transport.AddSubscriber(s))
 
 	assert.Nil(t, transport.Close())
-	assert.Equal(t, transport.AddSubscriber(NewSubscriber("", tss)), ErrClosedTransport)
+	assert.Equal(t, transport.AddSubscriber(NewSubscriber("", zap.NewNop(), tss)), ErrClosedTransport)
 	assert.Equal(t, transport.Dispatch(&Update{}), ErrClosedTransport)
 
 	_, ok := <-s.disconnected
@@ -85,11 +86,11 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 
 	tss := NewTopicSelectorStore()
 
-	s1 := NewSubscriber("", tss)
+	s1 := NewSubscriber("", zap.NewNop(), tss)
 	go s1.start()
 	require.Nil(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", tss)
+	s2 := NewSubscriber("", zap.NewNop(), tss)
 	go s2.start()
 	require.Nil(t, transport.AddSubscriber(s2))
 
@@ -113,7 +114,7 @@ func TestLiveReading(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
 	s.Topics = []string{"https://example.com"}
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
@@ -126,7 +127,7 @@ func TestLiveReading(t *testing.T) {
 }
 
 func TestNewTransport(t *testing.T) {
-	transport, err := NewTransport(viper.New())
+	transport, err := NewTransport(viper.New(), zap.NewNop())
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
@@ -134,7 +135,7 @@ func TestNewTransport(t *testing.T) {
 
 	v := viper.New()
 	v.Set("transport_url", "bolt://test.db")
-	transport, _ = NewTransport(v)
+	transport, _ = NewTransport(v, zap.NewNop())
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
@@ -143,14 +144,14 @@ func TestNewTransport(t *testing.T) {
 
 	v = viper.New()
 	v.Set("transport_url", "nothing:")
-	transport, err = NewTransport(v)
+	transport, err = NewTransport(v, zap.NewNop())
 	assert.Nil(t, transport)
 	assert.NotNil(t, err)
 	assert.EqualError(t, err, `"nothing:": no such transport available: invalid transport DSN`)
 
 	v = viper.New()
 	v.Set("transport_url", "http://[::1]%23")
-	_, err = NewTransport(v)
+	_, err = NewTransport(v, zap.NewNop())
 	assert.EqualError(t, err, `transport_url: parse "http://[::1]%23": invalid port "%23" after host`)
 }
 
@@ -161,11 +162,11 @@ func TestLocalTransportGetSubscribers(t *testing.T) {
 
 	tss := NewTopicSelectorStore()
 
-	s1 := NewSubscriber("", tss)
+	s1 := NewSubscriber("", zap.NewNop(), tss)
 	go s1.start()
 	require.Nil(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", tss)
+	s2 := NewSubscriber("", zap.NewNop(), tss)
 	go s2.start()
 	require.Nil(t, transport.AddSubscriber(s2))
 

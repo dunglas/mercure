@@ -1,20 +1,43 @@
 package hub
 
 import (
+	"bytes"
+	"net/url"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
-func TestInitLogrus(t *testing.T) {
-	viper.Set("debug", true)
+// MemorySink implements zap.Sink by writing all messages to a buffer.
+type MemorySink struct {
+	*bytes.Buffer
+}
 
-	viper.Set("log_format", "JSON")
-	InitLogrus()
-	assert.Equal(t, logrus.DebugLevel, logrus.GetLevel())
+// Implement Close and Sync as no-ops to satisfy the interface. The Write
+// method is provided by the embedded buffer.
 
-	viper.Set("log_format", "FLUENTD")
-	InitLogrus()
+func (s *MemorySink) Close() error { return nil }
+func (s *MemorySink) Sync() error  { return nil }
+
+var sink *MemorySink
+
+func newTestLogger(t *testing.T) (*MemorySink, Logger) {
+	if sink == nil {
+		sink = &MemorySink{new(bytes.Buffer)}
+		if err := zap.RegisterSink("memory", func(*url.URL) (zap.Sink, error) {
+			return sink, nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	conf := zap.NewProductionConfig()
+	conf.OutputPaths = []string{"memory://"}
+
+	logger, err := conf.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return sink, logger
 }

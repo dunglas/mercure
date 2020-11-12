@@ -1,44 +1,24 @@
 package hub
 
-import (
-	fluentd "github.com/joonix/log"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-)
+import "go.uber.org/zap/zapcore"
 
-func addUpdateFields(f log.Fields, u *Update, debug bool) log.Fields {
-	f["event_id"] = u.ID
-	f["event_type"] = u.Type
-	f["event_retry"] = u.Retry
-	f["update_topics"] = u.Topics
-	f["update_private"] = u.Private
+type stringArray []string
 
-	if debug {
-		f["update_data"] = u.Data
+func (ss stringArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
+	for i := range ss {
+		arr.AppendString(ss[i])
 	}
 
-	return f
+	return nil
 }
 
-func createFields(u *Update, s *Subscriber) log.Fields {
-	f := addUpdateFields(log.Fields{}, u, s.Debug)
-	for k, v := range s.LogFields {
-		f[k] = v
-	}
+// LogField is an alias of zapcore.Field, it could be replaced by a custom contract when Go will support generics.
+type LogField = zapcore.Field
 
-	return f
-}
-
-// InitLogrus configures the global logger.
-func InitLogrus() {
-	if viper.GetBool("debug") {
-		log.SetLevel(log.DebugLevel)
-	}
-
-	switch viper.GetString("log_format") {
-	case "JSON":
-		log.SetFormatter(&log.JSONFormatter{})
-	case "FLUENTD":
-		log.SetFormatter(fluentd.NewFormatter())
-	}
+// Logger defines the Mercure logger.
+type Logger interface {
+	Debug(msg string, fields ...LogField)
+	Info(msg string, fields ...LogField)
+	Warn(msg string, fields ...LogField)
+	Error(msg string, fields ...LogField)
 }

@@ -83,7 +83,6 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.BoolP("compress", "Z", false, "enable or disable HTTP compression support")
 	fs.BoolP("use-forwarded-headers", "f", false, "enable headers forwarding")
 	fs.BoolP("demo", "D", false, "enable the demo mode")
-	fs.StringP("log-format", "l", "", "the log format (JSON, FLUENTD or TEXT)")
 	fs.BoolP("subscriptions", "s", false, "dispatch updates when subscriptions are created or terminated")
 
 	fs.Bool("metrics-enabled", false, "enable metrics")

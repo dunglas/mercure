@@ -15,10 +15,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 const (
@@ -29,12 +31,13 @@ const (
 func TestForwardedHeaders(t *testing.T) {
 	v := viper.New()
 	v.Set("use_forwarded_headers", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+
+	core, logs := observer.New(zapcore.DebugLevel)
+	h := createDummyWithTransportConfigAndLogger(NewLocalTransport(), v, zap.New(core))
 
 	go h.Serve()
 
 	client := http.Client{Timeout: 100 * time.Millisecond}
-	hook := test.NewGlobal()
 
 	// loop until the web server is ready
 	var resp *http.Response
@@ -53,7 +56,7 @@ func TestForwardedHeaders(t *testing.T) {
 	require.Nil(t, err)
 	defer resp2.Body.Close()
 
-	assert.Equal(t, "192.0.2.1", hook.LastEntry().Data["remote_addr"])
+	assert.True(t, logs.FilterField(zap.String("remote_addr", "192.0.2.1")).Len() == 1)
 
 	h.server.Shutdown(context.Background())
 }
@@ -178,7 +181,7 @@ func TestServe(t *testing.T) {
 
 func TestClientClosesThenReconnects(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u)
+	transport, _ := NewBoltTransport(u, zap.NewNop())
 	defer os.Remove("test.db")
 
 	h := createDummyWithTransportAndConfig(transport, viper.New())

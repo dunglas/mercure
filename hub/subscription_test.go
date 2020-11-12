@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
@@ -84,13 +85,13 @@ func TestSubscriptionsHandler(t *testing.T) {
 	hub := createDummy()
 	defer hub.Stop()
 
-	s1 := NewSubscriber("", hub.topicSelectorStore)
+	s1 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	s1.Topics = []string{"http://example.com/foo"}
 	s1.EscapedTopics = []string{url.QueryEscape(s1.Topics[0])}
 	go s1.start()
 	require.Nil(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", hub.topicSelectorStore)
+	s2 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	s2.Topics = []string{"http://example.com/bar"}
 	s2.EscapedTopics = []string{url.QueryEscape(s2.Topics[0])}
 	go s2.start()
@@ -128,13 +129,13 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	hub := createDummy()
 	defer hub.Stop()
 
-	s1 := NewSubscriber("", hub.topicSelectorStore)
+	s1 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	s1.Topics = []string{"http://example.com/foo"}
 	s1.EscapedTopics = []string{url.QueryEscape(s1.Topics[0])}
 	go s1.start()
 	require.Nil(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", hub.topicSelectorStore)
+	s2 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	s2.Topics = []string{"http://example.com/bar"}
 	s2.EscapedTopics = []string{url.QueryEscape(s2.Topics[0])}
 	go s2.start()
@@ -178,13 +179,13 @@ func TestSubscriptionHandler(t *testing.T) {
 	hub := createDummy()
 	defer hub.Stop()
 
-	otherS := NewSubscriber("", hub.topicSelectorStore)
+	otherS := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	otherS.Topics = []string{"http://example.com/other"}
 	otherS.EscapedTopics = []string{url.QueryEscape(otherS.Topics[0])}
 	go otherS.start()
 	require.Nil(t, hub.transport.AddSubscriber(otherS))
 
-	s := NewSubscriber("", hub.topicSelectorStore)
+	s := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	s.Topics = []string{"http://example.com/other", "http://example.com/{foo}"}
 	s.EscapedTopics = []string{url.QueryEscape(s.Topics[0]), url.QueryEscape(s.Topics[1])}
 	go s.start()

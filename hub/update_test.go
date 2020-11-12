@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestAssingUUID(t *testing.T) {
@@ -23,4 +24,27 @@ func TestAssingUUID(t *testing.T) {
 
 	_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
 	assert.Nil(t, err)
+}
+
+func TestLogUpdate(t *testing.T) {
+	sink, logger := newTestLogger(t)
+	defer sink.Reset()
+
+	u := &Update{
+		Topics:  []string{"https://example.com/foo"},
+		Private: true,
+		Debug:   true,
+		Event:   Event{ID: "a", Retry: 3, Data: "bar", Type: "baz"},
+	}
+
+	f := zap.Object("update", u)
+	logger.Info("test", f)
+
+	log := sink.String()
+	assert.Contains(t, log, `"id":"a"`)
+	assert.Contains(t, log, `"type":"baz"`)
+	assert.Contains(t, log, `"retry":3`)
+	assert.Contains(t, log, `"topics":["https://example.com/foo"]`)
+	assert.Contains(t, log, `"private":true`)
+	assert.Contains(t, log, `"data":"bar"`)
 }

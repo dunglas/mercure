@@ -5,24 +5,15 @@ import (
 	"net/http"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
-
-func logAccessError(r *http.Request, err error) {
-	if err == nil {
-		log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info("topic selectors not matched or not provided")
-
-		return
-	}
-	log.WithFields(log.Fields{"remote_addr": r.RemoteAddr}).Info(err)
-}
 
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	claims, err := authorize(r, h.getJWTKey(rolePublisher), h.getJWTAlgorithm(rolePublisher), h.config.GetStringSlice("publish_allowed_origins"))
 	if err != nil || claims == nil || claims.Mercure.Publish == nil {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		logAccessError(r, err)
+		h.logger.Info("Topic selectors not matched or not provided", zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
 
 		return
 	}
@@ -61,6 +52,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	u := &Update{
 		Topics:  topics,
 		Private: private,
+		Debug:   h.config.GetBool("debug"),
 		Event: Event{
 			r.PostForm.Get("data"),
 			r.PostForm.Get("id"),
@@ -75,7 +67,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, u.ID)
-	log.WithFields(addUpdateFields(log.Fields{"remote_addr": r.RemoteAddr}, u, h.config.GetBool("debug"))).Info("Update published")
+	h.logger.Info("Update published", zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
 
 	h.metrics.NewUpdate(u)
 }

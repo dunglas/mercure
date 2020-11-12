@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 type responseWriterMock struct {
@@ -205,8 +205,6 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 			ready := len(s.subscribers) == numberOfSubscribers
 			s.RUnlock()
 
-			// There is a problem (probably related to Logrus?) preventing the benchmark to work without this line.
-			log.Info("Waiting for the subscribers...")
 			if !ready {
 				continue
 			}
@@ -259,7 +257,6 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-	log.SetLevel(log.ErrorLevel)
 	testSubscribe(3, t)
 }
 
@@ -471,7 +468,7 @@ func TestSubscribeAll(t *testing.T) {
 
 func TestSendMissedEvents(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u)
+	transport, _ := NewBoltTransport(u, zap.NewNop())
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -534,7 +531,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 func TestSendAllEvents(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u)
+	transport, _ := NewBoltTransport(u, zap.NewNop())
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -599,7 +596,7 @@ func TestSendAllEvents(t *testing.T) {
 
 func TestUnknownLastEventID(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u)
+	transport, _ := NewBoltTransport(u, zap.NewNop())
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -677,7 +674,7 @@ func TestUnknownLastEventID(t *testing.T) {
 
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u)
+	transport, _ := NewBoltTransport(u, zap.NewNop())
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -784,7 +781,6 @@ func TestSubscribeHeartbeat(t *testing.T) {
 }
 
 func BenchmarkSubscribe(b *testing.B) {
-	log.SetOutput(ioutil.Discard)
 	for n := 0; n < b.N; n++ {
 		testSubscribe(1000, nil)
 	}

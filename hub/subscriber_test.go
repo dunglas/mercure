@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestDispatch(t *testing.T) {
-	s := NewSubscriber("1", NewTopicSelectorStore())
+	s := NewSubscriber("1", zap.NewNop(), NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com"}
 	go s.start()
 	defer s.Disconnect()
@@ -28,10 +29,29 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
-	s := NewSubscriber("", NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()
 
 	assert.False(t, s.Dispatch(&Update{}, false))
+}
+
+func TestLogSubscriber(t *testing.T) {
+	sink, logger := newTestLogger(t)
+	defer sink.Reset()
+
+	s := NewSubscriber("123", logger, NewTopicSelectorStore())
+	s.RemoteAddr = "127.0.0.1"
+	s.TopicSelectors = []string{"https://example.com/foo"}
+	s.Topics = []string{"https://example.com/bar"}
+
+	f := zap.Object("subscriber", s)
+	logger.Info("test", f)
+
+	log := sink.String()
+	assert.Contains(t, log, `"last_event_id":"123"`)
+	assert.Contains(t, log, `"remote_addr":"127.0.0.1"`)
+	assert.Contains(t, log, `"topic_selectors":["https://example.com/foo"]`)
+	assert.Contains(t, log, `"topics":["https://example.com/bar"]`)
 }
