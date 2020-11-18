@@ -18,6 +18,8 @@ import (
 const defaultHubURL = "/.well-known/mercure"
 
 // Serve starts the HTTP server.
+//
+// Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) Serve() {
 	addr := h.config.GetString("addr")
 	acmeHosts := h.config.GetStringSlice("acme_hosts")
@@ -80,6 +82,7 @@ func (h *Hub) Serve() {
 	<-done
 }
 
+// Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) listenShutdown() <-chan struct{} {
 	idleConnsClosed := make(chan struct{})
 
@@ -116,6 +119,8 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 }
 
 // chainHandlers configures and chains handlers.
+//
+// Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	debug := h.config.GetBool("debug")
 
@@ -178,6 +183,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	return recoveryHandler
 }
 
+// Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	if !h.config.GetBool("subscriptions") {
 		return
@@ -194,6 +200,7 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods("GET")
 }
 
+// Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.UseEncodedPath()
@@ -208,6 +215,7 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	return mainRouter
 }
 
+// Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) metricsHandler() http.Handler {
 	router := mux.NewRouter()
 
@@ -217,18 +225,21 @@ func (h *Hub) metricsHandler() http.Handler {
 	return router
 }
 
+// Deprecated: use the Caddy server module or the standalone library instead.
 func registerHealthz(router *mux.Router) {
 	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "ok")
 	}).Methods("GET", "HEAD")
 }
 
+// Deprecated: use the Caddy server module or the standalone library instead.
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
 <title>Mercure Hub</title>
 <h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)
 }
 
+// Deprecated: use the Caddy server module or the standalone library instead.
 type zapRecoveryHandlerLogger struct {
 	logger Logger
 }

@@ -19,7 +19,7 @@ The Mercure Hub is the reference implementation of the Mercure protocol.
 
 Go to https://mercure.rocks for more information!`,
 	Run: func(cmd *cobra.Command, args []string) {
-		hub.Start()
+		hub.Start() //nolint:staticcheck
 	},
 }
 
@@ -33,10 +33,10 @@ func Execute() {
 func init() { //nolint:gochecknoinits
 	v := viper.GetViper()
 	cobra.OnInitialize(func() {
-		hub.InitConfig(v)
+		hub.InitConfig(v) //nolint:staticcheck
 	})
 	fs := rootCmd.Flags()
-	hub.SetFlags(fs, v)
+	hub.SetFlags(fs, v) //nolint:staticcheck
 
 	appVersion := common.AppVersion
 	rootCmd.Version = appVersion.Shortline()

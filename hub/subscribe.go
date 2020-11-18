@@ -18,29 +18,24 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		panic("http.ResponseWriter must be an instance of http.Flusher")
 	}
 
-	debug := h.config.GetBool("debug")
-	s := h.registerSubscriber(w, r, debug)
+	s := h.registerSubscriber(w, r)
 	if s == nil {
 		return
 	}
 	defer h.shutdown(s)
 
-	heartbeatInterval := h.config.GetDuration("heartbeat_interval")
-
 	var heartbeatTimer *time.Timer
 	var heartbeatTimerC <-chan time.Time
-	if heartbeatInterval != time.Duration(0) {
-		heartbeatTimer = time.NewTimer(heartbeatInterval)
+	if h.heartbeat != 0 {
+		heartbeatTimer = time.NewTimer(h.heartbeat)
 		defer heartbeatTimer.Stop()
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
-	dispatchTimeout := h.config.GetDuration("dispatch_timeout")
-	writeTimeout := h.config.GetDuration("write_timeout")
 	var writeTimer *time.Timer
 	var writeTimerC <-chan time.Time
-	if writeTimeout != 0 {
-		writeTimer = time.NewTimer(writeTimeout - dispatchTimeout)
+	if h.writeTimeout != 0 {
+		writeTimer = time.NewTimer(h.writeTimeout - h.dispatchTimeout)
 		defer writeTimer.Stop()
 		writeTimerC = writeTimer.C
 	}
@@ -48,26 +43,28 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-r.Context().Done():
-			// Client closes the connection
+			h.logger.Debug("connection closed by the client", zap.Object("subscriber", s))
+
 			return
 		case <-writeTimerC:
-			// Close properly the connection before the write timeout
+			h.logger.Debug("write timeout: close the connection", zap.Object("subscriber", s))
+
 			return
 		case <-heartbeatTimerC:
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(w, s, ":\n", dispatchTimeout) {
+			if !h.write(w, s, ":\n") {
 				return
 			}
-			heartbeatTimer.Reset(heartbeatInterval)
+			heartbeatTimer.Reset(h.heartbeat)
 		case update, ok := <-s.Receive():
-			if !ok || !h.write(w, s, newSerializedUpdate(update).event, dispatchTimeout) {
+			if !ok || !h.write(w, s, newSerializedUpdate(update).event) {
 				return
 			}
 			if heartbeatTimer != nil {
 				if !heartbeatTimer.Stop() {
 					<-heartbeatTimer.C
 				}
-				heartbeatTimer.Reset(heartbeatInterval)
+				heartbeatTimer.Reset(h.heartbeat)
 			}
 			h.logger.Info("Update sent", zap.Object("subscriber", s), zap.Object("update", update))
 		}
@@ -75,17 +72,17 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug bool) *Subscriber {
+func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscriber {
 	s := NewSubscriber(retrieveLastEventID(r), h.logger, h.topicSelectorStore)
-	s.Debug = debug
+	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
 
-	claims, err := authorize(r, h.getJWTKey(roleSubscriber), h.getJWTAlgorithm(roleSubscriber), nil)
+	claims, err := authorize(r, h.subscriberJWTConfig.key, h.subscriberJWTConfig.signingMethod, nil)
 	if claims != nil {
 		s.Claims = claims
 		s.TopicSelectors = claims.Mercure.Subscribe
 	}
-	if err != nil || (claims == nil && !h.config.GetBool("allow_anonymous")) {
+	if err != nil || (claims == nil && !h.anonymous) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		h.logger.Info("Subscriber unauthorized", zap.Object("subscriber", s), zap.Error(err))
 
@@ -113,7 +110,9 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request, debug b
 	sendHeaders(w, s)
 
 	h.logger.Info("New subscriber", zap.Object("subscriber", s))
-	h.metrics.NewSubscriber(s)
+	if h.metrics != nil {
+		h.metrics.NewSubscriber(s)
+	}
 
 	return s
 }
@@ -156,8 +155,8 @@ func retrieveLastEventID(r *http.Request) string {
 // Write sends the given string to the client.
 // It returns false if the dispatch timed out.
 // The current write cannot be cancelled because of https://github.com/golang/go/issues/16100
-func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string, d time.Duration) bool {
-	if d == time.Duration(0) {
+func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
+	if h.dispatchTimeout == 0 {
 		fmt.Fprint(w, data)
 		w.(http.Flusher).Flush()
 
@@ -171,7 +170,7 @@ func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string, d time.
 		close(done)
 	}()
 
-	timeout := time.NewTimer(d)
+	timeout := time.NewTimer(h.dispatchTimeout)
 	defer timeout.Stop()
 	select {
 	case <-done:
@@ -188,11 +187,13 @@ func (h *Hub) shutdown(s *Subscriber) {
 	s.Disconnect()
 	h.dispatchSubscriptionUpdate(s, false)
 	h.logger.Info("Subscriber disconnected", zap.Object("subscriber", s))
-	h.metrics.SubscriberDisconnect(s)
+	if h.metrics != nil {
+		h.metrics.SubscriberDisconnect(s)
+	}
 }
 
 func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
-	if !h.config.GetBool("subscriptions") {
+	if !h.subscriptions {
 		return
 	}
 
@@ -205,7 +206,7 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 		u := &Update{
 			Topics:  []string{subscription.ID},
 			Private: true,
-			Debug:   h.config.GetBool("debug"),
+			Debug:   h.debug,
 			Event:   Event{Data: string(json)},
 		}
 		h.transport.Dispatch(u)

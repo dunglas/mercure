@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -181,7 +180,7 @@ func (*addSubscriberErrorTransport) Close() error {
 }
 
 func TestSubscribeAddSubscriberError(t *testing.T) {
-	hub := createDummyWithTransportAndConfig(&addSubscriberErrorTransport{}, viper.New())
+	hub := createAnonymousDummy(WithTransport(&addSubscriberErrorTransport{}))
 
 	req := httptest.NewRequest("GET", defaultHubURL+"?topic=foo", nil)
 	w := httptest.NewRecorder()
@@ -295,7 +294,6 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestSubscribePrivate(t *testing.T) {
 	hub := createDummy()
-	hub.config.Set("debug", true)
 	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {
@@ -344,8 +342,7 @@ func TestSubscribePrivate(t *testing.T) {
 }
 
 func TestSubscriptionEvents(t *testing.T) {
-	hub := createDummy()
-	hub.config.Set("subscriptions", true)
+	hub := createDummy(WithSubscriptions())
 
 	var wg sync.WaitGroup
 	ctx1, cancel1 := context.WithCancel(context.Background())
@@ -467,12 +464,13 @@ func TestSubscribeAll(t *testing.T) {
 }
 
 func TestSendMissedEvents(t *testing.T) {
+	logger := zap.NewNop()
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport, _ := NewBoltTransport(u, logger)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	hub := createDummyWithTransportAndConfig(transport, viper.New())
+	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -530,12 +528,13 @@ func TestSendMissedEvents(t *testing.T) {
 }
 
 func TestSendAllEvents(t *testing.T) {
+	logger := zap.NewNop()
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport, _ := NewBoltTransport(u, logger)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	hub := createDummyWithTransportAndConfig(transport, viper.New())
+	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -595,12 +594,13 @@ func TestSendAllEvents(t *testing.T) {
 }
 
 func TestUnknownLastEventID(t *testing.T) {
+	logger := zap.NewNop()
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport, _ := NewBoltTransport(u, logger)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	hub := createDummyWithTransportAndConfig(transport, viper.New())
+	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -673,12 +673,13 @@ func TestUnknownLastEventID(t *testing.T) {
 }
 
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
+	logger := zap.NewNop()
 	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport, _ := NewBoltTransport(u, logger)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	hub := createDummyWithTransportAndConfig(transport, viper.New())
+	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -743,8 +744,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 }
 
 func TestSubscribeHeartbeat(t *testing.T) {
-	hub := createAnonymousDummy()
-	hub.config.Set("heartbeat_interval", 5*time.Millisecond)
+	hub := createAnonymousDummy(WithHeartbeat(5 * time.Millisecond))
 	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {

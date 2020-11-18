@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -379,34 +378,4 @@ func TestCanDispatch(t *testing.T) {
 	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"foo"}))
 	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"baz"}))
 	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"baz", "bat"}))
-}
-
-func TestGetJWTKeyInvalid(t *testing.T) {
-	v := viper.New()
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
-
-	h.config.Set("publisher_jwt_key", "")
-	assert.PanicsWithValue(t, "one of these configuration parameters must be defined: [publisher_jwt_key jwt_key]", func() {
-		h.getJWTKey(rolePublisher)
-	})
-
-	h.config.Set("subscriber_jwt_key", "")
-	assert.PanicsWithValue(t, "one of these configuration parameters must be defined: [subscriber_jwt_key jwt_key]", func() {
-		h.getJWTKey(roleSubscriber)
-	})
-}
-
-func TestGetJWTAlgorithmInvalid(t *testing.T) {
-	v := viper.New()
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
-
-	h.config.Set("publisher_jwt_algorithm", "foo")
-	assert.PanicsWithValue(t, "invalid signing method: foo", func() {
-		h.getJWTAlgorithm(rolePublisher)
-	})
-
-	h.config.Set("subscriber_jwt_algorithm", "foo")
-	assert.PanicsWithValue(t, "invalid signing method: foo", func() {
-		h.getJWTAlgorithm(roleSubscriber)
-	})
 }

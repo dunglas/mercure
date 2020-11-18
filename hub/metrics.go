@@ -8,6 +8,7 @@ import (
 )
 
 // Metrics store Hub collected metrics.
+// TODO(dunglas): check how to let Caddy collecting these metrics: https://caddyserver.com/docs/metrics
 type Metrics struct {
 	subscribersTotal *prometheus.CounterVec
 	subscribers      *prometheus.GaugeVec

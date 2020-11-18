@@ -8,8 +8,6 @@ transport_url: bolt://update.db
 jwt_key: '!ChangeMe!'
 publish_allowed_origins: [http://localhost:3000, http://localhost:3001, http://localhost:5000, http://localhost:8000]
 subscriptions: true
-dispatch_timeout: 5s
-#write_timeout: 10s
 
 metrics_enabled: false
 metrics_addr: 127.0.0.1:3002

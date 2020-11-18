@@ -6,7 +6,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 
@@ -48,48 +47,6 @@ var (
 	// ErrPublicKey is returned when there is an error with the public key.
 	ErrPublicKey = errors.New("public key error")
 )
-
-func (h *Hub) getJWTKey(r role) []byte {
-	var configKey string
-	switch r {
-	case roleSubscriber:
-		configKey = "subscriber_jwt_key"
-	case rolePublisher:
-		configKey = "publisher_jwt_key"
-	}
-
-	key := h.config.GetString(configKey)
-	if key == "" {
-		key = h.config.GetString("jwt_key")
-	}
-	if key == "" {
-		log.Panicf("one of these configuration parameters must be defined: [%s jwt_key]", configKey)
-	}
-
-	return []byte(key)
-}
-
-func (h *Hub) getJWTAlgorithm(r role) jwt.SigningMethod {
-	var configKey string
-	switch r {
-	case roleSubscriber:
-		configKey = "subscriber_jwt_algorithm"
-	case rolePublisher:
-		configKey = "publisher_jwt_algorithm"
-	}
-
-	keyType := h.config.GetString(configKey)
-	if keyType == "" {
-		keyType = h.config.GetString("jwt_algorithm")
-	}
-
-	sm := jwt.GetSigningMethod(keyType)
-	if nil == sm {
-		log.Panicf("invalid signing method: %s", keyType)
-	}
-
-	return sm
-}
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or a "mercureAuthorization" cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.

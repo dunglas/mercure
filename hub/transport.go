@@ -3,10 +3,7 @@ package hub
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"sync"
-
-	"github.com/spf13/viper"
 )
 
 // EarliestLastEventID is the reserved value representing the earliest available event id.
@@ -58,29 +55,6 @@ func (e *ErrInvalidTransportDSN) Error() string {
 
 func (e *ErrInvalidTransportDSN) Unwrap() error {
 	return e.err
-}
-
-// NewTransport create a transport using the backend matching the given TransportURL.
-func NewTransport(config *viper.Viper, logger Logger) (Transport, error) {
-	tu := config.GetString("transport_url")
-	if tu == "" {
-		return NewLocalTransport(), nil
-	}
-
-	u, err := url.Parse(tu)
-	if err != nil {
-		return nil, fmt.Errorf("transport_url: %w", err)
-	}
-
-	switch u.Scheme {
-	case "null":
-		return NewLocalTransport(), nil
-
-	case "bolt":
-		return NewBoltTransport(u, logger)
-	}
-
-	return nil, &ErrInvalidTransportDSN{dsn: tu, msg: "no such transport available"}
 }
 
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.

@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -29,11 +28,9 @@ const (
 )
 
 func TestForwardedHeaders(t *testing.T) {
-	v := viper.New()
-	v.Set("use_forwarded_headers", true)
-
 	core, logs := observer.New(zapcore.DebugLevel)
-	h := createDummyWithTransportConfigAndLogger(NewLocalTransport(), v, zap.New(core))
+	h := createDummy(WithLogger(zap.New(core)))
+	h.config.Set("use_forwarded_headers", true)
 
 	go h.Serve()
 
@@ -62,14 +59,13 @@ func TestForwardedHeaders(t *testing.T) {
 }
 
 func TestSecurityOptions(t *testing.T) {
-	v := viper.New()
-	v.Set("demo", true)
-	v.Set("cors_allowed_origins", []string{"*"})
-	v.Set("cert_file", "../fixtures/tls/server.crt")
-	v.Set("key_file", "../fixtures/tls/server.key")
-	v.Set("compress", true)
-	v.Set("subscriptions", true)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	h := createAnonymousDummy(WithSubscriptions(), WithDemo())
+	h.config.Set("cors_allowed_origins", []string{"*"})
+	h.config.Set("cert_file", "../fixtures/tls/server.crt")
+	h.config.Set("key_file", "../fixtures/tls/server.key")
+	h.config.Set("compress", true)
+	h.config.Set("demo", true)
+	h.config.Set("subscriptions", true)
 
 	go h.Serve()
 
@@ -184,7 +180,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	transport, _ := NewBoltTransport(u, zap.NewNop())
 	defer os.Remove("test.db")
 
-	h := createDummyWithTransportAndConfig(transport, viper.New())
+	h := createAnonymousDummy(WithTransport(transport))
 	go h.Serve()
 
 	// loop until the web server is ready
@@ -281,11 +277,11 @@ func TestServeAcme(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "cert")
 	defer os.RemoveAll(dir)
 
-	v := viper.New()
-	v.Set("acme_hosts", []string{"example.com"})
-	v.Set("acme_http01_addr", ":8080")
-	v.Set("acme_cert_dir", dir)
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+	h := createAnonymousDummy()
+	h.config.Set("acme_hosts", []string{"example.com"})
+	h.config.Set("acme_http01_addr", ":8080")
+	h.config.Set("acme_http01_addr", ":8080")
+	h.config.Set("acme_cert_dir", dir)
 
 	go h.Serve()
 	client := &http.Client{
@@ -313,9 +309,7 @@ func TestServeAcme(t *testing.T) {
 }
 
 func TestMetricsAccess(t *testing.T) {
-	v := viper.New()
-	v.Set("metrics_enabled", true)
-	server := newTestServer(t, v)
+	server := newTestServer(t)
 	defer server.shutdown()
 
 	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") // nolint:noctx
@@ -330,9 +324,7 @@ func TestMetricsAccess(t *testing.T) {
 }
 
 func TestMetricsCollect(t *testing.T) {
-	v := viper.New()
-	v.Set("metrics_enabled", true)
-	server := newTestServer(t, v)
+	server := newTestServer(t)
 	defer server.shutdown()
 
 	server.newSubscriber("http://example.com/foo/1", true)
@@ -356,9 +348,7 @@ func TestMetricsCollect(t *testing.T) {
 }
 
 func TestMetricsVersionIsAccessible(t *testing.T) {
-	v := viper.New()
-	v.Set("metrics_enabled", true)
-	server := newTestServer(t, v)
+	server := newTestServer(t)
 	defer server.shutdown()
 
 	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") //nolint:noctx
@@ -382,8 +372,9 @@ type testServer struct {
 	wgTested    sync.WaitGroup
 }
 
-func newTestServer(t *testing.T, v *viper.Viper) testServer {
-	h := createDummyWithTransportAndConfig(NewLocalTransport(), v)
+func newTestServer(t *testing.T) testServer {
+	h := createAnonymousDummy(WithMetrics())
+	h.config.Set("metrics_enabled", true)
 
 	go h.Serve()
 

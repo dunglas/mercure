@@ -1,11 +1,9 @@
 package hub
 
 import (
-	"os"
 	"sync"
 	"testing"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -124,35 +122,6 @@ func TestLiveReading(t *testing.T) {
 
 	receivedUpdate := <-s.Receive()
 	assert.Equal(t, u, receivedUpdate)
-}
-
-func TestNewTransport(t *testing.T) {
-	transport, err := NewTransport(viper.New(), zap.NewNop())
-	assert.Nil(t, err)
-	require.NotNil(t, transport)
-	transport.Close()
-	assert.IsType(t, &LocalTransport{}, transport)
-
-	v := viper.New()
-	v.Set("transport_url", "bolt://test.db")
-	transport, _ = NewTransport(v, zap.NewNop())
-	assert.Nil(t, err)
-	require.NotNil(t, transport)
-	transport.Close()
-	os.Remove("test.db")
-	assert.IsType(t, &BoltTransport{}, transport)
-
-	v = viper.New()
-	v.Set("transport_url", "nothing:")
-	transport, err = NewTransport(v, zap.NewNop())
-	assert.Nil(t, transport)
-	assert.NotNil(t, err)
-	assert.EqualError(t, err, `"nothing:": no such transport available: invalid transport DSN`)
-
-	v = viper.New()
-	v.Set("transport_url", "http://[::1]%23")
-	_, err = NewTransport(v, zap.NewNop())
-	assert.EqualError(t, err, `transport_url: parse "http://[::1]%23": invalid port "%23" after host`)
 }
 
 func TestLocalTransportGetSubscribers(t *testing.T) {
