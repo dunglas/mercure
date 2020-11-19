@@ -14,10 +14,14 @@ import (
 	"go.uber.org/zap"
 )
 
+func init() {
+	RegisterTransportFactory("bolt", newBoltTransport)
+}
+
 const defaultBoltBucketName = "updates"
 
-// BoltTransport implements the TransportInterface using the Bolt database.
-type BoltTransport struct {
+// boltTransport implements the TransportInterface using the Bolt database.
+type boltTransport struct {
 	sync.RWMutex
 	logger           Logger
 	db               *bolt.DB
@@ -31,8 +35,8 @@ type BoltTransport struct {
 	lastEventID      string
 }
 
-// NewBoltTransport create a new BoltTransport.
-func NewBoltTransport(u *url.URL, logger Logger) (*BoltTransport, error) {
+// newBoltTransport create a new boltTransport.
+func newBoltTransport(u *url.URL, l Logger) (Transport, error) {
 	var err error
 	q := u.Query()
 	bucketName := defaultBoltBucketName
@@ -71,8 +75,8 @@ func NewBoltTransport(u *url.URL, logger Logger) (*BoltTransport, error) {
 		return nil, &ErrInvalidTransportDSN{dsn: u.String(), err: err}
 	}
 
-	return &BoltTransport{
-		logger:           logger,
+	return &boltTransport{
+		logger:           l,
 		db:               db,
 		bucketName:       bucketName,
 		size:             size,
@@ -102,7 +106,7 @@ func getDBLastEventID(db *bolt.DB, bucketName string) string {
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
-func (t *BoltTransport) Dispatch(update *Update) error {
+func (t *boltTransport) Dispatch(update *Update) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -133,7 +137,7 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 }
 
 // persist stores update in the database.
-func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
+func (t *boltTransport) persist(updateID string, updateJSON []byte) error {
 	return t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
 		if err != nil {
@@ -164,7 +168,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 }
 
 // AddSubscriber adds a new subscriber to the transport.
-func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
+func (t *boltTransport) AddSubscriber(s *Subscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -184,7 +188,7 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // GetSubscribers get the list of active subscribers.
-func (t *BoltTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
+func (t *boltTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
 	t.RLock()
 	defer t.RUnlock()
 	subscribers = make([]*Subscriber, len(t.subscribers))
@@ -198,7 +202,7 @@ func (t *BoltTransport) GetSubscribers() (lastEventID string, subscribers []*Sub
 	return t.lastEventID, subscribers
 }
 
-func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
+func (t *boltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 	t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
@@ -241,7 +245,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 }
 
 // Close closes the Transport.
-func (t *BoltTransport) Close() (err error) {
+func (t *boltTransport) Close() (err error) {
 	t.closedOnce.Do(func() {
 		close(t.closed)
 
@@ -263,7 +267,7 @@ func (t *BoltTransport) Close() (err error) {
 }
 
 // cleanup removes entries in the history above the size limit, triggered probabilistically.
-func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
+func (t *boltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	if t.size == 0 ||
 		t.cleanupFrequency == 0 ||
 		t.size >= lastID ||

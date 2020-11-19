@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"net/url"
 	"sync"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
-	transport := NewLocalTransport()
+	transport, _ := newLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -46,7 +47,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 }
 
 func TestLocalTransportDispatch(t *testing.T) {
-	transport := NewLocalTransport()
+	transport, _ := newLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -61,7 +62,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	transport := NewLocalTransport()
+	transport, _ := newLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -79,7 +80,8 @@ func TestLocalTransportClosed(t *testing.T) {
 }
 
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
-	transport := NewLocalTransport()
+	tr, _ := newLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	transport := tr.(*localTransport)
 	defer transport.Close()
 
 	tss := NewTopicSelectorStore()
@@ -108,7 +110,7 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 }
 
 func TestLiveReading(t *testing.T) {
-	transport := NewLocalTransport()
+	transport, _ := newLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -125,7 +127,7 @@ func TestLiveReading(t *testing.T) {
 }
 
 func TestLocalTransportGetSubscribers(t *testing.T) {
-	transport := NewLocalTransport()
+	transport, _ := newLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	require.NotNil(t, transport)
 
@@ -139,7 +141,7 @@ func TestLocalTransportGetSubscribers(t *testing.T) {
 	go s2.start()
 	require.Nil(t, transport.AddSubscriber(s2))
 
-	lastEventID, subscribers := transport.GetSubscribers()
+	lastEventID, subscribers := transport.(TransportSubscribers).GetSubscribers()
 	assert.Equal(t, EarliestLastEventID, lastEventID)
 	assert.Len(t, subscribers, 2)
 	assert.Contains(t, subscribers, s1)

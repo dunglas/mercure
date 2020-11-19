@@ -101,35 +101,15 @@ func WithPublishOrigins(origins []string) Option {
 	}
 }
 
-// WithTransport sets the transport to use.
-func WithTransport(t Transport) Option {
-	return func(h *Hub) {
-		h.transport = t
-	}
-}
-
 // WithTransportURL sets the transport to use by parsing the provided URL.
-func WithTransportURL(tu string, l Logger) Option {
+func WithTransportURL(tu string) Option {
 	u, err := url.Parse(tu)
 	if err != nil {
 		log.Panic(fmt.Errorf("transport_url: %w", err))
 	}
 
 	return func(h *Hub) {
-		switch u.Scheme {
-		case "null":
-			h.transport = NewLocalTransport()
-
-		case "bolt":
-			transport, err := NewBoltTransport(u, l)
-			if err != nil {
-				log.Panic(err)
-			}
-			h.transport = transport
-
-		default:
-			log.Panic(&ErrInvalidTransportDSN{dsn: tu, msg: "no such transport available"})
-		}
+		h.transportURL = u
 	}
 }
 
@@ -151,6 +131,7 @@ type Hub struct {
 	publisherJWTConfig  *jwtConfig
 	subscriberJWTConfig *jwtConfig
 	publishOrigins      []string
+	transportURL        *url.URL
 	transport           Transport
 	metrics             *Metrics
 	topicSelectorStore  *TopicSelectorStore
@@ -188,9 +169,16 @@ func New(options ...Option) *Hub {
 
 		h.logger = l
 	}
-	if h.transport == nil {
-		h.transport = NewLocalTransport()
+
+	if h.transportURL == nil {
+		h.transportURL = &url.URL{Scheme: "local"}
 	}
+
+	t, err := newTransport(h.transportURL, h.logger)
+	if err != nil {
+		log.Panic(err)
+	}
+	h.transport = t
 
 	return h
 }

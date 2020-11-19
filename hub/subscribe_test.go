@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 type responseWriterMock struct {
@@ -180,7 +179,10 @@ func (*addSubscriberErrorTransport) Close() error {
 }
 
 func TestSubscribeAddSubscriberError(t *testing.T) {
-	hub := createAnonymousDummy(WithTransport(&addSubscriberErrorTransport{}))
+	RegisterTransportFactory("error", func(*url.URL, Logger) (Transport, error) {
+		return &addSubscriberErrorTransport{}, nil
+	})
+	hub := createAnonymousDummy(WithTransportURL("error://error"))
 
 	req := httptest.NewRequest("GET", defaultHubURL+"?topic=foo", nil)
 	w := httptest.NewRecorder()
@@ -199,7 +201,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 
 	go func() {
 		for {
-			s, _ := hub.transport.(*LocalTransport)
+			s := hub.transport.(*localTransport)
 			s.RLock()
 			ready := len(s.subscribers) == numberOfSubscribers
 			s.RUnlock()
@@ -262,7 +264,7 @@ func TestSubscribe(t *testing.T) {
 func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 
-	s, _ := hub.transport.(*LocalTransport)
+	s, _ := hub.transport.(*localTransport)
 	assert.Equal(t, 0, len(s.subscribers))
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -294,7 +296,7 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestSubscribePrivate(t *testing.T) {
 	hub := createDummy()
-	s, _ := hub.transport.(*LocalTransport)
+	s, _ := hub.transport.(*localTransport)
 
 	go func() {
 		for {
@@ -421,7 +423,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 func TestSubscribeAll(t *testing.T) {
 	hub := createDummy()
-	s, _ := hub.transport.(*LocalTransport)
+	s, _ := hub.transport.(*localTransport)
 
 	go func() {
 		for {
@@ -464,13 +466,10 @@ func TestSubscribeAll(t *testing.T) {
 }
 
 func TestSendMissedEvents(t *testing.T) {
-	logger := zap.NewNop()
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, logger)
+	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
-
-	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -528,13 +527,10 @@ func TestSendMissedEvents(t *testing.T) {
 }
 
 func TestSendAllEvents(t *testing.T) {
-	logger := zap.NewNop()
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, logger)
+	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
-
-	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -594,13 +590,10 @@ func TestSendAllEvents(t *testing.T) {
 }
 
 func TestUnknownLastEventID(t *testing.T) {
-	logger := zap.NewNop()
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, logger)
+	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
-
-	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -673,13 +666,10 @@ func TestUnknownLastEventID(t *testing.T) {
 }
 
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
-	logger := zap.NewNop()
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, logger)
+	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
-
-	hub := createAnonymousDummy(WithTransport(transport), WithLogger(logger))
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -745,7 +735,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 func TestSubscribeHeartbeat(t *testing.T) {
 	hub := createAnonymousDummy(WithHeartbeat(5 * time.Millisecond))
-	s, _ := hub.transport.(*LocalTransport)
+	s, _ := hub.transport.(*localTransport)
 
 	go func() {
 		for {

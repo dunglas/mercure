@@ -188,7 +188,7 @@ func NewHubFromViper(v *viper.Viper) *Hub { //nolint:funlen
 		options = append(options, WithPublishOrigins(p))
 	}
 	if t := v.GetString("transport_url"); t != "" {
-		options = append(options, WithTransportURL(t, logger))
+		options = append(options, WithTransportURL(t))
 	}
 
 	h := New(options...)

@@ -176,11 +176,9 @@ func TestServe(t *testing.T) {
 }
 
 func TestClientClosesThenReconnects(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	h := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	transport := h.transport.(*boltTransport)
 	defer os.Remove("test.db")
-
-	h := createAnonymousDummy(WithTransport(transport))
 	go h.Serve()
 
 	// loop until the web server is ready

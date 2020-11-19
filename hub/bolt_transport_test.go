@@ -15,9 +15,15 @@ import (
 	"go.uber.org/zap"
 )
 
+func createBoltTransport(dsn string) *boltTransport {
+	u, _ := url.Parse(dsn)
+	transport, _ := newBoltTransport(u, zap.NewNop())
+
+	return transport.(*boltTransport)
+}
+
 func TestBoltTransportHistory(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -48,8 +54,7 @@ func TestBoltTransportHistory(t *testing.T) {
 }
 
 func TestBoltTransportRetrieveAllHistory(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -79,8 +84,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 }
 
 func TestBoltTransportHistoryAndLive(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -123,8 +127,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 }
 
 func TestBoltTransportPurgeHistory(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db?size=5&cleanup_frequency=1")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db?size=5&cleanup_frequency=1")
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -146,33 +149,32 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 
 func TestNewBoltTransport(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db?bucket_name=demo")
-	transport, err := NewBoltTransport(u, zap.NewNop())
+	transport, err := newBoltTransport(u, zap.NewNop())
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
 
 	u, _ = url.Parse("bolt://")
-	_, err = NewBoltTransport(u, zap.NewNop())
+	_, err = newBoltTransport(u, zap.NewNop())
 	assert.EqualError(t, err, `"bolt:": missing path: invalid transport DSN`)
 
 	u, _ = url.Parse("bolt:///test.db")
-	_, err = NewBoltTransport(u, zap.NewNop())
+	_, err = newBoltTransport(u, zap.NewNop())
 
 	// The exact error message depends of the OS
 	assert.Contains(t, err.Error(), "open /test.db:")
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
-	_, err = NewBoltTransport(u, zap.NewNop())
+	_, err = newBoltTransport(u, zap.NewNop())
 	assert.EqualError(t, err, `"bolt://test.db?cleanup_frequency=invalid": invalid "cleanup_frequency" parameter "invalid": strconv.ParseFloat: parsing "invalid": invalid syntax: invalid transport DSN`)
 
 	u, _ = url.Parse("bolt://test.db?size=invalid")
-	_, err = NewBoltTransport(u, zap.NewNop())
+	_, err = newBoltTransport(u, zap.NewNop())
 	assert.EqualError(t, err, `"bolt://test.db?size=invalid": invalid "size" parameter "invalid": strconv.ParseUint: parsing "invalid": invalid syntax: invalid transport DSN`)
 }
 
 func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
@@ -205,8 +207,7 @@ func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 }
 
 func TestBoltTransportDispatch(t *testing.T) {
-	ur, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(ur, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
@@ -223,8 +224,7 @@ func TestBoltTransportDispatch(t *testing.T) {
 }
 
 func TestBoltTransportClosed(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	require.NotNil(t, transport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -245,8 +245,7 @@ func TestBoltTransportClosed(t *testing.T) {
 }
 
 func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	require.NotNil(t, transport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -277,8 +276,7 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 }
 
 func TestBoltGetSubscribers(t *testing.T) {
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	require.NotNil(t, transport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -325,8 +323,7 @@ func TestBoltLastEventID(t *testing.T) {
 	})
 	require.Nil(t, db.Close())
 
-	u, _ := url.Parse("bolt://test.db")
-	transport, _ := NewBoltTransport(u, zap.NewNop())
+	transport := createBoltTransport("bolt://test.db")
 	require.NotNil(t, transport)
 	defer transport.Close()
 
