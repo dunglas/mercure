@@ -1,9 +1,10 @@
-/dist
-/gin-bin
-/mercure
-/vendor
+vendor
 /certs
 /*.db
+/cmd/mercure/dist
+/cmd/mercure/public
+/cmd/mercure/gin-bin
+/cmd/mercure/mercure
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml
