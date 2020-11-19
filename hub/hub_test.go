@@ -25,7 +25,10 @@ func TestNewHub(t *testing.T) {
 }
 
 func TestNewHubWithConfig(t *testing.T) {
-	h := New([]byte("foo"), WithSubscriberJWTConfig([]byte("bar"), nil))
+	h := New(
+		WithPublisherJWTConfig([]byte("foo"), jwt.SigningMethodHS256),
+		WithSubscriberJWTConfig([]byte("bar"), jwt.SigningMethodHS256),
+	)
 	require.NotNil(t, h)
 	h.Stop()
 }
@@ -64,11 +67,15 @@ func TestStartCrash(t *testing.T) {
 
 func createDummy(options ...Option) *Hub {
 	options = append(
-		[]Option{WithSubscriberJWTConfig([]byte("subscriber"), jwt.SigningMethodHS256), WithLogger(zap.NewNop())},
+		[]Option{
+			WithPublisherJWTConfig([]byte("publisher"), jwt.SigningMethodHS256),
+			WithSubscriberJWTConfig([]byte("subscriber"), jwt.SigningMethodHS256),
+			WithLogger(zap.NewNop()),
+		},
 		options...,
 	)
 
-	h := New([]byte("publisher"), options...)
+	h := New(options...)
 	h.config = viper.New()
 	h.config.Set("addr", testAddr)
 	h.config.Set("metrics_addr", testMetricsAddr)

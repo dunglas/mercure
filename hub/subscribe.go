@@ -77,16 +77,18 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
 
-	claims, err := authorize(r, h.subscriberJWTConfig.key, h.subscriberJWTConfig.signingMethod, nil)
-	if claims != nil {
-		s.Claims = claims
-		s.TopicSelectors = claims.Mercure.Subscribe
-	}
-	if err != nil || (claims == nil && !h.anonymous) {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		h.logger.Info("Subscriber unauthorized", zap.Object("subscriber", s), zap.Error(err))
+	if h.subscriberJWTConfig != nil {
+		claims, err := authorize(r, h.subscriberJWTConfig, nil)
+		if claims != nil {
+			s.Claims = claims
+			s.TopicSelectors = claims.Mercure.Subscribe
+		}
+		if err != nil || (claims == nil && !h.anonymous) {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			h.logger.Info("Subscriber unauthorized", zap.Object("subscriber", s), zap.Error(err))
 
-		return nil
+			return nil
+		}
 	}
 
 	s.Topics = r.URL.Query()["topic"]

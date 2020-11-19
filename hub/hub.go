@@ -80,18 +80,17 @@ func WithHeartbeat(interval time.Duration) Option {
 	}
 }
 
-// WithPublisherJWTSigningMethod sets the JWT algorithm to use.
-func WithPublisherJWTSigningMethod(signingMethod jwt.SigningMethod) Option {
+// WithPublisherJWTConfig sets the JWT key and algorithm to use.
+func WithPublisherJWTConfig(key []byte, signingMethod jwt.SigningMethod) Option {
 	return func(h *Hub) {
-		h.publisherJWTConfig.signingMethod = signingMethod
+		h.publisherJWTConfig = &jwtConfig{key, signingMethod}
 	}
 }
 
 // WithSubscriberJWTConfig sets the JWT key and algorithm to use.
 func WithSubscriberJWTConfig(key []byte, signingMethod jwt.SigningMethod) Option {
 	return func(h *Hub) {
-		h.subscriberJWTConfig.key = key
-		h.subscriberJWTConfig.signingMethod = signingMethod
+		h.subscriberJWTConfig = &jwtConfig{key, signingMethod}
 	}
 }
 
@@ -100,34 +99,6 @@ func WithPublishOrigins(origins []string) Option {
 	return func(h *Hub) {
 		h.publishOrigins = origins
 	}
-}
-
-type jwtConfig struct {
-	key           []byte
-	signingMethod jwt.SigningMethod
-}
-
-// Hub stores channels with clients currently subscribed and allows to dispatch updates.
-type Hub struct {
-	anonymous           bool
-	debug               bool
-	demo                bool
-	subscriptions       bool
-	logger              Logger
-	writeTimeout        time.Duration
-	dispatchTimeout     time.Duration
-	heartbeat           time.Duration
-	publisherJWTConfig  jwtConfig
-	subscriberJWTConfig jwtConfig
-	publishOrigins      []string
-	transport           Transport
-	metrics             *Metrics
-	topicSelectorStore  *TopicSelectorStore
-
-	// Deprecated: use the Caddy server module or the standalone library instead
-	config        *viper.Viper
-	server        *http.Server
-	metricsServer *http.Server
 }
 
 // WithTransport sets the transport to use.
@@ -162,13 +133,36 @@ func WithTransportURL(tu string, l Logger) Option {
 	}
 }
 
-func New(publisherJWTKey []byte, options ...Option) *Hub {
-	if len(publisherJWTKey) == 0 {
-		panic("providing a publisher JWT key is mandatory")
-	}
+type jwtConfig struct {
+	key           []byte
+	signingMethod jwt.SigningMethod
+}
 
+// Hub stores channels with clients currently subscribed and allows to dispatch updates.
+type Hub struct {
+	anonymous           bool
+	debug               bool
+	demo                bool
+	subscriptions       bool
+	logger              Logger
+	writeTimeout        time.Duration
+	dispatchTimeout     time.Duration
+	heartbeat           time.Duration
+	publisherJWTConfig  *jwtConfig
+	subscriberJWTConfig *jwtConfig
+	publishOrigins      []string
+	transport           Transport
+	metrics             *Metrics
+	topicSelectorStore  *TopicSelectorStore
+
+	// Deprecated: use the Caddy server module or the standalone library instead.
+	config        *viper.Viper
+	server        *http.Server
+	metricsServer *http.Server
+}
+
+func New(options ...Option) *Hub {
 	h := &Hub{
-		publisherJWTConfig: jwtConfig{publisherJWTKey, jwt.SigningMethodHS256},
 		topicSelectorStore: NewTopicSelectorStore(),
 		writeTimeout:       600 * time.Second,
 	}

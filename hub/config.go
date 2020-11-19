@@ -169,6 +169,12 @@ func NewHubFromViper(v *viper.Viper) *Hub { //nolint:funlen
 	if d := v.GetDuration("heartbeat_interval"); d != 0 {
 		options = append(options, WithHeartbeat(d))
 	}
+	if k = v.GetString("publisher_jwt_key"); k == "" {
+		k = v.GetString("jwt_key")
+	}
+	if k != "" {
+		options = append(options, WithPublisherJWTConfig([]byte(k), getSigningMethod(v, rolePublisher)))
+	}
 	if k = v.GetString("subscriber_jwt_key"); k == "" {
 		k = v.GetString("jwt_key")
 	}
@@ -181,18 +187,11 @@ func NewHubFromViper(v *viper.Viper) *Hub { //nolint:funlen
 	if p := v.GetStringSlice("publish_allowed_origins"); len(p) > 0 {
 		options = append(options, WithPublishOrigins(p))
 	}
-	if sm := getSigningMethod(v, rolePublisher); sm != jwt.SigningMethodHS256 {
-		options = append(options, WithPublisherJWTSigningMethod(sm))
-	}
 	if t := v.GetString("transport_url"); t != "" {
 		options = append(options, WithTransportURL(t, logger))
 	}
-	k = v.GetString("publisher_jwt_key")
-	if k == "" {
-		k = v.GetString("jwt_key")
-	}
 
-	h := New([]byte(k), options...)
+	h := New(options...)
 	h.config = v
 
 	return h
