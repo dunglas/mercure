@@ -1,6 +1,9 @@
+*.db
+*.pyc
+__pycache__
 vendor
+/caddy/caddy
 /certs
-/*.db
 /cmd/mercure/dist
 /cmd/mercure/public
 /cmd/mercure/gin-bin
@@ -8,5 +11,3 @@ vendor
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml
-__pycache__
-*.pyc

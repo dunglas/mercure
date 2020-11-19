@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits
 	RegisterTransportFactory("local", newLocalTransport)
 }
 

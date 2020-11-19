@@ -83,7 +83,6 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 
 func TestSubscriptionsHandler(t *testing.T) {
 	hub := createDummy()
-	defer hub.Stop()
 
 	s1 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	s1.Topics = []string{"http://example.com/foo"}
@@ -127,7 +126,6 @@ func TestSubscriptionsHandler(t *testing.T) {
 
 func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	hub := createDummy()
-	defer hub.Stop()
 
 	s1 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	s1.Topics = []string{"http://example.com/foo"}
@@ -177,7 +175,6 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 
 func TestSubscriptionHandler(t *testing.T) {
 	hub := createDummy()
-	defer hub.Stop()
 
 	otherS := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
 	otherS.Topics = []string{"http://example.com/other"}

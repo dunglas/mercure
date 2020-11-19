@@ -153,7 +153,6 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 
 func TestPublishOK(t *testing.T) {
 	hub := createDummy()
-	defer hub.Stop()
 
 	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com/books/1"}
@@ -200,7 +199,6 @@ func TestPublishOK(t *testing.T) {
 
 func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
-	defer h.Stop()
 
 	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
 	s.Topics = []string{"http://example.com/books/1"}

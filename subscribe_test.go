@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -179,10 +178,7 @@ func (*addSubscriberErrorTransport) Close() error {
 }
 
 func TestSubscribeAddSubscriberError(t *testing.T) {
-	RegisterTransportFactory("error", func(*url.URL, Logger) (Transport, error) {
-		return &addSubscriberErrorTransport{}, nil
-	})
-	hub := createAnonymousDummy(WithTransportURL("error://error"))
+	hub := createAnonymousDummy(WithTransport(&addSubscriberErrorTransport{}))
 
 	req := httptest.NewRequest("GET", defaultHubURL+"?topic=foo", nil)
 	w := httptest.NewRecorder()
@@ -254,7 +250,6 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 	}
 
 	wg.Wait()
-	hub.Stop()
 }
 
 func TestSubscribe(t *testing.T) {
@@ -340,7 +335,6 @@ func TestSubscribePrivate(t *testing.T) {
 	}
 
 	hub.SubscribeHandler(w, req)
-	hub.Stop()
 }
 
 func TestSubscriptionEvents(t *testing.T) {
@@ -418,7 +412,6 @@ func TestSubscriptionEvents(t *testing.T) {
 	}()
 
 	wg.Wait()
-	hub.Stop()
 }
 
 func TestSubscribeAll(t *testing.T) {
@@ -462,11 +455,11 @@ func TestSubscribeAll(t *testing.T) {
 	}
 
 	hub.SubscribeHandler(w, req)
-	hub.Stop()
 }
 
 func TestSendMissedEvents(t *testing.T) {
-	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	bt := createBoltTransport("bolt://test.db")
+	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
 	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -523,11 +516,11 @@ func TestSendMissedEvents(t *testing.T) {
 	}()
 
 	wg.Wait()
-	hub.Stop()
 }
 
 func TestSendAllEvents(t *testing.T) {
-	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	bt := createBoltTransport("bolt://test.db")
+	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
 	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -586,11 +579,11 @@ func TestSendAllEvents(t *testing.T) {
 	}()
 
 	wg.Wait()
-	hub.Stop()
 }
 
 func TestUnknownLastEventID(t *testing.T) {
-	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	bt := createBoltTransport("bolt://test.db")
+	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
 	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -662,11 +655,11 @@ func TestUnknownLastEventID(t *testing.T) {
 	})
 
 	wg.Wait()
-	hub.Stop()
 }
 
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
-	hub := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	bt := createBoltTransport("bolt://test.db")
+	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
 	transport := hub.transport.(*boltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -730,7 +723,6 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 	})
 
 	wg.Wait()
-	hub.Stop()
 }
 
 func TestSubscribeHeartbeat(t *testing.T) {
@@ -767,7 +759,6 @@ func TestSubscribeHeartbeat(t *testing.T) {
 	}
 
 	hub.SubscribeHandler(w, req)
-	hub.Stop()
 }
 
 func BenchmarkSubscribe(b *testing.B) {

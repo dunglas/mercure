@@ -15,18 +15,67 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-const defaultHubURL = "/.well-known/mercure"
+const (
+	defaultHubURL  = "/.well-known/mercure"
+	defaultUIURL   = defaultHubURL + "/ui/"
+	defaultDemoURL = defaultUIURL + "demo/"
+)
+
+func (h *Hub) initHandler() {
+	router := mux.NewRouter()
+	router.UseEncodedPath()
+	router.SkipClean(true)
+
+	csp := "default-src 'self'"
+	if h.debug || h.demo {
+		router.PathPrefix(defaultDemoURL).HandlerFunc(Demo).Methods("GET", "HEAD")
+		router.PathPrefix(defaultUIURL).Handler(http.StripPrefix(defaultUIURL, http.FileServer(http.Dir("public"))))
+
+		csp += " mercure.rocks cdn.jsdelivr.net"
+	}
+
+	h.registerSubscriptionHandlers(router)
+
+	router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
+	router.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
+
+	secureMiddleware := secure.New(secure.Options{
+		IsDevelopment:         h.debug,
+		AllowedHosts:          h.allowedHosts,
+		FrameDeny:             true,
+		ContentTypeNosniff:    true,
+		BrowserXssFilter:      true,
+		ContentSecurityPolicy: csp,
+	})
+
+	if len(h.corsOrigins) == 0 {
+		h.handler = secureMiddleware.Handler(router)
+
+		return
+	}
+
+	h.handler = secureMiddleware.Handler(
+		handlers.CORS(
+			handlers.AllowCredentials(),
+			handlers.AllowedOrigins(h.corsOrigins),
+			handlers.AllowedHeaders([]string{"authorization", "cache-control"}),
+		)(router),
+	)
+}
+
+func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.handler.ServeHTTP(w, r)
+}
 
 // Serve starts the HTTP server.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) Serve() {
 	addr := h.config.GetString("addr")
-	acmeHosts := h.config.GetStringSlice("acme_hosts")
 
 	h.server = &http.Server{
 		Addr:         addr,
-		Handler:      h.baseHandler(acmeHosts),
+		Handler:      h.baseHandler(),
 		ReadTimeout:  h.config.GetDuration("read_timeout"),
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
@@ -43,7 +92,7 @@ func (h *Hub) Serve() {
 		go h.metricsServer.ListenAndServe()
 	}
 
-	acme := len(acmeHosts) > 0
+	acme := len(h.allowedHosts) > 0
 	certFile := h.config.GetString("cert_file")
 	keyFile := h.config.GetString("key_file")
 
@@ -58,7 +107,7 @@ func (h *Hub) Serve() {
 		if acme {
 			certManager := &autocert.Manager{
 				Prompt:     autocert.AcceptTOS,
-				HostPolicy: autocert.HostWhitelist(acmeHosts...),
+				HostPolicy: autocert.HostWhitelist(h.allowedHosts...),
 			}
 
 			acmeCertDir := h.config.GetString("acme_cert_dir")
@@ -87,7 +136,6 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 	idleConnsClosed := make(chan struct{})
 
 	h.server.RegisterOnShutdown(func() {
-		h.Stop()
 		select {
 		case <-idleConnsClosed:
 		default:
@@ -119,11 +167,7 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 }
 
 // chainHandlers configures and chains handlers.
-//
-// Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
-	debug := h.config.GetBool("debug")
-
+func (h *Hub) chainHandlers() http.Handler {
 	r := mux.NewRouter()
 	h.registerSubscriptionHandlers(r)
 
@@ -131,7 +175,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
 
 	csp := "default-src 'self'"
-	if debug || h.config.GetBool("demo") {
+	if h.debug || h.demo {
 		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
 		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
 		csp += " mercure.rocks cdn.jsdelivr.net"
@@ -140,8 +184,8 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	}
 
 	secureMiddleware := secure.New(secure.Options{
-		IsDevelopment:         debug,
-		AllowedHosts:          acmeHosts,
+		IsDevelopment:         h.debug,
+		AllowedHosts:          h.allowedHosts,
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
 		BrowserXssFilter:      true,
@@ -149,9 +193,8 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	})
 
 	var corsHandler http.Handler
-	corsAllowedOrigins := h.config.GetStringSlice("cors_allowed_origins")
-	if len(corsAllowedOrigins) > 0 {
-		allowedOrigins := handlers.AllowedOrigins(corsAllowedOrigins)
+	if len(h.corsOrigins) > 0 {
+		allowedOrigins := handlers.AllowedOrigins(h.corsOrigins)
 		allowedHeaders := handlers.AllowedHeaders([]string{"authorization", "cache-control"})
 
 		corsHandler = handlers.CORS(handlers.AllowCredentials(), allowedOrigins, allowedHeaders)(r)
@@ -177,7 +220,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	recoveryHandler := handlers.RecoveryHandler(
 		handlers.RecoveryLogger(zapRecoveryHandlerLogger{h.logger}),
-		handlers.PrintRecoveryStack(debug),
+		handlers.PrintRecoveryStack(h.debug),
 	)(loggingHandler)
 
 	return recoveryHandler
@@ -185,7 +228,7 @@ func (h *Hub) chainHandlers(acmeHosts []string) http.Handler {
 
 // Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
-	if !h.config.GetBool("subscriptions") {
+	if !h.subscriptions {
 		return
 	}
 	if _, ok := h.transport.(TransportSubscribers); !ok {
@@ -201,7 +244,7 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
+func (h *Hub) baseHandler() http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.UseEncodedPath()
 	mainRouter.SkipClean(true)
@@ -209,7 +252,7 @@ func (h *Hub) baseHandler(acmeHosts []string) http.Handler {
 	// Register /healthz (if enabled, in a way that doesn't pollute the HTTP logs).
 	registerHealthz(mainRouter)
 
-	handler := h.chainHandlers(acmeHosts)
+	handler := h.chainHandlers()
 	mainRouter.PathPrefix("/").Handler(handler)
 
 	return mainRouter

@@ -77,8 +77,8 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
 
-	if h.subscriberJWTConfig != nil {
-		claims, err := authorize(r, h.subscriberJWTConfig, nil)
+	if h.subscriberJWT != nil {
+		claims, err := authorize(r, h.subscriberJWT, nil)
 		if claims != nil {
 			s.Claims = claims
 			s.TopicSelectors = claims.Mercure.Subscribe

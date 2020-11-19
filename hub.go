@@ -2,114 +2,167 @@ package mercure
 
 import (
 	"fmt"
-	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
-const HS256 = "HS256"
-
 // Option instances allow to configure the library.
-type Option func(h *opt)
+type Option func(h *opt) error
 
-// WithAnonymous allows subscribers with no valid JWT to connect.
+// WithAnonymous allows subscribers with no valid JWT.
 func WithAnonymous() Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.anonymous = true
+
+		return nil
 	}
 }
 
 // WithDebug enables the debug mode.
 func WithDebug() Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.debug = true
+
+		return nil
 	}
 }
 
-// WithDemo enables the demo mode.
+// WithDemo enables the demo.
 func WithDemo() Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.demo = true
+
+		return nil
 	}
 }
 
 // WithMetrics enables collection of Prometheus metrics.
-func WithMetrics() Option {
-	return func(o *opt) {
+func WithMetrics(registry prometheus.Registerer) Option {
+	return func(o *opt) error {
 		o.metrics = true
+		o.metricsRegistry = registry
+
+		return nil
 	}
 }
 
 // WithSubscriptions allows to dispatch updates when subscriptions are created or terminated.
 func WithSubscriptions() Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.subscriptions = true
+
+		return nil
 	}
 }
 
 // WithLogger sets the logger to use.
 func WithLogger(logger Logger) Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.logger = logger
+
+		return nil
 	}
 }
 
 // WithWriteTimeout sets maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 func WithWriteTimeout(timeout time.Duration) Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.writeTimeout = timeout
+
+		return nil
 	}
 }
 
-// WithDispatchTimeout sets the maximum dispatch duration of an update.
+// WithDispatchTimeout sets maximum dispatch duration of an update.
 func WithDispatchTimeout(timeout time.Duration) Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.dispatchTimeout = timeout
+
+		return nil
 	}
 }
 
-// WithHeartbeat enables heartbeat.
+// WithHeartbeat sets the frequency of the heartbeat, disabled by default.
 func WithHeartbeat(interval time.Duration) Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.heartbeat = interval
+
+		return nil
 	}
 }
 
-// WithPublisherJWTConfig sets the JWT key and algorithm to use.
-func WithPublisherJWTConfig(key []byte, signingMethod jwt.SigningMethod) Option {
-	return func(o *opt) {
-		o.publisherJWTConfig = &jwtConfig{key, signingMethod}
+// WithPublisherJWT sets the JWT key and the signing algorithm to use for publishers.
+func WithPublisherJWT(key []byte, alg string) Option {
+	return func(o *opt) error {
+		sm := jwt.GetSigningMethod(alg)
+		switch sm.(type) {
+		case *jwt.SigningMethodHMAC:
+		case *jwt.SigningMethodRSA:
+		default:
+			return ErrUnexpectedSigningMethod
+		}
+
+		o.publisherJWT = &jwtConfig{key, sm}
+
+		return nil
 	}
 }
 
-// WithSubscriberJWTConfig sets the JWT key and algorithm to use.
-func WithSubscriberJWTConfig(key []byte, signingMethod jwt.SigningMethod) Option {
-	return func(o *opt) {
-		o.subscriberJWTConfig = &jwtConfig{key, signingMethod}
+// WithSubscriberJWT sets the JWT key and the signing algorithm to use for subscribers.
+func WithSubscriberJWT(key []byte, alg string) Option {
+	return func(o *opt) error {
+		sm := jwt.GetSigningMethod(alg)
+		switch sm.(type) {
+		case *jwt.SigningMethodHMAC:
+		case *jwt.SigningMethodRSA:
+		default:
+			return ErrUnexpectedSigningMethod
+		}
+
+		o.subscriberJWT = &jwtConfig{key, sm}
+
+		return nil
+	}
+}
+
+// WithAllowedHosts sets the allowed hosts.
+func WithAllowedHosts(hosts []string) Option {
+	return func(o *opt) error {
+		o.allowedHosts = hosts
+
+		return nil
 	}
 }
 
 // WithPublishOrigins sets the origins allowed to publish updates.
 func WithPublishOrigins(origins []string) Option {
-	return func(o *opt) {
+	return func(o *opt) error {
 		o.publishOrigins = origins
+
+		return nil
 	}
 }
 
-// WithTransportURL sets the transport to use by parsing the provided URL.
-func WithTransportURL(tu string) Option {
-	u, err := url.Parse(tu)
-	if err != nil {
-		log.Panic(fmt.Errorf("transport_url: %w", err))
-	}
+// WithCORSOrigins sets the allowed CORS origins.
+func WithCORSOrigins(origins []string) Option {
+	return func(o *opt) error {
+		o.corsOrigins = origins
 
-	return func(o *opt) {
-		o.transportURL = u
+		return nil
+	}
+}
+
+// WithTransport sets the transport to use.
+func WithTransport(t Transport) Option {
+	return func(o *opt) error {
+		o.transport = t
+
+		return nil
 	}
 }
 
@@ -118,26 +171,32 @@ type jwtConfig struct {
 	signingMethod jwt.SigningMethod
 }
 
+// opt contains the available options.
+//
+// If you change this, also update the Caddy module and the documentation.
 type opt struct {
-	anonymous           bool
-	debug               bool
-	demo                bool
-	metrics             bool
-	subscriptions       bool
-	logger              Logger
-	writeTimeout        time.Duration
-	dispatchTimeout     time.Duration
-	heartbeat           time.Duration
-	publisherJWTConfig  *jwtConfig
-	subscriberJWTConfig *jwtConfig
-	publishOrigins      []string
-	transportURL        *url.URL
+	transport       Transport
+	anonymous       bool
+	debug           bool
+	demo            bool
+	subscriptions   bool
+	metrics         bool
+	logger          Logger
+	metricsRegistry prometheus.Registerer
+	writeTimeout    time.Duration
+	dispatchTimeout time.Duration
+	heartbeat       time.Duration
+	publisherJWT    *jwtConfig
+	subscriberJWT   *jwtConfig
+	allowedHosts    []string
+	publishOrigins  []string
+	corsOrigins     []string
 }
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
 	*opt
-	transport          Transport
+	handler            http.Handler
 	metrics            *Metrics
 	topicSelectorStore *TopicSelectorStore
 
@@ -147,13 +206,16 @@ type Hub struct {
 	metricsServer *http.Server
 }
 
-func New(options ...Option) *Hub {
+// NewHub creates a new Hub instance.
+func NewHub(options ...Option) (*Hub, error) {
 	opt := &opt{
 		writeTimeout: 600 * time.Second,
 	}
 
 	for _, o := range options {
-		o(opt)
+		if err := o(opt); err != nil {
+			return nil, err
+		}
 	}
 
 	if opt.logger == nil {
@@ -168,35 +230,29 @@ func New(options ...Option) *Hub {
 		}
 
 		if err != nil {
-			log.Panic(err)
+			return nil, fmt.Errorf("error when creating logger: %w", err)
 		}
 
 		opt.logger = l
 	}
 
-	if opt.transportURL == nil {
-		opt.transportURL = &url.URL{Scheme: "local"}
-	}
-
-	t, err := newTransport(opt.transportURL, opt.logger)
-	if err != nil {
-		log.Panic(err)
+	if opt.transport == nil {
+		t, _ := newLocalTransport(nil, nil)
+		opt.transport = t
 	}
 
 	h := &Hub{
 		opt:                opt,
-		transport:          t,
 		topicSelectorStore: NewTopicSelectorStore(),
 	}
-
 	if opt.metrics {
-		h.metrics = NewMetrics()
+		m, err := newMetrics(opt.metricsRegistry)
+		if err != nil {
+			return nil, err
+		}
+		h.metrics = m
 	}
+	h.initHandler()
 
-	return h
-}
-
-// Stop stops disconnect all connected clients.
-func (h *Hub) Stop() error {
-	return h.transport.Close()
+	return h, nil
 }

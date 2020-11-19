@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/dunglas/mercure"
 	"github.com/dunglas/mercure/common"
@@ -31,6 +32,8 @@ func Execute() {
 }
 
 func init() { //nolint:gochecknoinits
+	log.Println("/!\\ This Mercure binary is deprecated, use the binary based on Caddy Server instead! See https://mercure.rocks/docs/UPGRADE")
+
 	v := viper.GetViper()
 	cobra.OnInitialize(func() {
 		mercure.InitConfig(v) //nolint:staticcheck

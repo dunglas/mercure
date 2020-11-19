@@ -59,13 +59,10 @@ func TestForwardedHeaders(t *testing.T) {
 }
 
 func TestSecurityOptions(t *testing.T) {
-	h := createAnonymousDummy(WithSubscriptions(), WithDemo())
-	h.config.Set("cors_allowed_origins", []string{"*"})
+	h := createAnonymousDummy(WithSubscriptions(), WithDemo(), WithCORSOrigins([]string{"*"}))
 	h.config.Set("cert_file", "fixtures/tls/server.crt")
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
-	h.config.Set("demo", true)
-	h.config.Set("subscriptions", true)
 
 	go h.Serve()
 
@@ -176,7 +173,10 @@ func TestServe(t *testing.T) {
 }
 
 func TestClientClosesThenReconnects(t *testing.T) {
-	h := createAnonymousDummy(WithTransportURL("bolt://test.db"))
+	l := zap.NewNop()
+	u, _ := url.Parse("bolt://test.db")
+	bt, _ := NewTransport(u, l)
+	h := createAnonymousDummy(WithLogger(l), WithTransport(bt))
 	transport := h.transport.(*boltTransport)
 	defer os.Remove("test.db")
 	go h.Serve()
@@ -198,16 +198,16 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		resp, err := http.DefaultClient.Do(req)
 		require.Nil(t, err)
 
-		receivedBody := ""
-		buf := make([]byte, 1)
+		var receivedBody strings.Builder
+		buf := make([]byte, 1024)
 		for {
 			_, err := resp.Body.Read(buf)
 			if errors.Is(err, io.EOF) {
 				panic("EOF")
 			}
 
-			receivedBody += string(buf)
-			if strings.Contains(receivedBody, "data: "+expectedBodyData+"\n") {
+			receivedBody.Write(buf)
+			if strings.Contains(receivedBody.String(), "data: "+expectedBodyData+"\n") {
 				cancel()
 
 				break
@@ -275,8 +275,7 @@ func TestServeAcme(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "cert")
 	defer os.RemoveAll(dir)
 
-	h := createAnonymousDummy()
-	h.config.Set("acme_hosts", []string{"example.com"})
+	h := createAnonymousDummy(WithAllowedHosts([]string{"example.com"}))
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_cert_dir", dir)
@@ -371,7 +370,7 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T) testServer {
-	h := createAnonymousDummy(WithMetrics())
+	h := createAnonymousDummy(WithMetrics(nil))
 	h.config.Set("metrics_enabled", true)
 
 	go h.Serve()

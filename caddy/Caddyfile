@@ -1,0 +1,19 @@
+{
+    debug
+    experimental_http3
+}
+
+localhost:3000
+
+route {
+    mercure {
+        demo
+        anonymous
+        subscriptions
+        heartbeat 40s
+        publisher_jwt !ChangeMe!
+        subscriber_jwt !ChangeMe!
+        publish_origins http://localhost:3000 http://localhost:3001 http://localhost:5000 http://localhost:8000
+    }
+    respond 404
+}

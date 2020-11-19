@@ -11,9 +11,9 @@ import (
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
-	if h.publisherJWTConfig != nil {
+	if h.publisherJWT != nil {
 		var err error
-		claims, err = authorize(r, h.publisherJWTConfig, h.publishOrigins)
+		claims, err = authorize(r, h.publisherJWT, h.publishOrigins)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			h.logger.Info("Topic selectors not matched or not provided", zap.String("remote_addr", r.RemoteAddr), zap.Error(err))

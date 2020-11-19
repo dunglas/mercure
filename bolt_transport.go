@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits
 	RegisterTransportFactory("bolt", newBoltTransport)
 }
 

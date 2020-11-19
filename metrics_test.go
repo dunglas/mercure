@@ -10,7 +10,7 @@ import (
 )
 
 func TestNumberOfRunningSubscribers(t *testing.T) {
-	m := NewMetrics()
+	m, _ := newMetrics(nil)
 
 	sst := NewTopicSelectorStore()
 
@@ -36,7 +36,7 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 }
 
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
-	m := NewMetrics()
+	m, _ := newMetrics(nil)
 
 	sst := NewTopicSelectorStore()
 
@@ -60,7 +60,7 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 }
 
 func TestTotalOfHandledUpdates(t *testing.T) {
-	m := NewMetrics()
+	m, _ := newMetrics(nil)
 
 	m.NewUpdate(&Update{
 		Topics: []string{"topic1", "topic2"},

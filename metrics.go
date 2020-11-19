@@ -1,6 +1,9 @@
 package mercure
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/dunglas/mercure/common"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -8,16 +11,20 @@ import (
 )
 
 // Metrics store Hub collected metrics.
-// TODO(dunglas): check how to let Caddy collecting these metrics: https://caddyserver.com/docs/metrics
 type Metrics struct {
+	registry         prometheus.Registerer
 	subscribersTotal *prometheus.CounterVec
 	subscribers      *prometheus.GaugeVec
 	updatesTotal     *prometheus.CounterVec
 }
 
-// NewMetrics creates a Prometheus metrics collector.
-func NewMetrics() *Metrics {
-	return &Metrics{
+// newMetrics creates a Prometheus metrics collector.
+func newMetrics(registry prometheus.Registerer) (*Metrics, error) {
+	if registry == nil {
+		registry = prometheus.NewRegistry()
+	}
+	m := &Metrics{
+		registry: registry,
 		subscribersTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "mercure_subscribers_total",
@@ -40,26 +47,33 @@ func NewMetrics() *Metrics {
 			[]string{"topic"},
 		),
 	}
+
+	if err := m.registry.Register(m.subscribers); err != nil && errors.Is(err, prometheus.AlreadyRegisteredError{}) {
+		return nil, fmt.Errorf("unable to register collector: %w", err)
+	}
+	if err := m.registry.Register(m.subscribersTotal); err != nil && errors.Is(err, prometheus.AlreadyRegisteredError{}) {
+		return nil, fmt.Errorf("unable to register collector: %w", err)
+	}
+	if err := m.registry.Register(m.updatesTotal); err != nil && errors.Is(err, prometheus.AlreadyRegisteredError{}) {
+		return nil, fmt.Errorf("unable to register collector: %w", err)
+	}
+
+	return m, nil
 }
 
 // Register configures the Prometheus registry with all collected metrics.
+//
+// Deprecated: use the Caddy server module or the standalone library instead.
 func (m *Metrics) Register(r *mux.Router) {
-	registry := prometheus.NewRegistry()
-
 	// Metrics about current version
-	registry.MustRegister(common.AppVersion.NewMetricsCollector())
-
-	// Metrics about the Hub
-	registry.MustRegister(m.subscribers)
-	registry.MustRegister(m.subscribersTotal)
-	registry.MustRegister(m.updatesTotal)
+	m.registry.MustRegister(common.AppVersion.NewMetricsCollector())
 
 	// Go-specific metrics about the process (GC stats, goroutines, etc.).
-	registry.MustRegister(prometheus.NewGoCollector())
+	m.registry.MustRegister(prometheus.NewGoCollector())
 	// Go-unrelated process metrics (memory usage, file descriptors, etc.).
-	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	m.registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
-	r.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{})).Methods("GET")
+	r.Handle("/metrics", promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods("GET")
 }
 
 // NewSubscriber collects metrics about new subscriber events.

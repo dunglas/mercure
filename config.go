@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -128,7 +128,7 @@ func InitConfig(v *viper.Viper) {
 // NewHubFromViper creates a new Hub from the Viper config.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func NewHubFromViper(v *viper.Viper) *Hub { //nolint:funlen
+func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen
 	if err := ValidateConfig(v); err != nil {
 		log.Panic(err)
 	}
@@ -147,7 +147,21 @@ func NewHubFromViper(v *viper.Viper) *Hub { //nolint:funlen
 	}
 
 	if err != nil {
-		log.Panic(err)
+		return nil, fmt.Errorf("unable to create logger: %w", err)
+	}
+
+	if t := v.GetString("transport_url"); t != "" {
+		u, err := url.Parse(t)
+		if err != nil {
+			return nil, fmt.Errorf("invalid transport url: %w", err)
+		}
+
+		t, err := NewTransport(u, logger)
+		if err != nil {
+			return nil, err
+		}
+
+		options = append(options, WithTransport(t))
 	}
 
 	options = append(options, WithLogger(logger))
@@ -173,63 +187,47 @@ func NewHubFromViper(v *viper.Viper) *Hub { //nolint:funlen
 		k = v.GetString("jwt_key")
 	}
 	if k != "" {
-		options = append(options, WithPublisherJWTConfig([]byte(k), getSigningMethod(v, rolePublisher)))
+		options = append(options, WithPublisherJWT([]byte(k), v.GetString("publisher_jwt_algorithm")))
 	}
 	if k = v.GetString("subscriber_jwt_key"); k == "" {
 		k = v.GetString("jwt_key")
 	}
 	if k != "" {
-		options = append(options, WithSubscriberJWTConfig([]byte(k), getSigningMethod(v, roleSubscriber)))
+		options = append(options, WithSubscriberJWT([]byte(k), v.GetString("subscriber_jwt_algorithm")))
 	}
 	if v.GetBool("metrics_enabled") {
-		options = append(options, WithMetrics())
+		options = append(options, WithMetrics(nil))
 	}
-	if p := v.GetStringSlice("publish_allowed_origins"); len(p) > 0 {
-		options = append(options, WithPublishOrigins(p))
+	if h := v.GetStringSlice("acme_hosts"); len(h) > 0 {
+		options = append(options, WithAllowedHosts(h))
 	}
-	if t := v.GetString("transport_url"); t != "" {
-		options = append(options, WithTransportURL(t))
+	if o := v.GetStringSlice("publish_allowed_origins"); len(o) > 0 {
+		options = append(options, WithPublishOrigins(o))
+	}
+	if o := v.GetStringSlice("cors_allowed_origins"); len(o) > 0 {
+		options = append(options, WithCORSOrigins(o))
 	}
 
-	h := New(options...)
+	h, err := NewHub(options...)
+	if err != nil {
+		return nil, err
+	}
 	h.config = v
 
-	return h
-}
-
-func getSigningMethod(v *viper.Viper, r role) jwt.SigningMethod {
-	var alg string
-	switch r {
-	case rolePublisher:
-		alg = v.GetString("publisher_jwt_algorithm")
-	case roleSubscriber:
-		alg = v.GetString("subscriber_jwt_algorithm")
-	}
-
-	if alg == "" {
-		alg = v.GetString("jwt_algorithm")
-	}
-
-	if alg == "" {
-		return jwt.SigningMethodHS256
-	}
-
-	sm := jwt.GetSigningMethod(alg)
-	if sm == nil {
-		log.Panicf("invalid signing method: %s", alg)
-	}
-
-	return sm
+	return h, err
 }
 
 // Start is an helper method to start the Mercure Hub.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
 func Start() {
-	h := NewHubFromViper(viper.GetViper())
+	h, err := NewHubFromViper(viper.GetViper())
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	defer func() {
-		if err := h.Stop(); err != nil {
+		if err := h.transport.Close(); err != nil {
 			log.Fatalln(err)
 		}
 	}()

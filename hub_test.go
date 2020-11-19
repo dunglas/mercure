@@ -25,12 +25,12 @@ func TestNewHub(t *testing.T) {
 }
 
 func TestNewHubWithConfig(t *testing.T) {
-	h := New(
-		WithPublisherJWTConfig([]byte("foo"), jwt.SigningMethodHS256),
-		WithSubscriberJWTConfig([]byte("bar"), jwt.SigningMethodHS256),
+	h, err := NewHub(
+		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
+		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
 	)
 	require.NotNil(t, h)
-	h.Stop()
+	require.Nil(t, err)
 }
 
 func TestNewHubValidationError(t *testing.T) {
@@ -68,14 +68,14 @@ func TestStartCrash(t *testing.T) {
 func createDummy(options ...Option) *Hub {
 	options = append(
 		[]Option{
-			WithPublisherJWTConfig([]byte("publisher"), jwt.SigningMethodHS256),
-			WithSubscriberJWTConfig([]byte("subscriber"), jwt.SigningMethodHS256),
+			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
+			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 			WithLogger(zap.NewNop()),
 		},
 		options...,
 	)
 
-	h := New(options...)
+	h, _ := NewHub(options...)
 	h.config = viper.New()
 	h.config.Set("addr", testAddr)
 	h.config.Set("metrics_addr", testMetricsAddr)
@@ -99,7 +99,7 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 	switch r {
 	case rolePublisher:
 		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, StandardClaims: jwt.StandardClaims{}}
-		key = h.publisherJWTConfig.key
+		key = h.publisherJWT.key
 
 	case roleSubscriber:
 		var payload struct {
@@ -114,7 +114,7 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 			StandardClaims: jwt.StandardClaims{},
 		}
 
-		key = h.subscriberJWTConfig.key
+		key = h.subscriberJWT.key
 	}
 
 	tokenString, _ := token.SignedString(key)
