@@ -164,6 +164,14 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen
 		options = append(options, WithTransport(t))
 	}
 
+	if v.GetBool("metrics_enabled") {
+		m, err := NewMetrics(nil)
+		if err != nil {
+			return nil, err
+		}
+		options = append(options, WithMetrics(m))
+	}
+
 	options = append(options, WithLogger(logger))
 	if v.GetBool("allow_anonymous") {
 		options = append(options, WithAnonymous())
@@ -194,9 +202,6 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen
 	}
 	if k != "" {
 		options = append(options, WithSubscriberJWT([]byte(k), v.GetString("subscriber_jwt_algorithm")))
-	}
-	if v.GetBool("metrics_enabled") {
-		options = append(options, WithMetrics(nil))
 	}
 	if h := v.GetStringSlice("acme_hosts"); len(h) > 0 {
 		options = append(options, WithAllowedHosts(h))

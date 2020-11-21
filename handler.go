@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -80,7 +81,8 @@ func (h *Hub) Serve() {
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
 
-	if h.config.GetBool("metrics_enabled") {
+	log.Printf("%#v", h.metrics)
+	if h.metrics != nil {
 		addr := h.config.GetString("metrics_addr")
 
 		h.metricsServer = &http.Server{

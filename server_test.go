@@ -370,8 +370,9 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T) testServer {
-	h := createAnonymousDummy(WithMetrics(nil))
-	h.config.Set("metrics_enabled", true)
+	m, _ := NewMetrics(nil)
+	require.NotNil(t, m)
+	h := createAnonymousDummy(WithMetrics(m))
 
 	go h.Serve()
 

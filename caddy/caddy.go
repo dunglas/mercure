@@ -102,10 +102,15 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	}
 	m.transport = transport
 
+	metrics, err := mercure.NewMetrics(prometheus.DefaultRegisterer)
+	if err != nil {
+		return err //nolint:wrapcheck
+	}
+
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
 		mercure.WithTransport(m.transport),
-		mercure.WithMetrics(prometheus.DefaultRegisterer),
+		mercure.WithMetrics(metrics),
 		mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg),
 	}
 	if m.logger.Core().Enabled(zapcore.DebugLevel) {

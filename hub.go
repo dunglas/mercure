@@ -42,10 +42,9 @@ func WithDemo() Option {
 }
 
 // WithMetrics enables collection of Prometheus metrics.
-func WithMetrics(registry prometheus.Registerer) Option {
+func WithMetrics(m *Metrics) Option {
 	return func(o *opt) error {
-		o.metrics = true
-		o.metricsRegistry = registry
+		o.metrics = m
 
 		return nil
 	}
@@ -180,7 +179,6 @@ type opt struct {
 	debug           bool
 	demo            bool
 	subscriptions   bool
-	metrics         bool
 	logger          Logger
 	metricsRegistry prometheus.Registerer
 	writeTimeout    time.Duration
@@ -188,6 +186,7 @@ type opt struct {
 	heartbeat       time.Duration
 	publisherJWT    *jwtConfig
 	subscriberJWT   *jwtConfig
+	metrics         *Metrics
 	allowedHosts    []string
 	publishOrigins  []string
 	corsOrigins     []string
@@ -197,7 +196,6 @@ type opt struct {
 type Hub struct {
 	*opt
 	handler            http.Handler
-	metrics            *Metrics
 	topicSelectorStore *TopicSelectorStore
 
 	// Deprecated: use the Caddy server module or the standalone library instead.
@@ -244,13 +242,6 @@ func NewHub(options ...Option) (*Hub, error) {
 	h := &Hub{
 		opt:                opt,
 		topicSelectorStore: NewTopicSelectorStore(),
-	}
-	if opt.metrics {
-		m, err := newMetrics(opt.metricsRegistry)
-		if err != nil {
-			return nil, err
-		}
-		h.metrics = m
 	}
 	h.initHandler()
 

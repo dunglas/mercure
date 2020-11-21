@@ -18,8 +18,8 @@ type Metrics struct {
 	updatesTotal     *prometheus.CounterVec
 }
 
-// newMetrics creates a Prometheus metrics collector.
-func newMetrics(registry prometheus.Registerer) (*Metrics, error) {
+// NewMetrics creates a Prometheus metrics collector.
+func NewMetrics(registry prometheus.Registerer) (*Metrics, error) {
 	if registry == nil {
 		registry = prometheus.NewRegistry()
 	}
