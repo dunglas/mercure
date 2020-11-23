@@ -6,11 +6,11 @@ import (
 )
 
 func init() { //nolint:gochecknoinits
-	RegisterTransportFactory("local", newLocalTransport)
+	RegisterTransportFactory("local", NewLocalTransport)
 }
 
-// localTransport implements the TransportInterface without database and simply broadcast the live Updates.
-type localTransport struct {
+// LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
+type LocalTransport struct {
 	sync.RWMutex
 	subscribers map[*Subscriber]struct{}
 	lastEventID string
@@ -18,9 +18,9 @@ type localTransport struct {
 	closedOnce  sync.Once
 }
 
-// newLocalTransport create a new LocalTransport.
-func newLocalTransport(u *url.URL, l Logger) (Transport, error) {
-	return &localTransport{
+// NewLocalTransport create a new LocalTransport.
+func NewLocalTransport(u *url.URL, l Logger) (Transport, error) {
+	return &LocalTransport{
 		subscribers: make(map[*Subscriber]struct{}),
 		closed:      make(chan struct{}),
 		lastEventID: EarliestLastEventID,
@@ -28,7 +28,7 @@ func newLocalTransport(u *url.URL, l Logger) (Transport, error) {
 }
 
 // Dispatch dispatches an update to all subscribers.
-func (t *localTransport) Dispatch(update *Update) error {
+func (t *LocalTransport) Dispatch(update *Update) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -49,7 +49,7 @@ func (t *localTransport) Dispatch(update *Update) error {
 }
 
 // AddSubscriber adds a new subscriber to the transport.
-func (t *localTransport) AddSubscriber(s *Subscriber) error {
+func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 	t.Lock()
 	defer t.Unlock()
 
@@ -68,7 +68,7 @@ func (t *localTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // GetSubscribers get the list of active subscribers.
-func (t *localTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
+func (t *LocalTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
 	t.RLock()
 	defer t.RUnlock()
 	subscribers = make([]*Subscriber, len(t.subscribers))
@@ -83,7 +83,7 @@ func (t *localTransport) GetSubscribers() (lastEventID string, subscribers []*Su
 }
 
 // Close closes the Transport.
-func (t *localTransport) Close() (err error) {
+func (t *LocalTransport) Close() (err error) {
 	t.closedOnce.Do(func() {
 		t.Lock()
 		defer t.Unlock()

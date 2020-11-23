@@ -9,19 +9,20 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"time"
 
 	bolt "go.etcd.io/bbolt"
 	"go.uber.org/zap"
 )
 
 func init() { //nolint:gochecknoinits
-	RegisterTransportFactory("bolt", newBoltTransport)
+	RegisterTransportFactory("bolt", NewBoltTransport)
 }
 
 const defaultBoltBucketName = "updates"
 
-// boltTransport implements the TransportInterface using the Bolt database.
-type boltTransport struct {
+// BoltTransport implements the TransportInterface using the Bolt database.
+type BoltTransport struct {
 	sync.RWMutex
 	logger           Logger
 	db               *bolt.DB
@@ -35,8 +36,8 @@ type boltTransport struct {
 	lastEventID      string
 }
 
-// newBoltTransport create a new boltTransport.
-func newBoltTransport(u *url.URL, l Logger) (Transport, error) {
+// NewBoltTransport create a new boltTransport.
+func NewBoltTransport(u *url.URL, l Logger) (Transport, error) {
 	var err error
 	q := u.Query()
 	bucketName := defaultBoltBucketName
@@ -49,7 +50,7 @@ func newBoltTransport(u *url.URL, l Logger) (Transport, error) {
 	if sizeParameter != "" {
 		size, err = strconv.ParseUint(sizeParameter, 10, 64)
 		if err != nil {
-			return nil, &ErrInvalidTransportDSN{u.String(), fmt.Sprintf(`invalid "size" parameter %q`, sizeParameter), err}
+			return nil, &ErrTransport{u.String(), fmt.Sprintf(`invalid "size" parameter %q`, sizeParameter), err}
 		}
 	}
 
@@ -58,7 +59,7 @@ func newBoltTransport(u *url.URL, l Logger) (Transport, error) {
 	if cleanupFrequencyParameter != "" {
 		cleanupFrequency, err = strconv.ParseFloat(cleanupFrequencyParameter, 64)
 		if err != nil {
-			return nil, &ErrInvalidTransportDSN{u.String(), fmt.Sprintf(`invalid "cleanup_frequency" parameter %q`, cleanupFrequencyParameter), err}
+			return nil, &ErrTransport{u.String(), fmt.Sprintf(`invalid "cleanup_frequency" parameter %q`, cleanupFrequencyParameter), err}
 		}
 	}
 
@@ -67,15 +68,15 @@ func newBoltTransport(u *url.URL, l Logger) (Transport, error) {
 		path = u.Host // relative path (bolt://path.db)
 	}
 	if path == "" {
-		return nil, &ErrInvalidTransportDSN{u.String(), "missing path", err}
+		return nil, &ErrTransport{u.String(), "missing path", err}
 	}
 
-	db, err := bolt.Open(path, 0o600, nil)
+	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
-		return nil, &ErrInvalidTransportDSN{dsn: u.String(), err: err}
+		return nil, &ErrTransport{dsn: u.String(), err: err}
 	}
 
-	return &boltTransport{
+	return &BoltTransport{
 		logger:           l,
 		db:               db,
 		bucketName:       bucketName,
@@ -106,7 +107,7 @@ func getDBLastEventID(db *bolt.DB, bucketName string) string {
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
-func (t *boltTransport) Dispatch(update *Update) error {
+func (t *BoltTransport) Dispatch(update *Update) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -137,7 +138,7 @@ func (t *boltTransport) Dispatch(update *Update) error {
 }
 
 // persist stores update in the database.
-func (t *boltTransport) persist(updateID string, updateJSON []byte) error {
+func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 	return t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
 		if err != nil {
@@ -168,7 +169,7 @@ func (t *boltTransport) persist(updateID string, updateJSON []byte) error {
 }
 
 // AddSubscriber adds a new subscriber to the transport.
-func (t *boltTransport) AddSubscriber(s *Subscriber) error {
+func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -188,7 +189,7 @@ func (t *boltTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // GetSubscribers get the list of active subscribers.
-func (t *boltTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
+func (t *BoltTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
 	t.RLock()
 	defer t.RUnlock()
 	subscribers = make([]*Subscriber, len(t.subscribers))
@@ -202,7 +203,7 @@ func (t *boltTransport) GetSubscribers() (lastEventID string, subscribers []*Sub
 	return t.lastEventID, subscribers
 }
 
-func (t *boltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
+func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 	t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
@@ -245,7 +246,7 @@ func (t *boltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 }
 
 // Close closes the Transport.
-func (t *boltTransport) Close() (err error) {
+func (t *BoltTransport) Close() (err error) {
 	t.closedOnce.Do(func() {
 		close(t.closed)
 
@@ -267,7 +268,7 @@ func (t *boltTransport) Close() (err error) {
 }
 
 // cleanup removes entries in the history above the size limit, triggered probabilistically.
-func (t *boltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
+func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	if t.size == 0 ||
 		t.cleanupFrequency == 0 ||
 		t.size >= lastID ||

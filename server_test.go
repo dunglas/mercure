@@ -177,7 +177,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db")
 	bt, _ := NewTransport(u, l)
 	h := createAnonymousDummy(WithLogger(l), WithTransport(bt))
-	transport := h.transport.(*boltTransport)
+	transport := h.transport.(*BoltTransport)
 	defer os.Remove("test.db")
 	go h.Serve()
 
@@ -370,8 +370,7 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T) testServer {
-	m, _ := NewPrometheusMetrics(nil)
-	require.NotNil(t, m)
+	m := NewPrometheusMetrics(nil)
 	h := createAnonymousDummy(WithMetrics(m))
 
 	go h.Serve()

@@ -197,7 +197,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 
 	go func() {
 		for {
-			s := hub.transport.(*localTransport)
+			s := hub.transport.(*LocalTransport)
 			s.RLock()
 			ready := len(s.subscribers) == numberOfSubscribers
 			s.RUnlock()
@@ -259,7 +259,7 @@ func TestSubscribe(t *testing.T) {
 func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 
-	s, _ := hub.transport.(*localTransport)
+	s, _ := hub.transport.(*LocalTransport)
 	assert.Equal(t, 0, len(s.subscribers))
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -291,7 +291,7 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestSubscribePrivate(t *testing.T) {
 	hub := createDummy()
-	s, _ := hub.transport.(*localTransport)
+	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {
 		for {
@@ -416,7 +416,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 func TestSubscribeAll(t *testing.T) {
 	hub := createDummy()
-	s, _ := hub.transport.(*localTransport)
+	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {
 		for {
@@ -460,7 +460,7 @@ func TestSubscribeAll(t *testing.T) {
 func TestSendMissedEvents(t *testing.T) {
 	bt := createBoltTransport("bolt://test.db")
 	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
-	transport := hub.transport.(*boltTransport)
+	transport := hub.transport.(*BoltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -521,7 +521,7 @@ func TestSendMissedEvents(t *testing.T) {
 func TestSendAllEvents(t *testing.T) {
 	bt := createBoltTransport("bolt://test.db")
 	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
-	transport := hub.transport.(*boltTransport)
+	transport := hub.transport.(*BoltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -584,7 +584,7 @@ func TestSendAllEvents(t *testing.T) {
 func TestUnknownLastEventID(t *testing.T) {
 	bt := createBoltTransport("bolt://test.db")
 	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
-	transport := hub.transport.(*boltTransport)
+	transport := hub.transport.(*BoltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -660,7 +660,7 @@ func TestUnknownLastEventID(t *testing.T) {
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 	bt := createBoltTransport("bolt://test.db")
 	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
-	transport := hub.transport.(*boltTransport)
+	transport := hub.transport.(*BoltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")
 
@@ -727,7 +727,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 func TestSubscribeHeartbeat(t *testing.T) {
 	hub := createAnonymousDummy(WithHeartbeat(5 * time.Millisecond))
-	s, _ := hub.transport.(*localTransport)
+	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {
 		for {

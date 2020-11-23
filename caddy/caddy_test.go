@@ -25,7 +25,6 @@ func TestMercure(t *testing.T) {
 	
 	route {
 		mercure {
-			transport_url local://local
 			anonymous
 			publisher_jwt !ChangeMe!
 		}

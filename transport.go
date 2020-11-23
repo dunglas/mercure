@@ -30,7 +30,7 @@ func NewTransport(u *url.URL, l Logger) (Transport, error) {
 	transportFactoriesMu.RUnlock()
 
 	if !ok {
-		return nil, &ErrInvalidTransportDSN{dsn: u.String(), msg: "no such transport available"}
+		return nil, &ErrTransport{dsn: u.String(), msg: "no such transport available"}
 	}
 
 	return f(u, l)
@@ -57,29 +57,29 @@ type TransportSubscribers interface {
 // ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
 var ErrClosedTransport = errors.New("hub: read/write on closed Transport")
 
-// ErrInvalidTransportDSN is returned when the Transport's DSN is invalid.
-type ErrInvalidTransportDSN struct {
+// ErrTransport is returned when the Transport's DSN is invalid.
+type ErrTransport struct {
 	dsn string
 	msg string
 	err error
 }
 
-func (e *ErrInvalidTransportDSN) Error() string {
+func (e *ErrTransport) Error() string {
 	if e.msg == "" {
 		if e.err == nil {
-			return fmt.Sprintf("%q: invalid transport DSN", e.dsn)
+			return fmt.Sprintf("%q: invalid transport", e.dsn)
 		}
 
-		return fmt.Sprintf("%q: %s: invalid transport DSN", e.dsn, e.err)
+		return fmt.Sprintf("%q: invalid transport: %s", e.dsn, e.err)
 	}
 
 	if e.err == nil {
-		return fmt.Sprintf("%q: %s: invalid transport DSN", e.dsn, e.msg)
+		return fmt.Sprintf("%q: invalid transport: %s", e.dsn, e.msg)
 	}
 
-	return fmt.Sprintf("%q: %s: %s: invalid transport DSN", e.dsn, e.msg, e.err)
+	return fmt.Sprintf("%q: %s: invalid transport: %s", e.dsn, e.msg, e.err)
 }
 
-func (e *ErrInvalidTransportDSN) Unwrap() error {
+func (e *ErrTransport) Unwrap() error {
 	return e.err
 }

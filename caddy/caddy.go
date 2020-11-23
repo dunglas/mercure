@@ -22,6 +22,11 @@ import (
 
 const defaultHubURL = "/.well-known/mercure"
 
+var (
+	transports = caddy.NewUsagePool()                                       //nolint:gochecknoglobals
+	metrics    = mercure.NewPrometheusMetrics(prometheus.DefaultRegisterer) //nolint:gochecknoglobals
+)
+
 func init() { //nolint:gochecknoinits
 	caddy.RegisterModule(Mercure{})
 	httpcaddyfile.RegisterHandlerDirective("mercure", parseCaddyfile)
@@ -30,6 +35,14 @@ func init() { //nolint:gochecknoinits
 type JWTConfig struct {
 	Key string `json:"key,omitempty"`
 	Alg string `json:"alg,omitempty"`
+}
+
+type transportDestructor struct {
+	mercure.Transport
+}
+
+func (t *transportDestructor) Destruct() error {
+	return t.Close()
 }
 
 type Mercure struct {
@@ -66,9 +79,8 @@ type Mercure struct {
 	// Transport to use.
 	TransportURL string `json:"transport_url,omitempty"`
 
-	hub       *mercure.Hub
-	transport mercure.Transport
-	logger    *zap.Logger
+	hub    *mercure.Hub
+	logger *zap.Logger
 }
 
 // CaddyModule returns the Caddy module information.
@@ -90,26 +102,27 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 		m.TransportURL = "bolt://mercure.db"
 	}
 
-	u, err := url.Parse(m.TransportURL)
-	if err != nil {
-		return fmt.Errorf("invalid transport url: %w", err)
-	}
-
 	m.logger = ctx.Logger(m)
-	transport, err := mercure.NewTransport(u, m.logger)
-	if err != nil {
-		return err //nolint:wrapcheck
-	}
-	m.transport = transport
+	transport, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
+		u, err := url.Parse(m.TransportURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid transport url: %w", err)
+		}
 
-	metrics, err := mercure.NewPrometheusMetrics(prometheus.DefaultRegisterer)
+		transport, err := mercure.NewTransport(u, m.logger)
+		if err != nil {
+			return nil, err //nolint:wrapcheck
+		}
+
+		return &transportDestructor{transport}, nil
+	})
 	if err != nil {
 		return err //nolint:wrapcheck
 	}
 
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
-		mercure.WithTransport(m.transport),
+		mercure.WithTransport(transport.(mercure.Transport)),
 		mercure.WithMetrics(metrics),
 		mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg),
 	}
@@ -165,11 +178,9 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 }
 
 func (m *Mercure) Cleanup() error {
-	if m.transport == nil {
-		return nil
-	}
+	_, err := transports.Delete(m.TransportURL)
 
-	return m.transport.Close()
+	return err //nolint:wrapcheck
 }
 
 func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {

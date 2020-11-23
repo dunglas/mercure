@@ -14,7 +14,6 @@ route {
         publisher_jwt !ChangeMe!
         subscriber_jwt !ChangeMe!
         publish_origins http://localhost:3000 http://localhost:3001 http://localhost:5000 http://localhost:8000
-        transport_url local://local/foo
     }
     respond 404
 }

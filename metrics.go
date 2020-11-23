@@ -1,9 +1,6 @@
 package mercure
 
 import (
-	"fmt"
-	"sync"
-
 	"github.com/dunglas/mercure/common"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -26,11 +23,6 @@ func (NopMetrics) SubscriberConnected(s *Subscriber)    {}
 func (NopMetrics) SubscriberDisconnected(s *Subscriber) {}
 func (NopMetrics) UpdatePublished(s *Update)            {}
 
-var (
-	prometheusMetrics   map[prometheus.Registerer]*PrometheusMetrics = make(map[prometheus.Registerer]*PrometheusMetrics) //nolint:gochecknoglobals
-	prometheusMetricsMu sync.RWMutex                                                                                      //nolint:gochecknoglobals
-)
-
 // PrometheusMetrics store Hub collected metrics.
 type PrometheusMetrics struct {
 	registry         prometheus.Registerer
@@ -40,19 +32,12 @@ type PrometheusMetrics struct {
 }
 
 // NewPrometheusMetrics creates a Prometheus metrics collector.
-func NewPrometheusMetrics(registry prometheus.Registerer) (*PrometheusMetrics, error) {
-	prometheusMetricsMu.RLock()
-	m, ok := prometheusMetrics[registry]
-	prometheusMetricsMu.RUnlock()
-
-	if ok {
-		return m, nil
-	}
-
+// This method must be called only one time or it will panic.
+func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 	if registry == nil {
 		registry = prometheus.NewRegistry()
 	}
-	m = &PrometheusMetrics{
+	m := &PrometheusMetrics{
 		registry: registry,
 		subscribersTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -77,21 +62,11 @@ func NewPrometheusMetrics(registry prometheus.Registerer) (*PrometheusMetrics, e
 		),
 	}
 
-	if err := m.registry.Register(m.subscribers); err != nil {
-		return nil, fmt.Errorf("unable to register collector: %w", err)
-	}
-	if err := m.registry.Register(m.subscribersTotal); err != nil {
-		return nil, fmt.Errorf("unable to register collector: %w", err)
-	}
-	if err := m.registry.Register(m.updatesTotal); err != nil {
-		return nil, fmt.Errorf("unable to register collector: %w", err)
-	}
+	m.registry.MustRegister(m.subscribers)
+	m.registry.MustRegister(m.subscribersTotal)
+	m.registry.MustRegister(m.updatesTotal)
 
-	prometheusMetricsMu.Lock()
-	prometheusMetrics[registry] = m
-	prometheusMetricsMu.Unlock()
-
-	return m, nil
+	return m
 }
 
 // Register configures the Prometheus registry with all collected metrics.

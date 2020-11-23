@@ -15,11 +15,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func createBoltTransport(dsn string) *boltTransport {
+func createBoltTransport(dsn string) *BoltTransport {
 	u, _ := url.Parse(dsn)
-	transport, _ := newBoltTransport(u, zap.NewNop())
+	transport, _ := NewBoltTransport(u, zap.NewNop())
 
-	return transport.(*boltTransport)
+	return transport.(*BoltTransport)
 }
 
 func TestBoltTransportHistory(t *testing.T) {
@@ -149,28 +149,28 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 
 func TestNewBoltTransport(t *testing.T) {
 	u, _ := url.Parse("bolt://test.db?bucket_name=demo")
-	transport, err := newBoltTransport(u, zap.NewNop())
+	transport, err := NewBoltTransport(u, zap.NewNop())
 	assert.Nil(t, err)
 	require.NotNil(t, transport)
 	transport.Close()
 
 	u, _ = url.Parse("bolt://")
-	_, err = newBoltTransport(u, zap.NewNop())
-	assert.EqualError(t, err, `"bolt:": missing path: invalid transport DSN`)
+	_, err = NewBoltTransport(u, zap.NewNop())
+	assert.EqualError(t, err, `"bolt:": invalid transport: missing path`)
 
 	u, _ = url.Parse("bolt:///test.db")
-	_, err = newBoltTransport(u, zap.NewNop())
+	_, err = NewBoltTransport(u, zap.NewNop())
 
 	// The exact error message depends of the OS
 	assert.Contains(t, err.Error(), "open /test.db:")
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
-	_, err = newBoltTransport(u, zap.NewNop())
-	assert.EqualError(t, err, `"bolt://test.db?cleanup_frequency=invalid": invalid "cleanup_frequency" parameter "invalid": strconv.ParseFloat: parsing "invalid": invalid syntax: invalid transport DSN`)
+	_, err = NewBoltTransport(u, zap.NewNop())
+	assert.EqualError(t, err, `"bolt://test.db?cleanup_frequency=invalid": invalid "cleanup_frequency" parameter "invalid": invalid transport: strconv.ParseFloat: parsing "invalid": invalid syntax`)
 
 	u, _ = url.Parse("bolt://test.db?size=invalid")
-	_, err = newBoltTransport(u, zap.NewNop())
-	assert.EqualError(t, err, `"bolt://test.db?size=invalid": invalid "size" parameter "invalid": strconv.ParseUint: parsing "invalid": invalid syntax: invalid transport DSN`)
+	_, err = NewBoltTransport(u, zap.NewNop())
+	assert.EqualError(t, err, `"bolt://test.db?size=invalid": invalid "size" parameter "invalid": invalid transport: strconv.ParseUint: parsing "invalid": invalid syntax`)
 }
 
 func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {

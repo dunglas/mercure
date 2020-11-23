@@ -165,11 +165,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen
 	}
 
 	if v.GetBool("metrics_enabled") {
-		m, err := NewPrometheusMetrics(nil)
-		if err != nil {
-			return nil, err
-		}
-		options = append(options, WithMetrics(m))
+		options = append(options, WithMetrics(NewPrometheusMetrics(nil)))
 	}
 
 	options = append(options, WithLogger(logger))
