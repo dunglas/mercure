@@ -370,7 +370,7 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T) testServer {
-	m, _ := NewMetrics(nil)
+	m, _ := NewPrometheusMetrics(nil)
 	require.NotNil(t, m)
 	h := createAnonymousDummy(WithMetrics(m))
 

@@ -66,8 +66,5 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	io.WriteString(w, u.ID)
 	h.logger.Info("Update published", zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
-
-	if h.metrics != nil {
-		h.metrics.NewUpdate(u)
-	}
+	h.metrics.UpdatePublished(u)
 }

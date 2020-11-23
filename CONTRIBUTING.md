@@ -45,6 +45,15 @@ To run the test suite:
 
     $ go test -v -timeout 30s github.com/dunglas/mercure
 
+To test the Caddy module:
+
+    $ cd caddy
+    $ xcaddy run
+
+Or to build the module:
+
+    $ xcaddy build --with github.com/dunglas/mercure=../../ --with github.com/dunglas/mercure/caddy=../
+
 To test the legacy server, install Gin for Live Reloading:
 
     $ go get github.com/codegangsta/gin

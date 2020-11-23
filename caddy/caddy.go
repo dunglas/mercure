@@ -102,7 +102,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	}
 	m.transport = transport
 
-	metrics, err := mercure.NewMetrics(prometheus.DefaultRegisterer)
+	metrics, err := mercure.NewPrometheusMetrics(prometheus.DefaultRegisterer)
 	if err != nil {
 		return err //nolint:wrapcheck
 	}

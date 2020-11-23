@@ -1,8 +1,8 @@
 package mercure
 
 import (
-	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/dunglas/mercure/common"
 	"github.com/gorilla/mux"
@@ -10,20 +10,49 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Metrics store Hub collected metrics.
-type Metrics struct {
+type Metrics interface {
+	// SubscriberConnected collects metrics about about subscriber connections.
+	SubscriberConnected(s *Subscriber)
+	// SubscriberDisconnected collects metrics about subscriber disconnections.
+	SubscriberDisconnected(s *Subscriber)
+	// UpdatePublished collects metrics about update publications.
+	UpdatePublished(u *Update)
+}
+
+type NopMetrics struct {
+}
+
+func (NopMetrics) SubscriberConnected(s *Subscriber)    {}
+func (NopMetrics) SubscriberDisconnected(s *Subscriber) {}
+func (NopMetrics) UpdatePublished(s *Update)            {}
+
+var (
+	prometheusMetrics   map[prometheus.Registerer]*PrometheusMetrics = make(map[prometheus.Registerer]*PrometheusMetrics) //nolint:gochecknoglobals
+	prometheusMetricsMu sync.RWMutex                                                                                      //nolint:gochecknoglobals
+)
+
+// PrometheusMetrics store Hub collected metrics.
+type PrometheusMetrics struct {
 	registry         prometheus.Registerer
 	subscribersTotal *prometheus.CounterVec
 	subscribers      *prometheus.GaugeVec
 	updatesTotal     *prometheus.CounterVec
 }
 
-// NewMetrics creates a Prometheus metrics collector.
-func NewMetrics(registry prometheus.Registerer) (*Metrics, error) {
+// NewPrometheusMetrics creates a Prometheus metrics collector.
+func NewPrometheusMetrics(registry prometheus.Registerer) (*PrometheusMetrics, error) {
+	prometheusMetricsMu.RLock()
+	m, ok := prometheusMetrics[registry]
+	prometheusMetricsMu.RUnlock()
+
+	if ok {
+		return m, nil
+	}
+
 	if registry == nil {
 		registry = prometheus.NewRegistry()
 	}
-	m := &Metrics{
+	m = &PrometheusMetrics{
 		registry: registry,
 		subscribersTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -48,15 +77,19 @@ func NewMetrics(registry prometheus.Registerer) (*Metrics, error) {
 		),
 	}
 
-	if err := m.registry.Register(m.subscribers); err != nil && errors.Is(err, prometheus.AlreadyRegisteredError{}) {
+	if err := m.registry.Register(m.subscribers); err != nil {
 		return nil, fmt.Errorf("unable to register collector: %w", err)
 	}
-	if err := m.registry.Register(m.subscribersTotal); err != nil && errors.Is(err, prometheus.AlreadyRegisteredError{}) {
+	if err := m.registry.Register(m.subscribersTotal); err != nil {
 		return nil, fmt.Errorf("unable to register collector: %w", err)
 	}
-	if err := m.registry.Register(m.updatesTotal); err != nil && errors.Is(err, prometheus.AlreadyRegisteredError{}) {
+	if err := m.registry.Register(m.updatesTotal); err != nil {
 		return nil, fmt.Errorf("unable to register collector: %w", err)
 	}
+
+	prometheusMetricsMu.Lock()
+	prometheusMetrics[registry] = m
+	prometheusMetricsMu.Unlock()
 
 	return m, nil
 }
@@ -64,7 +97,7 @@ func NewMetrics(registry prometheus.Registerer) (*Metrics, error) {
 // Register configures the Prometheus registry with all collected metrics.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (m *Metrics) Register(r *mux.Router) {
+func (m *PrometheusMetrics) Register(r *mux.Router) {
 	// Metrics about current version
 	m.registry.MustRegister(common.AppVersion.NewMetricsCollector())
 
@@ -76,23 +109,20 @@ func (m *Metrics) Register(r *mux.Router) {
 	r.Handle("/metrics", promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods("GET")
 }
 
-// NewSubscriber collects metrics about new subscriber events.
-func (m *Metrics) NewSubscriber(s *Subscriber) {
+func (m *PrometheusMetrics) SubscriberConnected(s *Subscriber) {
 	for _, t := range s.Topics {
 		m.subscribersTotal.WithLabelValues(t).Inc()
 		m.subscribers.WithLabelValues(t).Inc()
 	}
 }
 
-// SubscriberDisconnect collects metrics about subscriber disconnection events.
-func (m *Metrics) SubscriberDisconnect(s *Subscriber) {
+func (m *PrometheusMetrics) SubscriberDisconnected(s *Subscriber) {
 	for _, t := range s.Topics {
 		m.subscribers.WithLabelValues(t).Dec()
 	}
 }
 
-// NewUpdate collects metrics on new update event.
-func (m *Metrics) NewUpdate(u *Update) {
+func (m *PrometheusMetrics) UpdatePublished(u *Update) {
 	for _, t := range u.Topics {
 		m.updatesTotal.WithLabelValues(t).Inc()
 	}

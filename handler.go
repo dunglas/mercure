@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -81,8 +80,7 @@ func (h *Hub) Serve() {
 		WriteTimeout: h.config.GetDuration("write_timeout"),
 	}
 
-	log.Printf("%#v", h.metrics)
-	if h.metrics != nil {
+	if _, ok := h.metrics.(*PrometheusMetrics); ok {
 		addr := h.config.GetString("metrics_addr")
 
 		h.metricsServer = &http.Server{
@@ -265,7 +263,7 @@ func (h *Hub) metricsHandler() http.Handler {
 	router := mux.NewRouter()
 
 	registerHealthz(router)
-	h.metrics.Register(router.PathPrefix("/").Subrouter())
+	h.metrics.(*PrometheusMetrics).Register(router.PathPrefix("/").Subrouter())
 
 	return router
 }

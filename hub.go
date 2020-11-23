@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
@@ -42,7 +41,7 @@ func WithDemo() Option {
 }
 
 // WithMetrics enables collection of Prometheus metrics.
-func WithMetrics(m *Metrics) Option {
+func WithMetrics(m Metrics) Option {
 	return func(o *opt) error {
 		o.metrics = m
 
@@ -180,13 +179,12 @@ type opt struct {
 	demo            bool
 	subscriptions   bool
 	logger          Logger
-	metricsRegistry prometheus.Registerer
 	writeTimeout    time.Duration
 	dispatchTimeout time.Duration
 	heartbeat       time.Duration
 	publisherJWT    *jwtConfig
 	subscriberJWT   *jwtConfig
-	metrics         *Metrics
+	metrics         Metrics
 	allowedHosts    []string
 	publishOrigins  []string
 	corsOrigins     []string
@@ -237,6 +235,10 @@ func NewHub(options ...Option) (*Hub, error) {
 	if opt.transport == nil {
 		t, _ := newLocalTransport(nil, nil)
 		opt.transport = t
+	}
+
+	if opt.metrics == nil {
+		opt.metrics = NopMetrics{}
 	}
 
 	h := &Hub{

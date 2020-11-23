@@ -165,7 +165,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen
 	}
 
 	if v.GetBool("metrics_enabled") {
-		m, err := NewMetrics(nil)
+		m, err := NewPrometheusMetrics(nil)
 		if err != nil {
 			return nil, err
 		}

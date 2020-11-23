@@ -112,9 +112,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	sendHeaders(w, s)
 
 	h.logger.Info("New subscriber", zap.Object("subscriber", s))
-	if h.metrics != nil {
-		h.metrics.NewSubscriber(s)
-	}
+	h.metrics.SubscriberConnected(s)
 
 	return s
 }
@@ -189,9 +187,7 @@ func (h *Hub) shutdown(s *Subscriber) {
 	s.Disconnect()
 	h.dispatchSubscriptionUpdate(s, false)
 	h.logger.Info("Subscriber disconnected", zap.Object("subscriber", s))
-	if h.metrics != nil {
-		h.metrics.SubscriberDisconnect(s)
-	}
+	h.metrics.SubscriberDisconnected(s)
 }
 
 func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {

@@ -10,68 +10,68 @@ import (
 )
 
 func TestNumberOfRunningSubscribers(t *testing.T) {
-	m, _ := NewMetrics(nil)
+	m, _ := NewPrometheusMetrics(nil)
 
 	sst := NewTopicSelectorStore()
 
 	s1 := NewSubscriber("", zap.NewNop(), sst)
 	s1.Topics = []string{"topic1", "topic2"}
-	m.NewSubscriber(s1)
+	m.SubscriberConnected(s1)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
 
 	s2 := NewSubscriber("", zap.NewNop(), sst)
 	s2.Topics = []string{"topic2"}
-	m.NewSubscriber(s2)
+	m.SubscriberConnected(s2)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 2.0, m.subscribers, "topic2")
 
-	m.SubscriberDisconnect(s1)
+	m.SubscriberDisconnected(s1)
 	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
 
-	m.SubscriberDisconnect(s2)
+	m.SubscriberDisconnected(s2)
 	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic2")
 }
 
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
-	m, _ := NewMetrics(nil)
+	m, _ := NewPrometheusMetrics(nil)
 
 	sst := NewTopicSelectorStore()
 
 	s1 := NewSubscriber("", zap.NewNop(), sst)
 	s1.Topics = []string{"topic1", "topic2"}
-	m.NewSubscriber(s1)
+	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic2")
 
 	s2 := NewSubscriber("", zap.NewNop(), sst)
 	s2.Topics = []string{"topic2"}
-	m.NewSubscriber(s2)
+	m.SubscriberConnected(s2)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 2.0, m.subscribersTotal, "topic2")
 
-	m.SubscriberDisconnect(s1)
-	m.SubscriberDisconnect(s2)
+	m.SubscriberDisconnected(s1)
+	m.SubscriberDisconnected(s2)
 
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 2.0, m.subscribersTotal, "topic2")
 }
 
 func TestTotalOfHandledUpdates(t *testing.T) {
-	m, _ := NewMetrics(nil)
+	m, _ := NewPrometheusMetrics(nil)
 
-	m.NewUpdate(&Update{
+	m.UpdatePublished(&Update{
 		Topics: []string{"topic1", "topic2"},
 	})
-	m.NewUpdate(&Update{
+	m.UpdatePublished(&Update{
 		Topics: []string{"topic2", "topic3"},
 	})
-	m.NewUpdate(&Update{
+	m.UpdatePublished(&Update{
 		Topics: []string{"topic2"},
 	})
-	m.NewUpdate(&Update{
+	m.UpdatePublished(&Update{
 		Topics: []string{"topic3"},
 	})
 
