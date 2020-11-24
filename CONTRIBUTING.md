@@ -36,28 +36,38 @@ Examples:
 
 ## Hub
 
-Clone the project:
+Clone the project and make your changes:
 
     $ git clone https://github.com/dunglas/mercure
-    
-Install Gin for Live Reloading:
+    $ cd mercure
+
+To run the test suite:
+
+    $ go test -v -timeout 30s github.com/dunglas/mercure
+
+To test the Caddy module:
+
+    $ cd caddy
+    $ xcaddy run
+
+Or to build the module:
+
+    $ xcaddy build --with github.com/dunglas/mercure=../../ --with github.com/dunglas/mercure/caddy=../
+
+To test the legacy server, install Gin for Live Reloading:
 
     $ go get github.com/codegangsta/gin
 
 Install the dependencies:
 
-    $ cd mercure
+    $ cd cmd/mercure
     $ go get
 
 Run the server:
 
-    $ gin run main.go
+    $ gin
 
 Go to `http://localhost:3000` and enjoy!
-
-To run the test suite:
-
-    $ go test -v -timeout 30s github.com/dunglas/mercure/hub
 
 When you send a PR, just make sure that:
 

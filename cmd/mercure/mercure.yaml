@@ -1,0 +1,13 @@
+addr: :3001
+debug: true
+allow_anonymous: true
+#cert_file: fixtures/tls/server.crt
+#key_file: fixtures/tls/server.key
+cors_allowed_origins: [http://localhost:3000, http://localhost:3001, http://localhost:5000, http://localhost:8000]
+transport_url: bolt://update.db
+jwt_key: '!ChangeMe!'
+publish_allowed_origins: [http://localhost:3000, http://localhost:3001, http://localhost:5000, http://localhost:8000]
+subscriptions: true
+
+metrics_enabled: false
+metrics_addr: 127.0.0.1:3002
