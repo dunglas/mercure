@@ -25,7 +25,7 @@ Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ens
 How to process for Mercure to work in Mac OS Catalina:
 
 * In the Finder on your Mac, locate the app that you want to open
-* Control-click on the app icon, then choose "Ope"n from the shortcut menu
+* Control-click on the app icon, then choose "Open" from the shortcut menu
 * Click "Open"
 
 Then you will have a warning, ignore it and close the Terminal.
