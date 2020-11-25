@@ -25,7 +25,7 @@ import scala.util.Properties
 
 class LoadTest extends Simulation {
   /** The hub URL */
-  val HubUrl = Properties.envOrElse("HUB_URL", "http://localhost:3001/.well-known/mercure")
+  val HubUrl = Properties.envOrElse("HUB_URL", "https://localhost/.well-known/mercure")
   /** JWT to use to publish */
   val Jwt = Properties.envOrElse("JWT", "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.z5YrkHwtkz3O_nOnhC_FP7_bmeISe3eykAkGbAl5K7c")
   /** JWT to use to subscribe */

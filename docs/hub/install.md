@@ -23,7 +23,7 @@ On Windows, start PowerShell, go into the extracted directory and run:
 The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
 Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
 
-The server is now available on `http://localhost`, with the demo mode enabled. Because the `allow_anonymous` directive is set in the provided configuration, anonymous subscribers are allowed.
+The server is now available on `https://localhost`, with the demo mode enabled. Because the `allow_anonymous` directive is set in the provided configuration, anonymous subscribers are allowed.
 
 To run the server in production, see [how to configure the Mercure.rocks hub](config.md).
 
@@ -50,9 +50,9 @@ It's also possible to build your own binaries containing other [Caddy modules](h
 
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
-    docker run -p 80:80 dunglas/mercure
+    docker run -p 80:80 -p 443:443 dunglas/mercure
 
-The server, in demo mode, is available on `http://localhost`. Anonymous subscribers are allowed.
+The server, in demo mode, is available on `https://localhost`. Anonymous subscribers are allowed.
 
 The Docker image is based on the Caddy server Docker image.
 See [the configuration section](config.md) and [the documentation of the Docker image for Caddy](https://registry.hub.docker.com/_/caddy) to learn how to use it in production.

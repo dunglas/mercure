@@ -50,7 +50,7 @@ To test the Caddy module:
     $ cd caddy/mercure
     $ go run main.go
 
-Go to `http://localhost` and enjoy!
+Go to `https://localhost` and enjoy!
 
 To test the legacy server:
 
