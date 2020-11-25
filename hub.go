@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/form3tech-oss/jwt-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
