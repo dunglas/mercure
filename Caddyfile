@@ -1,6 +1,4 @@
-# See https://mercure.rocks/docs/hub/config
-# to learn how to configure the Mercure.rocks Hun
-
+# Learn how to configure the Mercure.rocks Hub on https://mercure.rocks/docs/hub/config
 {
     # Debug mode (disable it in production!)
     debug

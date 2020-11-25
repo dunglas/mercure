@@ -34,6 +34,6 @@ Open a new Terminal in the Mercure folder.
 
 Then just start the server:
 
-    ./mercure
+    ./mercure run
 
 It will work. 🎊
