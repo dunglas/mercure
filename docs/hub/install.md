@@ -25,7 +25,7 @@ Allow it for both public and private networks. If you use an antivirus, or anoth
 
 The server is now available on `http://localhost`, with the demo mode enabled. Because the `allow_anonymous` directive is set in the provided configuration, anonymous subscribers are allowed.
 
-To run the server in production, see [how to configure the Mercure.rocks hub](hub/config.md).
+To run the server in production, see [how to configure the Mercure.rocks hub](config.md).
 
 When the server is up and running, the following endpoints are available:
 

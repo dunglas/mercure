@@ -1,3 +1,6 @@
+# See https://mercure.rocks/docs/hub/config
+# to learn how to configure the Mercure.rocks Hun
+
 {
     # Debug mode (disable it in production!)
     debug
