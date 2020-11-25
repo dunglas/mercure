@@ -1,11 +1,11 @@
 *.db
 *.pyc
 __pycache__
-vendor
-buildenv*
+dist
 /caddy/caddy
+/caddy/mercure/mercure
+/cmd/mercure/mercure
 /certs
-/dist
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml

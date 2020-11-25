@@ -1,7 +1,6 @@
 before:
   hooks:
-  # Create a Caddy skeleton containing the module
-  - make prepare
+  - go mod download
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -18,8 +17,7 @@ env:
   - CGO_ENABLED=0
 builds:
 - id: caddy
-  dir: caddy/buildenv
-  binary: mercure
+  dir: caddy/mercure
   goos:
     - linux
     - darwin

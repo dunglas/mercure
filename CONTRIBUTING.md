@@ -47,25 +47,15 @@ To run the test suite:
 
 To test the Caddy module:
 
-    $ cd caddy
-    $ xcaddy run
+    $ cd caddy/mercure
+    $ go run main.go
 
-Or to build the module:
+Go to `http://localhost` and enjoy!
 
-    $ xcaddy build --with github.com/dunglas/mercure=../../ --with github.com/dunglas/mercure/caddy=../
-
-To test the legacy server, install Gin for Live Reloading:
-
-    $ go get github.com/codegangsta/gin
-
-Install the dependencies:
+To test the legacy server:
 
     $ cd cmd/mercure
-    $ go get
-
-Run the server:
-
-    $ gin
+    $ go go run main.go
 
 Go to `http://localhost:3000` and enjoy!
 
