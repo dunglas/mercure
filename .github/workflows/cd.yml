@@ -19,6 +19,8 @@ jobs:
         with:
           go-version: '1.15'
       - name: Install xcaddy
+        env:
+          GO111MODULE: "off"
         run: go get -u github.com/caddyserver/xcaddy/cmd/xcaddy
       - name: Docker Hub Login
         run: docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
