@@ -1,5 +1,19 @@
 # Upgrade
 
+## 0.11
+
+The Mercure.rocks Hub is now available as a module for the [Caddy web server](https://caddyserver.com/).
+It is also easier to use as [a standalone Go library](https://pkg.go.dev/github.com/dunglas/mercure).
+We still provide standalone binaries, but it's now a custom build of Caddy including the Mercure module.
+
+Builds of the legacy server are also available to ease the transition, but starting with version 0.12 only the Caddy-based builds will be provided (they have the `legacy` prefix).
+
+Relying on Caddy allows to use the Mercure.rocks Hub as a [reverse proxy](https://caddyserver.com/docs/quick-starts/reverse-proxy) for your website or API that also adds the Mercure well-known URL (`/.well-known/mercure`). Thanks to this new feature, the well-known URL can be on the same domain as your website or API, so you don't need to deal with [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS).
+
+All features provided by Caddy are also supported by this custom build: [HTTP/3 and h2c support](https://caddyserver.com/docs/json/apps/http/servers/#experimental_http3), [compression](https://caddyserver.com/docs/caddyfile/directives/encode), [Prometheus metrics](https://caddyserver.com/docs/metrics) (with additional Mercure-specific metrics), profiler (`/debug/pprof/`)...
+
+Before switching to the Caddy build, be sure to [migrate your configuration](config.md).
+
 ## 0.10
 
 This version is in sync with the latest version of the specification, which changed a lot. Upgrading to 0.10 **requires to change your code**. Carefully read this guide before upgrading the hub.

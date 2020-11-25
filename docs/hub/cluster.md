@@ -9,7 +9,7 @@ These versions are designed for fault tolerance and can support very high loads.
 Both versions work by providing extra transports supporting synchronization of several nodes.
 They support all features of the free Hub.
 
-If you don't want to purchase a managed or an On Premise version of the Mercure.rocks Hub, you can also create your custom build of Mercure.rocks [using a custom transport](https://github.com/dunglas/mercure/blob/master/hub/transport.go#L13-L22).
+If you don't want to purchase a managed or an On Premise version of the Mercure.rocks Hub, you can also create your custom build of Mercure.rocks [using a custom transport](https://github.com/dunglas/mercure/blob/main/hub/transport.go#L13-L22).
 
 ## Managed Version
 

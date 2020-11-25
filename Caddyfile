@@ -1,3 +1,4 @@
+# Learn how to configure the Mercure.rocks Hub on https://mercure.rocks/docs/hub/config
 {
     # Debug mode (disable it in production!)
     debug
@@ -20,6 +21,8 @@ route {
         publisher_jwt !ChangeMe!
         # Subscriber JWT key
         subscriber_jwt !ChangeMe!
+        # CORS
+        cors_origins *
         # Allow anonymous subscribers (double-check that it's what you want)
         anonymous
         # Enable the subscription API (double-check that it's what you want)
