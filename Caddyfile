@@ -20,6 +20,8 @@ route {
         publisher_jwt !ChangeMe!
         # Subscriber JWT key
         subscriber_jwt !ChangeMe!
+        # CORS
+        cors_origins *
         # Allow anonymous subscribers (double-check that it's what you want)
         anonymous
         # Enable the subscription API (double-check that it's what you want)

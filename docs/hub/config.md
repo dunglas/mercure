@@ -1,6 +1,78 @@
 # Configuration
 
-The Mercure.rocks Hub is configurable using [environment variables](https://en.wikipedia.org/wiki/Environment_variable) (recommended in production, [twelve-factor app methodology](https://12factor.net/)), command line flags and configuration files (JSON, TOML, YAML, HCL, envfile and Java properties files are supported).
+The Mercure.rocks hub is a custom build of the [Caddy web server](https://caddyserver.com/) including the Mercure.rocks module.
+
+Read [Caddy web server's getting started guide](https://caddyserver.com/docs/getting-started) to learn the basics.
+
+While all supported way to configure Caddy are also supported by the Mercure.rocks Hub, the easiest one is [to use a `Caddyfile`](https://caddyserver.com/docs/quick-starts/caddyfile).
+A default `Caddyfile` is provided in [the archive containing the Mercure.rocks Hub](install.md).
+
+A minimal `Caddyfile` for the Mercure hub looks like this:
+
+```Caddyfile
+# The address of your server
+localhost
+
+route {
+    mercure {
+        # Publisher JWT key
+        publisher_jwt !ChangeMe!
+        # Subscriber JWT key
+        subscriber_jwt !ChangeMe!
+    }
+
+    respond "Not Found" 404
+}
+```
+
+Caddy will automatically generate a Let's Encrypt TLS certificate automatically for you! So you can use HTTPS.
+
+The following Mercure-specific directives are available:
+
+| Parameter                            | Description                                                                                                                                                                                                                                    | Default             |
+|--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
+| `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers                                                                                                                                                                                                |                     |
+| `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers                                                                                                                                                                                               |                     |
+| `anonymous`                          | allow subscribers with no valid JWT to connect                                                                                                                                                                                                 | `false`             |
+| `publish_origins <origins...>`       | a list of origins allowed publishing (only applicable when using cookie-based auth)                                                                                                                                                            |                     |
+| `cors_origins <origin...>`           | a list of allowed CORS origins, can be `*` for all                                                                                                                                                                                             |                     |
+| `subscriptions`                      | expose the subscription web API and dispatch private updates when a subscription between the Hub and a subscriber is established or closed. The topic follows the template `/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}` |                     |
+| `heartbeat`                          | interval between heartbeats (useful with some proxies, and old browsers), set to `0s` disable                                                                                                                                                  | `40s`               |
+| `transport_url <url>`                | URL representation of the transport to use. Use `local://local` to disabled history, (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`), see also [the cluster mode](cluster.md)                                            | `bolt://mercure.db` |
+| `dispatch_timeout <duration>`        | maximum duration of the dispatch of a single update, set to `0s` disable                                                                                                                                                                       | `5s`                |
+| `write_timeout <duration>`           | maximum duration before closing the connection, set to `0s` disable                                                                                                                                                                            | `600s`              |
+| `demo`                               | enabled the demo mode and the UI                                                                                                                                                                                                               |                     |
+
+See also [the list of built-in Caddyfile directives](https://caddyserver.com/docs/caddyfile/directives).
+
+## JWT verification
+
+When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm as second parameter of the `publisher_jwt` or `subscriber_jwt` directives (for example `RS512`).
+
+## Bolt Adapter
+
+The [Data Source Name (DSN)](https://en.wikipedia.org/wiki/Data_source_name) specifies the path to the [bolt](https://github.com/etcd-io/bbolt) database as well as options
+
+| Parameter           | Description
+|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket_name`       | name of the bolt bucket to store events. default to `updates`                                                                                                                    |
+| `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`. |
+| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                                |
+
+Below are common examples of valid DSNs showing a combination of available values:
+
+    # absolute path to `updates.db`
+    transport_url bolt:///var/run/database.db
+
+    # path to `updates.db` in the current directory
+    transport_url bolt://database.db
+
+    # custom options
+    transport_url bolt://database.db?bucket_name=demo&size=1000&cleanup_frequency=0.5
+
+## Legacy Server
+
+The legacy Mercure.rocks Hub is configurable using [environment variables](https://en.wikipedia.org/wiki/Environment_variable) (recommended in production, [twelve-factor app methodology](https://12factor.net/)), command line flags and configuration files (JSON, TOML, YAML, HCL, envfile and Java properties files are supported).
 
 Environment variables must be the name of the configuration parameter in uppercase.
 Run `./mercure -h` to see all available command line flags.
@@ -47,49 +119,3 @@ When using environment variables, list must be space separated. As flags paramet
 
 If `acme_hosts` or both `cert_file` and `key_file` are provided, an HTTPS server supporting HTTP/2 connection will be started.
 If not, an HTTP server will be started (**not secure**).
-
-## JWT verification
-
-When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm via `jwt_algorithm` (for example `RS512`).
-
-```
------BEGIN PUBLIC KEY-----
-MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHVwuJsFmzsFnOkGj+OgAp4lTNqR
-CF0RZSmjY+ECWOJ3sSEzQ8qtkJe61uSjr/PKmqvBxxex0YtUL7waSS4jvq3ws8Bm
-WIxK2GqoAVjLjK8HzThSPQpgv2AjiEXD6iAERHeySLGjYAUgfMrVJ01J5fNSL+O+
-bCd7nPuNAyYHCOOHAgMBAAE=
------END PUBLIC KEY-----
-```
-
-Unix
-
-```
-JWT_KEY=`cat jwt_key.pub` ./mercure
-```
-
-PowerShell
-
-```
-$env:JWT_KEY = [IO.File]::ReadAllText(".\jwt_key.pub")
-```
-
-## Bolt Adapter
-
-The [Data Source Name (DSN)](https://en.wikipedia.org/wiki/Data_source_name) specifies the path to the [bolt](https://github.com/etcd-io/bbolt) database as well as options
-
-| Parameter           | Description
-|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket_name`       | name of the bolt bucket to store events. default to `updates`                                                                                                                    |
-| `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`. |
-| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                                |
-
-Below are common examples of valid DSNs showing a combination of available values:
-
-    # absolute path to `updates.db`
-    transport_url="bolt:///var/run/database.db"
-
-    # path to `updates.db` in the current directory
-    transport_url="bolt://database.db"
-
-    # custom options
-    transport_url="bolt://database.db?bucket_name=demo&size=1000&cleanup_frequency=0.5"
