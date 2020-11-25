@@ -12,7 +12,7 @@ require (
 	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.2 // indirect
 	github.com/dlclark/regexp2 v1.4.0 // indirect
-	github.com/dunglas/mercure v0.10.5-0.20201125135044-f24ebaef0b26
+	github.com/dunglas/mercure v0.11.0-beta.1
 	github.com/golang/snappy v0.0.2 // indirect
 	github.com/google/cel-go v0.6.0 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
