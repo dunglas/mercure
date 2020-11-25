@@ -18,6 +18,8 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.15'
+      - name: Install xcaddy
+        run: go get -u github.com/caddyserver/xcaddy/cmd/xcaddy
       - name: Docker Hub Login
         run: docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
         env:
@@ -29,6 +31,5 @@ jobs:
         with:
           version: latest
           args: release --rm-dist
-          workdir: cmd/mercure
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

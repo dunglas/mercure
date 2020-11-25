@@ -2,12 +2,10 @@
 *.pyc
 __pycache__
 vendor
+buildenv*
 /caddy/caddy
 /certs
-/cmd/mercure/dist
-/cmd/mercure/public
-/cmd/mercure/gin-bin
-/cmd/mercure/mercure
+/dist
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml

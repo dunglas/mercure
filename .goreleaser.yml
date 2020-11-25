@@ -1,0 +1,108 @@
+before:
+  hooks:
+  # Create a Caddy skeleton containing the module
+  - make prepare
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+release:
+  prerelease: auto
+env:
+  - CGO_ENABLED=0
+builds:
+- id: caddy
+  dir: caddy/buildenv
+  binary: mercure
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    # 32 bits architectures aren't supported by dgraph-io/badger yet:
+    # https://github.com/dgraph-io/badger/issues/1385
+    #- 386
+    - amd64
+    #- arm
+    - arm64
+  goarm:
+    - 5
+    - 6
+    - 7
+# Legacy build
+- id: legacy
+  dir: cmd/mercure
+  ldflags:
+    - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .ShortCommit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    - 386
+    - amd64
+    - arm
+    - arm64
+archives:
+- builds:
+  - caddy
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    386: i386
+    amd64: x86_64
+  files:
+  - COPYRIGHT
+  - LICENSE
+  - README.md
+  - public/*
+  format_overrides:
+  - goos: windows
+    format: zip
+- id: legacy
+  builds:
+  - legacy
+  name_template: "{{ .ProjectName }}-legacy_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    386: i386
+    amd64: x86_64
+  files:
+  - COPYRIGHT
+  - LICENSE
+  - README.md
+  - public/*
+  format_overrides:
+  - goos: windows
+    format: zip
+dockers:
+- builds:
+  - caddy
+  dockerfile: Dockerfile # See https://github.com/goreleaser/goreleaser/issues/1916
+  image_templates:
+  - 'dunglas/mercure:{{ .Tag }}'
+  - 'dunglas/mercure:v{{ .Major }}'
+  - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}'
+  - 'dunglas/mercure:latest'
+  extra_files:
+  - public/
+  - Caddyfile
+- builds:
+  - legacy
+  dockerfile: Dockerfile.legacy
+  image_templates:
+  - 'dunglas/mercure:legacy-{{ .Tag }}'
+  - 'dunglas/mercure:legacy-v{{ .Major }}'
+  - 'dunglas/mercure:legacy-v{{ .Major }}.{{ .Minor }}'
+  - 'dunglas/mercure:legacy-latest'
+  extra_files:
+  - public/
