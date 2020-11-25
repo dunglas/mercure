@@ -18,7 +18,7 @@ Deploy on Heroku:
 
 Environment variables:
     JWT_KEY: the JWT key to use (must be shared with the Mercure hub)
-    HUB_URL: the URL of the Mercure hub (default: http://localhost:3000/.well-known/mercure)
+    HUB_URL: the URL of the Mercure hub (default: https://localhost/.well-known/mercure)
     COOKIE_DOMAIN: the cookie domain (default: None)
 """
 
@@ -29,7 +29,7 @@ import json
 from uritemplate import expand
 
 HUB_URL = os.environ.get(
-    'HUB_URL', 'http://localhost:3000/.well-known/mercure')
+    'HUB_URL', 'https://localhost/.well-known/mercure')
 JWT_KEY = os.environ.get('JWT_KEY', '!ChangeMe!')
 MESSAGE_URI_TEMPLATE = os.environ.get(
     'MESSAGE_URI_TEMPLATE', 'https://chat.example.com/messages/{id}')

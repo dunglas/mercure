@@ -9,7 +9,7 @@ token = jwt.encode(
 )
 
 updates = SSEClient(
-    os.environ.get('HUB_URL', 'http://localhost:3000/.well-known/mercure'),
+    os.environ.get('HUB_URL', 'https://localhost/.well-known/mercure'),
     params={'topic': ['*']},
     headers={'Authorization': b'Bearer '+token},
 )

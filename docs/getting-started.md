@@ -5,7 +5,7 @@
 ## Starting the Hub
 
 The easiest way to get started is to [install the official Mercure.rocks
-Hub](hub/install.md). When it's done, go directly to the next step. There are also other unofficial [libraries implementing Mercure](ecosystem/awesome.md#hubs-and-server-libraries). In the rest of this tutorial, we'll assume that the hub is running on `http://localhost:3000` and that the `JWT_KEY` is `!ChangeMe!`.
+Hub](hub/install.md). When it's done, go directly to the next step. There are also other unofficial [libraries implementing Mercure](ecosystem/awesome.md#hubs-and-server-libraries). In the rest of this tutorial, we'll assume that the hub is running on `https://localhost` and that the `JWT_KEY` is `!ChangeMe!`.
 
 Please note that the hub is entirely optional when using the Mercure protocol. Your app can also implement the Mercure protocol directly.
 
@@ -16,10 +16,10 @@ Subscribing to updates from a web browser or any other platform supporting [Serv
 ```javascript
 // The subscriber subscribes to updates for the https://example.com/users/dunglas topic
 // and to any topic matching https://example.com/books/{id}
-const url = new URL('http://localhost:3000/.well-known/mercure');
+const url = new URL('https://localhost/.well-known/mercure');
 url.searchParams.append('topic', 'https://example.com/books/{id}');
 url.searchParams.append('topic', 'https://example.com/users/dunglas');
-// The URL class is a convenient way to generate URLs such as http://localhost:3000/.well-known/mercure?topic=https://example.com/books/{id}&topic=https://example.com/users/dunglas
+// The URL class is a convenient way to generate URLs such as https://localhost/.well-known/mercure?topic=https://example.com/books/{id}&topic=https://example.com/users/dunglas
 
 const eventSource = new EventSource(url);
 
@@ -52,7 +52,7 @@ Also optionally, the hub URL can be automatically discovered:
 Here is a snippet to extract the URL of the hub from the `Link` HTTP header.
 
 ```javascript
-fetch('https://example.com/books/1') // Has this header `Link: <http://localhost:3000/.well-known/mercure>; rel="mercure"`
+fetch('https://example.com/books/1') // Has this header `Link: <https://localhost/.well-known/mercure>; rel="mercure"`
     .then(response => {
         // Extract the hub URL from the Link header
         const hubUrl = response.headers.get('Link').match(/<([^>]+)>;\s+rel=(?:mercure|"[^"]*mercure[^"]*")/)[1];
@@ -73,7 +73,7 @@ topic=https://example.com/books/1&data={"foo": "updated value"}
 
 Example using [curl](https://curl.haxx.se/):
 
-    curl -d 'topic=https://example.com/books/1' -d 'data={"foo": "updated value"}' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.z5YrkHwtkz3O_nOnhC_FP7_bmeISe3eykAkGbAl5K7c' -X POST http://localhost:3000/.well-known/mercure
+    curl -d 'topic=https://example.com/books/1' -d 'data={"foo": "updated value"}' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.z5YrkHwtkz3O_nOnhC_FP7_bmeISe3eykAkGbAl5K7c' -X POST https://localhost/.well-known/mercure
 
 Example using [Node.js](https://nodejs.org/) / [Serverless](https://serverless.com/):
 

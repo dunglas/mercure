@@ -7,7 +7,7 @@ Net::HTTP.start('localhost', 3000) do |http|
   req = Net::HTTP::Post.new('/.well-known/mercure')
   req['Authorization'] = "Bearer #{token}"
   req.form_data = {
-    topic: 'http://localhost:3000/demo/books/1.jsonld',
+    topic: 'https://localhost/demo/books/1.jsonld',
     data: { key: :value }.to_json
   }
   req = http.request(req)
