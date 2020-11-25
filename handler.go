@@ -27,9 +27,9 @@ func (h *Hub) initHandler() {
 	router.SkipClean(true)
 
 	csp := "default-src 'self'"
-	if h.debug || h.demo {
+	if h.uiPath != "" {
 		router.PathPrefix(defaultDemoURL).HandlerFunc(Demo).Methods("GET", "HEAD")
-		router.PathPrefix(defaultUIURL).Handler(http.StripPrefix(defaultUIURL, http.FileServer(http.Dir("public"))))
+		router.PathPrefix(defaultUIURL).Handler(http.StripPrefix(defaultUIURL, http.FileServer(http.Dir(h.uiPath))))
 
 		csp += " mercure.rocks cdn.jsdelivr.net"
 	}
@@ -175,9 +175,9 @@ func (h *Hub) chainHandlers() http.Handler {
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
 
 	csp := "default-src 'self'"
-	if h.debug || h.demo {
+	if h.uiPath != "" {
 		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
-		r.PathPrefix("/").Handler(http.FileServer(http.Dir("public")))
+		r.PathPrefix("/").Handler(http.FileServer(http.Dir(h.uiPath)))
 		csp += " mercure.rocks cdn.jsdelivr.net"
 	} else {
 		r.HandleFunc("/", welcomeHandler).Methods("GET", "HEAD")

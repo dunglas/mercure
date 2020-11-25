@@ -6,7 +6,7 @@
     experimental_http3
 }
 
-:80
+localhost
 
 log
 

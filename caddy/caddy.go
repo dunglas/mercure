@@ -50,7 +50,7 @@ type Mercure struct {
 	Anonymous bool `json:"anonymous,omitempty"`
 
 	// Enable the demo.
-	Demo bool `json:"demo,omitempty"`
+	Demo string `json:"demo,omitempty"`
 
 	// Dispatch updates when subscriptions are created or terminated
 	Subscriptions bool `json:"subscriptions,omitempty"`
@@ -145,8 +145,8 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	if m.Anonymous {
 		opts = append(opts, mercure.WithAnonymous())
 	}
-	if m.Demo {
-		opts = append(opts, mercure.WithDemo())
+	if m.Demo != "" {
+		opts = append(opts, mercure.WithDemo(m.Demo))
 	}
 	if m.Subscriptions {
 		opts = append(opts, mercure.WithSubscriptions())
@@ -202,7 +202,11 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				m.Anonymous = true
 
 			case "demo":
-				m.Demo = true
+				if d.NextArg() {
+					m.Demo = d.Val()
+				} else {
+					m.Demo = "public/"
+				}
 
 			case "subscriptions":
 				m.Subscriptions = true

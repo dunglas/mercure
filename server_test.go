@@ -59,7 +59,7 @@ func TestForwardedHeaders(t *testing.T) {
 }
 
 func TestSecurityOptions(t *testing.T) {
-	h := createAnonymousDummy(WithSubscriptions(), WithDemo(), WithCORSOrigins([]string{"*"}))
+	h := createAnonymousDummy(WithSubscriptions(), WithDemo(""), WithCORSOrigins([]string{"*"}))
 	h.config.Set("cert_file", "fixtures/tls/server.crt")
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
