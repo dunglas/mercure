@@ -85,7 +85,9 @@ archives:
   - goos: windows
     format: zip
 dockers:
-- builds:
+- binaries:
+  - mercure
+  builds:
   - caddy
   dockerfile: Dockerfile # See https://github.com/goreleaser/goreleaser/issues/1916
   image_templates:
@@ -96,7 +98,9 @@ dockers:
   extra_files:
   - public/
   - Caddyfile
-- builds:
+- binaries:
+  - mercure
+  builds:
   - legacy
   dockerfile: Dockerfile.legacy
   image_templates:
