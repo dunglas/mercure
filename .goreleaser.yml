@@ -11,6 +11,7 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+    - '^Merge'
 release:
   prerelease: auto
 env:
