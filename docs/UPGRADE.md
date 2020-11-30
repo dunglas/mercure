@@ -12,7 +12,7 @@ Relying on Caddy allows to use the Mercure.rocks Hub as a [reverse proxy](https:
 
 All features provided by Caddy are also supported by this custom build: [HTTP/3 and h2c support](https://caddyserver.com/docs/json/apps/http/servers/#experimental_http3), [compression](https://caddyserver.com/docs/caddyfile/directives/encode), [Prometheus metrics](https://caddyserver.com/docs/metrics) (with additional Mercure-specific metrics), profiler (`/debug/pprof/`)...
 
-Before switching to the Caddy build, be sure to [migrate your configuration](config.md).
+Before switching to the Caddy build, be sure to [migrate your configuration](hub/config.md).
 
 ## 0.10
 
