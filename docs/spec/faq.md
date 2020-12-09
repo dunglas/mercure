@@ -50,3 +50,13 @@ Updates for the given subscription can then be sent from the GraphQL server to t
 To unsubscribe, the client just calls `EventSource.close()`.
 
 Also, Mercure can easily be integrated with Apollo GraphQL by creating [a dedicated transport](https://github.com/apollographql/graphql-subscriptions).
+
+## How to send authorization to Mercure?
+
+Cookies are automatically sent by the browsers when opening an `EventSource` connection if the `withCredentials` attribute is set to `true`:
+
+```javascript
+const eventSource = new EventSource(hub, {
+    withCredentials: true
+});
+```
