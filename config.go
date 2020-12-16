@@ -128,7 +128,7 @@ func InitConfig(v *viper.Viper) {
 // NewHubFromViper creates a new Hub from the Viper config.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen
+func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	if err := ValidateConfig(v); err != nil {
 		log.Panic(err)
 	}
@@ -191,13 +191,27 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen
 		k = v.GetString("jwt_key")
 	}
 	if k != "" {
-		options = append(options, WithPublisherJWT([]byte(k), v.GetString("publisher_jwt_algorithm")))
+		alg := v.GetString("publisher_jwt_algorithm")
+		if alg == "" {
+			if alg = v.GetString("jwt_algorithm"); alg == "" {
+				alg = "HS256"
+			}
+		}
+
+		options = append(options, WithPublisherJWT([]byte(k), alg))
 	}
 	if k = v.GetString("subscriber_jwt_key"); k == "" {
 		k = v.GetString("jwt_key")
 	}
 	if k != "" {
-		options = append(options, WithSubscriberJWT([]byte(k), v.GetString("subscriber_jwt_algorithm")))
+		alg := v.GetString("subscriber_jwt_algorithm")
+		if alg == "" {
+			if alg = v.GetString("jwt_algorithm"); alg == "" {
+				alg = "HS256"
+			}
+		}
+
+		options = append(options, WithSubscriberJWT([]byte(k), alg))
 	}
 	if h := v.GetStringSlice("acme_hosts"); len(h) > 0 {
 		options = append(options, WithAllowedHosts(h))
