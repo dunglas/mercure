@@ -1,7 +1,7 @@
 # Learn how to configure the Mercure.rocks Hub on https://mercure.rocks/docs/hub/config
 {
     # Debug mode (disable it in production!)
-    {$DEBUG}
+    {$DEBUG:debug}
     # HTTP/3 support
     experimental_http3
 }
@@ -11,6 +11,7 @@
 log
 
 route {
+    redir / /.well-known/mercure/ui/
     encode zstd gzip
 
     mercure {
@@ -20,6 +21,11 @@ route {
         publisher_jwt {$MERCURE_PUBLISHER_JWT_KEY:!ChangeMe!} {$MERCURE_PUBLISHER_JWT_ALG:HS256}
         # Subscriber JWT key
         subscriber_jwt {$MERCURE_SUBSCRIBER_JWT_KEY:!ChangeMe!} {$MERCURE_SUBSCRIBER_JWT_ALG:HS256}
+        # Permissive configuration for the development environment
+        cors_origins *
+        demo
+        anonymous
+        subscriptions
         # Extra directives
         {$MERCURE_EXTRA_DIRECTIVES}
     }
