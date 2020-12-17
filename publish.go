@@ -16,7 +16,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		claims, err = authorize(r, h.publisherJWT, h.publishOrigins)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			h.logger.Info("Topic selectors not matched or not provided", zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
+			h.logger.Info("Topic selectors not matched, not provided or authorization error", zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
 
 			return
 		}

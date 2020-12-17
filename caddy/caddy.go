@@ -92,6 +92,13 @@ func (Mercure) CaddyModule() caddy.ModuleInfo {
 }
 
 func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
+	repl := caddy.NewReplacer()
+
+	m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
+	m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
+	m.SubscriberJWT.Key = repl.ReplaceKnown(m.SubscriberJWT.Key, "")
+	m.SubscriberJWT.Alg = repl.ReplaceKnown(m.SubscriberJWT.Alg, "HS256")
+
 	if m.PublisherJWT.Key == "" {
 		return errors.New("a JWT key for publishers must be provided") //nolint:goerr113
 	}

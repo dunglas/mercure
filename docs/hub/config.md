@@ -33,10 +33,10 @@ The following Mercure-specific directives are available:
 
 | Directive                            | Description                                                                                                                                                                                                                                    | Default             |
 |--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
-| `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers                                                                                                                                                                                                |                     |
-| `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers                                                                                                                                                                                               |                     |
+| `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                                                                                                                |                     |
+| `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                                                                                                                |                     |
 | `anonymous`                          | allow subscribers with no valid JWT to connect                                                                                                                                                                                                 | `false`             |
-| `publish_origins <origins...>`       | a list of origins allowed publishing (only applicable when using cookie-based auth)                                                                                                                                                            |                     |
+| `publish_origins <origins...>`       | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                                            |                     |
 | `cors_origins <origin...>`           | a list of allowed CORS origins, can be `*` for all                                                                                                                                                                                             |                     |
 | `subscriptions`                      | expose the subscription web API and dispatch private updates when a subscription between the Hub and a subscriber is established or closed. The topic follows the template `/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}` |                     |
 | `heartbeat`                          | interval between heartbeats (useful with some proxies, and old browsers), set to `0s` disable                                                                                                                                                  | `40s`               |
@@ -62,9 +62,27 @@ The provided `Caddyfile` and the Docker image provide convenient environment var
 | `MERCURE_SUBSCRIBER_JWT_ALG` | the JWT algorithm to use for subscribers                 | `HS256`             |
 | `MERCURE_EXTRA_DIRECTIVES`   | a list of extra Mercure directives to pass, one per line |                     |
 
-## JWT verification
+## JWT Verification
 
-When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm as second parameter of the `publisher_jwt` or `subscriber_jwt` directives (for example `RS512`).
+When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm as second parameter of the `publisher_jwt` or `subscriber_jwt` directives (for example `RS256`).
+
+Here is an example of how to use environments variables with a RSA public key.
+
+Generate keys (if you don't already have them):
+
+    ssh-keygen -t rsa -b 4096 -m PEM -f publisher.key
+    openssl rsa -in publisher.key -pubout -outform PEM -out publisher.key.pub
+    
+    ssh-keygen -t rsa -b 4096 -m PEM -f subscriber.key
+    openssl rsa -in subscriber.key -pubout -outform PEM -out subscriber.key.pub
+
+Start the hub:
+
+    MERCURE_PUBLISHER_JWT_KEY=$(cat publisher.key.pub) \
+    MERCURE_PUBLISHER_JWT_ALG=RS256 \
+    MERCURE_SUBSCRIBER_JWT_KEY=$(cat subscriber.key.pub) \
+    MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
+    ./mercure run
 
 ## Bolt Adapter
 
