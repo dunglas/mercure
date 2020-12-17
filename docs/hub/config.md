@@ -25,11 +25,13 @@ route {
 }
 ```
 
-Caddy will automatically generate a Let's Encrypt TLS certificate automatically for you! So you can use HTTPS.
+Caddy will automatically generate a Let's Encrypt TLS certificate automatically for you! So you can use HTTPS. 
+
+## Directives
 
 The following Mercure-specific directives are available:
 
-| Parameter                            | Description                                                                                                                                                                                                                                    | Default             |
+| Directive                            | Description                                                                                                                                                                                                                                    | Default             |
 |--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
 | `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers                                                                                                                                                                                                |                     |
 | `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers                                                                                                                                                                                               |                     |
@@ -44,6 +46,21 @@ The following Mercure-specific directives are available:
 | `demo [<assets-path>]`               | enabled the demo mode and the UI                                                                                                                                                                                                               |                     |
 
 See also [the list of built-in Caddyfile directives](https://caddyserver.com/docs/caddyfile/directives).
+
+## Environment Variables
+
+The provided `Caddyfile` and the Docker image provide convenient environment variables:
+
+| Environment variable         | Description                                              | Default value       |
+|------------------------------|----------------------------------------------------------|---------------------|
+| `DEBUG=debug`                | enable the debug mode                                    |                     |
+| `SERVER_NAME`                | the server name or address                               | `localhost`         |
+| `MERCURE_TRANSPORT_URL`      | the value passed to the `transport_url` directive        | `bolt://mercure.db` |
+| `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                        | `!ChangeMe!`        |
+| `MERCURE_PUBLISHER_JWT_ALG`  | the JWT algorithm to use for publishers                  | `HS256`             |
+| `MERCURE_SUBSCRIBER_JWT_KEY` | the JWT key to use for subscribers                       | `!ChangeMe!`        |
+| `MERCURE_SUBSCRIBER_JWT_ALG` | the JWT algorithm to use for subscribers                 | `HS256`             |
+| `MERCURE_EXTRA_DIRECTIVES`   | a list of extra Mercure directives to pass, one per line |                     |
 
 ## JWT verification
 

@@ -14,11 +14,11 @@ Note: Mac OS users must use the `Darwin` binary.
 
 Then, on Linux and Mac OS X, run:
 
-    ./mercure run
+    ./mercure run -config Caddyfile.dev
 
 On Windows, start PowerShell, go into the extracted directory and run:
 
-    .\mercure.exe run
+    .\mercure.exe run -config Caddyfile.dev
 
 The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
 Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
@@ -50,12 +50,16 @@ It's also possible to build your own binaries containing other [Caddy modules](h
 
 A Docker image is available on Docker Hub. The following command is enough to get a working server in demo mode:
 
-    docker run -p 80:80 -p 443:443 dunglas/mercure
+    docker run -p 80:80 -p 443:443 dunglas/mercure caddy run -config /etc/caddy/Caddyfile.dev
 
 The server, in demo mode, is available on `https://localhost`. Anonymous subscribers are allowed.
 
+In production, simply run:
+
+    docker run -p 80:80 -p 443:443 dunglas/mercure
+
 The Docker image is based on the Caddy server Docker image.
-See [the configuration section](config.md) and [the documentation of the Docker image for Caddy](https://registry.hub.docker.com/_/caddy) to learn how to use it in production.
+See [the configuration section](config.md) and [the documentation of the Docker image for Caddy](https://registry.hub.docker.com/_/caddy) to learn how to configure it to fit your needs.
 
 ## Arch Linux
 

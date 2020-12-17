@@ -97,6 +97,7 @@ dockers:
   extra_files:
   - public/
   - Caddyfile
+  - Caddyfile.dev
 - binaries:
   - mercure
   builds:
