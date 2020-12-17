@@ -50,7 +50,7 @@ var (
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or a "mercureAuthorization" cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
-func authorize(r *http.Request, jwtConfig *jwtConfig, publishAllowedOrigins []string) (*claims, error) {
+func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string) (*claims, error) {
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
@@ -87,8 +87,8 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishAllowedOrigins []st
 		origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 	}
 
-	for _, allowedOrigin := range publishAllowedOrigins {
-		if origin == allowedOrigin {
+	for _, allowedOrigin := range publishOrigins {
+		if allowedOrigin == "*" || origin == allowedOrigin {
 			return validateJWT(cookie.Value, jwtConfig)
 		}
 	}

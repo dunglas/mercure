@@ -3,7 +3,11 @@
     # Debug mode (disable it in production!)
     {$DEBUG}
     # HTTP/3 support
-    experimental_http3
+    servers {
+        protocol {
+            experimental_http3
+        }
+    }
 }
 
 {$SERVER_NAME:localhost}
@@ -15,11 +19,11 @@ route {
 
     mercure {
         # Transport to use (default to Bolt)
-        {$MERCURE_TRANSPORT_URL:bolt://mercure.db}
+        transport_url {$MERCURE_TRANSPORT_URL:bolt://mercure.db}
         # Publisher JWT key
-        publisher_jwt {$MERCURE_PUBLISHER_JWT_KEY:!ChangeMe!} {$MERCURE_PUBLISHER_JWT_ALG:HS256}
+        publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
         # Subscriber JWT key
-        subscriber_jwt {$MERCURE_SUBSCRIBER_JWT_KEY:!ChangeMe!} {$MERCURE_SUBSCRIBER_JWT_ALG:HS256}
+        subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
         # Extra directives
         {$MERCURE_EXTRA_DIRECTIVES}
     }

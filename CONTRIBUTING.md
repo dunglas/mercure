@@ -48,7 +48,7 @@ To run the test suite:
 To test the Caddy module:
 
     $ cd caddy/mercure
-    $ go run main.go
+    $ go run main.go run -config ../../Caddyfile.dev
 
 Go to `https://localhost` and enjoy!
 

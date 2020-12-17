@@ -355,6 +355,15 @@ func TestAuthorizeCookieOriginHasPriorityRsa(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestAuthorizeAllOriginsAllowed(t *testing.T) {
+	r, _ := http.NewRequest("POST", defaultHubURL, nil) //nolint:noctx
+	r.Header.Add("Origin", "http://example.com")
+	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+
+	_, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{"*"})
+	assert.Nil(t, err)
+}
+
 func TestCanReceive(t *testing.T) {
 	s := NewTopicSelectorStore()
 	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"foo", "bar"}, true))
