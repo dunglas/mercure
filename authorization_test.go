@@ -16,7 +16,7 @@ const (
 const (
 	validEmptyHeaderRsa          = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.YbkSeO9GIBYedph1uSQz0Y6zp1NwDEB8O7ek3cc3Vw4Fjh6DwrJAwmXoNSqT6FhHDv14QG70qPIuyzsR0Q9nHFo7hGEqE8E85F8z3Pj5eBjHKBMJFno7jww514Vyp35c490ZHD6_d3F9PmxWrPkKezc1mcwlCegwiMJIS2CeR7k"
 	validFullHeaderRsa           = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.B-ZBdmCbtDaP27wB_DvF9xIetQm88M2Q1d-LP2DZoEHrz6lYDuHkgXzSDnFdbLCZ653e0r_VOaKxe2Pc6R4F0ok2vksC6P5gHhqIUcQuTSlzNFyTrg4tyy4mMkcm1h85te9gkV4LR6TABfZpFPqqIS4t7fpCMxvtAkyf_RR5Fq4"
-	validFullHeaderRsaForCert	 = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxIbzlPMmNNUzBqbzRsQWwtRk11ayJ9.eyJpc3MiOiJodHRwczovL21lcmN1cmUtdGVzdC5ldS5hdXRoMC5jb20vIiwic3ViIjoiYXV0aDB8NWZkYzNlODhlM2IwNGIwMDc2YTU0MTNjIiwiYXVkIjpbImh0dHBzOi8vbWVyY3VyZS5yb2Nrcy9hcGkiLCJodHRwczovL21lcmN1cmUtdGVzdC5ldS5hdXRoMC5jb20vdXNlcmluZm8iXSwiaWF0IjoxNjA4MjY5NTQ2LCJleHAiOjE2MDgzNTU5NDYsImF6cCI6IjMwMWh6bUJBMnZ5ZzdnSlZiSEVMUlRDell0dUJrVU52Iiwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCJ9.H91bDXw43DPo5fQQG45Qj29LCzA1kX6XUkypq9jnHOnwPiuvX58ZJLE6gJ-_FIZvfSIhPvPoTxCJCKVBHwOPo_XM5JaWq8w4B19OXc4NpFXxtL5Of2Kj38zbrz9npfi6CeJZtlU5wI2_MsQXwiWJAX4EgRVrFTQ1HJ-W0EJhvUf4DE2OnE-IuV_iXudB1b6jwwBa6wZWnCvnLAJ-5-pHgubEGqAuYYEo_76Y1kcHRCPi_3Lr1EfjUobuS823eiNQxlTv7iVIzQtSSdi1S350iah3mveatYM7hHDm5HWup5Ql3H0UsYNSqsrdr1WcJkTqXSarVe0b4zhDU0uPUHJdHw"
+	validFullHeaderRsaForCert	 = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxIbzlPMmNNUzBqbzRsQWwtRk11ayJ9.eyJodHRwczovL21lcmN1cmUucm9ja3MvIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX0sImlzcyI6Imh0dHBzOi8vbWVyY3VyZS10ZXN0LmV1LmF1dGgwLmNvbS8iLCJzdWIiOiJhdXRoMHw1ZmRjM2U4OGUzYjA0YjAwNzZhNTQxM2MiLCJhdWQiOlsiaHR0cHM6Ly9tZXJjdXJlLnJvY2tzL2FwaSIsImh0dHBzOi8vbWVyY3VyZS10ZXN0LmV1LmF1dGgwLmNvbS91c2VyaW5mbyJdLCJpYXQiOjE2MDgyNzAxMTQsImV4cCI6MTYwODM1NjUxNCwiYXpwIjoiMzAxaHptQkEydnlnN2dKVmJIRUxSVEN6WXR1QmtVTnYiLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIn0.WhMkaOvIckY7PFCYs5SvIcl8OK32z7AhCCPGx0G3yF4L0nOTssXV9gAPEpEOrLbCOG3ALDxOGB4VagGnwBIYuztBsuZyPRoIwUkBZOgrIUJYS96jYTb9osPUYZ7BxNlVefFse93JmeSFTZRi6oH5lbqCEW6FUVKNlHWBBl39UK9Fg36EFtOHIJ7wZ_NX51TPvN-roCp27qIhY3atDcHYWXTKS7VjznKDKxl5G7AmyA1L7eE3vpnGiECFcLwxr9BJGVQmnPnwUKf-tY3pSBY0gFE562y15vXk3D2il43uAP4uK2sw8rcup_CmWnT3wmAdIODkwdn8zKM3GC3Y-9WEvQ"
 	validFullHeaderNamespacedRsa = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwczovL21lcmN1cmUucm9ja3MvIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.SmTVZkxlNbzHlaF4MfA3Fp5d1W2COmHlYPgc6SodAJOQtHh1Uxz0jkhA611w0OSwCaA8C5gqUd-GgekgHVPCBkIzV0qPmmhhJpTtotkeCX3N7oBOJOi58xXouNCNt0vnUH6xACqiZJq_FhNG9ZqP5saa4xNd1E-F1E9Vo1mFji4"
 )
 
@@ -136,7 +136,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKeyRsa(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validEmptyHeaderRsa)
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{})
-	assert.EqualError(t, err, "unable to parse JWT: public key error")
+	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: Invalid Key: Key must be a PEM encoded PKCS1 or PKCS8 key")
 	assert.Nil(t, claims)
 }
 
@@ -232,7 +232,7 @@ func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{})
-	assert.EqualError(t, err, "unable to parse JWT: public key error")
+	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: Invalid Key: Key must be a PEM encoded PKCS1 or PKCS8 key")
 	assert.Nil(t, claims)
 }
 
@@ -241,7 +241,7 @@ func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(privateKeyRsa), jwt.SigningMethodRS256}, []string{})
-	assert.EqualError(t, err, "unable to parse JWT: unable to parse PKIX public key: asn1: structure error: tags don't match (16 vs {class:0 tag:2 length:1 isCompound:false}) {optional:false explicit:false application:false private:false defaultValue:<nil> tag:<nil> stringType:0 timeType:0 set:false omitEmpty:false} AlgorithmIdentifier @2")
+	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: asn1: structure error: tags don't match (16 vs {class:0 tag:2 length:1 isCompound:false}) {optional:false explicit:false application:false private:false defaultValue:<nil> tag:<nil> stringType:0 timeType:0 set:false omitEmpty:false} tbsCertificate @2")
 	assert.Nil(t, claims)
 }
 
