@@ -1,9 +1,6 @@
 package mercure
 
 import (
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -103,18 +100,10 @@ func validateJWT(encodedToken string, jwtConfig *jwtConfig) (*claims, error) {
 		case *jwt.SigningMethodHMAC:
 			return jwtConfig.key, nil
 		case *jwt.SigningMethodRSA:
-			block, _ := pem.Decode(jwtConfig.key)
-
-			if block == nil {
-				return nil, ErrPublicKey
-			}
-
-			pubInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
+			pub, err := jwt.ParseRSAPublicKeyFromPEM(jwtConfig.key)
 			if err != nil {
-				return nil, fmt.Errorf("unable to parse PKIX public key: %w", err)
+				return nil, fmt.Errorf("unable to parse RSA public key: %w", err)
 			}
-
-			pub := pubInterface.(*rsa.PublicKey)
 
 			return pub, nil
 		}

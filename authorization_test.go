@@ -16,6 +16,7 @@ const (
 const (
 	validEmptyHeaderRsa          = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.e30.YbkSeO9GIBYedph1uSQz0Y6zp1NwDEB8O7ek3cc3Vw4Fjh6DwrJAwmXoNSqT6FhHDv14QG70qPIuyzsR0Q9nHFo7hGEqE8E85F8z3Pj5eBjHKBMJFno7jww514Vyp35c490ZHD6_d3F9PmxWrPkKezc1mcwlCegwiMJIS2CeR7k"
 	validFullHeaderRsa           = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.B-ZBdmCbtDaP27wB_DvF9xIetQm88M2Q1d-LP2DZoEHrz6lYDuHkgXzSDnFdbLCZ653e0r_VOaKxe2Pc6R4F0ok2vksC6P5gHhqIUcQuTSlzNFyTrg4tyy4mMkcm1h85te9gkV4LR6TABfZpFPqqIS4t7fpCMxvtAkyf_RR5Fq4"
+	validFullHeaderRsaForCert	 = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxIbzlPMmNNUzBqbzRsQWwtRk11ayJ9.eyJpc3MiOiJodHRwczovL21lcmN1cmUtdGVzdC5ldS5hdXRoMC5jb20vIiwic3ViIjoiYXV0aDB8NWZkYzNlODhlM2IwNGIwMDc2YTU0MTNjIiwiYXVkIjpbImh0dHBzOi8vbWVyY3VyZS5yb2Nrcy9hcGkiLCJodHRwczovL21lcmN1cmUtdGVzdC5ldS5hdXRoMC5jb20vdXNlcmluZm8iXSwiaWF0IjoxNjA4MjY5NTQ2LCJleHAiOjE2MDgzNTU5NDYsImF6cCI6IjMwMWh6bUJBMnZ5ZzdnSlZiSEVMUlRDell0dUJrVU52Iiwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCJ9.H91bDXw43DPo5fQQG45Qj29LCzA1kX6XUkypq9jnHOnwPiuvX58ZJLE6gJ-_FIZvfSIhPvPoTxCJCKVBHwOPo_XM5JaWq8w4B19OXc4NpFXxtL5Of2Kj38zbrz9npfi6CeJZtlU5wI2_MsQXwiWJAX4EgRVrFTQ1HJ-W0EJhvUf4DE2OnE-IuV_iXudB1b6jwwBa6wZWnCvnLAJ-5-pHgubEGqAuYYEo_76Y1kcHRCPi_3Lr1EfjUobuS823eiNQxlTv7iVIzQtSSdi1S350iah3mveatYM7hHDm5HWup5Ql3H0UsYNSqsrdr1WcJkTqXSarVe0b4zhDU0uPUHJdHw"
 	validFullHeaderNamespacedRsa = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwczovL21lcmN1cmUucm9ja3MvIjp7InB1Ymxpc2giOlsiZm9vIiwiYmFyIl0sInN1YnNjcmliZSI6WyJmb28iLCJiYXoiXX19.SmTVZkxlNbzHlaF4MfA3Fp5d1W2COmHlYPgc6SodAJOQtHh1Uxz0jkhA611w0OSwCaA8C5gqUd-GgekgHVPCBkIzV0qPmmhhJpTtotkeCX3N7oBOJOi58xXouNCNt0vnUH6xACqiZJq_FhNG9ZqP5saa4xNd1E-F1E9Vo1mFji4"
 )
 
@@ -25,6 +26,27 @@ CF0RZSmjY+ECWOJ3sSEzQ8qtkJe61uSjr/PKmqvBxxex0YtUL7waSS4jvq3ws8Bm
 WIxK2GqoAVjLjK8HzThSPQpgv2AjiEXD6iAERHeySLGjYAUgfMrVJ01J5fNSL+O+
 bCd7nPuNAyYHCOOHAgMBAAE=
 -----END PUBLIC KEY-----
+`
+
+const certificateRsa = `-----BEGIN CERTIFICATE-----
+MIIDDTCCAfWgAwIBAgIJBQgDe2IFUWHIMA0GCSqGSIb3DQEBCwUAMCQxIjAgBgNV
+BAMTGW1lcmN1cmUtdGVzdC5ldS5hdXRoMC5jb20wHhcNMjAxMjE4MDUyMjU2WhcN
+MzQwODI3MDUyMjU2WjAkMSIwIAYDVQQDExltZXJjdXJlLXRlc3QuZXUuYXV0aDAu
+Y29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxCm+LIbbfGmIAFbW
+2JXm7bNb7B5QOE2gKStBQrFI3lysVRTnJQy+nYOu9NRpDZrsdVMmU9NAbR5eEZqE
+oHiSk/gSPFzzRjJBzeEvWHiLzJYrxfp8op/nfQoiXk8RpAazk6ZP4KeCmYYDuZxJ
+FhfhbaMkXgde0iIhPugsj5a8z13rxt3hYjyQtQTwrBFoZxG1BaopXYXoMQaUPpFy
+UcCu5Imdvs2qWcjFi/hXOrJ2RdXonkuEnZrvYb/XTi1m5OL6byVKc9WLBBm5CviK
+lrsy4ogD8tRIFs1DnjcibZHZJQ9QSGimO5AI2OF+8bTnBH/1aWKitaxFE0Ksy89a
+pYYMOQIDAQABo0IwQDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRoVOwyPtFY
+L963vd2EZtk0RLX93jAOBgNVHQ8BAf8EBAMCAoQwDQYJKoZIhvcNAQELBQADggEB
+AAsmr3cvKCpeTginNyowkOIKRMOJFJ64l2PRxI40K2IGICHmSAemjc5KLlYQ3LpX
+MYVyiar/IFtGQRjToGc2Xf4ZyQZHu+JgmkuN0iFfYCISbhfzfioqhoUziJoFZ/eb
+g3R1maanbWQ/ElSl6eAB8P7CSifJY/61RdQVcmeqH/8jH6tUtiUu8vIQETxio/hs
+iKF3H5HvxIdPWY+nOYwJii8zYPdQ50KBo6nbA41fbhyn35Iu5KXd9odJV1XHSlR3
+DYVhT6vD41c2KSy1XMPFLp14wT1nUsH/+vgwcCK+8epw/95JrFuSq3duGzwsPg3p
+Qcl5xTqY2Yao8AHNjnR1Uks=
+-----END CERTIFICATE-----
 `
 
 const privateKeyRsa = `-----BEGIN RSA PRIVATE KEY-----
@@ -163,6 +185,16 @@ func TestAuthorizeAuthorizationHeaderNamespacedRsa(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validFullHeaderNamespacedRsa)
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{})
+	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
+	assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+	assert.Nil(t, err)
+}
+
+func TestAuthorizeAuthorizationHeaderRsaWithCert(t *testing.T) {
+	r, _ := http.NewRequest("GET", defaultHubURL, nil) //nolint:noctx
+	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsaForCert)
+
+	claims, err := authorize(r, &jwtConfig{[]byte(certificateRsa), jwt.SigningMethodRS256}, []string{})
 	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
 	assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
 	assert.Nil(t, err)
