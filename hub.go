@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/dgraph-io/ristretto"
 	"github.com/form3tech-oss/jwt-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -168,6 +169,15 @@ func WithTransport(t Transport) Option {
 	}
 }
 
+// WithCacheSizeApprox sets the approximate cache size in bytes, defaults to ~1GB, set to 0 to disable.
+func WithCacheSizeApprox(s int64) Option {
+	return func(o *opt) error {
+		o.cacheSizeApprox = s
+
+		return nil
+	}
+}
+
 type jwtConfig struct {
 	key           []byte
 	signingMethod jwt.SigningMethod
@@ -192,13 +202,14 @@ type opt struct {
 	allowedHosts    []string
 	publishOrigins  []string
 	corsOrigins     []string
+	cacheSizeApprox int64
 }
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
 	*opt
 	handler            http.Handler
-	topicSelectorStore *TopicSelectorStore
+	topicSelectorStore *topicSelectorStore
 
 	// Deprecated: use the Caddy server module or the standalone library instead.
 	config        *viper.Viper
@@ -209,7 +220,8 @@ type Hub struct {
 // NewHub creates a new Hub instance.
 func NewHub(options ...Option) (*Hub, error) {
 	opt := &opt{
-		writeTimeout: 600 * time.Second,
+		writeTimeout:    600 * time.Second,
+		cacheSizeApprox: 1 << 30, // 1GB
 	}
 
 	for _, o := range options {
@@ -245,9 +257,22 @@ func NewHub(options ...Option) (*Hub, error) {
 		opt.metrics = NopMetrics{}
 	}
 
+	var cache *ristretto.Cache
+	if opt.cacheSizeApprox != 0 {
+		var err error
+		cache, err = ristretto.NewCache(&ristretto.Config{
+			NumCounters: opt.cacheSizeApprox * 10,
+			MaxCost:     opt.cacheSizeApprox,
+			BufferItems: 64,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to create cache: %w", err)
+		}
+	}
+
 	h := &Hub{
 		opt:                opt,
-		topicSelectorStore: NewTopicSelectorStore(),
+		topicSelectorStore: &topicSelectorStore{cache: cache},
 	}
 	h.initHandler()
 

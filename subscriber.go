@@ -33,11 +33,11 @@ type Subscriber struct {
 	history             updateSource
 	live                updateSource
 	logger              Logger
-	topicSelectorStore  *TopicSelectorStore
+	topicSelectorStore  *topicSelectorStore
 }
 
 // NewSubscriber creates a new subscriber.
-func NewSubscriber(lastEventID string, logger Logger, tss *TopicSelectorStore) *Subscriber {
+func NewSubscriber(lastEventID string, logger Logger, tss *topicSelectorStore) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
 		ID:                 id,
@@ -64,7 +64,6 @@ func NewSubscriber(lastEventID string, logger Logger, tss *TopicSelectorStore) *
 // start stores incoming updates in an history and a live buffer and dispatch them.
 // Updates coming from the history are always dispatched first.
 func (s *Subscriber) start() {
-	defer s.cleanup()
 	for {
 		select {
 		case u, ok := <-s.history.in:
@@ -93,13 +92,6 @@ func (s *Subscriber) start() {
 
 			s.live.buffer = s.live.buffer[1:]
 		}
-	}
-}
-
-func (s *Subscriber) cleanup() {
-	s.topicSelectorStore.cleanup(s.Topics)
-	if s.Claims != nil && s.Claims.Mercure.Subscribe != nil {
-		s.topicSelectorStore.cleanup(s.Claims.Mercure.Subscribe)
 	}
 }
 
@@ -181,13 +173,13 @@ func (s *Subscriber) Disconnect() {
 
 // CanDispatch checks if an update can be dispatched to this subsriber.
 func (s *Subscriber) CanDispatch(u *Update) bool {
-	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics, true) {
+	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics) {
 		s.logger.Debug("Subscriber has not subscribed to this update", zap.Object("subscriber", s), zap.Object("update", u))
 
 		return false
 	}
 
-	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe, true)) {
+	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe)) {
 		s.logger.Debug("Subscriber not authorized to receive this update", zap.Object("subscriber", s), zap.Object("update", u))
 
 		return false
@@ -201,7 +193,7 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 	subscriptions := make([]subscription, 0, len(s.Topics))
 
 	for k, t := range s.Topics {
-		if topic != "" && !canReceive(s.topicSelectorStore, []string{t}, []string{topic}, false) {
+		if topic != "" && !canReceive(s.topicSelectorStore, []string{t}, []string{topic}) {
 			continue
 		}
 

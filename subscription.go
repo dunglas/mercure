@@ -105,7 +105,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http.Request) (lastEventID string, subscribers []*Subscriber, ok bool) {
 	if h.subscriberJWT != nil {
 		claims, err := authorize(r, h.subscriberJWT, nil)
-		if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe, false) {
+		if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			h.logger.Info("Topic selectors not matched, not provided or authorization error", zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
 

@@ -12,15 +12,14 @@ import (
 func TestNumberOfRunningSubscribers(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
-	sst := NewTopicSelectorStore()
-
-	s1 := NewSubscriber("", zap.NewNop(), sst)
+	tss := &topicSelectorStore{}
+	s1 := NewSubscriber("", zap.NewNop(), tss)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.SubscriberConnected(s1)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
 
-	s2 := NewSubscriber("", zap.NewNop(), sst)
+	s2 := NewSubscriber("", zap.NewNop(), tss)
 	s2.Topics = []string{"topic2"}
 	m.SubscriberConnected(s2)
 	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
@@ -38,15 +37,14 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
-	sst := NewTopicSelectorStore()
-
-	s1 := NewSubscriber("", zap.NewNop(), sst)
+	tss := &topicSelectorStore{}
+	s1 := NewSubscriber("", zap.NewNop(), tss)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic2")
 
-	s2 := NewSubscriber("", zap.NewNop(), sst)
+	s2 := NewSubscriber("", zap.NewNop(), tss)
 	s2.Topics = []string{"topic2"}
 	m.SubscriberConnected(s2)
 	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")

@@ -25,7 +25,7 @@ route {
 }
 ```
 
-Caddy will automatically generate a Let's Encrypt TLS certificate automatically for you! So you can use HTTPS. 
+Caddy will automatically generate a Let's Encrypt TLS certificate automatically for you! So you can use HTTPS.
 
 ## Directives
 
@@ -33,17 +33,18 @@ The following Mercure-specific directives are available:
 
 | Directive                            | Description                                                                                                                                                                                                                                    | Default             |
 |--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
-| `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                                                                                                                |                     |
-| `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                                                                                                                |                     |
+| `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                             |                     |
+| `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                            |                     |
 | `anonymous`                          | allow subscribers with no valid JWT to connect                                                                                                                                                                                                 | `false`             |
-| `publish_origins <origins...>`       | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                                            |                     |
+| `publish_origins <origins...>`       | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                        |                     |
 | `cors_origins <origin...>`           | a list of allowed CORS origins, can be `*` for all                                                                                                                                                                                             |                     |
 | `subscriptions`                      | expose the subscription web API and dispatch private updates when a subscription between the Hub and a subscriber is established or closed. The topic follows the template `/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}` |                     |
 | `heartbeat`                          | interval between heartbeats (useful with some proxies, and old browsers), set to `0s` disable                                                                                                                                                  | `40s`               |
 | `transport_url <url>`                | URL representation of the transport to use. Use `local://local` to disabled history, (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`), see also [the cluster mode](cluster.md)                                            | `bolt://mercure.db` |
 | `dispatch_timeout <duration>`        | maximum duration of the dispatch of a single update, set to `0s` disable                                                                                                                                                                       | `5s`                |
 | `write_timeout <duration>`           | maximum duration before closing the connection, set to `0s` disable                                                                                                                                                                            | `600s`              |
-| `demo [<assets-path>]`               | enabled the demo mode and the UI                                                                                                                                                                                                               |                     |
+| `demo [<assets-path>]`               | enable the demo mode and the UI                                                                                                                                                                                                                |                     |
+| `cache_size_approx <size>`           | approximate cache size in bytes, set to `0` to disable                                                                                                                                                                                         | ~1GB                |
 
 See also [the list of built-in Caddyfile directives](https://caddyserver.com/docs/caddyfile/directives).
 
