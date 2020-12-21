@@ -2,31 +2,46 @@ package mercure
 
 import (
 	"testing"
+	"time"
 
+	"github.com/dgraph-io/ristretto"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMatch(t *testing.T) {
-	tss := NewTopicSelectorStore()
+	cache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,
+		MaxCost:     100,
+		BufferItems: 64,
+	})
+	tss := &topicSelectorStore{cache}
 
-	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar", false))
-	assert.Empty(t, tss.m)
-	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar", true))
-	assert.False(t, tss.match("https://example.com/foo/bar/baz", "https://example.com/{foo}/bar", true))
-	assert.NotNil(t, tss.m["https://example.com/{foo}/bar"].regexp)
-	assert.True(t, tss.m["https://example.com/{foo}/bar"].matchCache["https://example.com/foo/bar"])
-	assert.False(t, tss.m["https://example.com/{foo}/bar"].matchCache["https://example.com/foo/bar/baz"])
-	assert.Equal(t, tss.m["https://example.com/{foo}/bar"].counter, uint32(1))
+	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar"))
 
-	assert.True(t, tss.match("https://example.com/kevin/dunglas", "https://example.com/{fistname}/{lastname}", true))
-	assert.True(t, tss.match("https://example.com/foo/bar", "*", true))
-	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/foo/bar", true))
-	assert.True(t, tss.match("foo", "foo", true))
-	assert.False(t, tss.match("foo", "bar", true))
+	// wait for value to pass through ristretto's buffers, see https://discuss.dgraph.io/t/there-should-be-a-test-only-blocking-mode/8424
+	time.Sleep(10 * time.Millisecond)
 
-	tss.cleanup([]string{"https://example.com/{foo}/bar", "https://example.com/{fistname}/{lastname}", "bar"})
-	assert.Len(t, tss.m, 1)
+	_, found := tss.cache.Get("t_https://example.com/{foo}/bar")
+	assert.True(t, found)
 
-	tss.cleanup([]string{"https://example.com/{foo}/bar", "https://example.com/{fistname}/{lastname}"})
-	assert.Empty(t, tss.m)
+	_, found = tss.cache.Get("m_https://example.com/{foo}/bar_https://example.com/foo/bar")
+	assert.True(t, found)
+
+	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar"))
+	assert.False(t, tss.match("https://example.com/foo/bar/baz", "https://example.com/{foo}/bar"))
+
+	// wait for value to pass through ristretto's buffers, see https://discuss.dgraph.io/t/there-should-be-a-test-only-blocking-mode/8424
+	time.Sleep(10 * time.Millisecond)
+
+	_, found = tss.cache.Get("t_https://example.com/{foo}/bar")
+	assert.True(t, found)
+
+	_, found = tss.cache.Get("m_https://example.com/{foo}/bar_https://example.com/foo/bar")
+	assert.True(t, found)
+
+	assert.True(t, tss.match("https://example.com/kevin/dunglas", "https://example.com/{fistname}/{lastname}"))
+	assert.True(t, tss.match("https://example.com/foo/bar", "*"))
+	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/foo/bar"))
+	assert.True(t, tss.match("foo", "foo"))
+	assert.False(t, tss.match("foo", "bar"))
 }

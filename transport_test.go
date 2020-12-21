@@ -19,7 +19,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	err := transport.Dispatch(u)
 	require.Nil(t, err)
 
-	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
 	s.Topics = u.Topics
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
@@ -51,7 +51,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
 	s.Topics = []string{"http://example.com/foo"}
 	go s.start()
 	assert.Nil(t, transport.AddSubscriber(s))
@@ -66,8 +66,7 @@ func TestLocalTransportClosed(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	tss := NewTopicSelectorStore()
-
+	tss := &topicSelectorStore{}
 	s := NewSubscriber("", zap.NewNop(), tss)
 	require.Nil(t, transport.AddSubscriber(s))
 
@@ -84,8 +83,7 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	transport := tr.(*LocalTransport)
 	defer transport.Close()
 
-	tss := NewTopicSelectorStore()
-
+	tss := &topicSelectorStore{}
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	go s1.start()
 	require.Nil(t, transport.AddSubscriber(s1))
@@ -114,7 +112,7 @@ func TestLiveReading(t *testing.T) {
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", zap.NewNop(), NewTopicSelectorStore())
+	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
 	s.Topics = []string{"https://example.com"}
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
@@ -131,8 +129,7 @@ func TestLocalTransportGetSubscribers(t *testing.T) {
 	defer transport.Close()
 	require.NotNil(t, transport)
 
-	tss := NewTopicSelectorStore()
-
+	tss := &topicSelectorStore{}
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	go s1.start()
 	require.Nil(t, transport.AddSubscriber(s1))

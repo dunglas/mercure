@@ -28,6 +28,7 @@ func TestNewHubWithConfig(t *testing.T) {
 	h, err := NewHub(
 		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
+		WithCacheSizeApprox(0),
 	)
 	require.NotNil(t, h)
 	require.Nil(t, err)
@@ -71,6 +72,7 @@ func createDummy(options ...Option) *Hub {
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 			WithLogger(zap.NewNop()),
+			WithCacheSizeApprox(0),
 		},
 		options...,
 	)

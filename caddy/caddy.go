@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,6 +79,9 @@ type Mercure struct {
 
 	// Transport to use.
 	TransportURL string `json:"transport_url,omitempty"`
+
+	// The approximate cache size in bytes, defaults to ~1GB, set to 0 to disable.
+	CacheSizeApprox *int64 `json:"cache_size_approx,omitempty"`
 
 	hub    *mercure.Hub
 	logger *zap.Logger
@@ -172,6 +176,9 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	}
 	if len(m.CORSOrigins) > 0 {
 		opts = append(opts, mercure.WithCORSOrigins(m.CORSOrigins))
+	}
+	if m.CacheSizeApprox != nil {
+		opts = append(opts, mercure.WithCacheSizeApprox(*m.CacheSizeApprox))
 	}
 
 	h, err := mercure.NewHub(opts...)
@@ -296,6 +303,18 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				}
 
 				m.TransportURL = d.Val()
+
+			case "cache_size_approx":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				s, err := strconv.ParseInt(d.Val(), 10, 64)
+				if err != nil {
+					return err //nolint:wrapcheck
+				}
+
+				m.CacheSizeApprox = &s
 			}
 		}
 	}

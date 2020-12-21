@@ -394,21 +394,21 @@ func TestAuthorizeAllOriginsAllowed(t *testing.T) {
 }
 
 func TestCanReceive(t *testing.T) {
-	s := NewTopicSelectorStore()
-	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"foo", "bar"}, true))
-	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"bar"}, true))
-	assert.True(t, canReceive(s, []string{"foo", "bar"}, []string{"*"}, true))
-	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{}, true))
-	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz"}, true))
-	assert.False(t, canReceive(s, []string{"foo", "bar"}, []string{"baz", "bat"}, true))
+	tss := &topicSelectorStore{}
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"bar"}))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"*"}))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, []string{}))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, []string{"baz"}))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, []string{"baz", "bat"}))
 }
 
 func TestCanDispatch(t *testing.T) {
-	s := NewTopicSelectorStore()
-	assert.True(t, canDispatch(s, []string{"foo", "bar"}, []string{"foo", "bar"}))
-	assert.True(t, canDispatch(s, []string{"foo", "bar"}, []string{"*"}))
-	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{}))
-	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"foo"}))
-	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"baz"}))
-	assert.False(t, canDispatch(s, []string{"foo", "bar"}, []string{"baz", "bat"}))
+	tss := &topicSelectorStore{}
+	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
+	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"*"}))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{}))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"foo"}))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz"}))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz", "bat"}))
 }
