@@ -192,7 +192,6 @@ func TestAuthorizeAuthorizationHeaderRsaWithCert(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validFullHeaderRsaForCert)
 
 	claims, err := authorize(r, &jwtConfig{[]byte(certificateRsa), jwt.SigningMethodRS256}, []string{})
-	t.Logf("%v", err)
 	assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
 	assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
 	assert.Nil(t, err)
