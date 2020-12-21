@@ -16,8 +16,8 @@ To test your own infrastructure, we provide a [Gatling](https://gatling.io)-base
 Available environment variables (all are optional):
 
 * `HUB_URL`: the URL of the hub to test
-* `JWT`: the JWT to use for authenticating the publisher
-* `SUBSCRIBER_JWT`: the JWT to use for authenticating the subsribers
+* `JWT`: the JWT to use for authenticating publishers
+* `SUBSCRIBER_JWT`: the JWT to use for authenticating subscribers, fallbacks to `JWT` not set and `PRIVATE_UPDATES` set
 * `INITIAL_SUBSCRIBERS`: the number of concurrent subscribers initially connected
 * `SUBSCRIBERS_RATE_FROM`: minimum rate (per second) of additional subscribers to connect
 * `SUBSCRIBERS_RATE_TO`: maximum rate (per second) of additional subscribers to connect

@@ -5,7 +5,7 @@
   *
   * Available environment variables (all optional):
   *   - HUB_URL: the URL of the hub to test
-  *   - JWT: the JWT to use for authenticating the publisher
+  *   - JWT: the JWT to use for authenticating the publisher, fallbacks to JWT if not set and PRIVATE_UPDATES set
   *   - INITIAL_SUBSCRIBERS: the number of concurrent subscribers initially connected
   *   - SUBSCRIBERS_RATE_FROM: minimum rate (per second) of additional subscribers to connect
   *   - SUBSCRIBERS_RATE_TO: maximum rate (per second) of additional subscribers to connect
@@ -35,7 +35,7 @@ class LoadTest extends Simulation {
     "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS97aWR9Iiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.eZ04WtIriWpOTolGAKUfAUrrxW0Vak1jnvsJEjAFz9I"
   )
 
-  /** JWT to use to subscribe */
+  /** JWT to use to subscribe, fallbacks to JWT if not set and PRIVATE_UPDATES set */
   val SubscriberJwt = Properties.envOrElse("SUBSCRIBER_JWT", null)
 
   /** Number of concurrent subscribers initially connected */
@@ -83,6 +83,8 @@ class LoadTest extends Simulation {
     if (SubscriberJwt != null) {
       requestBuilder =
         requestBuilder.header("Authorization", "Bearer " + SubscriberJwt)
+    } else if (PrivateUpdates) {
+      requestBuilder = requestBuilder.header("Authorization", "Bearer " + Jwt)
     }
 
     requestBuilder.await(10)(
