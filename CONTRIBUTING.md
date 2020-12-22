@@ -55,7 +55,7 @@ Go to `https://localhost` and enjoy!
 To test the legacy server:
 
     $ cd cmd/mercure
-    $ go go run main.go
+    $ go run main.go
 
 Go to `http://localhost:3000` and enjoy!
 
