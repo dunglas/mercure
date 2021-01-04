@@ -37,6 +37,7 @@
 
 * [Official Mercure support for the Symfony framework](https://symfony.com/doc/current/mercure.html)
 * [Official Mercure support for the API Platform framework](https://api-platform.com/docs/core/mercure/)
+* [Using Mercure and Hotwire to stream page changes](hotwire.md)
 * [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 * [Yii Mercure Behavior](https://github.com/bizley/mercure-behavior)
 * [GitHub Actions for Mercure](https://github.com/Ilshidur/action-mercure)
