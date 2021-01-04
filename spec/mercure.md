@@ -1062,7 +1062,7 @@ Reported compatible with the reference implementation of the Mercure Hub.
 
 Implementation Name and Details:
 
-dart*mercure, available at <https://github.com/wallforfry/dart>*mercure
+dart_mercure, available at <https://github.com/wallforfry/dart_mercure>
 
 Brief Description:
 
