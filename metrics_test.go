@@ -81,6 +81,8 @@ func TestTotalOfHandledUpdates(t *testing.T) {
 }
 
 func assertGaugeLabelValue(t *testing.T, v float64, g *prometheus.GaugeVec, l string) {
+	t.Helper()
+
 	var metricOut dto.Metric
 
 	m, err := g.GetMetricWithLabelValues(l)
@@ -97,6 +99,8 @@ func assertGaugeLabelValue(t *testing.T, v float64, g *prometheus.GaugeVec, l st
 }
 
 func assertCounterValue(t *testing.T, v float64, c *prometheus.CounterVec, l string) {
+	t.Helper()
+
 	var metricOut dto.Metric
 
 	m, err := c.GetMetricWithLabelValues(l)

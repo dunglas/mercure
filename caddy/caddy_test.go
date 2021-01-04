@@ -73,7 +73,7 @@ func TestMercure(t *testing.T) {
 	connected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
-	req, err := http.NewRequest("POST", "https://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode())) //nolint:noctx
+	req, err := http.NewRequest("POST", "https://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWT)
@@ -144,7 +144,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	connected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
-	req, err := http.NewRequest("POST", "https://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode())) //nolint:noctx
+	req, err := http.NewRequest("POST", "https://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWTRSA)

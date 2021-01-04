@@ -20,3 +20,4 @@ issues:
         - gochecknoglobals
         - funlen
         - godox
+        - noctx
