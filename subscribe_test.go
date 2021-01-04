@@ -192,7 +192,9 @@ func TestSubscribeAddSubscriberError(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusServiceUnavailable)+"\n", w.Body.String())
 }
 
-func testSubscribe(numberOfSubscribers int, t *testing.T) {
+func testSubscribe(h interface{ Helper() }, numberOfSubscribers int) {
+	h.Helper()
+
 	hub := createAnonymousDummy()
 
 	go func() {
@@ -231,6 +233,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 		}
 	}()
 
+	t, _ := h.(*testing.T)
 	var wg sync.WaitGroup
 	wg.Add(numberOfSubscribers)
 	for i := 0; i < numberOfSubscribers; i++ {
@@ -253,7 +256,7 @@ func testSubscribe(numberOfSubscribers int, t *testing.T) {
 }
 
 func TestSubscribe(t *testing.T) {
-	testSubscribe(3, t)
+	testSubscribe(t, 3)
 }
 
 func TestUnsubscribe(t *testing.T) {
@@ -763,6 +766,6 @@ func TestSubscribeHeartbeat(t *testing.T) {
 
 func BenchmarkSubscribe(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		testSubscribe(1000, nil)
+		testSubscribe(b, 1000)
 	}
 }

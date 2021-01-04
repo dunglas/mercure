@@ -39,12 +39,12 @@ func TestForwardedHeaders(t *testing.T) {
 	// loop until the web server is ready
 	var resp *http.Response
 	for resp == nil {
-		resp, _ = client.Get(testURL) //nolint:bodyclose,noctx
+		resp, _ = client.Get(testURL) //nolint:bodyclose
 	}
 	defer resp.Body.Close()
 
 	body := url.Values{"topic": {"http://example.com/test-forwarded"}, "data": {"hello"}}
-	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode())) //nolint:noctx
+	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("X-Forwarded-For", "192.0.2.1")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{}))
@@ -75,7 +75,7 @@ func TestSecurityOptions(t *testing.T) {
 	// loop until the web server is ready
 	var resp *http.Response
 	for resp == nil {
-		resp, _ = client.Get(testSecureURL) //nolint:bodyclose,noctx
+		resp, _ = client.Get(testSecureURL) //nolint:bodyclose
 	}
 
 	assert.Equal(t, "default-src 'self' mercure.rocks cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
@@ -85,7 +85,7 @@ func TestSecurityOptions(t *testing.T) {
 	resp.Body.Close()
 
 	// Preflight request
-	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil) //nolint:noctx
+	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil)
 	req.Header.Add("Origin", "https://example.com")
 	req.Header.Add("Access-Control-Request-Headers", "authorization")
 	req.Header.Add("Access-Control-Request-Method", "GET")
@@ -98,7 +98,7 @@ func TestSecurityOptions(t *testing.T) {
 	resp2.Body.Close()
 
 	// Subscriptions
-	req, _ = http.NewRequest("GET", testSecureURL+"/subscriptions", nil) //nolint:noctx
+	req, _ = http.NewRequest("GET", testSecureURL+"/subscriptions", nil)
 	resp3, _ := client.Do(req)
 	require.NotNil(t, resp3)
 	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
@@ -116,14 +116,14 @@ func TestServe(t *testing.T) {
 	var resp *http.Response
 	client := http.Client{Timeout: 100 * time.Millisecond}
 	for resp == nil {
-		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose,noctx
+		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose
 	}
 	defer resp.Body.Close()
 
 	hpBody, _ := ioutil.ReadAll(resp.Body)
 	assert.Contains(t, string(hpBody), "Mercure Hub")
 
-	respHealthz, err := client.Get("http://" + testAddr + "/healthz") //nolint:noctx
+	respHealthz, err := client.Get("http://" + testAddr + "/healthz")
 	require.Nil(t, err)
 	defer respHealthz.Body.Close()
 	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
@@ -135,7 +135,7 @@ func TestServe(t *testing.T) {
 
 	go func() {
 		defer wgTested.Done()
-		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1") //nolint:noctx
+		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1")
 		require.Nil(t, err)
 		wgConnected.Done()
 
@@ -147,7 +147,7 @@ func TestServe(t *testing.T) {
 
 	go func() {
 		defer wgTested.Done()
-		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Falt%2F1") //nolint:noctx
+		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Falt%2F1")
 		require.Nil(t, err)
 		wgConnected.Done()
 
@@ -160,7 +160,7 @@ func TestServe(t *testing.T) {
 	wgConnected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
-	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode())) //nolint:noctx
+	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{}))
 
@@ -185,7 +185,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	var resp *http.Response
 	client := http.Client{Timeout: 10 * time.Second}
 	for resp == nil {
-		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose,noctx
+		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose
 	}
 	resp.Body.Close()
 
@@ -229,7 +229,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		}
 
 		body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {data}, "id": {data}}
-		req, err := http.NewRequest("POST", testURL, strings.NewReader(body.Encode())) //nolint:noctx
+		req, err := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 		require.Nil(t, err)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{}))
@@ -289,14 +289,14 @@ func TestServeAcme(t *testing.T) {
 
 	var resp *http.Response
 	for resp == nil {
-		resp, _ = client.Get("http://127.0.0.1:8080") //nolint:bodyclose,noctx
+		resp, _ = client.Get("http://127.0.0.1:8080") //nolint:bodyclose
 	}
 
 	require.NotNil(t, resp)
 	assert.Equal(t, 302, resp.StatusCode)
 	resp.Body.Close()
 
-	resp, err := client.Get("http://0.0.0.0:8080/.well-known/acme-challenge/does-not-exists") //nolint:noctx
+	resp, err := client.Get("http://0.0.0.0:8080/.well-known/acme-challenge/does-not-exists")
 	assert.Nil(t, err)
 	require.NotNil(t, resp)
 	defer resp.Body.Close()
@@ -309,11 +309,11 @@ func TestMetricsAccess(t *testing.T) {
 	server := newTestServer(t)
 	defer server.shutdown()
 
-	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") // nolint:noctx
+	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics")
 	require.Nil(t, err)
 	defer resp.Body.Close()
 
-	resp, err = server.client.Get("http://" + testMetricsAddr + "/healthz") // nolint:noctx
+	resp, err = server.client.Get("http://" + testMetricsAddr + "/healthz")
 	require.Nil(t, err)
 	defer resp.Body.Close()
 
@@ -348,7 +348,7 @@ func TestMetricsVersionIsAccessible(t *testing.T) {
 	server := newTestServer(t)
 	defer server.shutdown()
 
-	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics") //nolint:noctx
+	resp, err := server.client.Get("http://" + testMetricsAddr + "/metrics")
 	assert.Nil(t, err)
 	defer resp.Body.Close()
 
@@ -370,6 +370,8 @@ type testServer struct {
 }
 
 func newTestServer(t *testing.T) testServer {
+	t.Helper()
+
 	m := NewPrometheusMetrics(nil)
 	h := createAnonymousDummy(WithMetrics(m))
 
@@ -379,7 +381,7 @@ func newTestServer(t *testing.T) testServer {
 	var resp *http.Response
 	client := http.Client{Timeout: 100 * time.Millisecond}
 	for resp == nil {
-		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose,noctx
+		resp, _ = client.Get("http://" + testAddr + "/") //nolint:bodyclose
 	}
 	defer resp.Body.Close()
 
@@ -409,7 +411,7 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 
 	go func() {
 		defer s.wgTested.Done()
-		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic)) //nolint:noctx
+		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
 		require.Nil(s.t, err)
 		defer resp.Body.Close()
 		s.wgConnected.Done()
@@ -421,7 +423,7 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 }
 
 func (s *testServer) publish(body url.Values) {
-	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode())) //nolint:noctx
+	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(s.h, rolePublisher, []string{}))
 
@@ -435,7 +437,7 @@ func (s *testServer) waitSubscribers() {
 }
 
 func (s *testServer) assertMetric(metric string) {
-	resp, err := s.client.Get("http://" + testMetricsAddr + "/metrics") //nolint:noctx
+	resp, err := s.client.Get("http://" + testMetricsAddr + "/metrics")
 	assert.Nil(s.t, err)
 	defer resp.Body.Close()
 
