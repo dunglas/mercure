@@ -24,17 +24,22 @@ const (
 func TestMercure(t *testing.T) {
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
-	localhost:9080
+	{
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				publisher_jwt !ChangeMe!
+				cache_size_approx 0
+			}
 	
-	route {
-		mercure {
-			anonymous
-			publisher_jwt !ChangeMe!
-			cache_size_approx 0
+			respond 404
 		}
-
-		respond 404
-	}`, "caddyfile")
+	}
+	`, "caddyfile")
 
 	var connected sync.WaitGroup
 	var received sync.WaitGroup
@@ -43,7 +48,7 @@ func TestMercure(t *testing.T) {
 
 	go func() {
 		cx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequest("GET", "https://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp, err := http.DefaultClient.Do(req)
 		require.Nil(t, err)
@@ -74,7 +79,7 @@ func TestMercure(t *testing.T) {
 	connected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
-	req, err := http.NewRequest("POST", "https://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	req, err := http.NewRequest("POST", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWT)
@@ -96,17 +101,22 @@ func TestJWTPlaceholders(t *testing.T) {
 
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
-	localhost:9080
+	{
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+				cache_size_approx 0
+			}
 	
-	route {
-		mercure {
-			anonymous
-			publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
-			cache_size_approx 0
+			respond 404
 		}
-
-		respond 404
-	}`, "caddyfile")
+	}
+	`, "caddyfile")
 
 	var connected sync.WaitGroup
 	var received sync.WaitGroup
@@ -115,7 +125,7 @@ func TestJWTPlaceholders(t *testing.T) {
 
 	go func() {
 		cx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequest("GET", "https://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp, err := http.DefaultClient.Do(req)
 		require.Nil(t, err)
@@ -146,7 +156,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	connected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
-	req, err := http.NewRequest("POST", "https://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	req, err := http.NewRequest("POST", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWTRSA)
