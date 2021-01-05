@@ -33,7 +33,6 @@ func TestMercure(t *testing.T) {
 			mercure {
 				anonymous
 				publisher_jwt !ChangeMe!
-				cache_size_approx 0
 			}
 	
 			respond 404
@@ -110,7 +109,6 @@ func TestJWTPlaceholders(t *testing.T) {
 			mercure {
 				anonymous
 				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
-				cache_size_approx 0
 			}
 	
 			respond 404

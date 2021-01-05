@@ -169,10 +169,11 @@ func WithTransport(t Transport) Option {
 	}
 }
 
-// WithCacheSizeApprox sets the approximate cache size in bytes, defaults to ~1GB, set to 0 to disable.
-func WithCacheSizeApprox(s int64) Option {
+// WithCacheConfig see https://github.com/dgraph-io/ristretto, defaults to 6e7 counters and 100MB of max cost, set values to 0 to disable.
+func WithCacheConfig(numCounters, maxCost int64) Option {
 	return func(o *opt) error {
-		o.cacheSizeApprox = s
+		o.cacheNumCounters = numCounters
+		o.cacheMaxCost = maxCost
 
 		return nil
 	}
@@ -187,22 +188,23 @@ type jwtConfig struct {
 //
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
-	transport       Transport
-	anonymous       bool
-	debug           bool
-	subscriptions   bool
-	uiPath          string
-	logger          Logger
-	writeTimeout    time.Duration
-	dispatchTimeout time.Duration
-	heartbeat       time.Duration
-	publisherJWT    *jwtConfig
-	subscriberJWT   *jwtConfig
-	metrics         Metrics
-	allowedHosts    []string
-	publishOrigins  []string
-	corsOrigins     []string
-	cacheSizeApprox int64
+	transport        Transport
+	anonymous        bool
+	debug            bool
+	subscriptions    bool
+	uiPath           string
+	logger           Logger
+	writeTimeout     time.Duration
+	dispatchTimeout  time.Duration
+	heartbeat        time.Duration
+	publisherJWT     *jwtConfig
+	subscriberJWT    *jwtConfig
+	metrics          Metrics
+	allowedHosts     []string
+	publishOrigins   []string
+	corsOrigins      []string
+	cacheNumCounters int64
+	cacheMaxCost     int64
 }
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
@@ -220,8 +222,9 @@ type Hub struct {
 // NewHub creates a new Hub instance.
 func NewHub(options ...Option) (*Hub, error) {
 	opt := &opt{
-		writeTimeout:    600 * time.Second,
-		cacheSizeApprox: 1 << 30, // 1GB
+		writeTimeout:     600 * time.Second,
+		cacheNumCounters: 6e7, // gather stats to find the best default values
+		cacheMaxCost:     1e8,
 	}
 
 	for _, o := range options {
@@ -258,11 +261,11 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	var cache *ristretto.Cache
-	if opt.cacheSizeApprox != 0 {
+	if opt.cacheNumCounters != 0 {
 		var err error
 		cache, err = ristretto.NewCache(&ristretto.Config{
-			NumCounters: opt.cacheSizeApprox * 10,
-			MaxCost:     opt.cacheSizeApprox,
+			NumCounters: opt.cacheNumCounters,
+			MaxCost:     opt.cacheMaxCost,
 			BufferItems: 64,
 		})
 		if err != nil {

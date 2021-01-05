@@ -50,11 +50,11 @@ type Mercure struct {
 	// Allow subscribers with no valid JWT.
 	Anonymous bool `json:"anonymous,omitempty"`
 
-	// Enable the demo.
-	Demo string `json:"demo,omitempty"`
-
 	// Dispatch updates when subscriptions are created or terminated
 	Subscriptions bool `json:"subscriptions,omitempty"`
+
+	// Enable the demo.
+	Demo string `json:"demo,omitempty"`
 
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout caddy.Duration `json:"write_timeout,omitempty"`
@@ -80,8 +80,11 @@ type Mercure struct {
 	// Transport to use.
 	TransportURL string `json:"transport_url,omitempty"`
 
-	// The approximate cache size in bytes, defaults to ~1GB, set to 0 to disable.
-	CacheSizeApprox *int64 `json:"cache_size_approx,omitempty"`
+	// Number of cache counters, defaults to 6e7, set to 0 to disable the cache. See https://github.com/dgraph-io/ristretto for details.
+	CacheNumCounters *int64 `json:"cache_max_counters,omitempty"`
+
+	// Maximum cache cost, defaults to 100MB, set to 0 to disable the cache. See https://github.com/dgraph-io/ristretto for details.
+	CacheMaxCost *int64 `json:"cache_max_cost,omitempty"`
 
 	hub    *mercure.Hub
 	logger *zap.Logger
@@ -177,8 +180,8 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	if len(m.CORSOrigins) > 0 {
 		opts = append(opts, mercure.WithCORSOrigins(m.CORSOrigins))
 	}
-	if m.CacheSizeApprox != nil {
-		opts = append(opts, mercure.WithCacheSizeApprox(*m.CacheSizeApprox))
+	if m.CacheNumCounters != nil && m.CacheMaxCost != nil {
+		opts = append(opts, mercure.WithCacheConfig(*m.CacheNumCounters, *m.CacheMaxCost))
 	}
 
 	h, err := mercure.NewHub(opts...)
@@ -304,17 +307,28 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 				m.TransportURL = d.Val()
 
-			case "cache_size_approx":
+			case "cache":
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
 
-				s, err := strconv.ParseInt(d.Val(), 10, 64)
+				v, err := strconv.ParseInt(d.Val(), 10, 64)
 				if err != nil {
 					return err //nolint:wrapcheck
 				}
 
-				m.CacheSizeApprox = &s
+				m.CacheNumCounters = &v
+
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				v, err = strconv.ParseInt(d.Val(), 10, 64)
+				if err != nil {
+					return err //nolint:wrapcheck
+				}
+
+				m.CacheMaxCost = &v
 			}
 		}
 	}
