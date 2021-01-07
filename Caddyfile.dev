@@ -35,5 +35,7 @@ route {
         {$MERCURE_EXTRA_DIRECTIVES}
     }
 
+    respond /healthz 200
+
     respond "Not Found" 404
 }
