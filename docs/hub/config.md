@@ -106,6 +106,8 @@ Below are common examples of valid DSNs showing a combination of available value
     # custom options
     transport_url bolt://database.db?bucket_name=demo&size=1000&cleanup_frequency=0.5
 
+You can visualize and edit the content of the database using [boltdbweb](https://github.com/evnix/boltdbweb).
+
 ## Legacy Server
 
 The legacy Mercure.rocks Hub is configurable using [environment variables](https://en.wikipedia.org/wiki/Environment_variable) (recommended in production, [twelve-factor app methodology](https://12factor.net/)), command line flags and configuration files (JSON, TOML, YAML, HCL, envfile and Java properties files are supported).
