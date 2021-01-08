@@ -96,3 +96,6 @@ func (t *LocalTransport) Close() (err error) {
 
 	return nil
 }
+
+// Interface guard.
+var _ Transport = (*BoltTransport)(nil)

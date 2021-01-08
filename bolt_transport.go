@@ -290,3 +290,9 @@ func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 
 	return nil
 }
+
+// Interface guards.
+var (
+	_ Transport            = (*BoltTransport)(nil)
+	_ TransportSubscribers = (*BoltTransport)(nil)
+)
