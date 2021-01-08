@@ -49,9 +49,7 @@ func TestMercure(t *testing.T) {
 		cx, cancel := context.WithCancel(context.Background())
 		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
-		resp, err := http.DefaultClient.Do(req)
-		require.Nil(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp := tester.AssertResponseCode(req, http.StatusOK)
 
 		connected.Done()
 
@@ -83,9 +81,7 @@ func TestMercure(t *testing.T) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWT)
 
-	resp, err := tester.Client.Do(req)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	resp := tester.AssertResponseCode(req, http.StatusOK)
 	resp.Body.Close()
 
 	received.Wait()
@@ -125,9 +121,7 @@ func TestJWTPlaceholders(t *testing.T) {
 		cx, cancel := context.WithCancel(context.Background())
 		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
-		resp, err := http.DefaultClient.Do(req)
-		require.Nil(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp := tester.AssertResponseCode(req, http.StatusOK)
 
 		connected.Done()
 
@@ -159,10 +153,33 @@ func TestJWTPlaceholders(t *testing.T) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWTRSA)
 
-	resp, err := tester.Client.Do(req)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	resp := tester.AssertResponseCode(req, http.StatusOK)
 	resp.Body.Close()
 
 	received.Wait()
+}
+
+func TestSubscriptionAPI(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				subscriptions
+				publisher_jwt !ChangeMe!
+			}
+	
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure/subscriptions", nil)
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+	resp.Body.Close()
 }

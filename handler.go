@@ -226,12 +226,13 @@ func (h *Hub) chainHandlers() http.Handler {
 	return recoveryHandler
 }
 
-// Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	if !h.subscriptions {
 		return
 	}
 	if _, ok := h.transport.(TransportSubscribers); !ok {
+		h.logger.Error("The current transport doesn't support subscriptions. Subscription API disabled.")
+
 		return
 	}
 

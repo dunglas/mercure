@@ -39,11 +39,11 @@ type JWTConfig struct {
 }
 
 type transportDestructor struct {
-	mercure.Transport
+	transport mercure.Transport
 }
 
-func (t *transportDestructor) Destruct() error {
-	return t.Close()
+func (d *transportDestructor) Destruct() error {
+	return d.transport.Close()
 }
 
 type Mercure struct {
@@ -117,7 +117,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	}
 
 	m.logger = ctx.Logger(m)
-	transport, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
+	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
 		u, err := url.Parse(m.TransportURL)
 		if err != nil {
 			return nil, fmt.Errorf("invalid transport url: %w", err)
@@ -136,7 +136,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
-		mercure.WithTransport(transport.(mercure.Transport)),
+		mercure.WithTransport(destructor.(*transportDestructor).transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg),
 	}
