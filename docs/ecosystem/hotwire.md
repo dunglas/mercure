@@ -53,13 +53,15 @@ Mercure also plays very well with [the Stimulus framework](https://stimulus.hotw
 In the following example, we create [a Stimulus controller](https://stimulus.hotwire.dev/handbook/hello-stimulus#controllers-bring-html-to-life) to connect to the SSE stream exposed by the Mercure hub when an HTML element is created, and to disconnect when it is destroyed:
 
 ```javascript
-// stream_controller.js
+// turbo_stream_controller.js
 import { Controller } from "stimulus";
 import { connectStreamSource, disconnectStreamSource } from "@hotwired/turbo";
 
 export default class extends Controller {
+  static values = { url: String };
+
   connect() {
-    this.es = new EventSource(this.element.getAttribute("data-url"));
+    this.es = new EventSource(this.urlValue);
     connectStreamSource(this.es);
   }
 
@@ -71,7 +73,7 @@ export default class extends Controller {
 ```
 
 ```html
-<div data-controller="stream" data-url="https://example.com/.well-known/mercure?topic=my-stream">
+<div data-controller="stream" data-turbo-stream-url-value="https://example.com/.well-known/mercure?topic=my-stream">
   <!-- ... -->
 </div>
 ```
