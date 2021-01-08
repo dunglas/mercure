@@ -5,7 +5,7 @@ tl;dr:
 * proprietary software **can** implement the Mercure specification
 * proprietary publishers and subscribers **can** be used with the Mercure.rocks Hub without having to share their sources
 * modifications made to the Mercure.rocks Hub **must** be shared
-* alternatively, <a href="https://mercure.rocks/pricing">commercial licenses are available for the Mercure.rocks Hub</a>
+* alternatively, [commercial licenses are available for the Mercure.rocks Hub](https://mercure.rocks/pricing)
 
 [The specification](../../spec/mercure.md) is available under [the IETF copyright policy](https://trustee.ietf.org/copyright-faq.html). The Mercure **specification** can be implemented by any software, including proprietary software.
 
