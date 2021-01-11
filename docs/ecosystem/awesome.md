@@ -40,7 +40,8 @@
 * [Using Mercure and Hotwire to stream page changes](hotwire.md)
 * [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 * [Yii Mercure Behavior](https://github.com/bizley/mercure-behavior)
-* [GitHub Actions for Mercure](https://github.com/Ilshidur/action-mercure)
+* [Add a Mercure service in GitHub Actions](github-actions.md)
+* [Send a Mercure publish event from GitHub Actions](https://github.com/Ilshidur/action-mercure)
 
 ## Useful Related Libraries
 
