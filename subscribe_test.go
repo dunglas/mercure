@@ -15,8 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type responseWriterMock struct {
-}
+type responseWriterMock struct{}
 
 func (m *responseWriterMock) Header() http.Header {
 	return http.Header{}
@@ -158,8 +157,7 @@ func TestSubscribeNoTopic(t *testing.T) {
 
 var errFailedToAddSubscriber = errors.New("failed to add a subscriber")
 
-type addSubscriberErrorTransport struct {
-}
+type addSubscriberErrorTransport struct{}
 
 func (*addSubscriberErrorTransport) Dispatch(*Update) error {
 	return nil
