@@ -16,8 +16,7 @@ type Metrics interface {
 	UpdatePublished(u *Update)
 }
 
-type NopMetrics struct {
-}
+type NopMetrics struct{}
 
 func (NopMetrics) SubscriberConnected(s *Subscriber)    {}
 func (NopMetrics) SubscriberDisconnected(s *Subscriber) {}
