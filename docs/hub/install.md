@@ -44,7 +44,7 @@ To compile the development version, see [https://github.com/dunglas/mercure/blob
 
 It's also possible to build your own binaries containing other [Caddy modules](https://caddyserver.com/download) using [`xcaddy`](https://github.com/caddyserver/xcaddy).
 
-    xcaddy build --with github.com/dunglas/mercure
+    xcaddy build --with github.com/dunglas/mercure/caddy
 
 ## Docker Image
 
