@@ -1,5 +1,9 @@
 # Getting Help
 
+## Managed and On-Premise Support
+
+* For support requests related to the [managed](https://mercure.rocks/pricing) or the [on premise](https://mercure.rocks/docs/hub/cluster#purchasing) version of Mercure.rocks, send a mail to [contact@mercure.rocks](mailto:contact@mercure.rocks).
+
 ## Community Support
 
 * [StackOverflow: ask question on  using the `mercure` tag](https://stackoverflow.com/questions/tagged/mercure)
@@ -7,7 +11,7 @@
 
 ## Commercial Support
 
-[Les-Tilleuls.coop](https://les-tilleuls.coop) provides professional services for Mercure including training, development and API design.
+[Les-Tilleuls.coop](https://les-tilleuls.coop) provides professional services for Mercure including development and API design.
 
 [Contact Les-Tilleuls.coop](https://les-tilleuls.coop/en/contact) for more information.
 
