@@ -12,7 +12,7 @@ import (
 func TestNumberOfRunningSubscribers(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
-	tss := &topicSelectorStore{}
+	tss := &TopicSelectorStore{}
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.SubscriberConnected(s1)
@@ -37,7 +37,7 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
-	tss := &topicSelectorStore{}
+	tss := &TopicSelectorStore{}
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.SubscriberConnected(s1)

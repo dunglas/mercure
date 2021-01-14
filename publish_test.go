@@ -154,7 +154,7 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 
-	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Topics = []string{"http://example.com/books/1"}
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: s.Topics}}
 	go s.start()
@@ -200,7 +200,7 @@ func TestPublishOK(t *testing.T) {
 func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 
-	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Topics = []string{"http://example.com/books/1"}
 	go s.start()
 

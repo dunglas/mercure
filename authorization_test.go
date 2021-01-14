@@ -394,7 +394,7 @@ func TestAuthorizeAllOriginsAllowed(t *testing.T) {
 }
 
 func TestCanReceive(t *testing.T) {
-	tss := &topicSelectorStore{}
+	tss := &TopicSelectorStore{}
 	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
 	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"bar"}))
 	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"*"}))
@@ -404,7 +404,7 @@ func TestCanReceive(t *testing.T) {
 }
 
 func TestCanDispatch(t *testing.T) {
-	tss := &topicSelectorStore{}
+	tss := &TopicSelectorStore{}
 	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
 	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"*"}))
 	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{}))

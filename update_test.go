@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestAssingUUID(t *testing.T) {
+func TestAssignUUID(t *testing.T) {
 	u := &Update{
 		Topics:  []string{"foo"},
 		Private: true,

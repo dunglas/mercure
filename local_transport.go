@@ -19,7 +19,7 @@ type LocalTransport struct {
 }
 
 // NewLocalTransport create a new LocalTransport.
-func NewLocalTransport(u *url.URL, l Logger) (Transport, error) {
+func NewLocalTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) {
 	return &LocalTransport{
 		subscribers: make(map[*Subscriber]struct{}),
 		closed:      make(chan struct{}),

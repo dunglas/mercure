@@ -11,7 +11,7 @@ import (
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -19,7 +19,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	err := transport.Dispatch(u)
 	require.Nil(t, err)
 
-	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Topics = u.Topics
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
@@ -47,11 +47,11 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 }
 
 func TestLocalTransportDispatch(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Topics = []string{"http://example.com/foo"}
 	go s.start()
 	assert.Nil(t, transport.AddSubscriber(s))
@@ -62,11 +62,11 @@ func TestLocalTransportDispatch(t *testing.T) {
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	tss := &topicSelectorStore{}
+	tss := &TopicSelectorStore{}
 	s := NewSubscriber("", zap.NewNop(), tss)
 	require.Nil(t, transport.AddSubscriber(s))
 
@@ -79,11 +79,11 @@ func TestLocalTransportClosed(t *testing.T) {
 }
 
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
-	tr, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	tr, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	transport := tr.(*LocalTransport)
 	defer transport.Close()
 
-	tss := &topicSelectorStore{}
+	tss := &TopicSelectorStore{}
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	go s1.start()
 	require.Nil(t, transport.AddSubscriber(s1))
@@ -108,11 +108,11 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 }
 
 func TestLiveReading(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", zap.NewNop(), &topicSelectorStore{})
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Topics = []string{"https://example.com"}
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
@@ -125,11 +125,11 @@ func TestLiveReading(t *testing.T) {
 }
 
 func TestLocalTransportGetSubscribers(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	defer transport.Close()
 	require.NotNil(t, transport)
 
-	tss := &topicSelectorStore{}
+	tss := &TopicSelectorStore{}
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	go s1.start()
 	require.Nil(t, transport.AddSubscriber(s1))

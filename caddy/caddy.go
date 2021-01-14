@@ -80,11 +80,11 @@ type Mercure struct {
 	// Transport to use.
 	TransportURL string `json:"transport_url,omitempty"`
 
-	// Number of cache counters, defaults to 6e7, set to 0 to disable the cache. See https://github.com/dgraph-io/ristretto for details.
-	CacheNumCounters *int64 `json:"cache_max_counters,omitempty"`
+	// Number of cache counters, defaults to 6e7, set to -1 to disable the cache. See https://github.com/dgraph-io/ristretto for details.
+	CacheNumCounters int64 `json:"cache_max_counters,omitempty"`
 
-	// Maximum cache cost, defaults to 100MB, set to 0 to disable the cache. See https://github.com/dgraph-io/ristretto for details.
-	CacheMaxCost *int64 `json:"cache_max_cost,omitempty"`
+	// Maximum cache cost, defaults to 100MB, set to -1 to disable the cache. See https://github.com/dgraph-io/ristretto for details.
+	CacheMaxCost int64 `json:"cache_max_cost,omitempty"`
 
 	hub    *mercure.Hub
 	logger *zap.Logger
@@ -180,8 +180,12 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	if len(m.CORSOrigins) > 0 {
 		opts = append(opts, mercure.WithCORSOrigins(m.CORSOrigins))
 	}
-	if m.CacheNumCounters != nil && m.CacheMaxCost != nil {
-		opts = append(opts, mercure.WithCacheConfig(*m.CacheNumCounters, *m.CacheMaxCost))
+	if m.CacheNumCounters != 0 && m.CacheMaxCost != 0 {
+		tss, err := mercure.NewTopicSelectorStore(m.CacheNumCounters, m.CacheMaxCost)
+		if err != nil {
+			return err //nolint:wrapcheck
+		}
+		opts = append(opts, mercure.WithTopicSelectorStore(tss))
 	}
 
 	h, err := mercure.NewHub(opts...)
@@ -317,7 +321,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err //nolint:wrapcheck
 				}
 
-				m.CacheNumCounters = &v
+				m.CacheNumCounters = v
 
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -328,7 +332,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err //nolint:wrapcheck
 				}
 
-				m.CacheMaxCost = &v
+				m.CacheMaxCost = v
 			}
 		}
 	}

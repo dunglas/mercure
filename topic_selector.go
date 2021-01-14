@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -8,12 +9,38 @@ import (
 	uritemplate "github.com/yosida95/uritemplate/v3"
 )
 
-// topicSelectorStore caches compiled templates to improve memory and CPU usage.
-type topicSelectorStore struct {
+// TopicSelectorStore caches compiled templates to improve memory and CPU usage.
+type TopicSelectorStore struct {
 	cache *ristretto.Cache
 }
 
-func (tss *topicSelectorStore) match(topic, topicSelector string) bool {
+// NewTopicSelectorStore creates a TopicSelectorStore instance.
+// See https://github.com/dgraph-io/ristretto, defaults to 6e7 counters and 100MB of max cost, set values to -1 to disable.
+func NewTopicSelectorStore(cacheNumCounters, cacheMaxCost int64) (*TopicSelectorStore, error) {
+	if cacheNumCounters == -1 {
+		return &TopicSelectorStore{}, nil
+	}
+
+	if cacheNumCounters == 0 {
+		cacheNumCounters = 6e7 // gather stats to find the best default values
+	}
+	if cacheMaxCost == 0 {
+		cacheMaxCost = 1e8
+	}
+
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: cacheNumCounters,
+		MaxCost:     cacheMaxCost,
+		BufferItems: 64,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to create cache: %w", err)
+	}
+
+	return &TopicSelectorStore{cache: cache}, nil
+}
+
+func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 	// Always do an exact matching comparison first
 	// Also check if the topic selector is the reserved keyword *
 	if topicSelector == "*" || topic == topicSelector {
@@ -45,7 +72,7 @@ func (tss *topicSelectorStore) match(topic, topicSelector string) bool {
 }
 
 // getRegexp retrieves regexp for this template selector.
-func (tss *topicSelectorStore) getRegexp(topicSelector string) *regexp.Regexp {
+func (tss *TopicSelectorStore) getRegexp(topicSelector string) *regexp.Regexp {
 	// If it's definitely not an URI template, skip to save some resources
 	if !strings.Contains(topicSelector, "{") {
 		return nil

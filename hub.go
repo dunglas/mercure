@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dgraph-io/ristretto"
 	"github.com/form3tech-oss/jwt-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -169,11 +168,10 @@ func WithTransport(t Transport) Option {
 	}
 }
 
-// WithCacheConfig see https://github.com/dgraph-io/ristretto, defaults to 6e7 counters and 100MB of max cost, set values to 0 to disable.
-func WithCacheConfig(numCounters, maxCost int64) Option {
+// WithTopicSelectorStore sets the TopicSelectorStore instance to use.
+func WithTopicSelectorStore(tss *TopicSelectorStore) Option {
 	return func(o *opt) error {
-		o.cacheNumCounters = numCounters
-		o.cacheMaxCost = maxCost
+		o.topicSelectorStore = tss
 
 		return nil
 	}
@@ -188,30 +186,28 @@ type jwtConfig struct {
 //
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
-	transport        Transport
-	anonymous        bool
-	debug            bool
-	subscriptions    bool
-	uiPath           string
-	logger           Logger
-	writeTimeout     time.Duration
-	dispatchTimeout  time.Duration
-	heartbeat        time.Duration
-	publisherJWT     *jwtConfig
-	subscriberJWT    *jwtConfig
-	metrics          Metrics
-	allowedHosts     []string
-	publishOrigins   []string
-	corsOrigins      []string
-	cacheNumCounters int64
-	cacheMaxCost     int64
+	transport          Transport
+	topicSelectorStore *TopicSelectorStore
+	anonymous          bool
+	debug              bool
+	subscriptions      bool
+	uiPath             string
+	logger             Logger
+	writeTimeout       time.Duration
+	dispatchTimeout    time.Duration
+	heartbeat          time.Duration
+	publisherJWT       *jwtConfig
+	subscriberJWT      *jwtConfig
+	metrics            Metrics
+	allowedHosts       []string
+	publishOrigins     []string
+	corsOrigins        []string
 }
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
 	*opt
-	handler            http.Handler
-	topicSelectorStore *topicSelectorStore
+	handler http.Handler
 
 	// Deprecated: use the Caddy server module or the standalone library instead.
 	config        *viper.Viper
@@ -221,11 +217,7 @@ type Hub struct {
 
 // NewHub creates a new Hub instance.
 func NewHub(options ...Option) (*Hub, error) {
-	opt := &opt{
-		writeTimeout:     600 * time.Second,
-		cacheNumCounters: 6e7, // gather stats to find the best default values
-		cacheMaxCost:     1e8,
-	}
+	opt := &opt{writeTimeout: 600 * time.Second}
 
 	for _, o := range options {
 		if err := o(opt); err != nil {
@@ -252,31 +244,24 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	if opt.transport == nil {
-		t, _ := NewLocalTransport(nil, nil)
+		t, _ := NewLocalTransport(nil, nil, nil)
 		opt.transport = t
+	}
+
+	if opt.topicSelectorStore == nil {
+		tss, err := NewTopicSelectorStore(0, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		opt.topicSelectorStore = tss
 	}
 
 	if opt.metrics == nil {
 		opt.metrics = NopMetrics{}
 	}
 
-	var cache *ristretto.Cache
-	if opt.cacheNumCounters != 0 {
-		var err error
-		cache, err = ristretto.NewCache(&ristretto.Config{
-			NumCounters: opt.cacheNumCounters,
-			MaxCost:     opt.cacheMaxCost,
-			BufferItems: 64,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("unable to create cache: %w", err)
-		}
-	}
-
-	h := &Hub{
-		opt:                opt,
-		topicSelectorStore: &topicSelectorStore{cache: cache},
-	}
+	h := &Hub{opt: opt}
 	h.initHandler()
 
 	return h, nil

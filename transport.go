@@ -11,7 +11,7 @@ import (
 const EarliestLastEventID = "earliest"
 
 // TransportFactory is the factory to initialize a new transport.
-type TransportFactory = func(u *url.URL, l Logger) (Transport, error)
+type TransportFactory = func(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error)
 
 var (
 	transportFactories   = make(map[string]TransportFactory) //nolint:gochecknoglobals
@@ -24,7 +24,7 @@ func RegisterTransportFactory(scheme string, factory TransportFactory) {
 	transportFactoriesMu.Unlock()
 }
 
-func NewTransport(u *url.URL, l Logger) (Transport, error) {
+func NewTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) {
 	transportFactoriesMu.RLock()
 	f, ok := transportFactories[u.Scheme]
 	transportFactoriesMu.RUnlock()
@@ -33,7 +33,7 @@ func NewTransport(u *url.URL, l Logger) (Transport, error) {
 		return nil, &ErrTransport{dsn: u.String(), msg: "no such transport available"}
 	}
 
-	return f(u, l)
+	return f(u, l, nil)
 }
 
 // Transport provides methods to dispatch and persist updates.
