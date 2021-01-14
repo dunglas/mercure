@@ -33,11 +33,11 @@ type Subscriber struct {
 	history             updateSource
 	live                updateSource
 	logger              Logger
-	topicSelectorStore  *topicSelectorStore
+	topicSelectorStore  *TopicSelectorStore
 }
 
 // NewSubscriber creates a new subscriber.
-func NewSubscriber(lastEventID string, logger Logger, tss *topicSelectorStore) *Subscriber {
+func NewSubscriber(lastEventID string, logger Logger, tss *TopicSelectorStore) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
 		ID:                 id,

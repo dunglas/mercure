@@ -14,7 +14,7 @@ func TestMatch(t *testing.T) {
 		MaxCost:     100,
 		BufferItems: 64,
 	})
-	tss := &topicSelectorStore{cache}
+	tss := &TopicSelectorStore{cache}
 
 	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar"))
 

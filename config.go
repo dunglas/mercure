@@ -150,13 +150,18 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		return nil, fmt.Errorf("unable to create logger: %w", err)
 	}
 
+	tss, err := NewTopicSelectorStore(0, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	if t := v.GetString("transport_url"); t != "" {
 		u, err := url.Parse(t)
 		if err != nil {
 			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
-		t, err := NewTransport(u, logger)
+		t, err := NewTransport(u, logger, tss)
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +173,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithMetrics(NewPrometheusMetrics(nil)))
 	}
 
-	options = append(options, WithLogger(logger))
+	options = append(options, WithLogger(logger), WithTopicSelectorStore(tss))
 	if v.GetBool("allow_anonymous") {
 		options = append(options, WithAnonymous())
 	}

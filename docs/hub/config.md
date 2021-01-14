@@ -44,7 +44,7 @@ The following Mercure-specific directives are available:
 | `dispatch_timeout <duration>`        | maximum duration of the dispatch of a single update, set to `0s` disable                                                                                                                                                                       | `5s`                |
 | `write_timeout <duration>`           | maximum duration before closing the connection, set to `0s` disable                                                                                                                                                                            | `600s`              |
 | `demo [<assets-path>]`               | enable the demo mode and the UI                                                                                                                                                                                                                |                     |
-| `cache <num-counters> <max-cost>`    | cache configuration (see [Ristretto's docs](https://github.com/dgraph-io/ristretto)), set to 0 to disable the cache                                                                                                                            | `6e7` `1e8` (100MB) |
+| `cache <num-counters> <max-cost>`    | cache configuration (see [Ristretto's docs](https://github.com/dgraph-io/ristretto)), set to -1 to disable the cache                                                                                                                           | `6e7` `1e8` (100MB) |
 
 See also [the list of built-in Caddyfile directives](https://caddyserver.com/docs/caddyfile/directives).
 

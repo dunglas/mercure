@@ -175,7 +175,7 @@ func TestServe(t *testing.T) {
 func TestClientClosesThenReconnects(t *testing.T) {
 	l := zap.NewNop()
 	u, _ := url.Parse("bolt://test.db")
-	bt, _ := NewTransport(u, l)
+	bt, _ := NewTransport(u, l, nil)
 	h := createAnonymousDummy(WithLogger(l), WithTransport(bt))
 	transport := h.transport.(*BoltTransport)
 	defer os.Remove("test.db")
