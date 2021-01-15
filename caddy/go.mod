@@ -18,7 +18,6 @@ require (
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/dunglas/mercure v0.11.0-rc.2
 	github.com/golang/snappy v0.0.2 // indirect
-	github.com/google/cel-go v0.6.0 // cannot upgrade yet
 	github.com/google/uuid v1.1.4 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
