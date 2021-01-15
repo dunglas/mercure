@@ -116,6 +116,11 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 		m.TransportURL = "bolt://mercure.db"
 	}
 
+	tss, err := mercure.NewTopicSelectorStore(m.CacheNumCounters, m.CacheMaxCost)
+	if err != nil {
+		return err //nolint:wrapcheck
+	}
+
 	m.logger = ctx.Logger(m)
 	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
 		u, err := url.Parse(m.TransportURL)
@@ -123,7 +128,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
-		transport, err := mercure.NewTransport(u, m.logger)
+		transport, err := mercure.NewTransport(u, m.logger, tss)
 		if err != nil {
 			return nil, err //nolint:wrapcheck
 		}
@@ -136,6 +141,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
+		mercure.WithTopicSelectorStore(tss),
 		mercure.WithTransport(destructor.(*transportDestructor).transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg),
@@ -179,13 +185,6 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	}
 	if len(m.CORSOrigins) > 0 {
 		opts = append(opts, mercure.WithCORSOrigins(m.CORSOrigins))
-	}
-	if m.CacheNumCounters != 0 && m.CacheMaxCost != 0 {
-		tss, err := mercure.NewTopicSelectorStore(m.CacheNumCounters, m.CacheMaxCost)
-		if err != nil {
-			return err //nolint:wrapcheck
-		}
-		opts = append(opts, mercure.WithTopicSelectorStore(tss))
 	}
 
 	h, err := mercure.NewHub(opts...)
