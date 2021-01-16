@@ -15,6 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const BoltDefaultCleanupFrequency = 0.3
+
 func init() { //nolint:gochecknoinits
 	RegisterTransportFactory("bolt", NewBoltTransport)
 }
@@ -54,7 +56,7 @@ func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport,
 		}
 	}
 
-	cleanupFrequency := 0.3
+	cleanupFrequency := BoltDefaultCleanupFrequency
 	cleanupFrequencyParameter := q.Get("cleanup_frequency")
 	if cleanupFrequencyParameter != "" {
 		cleanupFrequency, err = strconv.ParseFloat(cleanupFrequencyParameter, 64)
