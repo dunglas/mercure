@@ -66,7 +66,7 @@ func TestStartCrash(t *testing.T) {
 }
 
 func createDummy(options ...Option) *Hub {
-	tss, _ := NewTopicSelectorStore(-1, -1)
+	tss, _ := NewTopicSelectorStore(0, 0)
 	options = append(
 		[]Option{
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),

@@ -9,23 +9,22 @@ import (
 	uritemplate "github.com/yosida95/uritemplate/v3"
 )
 
+// Gather stats to find the best default values.
+const (
+	TopicSelectorStoreDefaultCacheNumCounters = int64(6e7)
+	TopicSelectorStoreCacheMaxCost            = int64(1e8) // 100 MB
+)
+
 // TopicSelectorStore caches compiled templates to improve memory and CPU usage.
 type TopicSelectorStore struct {
 	cache *ristretto.Cache
 }
 
 // NewTopicSelectorStore creates a TopicSelectorStore instance.
-// See https://github.com/dgraph-io/ristretto, defaults to 6e7 counters and 100MB of max cost, set values to -1 to disable.
+// See https://github.com/dgraph-io/ristretto, set values to 0 to disable.
 func NewTopicSelectorStore(cacheNumCounters, cacheMaxCost int64) (*TopicSelectorStore, error) {
-	if cacheNumCounters == -1 {
-		return &TopicSelectorStore{}, nil
-	}
-
 	if cacheNumCounters == 0 {
-		cacheNumCounters = 6e7 // gather stats to find the best default values
-	}
-	if cacheMaxCost == 0 {
-		cacheMaxCost = 1e8
+		return &TopicSelectorStore{}, nil
 	}
 
 	cache, err := ristretto.NewCache(&ristretto.Config{

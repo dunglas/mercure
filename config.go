@@ -150,7 +150,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		return nil, fmt.Errorf("unable to create logger: %w", err)
 	}
 
-	tss, err := NewTopicSelectorStore(0, 0)
+	tss, err := NewTopicSelectorStore(TopicSelectorStoreDefaultCacheNumCounters, TopicSelectorStoreCacheMaxCost)
 	if err != nil {
 		return nil, err
 	}
