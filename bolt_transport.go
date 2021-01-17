@@ -52,7 +52,7 @@ func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport,
 	if sizeParameter != "" {
 		size, err = strconv.ParseUint(sizeParameter, 10, 64)
 		if err != nil {
-			return nil, &ErrTransport{u.String(), fmt.Sprintf(`invalid "size" parameter %q`, sizeParameter), err}
+			return nil, &ErrTransport{u.Redacted(), fmt.Sprintf(`invalid "size" parameter %q`, sizeParameter), err}
 		}
 	}
 
@@ -61,7 +61,7 @@ func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport,
 	if cleanupFrequencyParameter != "" {
 		cleanupFrequency, err = strconv.ParseFloat(cleanupFrequencyParameter, 64)
 		if err != nil {
-			return nil, &ErrTransport{u.String(), fmt.Sprintf(`invalid "cleanup_frequency" parameter %q`, cleanupFrequencyParameter), err}
+			return nil, &ErrTransport{u.Redacted(), fmt.Sprintf(`invalid "cleanup_frequency" parameter %q`, cleanupFrequencyParameter), err}
 		}
 	}
 
@@ -70,12 +70,12 @@ func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport,
 		path = u.Host // relative path (bolt://path.db)
 	}
 	if path == "" {
-		return nil, &ErrTransport{u.String(), "missing path", err}
+		return nil, &ErrTransport{u.Redacted(), "missing path", err}
 	}
 
 	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
-		return nil, &ErrTransport{dsn: u.String(), err: err}
+		return nil, &ErrTransport{dsn: u.Redacted(), err: err}
 	}
 
 	return &BoltTransport{
