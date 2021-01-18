@@ -167,8 +167,8 @@ func (*addSubscriberErrorTransport) AddSubscriber(*Subscriber) error {
 	return errFailedToAddSubscriber
 }
 
-func (*addSubscriberErrorTransport) GetSubscribers() (string, []*Subscriber) {
-	return "", []*Subscriber{}
+func (*addSubscriberErrorTransport) GetSubscribers() (string, []*Subscriber, error) {
+	return "", []*Subscriber{}, nil
 }
 
 func (*addSubscriberErrorTransport) Close() error {
@@ -390,7 +390,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		defer wg.Done()
 
 		for {
-			_, s := hub.transport.(TransportSubscribers).GetSubscribers()
+			_, s, _ := hub.transport.(TransportSubscribers).GetSubscribers()
 			if len(s) == 2 {
 				break
 			}

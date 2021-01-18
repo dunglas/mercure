@@ -68,10 +68,10 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // GetSubscribers get the list of active subscribers.
-func (t *LocalTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
+func (t *LocalTransport) GetSubscribers() (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
-	subscribers = make([]*Subscriber, len(t.subscribers))
+	subscribers := make([]*Subscriber, len(t.subscribers))
 
 	i := 0
 	for subscriber := range t.subscribers {
@@ -79,7 +79,7 @@ func (t *LocalTransport) GetSubscribers() (lastEventID string, subscribers []*Su
 		i++
 	}
 
-	return t.lastEventID, subscribers
+	return t.lastEventID, subscribers, nil
 }
 
 // Close closes the Transport.

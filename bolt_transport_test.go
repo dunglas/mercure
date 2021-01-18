@@ -289,11 +289,12 @@ func TestBoltGetSubscribers(t *testing.T) {
 	go s2.start()
 	require.Nil(t, transport.AddSubscriber(s2))
 
-	lastEventID, subscribers := transport.GetSubscribers()
+	lastEventID, subscribers, err := transport.GetSubscribers()
 	assert.Equal(t, EarliestLastEventID, lastEventID)
 	assert.Len(t, subscribers, 2)
 	assert.Contains(t, subscribers, s1)
 	assert.Contains(t, subscribers, s2)
+	assert.Nil(t, err)
 }
 
 func TestBoltLastEventID(t *testing.T) {
@@ -325,6 +326,6 @@ func TestBoltLastEventID(t *testing.T) {
 	require.NotNil(t, transport)
 	defer transport.Close()
 
-	lastEventID, _ := transport.GetSubscribers()
+	lastEventID, _, _ := transport.GetSubscribers()
 	assert.Equal(t, "foo", lastEventID)
 }
