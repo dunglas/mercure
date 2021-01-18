@@ -138,9 +138,10 @@ func TestLocalTransportGetSubscribers(t *testing.T) {
 	go s2.start()
 	require.Nil(t, transport.AddSubscriber(s2))
 
-	lastEventID, subscribers := transport.(TransportSubscribers).GetSubscribers()
+	lastEventID, subscribers, err := transport.(TransportSubscribers).GetSubscribers()
 	assert.Equal(t, EarliestLastEventID, lastEventID)
 	assert.Len(t, subscribers, 2)
 	assert.Contains(t, subscribers, s1)
 	assert.Contains(t, subscribers, s2)
+	assert.Nil(t, err)
 }

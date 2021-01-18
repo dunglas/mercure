@@ -51,7 +51,7 @@ type Transport interface {
 // TransportSubscribers provide a method to retrieve the list of active subscribers.
 type TransportSubscribers interface {
 	// GetSubscribers gets the last event ID and the list of active subscribers at this time.
-	GetSubscribers() (string, []*Subscriber)
+	GetSubscribers() (string, []*Subscriber, error)
 }
 
 // ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.

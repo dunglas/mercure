@@ -118,7 +118,14 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 		panic("The transport isn't an instance of hub.TransportSubscribers")
 	}
 
-	lastEventID, subscribers = transport.GetSubscribers()
+	var err error
+	lastEventID, subscribers, err = transport.GetSubscribers()
+	if err != nil {
+		h.logger.Error("Error retrieving subscribers", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
 	if r.Header.Get("If-None-Match") == lastEventID {
 		w.WriteHeader(http.StatusNotModified)
 

@@ -191,10 +191,10 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // GetSubscribers get the list of active subscribers.
-func (t *BoltTransport) GetSubscribers() (lastEventID string, subscribers []*Subscriber) {
+func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
-	subscribers = make([]*Subscriber, len(t.subscribers))
+	subscribers := make([]*Subscriber, len(t.subscribers))
 
 	i := 0
 	for subscriber := range t.subscribers {
@@ -202,7 +202,7 @@ func (t *BoltTransport) GetSubscribers() (lastEventID string, subscribers []*Sub
 		i++
 	}
 
-	return t.lastEventID, subscribers
+	return t.lastEventID, subscribers, nil
 }
 
 func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
