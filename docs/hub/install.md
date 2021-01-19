@@ -14,8 +14,8 @@ Note: Mac OS users must use the `Darwin` binary.
 
 Then, on Linux and Mac OS X, run:
 
-    MERCURE_PUBLISHER_JWT_KEY="!ChangeMe!" \
-    MERCURE_SUBSCRIBER_JWT_KEY="!ChangeMe!" \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
     ./mercure run -config Caddyfile.dev
 
 On Windows, start PowerShell, go into the extracted directory and run:
@@ -23,11 +23,17 @@ On Windows, start PowerShell, go into the extracted directory and run:
     $env:MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!'; .\mercure.exe run -config Caddyfile.dev
 
 The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
-Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`. 
+Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`.
 
 The server is now available on `https://localhost`, with the demo mode enabled. Because the `allow_anonymous` directive is set in the provided configuration, anonymous subscribers are allowed.
 
-To run the server in production, see [how to configure the Mercure.rocks hub](config.md).
+To run the server in production, run this command:
+
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    ./mercure run
+
+[Learn how to configure the Mercure.rocks hub](config.md).
 
 When the server is up and running, the following endpoints are available:
 

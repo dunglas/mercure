@@ -46,16 +46,14 @@ To purchase the On Premise version of the Mercure.rocks Hub, drop us a mail: [co
 ### Setting the License
 
 A license key is provided when you purchase the High Availability version of the Mercure.rocks Hub.
-This key must be set in a configuration parameter named `license`.
-All configuration formats supported by the Mercure.rocks hub are supported (YAML, environment variables...).
+This key must be set in an environment variable named `MERCURE_LICENSE`.
 
 Ex:
 
-```yaml
-# mercure.yaml
-license: '<my-license-key>'
-# ...
-```
+    MERCURE_LICENSE=snip \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    ./mercure run
 
 If you use the Helm chart, set the `license` value and change the Docker image to use the one provided.
 
@@ -83,16 +81,13 @@ Most Cloud Computing platforms also provide managed versions of Redis.
 All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
 See https://mercure.rocks/docs/hub/config.
 
-To use Redis, the `transport_url` configuration parameter must be set like in this example:
+To use Redis, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
-```yaml
-# mercure.yaml
-transport_url: redis://127.0.0.1:6379/mercure-ha
-license: '...'
-addr: :3001
-jwt_key: '!ChangeMe!'
-# ...
-```
+    MERCURE_TRANSPORT_URL=redis://127.0.0.1:6379/mercure-ha \
+    MERCURE_LICENSE=snip \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
@@ -121,16 +116,13 @@ Most Cloud Computing platforms also provide managed versions of PostgreSQL.
 All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
 See https://mercure.rocks/docs/hub/config.
 
-To use PostgreSQL `LISTEN`/`NOTIFY`, the `transport_url` configuration parameter must be set like in this example:
+To use PostgreSQL `LISTEN`/`NOTIFY`, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
-```yaml
-# mercure.yaml
-transport_url: postgres://user:password@127.0.0.1/mercure-ha
-license: '...'
-addr: :3001
-jwt_key: '!ChangeMe!'
-# ...
-```
+    MERCURE_TRANSPORT_URL=postgres://user:password@127.0.0.1/mercure-ha \
+    MERCURE_LICENSE=snip \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
 
@@ -159,16 +151,13 @@ The Mercure.rocks hub has been tested with:
 All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
 See https://mercure.rocks/docs/hub/config.
 
-To use Kafka, the `transport_url` configuration parameter must be set like in this example:
+To use Kafka, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
-```yaml
-# mercure.yaml
-transport_url: kafka://kafka/?addr=localhost:9092&topic=mercure-ha
-license: '...'
-addr: :3001
-jwt_key: '!ChangeMe!'
-# ...
-```
+    MERCURE_TRANSPORT_URL=kafka://kafka/?addr=localhost:9092&topic=mercure-ha \
+    MERCURE_LICENSE=snip \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
@@ -198,16 +187,13 @@ To install Apache Pulsar, [read the documentation](https://pulsar.apache.org/doc
 All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
 See https://mercure.rocks/docs/hub/config.
 
-To use Pulsar, the `transport_url` configuration parameter must be set like in this example:
+To use Pulsar, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
-```yaml
-# mercure.yaml
-transport_url: pulsar://localhost:6650?topic=mercure-ha&subscription_name=the-node-id
-license: '...'
-addr: :3001
-jwt_key: '!ChangeMe!'
-# ...
-```
+    MERCURE_TRANSPORT_URL=pulsar://localhost:6650?topic=mercure-ha&subscription_name=the-node-id \
+    MERCURE_LICENSE=snip \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`:
 

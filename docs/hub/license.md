@@ -1,4 +1,4 @@
-## License and Copyright 
+# License and Copyright
 
 tl;dr:
 
