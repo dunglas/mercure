@@ -46,7 +46,7 @@ To purchase the On Premise version of the Mercure.rocks Hub, drop us a mail: [co
 ### Setting the License
 
 A license key is provided when you purchase the High Availability version of the Mercure.rocks Hub.
-This key must be set in an environment variable named `LICENSE`.
+This key must be set in an environment variable named `MERCURE_LICENSE`.
 
 Ex:
 
