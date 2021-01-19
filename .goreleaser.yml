@@ -61,6 +61,8 @@ archives:
   - COPYRIGHT
   - LICENSE
   - README.md
+  - Caddyfile
+  - Caddyfile.dev
   - public/*
   format_overrides:
   - goos: windows
@@ -84,9 +86,7 @@ archives:
   - goos: windows
     format: zip
 dockers:
-- binaries:
-  - mercure
-  builds:
+- ids:
   - caddy
   dockerfile: Dockerfile # See https://github.com/goreleaser/goreleaser/issues/1916
   image_templates:
@@ -98,9 +98,7 @@ dockers:
   - public/
   - Caddyfile
   - Caddyfile.dev
-- binaries:
-  - mercure
-  builds:
+- ids:
   - legacy
   dockerfile: Dockerfile.legacy
   image_templates:
