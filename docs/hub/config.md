@@ -57,9 +57,9 @@ The provided `Caddyfile` and the Docker image provide convenient environment var
 | `DEBUG=debug`                | enable the debug mode                                                |                     |
 | `SERVER_NAME`                | the server name or address                                           | `localhost`         |
 | `MERCURE_TRANSPORT_URL`      | the value passed to the `transport_url` directive                    | `bolt://mercure.db` |
-| `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                                    | `!ChangeMe!`        |
+| `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                                    |                     |
 | `MERCURE_PUBLISHER_JWT_ALG`  | the JWT algorithm to use for publishers                              | `HS256`             |
-| `MERCURE_SUBSCRIBER_JWT_KEY` | the JWT key to use for subscribers                                   | `!ChangeMe!`        |
+| `MERCURE_SUBSCRIBER_JWT_KEY` | the JWT key to use for subscribers                                   |                     |
 | `MERCURE_SUBSCRIBER_JWT_ALG` | the JWT algorithm to use for subscribers                             | `HS256`             |
 | `MERCURE_EXTRA_DIRECTIVES`   | a list of extra Mercure directives to pass, one per line             |                     |
 | `MERCURE_LICENSE`            | the license to use ([only applicable for the HA version](cluster.md) |                     |
