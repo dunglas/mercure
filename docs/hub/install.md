@@ -40,7 +40,7 @@ When the server is up and running, the following endpoints are available:
 * `POST https://example.com/.well-known/mercure`: to publish updates
 * `GET https://example.com/.well-known/mercure`: to subscribe to updates
 
-In demo mode, an UI is also available: `https://example.com/.well-known/mercure/ui`.
+In demo mode, an UI is also available: `https://example.com/.well-known/mercure/ui/`.
 
 See [the protocol](../../spec/mercure.md) for more details about these endpoints.
 
