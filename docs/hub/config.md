@@ -26,6 +26,15 @@ route {
 ```
 
 Caddy will automatically generate a Let's Encrypt TLS certificate automatically for you! So you can use HTTPS.
+To disable HTTPS entirely, explicitly set a different port than `443`:
+
+```Caddyfile
+:80, my-domain.test:3000
+
+route {
+    # ...
+}
+```
 
 ## Directives
 
@@ -43,7 +52,7 @@ The following Mercure-specific directives are available:
 | `transport_url <url>`                | URL representation of the transport to use. Use `local://local` to disabled history, (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`), see also [the cluster mode](cluster.md)                                            | `bolt://mercure.db` |
 | `dispatch_timeout <duration>`        | maximum duration of the dispatch of a single update, set to `0s` disable                                                                                                                                                                       | `5s`                |
 | `write_timeout <duration>`           | maximum duration before closing the connection, set to `0s` disable                                                                                                                                                                            | `600s`              |
-| `demo [<assets-path>]`               | enable the demo mode and the UI                                                                                                                                                                                                                |                     |
+| `demo [<assets-path>]`               | enable the debug UI and expose demo endpoints                                                                                                                                                                                                  |                     |
 | `cache <num-counters> <max-cost>`    | cache configuration (see [Ristretto's docs](https://github.com/dgraph-io/ristretto)), set to -1 to disable the cache                                                                                                                           | `6e7` `1e8` (100MB) |
 
 See also [the list of built-in Caddyfile directives](https://caddyserver.com/docs/caddyfile/directives).
@@ -52,17 +61,17 @@ See also [the list of built-in Caddyfile directives](https://caddyserver.com/doc
 
 The provided `Caddyfile` and the Docker image provide convenient environment variables:
 
-| Environment variable         | Description                                                          | Default value       |
-|------------------------------|----------------------------------------------------------------------|---------------------|
-| `DEBUG=debug`                | enable the debug mode                                                |                     |
-| `SERVER_NAME`                | the server name or address                                           | `localhost`         |
-| `MERCURE_TRANSPORT_URL`      | the value passed to the `transport_url` directive                    | `bolt://mercure.db` |
-| `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                                    |                     |
-| `MERCURE_PUBLISHER_JWT_ALG`  | the JWT algorithm to use for publishers                              | `HS256`             |
-| `MERCURE_SUBSCRIBER_JWT_KEY` | the JWT key to use for subscribers                                   |                     |
-| `MERCURE_SUBSCRIBER_JWT_ALG` | the JWT algorithm to use for subscribers                             | `HS256`             |
-| `MERCURE_EXTRA_DIRECTIVES`   | a list of extra Mercure directives to pass, one per line             |                     |
-| `MERCURE_LICENSE`            | the license to use ([only applicable for the HA version](cluster.md) |                     |
+| Environment variable         | Description                                                                        | Default value       |
+|------------------------------|------------------------------------------------------------------------------------|---------------------|
+| `DEBUG=debug`                | enable the debug mode                                                              |                     |
+| `SERVER_NAME`                | the server name or address, set it to `:80` (or use another port) to disable HTTPS | `localhost`         |
+| `MERCURE_TRANSPORT_URL`      | the value passed to the `transport_url` directive                                  | `bolt://mercure.db` |
+| `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                                                  |                     |
+| `MERCURE_PUBLISHER_JWT_ALG`  | the JWT algorithm to use for publishers                                            | `HS256`             |
+| `MERCURE_SUBSCRIBER_JWT_KEY` | the JWT key to use for subscribers                                                 |                     |
+| `MERCURE_SUBSCRIBER_JWT_ALG` | the JWT algorithm to use for subscribers                                           | `HS256`             |
+| `MERCURE_EXTRA_DIRECTIVES`   | a list of extra Mercure directives to pass, one per line                           |                     |
+| `MERCURE_LICENSE`            | the license to use ([only applicable for the HA version](cluster.md)               |                     |
 
 ## JWT Verification
 
