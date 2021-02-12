@@ -48,8 +48,7 @@ func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport,
 	}
 
 	size := uint64(0)
-	sizeParameter := q.Get("size")
-	if sizeParameter != "" {
+	if sizeParameter := q.Get("size"); sizeParameter != "" {
 		size, err = strconv.ParseUint(sizeParameter, 10, 64)
 		if err != nil {
 			return nil, &ErrTransport{u.Redacted(), fmt.Sprintf(`invalid "size" parameter %q`, sizeParameter), err}
@@ -180,7 +179,7 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 
 	t.Lock()
 	t.subscribers[s] = struct{}{}
-	toSeq := t.lastSeq
+	toSeq := t.lastSeq //nolint:ifshort
 	t.Unlock()
 
 	if s.RequestLastEventID != "" {
