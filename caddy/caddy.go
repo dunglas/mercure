@@ -46,6 +46,7 @@ func (d *transportDestructor) Destruct() error {
 	return d.transport.Close()
 }
 
+// Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 type Mercure struct {
 	// Allow subscribers with no valid JWT.
 	Anonymous bool `json:"anonymous,omitempty"`
