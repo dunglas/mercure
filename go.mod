@@ -6,6 +6,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/dgraph-io/ristretto v0.0.3
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
+	github.com/dunglas/mercure/caddy v0.0.0-20210215213405-dc6a34ff0fee // indirect
 	github.com/form3tech-oss/jwt-go v3.2.2+incompatible
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gofrs/uuid v4.0.0+incompatible

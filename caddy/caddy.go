@@ -58,7 +58,7 @@ type Mercure struct {
 	Demo string `json:"demo,omitempty"`
 
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
-	WriteTimeout caddy.Duration `json:"write_timeout,omitempty"`
+	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
 
 	// Maximum dispatch duration of an update.
 	DispatchTimeout caddy.Duration `json:"dispatch_timeout,omitempty"`
@@ -145,8 +145,8 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
-		if m.WriteTimeout != 0 {
-			u.Query().Set("write_timeout", time.Duration(m.WriteTimeout).String())
+		if m.WriteTimeout != nil {
+			u.Query().Set("write_timeout", time.Duration(*m.WriteTimeout).String())
 		}
 
 		transport, err := mercure.NewTransport(u, m.logger, tss)
@@ -192,8 +192,8 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	if m.Subscriptions {
 		opts = append(opts, mercure.WithSubscriptions())
 	}
-	if d := m.WriteTimeout; d != 0 {
-		opts = append(opts, mercure.WithWriteTimeout(time.Duration(d)))
+	if d := m.WriteTimeout; d != nil {
+		opts = append(opts, mercure.WithWriteTimeout(time.Duration(*d)))
 	}
 	if d := m.DispatchTimeout; d != 0 {
 		opts = append(opts, mercure.WithDispatchTimeout(time.Duration(d)))
@@ -262,7 +262,8 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err //nolint:wrapcheck
 				}
 
-				m.WriteTimeout = caddy.Duration(d)
+				cd := caddy.Duration(d)
+				m.WriteTimeout = &cd
 
 			case "dispatch_timeout":
 				if !d.NextArg() {
