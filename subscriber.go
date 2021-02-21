@@ -168,6 +168,8 @@ func (s *Subscriber) HistoryDispatched(responseLastEventID string) {
 func (s *Subscriber) Disconnect() {
 	s.disconnectedOnce.Do(func() {
 		close(s.disconnected)
+		close(s.live.in)
+		close(s.out)
 	})
 }
 
