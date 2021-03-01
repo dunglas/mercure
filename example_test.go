@@ -15,7 +15,8 @@ func Example() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer h.Stop()
 
 	http.Handle("/.well-known/mercure", h)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Panic(http.ListenAndServe(":8080", nil))
 }

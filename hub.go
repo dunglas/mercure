@@ -268,3 +268,8 @@ func NewHub(options ...Option) (*Hub, error) {
 
 	return h, nil
 }
+
+// Stop stops the hub.
+func (h *Hub) Stop() error {
+	return h.transport.Close()
+}

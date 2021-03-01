@@ -77,6 +77,8 @@ func (s *Subscriber) start() {
 			}
 		case u, ok := <-s.live.in:
 			if !ok {
+				close(s.out)
+
 				// chan drained
 				return
 			}
@@ -91,6 +93,10 @@ func (s *Subscriber) start() {
 			}
 
 			s.live.buffer = s.live.buffer[1:]
+		case <-s.disconnected:
+			close(s.out)
+
+			return
 		}
 	}
 }
