@@ -12,6 +12,7 @@ linters:
     - testpackage
     - exhaustivestruct
     - paralleltest
+    - cyclop
 
 issues:
   exclude-rules:
