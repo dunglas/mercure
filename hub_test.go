@@ -2,8 +2,10 @@ package mercure
 
 import (
 	"errors"
+	"net/http/httptest"
 	"os"
 	"os/exec"
+	"sync"
 	"testing"
 
 	"github.com/form3tech-oss/jwt-go"
@@ -63,6 +65,47 @@ func TestStartCrash(t *testing.T) {
 	var e *exec.ExitError
 	require.True(t, errors.As(err, &e))
 	assert.False(t, e.Success())
+}
+
+func TestStop(t *testing.T) {
+	numberOfSubscribers := 2
+	hub := createAnonymousDummy()
+
+	go func() {
+		s := hub.transport.(*LocalTransport)
+		var ready bool
+
+		for !ready {
+			s.RLock()
+			ready = len(s.subscribers) == numberOfSubscribers
+			s.RUnlock()
+		}
+
+		hub.transport.Dispatch(&Update{
+			Topics: []string{"http://example.com/foo"},
+			Event:  Event{Data: "Hello World"},
+		})
+
+		hub.Stop()
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(numberOfSubscribers)
+	for i := 0; i < numberOfSubscribers; i++ {
+		go func() {
+			defer wg.Done()
+			req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foo", nil)
+
+			w := httptest.NewRecorder()
+			hub.SubscribeHandler(w, req)
+
+			r := w.Result()
+			r.Body.Close()
+			assert.Equal(t, 200, r.StatusCode)
+		}()
+	}
+
+	wg.Wait()
 }
 
 func createDummy(options ...Option) *Hub {

@@ -24,26 +24,17 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
 
-	var (
-		wg         sync.WaitGroup
-		readUpdate *Update
-		ok         bool
-	)
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		select {
-		case readUpdate = <-s.Receive():
-		case <-s.disconnected:
-			ok = true
+		for range s.Receive() {
+			t.Fail()
 		}
 	}()
 
 	s.Disconnect()
-
 	wg.Wait()
-	assert.Nil(t, readUpdate)
-	assert.True(t, ok)
 }
 
 func TestLocalTransportDispatch(t *testing.T) {
