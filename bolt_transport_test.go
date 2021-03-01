@@ -183,21 +183,19 @@ func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	go s.start()
 	require.Nil(t, transport.AddSubscriber(s))
 
-	var (
-		readUpdate *Update
-		wg         sync.WaitGroup
-	)
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		for readUpdate = range s.Receive() {
+		for range s.Receive() {
+			t.Fail()
 		}
+
 		wg.Done()
 	}()
 
 	s.Disconnect()
 
 	wg.Wait()
-	assert.Nil(t, readUpdate)
 }
 
 func TestBoltTransportDispatch(t *testing.T) {
