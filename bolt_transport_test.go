@@ -173,7 +173,7 @@ func TestNewBoltTransport(t *testing.T) {
 	assert.EqualError(t, err, `"bolt://test.db?size=invalid": invalid "size" parameter "invalid": invalid transport: strconv.ParseUint: parsing "invalid": invalid syntax`)
 }
 
-func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
+func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
 	defer os.Remove("test.db")
@@ -185,17 +185,12 @@ func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 
 	var (
 		readUpdate *Update
-		ok         bool
 		wg         sync.WaitGroup
 	)
 	wg.Add(1)
 	go func() {
-		select {
-		case readUpdate = <-s.Receive():
-		case <-s.disconnected:
-			ok = true
+		for readUpdate = range s.Receive() {
 		}
-
 		wg.Done()
 	}()
 
@@ -203,7 +198,6 @@ func TestBoltTransportDoNotDispatchedUntilListen(t *testing.T) {
 
 	wg.Wait()
 	assert.Nil(t, readUpdate)
-	assert.True(t, ok)
 }
 
 func TestBoltTransportDispatch(t *testing.T) {
