@@ -72,25 +72,21 @@ func TestStop(t *testing.T) {
 	hub := createAnonymousDummy()
 
 	go func() {
-		for {
-			s := hub.transport.(*LocalTransport)
+		s := hub.transport.(*LocalTransport)
+		var ready bool
+
+		for !ready {
 			s.RLock()
-			ready := len(s.subscribers) == numberOfSubscribers
+			ready = len(s.subscribers) == numberOfSubscribers
 			s.RUnlock()
-
-			if !ready {
-				continue
-			}
-
-			hub.transport.Dispatch(&Update{
-				Topics: []string{"http://example.com/foo"},
-				Event:  Event{Data: "Hello World"},
-			})
-
-			hub.Stop()
-
-			return
 		}
+
+		hub.transport.Dispatch(&Update{
+			Topics: []string{"http://example.com/foo"},
+			Event:  Event{Data: "Hello World"},
+		})
+
+		hub.Stop()
 	}()
 
 	var wg sync.WaitGroup

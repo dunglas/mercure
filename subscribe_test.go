@@ -196,39 +196,35 @@ func testSubscribe(h interface{ Helper() }, numberOfSubscribers int) {
 	hub := createAnonymousDummy()
 
 	go func() {
-		for {
-			s := hub.transport.(*LocalTransport)
+		s := hub.transport.(*LocalTransport)
+		var ready bool
+
+		for !ready {
 			s.RLock()
-			ready := len(s.subscribers) == numberOfSubscribers
+			ready = len(s.subscribers) == numberOfSubscribers
 			s.RUnlock()
-
-			if !ready {
-				continue
-			}
-
-			hub.transport.Dispatch(&Update{
-				Topics: []string{"http://example.com/not-subscribed"},
-				Event:  Event{Data: "Hello World", ID: "a"},
-			})
-			hub.transport.Dispatch(&Update{
-				Topics: []string{"http://example.com/books/1"},
-				Event:  Event{Data: "Hello World", ID: "b"},
-			})
-			hub.transport.Dispatch(&Update{
-				Topics: []string{"http://example.com/reviews/22"},
-				Event:  Event{Data: "Great", ID: "c"},
-			})
-			hub.transport.Dispatch(&Update{
-				Topics: []string{"http://example.com/hub?topic=faulty{iri"},
-				Event:  Event{Data: "Faulty IRI", ID: "d"},
-			})
-			hub.transport.Dispatch(&Update{
-				Topics: []string{"string"},
-				Event:  Event{Data: "string", ID: "e"},
-			})
-
-			return
 		}
+
+		hub.transport.Dispatch(&Update{
+			Topics: []string{"http://example.com/not-subscribed"},
+			Event:  Event{Data: "Hello World", ID: "a"},
+		})
+		hub.transport.Dispatch(&Update{
+			Topics: []string{"http://example.com/books/1"},
+			Event:  Event{Data: "Hello World", ID: "b"},
+		})
+		hub.transport.Dispatch(&Update{
+			Topics: []string{"http://example.com/reviews/22"},
+			Event:  Event{Data: "Great", ID: "c"},
+		})
+		hub.transport.Dispatch(&Update{
+			Topics: []string{"http://example.com/hub?topic=faulty{iri"},
+			Event:  Event{Data: "Faulty IRI", ID: "d"},
+		})
+		hub.transport.Dispatch(&Update{
+			Topics: []string{"string"},
+			Event:  Event{Data: "string", ID: "e"},
+		})
 	}()
 
 	t, _ := h.(*testing.T)
