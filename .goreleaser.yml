@@ -24,11 +24,9 @@ builds:
     - darwin
     - windows
   goarch:
-    # 32 bits architectures aren't supported by dgraph-io/badger yet:
-    # https://github.com/dgraph-io/badger/issues/1385
-    #- 386
+    - 386
     - amd64
-    #- arm
+    - arm
     - arm64
   goarm:
     - 5
