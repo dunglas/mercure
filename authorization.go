@@ -60,7 +60,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string) (
 	cookie, err := r.Cookie("mercureAuthorization")
 	if err != nil {
 		// Anonymous
-		return nil, nil
+		return nil, nil //nolint:nilerr
 	}
 
 	// CSRF attacks cannot occur when using safe methods
