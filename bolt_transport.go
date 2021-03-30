@@ -140,7 +140,7 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 
 // persist stores update in the database.
 func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
-	return t.db.Update(func(tx *bolt.Tx) error {
+	if err := t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
 		if err != nil {
 			return fmt.Errorf("error when creating Bolt DB bucket: %w", err)
@@ -166,7 +166,11 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		}
 
 		return t.cleanup(bucket, seq)
-	})
+	}); err != nil {
+		return fmt.Errorf("bolt error: %w", err)
+	}
+
+	return nil
 }
 
 // AddSubscriber adds a new subscriber to the transport.

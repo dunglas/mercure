@@ -13,6 +13,7 @@ linters:
     - exhaustivestruct
     - paralleltest
     - cyclop
+    - forcetypeassert
 
 issues:
   exclude-rules:
@@ -22,3 +23,4 @@ issues:
         - funlen
         - godox
         - noctx
+        - wrapcheck

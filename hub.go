@@ -271,5 +271,9 @@ func NewHub(options ...Option) (*Hub, error) {
 
 // Stop stops the hub.
 func (h *Hub) Stop() error {
-	return h.transport.Close()
+	if err := h.transport.Close(); err != nil {
+		return fmt.Errorf("transport error: %w", err)
+	}
+
+	return nil
 }
