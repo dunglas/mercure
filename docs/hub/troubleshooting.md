@@ -12,9 +12,16 @@
 
 For both the `publish` property, the array can be empty to publish only public updates. For both `publish` and `subscribe`, you can use `["*"]` to match all topics.
 
-## Browser Issues
+## CORS Issues
 
-If subscribing to the `EventSource` in the browser doesn't work (the browser instantly disconnects from the stream or complains about CORS policy on receiving an event), check that you've set a proper value for `cors_origins` in the `Caddyfile`. It's fine to use `cors_origins *` for local development.
+If the app connecting to the Mercure hub and the hub itself are not served from the same domain, you must whitelist the domain of the app using the CORS (Cross-Origin Resource Sharing) mechanism. The usual symptoms of a CORS misconfiguration are errors about missing CORS HTTP headers in the console of the browser (`Refused to connect to 'https://hub.example.com/.well-known/mercure?topic=foo' because it violates the following Content Security Policy directive` with Chrome, `Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at https://hub.example.com/.well-known/mercure?topic=foo. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing)` with Firefox).
+
+To fix these errors, set the list of domains allowed to connect to the hub as value of the `cors_origins` in the `Caddyfile`. Example: `cors_origins https://example.com https://example.net`. Don't forget the `https://` prefix before the domain name!
+
+If you use an authorization mechanism (cookie or `Authorization` header), [you cannot set the value of `cors_origins` to `*`](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Credentialed_requests_and_wildcards). You **must** explicitly set the list of allowed origins.
+If you don't use an authorization mechanism (anonymous mode), you can set the value of `cors_origins` to `*` to allow all applications to connect to the hub (be sure to understand the security implications of what you are doing).
+
+If you use the Symfony CLI and want to use an external hub, be sure to read [this issue](https://github.com/symfony/cli/issues/424).
 
 ## URI Templates and Topics
 
