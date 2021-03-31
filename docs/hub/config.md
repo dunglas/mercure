@@ -46,7 +46,7 @@ The following Mercure-specific directives are available:
 | `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                            |                     |
 | `anonymous`                          | allow subscribers with no valid JWT to connect                                                                                                                                                                                                 | `false`             |
 | `publish_origins <origins...>`       | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                        |                     |
-| `cors_origins <origin...>`           | a list of allowed CORS origins, can be `*` for all                                                                                                                                                                                             |                     |
+| `cors_origins <origin...>`           | a list of allowed CORS origins, ([troubleshoot CORS issues](troubleshooting.md#cors-issues))                                                                                                                                                   |                     |
 | `subscriptions`                      | expose the subscription web API and dispatch private updates when a subscription between the Hub and a subscriber is established or closed. The topic follows the template `/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}` |                     |
 | `heartbeat`                          | interval between heartbeats (useful with some proxies, and old browsers), set to `0s` disable                                                                                                                                                  | `40s`               |
 | `transport_url <url>`                | URL representation of the transport to use. Use `local://local` to disabled history, (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`), see also [the cluster mode](cluster.md)                                            | `bolt://mercure.db` |
@@ -119,6 +119,8 @@ Below are common examples of valid DSNs showing a combination of available value
 You can visualize and edit the content of the database using [boltdbweb](https://github.com/evnix/boltdbweb).
 
 ## Legacy Server
+
+**The legacy server is deprecated and will be removed in the next version. Consider upgrading to the Caddy-based build.**
 
 The legacy Mercure.rocks Hub is configurable using [environment variables](https://en.wikipedia.org/wiki/Environment_variable) (recommended in production, [twelve-factor app methodology](https://12factor.net/)), command line flags and configuration files (JSON, TOML, YAML, HCL, envfile and Java properties files are supported).
 
