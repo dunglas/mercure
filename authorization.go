@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/form3tech-oss/jwt-go"
+	"github.com/dunglas/jwt-go"
 )
 
 // claims contains Mercure's JWT claims.
