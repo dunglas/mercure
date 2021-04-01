@@ -15,6 +15,11 @@ linters:
     - cyclop
     - forcetypeassert
 
+    # deprecated
+    - interfacer
+    - maligned
+    - scopelint
+
 issues:
   exclude-rules:
     - path: _test\.go
