@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/form3tech-oss/jwt-go"
+	"github.com/dunglas/jwt-go"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
