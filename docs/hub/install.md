@@ -126,7 +126,9 @@ Or download the `PKGBUILD` and compile and install it: `makepkg -sri`.
 
 It's also possible to [download Caddy with Mercure and other modules included](https://caddyserver.com/download?package=github.com%2Fdunglas%2Fmercure%2Fcaddy), or to build your own binaries using [`xcaddy`](https://github.com/caddyserver/xcaddy):
 
-    xcaddy build --with github.com/dunglas/mercure/caddy
+    xcaddy build \
+      --with github.com/dunglas/mercure \
+      --with github.com/dunglas/mercure/caddy
 
 ## Integrations in Popular Frameworks
 
