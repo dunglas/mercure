@@ -16,22 +16,18 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.SubscriberConnected(s1)
-	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
-	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
+	assertGaugeValue(t, 1.0, m.subscribers)
 
 	s2 := NewSubscriber("", zap.NewNop(), tss)
 	s2.Topics = []string{"topic2"}
 	m.SubscriberConnected(s2)
-	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic1")
-	assertGaugeLabelValue(t, 2.0, m.subscribers, "topic2")
+	assertGaugeValue(t, 2.0, m.subscribers)
 
 	m.SubscriberDisconnected(s1)
-	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic1")
-	assertGaugeLabelValue(t, 1.0, m.subscribers, "topic2")
+	assertGaugeValue(t, 1.0, m.subscribers)
 
 	m.SubscriberDisconnected(s2)
-	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic1")
-	assertGaugeLabelValue(t, 0.0, m.subscribers, "topic2")
+	assertGaugeValue(t, 0.0, m.subscribers)
 }
 
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
@@ -41,20 +37,17 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	s1 := NewSubscriber("", zap.NewNop(), tss)
 	s1.Topics = []string{"topic1", "topic2"}
 	m.SubscriberConnected(s1)
-	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
-	assertCounterValue(t, 1.0, m.subscribersTotal, "topic2")
+	assertCounterValue(t, 1.0, m.subscribersTotal)
 
 	s2 := NewSubscriber("", zap.NewNop(), tss)
 	s2.Topics = []string{"topic2"}
 	m.SubscriberConnected(s2)
-	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
-	assertCounterValue(t, 2.0, m.subscribersTotal, "topic2")
+	assertCounterValue(t, 2.0, m.subscribersTotal)
 
 	m.SubscriberDisconnected(s1)
 	m.SubscriberDisconnected(s2)
 
-	assertCounterValue(t, 1.0, m.subscribersTotal, "topic1")
-	assertCounterValue(t, 2.0, m.subscribersTotal, "topic2")
+	assertCounterValue(t, 2.0, m.subscribersTotal)
 }
 
 func TestTotalOfHandledUpdates(t *testing.T) {
@@ -73,41 +66,25 @@ func TestTotalOfHandledUpdates(t *testing.T) {
 		Topics: []string{"topic3"},
 	})
 
-	assertCounterValue(t, 1.0, m.updatesTotal, "topic1")
-	assertCounterValue(t, 3.0, m.updatesTotal, "topic2")
-	assertCounterValue(t, 2.0, m.updatesTotal, "topic3")
+	assertCounterValue(t, 4.0, m.updatesTotal)
 }
 
-func assertGaugeLabelValue(t *testing.T, v float64, g *prometheus.GaugeVec, l string) {
+func assertGaugeValue(t *testing.T, v float64, g prometheus.Gauge) {
 	t.Helper()
 
 	var metricOut dto.Metric
-
-	m, err := g.GetMetricWithLabelValues(l)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = m.Write(&metricOut)
-	if err != nil {
+	if err := g.Write(&metricOut); err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, v, *metricOut.Gauge.Value)
 }
 
-func assertCounterValue(t *testing.T, v float64, c *prometheus.CounterVec, l string) {
+func assertCounterValue(t *testing.T, v float64, c prometheus.Counter) {
 	t.Helper()
 
 	var metricOut dto.Metric
-
-	m, err := c.GetMetricWithLabelValues(l)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = m.Write(&metricOut)
-	if err != nil {
+	if err := c.Write(&metricOut); err != nil {
 		t.Fatal(err)
 	}
 
