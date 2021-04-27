@@ -9,6 +9,7 @@ The following types are allowed:
 * `test`: test-related change
 * `perf`: performance optimization
 * `ci`: CI-related change
+* `chore`: updating dependencies and related changes
 
 Examples:
 
