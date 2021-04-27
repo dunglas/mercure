@@ -25,9 +25,9 @@ func (NopMetrics) UpdatePublished(s *Update)            {}
 // PrometheusMetrics store Hub collected metrics.
 type PrometheusMetrics struct {
 	registry         prometheus.Registerer
-	subscribersTotal *prometheus.CounterVec
-	subscribers      *prometheus.GaugeVec
-	updatesTotal     *prometheus.CounterVec
+	subscribersTotal prometheus.Counter
+	subscribers      prometheus.Gauge
+	updatesTotal     prometheus.Counter
 }
 
 // NewPrometheusMetrics creates a Prometheus metrics collector.
@@ -38,26 +38,23 @@ func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 	}
 	m := &PrometheusMetrics{
 		registry: registry,
-		subscribersTotal: prometheus.NewCounterVec(
+		subscribersTotal: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "mercure_subscribers_total",
 				Help: "Total number of handled subscribers",
 			},
-			[]string{"topic"},
 		),
-		subscribers: prometheus.NewGaugeVec(
+		subscribers: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Name: "mercure_subscribers",
 				Help: "The current number of running subscribers",
 			},
-			[]string{"topic"},
 		),
-		updatesTotal: prometheus.NewCounterVec(
+		updatesTotal: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "mercure_updates_total",
 				Help: "Total number of handled updates",
 			},
-			[]string{"topic"},
 		),
 	}
 
@@ -84,20 +81,14 @@ func (m *PrometheusMetrics) Register(r *mux.Router) {
 }
 
 func (m *PrometheusMetrics) SubscriberConnected(s *Subscriber) {
-	for _, t := range s.Topics {
-		m.subscribersTotal.WithLabelValues(t).Inc()
-		m.subscribers.WithLabelValues(t).Inc()
-	}
+	m.subscribersTotal.Inc()
+	m.subscribers.Inc()
 }
 
 func (m *PrometheusMetrics) SubscriberDisconnected(s *Subscriber) {
-	for _, t := range s.Topics {
-		m.subscribers.WithLabelValues(t).Dec()
-	}
+	m.subscribers.Dec()
 }
 
 func (m *PrometheusMetrics) UpdatePublished(u *Update) {
-	for _, t := range u.Topics {
-		m.updatesTotal.WithLabelValues(t).Inc()
-	}
+	m.updatesTotal.Inc()
 }
