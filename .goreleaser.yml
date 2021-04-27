@@ -11,6 +11,9 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+    - '^ci:'
+    - '^build:'
+    - '^chore:'
     - '^Merge'
 release:
   prerelease: auto
@@ -86,7 +89,6 @@ archives:
 dockers:
 - ids:
   - caddy
-  dockerfile: Dockerfile # See https://github.com/goreleaser/goreleaser/issues/1916
   image_templates:
   - 'dunglas/mercure:{{ .Tag }}'
   - 'dunglas/mercure:v{{ .Major }}'
