@@ -1,6 +1,8 @@
 package mercure
 
 import (
+	"fmt"
+
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap/zapcore"
 )
@@ -25,7 +27,9 @@ func (u *Update) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("id", u.ID)
 	enc.AddString("type", u.Type)
 	enc.AddUint64("retry", u.Retry)
-	enc.AddArray("topics", stringArray(u.Topics))
+	if err := enc.AddArray("topics", stringArray(u.Topics)); err != nil {
+		return fmt.Errorf("log error: %w", err)
+	}
 	enc.AddBool("private", u.Private)
 
 	if u.Debug {

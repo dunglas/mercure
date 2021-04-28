@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"fmt"
 	"net/url"
 	"sync"
 
@@ -229,10 +230,14 @@ func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 		enc.AddString("remote_addr", s.RemoteAddr)
 	}
 	if s.TopicSelectors != nil {
-		enc.AddArray("topic_selectors", stringArray(s.TopicSelectors))
+		if err := enc.AddArray("topic_selectors", stringArray(s.TopicSelectors)); err != nil {
+			return fmt.Errorf("log error: %w", err)
+		}
 	}
 	if s.Topics != nil {
-		enc.AddArray("topics", stringArray(s.Topics))
+		if err := enc.AddArray("topics", stringArray(s.Topics)); err != nil {
+			return fmt.Errorf("log error: %w", err)
+		}
 	}
 
 	return nil
