@@ -2,6 +2,8 @@ package mercure
 
 import "go.uber.org/zap/zapcore"
 
+// stringArray has been copied from https://github.com/uber-go/zap/blob/master/array.go#L250-L257
+// Copyright (c) 2016 Uber Technologies, Inc.
 type stringArray []string
 
 func (ss stringArray) MarshalLogArray(arr zapcore.ArrayEncoder) error {
