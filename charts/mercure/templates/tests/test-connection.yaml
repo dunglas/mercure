@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "mercure.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "mercure.fullname" . }}:{{ .Values.service.port }}/healthz']
   restartPolicy: Never
