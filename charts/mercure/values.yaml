@@ -21,7 +21,7 @@ subscriberJwtKey: ""
 # -- JWT algorithm to use for subscribers
 subscriberJwtAlg: HS256
 
-# -- license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version): 
+# -- license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version):
 license: ""
 
 # -- the number of replicas to create, this value must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster)

@@ -1,0 +1,20 @@
+apiVersion: v2
+name: mercure
+description: The Mercure hub allows to push data updates using the Mercure protocol to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way
+home: https://mercure.rocks
+icon: https://mercure.rocks/static/logo.svg
+sources:
+- https://github.com/dunglas/mercure
+keywords:
+- mercure
+- hub
+- push
+- streaming-api
+- async-api
+type: application
+version: 0.11.3
+appVersion: "v0.11.3"
+maintainers:
+  - name: dunglas
+    email: kevin@dunglas.fr
+    url: https://dunglas.fr
