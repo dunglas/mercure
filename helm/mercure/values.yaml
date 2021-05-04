@@ -2,35 +2,35 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# debug enables the debug mode
+# -- enable the debug mode
 debug: false
-# dev enables the development mode, including the debug UI and the demo
+# -- enable the development mode, including the debug UI and the demo
 dev: false
-# transportUrl is the URL representation of the transport to use
+# -- the URL representation of the transport to use
 transportUrl: bolt:///data/mercure.db
-# extraDirectives are extra Mercure directives to include in the Caddyfile
+# -- extra Mercure directives to include in the Caddyfile
 extraDirectives: ""
 
-# publisherJwtKey is the JWT key to use for publishers, a random key will be generated if empty
+# -- the JWT key to use for publishers, a random key will be generated if empty
 publisherJwtKey: ""
-# publisherJwtAlg the JWT algorithm to use for publishers
+# -- the JWT algorithm to use for publishers
 publisherJwtAlg: HS256
 
-# subscriberJwtKey is the JWT key to use for subscribers, a random key will be generated if empty
+# -- the JWT key to use for subscribers, a random key will be generated if empty
 subscriberJwtKey: ""
-# subscriberJwtAlg the JWT algorithm to use for subscribers
+# -- JWT algorithm to use for subscribers
 subscriberJwtAlg: HS256
 
-# license is your High Availability version license key (not necessary is you use the FOSS version): https://mercure.rocks/docs/hub/cluster
+# -- license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version): 
 license: ""
 
-# replicaCount is the number of replicas to create, this value must be 1 unless you are use the High Availability version: https://mercure.rocks/docs/hub/cluster
+# -- the number of replicas to create, this value must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster)
 replicaCount: 1
 
 image:
   repository: dunglas/mercure
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
+  # -- overrides the image tag whose default is the chart appVersion.
   tag: ""
 
 imagePullSecrets: []
@@ -38,12 +38,12 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
+  # -- specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
+  # -- annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
+  # -- the name of the service account to use.
+  # -- If not set and create is true, a name is generated using the fullname template
   name: ""
 
 podAnnotations: {}
@@ -92,7 +92,7 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
-# autoscaling must not be enabled unless you are using the High Availability version: https://mercure.rocks/docs/hub/cluster
+# -- autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster)
 autoscaling:
   enabled: false
   minReplicas: 1
@@ -105,3 +105,25 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# -- Enable persistence using Persistent Volume Claims, only useful if you the BoltDB transport
+# -- ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+persistence:
+  enabled: false
+  # -- Mercure Data Persistent Volume Storage Class
+  # -- If defined, storageClassName: <storageClass>
+  # -- If set to "-", storageClassName: "", which disables dynamic provisioning
+  # -- If undefined (the default) or set to null, no storageClassName spec is set, choosing the default provisioner
+  # --
+  storageClass: ""
+
+  # -- A manually managed Persistent Volume and Claim
+  # -- Requires persistence.enabled: true
+  # -- If defined, PVC must be created manually before volume will be bound
+  accessMode: ReadWriteOnce
+  size: 1Gi
+
+  # -- a manually managed Persistent Volume Claim
+  # -- Requires persistence.enabled: true
+  # -- If defined, PVC must be created manually before volume will be bound
+  existingClaim: ""
