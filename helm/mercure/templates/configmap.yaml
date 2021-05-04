@@ -6,5 +6,5 @@ metadata:
     {{- include "mercure.labels" . | nindent 4 }}
 data:
   debug: "{{ if .Values.debug }}debug{{ end }}"
-  publisher-jwt-alg: {{ .Values.jwt.publisher.alg | quote }}
-  subscriber-jwt-alg: {{ .Values.jwt.subscriber.alg | quote }}
+  publisher-jwt-alg: {{ .Values.publisherJwtKey | quote }}
+  subscriber-jwt-alg: {{ .Values.subscriberJwtAlg | quote }}
