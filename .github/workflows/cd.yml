@@ -1,4 +1,4 @@
-name: CD
+name: Release Hub
 
 on:
   push:

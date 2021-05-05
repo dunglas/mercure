@@ -1,6 +1,6 @@
 apiVersion: v2
 name: mercure
-description: The Mercure hub allows to push data updates using the Mercure protocol to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way
+description: A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 home: https://mercure.rocks
 icon: https://mercure.rocks/static/logo.svg
 sources:
