@@ -27,7 +27,9 @@ cd caddy/
 go get "github.com/dunglas/mercure@v$1"
 cd -
 
-git commit -S -a -m "chore(caddy): bump Mercure to version $1"
+sed -i '' -e "s/^version: .*$/version: $1/" -e "s/^appVersion: .*$/appVersion: \"v$1\"/" helm/mercure/Chart.yaml
+
+git commit -S -a -m "chore: prepare release $1"
 
 git tag -s -m "Version $1" "v$1"
 git tag -s -m "Version $1" "caddy/v$1"

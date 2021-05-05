@@ -1,0 +1,154 @@
+# Default values for mercure.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- Enable the debug mode.
+debug: false
+# -- Enable the development mode, including the debug UI and the demo.
+dev: false
+# -- The URL representation of the transport to use.
+transportUrl: bolt:///data/mercure.db
+# -- Extra Mercure directives to include in the Caddyfile.
+extraDirectives: ""
+
+# -- The JWT key to use for publishers, a random key will be generated if empty.
+publisherJwtKey: ""
+# -- The JWT algorithm to use for publishers.
+publisherJwtAlg: HS256
+
+# -- The JWT key to use for subscribers, a random key will be generated if empty.
+subscriberJwtKey: ""
+# -- The JWT algorithm to use for subscribers.
+subscriberJwtAlg: HS256
+
+# -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
+license: ""
+
+# -- The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).
+replicaCount: 1
+
+image:
+  # -- Name of the image repository to pull the container image from.
+  repository: dunglas/mercure
+  # -- [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node.
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# -- Reference to one or more secrets to be used when [pulling images](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret) (from private registries).
+imagePullSecrets: []
+# -- A name in place of the chart name for `app:` labels.
+nameOverride: ""
+# -- A name to substitute for the full names of resources.
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created.
+  create: true
+  # -- Annotations to add to the service account.
+  annotations: {}
+  # -- The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template.
+  name: ""
+
+# -- Annotations to be added to pods.
+podAnnotations: {}
+
+# -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
+# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details.
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# -- Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container).
+# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details.
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  # -- Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types).
+  type: ClusterIP
+  # -- Service port.
+  port: 80
+
+ingress:
+  # -- Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/).
+  enabled: false
+  # -- Ingress [class name](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class).
+  className: ""
+  # -- Annotations to be added to the ingress.
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  # -- Ingress host configuration.
+  # @default -- See [values.yaml](values.yaml).
+  hosts:
+    - host: mercure-example.local
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+  # -- Ingress TLS configuration.
+  # @default -- See [values.yaml](values.yaml).
+  tls: []
+  #  - secretName: mercure-example-tls
+  #    hosts:
+  #      - mercure-example.local
+
+# -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
+# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
+# @default -- No requests or limits.
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# -- Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details).
+# @default -- Disabled by default.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# -- [Node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) configuration.
+nodeSelector: {}
+
+# -- [Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for node taints.
+# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details.
+tolerations: []
+
+# -- [Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration.
+# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details.
+affinity: {}
+
+# -- Enable persistence using [Persistent Volume Claims](http://kubernetes.io/docs/user-guide/persistent-volumes/), only useful if you the BoltDB transport.
+persistence:
+  enabled: false
+  # -- Mercure Data Persistent Volume Storage Class.
+  # If defined, `storageClassName: <storageClass>`
+  # If set to `"-"``, `storageClassName: ""``, which disables dynamic provisioning.
+  # If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner.
+  storageClass: ""
+
+  # -- A manually managed Persistent Volume and Claim.
+  # Requires `persistence.enabled: true`
+  # If defined, PVC must be created manually before volume will be bound.
+  accessMode: ReadWriteOnce
+  size: 1Gi
+
+  # -- a manually managed Persistent Volume Claim
+  # -- Requires `persistence.enabled: true`
+  # -- If defined, PVC must be created manually before volume will be bound
+  existingClaim: ""
