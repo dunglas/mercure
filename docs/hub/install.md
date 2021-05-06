@@ -83,6 +83,17 @@ This can be done like that:
 The Docker image is based on [the Caddy Server Docker image](https://registry.hub.docker.com/_/caddy).
 See [the configuration section](config.md) and [the documentation of the Docker image for Caddy](https://registry.hub.docker.com/_/caddy) to learn how to configure it to fit your needs.
 
+## Kubernetes
+
+Use [the Helm package manager](https://helm.sh/) to install Mercure on a Kubernetes cluster:
+
+To install the chart with the release name `my-release`, run the following commands:
+
+    helm repo add mercure https://chart.mercure.rocks
+    helm install my-release mercure/mercure
+
+See [the list of available values](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md) for this chart.
+
 ## Docker Compose
 
 If you prefer to use `docker-compose` to run the Mercure.rocks hub, here's a sample service definition:

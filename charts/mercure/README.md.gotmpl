@@ -1,0 +1,19 @@
+# Mercure Chart for Kubernetes
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }}
+
+[Learn more about Mercure.](https://mercure.rocks)
+
+## Installing the Chart
+
+To install the chart with the release name `my-release`, run the following commands:
+
+    helm repo add mercure https://chart.mercure.rocks
+    helm install my-release mercure/{{ template "chart.name" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
