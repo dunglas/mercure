@@ -6,6 +6,7 @@ Mercure is a protocol allowing to push data updates to web browsers and other HT
 It is especially useful to publish async and real-time updates of resources served through web APIs, to reactive web and mobile apps.
 
 [![Awesome](https://awesome.re/badge.svg)](docs/ecosystem/awesome.md)
+[![Artifact HUB](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/mercure)](https://artifacthub.io/packages/search?repo=mercure)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/dunglas/mercure)](https://pkg.go.dev/github.com/dunglas/mercure)
 ![CI](https://github.com/dunglas/mercure/workflows/CI/badge.svg)
 [![Coverage Status](https://coveralls.io/repos/github/dunglas/mercure/badge.svg?branch=master)](https://coveralls.io/github/dunglas/mercure?branch=master)
@@ -28,7 +29,7 @@ In addition, a managed and high-scalability version of the Mercure.rocks hub is 
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## License and Copyright 
+## License and Copyright
 
 See https://mercure.rocks/docs/hub/license.
 
