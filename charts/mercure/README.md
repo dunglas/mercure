@@ -10,7 +10,7 @@ A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a prot
 
 To install the chart with the release name `my-release`, run the following commands:
 
-    helm repo add mercure https://chart.mercure.rocks
+    helm repo add mercure https://charts.mercure.rocks
     helm install my-release mercure/mercure
 
 ## Values
