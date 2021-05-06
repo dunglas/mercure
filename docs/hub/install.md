@@ -89,7 +89,7 @@ Use [the Helm package manager](https://helm.sh/) to install Mercure on a Kuberne
 
 To install the chart with the release name `my-release`, run the following commands:
 
-    helm repo add mercure https://chart.mercure.rocks
+    helm repo add mercure https://charts.mercure.rocks
     helm install my-release mercure/mercure
 
 See [the list of available values](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md) for this chart.
