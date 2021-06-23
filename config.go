@@ -178,7 +178,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithAnonymous())
 	}
 	if v.GetBool("demo") {
-		options = append(options, WithDemo(""))
+		options = append(options, WithDemo())
 	}
 	if d := v.GetDuration("write_timeout"); d != 600*time.Second {
 		options = append(options, WithWriteTimeout(d))

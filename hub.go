@@ -33,14 +33,19 @@ func WithDebug() Option {
 	}
 }
 
-// WithDemo enables the demo.
-func WithDemo(uiPath string) Option {
+func WithUI() Option {
 	return func(o *opt) error {
-		if uiPath == "" {
-			o.uiPath = "public/"
-		} else {
-			o.uiPath = uiPath
-		}
+		o.ui = true
+
+		return nil
+	}
+}
+
+// WithDemo enables the demo.
+func WithDemo() Option {
+	return func(o *opt) error {
+		o.demo = true
+		o.ui = true
 
 		return nil
 	}
@@ -193,7 +198,8 @@ type opt struct {
 	anonymous          bool
 	debug              bool
 	subscriptions      bool
-	uiPath             string
+	ui                 bool
+	demo               bool
 	logger             Logger
 	writeTimeout       time.Duration
 	dispatchTimeout    time.Duration
