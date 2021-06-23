@@ -9,8 +9,10 @@ if [ "$(uname)" = "Darwin" ]; then
 fi
 
 GO111MODULE=off go get golang.org/x/tools/cmd/goimports
-go get github.com/sasha-s/go-deadlock/...@master
 find . -name "*.go" -exec sed "${args[@]}" -e "s#\"sync\"#\"sync\"${SEP}deadlock \"github.com/sasha-s/go-deadlock\"#" {} \;
 find . -name "*.go" -exec sed "${args[@]}" -e 's#sync.RWMutex#deadlock.RWMutex#' {} {} \;
 find . -name "*.go" -exec sed "${args[@]}" -e 's#sync.Mutex#deadlock.Mutex#' {} {} \;
 goimports -w .
+go get github.com/sasha-s/go-deadlock/...@master
+cd caddy
+go get github.com/sasha-s/go-deadlock/...@master
