@@ -38,24 +38,24 @@ Examples:
 
 Clone the project and make your changes:
 
-    $ git clone https://github.com/dunglas/mercure
-    $ cd mercure
+    git clone https://github.com/dunglas/mercure
+    cd mercure
 
 To run the test suite:
 
-    $ go test -v -timeout 30s github.com/dunglas/mercure
+    go test -v -timeout 30s github.com/dunglas/mercure
 
 To test the Caddy module:
 
-    $ cd caddy/mercure
-    $ go run main.go run -config ../../Caddyfile.dev
+    cd caddy/mercure
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' go run main.go run -config ../../Caddyfile.dev
 
 Go to `https://localhost` and enjoy!
 
 To test the legacy server:
 
-    $ cd cmd/mercure
-    $ go run main.go
+    cd cmd/mercure
+    go run main.go
 
 Go to `http://localhost:3000` and enjoy!
 

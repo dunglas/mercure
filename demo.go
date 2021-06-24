@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"embed"
 	"fmt"
 	"io"
 	"mime"
@@ -8,6 +9,10 @@ import (
 	"path/filepath"
 	"time"
 )
+
+// uiContent is our static web server content.
+//go:embed public
+var uiContent embed.FS //nolint:gochecknoglobals
 
 // Demo exposes INSECURE Demo endpoints to test discovery and authorization mechanisms.
 // Add a query parameter named "body" to define the content to return in the response's body.

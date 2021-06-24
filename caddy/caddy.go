@@ -55,7 +55,10 @@ type Mercure struct {
 	Subscriptions bool `json:"subscriptions,omitempty"`
 
 	// Enable the demo.
-	Demo string `json:"demo,omitempty"`
+	Demo bool `json:"demo,omitempty"`
+
+	// Enable the UI.
+	UI bool `json:"ui,omitempty"`
 
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
@@ -186,8 +189,11 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	if m.Anonymous {
 		opts = append(opts, mercure.WithAnonymous())
 	}
-	if m.Demo != "" {
-		opts = append(opts, mercure.WithDemo(m.Demo))
+	if m.Demo {
+		opts = append(opts, mercure.WithDemo())
+	}
+	if m.UI {
+		opts = append(opts, mercure.WithUI())
 	}
 	if m.Subscriptions {
 		opts = append(opts, mercure.WithSubscriptions())
@@ -243,11 +249,10 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				m.Anonymous = true
 
 			case "demo":
-				if d.NextArg() {
-					m.Demo = d.Val()
-				} else {
-					m.Demo = "public/"
-				}
+				m.Demo = true
+
+			case "ui":
+				m.UI = true
 
 			case "subscriptions":
 				m.Subscriptions = true

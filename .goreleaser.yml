@@ -64,7 +64,6 @@ archives:
   - README.md
   - Caddyfile
   - Caddyfile.dev
-  - public/*
   format_overrides:
   - goos: windows
     format: zip
@@ -82,7 +81,6 @@ archives:
   - COPYRIGHT
   - LICENSE
   - README.md
-  - public/*
   format_overrides:
   - goos: windows
     format: zip
@@ -95,7 +93,6 @@ dockers:
   - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}'
   - 'dunglas/mercure:latest'
   extra_files:
-  - public/
   - Caddyfile
   - Caddyfile.dev
 - ids:
@@ -106,8 +103,6 @@ dockers:
   - 'dunglas/mercure:legacy-v{{ .Major }}'
   - 'dunglas/mercure:legacy-v{{ .Major }}.{{ .Minor }}'
   - 'dunglas/mercure:legacy-latest'
-  extra_files:
-  - public/
 signs:
   - artifacts: checksum
     args: ["--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}"]

@@ -20,6 +20,7 @@ linters:
     - interfacer
     - maligned
     - scopelint
+    - golint
 
 issues:
   exclude-rules:
