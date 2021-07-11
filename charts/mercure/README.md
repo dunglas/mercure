@@ -1,6 +1,6 @@
 # Mercure Chart for Kubernetes
 
-![Version: 0.11.3](https://img.shields.io/badge/Version-0.11.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.11.3](https://img.shields.io/badge/AppVersion-v0.11.3-informational?style=flat-square)
+![Version: ](https://img.shields.io/badge/Version--informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v](https://img.shields.io/badge/AppVersion-v-informational?style=flat-square)
 
 A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 

@@ -24,8 +24,8 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-# https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-if [[ ! $1 =~ ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$ ]]; then
+# Adapted from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+if [[ ! $1 =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$ ]]; then
     echo "Invalid version number: $1" >&2
     exit 1
 fi
@@ -37,7 +37,7 @@ cd caddy/
 go get "github.com/dunglas/mercure@v$1"
 cd -
 
-sed -i '' -e "s/^version: .*$/version: $1/" -e "s/^appVersion: .*$/appVersion: \"v$1\"/" helm/mercure/Chart.yaml
+sed -i '' -e "s/^version: .*$/version: $1/" -e "s/^appVersion: .*$/appVersion: \"v$1\"/" charts/mercure/Chart.yaml
 helm-docs
 
 git commit -S -a -m "chore: prepare release $1"
