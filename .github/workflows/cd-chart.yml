@@ -25,9 +25,10 @@ jobs:
           version: v3.4.0
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.2.1
+        uses: dunglas/chart-releaser-action@feat/match-tags
         with:
           charts_repo_url: https://charts.mercure.rocks
+          match_tags: helm-chart-*
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_RELEASE_NAME_TEMPLATE: "helm-chart-{{ .Version }}"
