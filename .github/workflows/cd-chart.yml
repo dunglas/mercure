@@ -25,7 +25,7 @@ jobs:
           version: v3.4.0
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.2.0
+        uses: helm/chart-releaser-action@v1.2.1
         with:
           charts_repo_url: https://charts.mercure.rocks
         env:
