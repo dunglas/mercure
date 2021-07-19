@@ -66,7 +66,7 @@ func (h *Hub) initHandler() {
 		handlers.CORS(
 			handlers.AllowCredentials(),
 			handlers.AllowedOrigins(h.corsOrigins),
-			handlers.AllowedHeaders([]string{"authorization", "cache-control"}),
+			handlers.AllowedHeaders([]string{"authorization", "cache-control", "last-event-id"}),
 		)(router),
 	)
 }
@@ -101,6 +101,7 @@ func (h *Hub) Serve() {
 	}
 
 	acme := len(h.allowedHosts) > 0
+
 	certFile := h.config.GetString("cert_file")
 	keyFile := h.config.GetString("key_file")
 
@@ -211,7 +212,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	var corsHandler http.Handler
 	if len(h.corsOrigins) > 0 {
 		allowedOrigins := handlers.AllowedOrigins(h.corsOrigins)
-		allowedHeaders := handlers.AllowedHeaders([]string{"authorization", "cache-control"})
+		allowedHeaders := handlers.AllowedHeaders([]string{"authorization", "cache-control", "last-event-id"})
 
 		corsHandler = handlers.CORS(handlers.AllowCredentials(), allowedOrigins, allowedHeaders)(r)
 	} else {
