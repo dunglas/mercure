@@ -87,13 +87,13 @@ func TestSecurityOptions(t *testing.T) {
 	// Preflight request
 	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil)
 	req.Header.Add("Origin", "https://example.com")
-	req.Header.Add("Access-Control-Request-Headers", "authorization")
+	req.Header.Add("Access-Control-Request-Headers", "authorization,cache-control,last-event-id")
 	req.Header.Add("Access-Control-Request-Method", "GET")
 	resp2, _ := client.Do(req)
 	require.NotNil(t, resp2)
 
 	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
-	assert.Equal(t, "Authorization", resp2.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "Authorization,Cache-Control,Last-Event-Id", resp2.Header.Get("Access-Control-Allow-Headers"))
 	assert.Equal(t, "*", resp2.Header.Get("Access-Control-Allow-Origin"))
 	resp2.Body.Close()
 
@@ -103,6 +103,53 @@ func TestSecurityOptions(t *testing.T) {
 	require.NotNil(t, resp3)
 	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
 	resp3.Body.Close()
+
+	h.server.Shutdown(context.Background())
+}
+
+func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
+	h := createDummy(WithSubscriptions(), WithCORSOrigins([]string{"https://subscriber.com"}))
+	h.config.Set("cert_file", "fixtures/tls/server.crt")
+	h.config.Set("key_file", "fixtures/tls/server.key")
+	h.config.Set("compress", true)
+
+	go h.Serve()
+
+	// This is a self-signed certificate
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	}
+	client := http.Client{Transport: transport, Timeout: 100 * time.Millisecond}
+
+	// loop until the web server is ready
+	var resp *http.Response
+	for resp == nil {
+		resp, _ = client.Get(testSecureURL) //nolint:bodyclose
+	}
+
+	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
+	resp.Body.Close()
+
+	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil)
+
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, roleSubscriber, []string{}))
+	req.Header.Add("Content-Type", "text/plain; boundary=")
+	req.Header.Add("Origin", "https://subscriber.com")
+	req.Header.Add("Host", "subscriber.com")
+	req.Header.Add("Cache-Control", "no-cache")
+	req.Header.Add("Pragma", "no-cache")
+	req.Header.Add("Access-Control-Request-Headers", "authorization,cache-control,last-event-id")
+	req.Header.Add("Access-Control-Request-Method", "GET")
+	resp2, _ := client.Do(req)
+	require.NotNil(t, resp2)
+
+	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
+	assert.Equal(t, "Authorization,Cache-Control,Last-Event-Id", resp2.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "https://subscriber.com", resp2.Header.Get("Access-Control-Allow-Origin"))
+	resp2.Body.Close()
 
 	h.server.Shutdown(context.Background())
 }
