@@ -12,12 +12,8 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/miekg/dns v1.1.43 // indirect
 	github.com/prometheus/client_golang v1.11.0
-	github.com/prometheus/common v0.30.0 // indirect
+	github.com/smallstep/nosql v0.3.7 // indirect
 	github.com/stretchr/testify v1.7.0
-	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.19.0
-	golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
 )

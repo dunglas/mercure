@@ -10,16 +10,16 @@ import (
 
 func TestMatch(t *testing.T) {
 	cache, _ := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,
-		MaxCost:     100,
+		NumCounters: TopicSelectorStoreDefaultCacheNumCounters,
+		MaxCost:     TopicSelectorStoreCacheMaxCost,
 		BufferItems: 64,
 	})
 	tss := &TopicSelectorStore{cache}
 
 	assert.True(t, tss.match("https://example.com/foo/bar", "https://example.com/{foo}/bar"))
 
-	// wait for value to pass through ristretto's buffers, see https://discuss.dgraph.io/t/there-should-be-a-test-only-blocking-mode/8424
-	time.Sleep(10 * time.Millisecond)
+	// wait for value to pass through ristretto's buffers
+	cache.Wait()
 
 	_, found := tss.cache.Get("t_https://example.com/{foo}/bar")
 	assert.True(t, found)

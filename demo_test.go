@@ -33,7 +33,7 @@ func TestBodyAndJWT(t *testing.T) {
 	Demo(w, req)
 
 	resp := w.Result()
-	assert.Contains(t, "application/xml", resp.Header.Get("Content-Type")) // Before Go 1.17, the charset wasn't set
+	assert.Contains(t, resp.Header.Get("Content-Type"), "xml") // Before Go 1.17, the charset wasn't set
 	assert.Equal(t, []string{"<" + defaultHubURL + ">; rel=\"mercure\"", "<http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token>; rel=\"self\""}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
