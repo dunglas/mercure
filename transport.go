@@ -30,7 +30,7 @@ func NewTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, err
 	transportFactoriesMu.RUnlock()
 
 	if !ok {
-		return nil, &ErrTransport{dsn: u.Redacted(), msg: "no such transport available"}
+		return nil, &TransportError{dsn: u.Redacted(), msg: "no such transport available"}
 	}
 
 	return f(u, l, nil)
@@ -57,14 +57,14 @@ type TransportSubscribers interface {
 // ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
 var ErrClosedTransport = errors.New("hub: read/write on closed Transport")
 
-// ErrTransport is returned when the Transport's DSN is invalid.
-type ErrTransport struct {
+// TransportError is returned when the Transport's DSN is invalid.
+type TransportError struct {
 	dsn string
 	msg string
 	err error
 }
 
-func (e *ErrTransport) Error() string {
+func (e *TransportError) Error() string {
 	if e.msg == "" {
 		if e.err == nil {
 			return fmt.Sprintf("%q: invalid transport", e.dsn)
@@ -80,6 +80,6 @@ func (e *ErrTransport) Error() string {
 	return fmt.Sprintf("%q: %s: invalid transport: %s", e.dsn, e.msg, e.err)
 }
 
-func (e *ErrTransport) Unwrap() error {
+func (e *TransportError) Unwrap() error {
 	return e.err
 }
