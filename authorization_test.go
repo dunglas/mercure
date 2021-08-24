@@ -238,7 +238,8 @@ func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(privateKeyRsa), jwt.SigningMethodRS256}, []string{})
-	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: asn1: structure error: tags don't match (16 vs {class:0 tag:2 length:1 isCompound:false}) {optional:false explicit:false application:false private:false defaultValue:<nil> tag:<nil> stringType:0 timeType:0 set:false omitEmpty:false} tbsCertificate @2")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unable to parse JWT: unable to parse RSA public key") // The error message changed in Go 1.17
 	assert.Nil(t, claims)
 }
 
