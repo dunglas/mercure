@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -134,7 +134,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKeyRsa(t *testing.T) {
 	r.Header.Add("Authorization", "Bearer "+validEmptyHeaderRsa)
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{})
-	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: Invalid Key: Key must be a PEM encoded PKCS1 or PKCS8 key")
+	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
 	assert.Nil(t, claims)
 }
 
@@ -230,7 +230,7 @@ func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{})
-	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: Invalid Key: Key must be a PEM encoded PKCS1 or PKCS8 key")
+	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
 	assert.Nil(t, claims)
 }
 

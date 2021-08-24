@@ -2,15 +2,13 @@ module github.com/dunglas/mercure
 
 go 1.16
 
-replace github.com/golang-jwt/jwt => github.com/oxisto/jwt v3.2.1-0.20210731123010-90e259bf1e1d+incompatible
-
 require (
 	github.com/dgraph-io/ristretto v0.1.0
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.5.0 // indirect
 	github.com/gofrs/uuid v4.0.0+incompatible
-	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v4 v4.0.1-0.20210824015611-2bd8ee77fc3a
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
 	github.com/gorilla/handlers v1.5.1
