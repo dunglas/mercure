@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dunglas/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )

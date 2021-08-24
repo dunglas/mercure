@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dunglas/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -143,7 +143,7 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 	var key []byte
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, StandardClaims: jwt.StandardClaims{}}
+		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, RegisteredClaims: jwt.RegisteredClaims{}}
 		key = h.publisherJWT.key
 
 	case roleSubscriber:
@@ -156,7 +156,7 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 				Subscribe: topics,
 				Payload:   payload,
 			},
-			StandardClaims: jwt.StandardClaims{},
+			RegisteredClaims: jwt.RegisteredClaims{},
 		}
 
 		key = h.subscriberJWT.key
@@ -177,7 +177,7 @@ func createDummyUnauthorizedJWT() string {
 func createDummyNoneSignedJWT() string {
 	token := jwt.New(jwt.SigningMethodNone)
 	// The generated token must have more than 41 chars
-	token.Claims = jwt.StandardClaims{Subject: "me"}
+	token.Claims = jwt.RegisteredClaims{Subject: "me"}
 	tokenString, _ := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
 
 	return tokenString

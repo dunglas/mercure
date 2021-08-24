@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/dunglas/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 // claims contains Mercure's JWT claims.
@@ -14,7 +14,7 @@ type claims struct {
 	Mercure mercureClaim `json:"mercure"`
 	// Optional fallback
 	MercureNamespaced *mercureClaim `json:"https://mercure.rocks/"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 type mercureClaim struct {
