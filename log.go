@@ -19,8 +19,7 @@ type LogField = zapcore.Field
 
 // Logger defines the Mercure logger.
 type Logger interface {
-	Debug(msg string, fields ...LogField)
 	Info(msg string, fields ...LogField)
-	Warn(msg string, fields ...LogField)
 	Error(msg string, fields ...LogField)
+	Check(zapcore.Level, string) *zapcore.CheckedEntry
 }
