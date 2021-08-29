@@ -234,9 +234,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 			if err := json.Unmarshal(v, &update); err != nil {
 				s.HistoryDispatched(responseLastEventID)
 				if c := t.logger.Check(zap.ErrorLevel, "Unable to unmarshal update coming from the Bolt DB"); c != nil {
-					c.Write(
-						zap.Error(err),
-					)
+					c.Write(zap.Error(err))
 				}
 
 				return fmt.Errorf("unable to unmarshal update: %w", err)

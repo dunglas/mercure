@@ -78,7 +78,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Serve starts the HTTP server.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) Serve() {
+func (h *Hub) Serve() { //nolint:funlen
 	addr := h.config.GetString("addr")
 
 	h.server = &http.Server{
@@ -97,9 +97,7 @@ func (h *Hub) Serve() {
 		}
 
 		if c := h.logger.Check(zap.InfoLevel, "Mercure metrics started"); c != nil {
-			c.Write(
-				zap.String("addr", addr),
-			)
+			c.Write(zap.String("addr", addr))
 		}
 		go h.metricsServer.ListenAndServe()
 	}
@@ -112,12 +110,9 @@ func (h *Hub) Serve() {
 	done := h.listenShutdown()
 	var err error
 
-	if !acme && certFile == "" && keyFile == "" {
+	if !acme && certFile == "" && keyFile == "" { //nolint:nestif
 		if c := h.logger.Check(zap.InfoLevel, "Mercure started"); c != nil {
-			c.Write(
-				zap.String("protocol", "http"),
-				zap.String("addr", addr),
-			)
+			c.Write(zap.String("protocol", "http"), zap.String("addr", addr))
 		}
 
 		err = h.server.ListenAndServe()
@@ -140,10 +135,7 @@ func (h *Hub) Serve() {
 		}
 
 		if c := h.logger.Check(zap.InfoLevel, "Mercure started"); c != nil {
-			c.Write(
-				zap.String("protocol", "https"),
-				zap.String("addr", addr),
-			)
+			c.Write(zap.String("protocol", "https"), zap.String("addr", addr))
 		}
 
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
@@ -151,9 +143,7 @@ func (h *Hub) Serve() {
 
 	if !errors.Is(err, http.ErrServerClosed) {
 		if c := h.logger.Check(zap.ErrorLevel, "Unexpected error"); c != nil {
-			c.Write(
-				zap.Error(err),
-			)
+			c.Write(zap.Error(err))
 		}
 	}
 
@@ -179,16 +169,12 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 
 		if err := h.server.Shutdown(context.Background()); err != nil {
 			if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during server shutdown"); c != nil {
-				c.Write(
-					zap.Error(err),
-				)
+				c.Write(zap.Error(err))
 			}
 		}
 		if err := h.metricsServer.Shutdown(context.Background()); err != nil {
 			if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during metrics server shutdown"); c != nil {
-				c.Write(
-					zap.Error(err),
-				)
+				c.Write(zap.Error(err))
 			}
 		}
 		if c := h.logger.Check(zap.InfoLevel, "My Baby Shot Me Down"); c != nil {

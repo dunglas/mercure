@@ -108,10 +108,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 		if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			if c := h.logger.Check(zap.InfoLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {
-				c.Write(
-					zap.String("remote_addr", r.RemoteAddr),
-					zap.Error(err),
-				)
+				c.Write(zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
 			}
 
 			return "", nil, false
@@ -127,9 +124,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 	lastEventID, subscribers, err = transport.GetSubscribers()
 	if err != nil {
 		if c := h.logger.Check(zap.ErrorLevel, "Error retrieving subscribers"); c != nil {
-			c.Write(
-				zap.Error(err),
-			)
+			c.Write(zap.Error(err))
 		}
 		w.WriteHeader(http.StatusInternalServerError)
 

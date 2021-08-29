@@ -182,10 +182,7 @@ func (s *Subscriber) Disconnect() {
 func (s *Subscriber) CanDispatch(u *Update) bool {
 	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics) {
 		if c := s.logger.Check(zap.DebugLevel, "Subscriber has not subscribed to this update"); c != nil {
-			c.Write(
-				zap.Object("subscriber", s),
-				zap.Object("update", u),
-			)
+			c.Write(zap.Object("subscriber", s), zap.Object("update", u))
 		}
 
 		return false
@@ -193,10 +190,7 @@ func (s *Subscriber) CanDispatch(u *Update) bool {
 
 	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe)) {
 		if c := s.logger.Check(zap.DebugLevel, "Subscriber not authorized to receive this update"); c != nil {
-			c.Write(
-				zap.Object("subscriber", s),
-				zap.Object("update", u),
-			)
+			c.Write(zap.Object("subscriber", s), zap.Object("update", u))
 		}
 
 		return false
