@@ -3,8 +3,10 @@ package mercure
 import (
 	"errors"
 	"fmt"
+	"github.com/mitchellh/hashstructure/v2"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -126,18 +128,63 @@ func validateJWT(encodedToken string, jwtConfig *jwtConfig) (*claims, error) {
 }
 
 func canReceive(s *TopicSelectorStore, topics, topicSelectors []string) bool {
+
+	topicsHash, err := hashstructure.Hash(topics, hashstructure.FormatV2, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	topicSelectorsHash, err := hashstructure.Hash(topicSelectors, hashstructure.FormatV2, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var k string
+	if s.cache != nil {
+		k = "r_" + strconv.FormatUint(topicsHash, 10) + "_" + strconv.FormatUint(topicSelectorsHash, 10)
+		value, found := s.cache.Get(k)
+		if found {
+			return value.(bool)
+		}
+	}
+
 	for _, topic := range topics {
 		for _, topicSelector := range topicSelectors {
 			if s.match(topic, topicSelector) {
+				if s.cache != nil {
+					s.cache.Set(k, true, 4)
+				}
 				return true
 			}
 		}
 	}
 
+	if s.cache != nil {
+		s.cache.Set(k, false, 4)
+	}
 	return false
 }
 
 func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
+	topicsHash, err := hashstructure.Hash(topics, hashstructure.FormatV2, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	topicSelectorsHash, err := hashstructure.Hash(topicSelectors, hashstructure.FormatV2, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var k string
+	if s.cache != nil {
+		k = "d_" + strconv.FormatUint(topicsHash, 10) + "_" + strconv.FormatUint(topicSelectorsHash, 10)
+		value, found := s.cache.Get(k)
+		if found {
+			return value.(bool)
+		}
+	}
+
 	for _, topic := range topics {
 		var matched bool
 		for _, topicSelector := range topicSelectors {
@@ -148,13 +195,24 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 			if s.match(topic, topicSelector) {
 				matched = true
 
+				if s.cache != nil {
+					s.cache.Set(k, true, 4)
+				}
+
 				break
 			}
 		}
 
 		if !matched {
+			if s.cache != nil {
+				s.cache.Set(k, false, 4)
+			}
 			return false
 		}
+	}
+
+	if s.cache != nil {
+		s.cache.Set(k, true, 4)
 	}
 
 	return true
