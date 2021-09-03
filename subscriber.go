@@ -181,13 +181,17 @@ func (s *Subscriber) Disconnect() {
 // CanDispatch checks if an update can be dispatched to this subsriber.
 func (s *Subscriber) CanDispatch(u *Update) bool {
 	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics) {
-		s.logger.Debug("Subscriber has not subscribed to this update", zap.Object("subscriber", s), zap.Object("update", u))
+		if c := s.logger.Check(zap.DebugLevel, "Subscriber has not subscribed to this update"); c != nil {
+			c.Write(zap.Object("subscriber", s), zap.Object("update", u))
+		}
 
 		return false
 	}
 
 	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe)) {
-		s.logger.Debug("Subscriber not authorized to receive this update", zap.Object("subscriber", s), zap.Object("update", u))
+		if c := s.logger.Check(zap.DebugLevel, "Subscriber not authorized to receive this update"); c != nil {
+			c.Write(zap.Object("subscriber", s), zap.Object("update", u))
+		}
 
 		return false
 	}

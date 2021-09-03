@@ -78,7 +78,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Serve starts the HTTP server.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) Serve() {
+func (h *Hub) Serve() { //nolint:funlen
 	addr := h.config.GetString("addr")
 
 	h.server = &http.Server{
@@ -96,7 +96,9 @@ func (h *Hub) Serve() {
 			Handler: h.metricsHandler(),
 		}
 
-		h.logger.Info("Mercure metrics started", zap.String("addr", addr))
+		if c := h.logger.Check(zap.InfoLevel, "Mercure metrics started"); c != nil {
+			c.Write(zap.String("addr", addr))
+		}
 		go h.metricsServer.ListenAndServe()
 	}
 
@@ -108,8 +110,11 @@ func (h *Hub) Serve() {
 	done := h.listenShutdown()
 	var err error
 
-	if !acme && certFile == "" && keyFile == "" {
-		h.logger.Info("Mercure started", zap.String("protocol", "http"), zap.String("addr", addr))
+	if !acme && certFile == "" && keyFile == "" { //nolint:nestif
+		if c := h.logger.Check(zap.InfoLevel, "Mercure started"); c != nil {
+			c.Write(zap.String("protocol", "http"), zap.String("addr", addr))
+		}
+
 		err = h.server.ListenAndServe()
 	} else {
 		// TLS
@@ -129,12 +134,17 @@ func (h *Hub) Serve() {
 			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil))
 		}
 
-		h.logger.Info("Mercure started", zap.String("protocol", "https"), zap.String("addr", addr))
+		if c := h.logger.Check(zap.InfoLevel, "Mercure started"); c != nil {
+			c.Write(zap.String("protocol", "https"), zap.String("addr", addr))
+		}
+
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
 	if !errors.Is(err, http.ErrServerClosed) {
-		h.logger.Error("Unexpected error", zap.Error(err))
+		if c := h.logger.Check(zap.ErrorLevel, "Unexpected error"); c != nil {
+			c.Write(zap.Error(err))
+		}
 	}
 
 	<-done
@@ -158,12 +168,18 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 		<-sigint
 
 		if err := h.server.Shutdown(context.Background()); err != nil {
-			h.logger.Error("Unexpected error during server shutdown", zap.Error(err))
+			if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during server shutdown"); c != nil {
+				c.Write(zap.Error(err))
+			}
 		}
 		if err := h.metricsServer.Shutdown(context.Background()); err != nil {
-			h.logger.Error("Unexpected error during metrics server shutdown", zap.Error(err))
+			if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during metrics server shutdown"); c != nil {
+				c.Write(zap.Error(err))
+			}
 		}
-		h.logger.Info("My Baby Shot Me Down")
+		if c := h.logger.Check(zap.InfoLevel, "My Baby Shot Me Down"); c != nil {
+			c.Write()
+		}
 
 		select {
 		case <-idleConnsClosed:
@@ -248,7 +264,9 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 		return
 	}
 	if _, ok := h.transport.(TransportSubscribers); !ok {
-		h.logger.Error("The current transport doesn't support subscriptions. Subscription API disabled.")
+		if c := h.logger.Check(zap.ErrorLevel, "The current transport doesn't support subscriptions. Subscription API disabled."); c != nil {
+			c.Write()
+		}
 
 		return
 	}

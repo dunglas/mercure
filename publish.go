@@ -11,12 +11,14 @@ import (
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
+	var err error
 	if h.publisherJWT != nil {
-		var err error
 		claims, err = authorize(r, h.publisherJWT, h.publishOrigins)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			h.logger.Info("Topic selectors not matched, not provided or authorization error", zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
+			if c := h.logger.Check(zap.InfoLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {
+				c.Write(zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
+			}
 
 			return
 		}
@@ -37,9 +39,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	var retry uint64
 	if retryString := r.PostForm.Get("retry"); retryString != "" {
-		var err error
 		if retry, err = strconv.ParseUint(retryString, 10, 64); err != nil {
-			http.Error(w, "Invalid \"retry\" parameter", http.StatusBadRequest)
+			http.Error(w, `Invalid "retry" parameter`, http.StatusBadRequest)
 
 			return
 		}
@@ -65,6 +66,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, u.ID)
-	h.logger.Info("Update published", zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
+	if c := h.logger.Check(zap.InfoLevel, "Update published"); c != nil {
+		c.Write(zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
+	}
 	h.metrics.UpdatePublished(u)
 }

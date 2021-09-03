@@ -14,9 +14,7 @@ import (
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
-	if _, ok := w.(http.Flusher); !ok {
-		panic("http.ResponseWriter must be an instance of http.Flusher")
-	}
+	assertFlusher(w)
 
 	s := h.registerSubscriber(w, r)
 	if s == nil {
@@ -43,11 +41,15 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-r.Context().Done():
-			h.logger.Debug("connection closed by the client", zap.Object("subscriber", s))
+			if c := h.logger.Check(zap.DebugLevel, "connection closed by the client"); c != nil {
+				c.Write(zap.Object("subscriber", s))
+			}
 
 			return
 		case <-writeTimerC:
-			h.logger.Debug("write timeout: close the connection", zap.Object("subscriber", s))
+			if c := h.logger.Check(zap.DebugLevel, "write timeout: close the connection"); c != nil {
+				c.Write(zap.Object("subscriber", s))
+			}
 
 			return
 		case <-heartbeatTimerC:
@@ -66,7 +68,9 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				heartbeatTimer.Reset(h.heartbeat)
 			}
-			h.logger.Info("Update sent", zap.Object("subscriber", s), zap.Object("update", update))
+			if c := h.logger.Check(zap.InfoLevel, "Update sent"); c != nil {
+				c.Write(zap.Object("subscriber", s), zap.Object("update", update))
+			}
 		}
 	}
 }
@@ -85,7 +89,9 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 		}
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			h.logger.Info("Subscriber unauthorized", zap.Object("subscriber", s), zap.Error(err))
+			if c := h.logger.Check(zap.InfoLevel, "Subscriber unauthorized"); c != nil {
+				c.Write(zap.Object("subscriber", s), zap.Error(err))
+			}
 
 			return nil
 		}
@@ -104,14 +110,18 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	if err := h.transport.AddSubscriber(s); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(s, false)
-		h.logger.Error("Unable to add subscriber", zap.Object("subscriber", s), zap.Error(err))
+		if c := h.logger.Check(zap.ErrorLevel, "Unable to add subscriber"); c != nil {
+			c.Write(zap.Object("subscriber", s), zap.Error(err))
+		}
 
 		return nil
 	}
 
 	sendHeaders(w, s)
 
-	h.logger.Info("New subscriber", zap.Object("subscriber", s))
+	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
+		c.Write(zap.Object("subscriber", s))
+	}
 	h.metrics.SubscriberConnected(s)
 
 	return s
@@ -176,7 +186,9 @@ func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
 	case <-done:
 		return true
 	case <-timeout.C:
-		h.logger.Warn("Dispatch timeout reached", zap.Object("subscriber", s))
+		if c := h.logger.Check(zap.WarnLevel, "Dispatch timeout reached"); c != nil {
+			c.Write(zap.Object("subscriber", s))
+		}
 
 		return false
 	}
@@ -186,7 +198,9 @@ func (h *Hub) shutdown(s *Subscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
 	h.dispatchSubscriptionUpdate(s, false)
-	h.logger.Info("Subscriber disconnected", zap.Object("subscriber", s))
+	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
+		c.Write(zap.Object("subscriber", s))
+	}
 	h.metrics.SubscriberDisconnected(s)
 }
 
@@ -218,4 +232,10 @@ func escapeTopics(topics []string) []string {
 	}
 
 	return escapedTopics
+}
+
+func assertFlusher(w http.ResponseWriter) {
+	if _, ok := w.(http.Flusher); !ok {
+		panic("http.ResponseWriter must be an instance of http.Flusher")
+	}
 }
