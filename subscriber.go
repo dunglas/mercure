@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"fmt"
+	"github.com/gammazero/deque"
 	"net/url"
 	"sync"
 
@@ -12,7 +13,7 @@ import (
 
 type updateSource struct {
 	in     chan *Update
-	buffer []*Update
+	buffer deque.Deque
 }
 
 // Subscriber represents a client subscribed to a list of topics.
@@ -47,8 +48,8 @@ func NewSubscriber(lastEventID string, logger Logger, tss *TopicSelectorStore) *
 
 		responseLastEventID: make(chan string, 1),
 
-		history:            updateSource{},
-		live:               updateSource{in: make(chan *Update)},
+		history:            updateSource{buffer: deque.Deque{}},
+		live:               updateSource{in: make(chan *Update), buffer: deque.Deque{}},
 		out:                make(chan *Update),
 		disconnected:       make(chan struct{}),
 		logger:             logger,
@@ -74,7 +75,7 @@ func (s *Subscriber) start() {
 				break
 			}
 			if s.CanDispatch(u) {
-				s.history.buffer = append(s.history.buffer, u)
+				s.history.buffer.PushBack(u)
 			}
 		case u, ok := <-s.live.in:
 			if !ok {
@@ -84,16 +85,15 @@ func (s *Subscriber) start() {
 				return
 			}
 			if s.CanDispatch(u) {
-				s.live.buffer = append(s.live.buffer, u)
+				s.live.buffer.PushBack(u)
 			}
 		case s.outChan() <- s.nextUpdate():
-			if len(s.history.buffer) > 0 {
-				s.history.buffer = s.history.buffer[1:]
-
+			if s.history.buffer.Len() > 0 {
+				s.history.buffer.PopFront()
 				break
 			}
 
-			s.live.buffer = s.live.buffer[1:]
+			s.live.buffer.PopFront()
 		case <-s.disconnected:
 			close(s.out)
 
@@ -104,7 +104,7 @@ func (s *Subscriber) start() {
 
 // outChan returns the out channel if buffers aren't empty, or nil to block.
 func (s *Subscriber) outChan() chan<- *Update {
-	if len(s.live.buffer) > 0 || len(s.history.buffer) > 0 {
+	if s.live.buffer.Len() > 0 || s.history.buffer.Len() > 0 {
 		return s.out
 	}
 
@@ -115,16 +115,16 @@ func (s *Subscriber) outChan() chan<- *Update {
 // The history is always entirely flushed before starting to dispatch live updates.
 func (s *Subscriber) nextUpdate() *Update {
 	// Always flush the history buffer first to preserve order
-	if s.history.in != nil || len(s.history.buffer) > 0 {
-		if len(s.history.buffer) > 0 {
-			return s.history.buffer[0]
+	if s.history.in != nil || s.history.buffer.Len() > 0 {
+		if s.history.buffer.Len() > 0 {
+			return s.history.buffer.Front().(*Update)
 		}
 
 		return nil
 	}
 
-	if len(s.live.buffer) > 0 {
-		return s.live.buffer[0]
+	if s.live.buffer.Len() > 0 {
+		return s.live.buffer.Front().(*Update)
 	}
 
 	return nil

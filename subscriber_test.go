@@ -55,3 +55,21 @@ func TestLogSubscriber(t *testing.T) {
 	assert.Contains(t, log, `"topic_selectors":["https://example.com/foo"]`)
 	assert.Contains(t, log, `"topics":["https://example.com/bar"]`)
 }
+
+func BenchmarkDispatch(b *testing.B) {
+	s := NewSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
+	s.Topics = []string{"http://example.com"}
+	go s.start()
+	for n := 0; n < b.N; n++ {
+		// Dispatch must be non-blocking
+		// Messages coming from the history can be sent after live messages, but must be received first
+		s.Dispatch(&Update{Topics: s.Topics, Event: Event{ID: strconv.Itoa(n)}}, false)
+	}
+
+	s.HistoryDispatched("")
+
+	for n := 0; n < b.N; n++ {
+		s.Receive()
+	}
+
+}
