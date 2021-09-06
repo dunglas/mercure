@@ -2,10 +2,10 @@ package mercure
 
 import (
 	"fmt"
-	"github.com/gammazero/deque"
 	"net/url"
 	"sync"
 
+	"github.com/gammazero/deque"
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -90,6 +90,7 @@ func (s *Subscriber) start() {
 		case s.outChan() <- s.nextUpdate():
 			if s.history.buffer.Len() > 0 {
 				s.history.buffer.PopFront()
+
 				break
 			}
 
