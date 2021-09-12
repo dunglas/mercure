@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
@@ -35,6 +36,9 @@ type Subscriber struct {
 	live                updateSource
 	logger              Logger
 	topicSelectorStore  *TopicSelectorStore
+	ready               int32
+	liveQueue           []*Update
+	liveMutex           sync.RWMutex
 }
 
 // NewSubscriber creates a new subscriber.
@@ -142,6 +146,15 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 		if !s.CanDispatch(u) {
 			return true
 		}
+		if atomic.LoadInt32(&s.ready) < 1 {
+			s.liveMutex.Lock()
+			if s.ready < 1 {
+				s.liveQueue = append(s.liveQueue, u)
+				s.liveMutex.Unlock()
+				return true
+			}
+			s.liveMutex.Unlock()
+		}
 		s.out <- u
 		return true
 	}
@@ -171,6 +184,18 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	}
 
 	return true
+}
+
+// Ready flips the ready flag to true and flushes queued live updates returning number of events flushed
+func (s *Subscriber) Ready() int {
+	s.liveMutex.Lock()
+	defer s.liveMutex.Unlock()
+	var n = len(s.liveQueue)
+	for _, u := range s.liveQueue {
+		s.out <- u
+	}
+	atomic.StoreInt32(&s.ready, 1)
+	return n
 }
 
 // Receive returns a chan when incoming updates are dispatched.

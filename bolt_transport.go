@@ -190,6 +190,8 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 		t.dispatchHistory(s, toSeq)
 	}
 
+	s.Ready()
+
 	return nil
 }
 
