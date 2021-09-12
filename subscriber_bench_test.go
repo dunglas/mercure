@@ -15,6 +15,7 @@ import (
 
 func BenchmarkSubscriber(b *testing.B) {
 	var str []string
+
 	// How many topics and topicselectors do each subscriber and update contain (same value for both)
 	topicOpts := []int{1, 5, 10}
 	if opt := os.Getenv("SUB_TEST_TOPICS"); len(opt) > 0 {
@@ -22,6 +23,7 @@ func BenchmarkSubscriber(b *testing.B) {
 	} else {
 		str = append(str, "topics %d")
 	}
+
 	// How many concurrent subscribers
 	concurrencyOpts := []int{100, 1000, 5000, 20000}
 	if opt := os.Getenv("SUB_TEST_CONCURRENCY"); len(opt) > 0 {
@@ -29,6 +31,7 @@ func BenchmarkSubscriber(b *testing.B) {
 	} else {
 		str = append(str, "concurrency %d")
 	}
+
 	// What percentage of messages are delivered to a subscriber (ie 10 = 10% CanDispatch true)
 	matchPctOpts := []int{1, 10, 100}
 	if opt := os.Getenv("SUB_TEST_MATCHPCT"); len(opt) > 0 {
@@ -36,14 +39,15 @@ func BenchmarkSubscriber(b *testing.B) {
 	} else {
 		str = append(str, "matchpct %d")
 	}
+
 	// Skip prioritity queue select and dump messages straight to out channel
-	// Final solution will buffer live events until history is done replaying
 	skipselectOpts := []string{"false", "true"}
 	if opt := os.Getenv("SUB_TEST_SKIPSELECT"); len(opt) > 0 {
 		skipselectOpts = []string{opt}
 	} else {
 		str = append(str, "skipselect %s")
 	}
+
 	// Which cache should the topic selector use (ristretto or lru)
 	cacheOpts := []string{"ristretto", "lru"}
 	if opt := os.Getenv("SUB_TEST_CACHE"); len(opt) > 0 {
@@ -51,6 +55,7 @@ func BenchmarkSubscriber(b *testing.B) {
 	} else {
 		str = append(str, "cache %s")
 	}
+
 	// How many shards should the lru cache have (ristretto is hard coded to 256)
 	shardOpts := []int{1, 256 /* 4096 */}
 	if opt := os.Getenv("SUB_TEST_SHARDS"); len(opt) > 0 {
@@ -58,6 +63,7 @@ func BenchmarkSubscriber(b *testing.B) {
 	} else {
 		str = append(str, "shards %d")
 	}
+
 	var arg []interface{}
 	for _, topics := range topicOpts {
 		var arg = arg
@@ -173,7 +179,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct, shards int,
 		wg.Add(concurrency)
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
-				if i%100 <= matchPct {
+				if i%100 < matchPct {
 					s.Dispatch(&Update{Topics: tsMatch}, i%2 == 0 /* half history, half live */)
 				} else {
 					s.Dispatch(&Update{Topics: tsNoMatch}, i%2 == 0 /* half history, half live */)
