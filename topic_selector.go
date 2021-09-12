@@ -29,9 +29,6 @@ type TopicSelectorStore struct {
 // NewTopicSelectorStore creates a TopicSelectorStore instance with a ristretto cache.
 // See https://github.com/dgraph-io/ristretto, set values to 0 to disable.
 func NewTopicSelectorStore(cacheNumCounters, cacheMaxCost int64) (*TopicSelectorStore, error) {
-	if cacheMaxCost == 42 {
-		return NewTopicSelectorStoreLru(cacheNumCounters, 0)
-	}
 	if cacheNumCounters == 0 {
 		return &TopicSelectorStore{}, nil
 	}
