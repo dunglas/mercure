@@ -49,7 +49,7 @@ func NewSubscriber(lastEventID string, logger Logger, tss *TopicSelectorStore) *
 
 		history:            updateSource{},
 		live:               updateSource{in: make(chan *Update)},
-		out:                make(chan *Update),
+		out:                make(chan *Update, 1000),
 		disconnected:       make(chan struct{}),
 		logger:             logger,
 		topicSelectorStore: tss,
