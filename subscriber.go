@@ -139,14 +139,13 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	if s.topicSelectorStore.skipSelect {
 		select {
 		case <-s.disconnected:
-			close(s.live.in)
 			return false
 		default:
 		}
 		if !s.CanDispatch(u) {
 			return true
 		}
-		if atomic.LoadInt32(&s.ready) < 1 {
+		if !fromHistory && atomic.LoadInt32(&s.ready) < 1 {
 			s.liveMutex.Lock()
 			if s.ready < 1 {
 				s.liveQueue = append(s.liveQueue, u)
