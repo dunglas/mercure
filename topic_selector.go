@@ -51,11 +51,6 @@ func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 		return true
 	}
 
-	r := tss.getRegexp(topicSelector)
-	if r == nil {
-		return false
-	}
-
 	var k string
 	if tss.cache != nil {
 		k = "m_" + topicSelector + "_" + topic
@@ -63,6 +58,11 @@ func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 		if found {
 			return value.(bool)
 		}
+	}
+
+	r := tss.getRegexp(topicSelector)
+	if r == nil {
+		return false
 	}
 
 	// Use template.Regexp() instead of template.Match() for performance
