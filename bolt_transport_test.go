@@ -172,6 +172,8 @@ func TestNewBoltTransport(t *testing.T) {
 	u, _ = url.Parse("bolt:///test.db")
 	_, err = NewBoltTransport(u, zap.NewNop(), nil)
 
+	require.NotNil(t, err)
+
 	// The exact error message depends of the OS
 	assert.Contains(t, err.Error(), "open /test.db:")
 
