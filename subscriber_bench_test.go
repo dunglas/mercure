@@ -3,35 +3,41 @@ package mercure
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"sync"
-	"testing"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
+	"testing"
 
 	"go.uber.org/zap"
 )
 
 func BenchmarkSubscriber(b *testing.B) {
 	var str []string
-	topicOpts := []int{1, 5, 10, 20}
+	topicOpts := []int{1, 5, 10}
 	if opt := os.Getenv("SUB_TEST_TOPICS"); len(opt) > 0 {
 		topicOpts = []int{strInt(opt)}
 	} else {
 		str = append(str, "topics %d")
 	}
-	concurrencyOpts := []int{1, 10, 100, 1000, 10000}
+	concurrencyOpts := []int{100, 1000, 5000, 20000}
 	if opt := os.Getenv("SUB_TEST_CONCURRENCY"); len(opt) > 0 {
 		concurrencyOpts = []int{strInt(opt)}
 	} else {
 		str = append(str, "concurrency %d")
 	}
-	matchPctOpts := []int{1, 10, 50, 100}
+	matchPctOpts := []int{1, 10, 100}
 	if opt := os.Getenv("SUB_TEST_MATCHPCT"); len(opt) > 0 {
 		matchPctOpts = []int{strInt(opt)}
 	} else {
-		str = append(str, "matchPct %d")
+		str = append(str, "matchpct %d")
+	}
+	skipselectOpts := []string{"false", "true"}
+	if opt := os.Getenv("SUB_TEST_SKIPSELECT"); len(opt) > 0 {
+		skipselectOpts = []string{opt}
+	} else {
+		str = append(str, "skipselect %s")
 	}
 	cacheOpts := []string{"ristretto", "lru"}
 	if opt := os.Getenv("SUB_TEST_CACHE"); len(opt) > 0 {
@@ -39,7 +45,7 @@ func BenchmarkSubscriber(b *testing.B) {
 	} else {
 		str = append(str, "cache %s")
 	}
-	shardOpts := []int{1, 16, 256, 4096}
+	shardOpts := []int{1, 256 /* 4096 */}
 	if opt := os.Getenv("SUB_TEST_SHARDS"); len(opt) > 0 {
 		shardOpts = []int{strInt(opt)}
 	} else {
@@ -61,20 +67,26 @@ func BenchmarkSubscriber(b *testing.B) {
 				if len(matchPctOpts) > 1 {
 					arg = append(arg, matchPct)
 				}
-				for _, cache := range cacheOpts {
+				for _, skipselect := range skipselectOpts {
 					var arg = arg
-					if len(cache) > 1 {
-						arg = append(arg, cache)
+					if len(skipselectOpts) > 1 {
+						arg = append(arg, skipselect)
 					}
-					for _, shards := range shardOpts {
+					for _, cache := range cacheOpts {
 						var arg = arg
-						if len(shardOpts) > 1 {
-							arg = append(arg, shards)
+						if len(cacheOpts) > 1 {
+							arg = append(arg, cache)
 						}
-						if cache == "ristretto" && shards != 256 {
-							continue
+						for _, shards := range shardOpts {
+							if cache == "ristretto" && shards != 256 {
+								continue
+							}
+							var arg = arg
+							if len(shardOpts) > 1 {
+								arg = append(arg, shards)
+							}
+							subBenchSubscriber(b, topics, concurrency, matchPct, shards, cache, skipselect, fmt.Sprintf(strings.Join(str, " "), arg...))
 						}
-						subBenchSubscriber(b, topics, concurrency, matchPct, shards, cache, fmt.Sprintf(strings.Join(str, " "), arg...))
 					}
 				}
 			}
@@ -90,122 +102,119 @@ func strInt(s string) int {
 	return n
 }
 
-func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct, shards int, cache, testName string) {
-	b.Run(testName, func(b *testing.B) {
-		var tss *TopicSelectorStore
-		var err error
-		if cache == "lru" {
-			tss, err = NewTopicSelectorStoreLru(1e5, int64(shards))
-			if err != nil {
-				panic(err)
-			}
+func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct, shards int, cache, skipselect string, testName string) {
+	var tss *TopicSelectorStore
+	var err error
+	if cache == "lru" {
+		tss, err = NewTopicSelectorStoreLru(1e5, int64(shards))
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		tss, err = NewTopicSelectorStore(1e6, 1000)
+		if err != nil {
+			panic(err)
+		}
+	}
+	tss.skipSelect = skipselect == "true"
+	var s = NewSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop(), tss)
+	s.Topics = make([]string, topics)
+	tsMatch := make([]string, topics)
+	tsNoMatch := make([]string, topics)
+	for i := 0; i < topics; i++ {
+		s.Topics[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
+		tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
+		if topics/2 == i {
+			// Insert matching topic half way through matching topic list to simulate match
+			tsMatch[i] = strings.ReplaceAll(strings.ReplaceAll(s.Topics[i], "{", ""), "}", "")
 		} else {
-			tss, err = NewTopicSelectorStore(1e6, 1000)
-			if err != nil {
-				panic(err)
+			tsMatch[i] = tsNoMatch[i]
+		}
+		// Warm cache
+		for i := range tsMatch {
+			for j := range s.Topics {
+				tss.match(tsMatch[i], s.Topics[j])
 			}
 		}
-		var s = NewSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop(), tss)
-		s.Topics = make([]string, topics)
-		tsMatch := make([]string, topics)
-		tsNoMatch := make([]string, topics)
-		for i := 0; i < topics; i++ {
-			s.Topics[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
-			tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
-			if topics / 2 == i {
-				// Insert matching topic half way through matching topic list to simulate match
-				tsMatch[i] = strings.ReplaceAll(strings.ReplaceAll(s.Topics[i], "{", ""), "}", "")
-			} else {
-				tsMatch[i] = tsNoMatch[i]
-			}
-			// Warm cache
-			for i := range tsMatch {
-				for j := range s.Topics {
-					tss.match(tsMatch[i], s.Topics[j])
+	}
+	go s.start()
+	defer s.Disconnect()
+	ctx, done := context.WithCancel(context.Background())
+	defer done()
+	for i := 0; i < 1; i++ {
+		go func() {
+			for {
+				select {
+				case <-s.out:
+				case <-ctx.Done():
+					return
 				}
 			}
-		}
-		go s.start()
-		defer s.Disconnect()
-		ctx, done := context.WithCancel(context.Background())
-		defer done()
-		for i := 0; i < 1; i++ {
-			go func() {
-				for {
-					select {
-					case <-s.out:
-					case <-ctx.Done():
-						return
-					}
-				}
-			}()
-		}
+		}()
+	}
+	b.SetParallelism(concurrency)
+	b.Run(testName, func(b *testing.B) {
 		var wg sync.WaitGroup
 		wg.Add(concurrency)
-		b.ResetTimer()
-		for i := 0; i < concurrency; i++ {
-			go func() {
-				for i := 0; i < b.N/concurrency; i++ {
-					if i % 100 <= matchPct {
-						s.Dispatch(&Update{Topics: tsMatch}, i%2 == 0 /* half history, half live */)
-					} else {
-						s.Dispatch(&Update{Topics: tsNoMatch}, i%2 == 0 /* half history, half live */)
-					}
+		b.RunParallel(func(pb *testing.PB) {
+			for i := 0; pb.Next(); i++ {
+				if i%100 <= matchPct {
+					s.Dispatch(&Update{Topics: tsMatch}, i%2 == 0 /* half history, half live */)
+				} else {
+					s.Dispatch(&Update{Topics: tsNoMatch}, i%2 == 0 /* half history, half live */)
 				}
-				wg.Done()
-			}()
-		}
-		// Wait for dispatch generator to finish
-		wg.Wait()
+			}
+		})
+		wg.Done()
 	})
 }
 
-/* --- test.sh --- These are the commands required to produce desired scheduler contention and record output.
+/* --- test.sh ---
+These are example commands that can be used to run subsets of this test for analysis.
+Omission of any environment variable causes the test to enumate a few meaningful options.
 
 #!/usr/bin/sh
 
+set -e
+
 mkdir -p _dist
 
-echo "50 post"
+# --- Generating a diff ---
+
+SUB_TEST_CONCURRENCY=20000 \
+SUB_TEST_TOPICS=20 \
 SUB_TEST_MATCHPCT=50 \
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_DISPATCH=post \
-go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.50pct.5000c.post.out -count 5 | tee _dist/profile.50pct.5000c.post.txt
+SUB_TEST_SKIPSELECT=false \
+SUB_TEST_CACHE=ristretto \
+SUB_TEST_SHARDS=256 \
+go test -bench=. -run=BenchmarkSubscriber -benchmem -count 5 | tee _dist/output.20kc.20top.50pct.noskip.ristretto.256.txt
 
-echo "50 pre"
+SUB_TEST_CONCURRENCY=20000 \
+SUB_TEST_TOPICS=20 \
 SUB_TEST_MATCHPCT=50 \
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_DISPATCH=pre \
-go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.50pct.5000c.pre.out -count 5 | tee _dist/profile.50pct.5000c.pre.txt
+SUB_TEST_SKIPSELECT=false \
+SUB_TEST_CACHE=lru \
+SUB_TEST_SHARDS=256 \
+go test -bench=. -run=BenchmarkSubscriber -benchmem -count 5 | tee _dist/output.20kc.20top.50pct.noskip.lru.256.txt
 
-benchstat _dist/profile.50pct.5000c.post.txt _dist/profile.50pct.5000c.pre.txt > _dist/profile.50pct.5000c.diff.txt
+benchstat _dist/output.20kc.20top.50pct.noskip.ristretto.256sh.txt \
+          _dist/output.20kc.20top.50pct.noskip.lru.256sh.txt \
+		> _dist/diff-cache.20kc.20top.50pct.noskip.256sh.txt
 
-echo "10 post"
-SUB_TEST_MATCHPCT=10 \
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_DISPATCH=post \
-go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.10pct.5000c.post.out -count 5 | tee _dist/profile.10pct.5000c.post.txt
 
-echo "10 pre"
-SUB_TEST_MATCHPCT=10 \
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_DISPATCH=pre \
-go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.10pct.5000c.pre.out -count 5 | tee _dist/profile.10pct.5000c.pre.txt
+# --- Generating a cpu call graph ---
 
-benchstat _dist/profile.10pct.5000c.post.txt _dist/profile.10pct.5000c.pre.txt > _dist/profile.10pct.5000c.diff.txt
+SUB_TEST_CONCURRENCY=20000 \
+SUB_TEST_TOPICS=20 \
+SUB_TEST_MATCHPCT=50 \
+SUB_TEST_SKIPSELECT=false \
+SUB_TEST_CACHE=ristretto \
+SUB_TEST_SHARDS=256 \
+go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.out -benchmem
 
-echo "1 post"
-SUB_TEST_MATCHPCT=1 \
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_DISPATCH=post \
-go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.1pct.5000c.post.out -count 5 | tee _dist/profile.1pct.5000c.post.txt
+go build -o _dist/bin
 
-echo "1 pre"
-SUB_TEST_MATCHPCT=1 \
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_DISPATCH=pre \
-go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.1pct.5000c.pre.out -count 5 | tee _dist/profile.1pct.5000c.pre.txt
-
-benchstat _dist/profile.1pct.5000c.post.txt _dist/profile.1pct.5000c.pre.txt > _dist/profile.1pct.5000c.diff.txt
+go tool pprof --pdf _dist/bin _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.out \
+                            > _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.pdf
 
 */

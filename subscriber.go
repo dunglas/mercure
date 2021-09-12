@@ -132,6 +132,19 @@ func (s *Subscriber) nextUpdate() *Update {
 
 // Dispatch an update to the subscriber.
 func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
+	if s.topicSelectorStore.skipSelect {
+		select {
+		case <-s.disconnected:
+			close(s.live.in)
+			return false
+		default:
+		}
+		if !s.CanDispatch(u) {
+			return true
+		}
+		s.out <- u
+		return true
+	}
 	var in chan<- *Update
 	if fromHistory {
 		in = s.history.in
