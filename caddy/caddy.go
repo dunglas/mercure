@@ -371,6 +371,18 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				}
 
 				m.CacheMaxCost = &v
+
+			case "lru_cache":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				v, err := strconv.ParseInt(d.Val(), 10, 64)
+				if err != nil {
+					return err //nolint:wrapcheck
+				}
+
+				m.LruShardSize = &v
 			}
 		}
 	}
