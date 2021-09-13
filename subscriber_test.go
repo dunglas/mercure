@@ -9,7 +9,8 @@ import (
 )
 
 func TestDispatch(t *testing.T) {
-	s := NewSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
+	tss, _ := NewTopicSelectorStoreLru(1000, 16)
+	s := NewSubscriber("1", zap.NewNop(), tss)
 	s.Topics = []string{"http://example.com"}
 	go s.start()
 	defer s.Disconnect()
@@ -22,9 +23,12 @@ func TestDispatch(t *testing.T) {
 	s.Dispatch(&Update{Topics: s.Topics, Event: Event{ID: "2"}}, true)
 	s.HistoryDispatched("")
 
+	s.Ready()
+
 	for i := 1; i <= 4; i++ {
-		u := <-s.Receive()
-		assert.Equal(t, strconv.Itoa(i), u.ID)
+		if u, ok := <-s.Receive(); ok && u != nil {
+			assert.Equal(t, strconv.Itoa(i), u.ID)
+		}
 	}
 }
 

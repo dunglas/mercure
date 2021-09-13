@@ -64,6 +64,8 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 		s.HistoryDispatched(EarliestLastEventID)
 	}
 
+	s.Ready()
+
 	return nil
 }
 
