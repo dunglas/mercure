@@ -75,6 +75,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "mercure.fullname" . }}
                   key: extra-directives
+            - name: MERCURE_LICENSE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mercure.fullname" . }}
+                  key: license
           {{- if .Values.persistence.enabled }}
           volumeMounts:
             - mountPath: /data
