@@ -183,3 +183,72 @@ func TestSubscriptionAPI(t *testing.T) {
 	resp := tester.AssertResponseCode(req, http.StatusOK)
 	resp.Body.Close()
 }
+
+func TestCookieName(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				publisher_jwt !ChangeMe!
+				cookie_name foo
+				publish_origins http://localhost:9080
+			}
+	
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	var connected sync.WaitGroup
+	var received sync.WaitGroup
+	connected.Add(1)
+	received.Add(1)
+
+	go func() {
+		cx, cancel := context.WithCancel(context.Background())
+		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req = req.WithContext(cx)
+		resp := tester.AssertResponseCode(req, http.StatusOK)
+
+		connected.Done()
+
+		var receivedBody strings.Builder
+		buf := make([]byte, 1024)
+		for {
+			_, err := resp.Body.Read(buf)
+			if errors.Is(err, io.EOF) {
+				panic("EOF")
+			}
+
+			receivedBody.Write(buf)
+			if strings.Contains(receivedBody.String(), "data: bar\n") {
+				cancel()
+
+				break
+			}
+		}
+
+		resp.Body.Close()
+		received.Done()
+	}()
+
+	connected.Wait()
+
+	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
+	req, err := http.NewRequest("POST", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	require.Nil(t, err)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Origin", "http://localhost:9080")
+	req.AddCookie(&http.Cookie{Name: "foo", Value: publisherJWT})
+
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+	resp.Body.Close()
+
+	received.Wait()
+}
