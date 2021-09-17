@@ -26,7 +26,8 @@ type mercureClaim struct {
 type role int
 
 const (
-	roleSubscriber role = iota
+	defaultCookieName      = "mercureAuthorization"
+	roleSubscriber    role = iota
 	rolePublisher
 )
 
@@ -45,9 +46,9 @@ var (
 	ErrPublicKey = errors.New("public key error")
 )
 
-// Authorize validates the JWT that may be provided through an "Authorization" HTTP header or a "mercureAuthorization" cookie.
+// Authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
-func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string) (*claims, error) {
+func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, cookieName string) (*claims, error) {
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
@@ -57,7 +58,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string) (
 		return validateJWT(authorizationHeaders[0][7:], jwtConfig)
 	}
 
-	cookie, err := r.Cookie("mercureAuthorization")
+	cookie, err := r.Cookie(cookieName)
 	if err != nil {
 		// Anonymous
 		return nil, nil //nolint:nilerr,nilnil

@@ -184,6 +184,15 @@ func WithTopicSelectorStore(tss *TopicSelectorStore) Option {
 	}
 }
 
+// WithCookieName sets the name of the authorization cookie (defaults to "mercureAuthorization").
+func WithCookieName(cookieName string) Option {
+	return func(o *opt) error {
+		o.cookieName = cookieName
+
+		return nil
+	}
+}
+
 type jwtConfig struct {
 	key           []byte
 	signingMethod jwt.SigningMethod
@@ -210,6 +219,7 @@ type opt struct {
 	allowedHosts       []string
 	publishOrigins     []string
 	corsOrigins        []string
+	cookieName         string
 }
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
@@ -267,6 +277,10 @@ func NewHub(options ...Option) (*Hub, error) {
 
 	if opt.metrics == nil {
 		opt.metrics = NopMetrics{}
+	}
+
+	if opt.cookieName == "" {
+		opt.cookieName = defaultCookieName
 	}
 
 	h := &Hub{opt: opt}

@@ -2,7 +2,6 @@ package mercure
 
 import (
 	"embed"
-	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -18,7 +17,7 @@ var uiContent embed.FS
 // Add a query parameter named "body" to define the content to return in the response's body.
 // Add a query parameter named "jwt" set a "mercureAuthorization" cookie containing this token.
 // The Content-Type header will automatically be set according to the URL's extension.
-func Demo(w http.ResponseWriter, r *http.Request) {
+func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 	// JSON-LD is the preferred format
 	mime.AddExtensionType(".jsonld", "application/ld+json")
 
@@ -29,16 +28,21 @@ func Demo(w http.ResponseWriter, r *http.Request) {
 	body := query.Get("body")
 	jwt := query.Get("jwt")
 
+	hubLink := "<" + defaultHubURL + ">; rel=\"mercure\""
+	if h.cookieName != defaultCookieName {
+		hubLink = hubLink + "; cookie-name=\"" + h.cookieName + "\""
+	}
+
 	header := w.Header()
 	// Several Link headers are set on purpose to allow testing advanced discovery mechanism
-	header.Add("Link", "<"+defaultHubURL+">; rel=\"mercure\"")
-	header.Add("Link", fmt.Sprintf("<%s>; rel=\"self\"", url))
+	header.Add("Link", hubLink)
+	header.Add("Link", "<"+url+">; rel=\"self\"")
 	if mimeType != "" {
 		header.Set("Content-Type", mimeType)
 	}
 
 	cookie := &http.Cookie{
-		Name:     "mercureAuthorization",
+		Name:     h.cookieName,
 		Path:     defaultHubURL,
 		Value:    jwt,
 		HttpOnly: r.TLS != nil,

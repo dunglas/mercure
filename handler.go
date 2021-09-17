@@ -29,7 +29,7 @@ func (h *Hub) initHandler() {
 
 	csp := "default-src 'self'"
 	if h.demo {
-		router.PathPrefix(defaultDemoURL).HandlerFunc(Demo).Methods("GET", "HEAD")
+		router.PathPrefix(defaultDemoURL).HandlerFunc(h.Demo).Methods("GET", "HEAD")
 	}
 	if h.ui {
 		public, err := fs.Sub(uiContent, "public")
@@ -201,7 +201,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 
 	csp := "default-src 'self'"
 	if h.demo {
-		r.PathPrefix("/demo").HandlerFunc(Demo).Methods("GET", "HEAD")
+		r.PathPrefix("/demo").HandlerFunc(h.Demo).Methods("GET", "HEAD")
 	}
 
 	if h.ui {

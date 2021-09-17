@@ -82,7 +82,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	var privateTopics []string
 
 	if h.subscriberJWT != nil {
-		claims, err := authorize(r, h.subscriberJWT, nil)
+		claims, err := authorize(r, h.subscriberJWT, nil, h.cookieName)
 		if claims != nil {
 			s.Claims = claims
 			privateTopics = claims.Mercure.Subscribe

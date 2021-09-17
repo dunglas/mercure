@@ -2,7 +2,7 @@
 
 ## 401 Unauthorized
 
-* Double-check that the request to the hub includes a `mercureAuthorization` cookie or an `Authorization` HTTP header
+* Double-check that the request to the hub includes an authorization cookie (the default name is  `mercureAuthorization`) or an `Authorization` HTTP header
 * If the cookie isn't set, you may have to explicitly include [the request credentials](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters) (`new EventSource(url, {withCredentials: true})` and `fetch(url, {credentials: 'include'})`)
 * Check the logs written by the hub on `stderr`, they contain the exact reason why the token has been rejected
 * Be sure to set a **secret key** (and not a JWT) in `JWT_KEY` (or in `SUBSCRIBER_JWT_KEY` and `PUBLISHER_JWT_KEY`)
