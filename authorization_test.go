@@ -209,7 +209,7 @@ func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
 
 func TestAuthorizeCookieInvalidAlg(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyNoneSignedJWT()})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
 	assert.EqualError(t, err, "unable to parse JWT: 'none' signature type is not allowed")
@@ -218,7 +218,7 @@ func TestAuthorizeCookieInvalidAlg(t *testing.T) {
 
 func TestAuthorizeCookieInvalidKey(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
 	assert.EqualError(t, err, "unable to parse JWT: signature is invalid")
@@ -227,7 +227,7 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 
 func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{}, defaultCookieName)
 	assert.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
@@ -236,7 +236,7 @@ func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
 
 func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(privateKeyRsa), jwt.SigningMethodRS256}, []string{}, defaultCookieName)
 	assert.Error(t, err)
@@ -246,7 +246,7 @@ func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
 
 func TestAuthorizeCookieNoContent(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{}, defaultCookieName)
 	require.Nil(t, err)
@@ -256,7 +256,7 @@ func TestAuthorizeCookieNoContent(t *testing.T) {
 
 func TestAuthorizeCookieNoContentRsa(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validEmptyHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{}, defaultCookieName)
 	require.Nil(t, err)
@@ -266,7 +266,7 @@ func TestAuthorizeCookieNoContentRsa(t *testing.T) {
 
 func TestAuthorizeCookie(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{}, defaultCookieName)
 	require.Nil(t, err)
@@ -276,7 +276,7 @@ func TestAuthorizeCookie(t *testing.T) {
 
 func TestAuthorizeCookieRsa(t *testing.T) {
 	r, _ := http.NewRequest("GET", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{}, defaultCookieName)
 	require.Nil(t, err)
@@ -286,7 +286,7 @@ func TestAuthorizeCookieRsa(t *testing.T) {
 
 func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{}, defaultCookieName)
 	assert.EqualError(t, err, "an \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
@@ -295,7 +295,7 @@ func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 
 func TestAuthorizeCookieNoOriginNoRefererRsa(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{}, defaultCookieName)
 	assert.EqualError(t, err, "an \"Origin\" or a \"Referer\" HTTP header must be present to use the cookie-based authorization mechanism")
@@ -305,7 +305,7 @@ func TestAuthorizeCookieNoOriginNoRefererRsa(t *testing.T) {
 func TestAuthorizeCookieOriginNotAllowed(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Origin", "http://example.com")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{"http://example.net"}, defaultCookieName)
 	assert.EqualError(t, err, `"http://example.com": origin not allowed to post updates`)
@@ -315,7 +315,7 @@ func TestAuthorizeCookieOriginNotAllowed(t *testing.T) {
 func TestAuthorizeCookieOriginNotAllowedRsa(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Origin", "http://example.com")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{"http://example.net"}, defaultCookieName)
 	assert.EqualError(t, err, `"http://example.com": origin not allowed to post updates`)
@@ -325,7 +325,7 @@ func TestAuthorizeCookieOriginNotAllowedRsa(t *testing.T) {
 func TestAuthorizeCookieRefererNotAllowed(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Referer", "http://example.com/foo/bar")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{"http://example.net"}, defaultCookieName)
 	assert.EqualError(t, err, `"http://example.com": origin not allowed to post updates`)
@@ -335,7 +335,7 @@ func TestAuthorizeCookieRefererNotAllowed(t *testing.T) {
 func TestAuthorizeCookieRefererNotAllowedRsa(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Referer", "http://example.com/foo/bar")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{"http://example.net"}, defaultCookieName)
 	assert.EqualError(t, err, `"http://example.com": origin not allowed to post updates`)
@@ -345,7 +345,7 @@ func TestAuthorizeCookieRefererNotAllowedRsa(t *testing.T) {
 func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Referer", "http://192.168.0.%31/")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{"http://example.net"}, defaultCookieName)
 	assert.EqualError(t, err, `unable to parse referer: parse "http://192.168.0.%31/": invalid URL escape "%31"`)
@@ -355,7 +355,7 @@ func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 func TestAuthorizeCookieInvalidRefererRsa(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Referer", "http://192.168.0.%31/")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{"http://example.net"}, defaultCookieName)
 	assert.EqualError(t, err, `unable to parse referer: parse "http://192.168.0.%31/": invalid URL escape "%31"`)
@@ -366,7 +366,7 @@ func TestAuthorizeCookieOriginHasPriority(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Origin", "http://example.net")
 	r.Header.Add("Referer", "http://example.com")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{"http://example.net"}, defaultCookieName)
 	require.Nil(t, err)
@@ -378,7 +378,7 @@ func TestAuthorizeCookieOriginHasPriorityRsa(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Origin", "http://example.net")
 	r.Header.Add("Referer", "http://example.com")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeaderRsa})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), jwt.SigningMethodRS256}, []string{"http://example.net"}, defaultCookieName)
 	require.Nil(t, err)
@@ -389,9 +389,18 @@ func TestAuthorizeCookieOriginHasPriorityRsa(t *testing.T) {
 func TestAuthorizeAllOriginsAllowed(t *testing.T) {
 	r, _ := http.NewRequest("POST", defaultHubURL, nil)
 	r.Header.Add("Origin", "http://example.com")
-	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: validFullHeader})
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validFullHeader})
 
 	_, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{"*"}, defaultCookieName)
+	require.Nil(t, err)
+}
+
+func TestAuthorizeCustomCookieNane(t *testing.T) {
+	r, _ := http.NewRequest("POST", defaultHubURL, nil)
+	r.Header.Add("Origin", "http://example.com")
+	r.AddCookie(&http.Cookie{Name: "foo", Value: validFullHeader})
+
+	_, err := authorize(r, &jwtConfig{[]byte("!ChangeMe!"), jwt.SigningMethodHS256}, []string{"*"}, "foo")
 	require.Nil(t, err)
 }
 
