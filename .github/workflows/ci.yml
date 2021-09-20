@@ -56,8 +56,6 @@ jobs:
       working-directory: ./caddy
 
     - name: Upload coverage results
-      env:
-        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        GO111MODULE=off go get github.com/mattn/goveralls
-        $(go env GOPATH)/bin/goveralls -coverprofile=profile.cov -service=github
+      uses: shogo82148/actions-goveralls@v1
+      with:
+        path-to-profile: profile.cov
