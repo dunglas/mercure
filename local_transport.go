@@ -12,7 +12,7 @@ func init() { //nolint:gochecknoinits
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
 type LocalTransport struct {
 	sync.RWMutex
-	subscribers map[*Subscriber]struct{}
+	subscribers *SubscriberList
 	lastEventID string
 	closed      chan struct{}
 	closedOnce  sync.Once
@@ -21,7 +21,7 @@ type LocalTransport struct {
 // NewLocalTransport create a new LocalTransport.
 func NewLocalTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) {
 	return &LocalTransport{
-		subscribers: make(map[*Subscriber]struct{}),
+		subscribers: NewSubscriberList(1e5),
 		closed:      make(chan struct{}),
 		lastEventID: EarliestLastEventID,
 	}, nil
@@ -36,35 +36,44 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 	}
 
 	AssignUUID(update)
-	t.Lock()
-	defer t.Unlock()
-	for subscriber := range t.subscribers {
-		if !subscriber.Dispatch(update, false) {
-			delete(t.subscribers, subscriber)
-		}
+	for _, s := range t.subscribers.MatchAny(update) {
+		s.Dispatch(update, false)
 	}
+	t.Lock()
 	t.lastEventID = update.ID
+	t.Unlock()
 
 	return nil
 }
 
 // AddSubscriber adds a new subscriber to the transport.
 func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
-	t.Lock()
-	defer t.Unlock()
-
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
 	default:
 	}
-
-	t.subscribers[s] = struct{}{}
+	t.Lock()
+	defer t.Unlock()
+	t.subscribers.Add(s)
 	if s.RequestLastEventID != "" {
 		s.HistoryDispatched(EarliestLastEventID)
 	}
-
 	s.Ready()
+
+	return nil
+}
+
+// RemoveSubscriber removes a subscriber from the transport.
+func (t *LocalTransport) RemoveSubscriber(s *Subscriber) error {
+	select {
+	case <-t.closed:
+		return ErrClosedTransport
+	default:
+	}
+	t.Lock()
+	defer t.Unlock()
+	t.subscribers.Remove(s)
 
 	return nil
 }
@@ -73,13 +82,11 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 func (t *LocalTransport) GetSubscribers() (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
-	subscribers := make([]*Subscriber, len(t.subscribers))
-
-	i := 0
-	for subscriber := range t.subscribers {
-		subscribers[i] = subscriber
-		i++
-	}
+	var subscribers []*Subscriber
+	t.subscribers.Walk(0, func(s *Subscriber) bool {
+		subscribers = append(subscribers, s)
+		return true
+	})
 
 	return t.lastEventID, subscribers, nil
 }
@@ -90,14 +97,14 @@ func (t *LocalTransport) Close() (err error) {
 		t.Lock()
 		defer t.Unlock()
 		close(t.closed)
-		for subscriber := range t.subscribers {
-			subscriber.Disconnect()
-			delete(t.subscribers, subscriber)
-		}
+		t.subscribers.Walk(0, func(s *Subscriber) bool {
+			s.Disconnect()
+			return true
+		})
 	})
 
 	return nil
 }
 
 // Interface guard.
-var _ Transport = (*BoltTransport)(nil)
+var _ Transport = (*LocalTransport)(nil)

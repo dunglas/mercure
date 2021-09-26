@@ -154,10 +154,10 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
-	s.Topics = []string{"http://example.com/books/1"}
-	s.Claims = &claims{Mercure: mercureClaim{Subscribe: s.Topics}}
-	go s.start()
+	topics := []string{"http://example.com/books/1"}
+	s := NewSubscriber("", zap.NewNop())
+	s.SetTopics(topics, topics)
+	s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
 
 	require.Nil(t, hub.transport.AddSubscriber(s))
 
@@ -200,9 +200,8 @@ func TestPublishOK(t *testing.T) {
 func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
-	s.Topics = []string{"http://example.com/books/1"}
-	go s.start()
+	s := NewSubscriber("", zap.NewNop())
+	s.SetTopics([]string{"http://example.com/books/1"}, s.Topics)
 
 	require.Nil(t, h.transport.AddSubscriber(s))
 

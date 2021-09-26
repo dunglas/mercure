@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func BenchmarkSubscriber(b *testing.B) {
+func BenchmarkLocalTransport(b *testing.B) {
 	var str []string
 
 	// How many topics and topicselectors do each subscriber and update contain (same value for both)
@@ -25,7 +25,7 @@ func BenchmarkSubscriber(b *testing.B) {
 	}
 
 	// How many concurrent subscribers
-	concurrencyOpts := []int{100, 1000, 5000, 20000}
+	concurrencyOpts := []int{100, 1000, 5000, 10000}
 	if opt := os.Getenv("SUB_TEST_CONCURRENCY"); len(opt) > 0 {
 		concurrencyOpts = []int{strInt(opt)}
 	} else {
@@ -56,7 +56,7 @@ func BenchmarkSubscriber(b *testing.B) {
 				if len(matchPctOpts) > 1 {
 					arg = append(arg, matchPct)
 				}
-				subBenchSubscriber(b,
+				subBenchLocalTransport(b,
 					topics,
 					concurrency,
 					matchPct,
@@ -67,38 +67,47 @@ func BenchmarkSubscriber(b *testing.B) {
 	}
 }
 
-func strInt(s string) int {
-	n, err := strconv.Atoi(s)
+func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, testName string) {
+	tr, err := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	if err != nil {
 		panic(err)
 	}
-	return n
-}
-
-func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testName string) {
-	var s = NewSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop())
-	ts := make([]string, topics)
+	defer tr.Close()
+	top := make([]string, topics)
 	tsMatch := make([]string, topics)
 	tsNoMatch := make([]string, topics)
 	for i := 0; i < topics; i++ {
-		ts[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
-		tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
+		tsNoMatch[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
 		if topics/2 == i {
-			// Insert matching topic half way through matching topic list to simulate match
-			tsMatch[i] = strings.ReplaceAll(strings.ReplaceAll(ts[i], "{", ""), "}", "")
+			n1 := rand.Int()
+			n2 := rand.Int()
+			top[i] = fmt.Sprintf("/%d/%d", n1, n2)
+			tsMatch[i] = fmt.Sprintf("/%d/{%d}", n1, n2)
 		} else {
+			top[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
 			tsMatch[i] = tsNoMatch[i]
 		}
 	}
-	s.SetTopics(ts, nil)
-	defer s.Disconnect()
+	var out = make(chan *Update, 50000)
+	var once = &sync.Once{}
+	for i := 0; i < concurrency; i++ {
+		s := NewSubscriber("", zap.NewNop())
+		if i%100 < matchPct {
+			s.SetTopics(tsMatch, nil)
+		} else {
+			s.SetTopics(tsNoMatch, nil)
+		}
+		s.out = out
+		s.disconnectedOnce = once
+		tr.AddSubscriber(s)
+	}
 	ctx, done := context.WithCancel(context.Background())
 	defer done()
 	for i := 0; i < 1; i++ {
 		go func() {
 			for {
 				select {
-				case <-s.out:
+				case <-out:
 				case <-ctx.Done():
 					return
 				}
@@ -111,11 +120,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 		wg.Add(concurrency)
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
-				if i%100 < matchPct {
-					s.Dispatch(&Update{Topics: tsMatch}, i%2 == 0 /* half history, half live */)
-				} else {
-					s.Dispatch(&Update{Topics: tsNoMatch}, i%2 == 0 /* half history, half live */)
-				}
+				tr.Dispatch(&Update{Topics: top})
 			}
 		})
 		wg.Done()
@@ -135,16 +140,14 @@ mkdir -p _dist
 # --- Generating a diff ---
 
 SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_SKIPSELECT=false \
 SUB_TEST_CACHE=ristretto \
 SUB_TEST_SHARDS=256 \
-go test -bench=. -run=BenchmarkSubscriber -benchmem -count 5 | tee _dist/output.5kc.noskip.ristretto.256.txt
+go test -bench=. -run=BenchmarkLocalTransport -benchmem -count 5 | tee _dist/output.5kc.noskip.ristretto.256.txt
 
 SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_SKIPSELECT=true \
 SUB_TEST_CACHE=lru \
 SUB_TEST_SHARDS=256 \
-go test -bench=. -run=BenchmarkSubscriber -benchmem -count 5 | tee _dist/output.5kc.skip.lru.256.txt
+go test -bench=. -run=BenchmarkLocalTransport -benchmem -count 5 | tee _dist/output.5kc.skip.lru.256.txt
 
 benchstat _dist/output.5kc.noskip.ristretto.256.txt \
           _dist/output.5kc.skip.lru.256.txt \
@@ -156,10 +159,9 @@ benchstat _dist/output.5kc.noskip.ristretto.256.txt \
 SUB_TEST_CONCURRENCY=20000 \
 SUB_TEST_TOPICS=20 \
 SUB_TEST_MATCHPCT=50 \
-SUB_TEST_SKIPSELECT=false \
 SUB_TEST_CACHE=ristretto \
 SUB_TEST_SHARDS=256 \
-go test -bench=. -run=BenchmarkSubscriber -cpuprofile _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.out -benchmem
+go test -bench=. -run=BenchmarkLocalTransport -cpuprofile _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.out -benchmem
 
 go build -o _dist/bin
 

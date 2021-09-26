@@ -194,6 +194,18 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 
 	return nil
 }
+func (t *BoltTransport) RemoveSubscriber(s *Subscriber) error {
+	select {
+	case <-t.closed:
+		return ErrClosedTransport
+	default:
+	}
+	t.Lock()
+	delete(t.subscribers, s)
+	t.Unlock()
+
+	return nil
+}
 
 // GetSubscribers get the list of active subscribers.
 func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {

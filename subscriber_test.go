@@ -9,10 +9,8 @@ import (
 )
 
 func TestDispatch(t *testing.T) {
-	tss, _ := NewTopicSelectorStoreLru(1000, 16)
-	s := NewSubscriber("1", zap.NewNop(), tss)
+	s := NewSubscriber("1", zap.NewNop())
 	s.Topics = []string{"http://example.com"}
-	go s.start()
 	defer s.Disconnect()
 
 	// Dispatch must be non-blocking
@@ -33,7 +31,7 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewSubscriber("", zap.NewNop())
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()
@@ -45,10 +43,9 @@ func TestLogSubscriber(t *testing.T) {
 	sink, logger := newTestLogger(t)
 	defer sink.Reset()
 
-	s := NewSubscriber("123", logger, &TopicSelectorStore{})
+	s := NewSubscriber("123", logger)
 	s.RemoteAddr = "127.0.0.1"
-	s.TopicSelectors = []string{"https://example.com/foo"}
-	s.Topics = []string{"https://example.com/bar"}
+	s.SetTopics([]string{"https://example.com/bar"}, []string{"https://example.com/foo"})
 
 	f := zap.Object("subscriber", s)
 	logger.Info("test", f)

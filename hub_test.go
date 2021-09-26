@@ -77,7 +77,7 @@ func TestStop(t *testing.T) {
 
 		for !ready {
 			s.RLock()
-			ready = len(s.subscribers) == numberOfSubscribers
+			ready = s.subscribers.Len() == numberOfSubscribers
 			s.RUnlock()
 		}
 

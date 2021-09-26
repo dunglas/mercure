@@ -84,16 +84,12 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 func TestSubscriptionsHandler(t *testing.T) {
 	hub := createDummy()
 
-	s1 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
-	s1.Topics = []string{"http://example.com/foo"}
-	s1.EscapedTopics = []string{url.QueryEscape(s1.Topics[0])}
-	go s1.start()
+	s1 := NewSubscriber("", zap.NewNop())
+	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.Nil(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
-	s2.Topics = []string{"http://example.com/bar"}
-	s2.EscapedTopics = []string{url.QueryEscape(s2.Topics[0])}
-	go s2.start()
+	s2 := NewSubscriber("", zap.NewNop())
+	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.Nil(t, hub.transport.AddSubscriber(s2))
 
 	req := httptest.NewRequest("GET", defaultHubURL+"/subscriptions", nil)
@@ -127,16 +123,12 @@ func TestSubscriptionsHandler(t *testing.T) {
 func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	hub := createDummy()
 
-	s1 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
-	s1.Topics = []string{"http://example.com/foo"}
-	s1.EscapedTopics = []string{url.QueryEscape(s1.Topics[0])}
-	go s1.start()
+	s1 := NewSubscriber("", zap.NewNop())
+	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.Nil(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
-	s2.Topics = []string{"http://example.com/bar"}
-	s2.EscapedTopics = []string{url.QueryEscape(s2.Topics[0])}
-	go s2.start()
+	s2 := NewSubscriber("", zap.NewNop())
+	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.Nil(t, hub.transport.AddSubscriber(s2))
 
 	escapedBarTopic := url.QueryEscape("http://example.com/bar")
@@ -176,16 +168,12 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 func TestSubscriptionHandler(t *testing.T) {
 	hub := createDummy()
 
-	otherS := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
-	otherS.Topics = []string{"http://example.com/other"}
-	otherS.EscapedTopics = []string{url.QueryEscape(otherS.Topics[0])}
-	go otherS.start()
+	otherS := NewSubscriber("", zap.NewNop())
+	otherS.SetTopics([]string{"http://example.com/other"}, nil)
 	require.Nil(t, hub.transport.AddSubscriber(otherS))
 
-	s := NewSubscriber("", zap.NewNop(), hub.topicSelectorStore)
-	s.Topics = []string{"http://example.com/other", "http://example.com/{foo}"}
-	s.EscapedTopics = []string{url.QueryEscape(s.Topics[0]), url.QueryEscape(s.Topics[1])}
-	go s.start()
+	s := NewSubscriber("", zap.NewNop())
+	s.SetTopics([]string{"http://example.com/other", "http://example.com/{foo}"}, nil)
 	require.Nil(t, hub.transport.AddSubscriber(s))
 
 	router := mux.NewRouter()

@@ -201,7 +201,7 @@ func testSubscribe(h interface{ Helper() }, numberOfSubscribers int) {
 
 		for !ready {
 			s.RLock()
-			ready = len(s.subscribers) == numberOfSubscribers
+			ready = s.subscribers.Len() == numberOfSubscribers
 			s.RUnlock()
 		}
 
@@ -257,7 +257,7 @@ func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 
 	s, _ := hub.transport.(*LocalTransport)
-	assert.Equal(t, 0, len(s.subscribers))
+	assert.Equal(t, 0, s.subscribers.Len())
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
@@ -266,16 +266,17 @@ func TestUnsubscribe(t *testing.T) {
 		defer wg.Done()
 		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/books/1", nil).WithContext(ctx)
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
-		assert.Equal(t, 1, len(s.subscribers))
-		for s := range s.subscribers {
+		assert.Equal(t, 1, s.subscribers.Len())
+		s.subscribers.Walk(0, func(s *Subscriber) bool {
 			_, ok := <-s.disconnected
 			assert.False(t, ok)
-		}
+			return true
+		})
 	}()
 
 	for {
 		s.RLock()
-		notEmpty := len(s.subscribers) != 0
+		notEmpty := s.subscribers.Len() != 0
 		s.RUnlock()
 		if notEmpty {
 			break
@@ -293,7 +294,7 @@ func TestSubscribePrivate(t *testing.T) {
 	go func() {
 		for {
 			s.RLock()
-			empty := len(s.subscribers) == 0
+			empty := s.subscribers.Len() == 0
 			s.RUnlock()
 
 			if empty {
@@ -418,7 +419,7 @@ func TestSubscribeAll(t *testing.T) {
 	go func() {
 		for {
 			s.RLock()
-			empty := len(s.subscribers) == 0
+			empty := s.subscribers.Len() == 0
 			s.RUnlock()
 
 			if empty {
@@ -729,7 +730,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 	go func() {
 		for {
 			s.RLock()
-			empty := len(s.subscribers) == 0
+			empty := s.subscribers.Len() == 0
 			s.RUnlock()
 
 			if empty {
