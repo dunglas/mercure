@@ -197,6 +197,7 @@ func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
 func (h *Hub) shutdown(s *Subscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
+	h.transport.RemoveSubscriber(s)
 	h.dispatchSubscriptionUpdate(s, false)
 	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
 		c.Write(zap.Object("subscriber", s))
