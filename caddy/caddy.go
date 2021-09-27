@@ -91,7 +91,7 @@ type Mercure struct {
 	CacheMaxCost *int64 `json:"cache_max_cost,omitempty"`
 
 	// Triggers use of LRU topic selector cache and avoidance of select priority queue (recommend 10,000 - 1,000,000)
-	LruShardSize *int64 `json:"lru_shard_size,omitempty"`
+	LRUShardSize *int64 `json:"lru_shard_size,omitempty"`
 
 	hub    *mercure.Hub
 	logger *zap.Logger
@@ -141,8 +141,8 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 
 	var err error
 	var tss *mercure.TopicSelectorStore
-	if m.LruShardSize != nil {
-		tss, err = mercure.NewTopicSelectorStoreLru(*m.LruShardSize, mercure.DefaultTopicSelectorStoreLruShardCount)
+	if m.LRUShardSize != nil {
+		tss, err = mercure.NewTopicSelectorStoreLRU(*m.LRUShardSize, mercure.DefaultTopicSelectorStoreLRUShardCount)
 		if err != nil {
 			return err //nolint:wrapcheck
 		}
@@ -382,7 +382,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err //nolint:wrapcheck
 				}
 
-				m.LruShardSize = &v
+				m.LRUShardSize = &v
 			}
 		}
 	}

@@ -23,7 +23,7 @@ func createBoltTransport(dsn string) *BoltTransport {
 }
 
 func createTopicSelectorStore() *TopicSelectorStore {
-	tss, err := NewTopicSelectorStoreLru(1000, 16)
+	tss, err := NewTopicSelectorStoreLRU(1000, 16)
 	if err != nil {
 		panic(err)
 	}
