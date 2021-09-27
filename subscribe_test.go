@@ -167,6 +167,10 @@ func (*addSubscriberErrorTransport) AddSubscriber(*Subscriber) error {
 	return errFailedToAddSubscriber
 }
 
+func (*addSubscriberErrorTransport) RemoveSubscriber(*Subscriber) error {
+	return nil
+}
+
 func (*addSubscriberErrorTransport) GetSubscribers() (string, []*Subscriber, error) {
 	return "", []*Subscriber{}, nil
 }
@@ -266,7 +270,7 @@ func TestUnsubscribe(t *testing.T) {
 		defer wg.Done()
 		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/books/1", nil).WithContext(ctx)
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
-		assert.Equal(t, 1, s.subscribers.Len())
+		assert.Equal(t, 0, s.subscribers.Len())
 		s.subscribers.Walk(0, func(s *Subscriber) bool {
 			_, ok := <-s.disconnected
 			assert.False(t, ok)

@@ -44,6 +44,9 @@ type Transport interface {
 	// AddSubscriber adds a new subscriber to the transport.
 	AddSubscriber(s *Subscriber) error
 
+	// RemoveSubscriber removes a new subscriber from the transport.
+	RemoveSubscriber(s *Subscriber) error
+
 	// Close closes the Transport.
 	Close() error
 }
