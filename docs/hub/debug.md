@@ -14,6 +14,8 @@ To enable the profiler, add the `debug` global directive to your `Caddyfile`:
 # ...
 ```
 
+If you use the default `Caddyfile`,  you can also set the `GLOBAL_OPTIONS` environment variable to `debug`.
+
 The route exposing profiling data is now available at `http://localhost:2019/debug/pprof/`.
 You can use [the `pprof` tool](https://golang.org/pkg/net/http/pprof/) to visualize it.
 

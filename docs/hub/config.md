@@ -4,7 +4,7 @@ The Mercure.rocks hub is a custom build of the [Caddy web server](https://caddys
 
 Read [Caddy web server's getting started guide](https://caddyserver.com/docs/getting-started) to learn the basics.
 
-While all supported way to configure Caddy are also supported by the Mercure.rocks Hub, the easiest one is [to use a `Caddyfile`](https://caddyserver.com/docs/quick-starts/caddyfile).
+While all supported ways to configure Caddy are also supported by the Mercure.rocks Hub, the easiest one is [to use a `Caddyfile`](https://caddyserver.com/docs/quick-starts/caddyfile).
 A default `Caddyfile` is provided in [the archive containing the Mercure.rocks Hub](install.md).
 
 A minimal `Caddyfile` for the Mercure hub looks like this:
@@ -25,16 +25,22 @@ route {
 }
 ```
 
-Caddy will automatically generate a Let's Encrypt TLS certificate automatically for you! So you can use HTTPS.
-To disable HTTPS entirely, explicitly set a different port than `443`:
+Caddy will automatically generate a Let's Encrypt TLS certificate for you! So you can use HTTPS.
+To disable HTTPS entirely, set the [`auto_https`](https://caddyserver.com/docs/caddyfile/options#auto-https) global option to off:
 
 ```Caddyfile
-:80, my-domain.test:3000
+{
+    auto_https off
+}
+
+my-domain.test:3000
 
 route {
     # ...
 }
 ```
+
+Note that HTTPS is automatically disabled if you set the server port to 80.
 
 ## Directives
 
@@ -62,17 +68,17 @@ See also [the list of built-in Caddyfile directives](https://caddyserver.com/doc
 
 The provided `Caddyfile` and the Docker image provide convenient environment variables:
 
-| Environment variable         | Description                                                                        | Default value       |
-|------------------------------|------------------------------------------------------------------------------------|---------------------|
-| `DEBUG=debug`                | enable the debug mode                                                              |                     |
-| `SERVER_NAME`                | the server name or address, set it to `:80` (or use another port) to disable HTTPS | `localhost`         |
-| `MERCURE_TRANSPORT_URL`      | the value passed to the `transport_url` directive                                  | `bolt://mercure.db` |
-| `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                                                  |                     |
-| `MERCURE_PUBLISHER_JWT_ALG`  | the JWT algorithm to use for publishers                                            | `HS256`             |
-| `MERCURE_SUBSCRIBER_JWT_KEY` | the JWT key to use for subscribers                                                 |                     |
-| `MERCURE_SUBSCRIBER_JWT_ALG` | the JWT algorithm to use for subscribers                                           | `HS256`             |
-| `MERCURE_EXTRA_DIRECTIVES`   | a list of extra Mercure directives to pass, one per line                           |                     |
-| `MERCURE_LICENSE`            | the license to use ([only applicable for the HA version](cluster.md)               |                     |
+| Environment variable         | Description                                                                                                                          | Default value       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| `GLOBAL_OPTIONS`             | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line |
+| `SERVER_NAME`                | the server name or address                                                                                                           | `localhost`         |
+| `MERCURE_TRANSPORT_URL`      | the value passed to the `transport_url` directive                                                                                    | `bolt://mercure.db` |
+| `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                                                                                                    |                     |
+| `MERCURE_PUBLISHER_JWT_ALG`  | the JWT algorithm to use for publishers                                                                                              | `HS256`             |
+| `MERCURE_SUBSCRIBER_JWT_KEY` | the JWT key to use for subscribers                                                                                                   |                     |
+| `MERCURE_SUBSCRIBER_JWT_ALG` | the JWT algorithm to use for subscribers                                                                                             | `HS256`             |
+| `MERCURE_EXTRA_DIRECTIVES`   | a list of extra Mercure directives inject in the Caddy file, one per line                                                            |                     |
+| `MERCURE_LICENSE`            | the license to use ([only applicable for the HA version](cluster.md)                                                                 |                     |
 
 ## JWT Verification
 
@@ -164,7 +170,7 @@ When using environment variables, list must be space separated. As flags paramet
 | `read_timeout`             | maximum duration for reading the entire request, including the body, set to `0s` to disable                                                                                                                                                                                                                                                                                              | `5s`                                                     |
 | `subscriber_jwt_key`       | must contain the secret key to valid subscribers' JWT, can be omitted if `jwt_key` is set                                                                                                                                                                                                                                                                                                |                                                          |
 | `subscriber_jwt_algorithm` | the JWT verification algorithm to use for subscribers, e.g. `HS256` or `RS512`                                                                                                                                                                                                                                                                                                           | `HS256`                                                  |
-| `transport_url`            | URL representation of the history database. Provided database are `null` to disabled history, `bolt` to use [bbolt](https://github.com/etcd-io/bbolt) (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`)                                                                                                                                                              | `bolt://updates.db`                                      |
+| `transport_url`            | URL representation of the history database. Provided database are `null` to disable history, `bolt` to use [bbolt](https://github.com/etcd-io/bbolt) (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`)                                                                                                                                                               | `bolt://updates.db`                                      |
 | `use_forwarded_headers`    | use the `X-Forwarded-For`, and `X-Real-IP` for the remote (client) IP address, `X-Forwarded-Proto` or `X-Forwarded-Scheme` for the scheme (http or https), `X-Forwarded-Host` for the host and the RFC 7239 `Forwarded` header, which may include both client IPs and schemes. If this option is enabled, the reverse proxy must override or remove these headers or you will be at risk | `false`                                                  |
 | `write_timeout`            | maximum duration before closing the connection, set to `0s` to disable                                                                                                                                                                                                                                                                                                        | `600s`                                                   |
 

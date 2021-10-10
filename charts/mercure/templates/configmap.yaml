@@ -5,6 +5,6 @@ metadata:
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
 data:
-  debug: "{{ if .Values.debug }}debug{{ end }}"
+  global-options:  {{ .Values.globalOptions | quote }}
   publisher-jwt-alg: {{ .Values.publisherJwtAlg | quote }}
   subscriber-jwt-alg: {{ .Values.subscriberJwtAlg | quote }}
