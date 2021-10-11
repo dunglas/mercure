@@ -108,7 +108,7 @@ dockers:
   - 'dunglas/mercure:{{ .Tag }}-arm64v8'
   - 'dunglas/mercure:v{{ .Major }}-arm64v8'
   - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8'
-  - 'dunglas/mercure:latest-amd64'
+  - 'dunglas/mercure:latest-arm64v8'
   use: buildx
   build_flag_templates:
   - "--platform=linux/arm64/v8"
