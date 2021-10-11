@@ -40,11 +40,11 @@ spec:
           env:
             - name: SERVER_NAME
               value: :80
-            - name: DEBUG
+            - name: GLOBAL_OPTIONS
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "mercure.fullname" . }}
-                  key: debug
+                  key: global-options
             - name: MERCURE_TRANSPORT_URL
               valueFrom:
                 secretKeyRef:

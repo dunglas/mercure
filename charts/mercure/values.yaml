@@ -2,13 +2,13 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# -- Enable the debug mode.
-debug: false
+# -- Inject global options in the Caddyfile.
+globalOptions: ""
 # -- Enable the development mode, including the debug UI and the demo.
 dev: false
 # -- The URL representation of the transport to use.
 transportUrl: bolt:///data/mercure.db
-# -- Extra Mercure directives to include in the Caddyfile.
+# -- Inject extra Mercure directives in the Caddyfile.
 extraDirectives: ""
 
 # -- The JWT key to use for publishers, a random key will be generated if empty.
