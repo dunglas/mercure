@@ -87,11 +87,31 @@ archives:
 dockers:
 - ids:
   - caddy
+  goos: linux
+  goarch: amd64
   image_templates:
-  - 'dunglas/mercure:{{ .Tag }}'
-  - 'dunglas/mercure:v{{ .Major }}'
-  - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}'
-  - 'dunglas/mercure:latest'
+  - 'dunglas/mercure:{{ .Tag }}-amd64'
+  - 'dunglas/mercure:v{{ .Major }}-amd64'
+  - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64'
+  - 'dunglas/mercure:latest-amd64'
+  use: buildx
+  build_flag_templates:
+  - "--platform=linux/amd64"
+  extra_files:
+  - Caddyfile
+  - Caddyfile.dev
+- ids:
+  - caddy
+  goos: linux
+  goarch: arm64
+  image_templates:
+  - 'dunglas/mercure:{{ .Tag }}-arm64v8'
+  - 'dunglas/mercure:v{{ .Major }}-arm64v8'
+  - 'dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8'
+  - 'dunglas/mercure:latest-amd64'
+  use: buildx
+  build_flag_templates:
+  - "--platform=linux/arm64/v8"
   extra_files:
   - Caddyfile
   - Caddyfile.dev
@@ -103,6 +123,23 @@ dockers:
   - 'dunglas/mercure:legacy-v{{ .Major }}'
   - 'dunglas/mercure:legacy-v{{ .Major }}.{{ .Minor }}'
   - 'dunglas/mercure:legacy-latest'
+docker_manifests:
+- name_template: dunglas/mercure:{{ .Tag }}
+  image_templates:
+  - dunglas/mercure:{{ .Tag }}:{{ .Version }}-amd64
+  - dunglas/mercure:{{ .Tag }}-arm64v8
+- name_template: dunglas/mercure:{{ .Major }}
+  image_templates:
+  - dunglas/mercure:{{ .Tag }}:{{ .Major }}-amd64
+  - dunglas/mercure:{{ .Major }}-arm64v8
+- name_template: dunglas/mercure:{{ .Major }}.{{ .Minor }}
+  image_templates:
+  - dunglas/mercure:{{ .Tag }}:{{ .Major }}.{{ .Minor }}-amd64
+  - dunglas/mercure:{{ .Major }}.{{ .Minor }}-arm64v8
+- name_template: dunglas/mercure:latest
+  image_templates:
+  - dunglas/mercure:latest-amd64
+  - dunglas/mercure:latest-arm64v8
 signs:
   - artifacts: checksum
     args: ["--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}"]
