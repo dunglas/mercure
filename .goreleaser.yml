@@ -126,16 +126,16 @@ dockers:
 docker_manifests:
 - name_template: dunglas/mercure:{{ .Tag }}
   image_templates:
-  - dunglas/mercure:{{ .Tag }}:{{ .Version }}-amd64
+  - dunglas/mercure:{{ .Tag }}-amd64
   - dunglas/mercure:{{ .Tag }}-arm64v8
-- name_template: dunglas/mercure:{{ .Major }}
+- name_template: dunglas/mercure:v{{ .Major }}
   image_templates:
-  - dunglas/mercure:{{ .Tag }}:{{ .Major }}-amd64
-  - dunglas/mercure:{{ .Major }}-arm64v8
-- name_template: dunglas/mercure:{{ .Major }}.{{ .Minor }}
+  - dunglas/mercure:v{{ .Major }}-amd64
+  - dunglas/mercure:v{{ .Major }}-arm64v8
+- name_template: dunglas/mercure:v{{ .Major }}.{{ .Minor }}
   image_templates:
-  - dunglas/mercure:{{ .Tag }}:{{ .Major }}.{{ .Minor }}-amd64
-  - dunglas/mercure:{{ .Major }}.{{ .Minor }}-arm64v8
+  - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64
+  - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8
 - name_template: dunglas/mercure:latest
   image_templates:
   - dunglas/mercure:latest-amd64
