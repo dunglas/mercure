@@ -32,6 +32,7 @@ func NewTopicSelectorStore(cacheNumCounters, cacheMaxCost int64) (*TopicSelector
 	if cacheNumCounters == 0 {
 		return &TopicSelectorStore{}, nil
 	}
+
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: cacheNumCounters,
 		MaxCost:     cacheMaxCost,

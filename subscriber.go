@@ -65,6 +65,7 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 		return false
 	default:
 	}
+
 	if !fromHistory && atomic.LoadInt32(&s.ready) < 1 {
 		s.liveMutex.Lock()
 		if s.ready < 1 {
@@ -82,11 +83,13 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 func (s *Subscriber) Ready() int {
 	s.liveMutex.Lock()
 	defer s.liveMutex.Unlock()
+
 	var n = len(s.liveQueue)
 	for _, u := range s.liveQueue {
 		s.out <- u
 	}
 	atomic.StoreInt32(&s.ready, 1)
+
 	return n
 }
 
@@ -129,37 +132,50 @@ func (s *Subscriber) SetTopics(topics, privateTopics []string) {
 		s.PrivateRegexps[i] = r
 	}
 	s.EscapedTopics = escapeTopics(topics)
-	return
 }
 
+func escapeTopics(topics []string) []string {
+	escapedTopics := make([]string, 0, len(topics))
+	for _, topic := range topics {
+		escapedTopics = append(escapedTopics, url.QueryEscape(topic))
+	}
+
+	return escapedTopics
+}
+
+// Match checks if the current subscriber can access to the given topic.
 func (s *Subscriber) Match(topic string, private bool) (match bool) {
 	for i, ts := range s.Topics {
 		if ts == "*" || ts == topic {
 			match = true
 			break
 		}
+
 		r := s.TopicRegexps[i]
 		if r != nil && r.MatchString(topic) {
 			match = true
 			break
 		}
 	}
+
 	if !match {
 		return false
 	}
 	if !private {
 		return true
 	}
+
 	for i, ts := range s.PrivateTopics {
 		if ts == "*" || ts == topic {
 			return true
 		}
+
 		r := s.PrivateRegexps[i]
 		if r != nil && r.MatchString(topic) {
 			return true
 		}
-
 	}
+
 	return false
 }
 
@@ -170,6 +186,7 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 		if topic != "" && !s.Match(topic, false) {
 			continue
 		}
+
 		subscription := subscription{
 			Context:    context,
 			ID:         "/.well-known/mercure/subscriptions/" + s.EscapedTopics[k] + "/" + s.EscapedID,
@@ -181,6 +198,7 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 		if s.Claims != nil && s.Claims.Mercure.Payload != nil {
 			subscription.Payload = s.Claims.Mercure.Payload
 		}
+
 		subscriptions = append(subscriptions, subscription)
 	}
 

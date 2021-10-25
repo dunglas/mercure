@@ -194,12 +194,15 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 
 	return nil
 }
+
+// RemoveSubscriber removes a new subscriber from the transport.
 func (t *BoltTransport) RemoveSubscriber(s *Subscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
 	default:
 	}
+
 	t.Lock()
 	delete(t.subscribers, s)
 	t.Unlock()

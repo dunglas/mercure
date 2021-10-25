@@ -53,8 +53,10 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 		return ErrClosedTransport
 	default:
 	}
+
 	t.Lock()
 	defer t.Unlock()
+
 	t.subscribers.Add(s)
 	if s.RequestLastEventID != "" {
 		s.HistoryDispatched(EarliestLastEventID)
@@ -71,6 +73,7 @@ func (t *LocalTransport) RemoveSubscriber(s *Subscriber) error {
 		return ErrClosedTransport
 	default:
 	}
+
 	t.Lock()
 	defer t.Unlock()
 	t.subscribers.Remove(s)
@@ -78,10 +81,11 @@ func (t *LocalTransport) RemoveSubscriber(s *Subscriber) error {
 	return nil
 }
 
-// GetSubscribers get the list of active subscribers.
+// GetSubscribers gets the list of active subscribers.
 func (t *LocalTransport) GetSubscribers() (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
+
 	var subscribers []*Subscriber
 	t.subscribers.Walk(0, func(s *Subscriber) bool {
 		subscribers = append(subscribers, s)

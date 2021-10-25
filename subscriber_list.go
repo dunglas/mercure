@@ -31,9 +31,11 @@ func (sc *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
 			scopedTopics[i] = "_" + t
 		}
 	}
+
 	for _, m := range sc.skipfilter.MatchAny(scopedTopics...) {
 		res = append(res, m.(*Subscriber))
 	}
+
 	return
 }
 
