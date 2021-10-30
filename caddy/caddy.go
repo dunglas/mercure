@@ -141,13 +141,13 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 
 	var err error
 	var tss *mercure.TopicSelectorStore
-	if m.LRUShardSize != nil {
-		tss, err = mercure.NewTopicSelectorStoreLRU(*m.LRUShardSize, mercure.DefaultTopicSelectorStoreLRUShardCount)
+	if m.LRUShardSize == nil {
+		tss, err = mercure.NewTopicSelectorStore(nc, mc)
 		if err != nil {
 			return err //nolint:wrapcheck
 		}
 	} else {
-		tss, err = mercure.NewTopicSelectorStore(nc, mc)
+		tss, err = mercure.NewTopicSelectorStoreLRU(*m.LRUShardSize, mercure.DefaultTopicSelectorStoreLRUShardCount)
 		if err != nil {
 			return err //nolint:wrapcheck
 		}

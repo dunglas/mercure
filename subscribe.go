@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"go.uber.org/zap"
@@ -224,15 +223,6 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 		}
 		h.transport.Dispatch(u)
 	}
-}
-
-func escapeTopics(topics []string) []string {
-	escapedTopics := make([]string, 0, len(topics))
-	for _, topic := range topics {
-		escapedTopics = append(escapedTopics, url.QueryEscape(topic))
-	}
-
-	return escapedTopics
 }
 
 func assertFlusher(w http.ResponseWriter) {

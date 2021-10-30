@@ -22,14 +22,6 @@ func createBoltTransport(dsn string) *BoltTransport {
 	return transport.(*BoltTransport)
 }
 
-func createTopicSelectorStore() *TopicSelectorStore {
-	tss, err := NewTopicSelectorStoreLRU(1000, 16)
-	if err != nil {
-		panic(err)
-	}
-	return tss
-}
-
 func TestBoltTransportHistory(t *testing.T) {
 	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
@@ -43,7 +35,6 @@ func TestBoltTransportHistory(t *testing.T) {
 		})
 	}
 
-	// s := NewSubscriber("8", transport.logger, &TopicSelectorStore{})
 	s := NewSubscriber("8", transport.logger)
 	s.SetTopics(topics, nil)
 
@@ -67,13 +58,11 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	defer os.Remove("test.db")
 
 	topics := []string{"https://example.com/foo"}
-	var total int
 	for i := 1; i <= 10; i++ {
 		transport.Dispatch(&Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: topics,
 		})
-		total++
 	}
 
 	s := NewSubscriber(EarliestLastEventID, transport.logger)
@@ -82,14 +71,15 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 
 	var count int
 	for {
-		_ = <-s.Receive()
+		u := <-s.Receive()
 		// the reading loop must read all messages
 		count++
+		assert.Equal(t, strconv.Itoa(count), u.ID)
 		if count == 10 {
-			return
+			break
 		}
 	}
-	assert.Equal(t, total, count)
+	assert.Equal(t, 10, count)
 }
 
 func TestBoltTransportHistoryAndLive(t *testing.T) {
@@ -169,7 +159,8 @@ func TestNewBoltTransport(t *testing.T) {
 	u, _ = url.Parse("bolt:///test.db")
 	_, err = NewBoltTransport(u, zap.NewNop(), nil)
 
-	require.Nil(t, err)
+	// The exact error message depends of the OS
+	assert.Contains(t, err.Error(), "open /test.db:")
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
 	_, err = NewBoltTransport(u, zap.NewNop(), nil)
