@@ -1,6 +1,6 @@
 # Mercure Chart for Kubernetes
 
-![Version: 0.12.2](https://img.shields.io/badge/Version-0.12.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.12.2](https://img.shields.io/badge/AppVersion-v0.12.2-informational?style=flat-square)
+![Version: 0.13.0](https://img.shields.io/badge/Version-0.13.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.13.0](https://img.shields.io/badge/AppVersion-v0.13.0-informational?style=flat-square)
 
 A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 
@@ -19,10 +19,10 @@ To install the chart with the release name `my-release`, run the following comma
 |-----|------|---------|-------------|
 | affinity | object | `{}` | [Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
 | autoscaling | object | Disabled by default. | Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details). |
-| debug | bool | `false` | Enable the debug mode. |
 | dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
-| extraDirectives | string | `""` | Extra Mercure directives to include in the Caddyfile. |
+| extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
+| globalOptions | string | `""` | Inject global options in the Caddyfile. |
 | image.pullPolicy | string | `"IfNotPresent"` | [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node. |
 | image.repository | string | `"dunglas/mercure"` | Name of the image repository to pull the container image from. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |

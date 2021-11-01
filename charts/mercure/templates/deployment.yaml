@@ -15,6 +15,8 @@ spec:
     metadata:
       {{- with .Values.podAnnotations }}
       annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
@@ -40,11 +42,11 @@ spec:
           env:
             - name: SERVER_NAME
               value: :80
-            - name: DEBUG
+            - name: GLOBAL_OPTIONS
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "mercure.fullname" . }}
-                  key: debug
+                  key: global-options
             - name: MERCURE_TRANSPORT_URL
               valueFrom:
                 secretKeyRef:
@@ -75,6 +77,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "mercure.fullname" . }}
                   key: extra-directives
+            - name: MERCURE_LICENSE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mercure.fullname" . }}
+                  key: license
           {{- if .Values.persistence.enabled }}
           volumeMounts:
             - mountPath: /data

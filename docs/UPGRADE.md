@@ -1,5 +1,9 @@
 # Upgrade
 
+## 0.13
+
+The `DEBUG` environment variable has gone. The the `GLOBAL_OPTIONS` environment variable to `debug` instead.
+
 ## 0.11
 
 The Mercure.rocks Hub is now available as a module for the [Caddy web server](https://caddyserver.com/).

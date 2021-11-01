@@ -73,7 +73,7 @@ export default class extends Controller {
 ```
 
 ```html
-<div data-controller="stream" data-turbo-stream-url-value="https://example.com/.well-known/mercure?topic=my-stream">
+<div data-controller="turbo-stream" data-turbo-stream-url-value="https://example.com/.well-known/mercure?topic=my-stream">
   <!-- ... -->
 </div>
 ```
