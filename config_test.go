@@ -41,7 +41,7 @@ func TestSetFlags(t *testing.T) {
 }
 
 func TestInitConfig(t *testing.T) {
-	os.Setenv("JWT_KEY", "foo")
+	t.Setenv("JWT_KEY", "foo")
 	defer os.Unsetenv("JWT_KEY")
 
 	v := viper.New()

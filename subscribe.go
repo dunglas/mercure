@@ -97,7 +97,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 		}
 	}
 
-	var topics = r.URL.Query()["topic"]
+	topics := r.URL.Query()["topic"]
 	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
 

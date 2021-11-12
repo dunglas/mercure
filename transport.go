@@ -24,7 +24,7 @@ func RegisterTransportFactory(scheme string, factory TransportFactory) {
 	transportFactoriesMu.Unlock()
 }
 
-func NewTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) {
+func NewTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) { //nolint:ireturn
 	transportFactoriesMu.RLock()
 	f, ok := transportFactories[u.Scheme]
 	transportFactoriesMu.RUnlock()

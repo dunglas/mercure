@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
-	"os"
-	"strings"
 	"sync"
 	"testing"
 
@@ -14,60 +12,12 @@ import (
 )
 
 func BenchmarkLocalTransport(b *testing.B) {
-	var str []string
-
-	// How many topics and topicselectors do each subscriber and update contain (same value for both)
-	topicOpts := []int{1, 5, 10}
-	if opt := os.Getenv("SUB_TEST_TOPICS"); len(opt) > 0 {
-		topicOpts = []int{strInt(opt)}
-	} else {
-		str = append(str, "topics %d")
-	}
-
-	// How many concurrent subscribers
-	concurrencyOpts := []int{100, 1000, 5000, 10000}
-	if opt := os.Getenv("SUB_TEST_CONCURRENCY"); len(opt) > 0 {
-		concurrencyOpts = []int{strInt(opt)}
-	} else {
-		str = append(str, "concurrency %d")
-	}
-
-	// What percentage of messages are delivered to a subscriber (ie 10 = 10% CanDispatch true)
-	matchPctOpts := []int{1, 10, 100}
-	if opt := os.Getenv("SUB_TEST_MATCHPCT"); len(opt) > 0 {
-		matchPctOpts = []int{strInt(opt)}
-	} else {
-		str = append(str, "matchpct %d")
-	}
-
-	var arg []interface{}
-	for _, topics := range topicOpts {
-		var arg = arg
-		if len(topicOpts) > 1 {
-			arg = append(arg, topics)
-		}
-		for _, concurrency := range concurrencyOpts {
-			var arg = arg
-			if len(concurrencyOpts) > 1 {
-				arg = append(arg, concurrency)
-			}
-			for _, matchPct := range matchPctOpts {
-				var arg = arg
-				if len(matchPctOpts) > 1 {
-					arg = append(arg, matchPct)
-				}
-				subBenchLocalTransport(b,
-					topics,
-					concurrency,
-					matchPct,
-					fmt.Sprintf(strings.Join(str, " "), arg...),
-				)
-			}
-		}
-	}
+	subscribeBenchmarkHelper(b, subBenchLocalTransport)
 }
 
 func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, testName string) {
+	b.Helper()
+
 	tr, err := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
 	if err != nil {
 		panic(err)
@@ -77,19 +27,19 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	tsMatch := make([]string, topics)
 	tsNoMatch := make([]string, topics)
 	for i := 0; i < topics; i++ {
-		tsNoMatch[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
+		tsNoMatch[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int()) //nolint:gosec
 		if topics/2 == i {
-			n1 := rand.Int()
-			n2 := rand.Int()
+			n1 := rand.Int() //nolint:gosec
+			n2 := rand.Int() //nolint:gosec
 			top[i] = fmt.Sprintf("/%d/%d", n1, n2)
 			tsMatch[i] = fmt.Sprintf("/%d/{%d}", n1, n2)
 		} else {
-			top[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
+			top[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int()) //nolint:gosec
 			tsMatch[i] = tsNoMatch[i]
 		}
 	}
-	var out = make(chan *Update, 50000)
-	var once = &sync.Once{}
+	out := make(chan *Update, 50000)
+	once := &sync.Once{}
 	for i := 0; i < concurrency; i++ {
 		s := NewSubscriber("", zap.NewNop())
 		if i%100 < matchPct {

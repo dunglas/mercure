@@ -274,6 +274,7 @@ func TestUnsubscribe(t *testing.T) {
 		s.subscribers.Walk(0, func(s *Subscriber) bool {
 			_, ok := <-s.disconnected
 			assert.False(t, ok)
+
 			return true
 		})
 	}()

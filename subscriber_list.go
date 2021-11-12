@@ -17,13 +17,14 @@ func NewSubscriberList(size int) *SubscriberList {
 			if len(p) < 2 {
 				return false
 			}
+
 			return s.(*Subscriber).Match(p[1], p[0] == "p")
 		}, size),
 	}
 }
 
 func (sc *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
-	var scopedTopics = make([]interface{}, len(u.Topics))
+	scopedTopics := make([]interface{}, len(u.Topics))
 	for i, t := range u.Topics {
 		if u.Private {
 			scopedTopics[i] = "p_" + t

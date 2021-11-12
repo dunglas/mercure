@@ -12,11 +12,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type updateSource struct {
-	in     chan *Update
-	buffer []*Update
-}
-
 // Subscriber represents a client subscribed to a list of topics.
 type Subscriber struct {
 	ID                 string
@@ -71,20 +66,22 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 		if s.ready < 1 {
 			s.liveQueue = append(s.liveQueue, u)
 			s.liveMutex.Unlock()
+
 			return true
 		}
 		s.liveMutex.Unlock()
 	}
 	s.out <- u
+
 	return true
 }
 
-// Ready flips the ready flag to true and flushes queued live updates returning number of events flushed
+// Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
 func (s *Subscriber) Ready() int {
 	s.liveMutex.Lock()
 	defer s.liveMutex.Unlock()
 
-	var n = len(s.liveQueue)
+	n := len(s.liveQueue)
 	for _, u := range s.liveQueue {
 		s.out <- u
 	}
@@ -111,7 +108,7 @@ func (s *Subscriber) Disconnect() {
 	})
 }
 
-// SetTopics compiles topic selector regexps
+// SetTopics compiles topic selector regexps.
 func (s *Subscriber) SetTopics(topics, privateTopics []string) {
 	s.Topics = topics
 	s.TopicRegexps = make([]*regexp.Regexp, len(topics))
@@ -148,12 +145,14 @@ func (s *Subscriber) Match(topic string, private bool) (match bool) {
 	for i, ts := range s.Topics {
 		if ts == "*" || ts == topic {
 			match = true
+
 			break
 		}
 
 		r := s.TopicRegexps[i]
 		if r != nil && r.MatchString(topic) {
 			match = true
+
 			break
 		}
 	}
@@ -181,7 +180,7 @@ func (s *Subscriber) Match(topic string, private bool) (match bool) {
 
 // getSubscriptions return the list of subscriptions associated to this subscriber.
 func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
-	var subscriptions []subscription
+	var subscriptions []subscription //nolint:prealloc
 	for k, t := range s.Topics {
 		if topic != "" && !s.Match(topic, false) {
 			continue

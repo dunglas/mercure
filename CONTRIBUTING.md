@@ -5,7 +5,7 @@
 When you open a Pull Request to the project, you agree to license your code under the [GNU AFFERO GENERAL PUBLIC LICENSE](LICENSE)
 and to transfer the copyright on the submitted code to [Kévin Dunglas](https://dunglas.fr).
 
-Be sure to you have the right to do that (if you are a professional, ask your company)!
+Be sure to have the right to do that (if you are a professional, ask your company)!
 
 If you include code from another project, please mention it in the Pull Request description and credit the original author.
 
@@ -59,7 +59,7 @@ To test the legacy server:
 
 Go to `http://localhost:3000` and enjoy!
 
-When you send a PR, just make sure that:
+When you send a PR, make sure that:
 
 * You add valid test cases.
 * Tests are green.
@@ -73,7 +73,7 @@ To debug potential deadlocks:
 
 1. Install `go-deadlock`: `./tests/use-go-deadlock.sh`
 2. Run the tests in race mode: `go test -race ./... -v`
-3. To stress test the app, run the load test (see `docs/load-testing.md`)
+3. To stress-test the app, run the load test (see `docs/load-testing.md`)
 4. Be sure to remove `go-deadlock` before committing
 
 ## Spec

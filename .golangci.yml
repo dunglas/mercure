@@ -15,6 +15,7 @@ linters:
     - cyclop
     - forcetypeassert
     - tagliatelle
+    - varnamelen
 
     # deprecated
     - interfacer

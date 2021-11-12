@@ -39,7 +39,7 @@ type BoltTransport struct {
 }
 
 // NewBoltTransport create a new boltTransport.
-func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) {
+func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) { //nolint:ireturn
 	var err error
 	q := u.Query()
 	bucketName := defaultBoltBucketName

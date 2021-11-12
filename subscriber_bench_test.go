@@ -13,7 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func BenchmarkSubscriber(b *testing.B) {
+func subscribeBenchmarkHelper(b *testing.B, subBench func(b *testing.B, topics, concurrency, matchPct int, testName string)) {
+	b.Helper()
+
 	var str []string
 
 	// How many topics and topicselectors do each subscriber and update contain (same value for both)
@@ -42,21 +44,21 @@ func BenchmarkSubscriber(b *testing.B) {
 
 	var arg []interface{}
 	for _, topics := range topicOpts {
-		var arg = arg
+		arg := arg
 		if len(topicOpts) > 1 {
 			arg = append(arg, topics)
 		}
 		for _, concurrency := range concurrencyOpts {
-			var arg = arg
+			arg := arg
 			if len(concurrencyOpts) > 1 {
 				arg = append(arg, concurrency)
 			}
 			for _, matchPct := range matchPctOpts {
-				var arg = arg
+				arg := arg
 				if len(matchPctOpts) > 1 {
 					arg = append(arg, matchPct)
 				}
-				subBenchSubscriber(b,
+				subBench(b,
 					topics,
 					concurrency,
 					matchPct,
@@ -67,22 +69,29 @@ func BenchmarkSubscriber(b *testing.B) {
 	}
 }
 
+func BenchmarkSubscriber(b *testing.B) {
+	subscribeBenchmarkHelper(b, subBenchSubscriber)
+}
+
 func strInt(s string) int {
 	n, err := strconv.Atoi(s)
 	if err != nil {
 		panic(err)
 	}
+
 	return n
 }
 
 func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testName string) {
-	var s = NewSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop())
+	b.Helper()
+
+	s := NewSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop())
 	ts := make([]string, topics)
 	tsMatch := make([]string, topics)
 	tsNoMatch := make([]string, topics)
 	for i := 0; i < topics; i++ {
-		ts[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
-		tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
+		ts[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())      //nolint:gosec
+		tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int()) //nolint:gosec
 		if topics/2 == i {
 			// Insert matching topic half way through matching topic list to simulate match
 			tsMatch[i] = strings.ReplaceAll(strings.ReplaceAll(ts[i], "{", ""), "}", "")
