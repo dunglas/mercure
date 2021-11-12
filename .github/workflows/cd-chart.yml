@@ -2,8 +2,8 @@ name: Release Chart
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'      
 
 jobs:
   release:
