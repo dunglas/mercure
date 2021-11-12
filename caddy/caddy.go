@@ -90,6 +90,9 @@ type Mercure struct {
 	// Maximum cache cost, defaults to 100MB, set to -1 to disable the cache. See https://github.com/dgraph-io/ristretto for details.
 	CacheMaxCost *int64 `json:"cache_max_cost,omitempty"`
 
+	// Triggers use of LRU topic selector cache and avoidance of select priority queue (recommend 10,000 - 1,000,000)
+	LRUShardSize *int64 `json:"lru_shard_size,omitempty"`
+
 	hub    *mercure.Hub
 	logger *zap.Logger
 }
@@ -136,9 +139,18 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 		mc = *m.CacheMaxCost
 	}
 
-	tss, err := mercure.NewTopicSelectorStore(nc, mc)
-	if err != nil {
-		return err //nolint:wrapcheck
+	var err error
+	var tss *mercure.TopicSelectorStore
+	if m.LRUShardSize == nil {
+		tss, err = mercure.NewTopicSelectorStore(nc, mc)
+		if err != nil {
+			return err //nolint:wrapcheck
+		}
+	} else {
+		tss, err = mercure.NewTopicSelectorStoreLRU(*m.LRUShardSize, mercure.DefaultTopicSelectorStoreLRUShardCount)
+		if err != nil {
+			return err //nolint:wrapcheck
+		}
 	}
 
 	m.logger = ctx.Logger(m)
@@ -359,6 +371,18 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				}
 
 				m.CacheMaxCost = &v
+
+			case "lru_cache":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				v, err := strconv.ParseInt(d.Val(), 10, 64)
+				if err != nil {
+					return err //nolint:wrapcheck
+				}
+
+				m.LRUShardSize = &v
 			}
 		}
 	}

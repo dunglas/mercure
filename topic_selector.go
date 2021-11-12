@@ -15,12 +15,18 @@ const (
 	TopicSelectorStoreCacheMaxCost            = int64(1e8) // 100 MB
 )
 
-// TopicSelectorStore caches compiled templates to improve memory and CPU usage.
-type TopicSelectorStore struct {
-	cache *ristretto.Cache
+type TopicSelectorStoreCache interface {
+	Get(interface{}) (interface{}, bool)
+	Set(interface{}, interface{}, int64) bool
 }
 
-// NewTopicSelectorStore creates a TopicSelectorStore instance.
+// TopicSelectorStore caches compiled templates to improve memory and CPU usage.
+type TopicSelectorStore struct {
+	cache      TopicSelectorStoreCache
+	skipSelect bool
+}
+
+// NewTopicSelectorStore creates a TopicSelectorStore instance with a ristretto cache.
 // See https://github.com/dgraph-io/ristretto, set values to 0 to disable.
 func NewTopicSelectorStore(cacheNumCounters, cacheMaxCost int64) (*TopicSelectorStore, error) {
 	if cacheNumCounters == 0 {
@@ -46,11 +52,6 @@ func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 		return true
 	}
 
-	r := tss.getRegexp(topicSelector)
-	if r == nil {
-		return false
-	}
-
 	var k string
 	if tss.cache != nil {
 		k = "m_" + topicSelector + "_" + topic
@@ -58,6 +59,11 @@ func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 		if found {
 			return value.(bool)
 		}
+	}
+
+	r := tss.getRegexp(topicSelector)
+	if r == nil {
+		return false
 	}
 
 	// Use template.Regexp() instead of template.Match() for performance

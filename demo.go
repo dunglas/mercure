@@ -12,7 +12,7 @@ import (
 
 // uiContent is our static web server content.
 //go:embed public
-var uiContent embed.FS //nolint:gochecknoglobals
+var uiContent embed.FS
 
 // Demo exposes INSECURE Demo endpoints to test discovery and authorization mechanisms.
 // Add a query parameter named "body" to define the content to return in the response's body.

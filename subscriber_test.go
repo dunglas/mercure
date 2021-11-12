@@ -9,9 +9,8 @@ import (
 )
 
 func TestDispatch(t *testing.T) {
-	s := NewSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
+	s := NewSubscriber("1", zap.NewNop())
 	s.Topics = []string{"http://example.com"}
-	go s.start()
 	defer s.Disconnect()
 
 	// Dispatch must be non-blocking
@@ -22,14 +21,17 @@ func TestDispatch(t *testing.T) {
 	s.Dispatch(&Update{Topics: s.Topics, Event: Event{ID: "2"}}, true)
 	s.HistoryDispatched("")
 
+	s.Ready()
+
 	for i := 1; i <= 4; i++ {
-		u := <-s.Receive()
-		assert.Equal(t, strconv.Itoa(i), u.ID)
+		if u, ok := <-s.Receive(); ok && u != nil {
+			assert.Equal(t, strconv.Itoa(i), u.ID)
+		}
 	}
 }
 
 func TestDisconnect(t *testing.T) {
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewSubscriber("", zap.NewNop())
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()
@@ -41,10 +43,9 @@ func TestLogSubscriber(t *testing.T) {
 	sink, logger := newTestLogger(t)
 	defer sink.Reset()
 
-	s := NewSubscriber("123", logger, &TopicSelectorStore{})
+	s := NewSubscriber("123", logger)
 	s.RemoteAddr = "127.0.0.1"
-	s.TopicSelectors = []string{"https://example.com/foo"}
-	s.Topics = []string{"https://example.com/bar"}
+	s.SetTopics([]string{"https://example.com/bar"}, []string{"https://example.com/foo"})
 
 	f := zap.Object("subscriber", s)
 	logger.Info("test", f)

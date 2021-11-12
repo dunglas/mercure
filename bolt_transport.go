@@ -39,7 +39,7 @@ type BoltTransport struct {
 }
 
 // NewBoltTransport create a new boltTransport.
-func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) {
+func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) { //nolint:ireturn
 	var err error
 	q := u.Query()
 	bucketName := defaultBoltBucketName
@@ -189,6 +189,23 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 	if s.RequestLastEventID != "" {
 		t.dispatchHistory(s, toSeq)
 	}
+
+	s.Ready()
+
+	return nil
+}
+
+// RemoveSubscriber removes a new subscriber from the transport.
+func (t *BoltTransport) RemoveSubscriber(s *Subscriber) error {
+	select {
+	case <-t.closed:
+		return ErrClosedTransport
+	default:
+	}
+
+	t.Lock()
+	delete(t.subscribers, s)
+	t.Unlock()
 
 	return nil
 }

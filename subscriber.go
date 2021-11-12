@@ -3,161 +3,91 @@ package mercure
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gofrs/uuid"
-	"go.uber.org/zap"
+	uritemplate "github.com/yosida95/uritemplate/v3"
 	"go.uber.org/zap/zapcore"
 )
-
-type updateSource struct {
-	in     chan *Update
-	buffer []*Update
-}
 
 // Subscriber represents a client subscribed to a list of topics.
 type Subscriber struct {
 	ID                 string
 	EscapedID          string
 	Claims             *claims
-	Topics             []string
 	EscapedTopics      []string
 	RequestLastEventID string
 	RemoteAddr         string
-	TopicSelectors     []string
+	Topics             []string
+	TopicRegexps       []*regexp.Regexp
+	PrivateTopics      []string
+	PrivateRegexps     []*regexp.Regexp
 	Debug              bool
 
-	disconnectedOnce    sync.Once
+	disconnectedOnce    *sync.Once
 	out                 chan *Update
 	disconnected        chan struct{}
 	responseLastEventID chan string
-	history             updateSource
-	live                updateSource
 	logger              Logger
-	topicSelectorStore  *TopicSelectorStore
+	ready               int32
+	liveQueue           []*Update
+	liveMutex           sync.RWMutex
 }
 
 // NewSubscriber creates a new subscriber.
-func NewSubscriber(lastEventID string, logger Logger, tss *TopicSelectorStore) *Subscriber {
+func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
-		ID:                 id,
-		EscapedID:          url.QueryEscape(id),
-		RequestLastEventID: lastEventID,
-
+		ID:                  id,
+		EscapedID:           url.QueryEscape(id),
+		RequestLastEventID:  lastEventID,
 		responseLastEventID: make(chan string, 1),
-
-		history:            updateSource{},
-		live:               updateSource{in: make(chan *Update)},
-		out:                make(chan *Update),
-		disconnected:       make(chan struct{}),
-		logger:             logger,
-		topicSelectorStore: tss,
-	}
-
-	if lastEventID != "" {
-		s.history.in = make(chan *Update)
+		out:                 make(chan *Update, 1000),
+		disconnected:        make(chan struct{}),
+		logger:              logger,
+		disconnectedOnce:    &sync.Once{},
 	}
 
 	return s
 }
 
-// start stores incoming updates in an history and a live buffer and dispatch them.
-// Updates coming from the history are always dispatched first.
-func (s *Subscriber) start() {
-	for {
-		select {
-		case u, ok := <-s.history.in:
-			if !ok {
-				s.history.in = nil
-
-				break
-			}
-			if s.CanDispatch(u) {
-				s.history.buffer = append(s.history.buffer, u)
-			}
-		case u, ok := <-s.live.in:
-			if !ok {
-				close(s.out)
-
-				// chan drained
-				return
-			}
-			if s.CanDispatch(u) {
-				s.live.buffer = append(s.live.buffer, u)
-			}
-		case s.outChan() <- s.nextUpdate():
-			if len(s.history.buffer) > 0 {
-				s.history.buffer = s.history.buffer[1:]
-
-				break
-			}
-
-			s.live.buffer = s.live.buffer[1:]
-		case <-s.disconnected:
-			close(s.out)
-
-			return
-		}
-	}
-}
-
-// outChan returns the out channel if buffers aren't empty, or nil to block.
-func (s *Subscriber) outChan() chan<- *Update {
-	if len(s.live.buffer) > 0 || len(s.history.buffer) > 0 {
-		return s.out
-	}
-
-	return nil
-}
-
-// nextUpdate returns the next update to dispatch.
-// The history is always entirely flushed before starting to dispatch live updates.
-func (s *Subscriber) nextUpdate() *Update {
-	// Always flush the history buffer first to preserve order
-	if s.history.in != nil || len(s.history.buffer) > 0 {
-		if len(s.history.buffer) > 0 {
-			return s.history.buffer[0]
-		}
-
-		return nil
-	}
-
-	if len(s.live.buffer) > 0 {
-		return s.live.buffer[0]
-	}
-
-	return nil
-}
-
 // Dispatch an update to the subscriber.
 func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
-	var in chan<- *Update
-	if fromHistory {
-		in = s.history.in
-	} else {
-		in = s.live.in
-	}
-
 	select {
 	case <-s.disconnected:
-		close(s.live.in)
-
 		return false
-
 	default:
 	}
 
-	select {
-	case <-s.disconnected:
-		close(s.live.in)
+	if !fromHistory && atomic.LoadInt32(&s.ready) < 1 {
+		s.liveMutex.Lock()
+		if s.ready < 1 {
+			s.liveQueue = append(s.liveQueue, u)
+			s.liveMutex.Unlock()
 
-		return false
-
-	case in <- u:
+			return true
+		}
+		s.liveMutex.Unlock()
 	}
+	s.out <- u
 
 	return true
+}
+
+// Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
+func (s *Subscriber) Ready() int {
+	s.liveMutex.Lock()
+	defer s.liveMutex.Unlock()
+
+	n := len(s.liveQueue)
+	for _, u := range s.liveQueue {
+		s.out <- u
+	}
+	atomic.StoreInt32(&s.ready, 1)
+
+	return n
 }
 
 // Receive returns a chan when incoming updates are dispatched.
@@ -168,43 +98,91 @@ func (s *Subscriber) Receive() <-chan *Update {
 // HistoryDispatched must be called when all messages coming from the history have been dispatched.
 func (s *Subscriber) HistoryDispatched(responseLastEventID string) {
 	s.responseLastEventID <- responseLastEventID
-	close(s.history.in)
 }
 
 // Disconnect disconnects the subscriber.
 func (s *Subscriber) Disconnect() {
 	s.disconnectedOnce.Do(func() {
 		close(s.disconnected)
+		close(s.out)
 	})
 }
 
-// CanDispatch checks if an update can be dispatched to this subsriber.
-func (s *Subscriber) CanDispatch(u *Update) bool {
-	if !canReceive(s.topicSelectorStore, u.Topics, s.Topics) {
-		if c := s.logger.Check(zap.DebugLevel, "Subscriber has not subscribed to this update"); c != nil {
-			c.Write(zap.Object("subscriber", s), zap.Object("update", u))
+// SetTopics compiles topic selector regexps.
+func (s *Subscriber) SetTopics(topics, privateTopics []string) {
+	s.Topics = topics
+	s.TopicRegexps = make([]*regexp.Regexp, len(topics))
+	for i, ts := range topics {
+		var r *regexp.Regexp
+		if tpl, err := uritemplate.New(ts); err == nil {
+			r = tpl.Regexp()
 		}
+		s.TopicRegexps[i] = r
+	}
+	s.PrivateTopics = privateTopics
+	s.PrivateRegexps = make([]*regexp.Regexp, len(privateTopics))
+	for i, ts := range privateTopics {
+		var r *regexp.Regexp
+		if tpl, err := uritemplate.New(ts); err == nil {
+			r = tpl.Regexp()
+		}
+		s.PrivateRegexps[i] = r
+	}
+	s.EscapedTopics = escapeTopics(topics)
+}
 
-		return false
+func escapeTopics(topics []string) []string {
+	escapedTopics := make([]string, 0, len(topics))
+	for _, topic := range topics {
+		escapedTopics = append(escapedTopics, url.QueryEscape(topic))
 	}
 
-	if u.Private && (s.Claims == nil || s.Claims.Mercure.Subscribe == nil || !canReceive(s.topicSelectorStore, u.Topics, s.Claims.Mercure.Subscribe)) {
-		if c := s.logger.Check(zap.DebugLevel, "Subscriber not authorized to receive this update"); c != nil {
-			c.Write(zap.Object("subscriber", s), zap.Object("update", u))
+	return escapedTopics
+}
+
+// Match checks if the current subscriber can access to the given topic.
+func (s *Subscriber) Match(topic string, private bool) (match bool) {
+	for i, ts := range s.Topics {
+		if ts == "*" || ts == topic {
+			match = true
+
+			break
 		}
 
-		return false
+		r := s.TopicRegexps[i]
+		if r != nil && r.MatchString(topic) {
+			match = true
+
+			break
+		}
 	}
 
-	return true
+	if !match {
+		return false
+	}
+	if !private {
+		return true
+	}
+
+	for i, ts := range s.PrivateTopics {
+		if ts == "*" || ts == topic {
+			return true
+		}
+
+		r := s.PrivateRegexps[i]
+		if r != nil && r.MatchString(topic) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // getSubscriptions return the list of subscriptions associated to this subscriber.
 func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
-	subscriptions := make([]subscription, 0, len(s.Topics))
-
+	var subscriptions []subscription //nolint:prealloc
 	for k, t := range s.Topics {
-		if topic != "" && !canReceive(s.topicSelectorStore, []string{t}, []string{topic}) {
+		if topic != "" && !s.Match(topic, false) {
 			continue
 		}
 
@@ -216,7 +194,6 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 			Topic:      t,
 			Active:     active,
 		}
-
 		if s.Claims != nil && s.Claims.Mercure.Payload != nil {
 			subscription.Payload = s.Claims.Mercure.Payload
 		}
@@ -233,8 +210,8 @@ func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	if s.RemoteAddr != "" {
 		enc.AddString("remote_addr", s.RemoteAddr)
 	}
-	if s.TopicSelectors != nil {
-		if err := enc.AddArray("topic_selectors", stringArray(s.TopicSelectors)); err != nil {
+	if s.PrivateTopics != nil {
+		if err := enc.AddArray("topic_selectors", stringArray(s.PrivateTopics)); err != nil {
 			return fmt.Errorf("log error: %w", err)
 		}
 	}

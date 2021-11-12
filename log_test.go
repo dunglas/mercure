@@ -21,7 +21,7 @@ func (s *MemorySink) Sync() error  { return nil }
 
 var sink *MemorySink
 
-func newTestLogger(t *testing.T) (*MemorySink, Logger) {
+func newTestLogger(t *testing.T) (*MemorySink, *zap.Logger) {
 	t.Helper()
 
 	if sink == nil {

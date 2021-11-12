@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"go.uber.org/zap"
@@ -77,15 +76,16 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscriber {
-	s := NewSubscriber(retrieveLastEventID(r), h.logger, h.topicSelectorStore)
+	s := NewSubscriber(retrieveLastEventID(r), h.logger)
 	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
+	var privateTopics []string
 
 	if h.subscriberJWT != nil {
 		claims, err := authorize(r, h.subscriberJWT, nil)
 		if claims != nil {
 			s.Claims = claims
-			s.TopicSelectors = claims.Mercure.Subscribe
+			privateTopics = claims.Mercure.Subscribe
 		}
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
@@ -97,14 +97,13 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 		}
 	}
 
-	s.Topics = r.URL.Query()["topic"]
-	if len(s.Topics) == 0 {
+	topics := r.URL.Query()["topic"]
+	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
 
 		return nil
 	}
-	s.EscapedTopics = escapeTopics(s.Topics)
-	go s.start()
+	s.SetTopics(topics, privateTopics)
 
 	h.dispatchSubscriptionUpdate(s, true)
 	if err := h.transport.AddSubscriber(s); err != nil {
@@ -197,6 +196,7 @@ func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
 func (h *Hub) shutdown(s *Subscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
+	h.transport.RemoveSubscriber(s)
 	h.dispatchSubscriptionUpdate(s, false)
 	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
 		c.Write(zap.Object("subscriber", s))
@@ -223,15 +223,6 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 		}
 		h.transport.Dispatch(u)
 	}
-}
-
-func escapeTopics(topics []string) []string {
-	escapedTopics := make([]string, 0, len(topics))
-	for _, topic := range topics {
-		escapedTopics = append(escapedTopics, url.QueryEscape(topic))
-	}
-
-	return escapedTopics
 }
 
 func assertFlusher(w http.ResponseWriter) {
