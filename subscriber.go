@@ -71,7 +71,13 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 		}
 		s.liveMutex.Unlock()
 	}
-	s.out <- u
+
+	select {
+	case <-s.disconnected:
+		return false
+
+	case s.out <- u:
+	}
 
 	return true
 }
