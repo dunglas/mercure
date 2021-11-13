@@ -76,8 +76,9 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	case <-s.disconnected:
 		return false
 
-	case s.out <- u:
+	default:
 	}
+	s.out <- u
 
 	return true
 }
