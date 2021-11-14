@@ -272,7 +272,7 @@ func TestUnsubscribe(t *testing.T) {
 		hub.SubscribeHandler(httptest.NewRecorder(), req)
 		assert.Equal(t, 0, s.subscribers.Len())
 		s.subscribers.Walk(0, func(s *Subscriber) bool {
-			_, ok := <-s.disconnected
+			_, ok := <-s.out
 			assert.False(t, ok)
 
 			return true
