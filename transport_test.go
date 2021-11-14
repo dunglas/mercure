@@ -62,7 +62,7 @@ func TestLocalTransportClosed(t *testing.T) {
 	assert.Equal(t, transport.AddSubscriber(NewSubscriber("", zap.NewNop())), ErrClosedTransport)
 	assert.Equal(t, transport.Dispatch(&Update{}), ErrClosedTransport)
 
-	_, ok := <-s.disconnected
+	_, ok := <-s.out
 	assert.False(t, ok)
 }
 

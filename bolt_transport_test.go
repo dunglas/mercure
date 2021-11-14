@@ -227,7 +227,7 @@ func TestBoltTransportClosed(t *testing.T) {
 
 	assert.Equal(t, transport.Dispatch(&Update{Topics: s.Topics}), ErrClosedTransport)
 
-	_, ok := <-s.disconnected
+	_, ok := <-s.out
 	assert.False(t, ok)
 }
 

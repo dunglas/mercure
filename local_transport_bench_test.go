@@ -39,7 +39,6 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		}
 	}
 	out := make(chan *Update, 50000)
-	once := &sync.Once{}
 	for i := 0; i < concurrency; i++ {
 		s := NewSubscriber("", zap.NewNop())
 		if i%100 < matchPct {
@@ -48,7 +47,6 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 			s.SetTopics(tsNoMatch, nil)
 		}
 		s.out = out
-		s.disconnectedOnce = once
 		tr.AddSubscriber(s)
 	}
 	ctx, done := context.WithCancel(context.Background())

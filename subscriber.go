@@ -26,9 +26,9 @@ type Subscriber struct {
 	PrivateRegexps     []*regexp.Regexp
 	Debug              bool
 
-	disconnectedOnce    *sync.Once
+	disconnected        int32
 	out                 chan *Update
-	disconnected        chan struct{}
+	outMutex            sync.RWMutex
 	responseLastEventID chan string
 	logger              Logger
 	ready               int32
@@ -45,9 +45,7 @@ func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 		RequestLastEventID:  lastEventID,
 		responseLastEventID: make(chan string, 1),
 		out:                 make(chan *Update, 1000),
-		disconnected:        make(chan struct{}),
 		logger:              logger,
-		disconnectedOnce:    &sync.Once{},
 	}
 
 	return s
@@ -55,10 +53,8 @@ func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 
 // Dispatch an update to the subscriber.
 func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
-	select {
-	case <-s.disconnected:
+	if atomic.LoadInt32(&s.disconnected) > 0 {
 		return false
-	default:
 	}
 
 	if !fromHistory && atomic.LoadInt32(&s.ready) < 1 {
@@ -71,6 +67,13 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 		}
 		s.liveMutex.Unlock()
 	}
+
+	s.outMutex.Lock()
+	defer s.outMutex.Unlock()
+	if atomic.LoadInt32(&s.disconnected) > 0 {
+		return false
+	}
+
 	s.out <- u
 
 	return true
@@ -80,6 +83,8 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 func (s *Subscriber) Ready() int {
 	s.liveMutex.Lock()
 	defer s.liveMutex.Unlock()
+	s.outMutex.Lock()
+	defer s.outMutex.Unlock()
 
 	n := len(s.liveQueue)
 	for _, u := range s.liveQueue {
@@ -102,10 +107,15 @@ func (s *Subscriber) HistoryDispatched(responseLastEventID string) {
 
 // Disconnect disconnects the subscriber.
 func (s *Subscriber) Disconnect() {
-	s.disconnectedOnce.Do(func() {
-		close(s.disconnected)
-		close(s.out)
-	})
+	if atomic.LoadInt32(&s.disconnected) > 0 {
+		return
+	}
+
+	s.outMutex.Lock()
+	defer s.outMutex.Unlock()
+
+	atomic.StoreInt32(&s.disconnected, 1)
+	close(s.out)
 }
 
 // SetTopics compiles topic selector regexps.
