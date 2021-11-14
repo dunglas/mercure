@@ -152,16 +152,13 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	}
 
 	var tss *TopicSelectorStore
-	if v.GetInt64("tcsz") > 0 {
-		tss, err = NewTopicSelectorStoreLRU(v.GetInt64("tcsz"), DefaultTopicSelectorStoreLRUShardCount)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		tss, err = NewTopicSelectorStore(TopicSelectorStoreDefaultCacheNumCounters, TopicSelectorStoreCacheMaxCost)
-		if err != nil {
-			return nil, err
-		}
+	tcsz := v.GetInt64("tcsz")
+	if tcsz == 0 {
+		tcsz = DefaultTopicSelectorStoreLRUMaxEntriesPerShard
+	}
+	tss, err = NewTopicSelectorStoreLRU(tcsz, DefaultTopicSelectorStoreLRUShardCount)
+	if err != nil {
+		return nil, err
 	}
 
 	if t := v.GetString("transport_url"); t != "" {

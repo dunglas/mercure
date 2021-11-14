@@ -10,8 +10,8 @@ import (
 
 func TestMatch(t *testing.T) {
 	cache, _ := ristretto.NewCache(&ristretto.Config{
-		NumCounters: TopicSelectorStoreDefaultCacheNumCounters,
-		MaxCost:     TopicSelectorStoreCacheMaxCost,
+		NumCounters: TopicSelectorStoreRistrettoDefaultCacheNumCounters,
+		MaxCost:     TopicSelectorStoreRistrettoCacheMaxCost,
 		BufferItems: 64,
 	})
 	tss := &TopicSelectorStore{cache, false}

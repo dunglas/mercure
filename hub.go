@@ -257,7 +257,7 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	if opt.topicSelectorStore == nil {
-		tss, err := NewTopicSelectorStore(TopicSelectorStoreDefaultCacheNumCounters, TopicSelectorStoreCacheMaxCost)
+		tss, err := NewTopicSelectorStoreRistretto(TopicSelectorStoreRistrettoDefaultCacheNumCounters, TopicSelectorStoreRistrettoCacheMaxCost)
 		if err != nil {
 			return nil, err
 		}
