@@ -68,8 +68,8 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 		s.liveMutex.Unlock()
 	}
 
-	s.outMutex.RLock()
-	defer s.outMutex.RUnlock()
+	s.outMutex.Lock()
+	defer s.outMutex.Unlock()
 	if atomic.LoadInt32(&s.disconnected) > 0 {
 		return false
 	}
@@ -83,6 +83,8 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 func (s *Subscriber) Ready() int {
 	s.liveMutex.Lock()
 	defer s.liveMutex.Unlock()
+	s.outMutex.Lock()
+	defer s.outMutex.Unlock()
 
 	n := len(s.liveQueue)
 	for _, u := range s.liveQueue {
