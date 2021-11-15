@@ -5,8 +5,6 @@
 
 {$SERVER_NAME:localhost}
 
-log
-
 route {
 	encode zstd gzip
 
@@ -24,4 +22,14 @@ route {
 	respond /healthz 200
 
 	respond "Not Found" 404
+}
+
+log {
+	format filter {
+		wrap console
+		fields {
+			request>headers>Authorization replace redacted
+			request>headers>Cookie replace redacted
+		}
+	}
 }
