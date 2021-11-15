@@ -87,6 +87,9 @@ type Mercure struct {
 	// Triggers use of LRU topic selector cache and avoidance of select priority queue (recommend 10,000 - 1,000,000)
 	LRUShardSize *int64 `json:"lru_shard_size,omitempty"`
 
+	// The name of the authorization cookie. Defaults to "mercureAuthorization".
+	CookieName string `json:"cookie_name,omitempty"`
+
 	hub    *mercure.Hub
 	logger *zap.Logger
 }
@@ -157,6 +160,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 		mercure.WithTransport(destructor.(*transportDestructor).transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg),
+		mercure.WithCookieName(m.CookieName),
 	}
 	if m.logger.Core().Enabled(zapcore.DebugLevel) {
 		opts = append(opts, mercure.WithDebug())
@@ -336,6 +340,13 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				}
 
 				m.LRUShardSize = &v
+
+			case "cookie_name":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.CookieName = d.Val()
 			}
 		}
 	}

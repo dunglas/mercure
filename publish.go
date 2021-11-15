@@ -13,7 +13,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
 	var err error
 	if h.publisherJWT != nil {
-		claims, err = authorize(r, h.publisherJWT, h.publishOrigins)
+		claims, err = authorize(r, h.publisherJWT, h.publishOrigins, h.cookieName)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			if c := h.logger.Check(zap.InfoLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {

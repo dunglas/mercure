@@ -12,7 +12,9 @@ import (
 func TestEmptyBodyAndJWT(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com/demo/foo.jsonld", nil)
 	w := httptest.NewRecorder()
-	Demo(w, req)
+
+	h, _ := NewHub()
+	h.Demo(w, req)
 
 	resp := w.Result()
 	assert.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
@@ -30,7 +32,9 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 func TestBodyAndJWT(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
 	w := httptest.NewRecorder()
-	Demo(w, req)
+
+	h, _ := NewHub()
+	h.Demo(w, req)
 
 	resp := w.Result()
 	assert.Contains(t, resp.Header.Get("Content-Type"), "xml") // Before Go 1.17, the charset wasn't set

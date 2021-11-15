@@ -217,7 +217,7 @@ components:
       type: apiKey
       in: cookie
       name: mercureAuthorization
-      description: Preferred for web browsers
+      description: Preferred for web browsers (the cookie name may change depending on the configuration)
 security:
   - Bearer: []
   - Cookie: []
