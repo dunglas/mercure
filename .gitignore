@@ -9,3 +9,4 @@ dist
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml
+.vscode
