@@ -57,6 +57,19 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 		return false
 	}
 
+	var matched bool
+	for _, t := range u.Topics {
+		if s.Match(t, u.Private) {
+			matched = true
+
+			break
+		}
+	}
+
+	if !matched {
+		return true
+	}
+
 	if !fromHistory && atomic.LoadInt32(&s.ready) < 1 {
 		s.liveMutex.Lock()
 		if s.ready < 1 {
