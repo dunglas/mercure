@@ -52,22 +52,11 @@ func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 }
 
 // Dispatch an update to the subscriber.
+// Security checks must (topics matching) be done before calling Dispatch,
+// for instance by calling Match.
 func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	if atomic.LoadInt32(&s.disconnected) > 0 {
 		return false
-	}
-
-	var matched bool
-	for _, t := range u.Topics {
-		if s.Match(t, u.Private) {
-			matched = true
-
-			break
-		}
-	}
-
-	if !matched {
-		return true
 	}
 
 	if !fromHistory && atomic.LoadInt32(&s.ready) < 1 {

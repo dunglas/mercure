@@ -238,24 +238,26 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	defer os.Remove("test.db")
 
 	s1 := NewSubscriber("", transport.logger)
+	s1.SetTopics([]string{"foo"}, []string{})
 	require.Nil(t, transport.AddSubscriber(s1))
 
 	s2 := NewSubscriber("", transport.logger)
+	s2.SetTopics([]string{"foo"}, []string{})
 	require.Nil(t, transport.AddSubscriber(s2))
 
-	assert.Len(t, transport.subscribers, 2)
+	assert.Equal(t, 2, transport.subscribers.Len())
 
 	s1.Disconnect()
-	assert.Len(t, transport.subscribers, 2)
+	assert.Equal(t, 2, transport.subscribers.Len())
 
 	transport.Dispatch(&Update{Topics: s1.Topics})
-	assert.Len(t, transport.subscribers, 1)
+	assert.Equal(t, 1, transport.subscribers.Len())
 
 	s2.Disconnect()
-	assert.Len(t, transport.subscribers, 1)
+	assert.Equal(t, 1, transport.subscribers.Len())
 
-	transport.Dispatch(&Update{})
-	assert.Len(t, transport.subscribers, 0)
+	transport.Dispatch(&Update{Topics: s1.Topics})
+	assert.Zero(t, transport.subscribers.Len())
 }
 
 func TestBoltGetSubscribers(t *testing.T) {
