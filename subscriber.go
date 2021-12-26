@@ -152,8 +152,8 @@ func escapeTopics(topics []string) []string {
 	return escapedTopics
 }
 
-// Match checks if the current subscriber can access to the given topic.
-func (s *Subscriber) Match(topic string, private bool) (match bool) {
+// MatchTopic checks if the current subscriber can access to the given topic.
+func (s *Subscriber) MatchTopic(topic string, private bool) (match bool) {
 	for i, ts := range s.Topics {
 		if ts == "*" || ts == topic {
 			match = true
@@ -190,11 +190,22 @@ func (s *Subscriber) Match(topic string, private bool) (match bool) {
 	return false
 }
 
+// Match checks if the current subscriber can receive the given update.
+func (s *Subscriber) Match(u *Update) bool {
+	for _, t := range u.Topics {
+		if s.MatchTopic(t, u.Private) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // getSubscriptions return the list of subscriptions associated to this subscriber.
 func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
 	var subscriptions []subscription //nolint:prealloc
 	for k, t := range s.Topics {
-		if topic != "" && !s.Match(topic, false) {
+		if topic != "" && !s.MatchTopic(topic, false) {
 			continue
 		}
 

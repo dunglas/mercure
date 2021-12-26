@@ -257,16 +257,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 				return fmt.Errorf("unable to unmarshal update: %w", err)
 			}
 
-			var disconnected bool
-			for _, t := range update.Topics {
-				if s.Match(t, update.Private) {
-					disconnected = !s.Dispatch(update, true)
-
-					break
-				}
-			}
-
-			if disconnected || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
+			if (s.Match(update) && !s.Dispatch(update, true)) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
 				s.HistoryDispatched(responseLastEventID)
 
 				return nil
