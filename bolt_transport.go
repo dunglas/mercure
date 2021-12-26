@@ -26,12 +26,12 @@ const defaultBoltBucketName = "updates"
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
 	sync.RWMutex
+	subscribers      *SubscriberList
 	logger           Logger
 	db               *bolt.DB
 	bucketName       string
 	size             uint64
 	cleanupFrequency float64
-	subscribers      map[*Subscriber]struct{}
 	closed           chan struct{}
 	closedOnce       sync.Once
 	lastSeq          uint64
@@ -83,7 +83,7 @@ func NewBoltTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport,
 		bucketName:       bucketName,
 		size:             size,
 		cleanupFrequency: cleanupFrequency,
-		subscribers:      make(map[*Subscriber]struct{}),
+		subscribers:      NewSubscriberList(1e5),
 		closed:           make(chan struct{}),
 		lastEventID:      getDBLastEventID(db, bucketName),
 	}, nil
@@ -129,9 +129,9 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 		return err
 	}
 
-	for subscriber := range t.subscribers {
-		if !subscriber.Dispatch(update, false) {
-			delete(t.subscribers, subscriber)
+	for _, s := range t.subscribers.MatchAny(update) {
+		if !s.Dispatch(update, false) {
+			t.subscribers.Remove(s)
 		}
 	}
 
@@ -182,7 +182,7 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 	}
 
 	t.Lock()
-	t.subscribers[s] = struct{}{}
+	t.subscribers.Add(s)
 	toSeq := t.lastSeq //nolint:ifshort
 	t.Unlock()
 
@@ -204,8 +204,8 @@ func (t *BoltTransport) RemoveSubscriber(s *Subscriber) error {
 	}
 
 	t.Lock()
-	delete(t.subscribers, s)
-	t.Unlock()
+	defer t.Unlock()
+	t.subscribers.Remove(s)
 
 	return nil
 }
@@ -214,13 +214,13 @@ func (t *BoltTransport) RemoveSubscriber(s *Subscriber) error {
 func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
-	subscribers := make([]*Subscriber, len(t.subscribers))
 
-	i := 0
-	for subscriber := range t.subscribers {
-		subscribers[i] = subscriber
-		i++
-	}
+	var subscribers []*Subscriber
+	t.subscribers.Walk(0, func(s *Subscriber) bool {
+		subscribers = append(subscribers, s)
+
+		return true
+	})
 
 	return t.lastEventID, subscribers, nil
 }
@@ -257,7 +257,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 				return fmt.Errorf("unable to unmarshal update: %w", err)
 			}
 
-			if !s.Dispatch(update, true) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
+			if (s.Match(update) && !s.Dispatch(update, true)) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
 				s.HistoryDispatched(responseLastEventID)
 
 				return nil
@@ -275,12 +275,13 @@ func (t *BoltTransport) Close() (err error) {
 		close(t.closed)
 
 		t.Lock()
-		for subscriber := range t.subscribers {
-			subscriber.Disconnect()
-			delete(t.subscribers, subscriber)
-		}
-		t.Unlock()
+		defer t.Unlock()
 
+		t.subscribers.Walk(0, func(s *Subscriber) bool {
+			s.Disconnect()
+
+			return true
+		})
 		err = t.db.Close()
 	})
 

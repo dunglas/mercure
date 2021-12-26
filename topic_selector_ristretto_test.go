@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMatch(t *testing.T) {
+func TestMatchRistretto(t *testing.T) {
 	cache, _ := ristretto.NewCache(&ristretto.Config{
 		NumCounters: TopicSelectorStoreRistrettoDefaultCacheNumCounters,
 		MaxCost:     TopicSelectorStoreRistrettoCacheMaxCost,

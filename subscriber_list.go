@@ -18,7 +18,7 @@ func NewSubscriberList(size int) *SubscriberList {
 				return false
 			}
 
-			return s.(*Subscriber).Match(p[1], p[0] == "p")
+			return s.(*Subscriber).MatchTopic(p[1], p[0] == "p")
 		}, size),
 	}
 }

@@ -641,7 +641,7 @@ func TestUnknownLastEventID(t *testing.T) {
 
 	for {
 		transport.RLock()
-		done := len(transport.subscribers) == 2
+		done := transport.subscribers.Len() == 2
 		transport.RUnlock()
 
 		if done {
@@ -709,7 +709,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 	for {
 		transport.RLock()
-		done := len(transport.subscribers) == 2
+		done := transport.subscribers.Len() == 2
 		transport.RUnlock()
 
 		if done {

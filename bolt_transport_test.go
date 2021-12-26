@@ -52,6 +52,25 @@ func TestBoltTransportHistory(t *testing.T) {
 	}
 }
 
+func TestBoltTopicSelectorHistory(t *testing.T) {
+	transport := createBoltTransport("bolt://test.db")
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed"}, Event: Event{ID: "1"}})
+	transport.Dispatch(&Update{Topics: []string{"http://example.com/not-subscribed"}, Event: Event{ID: "2"}})
+	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}})
+	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed-public-only"}, Event: Event{ID: "4"}})
+
+	s := NewSubscriber(EarliestLastEventID, transport.logger)
+	s.SetTopics([]string{"http://example.com/subscribed", "http://example.com/subscribed-public-only"}, []string{"http://example.com/subscribed"})
+
+	require.Nil(t, transport.AddSubscriber(s))
+
+	assert.Equal(t, "1", (<-s.Receive()).ID)
+	assert.Equal(t, "4", (<-s.Receive()).ID)
+}
+
 func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
@@ -202,13 +221,25 @@ func TestBoltTransportDispatch(t *testing.T) {
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	s := NewSubscriber("", transport.logger)
-	s.SetTopics([]string{"https://example.com/foo"}, nil)
+	s.SetTopics([]string{"https://example.com/foo", "https://example.com/private"}, []string{"https://example.com/private"})
 
 	require.Nil(t, transport.AddSubscriber(s))
 
-	u := &Update{Topics: s.Topics}
-	require.Nil(t, transport.Dispatch(u))
-	assert.Equal(t, u, <-s.Receive())
+	notSubscribed := &Update{Topics: []string{"not-subscribed"}}
+	require.Nil(t, transport.Dispatch(notSubscribed))
+
+	subscribedNotAuthorized := &Update{Topics: []string{"https://example.com/foo"}, Private: true}
+	require.Nil(t, transport.Dispatch(subscribedNotAuthorized))
+
+	public := &Update{Topics: s.Topics}
+	require.Nil(t, transport.Dispatch(public))
+
+	assert.Equal(t, public, <-s.Receive())
+
+	private := &Update{Topics: s.PrivateTopics, Private: true}
+	require.Nil(t, transport.Dispatch(private))
+
+	assert.Equal(t, private, <-s.Receive())
 }
 
 func TestBoltTransportClosed(t *testing.T) {
@@ -238,24 +269,26 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	defer os.Remove("test.db")
 
 	s1 := NewSubscriber("", transport.logger)
+	s1.SetTopics([]string{"foo"}, []string{})
 	require.Nil(t, transport.AddSubscriber(s1))
 
 	s2 := NewSubscriber("", transport.logger)
+	s2.SetTopics([]string{"foo"}, []string{})
 	require.Nil(t, transport.AddSubscriber(s2))
 
-	assert.Len(t, transport.subscribers, 2)
+	assert.Equal(t, 2, transport.subscribers.Len())
 
 	s1.Disconnect()
-	assert.Len(t, transport.subscribers, 2)
+	assert.Equal(t, 2, transport.subscribers.Len())
 
 	transport.Dispatch(&Update{Topics: s1.Topics})
-	assert.Len(t, transport.subscribers, 1)
+	assert.Equal(t, 1, transport.subscribers.Len())
 
 	s2.Disconnect()
-	assert.Len(t, transport.subscribers, 1)
+	assert.Equal(t, 1, transport.subscribers.Len())
 
-	transport.Dispatch(&Update{})
-	assert.Len(t, transport.subscribers, 0)
+	transport.Dispatch(&Update{Topics: s1.Topics})
+	assert.Zero(t, transport.subscribers.Len())
 }
 
 func TestBoltGetSubscribers(t *testing.T) {

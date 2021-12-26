@@ -268,7 +268,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	publish := func(data string, waitForSubscribers int) {
 		for {
 			transport.Lock()
-			l := len(transport.subscribers)
+			l := transport.subscribers.Len()
 			transport.Unlock()
 			if l >= waitForSubscribers {
 				break
