@@ -130,9 +130,7 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 	}
 
 	for _, s := range t.subscribers.MatchAny(update) {
-		if !s.Dispatch(update, false) {
-			t.subscribers.Remove(s)
-		}
+		s.Dispatch(update, false)
 	}
 
 	return nil
