@@ -279,15 +279,11 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	assert.Equal(t, 2, transport.subscribers.Len())
 
 	s1.Disconnect()
-	assert.Equal(t, 2, transport.subscribers.Len())
-
-	transport.Dispatch(&Update{Topics: s1.Topics})
+	transport.RemoveSubscriber(s1)
 	assert.Equal(t, 1, transport.subscribers.Len())
 
 	s2.Disconnect()
-	assert.Equal(t, 1, transport.subscribers.Len())
-
-	transport.Dispatch(&Update{Topics: s1.Topics})
+	transport.RemoveSubscriber(s2)
 	assert.Zero(t, transport.subscribers.Len())
 }
 
