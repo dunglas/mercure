@@ -80,7 +80,7 @@ When you send a PR, make sure that:
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${fileDirname}/..",
+            "program": "${workspaceFolder}",
             "env": {
                 "MERCURE_PUBLISHER_JWT_KEY": "!ChangeMe!",
                 "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeMe!"
