@@ -14,6 +14,8 @@ To reproduce the problem, we provide [a load test](load-test.md) that you can us
 
 ## Using NGINX as an HTTP/2 Reverse Proxy in Front of the Hub
 
+If using docker-compose make sure to uncomment SERVER_NAME ':80'. Also note mercure public address will be https://url-of-server/ and internal address will be http://container_name:80/
+
 [NGINX](https://www.nginx.com) is supported out of the box. Use the following proxy configuration:
 
 ```nginx
@@ -25,12 +27,13 @@ server {
     ssl_certificate_key /path/to/ssl/cert.key;
 
     location / {
-        proxy_pass http://url-of-your-mercure-hub;
+        # If using docker-compose proxy_pass will be http://container_name:80/.well-known/mercure
+        proxy_pass http://url-of-your-mercure-hub; 
         proxy_read_timeout 24h;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
 
-        ## Be sure to set USE_FORWARDED_HEADERS=1 to allow the hub to use those headers ##
+        ## Be sure to set USE_FORWARDED_HEADERS=1 in environment variables to allow the hub to use the headers ##
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
