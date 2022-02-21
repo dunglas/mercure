@@ -906,6 +906,40 @@ Interoperability:
 
 Reported compatible with all major browsers and server-side tools.
 
+## Freddie
+
+Implementation Name and Details:
+
+Freddie, <https://github.com/bpolaszek/freddie>
+
+Brief Description:
+
+Freddie is a PHP implementation of the Mercure Hub Specification.
+
+Level of Maturity:
+
+Stable.
+
+Coverage:
+
+All the features of the protocol except the subscription events.
+
+Version compatibility:
+
+The implementation follows the latest draft.
+
+Licensing:
+
+All code is covered under the GNU General Public License v3.0.
+
+Contact Information:
+
+<https://github.com/bpolaszek/freddie>
+
+Interoperability:
+
+Reported compatible with all major browsers and server-side tools.
+
 ## Ilshidur/node-mercure
 
 Implementation Name and Details:
