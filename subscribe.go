@@ -76,7 +76,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscriber {
-	s := NewSubscriber(retrieveLastEventID(r), h.logger)
+	s := NewSubscriber(retrieveLastEventID(r, h.logger), h.logger)
 	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
 	var privateTopics []string
@@ -153,12 +153,25 @@ func sendHeaders(w http.ResponseWriter, s *Subscriber) {
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
-func retrieveLastEventID(r *http.Request) string {
+func retrieveLastEventID(r *http.Request, logger Logger) string {
 	if id := r.Header.Get("Last-Event-ID"); id != "" {
 		return id
 	}
 
-	return r.URL.Query().Get("Last-Event-ID")
+	query := r.URL.Query()
+	if id := query.Get("lastEventID"); id != "" {
+		return id
+	}
+
+	if legacyEventIDValues, present := query["Last-Event-ID"]; present {
+		logger.Info("deprecation: the 'Last-Event-ID' query parameter is deprecated, use 'lastEventID' instead.")
+
+		if len(legacyEventIDValues) != 0 {
+			return legacyEventIDValues[0]
+		}
+	}
+
+	return ""
 }
 
 // Write sends the given string to the client.

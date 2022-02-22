@@ -88,7 +88,7 @@ The publisher **MAY** provide the following target attributes in the Link Header
 
 *   `last-event-id`: the identifier of the last event dispatched by the publisher at the time of
     the generation of this resource. If provided, it **MUST** be passed to the hub through a query
-    parameter called `Last-Event-ID` and will be used to ensure that possible updates having been
+    parameter called `lastEventID` and will be used to ensure that possible updates having been
     made between the resource generation by the server and the connection to the hub are not lost.
     See (#reconciliation).
 *   `content-type`: the content type of the updates that will be pushed by the hub. If omitted,
@@ -503,26 +503,28 @@ re-connection, the subscriber **MUST** send the last received event id in a
 
 In order to fetch any update dispatched between the initial resource generation by the publisher and
 the connection to the hub, the subscriber **MUST** send the event id provided during the discovery
-as a `Last-Event-ID` header or query parameter. See (#discovery).
+as a `Last-Event-ID` header or a `lastEventID` query parameter. See (#discovery).
 
 `EventSource` implementations may not allow to set HTTP headers during the first connection (before
 a reconnection) and implementations in web browsers don't allow to set it.
 
 To work around this problem, the hub **MUST** also allow to pass the last event id in a query
-parameter named `Last-Event-ID`.
+parameter named `lastEventID`.
 
-If both the `Last-Event-ID` HTTP header and the query parameter are present, the HTTP header
-**MUST** take precedence.
+If both the `Last-Event-ID` HTTP header and the `lastEventID` query parameter are present,
+the HTTP header **MUST** take precedence.
 
-If the `Last-Event-ID` HTTP header or query parameter exists, the hub **SHOULD** send all events
-published following the one bearing this identifier to the subscriber.
+If the `Last-Event-ID` HTTP header or the `lastEventID` query parameter exists,
+the hub **SHOULD** send all events published following the one bearing this identifier
+to the subscriber.
 
 The reserved value `earliest` can be used to hint the hub to send all updates it has for the
 subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
-`Last-Event-ID` HTTP header or query parameter the hub **MUST** set a `Last-Event-ID` header on
-the HTTP response. The value of the `Last-Event-ID` response header **MUST** be the id of the event
+`Last-Event-ID` HTTP header or a `lastEventID` query parameter the hub **MUST** set
+a `Last-Event-ID` header on the HTTP response.
+The value of the `Last-Event-ID` response header **MUST** be the id of the event
 preceding the first one sent to the subscriber, or the reserved value `earliest` if there is no
 preceding event (it happens when the hub history is empty, when the subscriber requests the earliest
 event or when the subscriber requests an event that doesn't exist).
@@ -533,7 +535,7 @@ partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an
 updates lost can cause data lost.
 
 To detect if a data lost ocurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
-response HTTP header with the `Last-Event-ID` it requested. In case of data lost, the subscriber
+response HTTP header with the last event ID it requested. In case of data lost, the subscriber
 **SHOULD** re-fetch the original topic.
 
 Note: Native `EventSource` implementations don't give access to headers associated with the HTTP

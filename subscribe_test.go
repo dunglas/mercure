@@ -483,13 +483,30 @@ func TestSendMissedEvents(t *testing.T) {
 	})
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 
+	// Using deprecated 'Last-Event-ID' query parameter
 	go func() {
 		defer wg.Done()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
+
+		w := &responseTester{
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       ":\nid: b\ndata: d2\n\n",
+			t:                  t,
+			cancel:             cancel,
+		}
+
+		hub.SubscribeHandler(w, req)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&lastEventID=a", nil).WithContext(ctx)
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
@@ -550,7 +567,7 @@ func TestSendAllEvents(t *testing.T) {
 		defer wg.Done()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID="+EarliestLastEventID, nil).WithContext(ctx)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&lastEventID="+EarliestLastEventID, nil).WithContext(ctx)
 
 		w := &responseTester{
 			header:             http.Header{},
@@ -606,7 +623,7 @@ func TestUnknownLastEventID(t *testing.T) {
 		defer wg.Done()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=unknown", nil).WithContext(ctx)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(ctx)
 
 		w := &responseTester{
 			header:             http.Header{},
@@ -674,7 +691,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 		defer wg.Done()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&Last-Event-ID=unknown", nil).WithContext(ctx)
+		req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(ctx)
 
 		w := &responseTester{
 			header:             http.Header{},
