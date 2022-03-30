@@ -2,40 +2,57 @@ import { test, expect } from '@playwright/test';
 import { randomBytes } from "crypto";
 
 function randomString() {
-  return randomBytes(20).toString('base64url');
+  return randomBytes(20).toString('hex');
 }
 
 test.beforeEach(async ({ page }) => await page.goto('/'));
 
 test.describe('Publish update', () => {
   const randomStrings: string[] = [];
-  for (let i = 0; i < 5; i++)
+  for (let i = 0; i < 6; i++)
     randomStrings[i] = randomString();
 
-  type Data = {name: string, updateTopics: string[], topicSelectors: string[], mustBeReceived: boolean, updateID?: string};
+  type Data = {name: string, updateTopics: string[], topicSelectors: string[], mustBeReceived: boolean, updateID?: string, private?: true};
 
   const dataset: Data[] = [
-    {name: 'raw string', updateTopics: [randomStrings[0]], topicSelectors: [randomStrings[0]], mustBeReceived: true},
-    {name: 'multiple topics', updateTopics: [randomString(), randomStrings[1]], topicSelectors: [randomStrings[1]], mustBeReceived: true},
-    {name: 'multiple topic selectors', updateTopics: [randomStrings[2]], topicSelectors: ['foo', randomStrings[2]], mustBeReceived: true},
-    {name: 'URI', updateTopics: [`https://example.net/foo/${randomStrings[3]}`], topicSelectors: [`https://example.net/foo/${randomStrings[3]}`], mustBeReceived: true},
-    {name: 'URI template', updateTopics: [`https://example.net/foo/${randomStrings[4]}`], topicSelectors: ['https://example.net/foo/{random}'], mustBeReceived: true},
+    {name: 'raw string', mustBeReceived: true, updateTopics: [randomStrings[0]], topicSelectors: [randomStrings[0]]},
+    {name: 'multiple topics', mustBeReceived: true, updateTopics: [randomString(), randomStrings[1]], topicSelectors: [randomStrings[1]]},
+    {name: 'multiple topic selectors', mustBeReceived: true, updateTopics: [randomStrings[2]], topicSelectors: ['foo', randomStrings[2]]},
+    {name: 'URI', mustBeReceived: true, updateTopics: [`https://example.net/foo/${randomStrings[3]}`], topicSelectors: [`https://example.net/foo/${randomStrings[3]}`]},
+    {name: 'URI template', mustBeReceived: true, updateTopics: [`https://example.net/foo/${randomStrings[4]}`], topicSelectors: ['https://example.net/foo/{random}']},
+    {name: 'nonmatching raw string', mustBeReceived: false, updateTopics: [`will-not-match}`], topicSelectors: ['another-name']},
+    {name: 'nonmatching URI', mustBeReceived: false, updateTopics: [`https://example.net/foo/will-not-match}`], topicSelectors: ['https://example.net/foo/another-name']},
+    {name: 'nonmatching URI template', mustBeReceived: false, updateTopics: [`https://example.net/foo/will-not-match}`], topicSelectors: ['https://example.net/bar/{var}']},
+    {name: 'private raw string', mustBeReceived: false, private: true, updateTopics: [randomStrings[0]], topicSelectors: [randomStrings[0]]},
+    {name: 'private URI', mustBeReceived: false, private: true, updateTopics: [`https://example.net/foo/${randomStrings[3]}`], topicSelectors: [`https://example.net/foo/${randomStrings[3]}`]},
+    {name: 'private URI template', mustBeReceived: false, private: true, updateTopics: [`https://example.net/foo/${randomStrings[4]}`], topicSelectors: ['https://example.net/foo/{random}']},
   ];
 
   for (const data of dataset) {
     test(data.name, async ({ page }) => {
+      page.on('console', msg => console.log(msg.text()));
+
       data.updateID = `id-${JSON.stringify(data.updateTopics)}`;
 
-      const { contentType, status, body } = await page.evaluate(async (data) => {
+      const { received, contentType, status, body } = await page.evaluate(async (data) => {
+        const receivedResult = Symbol('received');
+        const notReceivedResult = Symbol('not received');  
+
         let resolveReady: Function;
         const ready = new Promise((resolve) => {
-          resolveReady = resolve;
+          resolveReady = function () {
+            resolve(true);
+          };
         });
 
         let resolveReceived: Function;
         const received = new Promise((resolve) => {
-          resolveReceived = resolve;
+          resolveReceived = function () {
+            resolve(receivedResult);
+          };
         });
+
+        const timeout = new Promise((resolve) => setTimeout(resolve, 2000, notReceivedResult));
 
         const url = new window.URL('/.well-known/mercure', window.origin);
         data.topicSelectors.forEach(topicSelector => url.searchParams.append('topic', topicSelector));
@@ -46,40 +63,69 @@ test.describe('Publish update', () => {
         event.set('data', `data for
 
         ${data.name}`);
+        if (data.private) event.set('private', 'on');
 
-        console.log(event.get('id'), event.get('data'));
+        console.log(`data: ${JSON.stringify(data)}`);
 
+        console.log(`creating EventSource: ${url}`);
         const es = new EventSource(url);
-        es.onopen = () => resolveReady(true);
+        console.log('EventSource created');
+
+        es.onopen = () => {
+          console.log('EventSource opened');
+          resolveReady(true);
+        }
+
+        let id: string;
         es.onmessage = (e) => {
-          console.log('received');
+          console.log(`EventSource event received: ${e.data}`);
           if (
             e.type === 'message' &&
             e.lastEventId === event.get('id') &&
             e.data === event.get('data')
-          )
-            resolveReceived(true);
+          ) {
+            es.close();
+            resolveReceived(receivedResult);
+          }
         };
 
         await ready; // Wait for the EventSource to be ready
-        const resp = await fetch('/.well-known/mercure', {
+
+        console.log(`Creating POST request: ${event.toString()}`);
+        const resp = await fetch(`/.well-known/mercure`, {
           method: 'POST',
           headers: { 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiKiJdfX0.Ws4gtnaPtM-R2-z9DnH-laFu5lDZrMnmyTpfU8uKyQo' },
           body: event,
         });
 
-        await received; // Wait for the event to be received
+        id = await resp.text();
+        console.log(`POST request done: ${JSON.stringify({status: resp.status, id, event: event.toString()})}`);
 
-        return {
-          contentType: resp.headers.get('Content-Type'),
-          status: resp.status,
-          body: await resp.text(),
-        };
+        switch (await Promise.race([received, timeout])) {
+          case receivedResult:
+            return {
+              received: true,
+              contentType: resp.headers.get('Content-Type'),
+              status: resp.status,
+              body: id,
+            };
+    
+          case notReceivedResult:
+            return {
+              received: false,
+            }
+        }
+
       }, data);
 
-      expect(contentType).toMatch(/^text\/plain(?:$|;.*)/);
-      expect(status).toBe(200);
-      expect(body).toBe(data.updateID); // TODO: this feature is optional, add a flag to disable this check
+      expect(received).toBe(data.mustBeReceived);
+
+      if (data.mustBeReceived) {
+        expect(contentType).toMatch(/^text\/plain(?:$|;.*)/);
+        expect(status).toBe(200);
+        if (process.env.CUSTOM_ID)
+          expect(body).toBe(data.updateID);
+      }
     });
   }
 });
