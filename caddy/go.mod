@@ -2,8 +2,6 @@ module github.com/dunglas/mercure/caddy
 
 go 1.16
 
-replace github.com/dunglas/mercure => ../
-
 require (
 	github.com/caddyserver/caddy/v2 v2.4.3
 	github.com/caddyserver/certmagic v0.14.1 // indirect
