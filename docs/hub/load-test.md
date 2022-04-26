@@ -27,3 +27,7 @@ Available environment variables (all are optional):
 * `CONNECTION_DURATION`: duration of subscribers' connection
 * `RANDOM_CONNECTION_DURATION`: to randomize the connection duration (will longs `CONNECTION_DURATION` at max)
 * `PRIVATE_UPDATES`: to send private updates with random topics instead of public updates always with the same topic
+
+## See Also
+
+* [Conformance tests](../ecosystem/conformance-tests.md)
