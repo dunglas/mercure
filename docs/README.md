@@ -27,3 +27,4 @@
 * [Using a Mercure Service in Your GitHub Actions](ecosystem/github-actions.md)
 * [Using Mercure and Hotwire to Stream Page Changes](ecosystem/hotwire.md)
 * [Getting Help](ecosystem/help.md)
+* [Conformance Tests](ecosystem/conformance-tests.md)
