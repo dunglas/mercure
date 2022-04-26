@@ -128,7 +128,7 @@ The following options can be passed as query parameters of the URL set in `trans
 
 #### Kafka Transport
 
-The Kafka transport should only be used when Pulsar is already part of your stack.
+The Kafka transport should only be used when Kafka is already part of your stack.
 
 To install Apache Kafka, [read the quickstart guide](https://kafka.apache.org/quickstart).
 
