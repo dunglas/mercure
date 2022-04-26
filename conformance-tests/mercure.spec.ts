@@ -8,22 +8,22 @@ function randomString() {
 test.beforeEach(async ({ page }) => await page.goto('/'));
 
 test.describe('Publish update', () => {
-  const randomStrings: string[] = Array.from({length: 6}, randomString);
+  const randomStrings: string[] = Array.from({ length: 6 }, randomString);
 
-  type Data = {name: string, updateTopics: string[], topicSelectors: string[], mustBeReceived: boolean, updateID?: string, private?: true};
+  type Data = { name: string, updateTopics: string[], topicSelectors: string[], mustBeReceived: boolean, updateID?: string, private?: true };
 
   const dataset: Data[] = [
-    {name: 'raw string', mustBeReceived: true, updateTopics: [randomStrings[0]], topicSelectors: [randomStrings[0]]},
-    {name: 'multiple topics', mustBeReceived: true, updateTopics: [randomString(), randomStrings[1]], topicSelectors: [randomStrings[1]]},
-    {name: 'multiple topic selectors', mustBeReceived: true, updateTopics: [randomStrings[2]], topicSelectors: ['foo', randomStrings[2]]},
-    {name: 'URI', mustBeReceived: true, updateTopics: [`https://example.net/foo/${randomStrings[3]}`], topicSelectors: [`https://example.net/foo/${randomStrings[3]}`]},
-    {name: 'URI template', mustBeReceived: true, updateTopics: [`https://example.net/foo/${randomStrings[4]}`], topicSelectors: ['https://example.net/foo/{random}']},
-    {name: 'nonmatching raw string', mustBeReceived: false, updateTopics: [`will-not-match}`], topicSelectors: ['another-name']},
-    {name: 'nonmatching URI', mustBeReceived: false, updateTopics: [`https://example.net/foo/will-not-match}`], topicSelectors: ['https://example.net/foo/another-name']},
-    {name: 'nonmatching URI template', mustBeReceived: false, updateTopics: [`https://example.net/foo/will-not-match}`], topicSelectors: ['https://example.net/bar/{var}']},
-    {name: 'private raw string', mustBeReceived: false, private: true, updateTopics: [randomStrings[0]], topicSelectors: [randomStrings[0]]},
-    {name: 'private URI', mustBeReceived: false, private: true, updateTopics: [`https://example.net/foo/${randomStrings[3]}`], topicSelectors: [`https://example.net/foo/${randomStrings[3]}`]},
-    {name: 'private URI template', mustBeReceived: false, private: true, updateTopics: [`https://example.net/foo/${randomStrings[4]}`], topicSelectors: ['https://example.net/foo/{random}']},
+    { name: 'raw string', mustBeReceived: true, updateTopics: [randomStrings[0]], topicSelectors: [randomStrings[0]] },
+    { name: 'multiple topics', mustBeReceived: true, updateTopics: [randomString(), randomStrings[1]], topicSelectors: [randomStrings[1]] },
+    { name: 'multiple topic selectors', mustBeReceived: true, updateTopics: [randomStrings[2]], topicSelectors: ['foo', randomStrings[2]] },
+    { name: 'URI', mustBeReceived: true, updateTopics: [`https://example.net/foo/${randomStrings[3]}`], topicSelectors: [`https://example.net/foo/${randomStrings[3]}`] },
+    { name: 'URI template', mustBeReceived: true, updateTopics: [`https://example.net/foo/${randomStrings[4]}`], topicSelectors: ['https://example.net/foo/{random}'] },
+    { name: 'nonmatching raw string', mustBeReceived: false, updateTopics: [`will-not-match}`], topicSelectors: ['another-name'] },
+    { name: 'nonmatching URI', mustBeReceived: false, updateTopics: [`https://example.net/foo/will-not-match}`], topicSelectors: ['https://example.net/foo/another-name'] },
+    { name: 'nonmatching URI template', mustBeReceived: false, updateTopics: [`https://example.net/foo/will-not-match}`], topicSelectors: ['https://example.net/bar/{var}'] },
+    { name: 'private raw string', mustBeReceived: false, private: true, updateTopics: [randomStrings[0]], topicSelectors: [randomStrings[0]] },
+    { name: 'private URI', mustBeReceived: false, private: true, updateTopics: [`https://example.net/foo/${randomStrings[3]}`], topicSelectors: [`https://example.net/foo/${randomStrings[3]}`] },
+    { name: 'private URI template', mustBeReceived: false, private: true, updateTopics: [`https://example.net/foo/${randomStrings[4]}`], topicSelectors: ['https://example.net/foo/{random}'] },
   ];
 
   for (const data of dataset) {
@@ -34,18 +34,16 @@ test.describe('Publish update', () => {
 
       const { received, contentType, status, body } = await page.evaluate(async (data) => {
         const receivedResult = Symbol('received');
-        const notReceivedResult = Symbol('not received');  
+        const notReceivedResult = Symbol('not received');
 
         let resolveReady: () => void;
         const ready = new Promise((resolve) => {
-          resolveReady = () => resolve(true)
+          resolveReady = () => resolve(true);
         });
 
-        let resolveReceived: Function;
+        let resolveReceived: () => void;
         const received = new Promise((resolve) => {
-          resolveReceived = function () {
-            resolve(receivedResult);
-          };
+          resolveReceived = () => resolve(receivedResult);
         });
 
         const timeout = new Promise((resolve) => setTimeout(resolve, 2000, notReceivedResult));
@@ -69,7 +67,7 @@ test.describe('Publish update', () => {
 
         es.onopen = () => {
           console.log('EventSource opened');
-          resolveReady(true);
+          resolveReady();
         }
 
         let id: string;
@@ -81,7 +79,7 @@ test.describe('Publish update', () => {
             e.data === event.get('data')
           ) {
             es.close();
-            resolveReceived(receivedResult);
+            resolveReceived();
           }
         };
 
@@ -95,7 +93,7 @@ test.describe('Publish update', () => {
         });
 
         id = await resp.text();
-        console.log(`POST request done: ${JSON.stringify({status: resp.status, id, event: event.toString()})}`);
+        console.log(`POST request done: ${JSON.stringify({ status: resp.status, id, event: event.toString() })}`);
 
         switch (await Promise.race([received, timeout])) {
           case receivedResult:
@@ -105,7 +103,7 @@ test.describe('Publish update', () => {
               status: resp.status,
               body: id,
             };
-    
+
           case notReceivedResult:
             return {
               received: false,
