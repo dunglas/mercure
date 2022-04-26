@@ -81,7 +81,7 @@ func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {
 func init() { //nolint:gochecknoinits
 	if version == "dev" {
 		info, ok := debug.ReadBuildInfo()
-		if ok && info.Main.Version != "(devel)" {
+		if ok && info.Main.Version != "(devel)" && info.Main.Version != "" {
 			version = info.Main.Version
 		}
 	}
