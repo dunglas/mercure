@@ -36,11 +36,9 @@ test.describe('Publish update', () => {
         const receivedResult = Symbol('received');
         const notReceivedResult = Symbol('not received');  
 
-        let resolveReady: Function;
+        let resolveReady: () => void;
         const ready = new Promise((resolve) => {
-          resolveReady = function () {
-            resolve(true);
-          };
+          resolveReady = () => resolve(true)
         });
 
         let resolveReceived: Function;
