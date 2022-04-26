@@ -8,9 +8,7 @@ function randomString() {
 test.beforeEach(async ({ page }) => await page.goto('/'));
 
 test.describe('Publish update', () => {
-  const randomStrings: string[] = [];
-  for (let i = 0; i < 6; i++)
-    randomStrings[i] = randomString();
+  const randomStrings: string[] = Array.from({length: 6}, randomString);
 
   type Data = {name: string, updateTopics: string[], topicSelectors: string[], mustBeReceived: boolean, updateID?: string, private?: true};
 
