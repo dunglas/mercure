@@ -59,3 +59,25 @@ jobs:
       uses: shogo82148/actions-goveralls@v1
       with:
         path-to-profile: profile.cov
+
+    - name: Start Mercure
+      run: |
+        cd caddy/mercure
+        sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' go run main.go start -config ../../Caddyfile.dev
+        cd -
+
+    - uses: actions/setup-node@v2
+      with:
+        node-version: '14.x'
+
+    - name: Install Playwrigth dependencies
+      working-directory: conformance-tests/
+      run: npm ci
+
+    - name: Install Playwright
+      working-directory: conformance-tests/
+      run: npx playwright install --with-deps
+
+    - name: Run Playwright tests
+      working-directory: conformance-tests/
+      run: npx playwright test
