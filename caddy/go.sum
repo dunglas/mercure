@@ -939,6 +939,7 @@ github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 github.com/yuin/goldmark v1.3.6/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.3.7 h1:NSaHgaeJFCtWXCBkBKXw0rhgMuJ0VoE9FB5mWldcrQ4=
 github.com/yuin/goldmark v1.3.7/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
+github.com/yuin/goldmark v1.4.1 h1:/vn0k+RBvwlxEmP5E7SZMqNxPhfMVFEJiykr15/0XKM=
 github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark-highlighting v0.0.0-20210516132338-9216f9c5aa01 h1:0SJnXjE4jDClMW6grE0xpNhwpqbPwkBTn8zpVw5C0SI=
 github.com/yuin/goldmark-highlighting v0.0.0-20210516132338-9216f9c5aa01/go.mod h1:TwKQPa5XkCCRC2GRZ5wtfNUTQ2+9/i19mGRijFeJ4BE=
