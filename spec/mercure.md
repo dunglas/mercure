@@ -97,7 +97,7 @@ The publisher **MAY** provide the following target attributes in the Link Header
     will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 *   `cookie-name`: the name of the cookie that contains the JWS [@!RFC7515] used for authorization
     ((#authorization)). If this attribute is not set, the name of the cookie is assumed to be
-    `mercureAuthorization`. Using this attribute allows prevents cookie name conflicts when using
+    `mercureAuthorization`. Using this attribute allows to prevent cookie name conflicts when using
     multiple hubs on the same domain.
 *   `key-set`: the URL of the key set to use to decrypt updates, encoded in the JWK set format
     (JSON Web Key Set) [@!RFC7517]. See (#encryption). As this key set will contain a secret
