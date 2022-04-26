@@ -63,7 +63,7 @@ jobs:
     - name: Start Mercure
       run: |
         cd caddy/mercure
-        MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' go run main.go start -config ../../Caddyfile.dev
+        sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' go run main.go start -config ../../Caddyfile.dev
         cd -
 
     - uses: actions/setup-node@v2
