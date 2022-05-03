@@ -45,7 +45,7 @@
 
 ## Useful Related Libraries
 
-* [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource)
+* [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource) 🚨 since version 1.0.26, [this library contains code that could display messages against the war in Ukraine to end users](https://github.com/Yaffle/EventSource/commit/de137927e13d8afac153d2485152ccec48948a7a)
 * [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
 * [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
