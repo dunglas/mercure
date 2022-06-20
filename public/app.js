@@ -2,7 +2,6 @@
 
 (function () {
   const origin = window.location.origin;
-  
   const defaultTopic = document.URL + "demo/books/1.jsonld";
   const placeholderTopic = "https://example.com/my-private-topic";
   const defaultJwt =
@@ -115,7 +114,7 @@ foo`;
     const u = new URL($settingsForm.hubUrl.value);
     topicList.forEach((topic) => u.searchParams.append("topic", topic));
     if (lastEventId.value)
-      u.searchParams.append("Last-Event-ID", lastEventId.value);
+      u.searchParams.append("lastEventID", lastEventId.value);
 
     let ol = null;
     if ($settingsForm.authorization.value === "header")
@@ -226,7 +225,7 @@ foo`;
         "topic",
         "/.well-known/mercure/subscriptions{/topic}{/subscriber}"
       );
-      u.searchParams.append("Last-Event-ID", json.lastEventID);
+      u.searchParams.append("lastEventID", json.lastEventID);
 
       if (opt) subscriptionEventSource = new EventSourcePolyfill(u, opt);
       else subscriptionEventSource = new EventSource(u);
