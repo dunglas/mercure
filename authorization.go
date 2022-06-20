@@ -34,6 +34,8 @@ const (
 var (
 	// ErrInvalidAuthorizationHeader is returned when the Authorization header is invalid.
 	ErrInvalidAuthorizationHeader = errors.New(`invalid "Authorization" HTTP header`)
+	// ErrInvalidAuthorizationQuery is returned when the authorization query parameter is invalid.
+	ErrInvalidAuthorizationQuery = errors.New(`invalid "authorization" Query parameter`)
 	// ErrNoOrigin is returned when the cookie authorization mechanism is used and no Origin nor Referer headers are presents.
 	ErrNoOrigin = errors.New(`an "Origin" or a "Referer" HTTP header must be present to use the cookie-based authorization mechanism`)
 	// ErrOriginNotAllowed is returned when the Origin is not allowed to post updates.
@@ -56,6 +58,14 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 		}
 
 		return validateJWT(authorizationHeaders[0][7:], jwtConfig)
+	}
+
+	if authorizationQuery, queryExists := r.URL.Query()["authorization"]; queryExists {
+		if len(authorizationQuery) != 1 || len(authorizationQuery[0]) < 41 {
+			return nil, ErrInvalidAuthorizationQuery
+		}
+
+		return validateJWT(authorizationQuery[0], jwtConfig)
 	}
 
 	cookie, err := r.Cookie(cookieName)

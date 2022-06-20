@@ -5,7 +5,16 @@
 
 {$SERVER_NAME:localhost}
 
-log
+log {
+	format filter {
+		wrap console
+		fields {
+			uri query {
+				replace authorization REDACTED
+			}
+		}
+	}
+}
 
 route {
 	redir / /.well-known/mercure/ui/
