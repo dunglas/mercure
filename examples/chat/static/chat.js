@@ -28,7 +28,7 @@ let userList, es;
 
   const subscribeURL = new URL(hubURL);
   subscribeURL.searchParams.append(
-    "Last-Event-ID",
+    "lastEventID",
     subscriptionCollection.lastEventID
   );
   subscribeURL.searchParams.append("topic", messageURITemplate);
