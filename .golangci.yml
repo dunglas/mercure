@@ -10,18 +10,20 @@ linters:
     - wsl
     - gomnd
     - testpackage
-    - exhaustivestruct
+    - exhaustruct
     - paralleltest
     - cyclop
     - forcetypeassert
     - tagliatelle
     - varnamelen
+    - nonamedreturns
 
     # deprecated
     - interfacer
     - maligned
     - scopelint
     - golint
+    - exhaustivestruct
 
 issues:
   exclude-rules:
