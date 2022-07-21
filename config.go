@@ -30,6 +30,7 @@ func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("acme_http01_addr", ":http")
 	v.SetDefault("heartbeat_interval", 40*time.Second) // Must be < 45s for compatibility with Yaffle/EventSource
 	v.SetDefault("read_timeout", 5*time.Second)
+	v.SetDefault("read_header_timeout", 3*time.Second)
 	v.SetDefault("write_timeout", 600*time.Second)
 	v.SetDefault("dispatch_timeout", 5*time.Second)
 	v.SetDefault("compress", false)

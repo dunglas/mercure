@@ -82,18 +82,22 @@ func (h *Hub) Serve() { //nolint:funlen
 	addr := h.config.GetString("addr")
 
 	h.server = &http.Server{
-		Addr:         addr,
-		Handler:      h.baseHandler(),
-		ReadTimeout:  h.config.GetDuration("read_timeout"),
-		WriteTimeout: h.config.GetDuration("write_timeout"),
+		Addr:              addr,
+		Handler:           h.baseHandler(),
+		ReadTimeout:       h.config.GetDuration("read_timeout"),
+		ReadHeaderTimeout: h.config.GetDuration("read_header_timeout"),
+		WriteTimeout:      h.config.GetDuration("write_timeout"),
 	}
 
 	if _, ok := h.metrics.(*PrometheusMetrics); ok {
 		addr := h.config.GetString("metrics_addr")
 
 		h.metricsServer = &http.Server{
-			Addr:    addr,
-			Handler: h.metricsHandler(),
+			Addr:              addr,
+			Handler:           h.metricsHandler(),
+			ReadTimeout:       h.config.GetDuration("read_timeout"),
+			ReadHeaderTimeout: h.config.GetDuration("read_header_timeout"),
+			WriteTimeout:      h.config.GetDuration("write_timeout"),
 		}
 
 		if c := h.logger.Check(zap.InfoLevel, "Mercure metrics started"); c != nil {
