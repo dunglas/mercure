@@ -462,7 +462,7 @@ func TestSubscribeAll(t *testing.T) {
 
 func TestSendMissedEvents(t *testing.T) {
 	bt := createBoltTransport("bolt://test.db")
-	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
+	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt), WithProtocolVersionCompatibility(7))
 	transport := hub.transport.(*BoltTransport)
 	defer transport.Close()
 	defer os.Remove("test.db")

@@ -108,6 +108,21 @@ func TestStop(t *testing.T) {
 	wg.Wait()
 }
 
+func TestWithProtocolVersionCompatibility(t *testing.T) {
+	op := &opt{}
+
+	o := WithProtocolVersionCompatibility(7)
+	require.Nil(t, o(op))
+	assert.Equal(t, 7, op.protocolVersionCompatibility)
+}
+
+func TestInvalidWithProtocolVersionCompatibility(t *testing.T) {
+	op := &opt{}
+
+	o := WithProtocolVersionCompatibility(6)
+	require.NotNil(t, o(op))
+}
+
 func createDummy(options ...Option) *Hub {
 	tss, _ := NewTopicSelectorStoreLRU(0, 0)
 	options = append(
