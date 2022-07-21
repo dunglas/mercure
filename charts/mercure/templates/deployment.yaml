@@ -47,6 +47,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mercure.fullname" . }}
                   key: global-options
+            - name: EXTRA_DIRECTIVES
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mercure.fullname" . }}
+                  key: caddy-extra-directives
             - name: MERCURE_TRANSPORT_URL
               valueFrom:
                 secretKeyRef:

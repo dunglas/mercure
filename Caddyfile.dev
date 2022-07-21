@@ -16,6 +16,8 @@ log {
 	}
 }
 
+{$EXTRA_DIRECTIVES}
+
 route {
 	redir / /.well-known/mercure/ui/
 	encode zstd gzip

@@ -71,7 +71,8 @@ The provided `Caddyfile` and the Docker image provide convenient environment var
 
 | Environment variable         | Description                                                                                                                          | Default value       |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
-| `GLOBAL_OPTIONS`             | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line |
+| `GLOBAL_OPTIONS`             | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line |                     |
+| `EXTRA_DIRECTIVES`           | [`Caddyfile` statements](https://caddyserver.com/docs/caddyfile)                                                                     |                     |
 | `SERVER_NAME`                | the server name or address                                                                                                           | `localhost`         |
 | `MERCURE_TRANSPORT_URL`      | the value passed to the `transport_url` directive                                                                                    | `bolt://mercure.db` |
 | `MERCURE_PUBLISHER_JWT_KEY`  | the JWT key to use for publishers                                                                                                    |                     |

@@ -16,6 +16,8 @@ log {
 	}
 }
 
+{$EXTRA_DIRECTIVES}
+
 route {
 	encode zstd gzip
 

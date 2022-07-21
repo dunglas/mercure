@@ -21,6 +21,7 @@ To install the chart with the release name `my-release`, run the following comma
 | autoscaling | object | Disabled by default. | Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details). |
 | dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
+| caddyExtraDirectives | string | `""` | Inject extra Caddy directives in the Caddyfile. |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
 | globalOptions | string | `""` | Inject global options in the Caddyfile. |
 | image.pullPolicy | string | `"IfNotPresent"` | [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node. |

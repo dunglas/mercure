@@ -10,6 +10,8 @@ dev: false
 transportUrl: bolt:///data/mercure.db
 # -- Inject extra Mercure directives in the Caddyfile.
 extraDirectives: ""
+# -- Inject extra Caddy directives in the Caddyfile.
+caddyExtraDirectives: ""
 
 # -- The JWT key to use for publishers, a random key will be generated if empty.
 publisherJwtKey: ""
