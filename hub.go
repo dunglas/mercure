@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ErrUnsupportedProtocolVersion is returned when the version passed is unsupported
+// ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
 
 // Option instances allow to configure the library.
@@ -197,7 +197,7 @@ func WithCookieName(cookieName string) Option {
 	}
 }
 
-// WithCookieName sets the version of the Mercure protocol to be backward compatible with (only version 7 is supported)
+// WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (only version 7 is supported).
 func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	return func(o *opt) error {
 		if protocolVersionCompatibility != 7 {
