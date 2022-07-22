@@ -240,6 +240,10 @@ type opt struct {
 	protocolVersionCompatibility int
 }
 
+func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
+	return o.protocolVersionCompatibility != 0 && version >= o.protocolVersionCompatibility
+}
+
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
 	*opt

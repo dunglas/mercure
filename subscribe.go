@@ -163,15 +163,15 @@ func retrieveLastEventID(r *http.Request, opt *opt, logger Logger) string {
 		return id
 	}
 
-	if opt.protocolVersionCompatibility == 0 || opt.protocolVersionCompatibility >= 8 {
-		return ""
-	}
-
 	if legacyEventIDValues, present := query["Last-Event-ID"]; present {
-		logger.Info("deprecation: the 'Last-Event-ID' query parameter is deprecated, use 'lastEventID' instead.")
+		if opt.isBackwardCompatiblyEnabledWith(7) {
+			logger.Info("deprecation: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'lastEventID' instead.")
 
-		if len(legacyEventIDValues) != 0 {
-			return legacyEventIDValues[0]
+			if len(legacyEventIDValues) != 0 {
+				return legacyEventIDValues[0]
+			}
+		} else {
+			logger.Info("unsupported: the 'Last-Event-ID' query parameter is not supported anymore, use 'lastEventID' instead or enable backward compatibility with version 7 of the protocol.")
 		}
 	}
 
