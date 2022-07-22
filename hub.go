@@ -3,6 +3,7 @@
 package mercure
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -11,6 +12,9 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
+
+// ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
+var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
 
 // Option instances allow to configure the library.
 type Option func(h *opt) error
@@ -193,6 +197,19 @@ func WithCookieName(cookieName string) Option {
 	}
 }
 
+// WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (only version 7 is supported).
+func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
+	return func(o *opt) error {
+		if protocolVersionCompatibility != 7 {
+			return ErrUnsupportedProtocolVersion
+		}
+
+		o.protocolVersionCompatibility = protocolVersionCompatibility
+
+		return nil
+	}
+}
+
 type jwtConfig struct {
 	key           []byte
 	signingMethod jwt.SigningMethod
@@ -202,24 +219,29 @@ type jwtConfig struct {
 //
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
-	transport          Transport
-	topicSelectorStore *TopicSelectorStore
-	anonymous          bool
-	debug              bool
-	subscriptions      bool
-	ui                 bool
-	demo               bool
-	logger             Logger
-	writeTimeout       time.Duration
-	dispatchTimeout    time.Duration
-	heartbeat          time.Duration
-	publisherJWT       *jwtConfig
-	subscriberJWT      *jwtConfig
-	metrics            Metrics
-	allowedHosts       []string
-	publishOrigins     []string
-	corsOrigins        []string
-	cookieName         string
+	transport                    Transport
+	topicSelectorStore           *TopicSelectorStore
+	anonymous                    bool
+	debug                        bool
+	subscriptions                bool
+	ui                           bool
+	demo                         bool
+	logger                       Logger
+	writeTimeout                 time.Duration
+	dispatchTimeout              time.Duration
+	heartbeat                    time.Duration
+	publisherJWT                 *jwtConfig
+	subscriberJWT                *jwtConfig
+	metrics                      Metrics
+	allowedHosts                 []string
+	publishOrigins               []string
+	corsOrigins                  []string
+	cookieName                   string
+	protocolVersionCompatibility int
+}
+
+func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
+	return o.protocolVersionCompatibility != 0 && version >= o.protocolVersionCompatibility
 }
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.

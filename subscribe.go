@@ -76,7 +76,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscriber {
-	s := NewSubscriber(retrieveLastEventID(r, h.logger), h.logger)
+	s := NewSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger)
 	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
 	var privateTopics []string
@@ -153,7 +153,7 @@ func sendHeaders(w http.ResponseWriter, s *Subscriber) {
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
-func retrieveLastEventID(r *http.Request, logger Logger) string {
+func retrieveLastEventID(r *http.Request, opt *opt, logger Logger) string {
 	if id := r.Header.Get("Last-Event-ID"); id != "" {
 		return id
 	}
@@ -164,10 +164,14 @@ func retrieveLastEventID(r *http.Request, logger Logger) string {
 	}
 
 	if legacyEventIDValues, present := query["Last-Event-ID"]; present {
-		logger.Info("deprecation: the 'Last-Event-ID' query parameter is deprecated, use 'lastEventID' instead.")
+		if opt.isBackwardCompatiblyEnabledWith(7) {
+			logger.Info("deprecation: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'lastEventID' instead.")
 
-		if len(legacyEventIDValues) != 0 {
-			return legacyEventIDValues[0]
+			if len(legacyEventIDValues) != 0 {
+				return legacyEventIDValues[0]
+			}
+		} else {
+			logger.Info("unsupported: the 'Last-Event-ID' query parameter is not supported anymore, use 'lastEventID' instead or enable backward compatibility with version 7 of the protocol.")
 		}
 	}
 
