@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
+//nolint:funlen
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
