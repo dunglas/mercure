@@ -417,12 +417,8 @@ To be allowed to publish an update, the JWS presented by the publisher **MUST** 
 called `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
 array of topic selectors. See (#topic-selectors).
 
-If `mercure.publish`:
-
-*   is not defined, then the publisher **MUST NOT** be authorized to dispatch any update
-*   contains an empty array, the publisher **MUST NOT** be authorized to publish private updates,
-    but can publish public updates for all topics.
-
+If `mercure.publish` is not defined, or contains an empty array, then the publisher **MUST NOT**
+be authorized to dispatch any update.
 Otherwise, the hub **MUST** check that every topics of the update to dispatch matches at least one
 of the topic selectors contained in `mercure.publish`.
 
