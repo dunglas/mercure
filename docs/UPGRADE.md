@@ -1,5 +1,22 @@
 # Upgrade
 
+## 0.14
+
+The query parameter allowing to fetch past events has been renamed `lastEventID`: in your clients, replace all occurences of the `Last-Event-ID` query parameter by `lastEventID`.
+
+Publishing public updates in topics not explictly listed in the `mercure.publish` JWT claim isn't supported anymore.
+To let your publishers publish (public and private updates) in all topics, use the special `*` topic selector:
+
+```patch
+ {
+   "mercure": {
+-    "publish": []
++    "publish": ["*"]
+ }
+```
+
+Backward compatibility with the old version of the protocol (version 7) can be enabled by setting the `protocol_version_compatibility` directive to `7` in your `Caddyfile`.
+
 ## 0.13
 
 The `DEBUG` environment variable has gone. The the `GLOBAL_OPTIONS` environment variable to `debug` instead.
