@@ -47,7 +47,7 @@ func TestForwardedHeaders(t *testing.T) {
 	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("X-Forwarded-For", "192.0.2.1")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
 
 	resp2, err := client.Do(req)
 	require.Nil(t, err)
@@ -209,7 +209,7 @@ func TestServe(t *testing.T) {
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
 	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
 
 	resp2, err := client.Do(req)
 	require.Nil(t, err)
@@ -279,7 +279,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		req, err := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 		require.Nil(t, err)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{}))
+		req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
 
 		resp, err := client.Do(req)
 		require.Nil(t, err)
@@ -469,7 +469,7 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 func (s *testServer) publish(body url.Values) {
 	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(s.h, rolePublisher, []string{}))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(s.h, rolePublisher, []string{"*"}))
 
 	resp, err := s.client.Do(req)
 	require.Nil(s.t, err)

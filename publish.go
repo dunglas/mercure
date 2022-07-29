@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
+//nolint:funlen
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
@@ -47,10 +48,21 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	private := len(r.PostForm["private"]) != 0
-	if private && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	if !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) {
+		if private {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
-		return
+			return
+		}
+
+		if h.isBackwardCompatiblyEnabledWith(7) {
+			h.logger.Info("Deprecated: posting public updates to topics not listed in the 'mercure.publish' JWT claim is deprecated since the version 7 of the protocol, use '[\"*\"]' as value to allow publishing on all topics.")
+		} else {
+			h.logger.Info("Unsupported: posting public updates to topics not listed in the 'mercure.publish' JWT claim is not supported anymore, use '[\"*\"]' as value to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.")
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
+			return
+		}
 	}
 
 	u := &Update{
