@@ -21,6 +21,14 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer h.shutdown(s)
 
+	var expireTimer *time.Timer
+	var expireTimerC <-chan time.Time
+	if s.Claims != nil && s.Claims.ExpiresAt != nil {
+		expireTimer = time.NewTimer(time.Until(s.Claims.ExpiresAt.Time))
+		defer expireTimer.Stop()
+		expireTimerC = expireTimer.C
+	}
+
 	var heartbeatTimer *time.Timer
 	var heartbeatTimerC <-chan time.Time
 	if h.heartbeat != 0 {
@@ -41,6 +49,12 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			if c := h.logger.Check(zap.DebugLevel, "connection closed by the client"); c != nil {
+				c.Write(zap.Object("subscriber", s))
+			}
+
+			return
+		case <-expireTimerC:
+			if c := h.logger.Check(zap.DebugLevel, "JWT expired: close the connection"); c != nil {
 				c.Write(zap.Object("subscriber", s))
 			}
 

@@ -473,6 +473,9 @@ Consequently, this private update will be received by this subscriber, while oth
 a canonical topic matched by the selector provided in a `topic` query parameter but not matched by
 selectors in the `mercure.subscribe` claim will not.
 
+If the presented JWS contains an expiration time in the standard `exp` claim defined in [@!RFC7519],
+the connection **MUST** be closed by the hub at that time.
+
 ## Payload
 
 The `mercure` claim of the JWS **CAN** also contain user-defined values under the `payload` key.
