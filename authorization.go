@@ -75,7 +75,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 	}
 
 	// CSRF attacks cannot occur when using safe methods
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		return validateJWT(cookie.Value, jwtConfig)
 	}
 

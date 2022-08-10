@@ -1,7 +1,8 @@
 package mercure
 
 import (
-	"io/ioutil"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestEmptyBodyAndJWT(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://example.com/demo/foo.jsonld", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo.jsonld", nil)
 	w := httptest.NewRecorder()
 
 	h, _ := NewHub()
@@ -26,12 +27,12 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 	assert.True(t, cookie.Expires.Before(time.Now()))
 
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "", string(body))
 }
 
 func TestBodyAndJWT(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
 	w := httptest.NewRecorder()
 
 	h, _ := NewHub()
@@ -47,6 +48,6 @@ func TestBodyAndJWT(t *testing.T) {
 	assert.Empty(t, cookie.Expires)
 
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "<hello/>", string(body))
 }

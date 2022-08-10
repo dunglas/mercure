@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -44,7 +43,7 @@ func TestForwardedHeaders(t *testing.T) {
 	defer resp.Body.Close()
 
 	body := url.Values{"topic": {"http://example.com/test-forwarded"}, "data": {"hello"}}
-	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("X-Forwarded-For", "192.0.2.1")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
@@ -85,10 +84,10 @@ func TestSecurityOptions(t *testing.T) {
 	resp.Body.Close()
 
 	// Preflight request
-	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil)
+	req, _ := http.NewRequest(http.MethodOptions, testSecureURL, nil)
 	req.Header.Add("Origin", "https://example.com")
 	req.Header.Add("Access-Control-Request-Headers", "authorization,cache-control,last-event-id")
-	req.Header.Add("Access-Control-Request-Method", "GET")
+	req.Header.Add("Access-Control-Request-Method", http.MethodGet)
 	resp2, _ := client.Do(req)
 	require.NotNil(t, resp2)
 
@@ -98,7 +97,7 @@ func TestSecurityOptions(t *testing.T) {
 	resp2.Body.Close()
 
 	// Subscriptions
-	req, _ = http.NewRequest("GET", testSecureURL+"/subscriptions", nil)
+	req, _ = http.NewRequest(http.MethodGet, testSecureURL+"/subscriptions", nil)
 	resp3, _ := client.Do(req)
 	require.NotNil(t, resp3)
 	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
@@ -133,7 +132,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
 	resp.Body.Close()
 
-	req, _ := http.NewRequest("OPTIONS", testSecureURL, nil)
+	req, _ := http.NewRequest(http.MethodOptions, testSecureURL, nil)
 
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, roleSubscriber, []string{}))
 	req.Header.Add("Content-Type", "text/plain; boundary=")
@@ -142,7 +141,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 	req.Header.Add("Cache-Control", "no-cache")
 	req.Header.Add("Pragma", "no-cache")
 	req.Header.Add("Access-Control-Request-Headers", "authorization,cache-control,last-event-id")
-	req.Header.Add("Access-Control-Request-Method", "GET")
+	req.Header.Add("Access-Control-Request-Method", http.MethodGet)
 	resp2, _ := client.Do(req)
 	require.NotNil(t, resp2)
 
@@ -167,13 +166,13 @@ func TestServe(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	hpBody, _ := ioutil.ReadAll(resp.Body)
+	hpBody, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(hpBody), "Mercure Hub")
 
 	respHealthz, err := client.Get("http://" + testAddr + "/healthz")
 	require.Nil(t, err)
 	defer respHealthz.Body.Close()
-	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
+	healthzBody, _ := io.ReadAll(respHealthz.Body)
 	assert.Contains(t, string(healthzBody), "ok")
 
 	var wgConnected, wgTested sync.WaitGroup
@@ -187,7 +186,7 @@ func TestServe(t *testing.T) {
 		wgConnected.Done()
 
 		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
 	}()
@@ -199,7 +198,7 @@ func TestServe(t *testing.T) {
 		wgConnected.Done()
 
 		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
 	}()
@@ -207,7 +206,7 @@ func TestServe(t *testing.T) {
 	wgConnected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
-	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
 
@@ -240,7 +239,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 	subscribe := func(expectedBodyData string) {
 		cx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequest("GET", testURL+"?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, testURL+"?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp, err := http.DefaultClient.Do(req)
 		require.Nil(t, err)
@@ -276,7 +275,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		}
 
 		body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {data}, "id": {data}}
-		req, err := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+		req, err := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 		require.Nil(t, err)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
@@ -319,7 +318,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 }
 
 func TestServeAcme(t *testing.T) {
-	dir, _ := ioutil.TempDir("", "cert")
+	dir, _ := os.MkdirTemp("", "cert")
 	defer os.RemoveAll(dir)
 
 	h := createAnonymousDummy(WithAllowedHosts([]string{"example.com"}))
@@ -396,7 +395,7 @@ func TestMetricsVersionIsAccessible(t *testing.T) {
 	assert.Nil(t, err)
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	assert.Nil(t, err)
 
 	pattern := "mercure_version_info{architecture=\".+\",built_at=\".*\",commit=\".*\",go_version=\".+\",os=\".+\",version=\"dev\"} 1"
@@ -467,7 +466,7 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 }
 
 func (s *testServer) publish(body url.Values) {
-	req, _ := http.NewRequest("POST", testURL, strings.NewReader(body.Encode()))
+	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(s.h, rolePublisher, []string{"*"}))
 
@@ -485,7 +484,7 @@ func (s *testServer) assertMetric(metric string) {
 	assert.Nil(s.t, err)
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	assert.Nil(s.t, err)
 
 	assert.Contains(s.t, string(b), metric)

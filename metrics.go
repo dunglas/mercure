@@ -1,6 +1,8 @@
 package mercure
 
 import (
+	"net/http"
+
 	"github.com/dunglas/mercure/common"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -77,7 +79,7 @@ func (m *PrometheusMetrics) Register(r *mux.Router) {
 	// Go-unrelated process metrics (memory usage, file descriptors, etc.).
 	m.registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
-	r.Handle("/metrics", promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods("GET")
+	r.Handle("/metrics", promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods(http.MethodGet)
 }
 
 func (m *PrometheusMetrics) SubscriberConnected(s *Subscriber) {

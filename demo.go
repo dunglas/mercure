@@ -10,6 +10,7 @@ import (
 )
 
 // uiContent is our static web server content.
+//
 //go:embed public
 var uiContent embed.FS
 
