@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -94,7 +95,7 @@ func TestStop(t *testing.T) {
 	for i := 0; i < numberOfSubscribers; i++ {
 		go func() {
 			defer wg.Done()
-			req := httptest.NewRequest("GET", defaultHubURL+"?topic=http://example.com/foo", nil)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/foo", nil)
 
 			w := httptest.NewRecorder()
 			hub.SubscribeHandler(w, req)

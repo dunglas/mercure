@@ -29,7 +29,7 @@ func (h *Hub) initHandler() {
 
 	csp := "default-src 'self'"
 	if h.demo {
-		router.PathPrefix(defaultDemoURL).HandlerFunc(h.Demo).Methods("GET", "HEAD")
+		router.PathPrefix(defaultDemoURL).HandlerFunc(h.Demo).Methods(http.MethodGet, http.MethodHead)
 	}
 	if h.ui {
 		public, err := fs.Sub(uiContent, "public")
@@ -44,8 +44,8 @@ func (h *Hub) initHandler() {
 
 	h.registerSubscriptionHandlers(router)
 
-	router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
-	router.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
+	router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
+	router.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
 
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         h.debug,
@@ -200,12 +200,12 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	r := mux.NewRouter()
 	h.registerSubscriptionHandlers(r)
 
-	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods("GET", "HEAD")
-	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods("POST")
+	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
 
 	csp := "default-src 'self'"
 	if h.demo {
-		r.PathPrefix("/demo").HandlerFunc(h.Demo).Methods("GET", "HEAD")
+		r.PathPrefix("/demo").HandlerFunc(h.Demo).Methods(http.MethodGet, http.MethodHead)
 	}
 
 	if h.ui {
@@ -217,7 +217,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 		r.PathPrefix("/").Handler(http.FileServer(http.FS(public)))
 		csp += " mercure.rocks cdn.jsdelivr.net"
 	} else {
-		r.HandleFunc("/", welcomeHandler).Methods("GET", "HEAD")
+		r.HandleFunc("/", welcomeHandler).Methods(http.MethodGet, http.MethodHead)
 	}
 
 	secureMiddleware := secure.New(secure.Options{
@@ -278,9 +278,9 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	r.UseEncodedPath()
 	r.SkipClean(true)
 
-	r.HandleFunc(subscriptionURL, h.SubscriptionHandler).Methods("GET")
-	r.HandleFunc(subscriptionsForTopicURL, h.SubscriptionsHandler).Methods("GET")
-	r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods("GET")
+	r.HandleFunc(subscriptionURL, h.SubscriptionHandler).Methods(http.MethodGet)
+	r.HandleFunc(subscriptionsForTopicURL, h.SubscriptionsHandler).Methods(http.MethodGet)
+	r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods(http.MethodGet)
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.
@@ -312,7 +312,7 @@ func (h *Hub) metricsHandler() http.Handler {
 func registerHealthz(router *mux.Router) {
 	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "ok")
-	}).Methods("GET", "HEAD")
+	}).Methods(http.MethodGet, http.MethodHead)
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.

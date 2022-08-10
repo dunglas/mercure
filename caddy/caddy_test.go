@@ -47,7 +47,7 @@ func TestMercure(t *testing.T) {
 
 	go func() {
 		cx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp := tester.AssertResponseCode(req, http.StatusOK)
 
@@ -76,7 +76,7 @@ func TestMercure(t *testing.T) {
 	connected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
-	req, err := http.NewRequest("POST", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWT)
@@ -119,7 +119,7 @@ func TestJWTPlaceholders(t *testing.T) {
 
 	go func() {
 		cx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp := tester.AssertResponseCode(req, http.StatusOK)
 
@@ -148,7 +148,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	connected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
-	req, err := http.NewRequest("POST", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", "Bearer "+publisherJWTRSA)
@@ -179,7 +179,7 @@ func TestSubscriptionAPI(t *testing.T) {
 	}
 	`, "caddyfile")
 
-	req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure/subscriptions", nil)
+	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure/subscriptions", nil)
 	resp := tester.AssertResponseCode(req, http.StatusOK)
 	resp.Body.Close()
 }
@@ -212,7 +212,7 @@ func TestCookieName(t *testing.T) {
 
 	go func() {
 		cx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequest("GET", "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req.Header.Add("Origin", "http://localhost:9080")
 		req.AddCookie(&http.Cookie{Name: "foo", Value: subscriberJWT})
 		req = req.WithContext(cx)
@@ -243,7 +243,7 @@ func TestCookieName(t *testing.T) {
 	connected.Wait()
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}, "private": {"1"}}
-	req, err := http.NewRequest("POST", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Origin", "http://localhost:9080")
