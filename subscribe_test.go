@@ -12,7 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type responseWriterMock struct{}
@@ -779,6 +781,30 @@ func TestSubscribeHeartbeat(t *testing.T) {
 	}
 
 	hub.SubscribeHandler(w, req)
+}
+
+func TestSubscribeExpires(t *testing.T) {
+	hub := createAnonymousDummy()
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	token.Claims = &claims{
+		Mercure: mercureClaim{
+			Subscribe: []string{"*"},
+		},
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Second))},
+	}
+
+	jwt, err := token.SignedString(hub.subscriberJWT.key)
+	require.Nil(t, err)
+
+	req := httptest.NewRequest("GET", defaultHubURL+"?topic=foo", nil)
+	req.Header.Add("Authorization", "Bearer "+jwt)
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+	assert.Equal(t, 200, resp.StatusCode)
 }
 
 func BenchmarkSubscribe(b *testing.B) {
