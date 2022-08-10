@@ -797,13 +797,15 @@ func TestSubscribeExpires(t *testing.T) {
 	jwt, err := token.SignedString(hub.subscriberJWT.key)
 	require.Nil(t, err)
 
-	req := httptest.NewRequest("GET", defaultHubURL+"?topic=foo", nil)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)
 	req.Header.Add("Authorization", "Bearer "+jwt)
 
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+	defer resp.Body.Close()
+
 	assert.Equal(t, 200, resp.StatusCode)
 }
 

@@ -12,6 +12,8 @@ import (
 )
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
+//
+//nolint:funlen,gocognit
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	assertFlusher(w)
 
