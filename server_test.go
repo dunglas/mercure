@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -167,13 +166,13 @@ func TestServe(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	hpBody, _ := ioutil.ReadAll(resp.Body)
+	hpBody, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(hpBody), "Mercure Hub")
 
 	respHealthz, err := client.Get("http://" + testAddr + "/healthz")
 	require.Nil(t, err)
 	defer respHealthz.Body.Close()
-	healthzBody, _ := ioutil.ReadAll(respHealthz.Body)
+	healthzBody, _ := io.ReadAll(respHealthz.Body)
 	assert.Contains(t, string(healthzBody), "ok")
 
 	var wgConnected, wgTested sync.WaitGroup
@@ -187,7 +186,7 @@ func TestServe(t *testing.T) {
 		wgConnected.Done()
 
 		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
 	}()
@@ -199,7 +198,7 @@ func TestServe(t *testing.T) {
 		wgConnected.Done()
 
 		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
 	}()
@@ -319,7 +318,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 }
 
 func TestServeAcme(t *testing.T) {
-	dir, _ := ioutil.TempDir("", "cert")
+	dir, _ := os.MkdirTemp("", "cert")
 	defer os.RemoveAll(dir)
 
 	h := createAnonymousDummy(WithAllowedHosts([]string{"example.com"}))
@@ -396,7 +395,7 @@ func TestMetricsVersionIsAccessible(t *testing.T) {
 	assert.Nil(t, err)
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	assert.Nil(t, err)
 
 	pattern := "mercure_version_info{architecture=\".+\",built_at=\".*\",commit=\".*\",go_version=\".+\",os=\".+\",version=\"dev\"} 1"
@@ -485,7 +484,7 @@ func (s *testServer) assertMetric(metric string) {
 	assert.Nil(s.t, err)
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	assert.Nil(s.t, err)
 
 	assert.Contains(s.t, string(b), metric)

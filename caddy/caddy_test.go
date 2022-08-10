@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -89,7 +88,7 @@ func TestMercure(t *testing.T) {
 }
 
 func TestJWTPlaceholders(t *testing.T) {
-	k, _ := ioutil.ReadFile("../fixtures/jwt/RS256.key.pub")
+	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	os.Setenv("TEST_JWT_KEY", string(k))
 	defer os.Unsetenv("TEST_JWT_KEY")
 	os.Setenv("TEST_JWT_ALG", "RS256")

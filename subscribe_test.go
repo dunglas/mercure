@@ -3,7 +3,7 @@ package mercure
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -357,7 +357,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		resp := w.Result()
 		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		bodyContent := string(body)
@@ -382,7 +382,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		resp := w.Result()
 		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, ":\n", string(body))

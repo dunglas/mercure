@@ -1,7 +1,7 @@
 package mercure
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -208,7 +208,7 @@ func TestPublishOK(t *testing.T) {
 
 	resp := w.Result()
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "id", string(body))
@@ -269,7 +269,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	bodyBytes, _ := io.ReadAll(resp.Body)
 	body := string(bodyBytes)
 
 	_, err := uuid.FromString(strings.TrimPrefix(body, "urn:uuid:"))
@@ -303,7 +303,7 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 
 	resp := w.Result()
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "id", string(body))

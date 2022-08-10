@@ -1,7 +1,7 @@
 package mercure
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -26,7 +26,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 	assert.True(t, cookie.Expires.Before(time.Now()))
 
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "", string(body))
 }
 
@@ -47,6 +47,6 @@ func TestBodyAndJWT(t *testing.T) {
 	assert.Empty(t, cookie.Expires)
 
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "<hello/>", string(body))
 }
