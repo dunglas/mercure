@@ -239,7 +239,7 @@ func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 }
 
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
-func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:funlen nolint:gocognit
+func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:funlen,gocognit
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
