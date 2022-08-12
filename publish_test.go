@@ -188,7 +188,7 @@ func TestPublishOK(t *testing.T) {
 		assert.True(t, ok)
 		require.NotNil(t, u)
 		assert.Equal(t, "id", u.ID)
-		assert.Equal(t, s.Topics, u.Topics)
+		assert.Equal(t, s.SubscribedTopics, u.Topics)
 		assert.Equal(t, "Hello!", u.Data)
 		assert.True(t, u.Private)
 	}(&wg)
@@ -201,7 +201,7 @@ func TestPublishOK(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, rolePublisher, s.Topics))
+	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, rolePublisher, s.SubscribedTopics))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -239,7 +239,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 
 	s := NewSubscriber("", zap.NewNop())
-	s.SetTopics([]string{"http://example.com/books/1"}, s.Topics)
+	s.SetTopics([]string{"http://example.com/books/1"}, s.SubscribedTopics)
 
 	require.Nil(t, h.transport.AddSubscriber(s))
 

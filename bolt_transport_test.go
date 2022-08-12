@@ -231,12 +231,12 @@ func TestBoltTransportDispatch(t *testing.T) {
 	subscribedNotAuthorized := &Update{Topics: []string{"https://example.com/foo"}, Private: true}
 	require.Nil(t, transport.Dispatch(subscribedNotAuthorized))
 
-	public := &Update{Topics: s.Topics}
+	public := &Update{Topics: s.SubscribedTopics}
 	require.Nil(t, transport.Dispatch(public))
 
 	assert.Equal(t, public, <-s.Receive())
 
-	private := &Update{Topics: s.PrivateTopics, Private: true}
+	private := &Update{Topics: s.AllowedPrivateTopics, Private: true}
 	require.Nil(t, transport.Dispatch(private))
 
 	assert.Equal(t, private, <-s.Receive())
@@ -256,7 +256,7 @@ func TestBoltTransportClosed(t *testing.T) {
 	require.Nil(t, transport.Close())
 	require.NotNil(t, transport.AddSubscriber(s))
 
-	assert.Equal(t, transport.Dispatch(&Update{Topics: s.Topics}), ErrClosedTransport)
+	assert.Equal(t, transport.Dispatch(&Update{Topics: s.SubscribedTopics}), ErrClosedTransport)
 
 	_, ok := <-s.out
 	assert.False(t, ok)

@@ -1,10 +1,13 @@
 package mercure
 
 import (
-	"strings"
-
 	"github.com/kevburnsjr/skipfilter"
 )
+
+type filter struct {
+	topics  []string
+	private bool
+}
 
 type SubscriberList struct {
 	skipfilter *skipfilter.SkipFilter
@@ -12,28 +15,18 @@ type SubscriberList struct {
 
 func NewSubscriberList(size int) *SubscriberList {
 	return &SubscriberList{
-		skipfilter: skipfilter.New(func(s interface{}, topic interface{}) bool {
-			p := strings.SplitN(topic.(string), "_", 2)
-			if len(p) < 2 {
-				return false
-			}
+		skipfilter: skipfilter.New(func(s interface{}, fil interface{}) bool {
+			f := fil.(*filter)
 
-			return s.(*Subscriber).MatchTopic(p[1], p[0] == "p")
+			return s.(*Subscriber).MatchTopics(f.topics, f.private)
 		}, size),
 	}
 }
 
 func (sc *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
-	scopedTopics := make([]interface{}, len(u.Topics))
-	for i, t := range u.Topics {
-		if u.Private {
-			scopedTopics[i] = "p_" + t
-		} else {
-			scopedTopics[i] = "_" + t
-		}
-	}
+	f := &filter{u.Topics, u.Private}
 
-	for _, m := range sc.skipfilter.MatchAny(scopedTopics...) {
+	for _, m := range sc.skipfilter.MatchAny(f) {
 		res = append(res, m.(*Subscriber))
 	}
 
