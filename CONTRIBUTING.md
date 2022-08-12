@@ -67,29 +67,10 @@ When you send a PR, make sure that:
 * You make the PR on the same branch you based your changes on. If you see commits
   that you did not make in your PR, you're doing it wrong.
 
-### Configuring VSCode
+### Configuring Visual Studio Code
 
-`.vscode/launch.json`:
-
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Launch the hub",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}",
-            "env": {
-                "MERCURE_PUBLISHER_JWT_KEY": "!ChangeMe!",
-                "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeMe!"
-            },
-            "args": ["run", "-config", "Caddyfile.dev"]
-        }
-    ]
-}
-```
+A configuration for VSCode is provided in the `.vscode/` directory of the repository.
+It is automatically loaded by VS Code.           
 
 ### Finding Deadlocks
 

@@ -4,6 +4,7 @@ __pycache__
 dist
 /caddy/caddy
 /caddy/mercure/mercure
+/caddy/mercure/__debug_bin
 /cmd/mercure/mercure
 /certs
 /spec/mercure.html
