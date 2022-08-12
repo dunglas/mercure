@@ -10,7 +10,8 @@
             "env": {
                 "MERCURE_PUBLISHER_JWT_KEY": "!ChangeMe!",
                 "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeMe!",
-                "MERCURE_EXTRA_DIRECTIVES": "anonymous"
+                "MERCURE_EXTRA_DIRECTIVES": "anonymous",
+                "GLOBAL_OPTIONS": "debug"
             },
             "args": ["run", "-config", "../../Caddyfile.dev"]
         }
