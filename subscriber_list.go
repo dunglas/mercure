@@ -1,13 +1,12 @@
 package mercure
 
 import (
+	"encoding/ascii85"
+	"sort"
+	"strings"
+
 	"github.com/kevburnsjr/skipfilter"
 )
-
-type filter struct {
-	topics  []string
-	private bool
-}
 
 type SubscriberList struct {
 	skipfilter *skipfilter.SkipFilter
@@ -15,18 +14,52 @@ type SubscriberList struct {
 
 func NewSubscriberList(size int) *SubscriberList {
 	return &SubscriberList{
-		skipfilter: skipfilter.New(func(s interface{}, fil interface{}) bool {
-			f := fil.(*filter)
+		skipfilter: skipfilter.New(func(s interface{}, filter interface{}) bool {
+			var private bool
 
-			return s.(*Subscriber).MatchTopics(f.topics, f.private)
+			encodedTopics := strings.Split(filter.(string), "~")
+			topics := make([]string, len(encodedTopics))
+			for i, encodedTopic := range encodedTopics {
+				p := strings.SplitN(encodedTopic, "}", 2)
+				if len(p) < 2 {
+					return false
+				}
+
+				if p[0] == "|" {
+					private = true
+				}
+
+				decodedTopic := make([]byte, len(p[1]))
+				ndst, _, err := ascii85.Decode(decodedTopic, []byte(p[1]), true)
+				if err != nil {
+					return false
+				}
+
+				topics[i] = string(decodedTopic[:ndst])
+			}
+
+			return s.(*Subscriber).MatchTopics(topics, private)
 		}, size),
 	}
 }
 
 func (sc *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
-	f := &filter{u.Topics, u.Private}
+	encodedTopics := make([]string, len(u.Topics))
+	for i, t := range u.Topics {
+		encodedTopic := make([]byte, ascii85.MaxEncodedLen(len(t)))
+		nb := ascii85.Encode(encodedTopic, []byte(t))
+		encodedTopic = encodedTopic[:nb]
 
-	for _, m := range sc.skipfilter.MatchAny(f) {
+		if u.Private {
+			encodedTopics[i] = "|}" + string(encodedTopic)
+		} else {
+			encodedTopics[i] = "}" + string(encodedTopic)
+		}
+	}
+
+	sort.Strings(encodedTopics)
+
+	for _, m := range sc.skipfilter.MatchAny(strings.Join(encodedTopics, "~")) {
 		res = append(res, m.(*Subscriber))
 	}
 
