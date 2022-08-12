@@ -1,0 +1,18 @@
+{
+   "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch the hub",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/caddy/mercure",
+            "env": {
+                "MERCURE_PUBLISHER_JWT_KEY": "!ChangeMe!",
+                "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeMe!",
+                "MERCURE_EXTRA_DIRECTIVES": "anonymous"
+            },
+            "args": ["run", "-config", "../../Caddyfile.dev"]
+        }
+    ]
+}
