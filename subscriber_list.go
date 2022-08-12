@@ -20,12 +20,12 @@ func NewSubscriberList(size int) *SubscriberList {
 			encodedTopics := strings.Split(filter.(string), "~")
 			topics := make([]string, len(encodedTopics))
 			for i, encodedTopic := range encodedTopics {
-				p := strings.SplitN(encodedTopic, ">", 2)
+				p := strings.SplitN(encodedTopic, "}", 2)
 				if len(p) < 2 {
 					return false
 				}
 
-				if p[0] == "p" {
+				if p[0] == "|" {
 					private = true
 				}
 
@@ -35,9 +35,7 @@ func NewSubscriberList(size int) *SubscriberList {
 					return false
 				}
 
-				str := string(decodedTopic[:ndst])
-
-				topics[i] = str
+				topics[i] = string(decodedTopic[:ndst])
 			}
 
 			return s.(*Subscriber).MatchTopics(topics, private)
@@ -53,9 +51,9 @@ func (sc *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
 		encodedTopic = encodedTopic[:nb]
 
 		if u.Private {
-			encodedTopics[i] = "p>" + string(encodedTopic)
+			encodedTopics[i] = "|}" + string(encodedTopic)
 		} else {
-			encodedTopics[i] = ">" + string(encodedTopic)
+			encodedTopics[i] = "}" + string(encodedTopic)
 		}
 	}
 
