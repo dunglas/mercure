@@ -1,6 +1,6 @@
 # Mercure Chart for Kubernetes
 
-![Version: 0.13.0](https://img.shields.io/badge/Version-0.13.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.13.0](https://img.shields.io/badge/AppVersion-v0.13.0-informational?style=flat-square)
+![Version: 0.14.0-beta.1](https://img.shields.io/badge/Version-0.14.0--beta.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.14.0-beta.1](https://img.shields.io/badge/AppVersion-v0.14.0--beta.1-informational?style=flat-square)
 
 A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 
@@ -19,9 +19,9 @@ To install the chart with the release name `my-release`, run the following comma
 |-----|------|---------|-------------|
 | affinity | object | `{}` | [Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
 | autoscaling | object | Disabled by default. | Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details). |
+| caddyExtraDirectives | string | `""` | Inject extra Caddy directives in the Caddyfile. |
 | dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
-| caddyExtraDirectives | string | `""` | Inject extra Caddy directives in the Caddyfile. |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
 | globalOptions | string | `""` | Inject global options in the Caddyfile. |
 | image.pullPolicy | string | `"IfNotPresent"` | [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node. |
@@ -31,16 +31,14 @@ To install the chart with the release name `my-release`, run the following comma
 | ingress.annotations | object | `{}` | Annotations to be added to the ingress. |
 | ingress.className | string | `""` | Ingress [class name](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class). |
 | ingress.enabled | bool | `false` | Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/). |
-| ingress.hosts[0].host | string | `"mercure-example.local"` |  |
-| ingress.hosts[0].paths[0].path | string | `"/"` |  |
-| ingress.hosts[0].paths[0].pathType | string | `"ImplementationSpecific"` |  |
+| ingress.hosts | list | See [values.yaml](values.yaml). | Ingress host configuration. |
 | ingress.tls | list | See [values.yaml](values.yaml). | Ingress TLS configuration. |
 | license | string | `""` | The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version). |
 | nameOverride | string | `""` | A name in place of the chart name for `app:` labels. |
 | nodeSelector | object | `{}` | [Node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) configuration. |
 | persistence | object | `{"accessMode":"ReadWriteOnce","enabled":false,"existingClaim":"","size":"1Gi","storageClass":""}` | Enable persistence using [Persistent Volume Claims](http://kubernetes.io/docs/user-guide/persistent-volumes/), only useful if you the BoltDB transport. |
 | persistence.accessMode | string | `"ReadWriteOnce"` | A manually managed Persistent Volume and Claim. Requires `persistence.enabled: true` If defined, PVC must be created manually before volume will be bound. |
-| persistence.existingClaim | string | `""` | a manually managed Persistent Volume Claim -- Requires `persistence.enabled: true` -- If defined, PVC must be created manually before volume will be bound |
+| persistence.existingClaim | string | `""` | If defined, PVC must be created manually before volume will be bound |
 | persistence.storageClass | string | `""` | Mercure Data Persistent Volume Storage Class. If defined, `storageClassName: <storageClass>` If set to `"-"``, `storageClassName: ""``, which disables dynamic provisioning. If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner. |
 | podAnnotations | object | `{}` | Annotations to be added to pods. |
 | podSecurityContext | object | `{}` | Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details. |
