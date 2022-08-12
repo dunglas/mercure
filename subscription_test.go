@@ -191,7 +191,7 @@ func TestSubscriptionHandler(t *testing.T) {
 
 	var subscription subscription
 	json.Unmarshal(w.Body.Bytes(), &subscription)
-	expectedSub := s.getSubscriptions(s.Topics[1], "https://mercure.rocks/", true)[1]
+	expectedSub := s.getSubscriptions(s.SubscribedTopics[1], "https://mercure.rocks/", true)[1]
 	expectedSub.LastEventID, _, _ = hub.transport.(TransportSubscribers).GetSubscribers()
 	assert.Equal(t, expectedSub, subscription)
 

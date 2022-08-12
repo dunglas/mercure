@@ -45,7 +45,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 	s.SetTopics([]string{"http://example.com/foo"}, nil)
 	assert.Nil(t, transport.AddSubscriber(s))
 
-	u := &Update{Topics: s.Topics}
+	u := &Update{Topics: s.SubscribedTopics}
 	require.Nil(t, transport.Dispatch(u))
 	assert.Equal(t, u, <-s.Receive())
 }
@@ -97,7 +97,7 @@ func TestLiveReading(t *testing.T) {
 	s.SetTopics([]string{"https://example.com"}, nil)
 	require.Nil(t, transport.AddSubscriber(s))
 
-	u := &Update{Topics: s.Topics}
+	u := &Update{Topics: s.SubscribedTopics}
 	assert.Nil(t, transport.Dispatch(u))
 
 	receivedUpdate := <-s.Receive()
