@@ -431,6 +431,9 @@ To receive updates marked as `private`, a subscriber **MUST** prove that it is a
 least one of the topics of this update. If the subscriber is not authorized to receive an update
 marked as `private`, it **MUST NOT** receive it.
 
+If the presented JWS contains an expiration time in the standard `exp` claim defined in [@!RFC7519],
+the connection **MUST** be closed by the hub at that time.
+
 To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a
 claim named `mercure` with a key named `subscribe` that contains an array of topic selectors. See
 (#topic-selectors).
@@ -472,9 +475,6 @@ provided in its JWS claim `mercure.subscribe`. However, an alternate topic of th
 Consequently, this private update will be received by this subscriber, while other updates having
 a canonical topic matched by the selector provided in a `topic` query parameter but not matched by
 selectors in the `mercure.subscribe` claim will not.
-
-If the presented JWS contains an expiration time in the standard `exp` claim defined in [@!RFC7519],
-the connection **MUST** be closed by the hub at that time.
 
 ## Payload
 
