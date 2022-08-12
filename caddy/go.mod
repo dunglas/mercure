@@ -11,7 +11,7 @@ require (
 	github.com/caddyserver/certmagic v0.16.2 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
-	github.com/dunglas/mercure v0.14.0-beta.1
+	github.com/dunglas/mercure v0.14.0-beta.2
 	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/google/cel-go v0.12.4 // indirect
