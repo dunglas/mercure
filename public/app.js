@@ -16,9 +16,21 @@
   const $subscriptionsForm = document.forms.subscriptions;
 
   const error = (e) => {
-    const message = e.toString();
-    console.error(e);
-    alert(message);
+    console.log(e);
+
+    if (e.toString !== Object.prototype.toString) {
+      alert(e.toString());
+
+      return;
+    }
+
+    if (e.statusText) {
+      alert(e.statusText);
+
+      return;
+    }
+
+    alert('An error occured, details have been logged.');
   };
 
   const getHubUrl = (resp) => {
@@ -139,7 +151,7 @@ foo`;
       li.querySelector("pre").textContent = e.data;
       ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
     };
-    updateEventSource.onerror = console.log;
+    updateEventSource.onerror = error;
     this.elements.unsubscribe.disabled = false;
   };
   $subscribeForm.elements.unsubscribe.onclick = function (e) {
@@ -240,7 +252,7 @@ foo`;
 
         document.getElementById(s.id).remove();
       };
-      subscriptionEventSource.onerror = console.log;
+      subscriptionEventSource.onerror = error;
 
       $subscriptionsForm.elements.unsubscribe.disabled = false;
     } catch (e) {
