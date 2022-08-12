@@ -18,13 +18,20 @@
   const error = (e) => {
     console.log(e);
 
+    if (e.error?.message?.includes?.('Reconnecting')) {
+      // Silent reconnecting messages from the polyfill
+      return;
+    }
+
     if (e.toString !== Object.prototype.toString) {
+      // Display relevant error message
       alert(e.toString());
 
       return;
     }
 
     if (e.statusText) {
+      // Special handling of errors from the polyfill
       alert(e.statusText);
 
       return;
@@ -157,7 +164,7 @@ foo`;
   $subscribeForm.elements.unsubscribe.onclick = function (e) {
     e.preventDefault();
 
-    updateEventSource.close();
+    updateEventSource && updateEventSource.close();
     this.disabled = true;
     $updates.textContent = "Unsubscribed.";
   };
