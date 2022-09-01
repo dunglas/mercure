@@ -1,12 +1,18 @@
 package mercure
 
 import (
-	"encoding/ascii85"
+	"bytes"
+	"encoding/gob"
 	"sort"
 	"strings"
 
 	"github.com/kevburnsjr/skipfilter"
 )
+
+type filter struct {
+	Topics  []string
+	Private bool
+}
 
 type SubscriberList struct {
 	skipfilter *skipfilter.SkipFilter
@@ -14,52 +20,29 @@ type SubscriberList struct {
 
 func NewSubscriberList(size int) *SubscriberList {
 	return &SubscriberList{
-		skipfilter: skipfilter.New(func(s interface{}, filter interface{}) bool {
-			var private bool
-
-			encodedTopics := strings.Split(filter.(string), "~")
-			topics := make([]string, len(encodedTopics))
-			for i, encodedTopic := range encodedTopics {
-				p := strings.SplitN(encodedTopic, "}", 2)
-				if len(p) < 2 {
-					return false
-				}
-
-				if p[0] == "|" {
-					private = true
-				}
-
-				decodedTopic := make([]byte, len(p[1]))
-				ndst, _, err := ascii85.Decode(decodedTopic, []byte(p[1]), true)
-				if err != nil {
-					return false
-				}
-
-				topics[i] = string(decodedTopic[:ndst])
+		skipfilter: skipfilter.New(func(s interface{}, fi interface{}) bool {
+			dec := gob.NewDecoder(strings.NewReader(fi.(string)))
+			f := filter{}
+			if err := dec.Decode(&f); err != nil {
+				panic(err)
 			}
 
-			return s.(*Subscriber).MatchTopics(topics, private)
+			return s.(*Subscriber).MatchTopics(f.Topics, f.Private)
 		}, size),
 	}
 }
 
 func (sc *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
-	encodedTopics := make([]string, len(u.Topics))
-	for i, t := range u.Topics {
-		encodedTopic := make([]byte, ascii85.MaxEncodedLen(len(t)))
-		nb := ascii85.Encode(encodedTopic, []byte(t))
-		encodedTopic = encodedTopic[:nb]
+	f := filter{u.Topics, u.Private}
+	sort.Strings(f.Topics)
 
-		if u.Private {
-			encodedTopics[i] = "|}" + string(encodedTopic)
-		} else {
-			encodedTopics[i] = "}" + string(encodedTopic)
-		}
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(f); err != nil {
+		panic(err)
 	}
 
-	sort.Strings(encodedTopics)
-
-	for _, m := range sc.skipfilter.MatchAny(strings.Join(encodedTopics, "~")) {
+	for _, m := range sc.skipfilter.MatchAny(buf.String()) {
 		res = append(res, m.(*Subscriber))
 	}
 

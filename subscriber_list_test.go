@@ -13,7 +13,6 @@ func BenchmarkSubscriberList(b *testing.B) {
 
 	l := NewSubscriberList(100)
 	for i := 0; i < 100; i++ {
-		""
 		s := NewSubscriber("", logger)
 		t := fmt.Sprintf("https://example.com/%d", (i % 10))
 		s.SetTopics([]string{"https://example.org/foo", t}, []string{"https://example.net/bar", t})
