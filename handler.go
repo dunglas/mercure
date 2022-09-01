@@ -135,7 +135,7 @@ func (h *Hub) Serve() { //nolint:funlen
 			h.server.TLSConfig = certManager.TLSConfig()
 
 			// Mandatory for Let's Encrypt http-01 challenge
-			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil))
+			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)) //nolint:gosec
 		}
 
 		if c := h.logger.Check(zap.InfoLevel, "Mercure started"); c != nil {

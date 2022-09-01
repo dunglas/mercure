@@ -7,6 +7,7 @@ import (
 	"github.com/dunglas/mercure"
 )
 
+//nolint:gosec
 func Example() {
 	h, err := mercure.NewHub(
 		mercure.WithPublisherJWT([]byte("!ChangeMe!"), "HS256"),
