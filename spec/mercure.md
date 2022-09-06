@@ -95,10 +95,6 @@ The publisher **MAY** provide the following target attributes in the Link Header
     the subscriber **MUST** assume that the content type will be the same as that of the original
     resource. Setting the `content-type` attribute is especially useful to hint that partial updates
     will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
-*   `cookie-name`: the name of the cookie that contains the JWS [@!RFC7515] used for authorization
-    ((#authorization)). If this attribute is not set, the name of the cookie is assumed to be
-    `mercureAuthorization`. Using this attribute allows to prevent cookie name conflicts when using
-    multiple hubs on the same domain.
 *   `key-set`: the URL of the key set to use to decrypt updates, encoded in the JWK set format
     (JSON Web Key Set) [@!RFC7517]. See (#encryption). As this key set will contain a secret
     key, the publisher must ensure that only the subscriber can access to this URL. To do so, the
@@ -369,9 +365,9 @@ can be included even in cross-domain requests if [the CORS credentials are
 set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials):
 
 If the publisher or the subscriber is a web browser, it **SHOULD**, whenever possible, send a cookie
-containing the JWS when connecting to the hub. This cookie **MUST** be named according to the value
-of the `cookie-name` attribute of the Link header set during discovery ((#discovery)). If this
-attribute is not present, the cookie **SHOULD** be named `mercureAuthorization`.
+containing the JWS when connecting to the hub.
+It is **RECOMMENDED** to name the cookie `mercureAuthorization`, but it may be necessary to use
+a different name to prevent conflicts when using multiple hubs on the same domain.
 
 The cookie **SHOULD** be set during discovery (see (#discovery)) to improve the overall security.
 Consequently, if the cookie is set during discovery, both the publisher and the hub have to share
