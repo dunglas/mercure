@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"encoding/ascii85"
 	"sort"
 	"strings"
 
@@ -12,74 +11,106 @@ type SubscriberList struct {
 	skipfilter *skipfilter.SkipFilter
 }
 
+// We choose a delimiter and an escape character which are unlikely to be used.
+const (
+	escape = '\x00'
+	delim  = '\x01'
+)
+
+//nolint:gochecknoglobals
+var replacer = strings.NewReplacer(
+	string(escape), string([]rune{escape, escape}),
+	string(delim), string([]rune{escape, delim}),
+)
+
 func NewSubscriberList(size int) *SubscriberList {
 	return &SubscriberList{
 		skipfilter: skipfilter.New(func(s interface{}, filter interface{}) bool {
-			var private bool
-
-			encodedTopics := strings.Split(filter.(string), "~")
-			topics := make([]string, len(encodedTopics))
-			for i, encodedTopic := range encodedTopics {
-				p := strings.SplitN(encodedTopic, "}", 2)
-				if len(p) < 2 {
-					return false
-				}
-
-				if p[0] == "|" {
-					private = true
-				}
-
-				decodedTopic := make([]byte, len(p[1]))
-				ndst, _, err := ascii85.Decode(decodedTopic, []byte(p[1]), true)
-				if err != nil {
-					return false
-				}
-
-				topics[i] = string(decodedTopic[:ndst])
-			}
-
-			return s.(*Subscriber).MatchTopics(topics, private)
+			return s.(*Subscriber).MatchTopics(decode(filter.(string)))
 		}, size),
 	}
 }
 
-func (sc *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
-	encodedTopics := make([]string, len(u.Topics))
-	for i, t := range u.Topics {
-		encodedTopic := make([]byte, ascii85.MaxEncodedLen(len(t)))
-		nb := ascii85.Encode(encodedTopic, []byte(t))
-		encodedTopic = encodedTopic[:nb]
+func encode(topics []string, private bool) string {
+	sort.Strings(topics)
 
-		if u.Private {
-			encodedTopics[i] = "|}" + string(encodedTopic)
-		} else {
-			encodedTopics[i] = "}" + string(encodedTopic)
+	parts := make([]string, len(topics)+1)
+	if private {
+		parts[0] = "1"
+	} else {
+		parts[0] = "0"
+	}
+
+	for i, t := range topics {
+		parts[i+1] = replacer.Replace(t)
+	}
+
+	return strings.Join(parts, string(delim))
+}
+
+func decode(f string) (topics []string, private bool) {
+	var (
+		privateExtracted, inEscape bool
+		builder                    strings.Builder
+	)
+
+	for _, char := range f {
+		if inEscape {
+			builder.WriteRune(char)
+			inEscape = false
+
+			continue
+		}
+
+		switch char {
+		case escape:
+			inEscape = true
+
+		case delim:
+			if !privateExtracted {
+				private = builder.String() == "1"
+				builder.Reset()
+
+				privateExtracted = true
+
+				break
+			}
+
+			topics = append(topics, builder.String())
+			builder.Reset()
+
+		default:
+			builder.WriteRune(char)
 		}
 	}
 
-	sort.Strings(encodedTopics)
+	topics = append(topics, builder.String())
 
-	for _, m := range sc.skipfilter.MatchAny(strings.Join(encodedTopics, "~")) {
+	return topics, private
+}
+
+func (sl *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
+	for _, m := range sl.skipfilter.MatchAny(encode(u.Topics, u.Private)) {
 		res = append(res, m.(*Subscriber))
 	}
 
 	return
 }
 
-func (sc *SubscriberList) Walk(start uint64, callback func(s *Subscriber) bool) uint64 {
-	return sc.skipfilter.Walk(start, func(val interface{}) bool {
+func (sl *SubscriberList) Walk(start uint64, callback func(s *Subscriber) bool) uint64 {
+	return sl.skipfilter.Walk(start, func(val interface{}) bool {
 		return callback(val.(*Subscriber))
 	})
 }
 
-func (sc *SubscriberList) Add(s *Subscriber) {
-	sc.skipfilter.Add(s)
+func (sl *SubscriberList) Add(s *Subscriber) {
+	sl.skipfilter.Add(s)
 }
 
-func (sc *SubscriberList) Remove(s *Subscriber) {
-	sc.skipfilter.Remove(s)
+func (sl *SubscriberList) Remove(s *Subscriber) {
+	sl.skipfilter.Remove(s)
 }
 
-func (sc *SubscriberList) Len() int {
-	return sc.skipfilter.Len()
+func (sl *SubscriberList) Len() int {
+	return sl.skipfilter.Len()
 }

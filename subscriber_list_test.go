@@ -8,6 +8,18 @@ import (
 	"go.uber.org/zap"
 )
 
+func TestEncode(t *testing.T) {
+	e := encode([]string{"Foo\x00\x01Bar\x00Baz\x01", "\x01bar"}, true)
+	assert.Equal(t, "1\x01\x00\x01bar\x01Foo\x00\x00\x00\x01Bar\x00\x00Baz\x00\x01", e)
+}
+
+func TestDecode(t *testing.T) {
+	topics, private := decode("1\x01\x00\x01bar\x01Foo\x00\x00\x00\x01Bar\x00\x00Baz\x00\x01")
+
+	assert.Equal(t, []string{"\x01bar", "Foo\x00\x01Bar\x00Baz\x01"}, topics)
+	assert.True(t, private)
+}
+
 func BenchmarkSubscriberList(b *testing.B) {
 	logger := zap.NewNop()
 
