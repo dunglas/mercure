@@ -2,6 +2,32 @@ apiVersion: v1
 entries:
   mercure:
   - apiVersion: v2
+    appVersion: v0.14.1
+    created: "2022-09-13T17:59:24.234436824Z"
+    description: A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure
+      is a protocol to push data updates to web browsers and other HTTP clients in
+      a convenient, fast, reliable and battery-efficient way.
+    digest: e68ad12213ef7f1686a57251a718b853d883a7118eae01ef1eb98a5317b3919d
+    home: https://mercure.rocks
+    icon: https://mercure.rocks/static/logo.svg
+    keywords:
+    - mercure
+    - hub
+    - push
+    - streaming-api
+    - async-api
+    maintainers:
+    - email: kevin@dunglas.fr
+      name: dunglas
+      url: https://dunglas.fr
+    name: mercure
+    sources:
+    - https://github.com/dunglas/mercure
+    type: application
+    urls:
+    - https://github.com/dunglas/mercure/releases/download/helm-chart-0.14.1/mercure-0.14.1.tgz
+    version: 0.14.1
+  - apiVersion: v2
     appVersion: v0.14.0
     created: "2022-09-06T12:47:12.977492189Z"
     description: A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure
@@ -209,4 +235,4 @@ entries:
     urls:
     - https://github.com/dunglas/mercure/releases/download/helm-chart-0.11.3/mercure-0.11.3.tgz
     version: 0.11.3
-generated: "2022-09-06T12:47:12.977547989Z"
+generated: "2022-09-13T17:59:24.234480024Z"
