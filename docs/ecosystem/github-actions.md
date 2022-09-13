@@ -17,8 +17,8 @@ jobs:
                 image: dunglas/mercure
                 env:
                     SERVER_NAME: :1337
-                    MERCURE_PUBLISHER_JWT_KEY: '!ChangeMe!'
-                    MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeMe!'
+                    MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+                    MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
                     MERCURE_EXTRA_DIRECTIVES: |
                         # Custom directives, see https://mercure.rocks/docs/hub/config
                         anonymous

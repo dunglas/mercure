@@ -51,8 +51,8 @@ This key must be set in an environment variable named `MERCURE_LICENSE`.
 Ex:
 
     MERCURE_LICENSE=snip \
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
 
 If you use the Helm chart, set the `license` value and change the Docker image to use the one provided.
@@ -85,8 +85,8 @@ To use Redis, the `MERCURE_TRANSPORT_URL` environment variable must be set like 
 
     MERCURE_TRANSPORT_URL=redis://127.0.0.1:6379/mercure-ha \
     MERCURE_LICENSE=snip \
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`:
@@ -120,8 +120,8 @@ To use PostgreSQL `LISTEN`/`NOTIFY`, the `MERCURE_TRANSPORT_URL` environment var
 
     MERCURE_TRANSPORT_URL=postgres://user:password@127.0.0.1/mercure-ha \
     MERCURE_LICENSE=snip \
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
@@ -155,8 +155,8 @@ To use Kafka, the `MERCURE_TRANSPORT_URL` environment variable must be set like 
 
     MERCURE_TRANSPORT_URL=kafka://kafka/?addr=localhost:9092&topic=mercure-ha \
     MERCURE_LICENSE=snip \
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`:
@@ -191,8 +191,8 @@ To use Pulsar, the `MERCURE_TRANSPORT_URL` environment variable must be set like
 
     MERCURE_TRANSPORT_URL=pulsar://localhost:6650?topic=mercure-ha&subscription_name=the-node-id \
     MERCURE_LICENSE=snip \
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
 
 The following options can be passed as query parameters of the URL set in `transport_url`:

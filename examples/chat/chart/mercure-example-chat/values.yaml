@@ -12,7 +12,7 @@ image:
 
 hubUrl: https://demo.mercure.rocks/.well-known/mercure
 cookieDomain: .mercure.rocks
-jwtKey: "!ChangeMe!"
+jwtKey: "!ChangeThisMercureHubJWTSecretKey!"
 messageUriTemplate: https://chat.example.com/messages/{id}
 
 imagePullSecrets: []

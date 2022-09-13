@@ -88,7 +88,7 @@ test.describe('Publish update', () => {
         console.log(`Creating POST request: ${event.toString()}`);
         const resp = await fetch(`/.well-known/mercure`, {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiKiJdfX0.Ws4gtnaPtM-R2-z9DnH-laFu5lDZrMnmyTpfU8uKyQo' },
+          headers: { 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiKiJdfX0.bVXdlWXwfw9ySx7-iV5OpUSHo34RkjUdVzDLBcc6l_g' },
           body: event,
         });
 
