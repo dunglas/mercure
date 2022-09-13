@@ -8,8 +8,8 @@
             "mode": "auto",
             "program": "${workspaceFolder}/caddy/mercure",
             "env": {
-                "MERCURE_PUBLISHER_JWT_KEY": "!ChangeMe!",
-                "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeMe!",
+                "MERCURE_PUBLISHER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
+                "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
                 "MERCURE_EXTRA_DIRECTIVES": "anonymous",
                 "GLOBAL_OPTIONS": "debug"
             },

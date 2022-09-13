@@ -25,7 +25,7 @@ A minimalist chat system, using Mercure and the Flask microframework to handle c
 | ingress.hosts[0].host | string | `"chart-example.local"` |  |
 | ingress.hosts[0].paths | list | `[]` |  |
 | ingress.tls | list | `[]` |  |
-| jwtKey | string | `"!ChangeMe!"` |  |
+| jwtKey | string | `"!ChangeThisMercureHubJWTSecretKey!"` |  |
 | messageUriTemplate | string | `"https://chat.example.com/messages/{id}"` |  |
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` |  |

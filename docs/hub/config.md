@@ -16,9 +16,9 @@ localhost
 route {
     mercure {
         # Publisher JWT key
-        publisher_jwt !ChangeMe!
+        publisher_jwt !ChangeThisMercureHubJWTSecretKey!
         # Subscriber JWT key
-        subscriber_jwt !ChangeMe!
+        subscriber_jwt !ChangeThisMercureHubJWTSecretKey!
     }
 
     respond "Not Found" 404

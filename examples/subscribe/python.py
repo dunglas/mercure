@@ -4,7 +4,7 @@ import os
 
 token = jwt.encode(
     {'mercure': {'subscribe': ['*']}},
-    os.environ.get('JWT_KEY', '!ChangeMe!'),
+    os.environ.get('JWT_KEY', '!ChangeThisMercureHubJWTSecretKey!'),
     algorithm='HS256',
 )
 

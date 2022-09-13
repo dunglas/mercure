@@ -1,5 +1,9 @@
 # Upgrade
 
+## 0.14.1
+
+The default dev key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecretKey!` to respect the specification (they key must longer than 256 bits).
+
 ## 0.14
 
 The query parameter allowing to fetch past events has been renamed `lastEventID`: in your clients, replace all occurences of the `Last-Event-ID` query parameter by `lastEventID`.

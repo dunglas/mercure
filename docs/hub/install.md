@@ -14,13 +14,13 @@ First, download the archive corresponding to your operating system and architect
 
 Then, to start the Mercure.rocks Hub in development mode on Linux and Mac OS X, run:
 
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run -config Caddyfile.dev
 
 On Windows, start PowerShell, go into the extracted directory and run:
 
-    $env:MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!'; .\mercure.exe run -config Caddyfile.dev
+    $env:MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; .\mercure.exe run -config Caddyfile.dev
 
 *Note:* The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
 Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`.
@@ -32,8 +32,8 @@ In development mode, anonymous subscribers are allowed and the debug UI is avail
 
 To run the server in production mode, run this command:
 
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
 
 In production mode, the debugger UI is disabled and anonymous subscribers aren't allowed.
@@ -53,8 +53,8 @@ To compile the development version, see [https://github.com/dunglas/mercure/blob
 A Docker image is available on Docker Hub. The following command is enough to get a working server in development mode:
 
     docker run \
-        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
         -p 80:80 \
         -p 443:443 \
         dunglas/mercure caddy run -config /etc/caddy/Caddyfile.dev
@@ -64,8 +64,8 @@ The server is then available on `https://localhost`. Anonymous subscribers are a
 In production, simply run:
 
     docker run \
-        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
         -p 80:80 \
         -p 443:443 \
         dunglas/mercure
@@ -75,8 +75,8 @@ This can be done like that:
 
     docker run \
         -e SERVER_NAME=':80' \
-        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeMe!' \
-        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeMe!' \
+        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
         -p 80:80 \
         dunglas/mercure
 
@@ -109,8 +109,8 @@ services:
     environment:
       # Uncomment the following line to disable HTTPS
       #SERVER_NAME: ':80'
-      MERCURE_PUBLISHER_JWT_KEY: '!ChangeMe!'
-      MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeMe!'
+      MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+      MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
     # Uncomment the following line to enable the development mode
     #command: /usr/bin/caddy run -config /etc/caddy/Caddyfile.dev
     ports:
