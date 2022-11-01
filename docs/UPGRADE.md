@@ -23,7 +23,7 @@ Backward compatibility with the old version of the protocol (version 7) can be e
 
 ## 0.13
 
-The `DEBUG` environment variable has gone. The the `GLOBAL_OPTIONS` environment variable to `debug` instead.
+The `DEBUG` environment variable has gone. Set the `GLOBAL_OPTIONS` environment variable to `debug` instead.
 
 ## 0.11
 
