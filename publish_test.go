@@ -308,3 +308,52 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, "id", string(body))
 }
+
+func FuzzPublish(f *testing.F) {
+	hub := createDummy()
+	authorizationHeader := "Bearer " + createDummyAuthorizedJWT(hub, rolePublisher, []string{"*"})
+
+	testCases := [][]interface{}{
+		{"https://localhost/foo/bar", "baz", "", "", "", "", ""},
+		{"https://localhost/foo/baz", "bat", "id", "data", "on", "22", "mytype"},
+	}
+
+	for _, tc := range testCases {
+		f.Add(tc...)
+	}
+
+	f.Fuzz(func(t *testing.T, topic1, topic2, id, data, private, retry, typ string) {
+		form := url.Values{}
+		form.Add("topic", topic1)
+		form.Add("topic", topic2)
+		form.Add("id", id)
+		form.Add("data", data)
+		form.Add("private", private)
+		form.Add("retry", retry)
+		form.Add("type", typ)
+
+		req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", authorizationHeader)
+
+		w := httptest.NewRecorder()
+		hub.PublishHandler(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode == http.StatusBadRequest {
+			return
+		}
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		if id == "" {
+			assert.NotEqual(t, "", string(body))
+
+			return
+		}
+
+		assert.Equal(t, id, string(body))
+	})
+}
