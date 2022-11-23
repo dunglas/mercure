@@ -17,6 +17,7 @@ linters:
     - tagliatelle
     - varnamelen
     - nonamedreturns
+    - testableexamples
 
     # deprecated
     - interfacer
