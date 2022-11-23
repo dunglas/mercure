@@ -176,9 +176,11 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 				c.Write(zap.Error(err))
 			}
 		}
-		if err := h.metricsServer.Shutdown(context.Background()); err != nil {
-			if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during metrics server shutdown"); c != nil {
-				c.Write(zap.Error(err))
+		if h.metricsServer != nil {
+			if err := h.metricsServer.Shutdown(context.Background()); err != nil {
+				if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during metrics server shutdown"); c != nil {
+					c.Write(zap.Error(err))
+				}
 			}
 		}
 		if c := h.logger.Check(zap.InfoLevel, "My Baby Shot Me Down"); c != nil {
