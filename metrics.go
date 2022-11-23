@@ -10,7 +10,7 @@ import (
 )
 
 type Metrics interface {
-	// SubscriberConnected collects metrics about about subscriber connections.
+	// SubscriberConnected collects metrics about subscriber connections.
 	SubscriberConnected(s *Subscriber)
 	// SubscriberDisconnected collects metrics about subscriber disconnections.
 	SubscriberDisconnected(s *Subscriber)
