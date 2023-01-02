@@ -21,8 +21,6 @@ To fix these errors, set the list of domains allowed to connect to the hub as va
 If you use an authorization mechanism (cookie or `Authorization` header), [you cannot set the value of `cors_origins` to `*`](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Credentialed_requests_and_wildcards). You **must** explicitly set the list of allowed origins.
 If you don't use an authorization mechanism (anonymous mode), you can set the value of `cors_origins` to `*` to allow all applications to connect to the hub (be sure to understand the security implications of what you are doing).
 
-If you use the Symfony CLI and want to use an external hub, be sure to read [this issue](https://github.com/symfony/cli/issues/424).
-
 ## URI Templates and Topics
 
 Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ensure that the template matches the topic.
