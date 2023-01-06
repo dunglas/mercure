@@ -112,37 +112,33 @@ func WithHeartbeat(interval time.Duration) Option {
 	}
 }
 
+func createJWTConfig(key []byte, alg string) (*jwtConfig, error) {
+	sm := jwt.GetSigningMethod(alg)
+	switch sm.(type) {
+	case *jwt.SigningMethodHMAC, *jwt.SigningMethodRSA:
+		return &jwtConfig{key, sm}, nil
+	default:
+		return nil, ErrUnexpectedSigningMethod
+	}
+}
+
 // WithPublisherJWT sets the JWT key and the signing algorithm to use for publishers.
 func WithPublisherJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
-		sm := jwt.GetSigningMethod(alg)
-		switch sm.(type) {
-		case *jwt.SigningMethodHMAC:
-		case *jwt.SigningMethodRSA:
-		default:
-			return ErrUnexpectedSigningMethod
-		}
+		jwtConfig, err := createJWTConfig(key, alg)
+		o.publisherJWT = jwtConfig
 
-		o.publisherJWT = &jwtConfig{key, sm}
-
-		return nil
+		return err
 	}
 }
 
 // WithSubscriberJWT sets the JWT key and the signing algorithm to use for subscribers.
 func WithSubscriberJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
-		sm := jwt.GetSigningMethod(alg)
-		switch sm.(type) {
-		case *jwt.SigningMethodHMAC:
-		case *jwt.SigningMethodRSA:
-		default:
-			return ErrUnexpectedSigningMethod
-		}
+		jwtConfig, err := createJWTConfig(key, alg)
+		o.subscriberJWT = jwtConfig
 
-		o.subscriberJWT = &jwtConfig{key, sm}
-
-		return nil
+		return err
 	}
 }
 
