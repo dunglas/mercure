@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
+
+var errInvalidOrigin = errors.New(`invalid origin, the URL must ward with "https" or "http"`)
 
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
@@ -109,37 +112,33 @@ func WithHeartbeat(interval time.Duration) Option {
 	}
 }
 
+func createJWTConfig(key []byte, alg string) (*jwtConfig, error) {
+	sm := jwt.GetSigningMethod(alg)
+	switch sm.(type) {
+	case *jwt.SigningMethodHMAC, *jwt.SigningMethodRSA:
+		return &jwtConfig{key, sm}, nil
+	default:
+		return nil, ErrUnexpectedSigningMethod
+	}
+}
+
 // WithPublisherJWT sets the JWT key and the signing algorithm to use for publishers.
 func WithPublisherJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
-		sm := jwt.GetSigningMethod(alg)
-		switch sm.(type) {
-		case *jwt.SigningMethodHMAC:
-		case *jwt.SigningMethodRSA:
-		default:
-			return ErrUnexpectedSigningMethod
-		}
+		jwtConfig, err := createJWTConfig(key, alg)
+		o.publisherJWT = jwtConfig
 
-		o.publisherJWT = &jwtConfig{key, sm}
-
-		return nil
+		return err
 	}
 }
 
 // WithSubscriberJWT sets the JWT key and the signing algorithm to use for subscribers.
 func WithSubscriberJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
-		sm := jwt.GetSigningMethod(alg)
-		switch sm.(type) {
-		case *jwt.SigningMethodHMAC:
-		case *jwt.SigningMethodRSA:
-		default:
-			return ErrUnexpectedSigningMethod
-		}
+		jwtConfig, err := createJWTConfig(key, alg)
+		o.subscriberJWT = jwtConfig
 
-		o.subscriberJWT = &jwtConfig{key, sm}
-
-		return nil
+		return err
 	}
 }
 
@@ -152,9 +151,41 @@ func WithAllowedHosts(hosts []string) Option {
 	}
 }
 
+func validateOrigins(origins []string) error {
+	for _, origin := range origins {
+		switch origin {
+		case "*", "null":
+			continue
+		}
+
+		u, err := url.Parse(origin)
+		if err != nil ||
+			!u.IsAbs() ||
+			u.Opaque != "" ||
+			u.User != nil ||
+			u.Path != "" ||
+			u.RawQuery != "" ||
+			u.Fragment != "" {
+			return fmt.Errorf(`invalid origin, must be a URL having only a scheme, a host and optionally a port, "*" or "null": %w`, err)
+		}
+
+		switch u.Scheme {
+		case "http", "https":
+		default:
+			return errInvalidOrigin
+		}
+	}
+
+	return nil
+}
+
 // WithPublishOrigins sets the origins allowed to publish updates.
 func WithPublishOrigins(origins []string) Option {
 	return func(o *opt) error {
+		if err := validateOrigins(origins); err != nil {
+			return err
+		}
+
 		o.publishOrigins = origins
 
 		return nil
@@ -164,6 +195,10 @@ func WithPublishOrigins(origins []string) Option {
 // WithCORSOrigins sets the allowed CORS origins.
 func WithCORSOrigins(origins []string) Option {
 	return func(o *opt) error {
+		if err := validateOrigins(origins); err != nil {
+			return err
+		}
+
 		o.corsOrigins = origins
 
 		return nil

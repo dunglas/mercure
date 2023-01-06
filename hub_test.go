@@ -129,6 +129,49 @@ func TestInvalidWithProtocolVersionCompatibility(t *testing.T) {
 	require.NotNil(t, o(op))
 }
 
+func TestOriginsValidator(t *testing.T) {
+	op := &opt{}
+
+	validOrigins := [][]string{
+		{"*"},
+		{"null"},
+		{"https://example.com"},
+		{"http://example.com:8000"},
+		{"https://example.com", "http://example.org"},
+		{"https://example.com", "*"},
+		{"null", "https://example.com:3000"},
+	}
+
+	invalidOrigins := [][]string{
+		{"f"},
+		{"foo"},
+		{"https://example.com", "bar"},
+		{"ftp://example.com"},
+		{"https://example.com/"},
+		{"https://user@example.com"},
+		{"https://example.com:abc"},
+		{"https://example.com", "http://example.org/hello"},
+		{"https://example.com?query", "*"},
+		{"null", "https://example.com:3000#fragment"},
+	}
+
+	for _, origins := range validOrigins {
+		o := WithPublishOrigins(origins)
+		require.Nil(t, o(op), "error while not expected for %#v", origins)
+
+		o = WithCORSOrigins(origins)
+		require.Nil(t, o(op), "error while not expected for %#v", origins)
+	}
+
+	for _, origins := range invalidOrigins {
+		o := WithPublishOrigins(origins)
+		require.NotNil(t, o(op), "no error while expected for %#v", origins)
+
+		o = WithCORSOrigins(origins)
+		require.NotNil(t, o(op), "no error while expected for %#v", origins)
+	}
+}
+
 func createDummy(options ...Option) *Hub {
 	tss, _ := NewTopicSelectorStoreLRU(0, 0)
 	options = append(
