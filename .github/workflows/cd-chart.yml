@@ -3,7 +3,7 @@ name: Release Chart
 on:
   push:
     tags:
-      - 'v*'      
+      - 'v*'
 
 jobs:
   release:
