@@ -382,7 +382,7 @@ func TestMetricsCollect(t *testing.T) {
 	body = url.Values{"topic": {"http://example.com/foo/1"}, "data": {"second hello"}, "id": {"second"}}
 	server.publish(body)
 
-	server.assertMetric("mercure_subscribers 3")
+	server.assertMetric("mercure_subscribers_connected 3")
 	server.assertMetric("mercure_subscribers_total 4")
 	server.assertMetric("mercure_updates_total 2")
 }

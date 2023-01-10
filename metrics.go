@@ -48,7 +48,7 @@ func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 		),
 		subscribers: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Name: "mercure_subscribers",
+				Name: "mercure_subscribers_connected",
 				Help: "The current number of running subscribers",
 			},
 		),
