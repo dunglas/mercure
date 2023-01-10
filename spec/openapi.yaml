@@ -56,26 +56,26 @@ paths:
           "application/x-www-form-urlencoded":
             schema:
               properties:
-                  topic: 
-                    description: IRIs of the updated topic. If this key is present several times, the first occurrence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs.
-                    type: array
-                    items:
-                      type: string
-                  data:
-                    description: The content of the new version of this topic.
+                topic:
+                  description: IRIs of the updated topic. If this key is present several times, the first occurrence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs.
+                  type: array
+                  items:
                     type: string
-                  private:
-                    description: To mark an update as private. If not provided, this update will be public.
-                    type: boolean
-                  id:
-                    description: "The topic's revision identifier: it will be used as the SSE's `id` property."
-                    type: string
-                  type:
-                    description: The SSE's `event` property (a specific event type).
-                    type: string
-                  retry:
-                    description: The SSE's `retry` property (the reconnection time).
-                    type: integer
+                data:
+                  description: The content of the new version of this topic.
+                  type: string
+                private:
+                  description: To mark an update as private. If not provided, this update will be public.
+                  type: boolean
+                id:
+                  description: "The topic's revision identifier: it will be used as the SSE's `id` property."
+                  type: string
+                type:
+                  description: The SSE's `event` property (a specific event type).
+                  type: string
+                retry:
+                  description: The SSE's `retry` property (the reconnection time).
+                  type: integer
               required:
                 - topic
                 - data

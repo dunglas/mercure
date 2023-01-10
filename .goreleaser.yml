@@ -18,37 +18,37 @@ changelog:
 release:
   prerelease: auto
 env:
-  - CGO_ENABLED=0
+- CGO_ENABLED=0
 builds:
 - id: caddy
   dir: caddy/mercure
   goos:
-    - linux
-    - darwin
-    - windows
+  - linux
+  - darwin
+  - windows
   goarch:
-    - 386
-    - amd64
-    - arm
-    - arm64
+  - '386'
+  - amd64
+  - arm
+  - arm64
   goarm:
-    - 5
-    - 6
-    - 7
+  - '5'
+  - '6'
+  - '7'
 # Legacy build
 - id: legacy
   dir: cmd/mercure
   ldflags:
-    - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .ShortCommit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
+  - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .ShortCommit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
   goos:
-    - linux
-    - darwin
-    - windows
+  - linux
+  - darwin
+  - windows
   goarch:
-    - 386
-    - amd64
-    - arm
-    - arm64
+  - '386'
+  - amd64
+  - arm
+  - arm64
 archives:
 - builds:
   - caddy
@@ -141,5 +141,5 @@ docker_manifests:
   - dunglas/mercure:latest-amd64
   - dunglas/mercure:latest-arm64v8
 signs:
-  - artifacts: checksum
-    args: ["--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}"]
+- artifacts: checksum
+  args: ["--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}"]

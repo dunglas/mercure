@@ -24,68 +24,68 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Set up Go
-      uses: actions/setup-go@v2
-      with:
-        go-version: '1.19'
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.19'
 
-    - uses: actions/cache@v2
-      with:
-        path: |
-          ~/go/pkg/mod              # Module download cache
-          ~/.cache/go-build         # Build cache (Linux)
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod              # Module download cache
+            ~/.cache/go-build         # Build cache (Linux)
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Install project dependencies
-      run: go get
+      - name: Install project dependencies
+        run: go get
 
-    - name: Use go-deadlock
-      run: ./tests/use-go-deadlock.sh
+      - name: Use go-deadlock
+        run: ./tests/use-go-deadlock.sh
 
-    - name: Test
-      run: go test -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
+      - name: Test
+        run: go test -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
 
-    - name: Test Caddy module
-      run: |
-        go test -timeout 1m -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
-        sed '1d' profile.cov >> ../profile.cov
-      working-directory: ./caddy
+      - name: Test Caddy module
+        run: |
+          go test -timeout 1m -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
+          sed '1d' profile.cov >> ../profile.cov
+        working-directory: ./caddy
 
-    - name: Upload coverage results
-      uses: shogo82148/actions-goveralls@v1
-      with:
-        path-to-profile: profile.cov
+      - name: Upload coverage results
+        uses: shogo82148/actions-goveralls@v1
+        with:
+          path-to-profile: profile.cov
 
-    - name: Start Mercure
-      run: |
-        cd caddy/mercure
-        sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go start -config ../../Caddyfile.dev
-        cd -
+      - name: Start Mercure
+        run: |
+          cd caddy/mercure
+          sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go start -config ../../Caddyfile.dev
+          cd -
 
-    - uses: actions/setup-node@v2
-      with:
-        node-version: '14.x'
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14.x'
 
-    - uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      - uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-    - name: Install Playwrigth dependencies
-      working-directory: conformance-tests/
-      run: npm ci
+      - name: Install Playwrigth dependencies
+        working-directory: conformance-tests/
+        run: npm ci
 
-    - name: Install Playwright
-      working-directory: conformance-tests/
-      run: npx playwright install --with-deps
+      - name: Install Playwright
+        working-directory: conformance-tests/
+        run: npx playwright install --with-deps
 
-    - name: Run Playwright tests
-      working-directory: conformance-tests/
-      run: npx playwright test
+      - name: Run Playwright tests
+        working-directory: conformance-tests/
+        run: npx playwright test

@@ -1,7 +1,7 @@
 name: Lint Docs and Non-Go Code
 on:
- push:
- pull_request:
+  push:
+  pull_request:
 
 jobs:
   lint:
@@ -15,5 +15,6 @@ jobs:
         env:
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_GO: false
+          VALIDATE_KUBERNETES_KUBEVAL: false
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,8 +1,8 @@
 name: Lint and Test Chart
 
 on:
- push:
- pull_request:
+  push:
+  pull_request:
 
 jobs:
   lint-test:
