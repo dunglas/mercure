@@ -1,5 +1,9 @@
 # Upgrade
 
+## 0.14.2
+
+The `mercure_subscribers` field of the Prometheus endpoint has been renamed `mercure_subscribers_connected` for better interoperability (including with Datadog).
+
 ## 0.14.1
 
 The default dev key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecretKey!` to respect the specification (they key must longer than 256 bits).
