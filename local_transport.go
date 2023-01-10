@@ -86,14 +86,7 @@ func (t *LocalTransport) GetSubscribers() (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
 
-	var subscribers []*Subscriber
-	t.subscribers.Walk(0, func(s *Subscriber) bool {
-		subscribers = append(subscribers, s)
-
-		return true
-	})
-
-	return t.lastEventID, subscribers, nil
+	return t.lastEventID, getSubscribers(t.subscribers), nil
 }
 
 // Close closes the Transport.
