@@ -86,3 +86,13 @@ func (e *TransportError) Error() string {
 func (e *TransportError) Unwrap() error {
 	return e.err
 }
+
+func getSubscribers(sl *SubscriberList) (subscribers []*Subscriber) {
+	sl.Walk(0, func(s *Subscriber) bool {
+		subscribers = append(subscribers, s)
+
+		return true
+	})
+
+	return
+}
