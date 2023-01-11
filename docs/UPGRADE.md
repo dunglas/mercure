@@ -1,6 +1,6 @@
 # Upgrade
 
-## 0.14.2
+## 0.14.3
 
 The `mercure_subscribers` field of the Prometheus endpoint has been renamed `mercure_subscribers_connected` for better interoperability (including with Datadog).
 
