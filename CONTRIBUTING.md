@@ -14,7 +14,7 @@ If you include code from another project, please mention it in the Pull Request 
 The commit message must follow the [Conventional Commits specification](https://www.conventionalcommits.org/).
 The following types are allowed:
 
-* `fix`: bug fix
+* `fix`: bugfix
 * `feat`: new feature
 * `docs`: change in the documentation
 * `spec`: spec change
@@ -48,7 +48,7 @@ To run the test suite:
 To test the Caddy module:
 
     cd caddy/mercure
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go run -config ../../Caddyfile.dev
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go run --config ../../Caddyfile.dev
 
 Go to `https://localhost` and enjoy!
 
@@ -70,7 +70,7 @@ When you send a PR, make sure that:
 ### Configuring Visual Studio Code
 
 A configuration for VSCode is provided in the `.vscode/` directory of the repository.
-It is automatically loaded by VS Code.           
+It is automatically loaded by VS Code.
 
 ### Finding Deadlocks
 

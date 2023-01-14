@@ -13,7 +13,7 @@
                 "MERCURE_EXTRA_DIRECTIVES": "anonymous",
                 "GLOBAL_OPTIONS": "debug"
             },
-            "args": ["run", "-config", "../../Caddyfile.dev"]
+            "args": ["run", "--config", "../../Caddyfile.dev"]
         }
     ]
 }

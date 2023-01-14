@@ -18,6 +18,8 @@ linters:
     - varnamelen
     - nonamedreturns
     - testableexamples
+    # Weird issues
+    - nolintlint
 
     # deprecated
     - interfacer
@@ -25,6 +27,11 @@ linters:
     - scopelint
     - golint
     - exhaustivestruct
+    - varcheck
+    - ifshort
+    - deadcode
+    - nosnakecase
+    - structcheck
 
 issues:
   exclude-rules:
