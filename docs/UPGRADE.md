@@ -1,5 +1,8 @@
 # Upgrade
 
+## 0.14.4
+Upgrade [Caddy web server](https://caddyserver.com/) to version 2.6.2.
+
 ## 0.14.3
 
 The `mercure_subscribers` field of the Prometheus endpoint has been renamed `mercure_subscribers_connected` for better interoperability (including with Datadog).
