@@ -18,6 +18,8 @@ linters:
     - varnamelen
     - nonamedreturns
     - testableexamples
+    # Weird issues
+    - nolintlint
 
     # deprecated
     - interfacer
