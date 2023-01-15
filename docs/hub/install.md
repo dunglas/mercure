@@ -143,8 +143,9 @@ volumes:
 
 Mercure.rocks is available [on the AUR](https://aur.archlinux.org/packages/mercure), you can install it with your favorite AUR wrapper:
 
-    yay -S mercure
-
+```console
+yay -S mercure
+```
 Or download the `PKGBUILD` and compile and install it: `makepkg -sri`.
 
 ## Custom Caddy Build
