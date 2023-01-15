@@ -1,5 +1,10 @@
 # Upgrade
 
+## 0.14.4
+
+This release is built on top of [Caddy 2.6](https://github.com/caddyserver/caddy/releases/tag/v2.6.0).
+Caddy 2.6 removed support for single-hyphen long-form flags (such as `-config`), use the double-hyphen syntax instead (`--config`).
+
 ## 0.14.3
 
 The `mercure_subscribers` field of the Prometheus endpoint has been renamed `mercure_subscribers_connected` for better interoperability (including with Datadog).
