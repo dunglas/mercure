@@ -10,17 +10,21 @@ The Mercure.rocks hub is available as a custom build of the [Caddy web server](h
 
 First, download the archive corresponding to your operating system and architecture [from the release page](https://github.com/dunglas/mercure/releases), extract the archive and open a shell in the resulting directory.
 
-*Note:* Mac OS users must use the `Darwin` binary.
+*Note:* macOS users must use the `Darwin` binary.
 
-Then, to start the Mercure.rocks Hub in development mode on Linux and Mac OS X, run:
+Then, to start the Mercure.rocks Hub in development mode on Linux and macOS, run:
 
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    ./mercure run -config Caddyfile.dev
+```console
+MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+./m`rcure run --config Caddyfile.dev
+```
 
 On Windows, start PowerShell, go into the extracted directory and run:
 
-    $env:MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; .\mercure.exe run -config Caddyfile.dev
+```powershell
+$env:MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; .\mercure.exe run --config Caddyfile.dev
+```
 
 *Note:* The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
 Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`.
@@ -32,9 +36,11 @@ In development mode, anonymous subscribers are allowed and the debug UI is avail
 
 To run the server in production mode, run this command:
 
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    ./mercure run
+```console
+MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+./mercure run
+```
 
 In production mode, the debugger UI is disabled and anonymous subscribers aren't allowed.
 To change these default settings, [learn how to configure the Mercure.rocks hub](config.md).
@@ -52,33 +58,39 @@ To compile the development version, see [https://github.com/dunglas/mercure/blob
 
 A Docker image is available on Docker Hub. The following command is enough to get a working server in development mode:
 
-    docker run \
-        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-        -p 80:80 \
-        -p 443:443 \
-        dunglas/mercure caddy run -config /etc/caddy/Caddyfile.dev
+```console
+docker run \
+    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -p 80:80 \
+    -p 443:443 \
+    dunglas/mercure caddy run --config /etc/caddy/Caddyfile.dev
+```
 
 The server is then available on `https://localhost`. Anonymous subscribers are allowed and the debugger UI is available on `https://localhost/.well-known/mercure/ui/`.
 
 In production, simply run:
 
-    docker run \
-        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-        -p 80:80 \
-        -p 443:443 \
-        dunglas/mercure
+```console
+docker run \
+    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -p 80:80 \
+    -p 443:443 \
+    dunglas/mercure
+```
 
 HTTPS support is automatically enabled. If you run the Mercure hub behind a reverse proxy [such as NGINX](cookbooks.md#using-nginx-as-an-http-2-reverse-proxy-in-front-of-the-hub), you usually want to use unencrypted HTTP.
 This can be done like that:
 
-    docker run \
-        -e SERVER_NAME=':80' \
-        -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-        -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-        -p 80:80 \
-        dunglas/mercure
+```console
+docker run \
+    -e SERVER_NAME=':80' \
+    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -p 80:80 \
+    dunglas/mercure
+```
 
 The Docker image is based on [the Caddy Server Docker image](https://registry.hub.docker.com/_/caddy).
 See [the configuration section](config.md) and [the documentation of the Docker image for Caddy](https://registry.hub.docker.com/_/caddy) to learn how to configure it to fit your needs.
@@ -89,8 +101,10 @@ Use [the Helm package manager](https://helm.sh/) to install Mercure on a Kuberne
 
 To install the chart with the release name `my-release`, run the following commands:
 
-    helm repo add mercure https://charts.mercure.rocks
-    helm install my-release mercure/mercure
+```console
+helm repo add mercure https://charts.mercure.rocks
+helm install my-release mercure/mercure
+```
 
 See [the list of available values](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md) for this chart.
 
@@ -112,7 +126,7 @@ services:
       MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
       MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
     # Uncomment the following line to enable the development mode
-    #command: /usr/bin/caddy run -config /etc/caddy/Caddyfile.dev
+    #command: /usr/bin/caddy run --config /etc/caddy/Caddyfile.dev
     ports:
       - "80:80"
       - "443:443"
@@ -129,17 +143,20 @@ volumes:
 
 Mercure.rocks is available [on the AUR](https://aur.archlinux.org/packages/mercure), you can install it with your favorite AUR wrapper:
 
-    yay -S mercure
-
+```console
+yay -S mercure
+```
 Or download the `PKGBUILD` and compile and install it: `makepkg -sri`.
 
 ## Custom Caddy Build
 
 It's also possible to [download Caddy with Mercure and other modules included](https://caddyserver.com/download?package=github.com%2Fdunglas%2Fmercure%2Fcaddy), or to build your own binaries using [`xcaddy`](https://github.com/caddyserver/xcaddy):
 
-    xcaddy build \
-      --with github.com/dunglas/mercure \
-      --with github.com/dunglas/mercure/caddy
+```console
+xcaddy build \
+  --with github.com/dunglas/mercure \
+  --with github.com/dunglas/mercure/caddy
+```
 
 ## Integrations in Popular Frameworks
 
