@@ -1,7 +1,9 @@
 # Upgrade
 
 ## 0.14.4
-Upgrade [Caddy web server](https://caddyserver.com/) to version 2.6.2.
+
+This release is built on top of [Caddy 2.6](https://github.com/caddyserver/caddy/releases/tag/v2.6.0).
+Caddy 2.6 removed support for long-form flags (such as `-config`), use the double-hyphen syntax instead (`--config`).
 
 ## 0.14.3
 
