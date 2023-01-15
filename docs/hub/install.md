@@ -17,7 +17,7 @@ Then, to start the Mercure.rocks Hub in development mode on Linux and macOS, run
 ```console
 MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
 MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-./m`rcure run --config Caddyfile.dev
+./mercure run --config Caddyfile.dev
 ```
 
 On Windows, start PowerShell, go into the extracted directory and run:
