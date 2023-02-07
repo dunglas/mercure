@@ -17,11 +17,16 @@ caddyExtraDirectives: ""
 publisherJwtKey: ""
 # -- The JWT algorithm to use for publishers.
 publisherJwtAlg: HS256
+# -- The existing secret for the JWT key for publishers
+publisherJwtSecret: ""
 
 # -- The JWT key to use for subscribers, a random key will be generated if empty.
 subscriberJwtKey: ""
 # -- The JWT algorithm to use for subscribers.
 subscriberJwtAlg: HS256
+# -- The existing secret for the JWT key for subscribers
+subscriberJwtSecret: ""
+
 
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
 license: ""

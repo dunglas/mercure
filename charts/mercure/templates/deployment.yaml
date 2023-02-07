@@ -60,7 +60,7 @@ spec:
             - name: MERCURE_PUBLISHER_JWT_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.publisher-jwt-secret" . }}
                   key: publisher-jwt-key
             - name: MERCURE_PUBLISHER_JWT_ALG
               valueFrom:
@@ -70,7 +70,7 @@ spec:
             - name: MERCURE_SUBSCRIBER_JWT_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.subscriber-jwt-secret" . }}
                   key: subscriber-jwt-key
             - name: MERCURE_SUBSCRIBER_JWT_ALG
               valueFrom:

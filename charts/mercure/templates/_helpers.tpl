@@ -60,3 +60,20 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "mercure.publisher-jwt-secret" -}}
+{{- if .Values.publisherJwtSecret -}}
+  {{- tpl .Values.publisherJwtSecret $ -}}
+{{- else -}}
+  {{ include "mercure.fullname" . }}
+{{- end -}}
+{{- end }}
+
+
+{{- define "mercure.subscriber-jwt-secret" -}}
+{{- if .Values.subscriberJwtSecret -}}
+  {{- tpl .Values.subscriberJwtSecret $ -}}
+{{- else -}}
+  {{ include "mercure.fullname" . }}
+{{- end -}}
+{{- end }}
