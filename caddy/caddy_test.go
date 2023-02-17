@@ -22,14 +22,15 @@ const (
 )
 
 func TestMercure(t *testing.T) {
-	t.Skip("caddytest is currently broken because of https://github.com/caddyserver/caddy/issues/5187")
-
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
+		skip_install_trust
+		admin localhost:2999
 		http_port     9080
 		https_port    9443
 	}
+
 	localhost:9080 {
 		route {
 			mercure {
@@ -90,20 +91,19 @@ func TestMercure(t *testing.T) {
 }
 
 func TestJWTPlaceholders(t *testing.T) {
-	t.Skip("caddytest is currently broken because of https://github.com/caddyserver/caddy/issues/5187")
-
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
-	os.Setenv("TEST_JWT_KEY", string(k))
-	defer os.Unsetenv("TEST_JWT_KEY")
-	os.Setenv("TEST_JWT_ALG", "RS256")
-	defer os.Unsetenv("TEST_JWT_ALG")
+	t.Setenv("TEST_JWT_KEY", string(k))
+	t.Setenv("TEST_JWT_ALG", "RS256")
 
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
+		skip_install_trust
+		admin localhost:2999
 		http_port     9080
 		https_port    9443
 	}
+
 	localhost:9080 {
 		route {
 			mercure {
@@ -164,14 +164,15 @@ func TestJWTPlaceholders(t *testing.T) {
 }
 
 func TestSubscriptionAPI(t *testing.T) {
-	t.Skip("caddytest is currently broken because of https://github.com/caddyserver/caddy/issues/5187")
-
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
+		skip_install_trust
+		admin localhost:2999
 		http_port     9080
 		https_port    9443
 	}
+
 	localhost:9080 {
 		route {
 			mercure {
@@ -191,11 +192,11 @@ func TestSubscriptionAPI(t *testing.T) {
 }
 
 func TestCookieName(t *testing.T) {
-	t.Skip("caddytest is currently broken because of https://github.com/caddyserver/caddy/issues/5187")
-
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
+		skip_install_trust
+		admin localhost:2999
 		http_port     9080
 		https_port    9443
 	}
