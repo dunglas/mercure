@@ -18,6 +18,7 @@ linters:
     - varnamelen
     - nonamedreturns
     - testableexamples
+    - musttag
     # Weird issues
     - nolintlint
 
