@@ -27,12 +27,12 @@ const eventSource = new EventSource(url);
 eventSource.onmessage = e => console.log(e); // do something with the payload
 ```
 
-The `EventSource` class is available [in all modern web browsers](https://caniuse.com/#feat=eventsource). And for legacy browsers, [there are polyfills](ecosystem/awesome.md#useful-related-libraries).
+The `EventSource` class is available [in all modern web browsers](https://caniuse.com/eventsource). And for legacy browsers, [there are polyfills](ecosystem/awesome.md#useful-related-libraries).
 
 ## Closing Connection
 
 It is important to close this connection between the client and the hub if it is no longer needed.
-Opened connections have a continuous buffer that will drain your application resources. 
+Opened connections have a continuous buffer that will drain your application resources.
 This is especially true when using Single Page Applications (based on e.g. ReactJS): the connection is maintained even if the component that created it is unmounted.
 
 To close the connection, call `eventSource.close()`.
@@ -110,7 +110,9 @@ req.end();
 // but any HTTP client, written in any language, will be just fine.
 ```
 
-The JWT must contain a `publish` property containing an array of topic selectors. This array can be empty to allow publishing anonymous updates only. The topic selector `*` can be used to allow publishing private updates for all topics. To create and read JWTs try [jwt.io](https://jwt.io) ([demo token](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM), key: `!ChangeThisMercureHubJWTSecretKey!`).
+The JWT must contain a `publish` property containing an array of topic selectors.
+This array can be empty to allow publishing anonymous updates only.
+The topic selector `*` can be used to allow publishing private updates for all topics. To create and read JWTs try [jwt.io](https://jwt.io) ([demo token](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM), key: `!ChangeThisMercureHubJWTSecretKey!`).
 
 ## Active Subscriptions
 
