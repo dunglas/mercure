@@ -27,7 +27,7 @@ const eventSource = new EventSource(url);
 eventSource.onmessage = e => console.log(e); // do something with the payload
 ```
 
-The `EventSource` class is available [in all modern web browsers](https://caniuse.com/#feat=eventsource). And for legacy browsers, [there are polyfills](ecosystem/awesome.md#useful-related-libraries).
+The `EventSource` class is available [in all modern web browsers](https://caniuse.com/eventsource). And for legacy browsers, [there are polyfills](ecosystem/awesome.md#useful-related-libraries).
 
 ## Closing Connection
 

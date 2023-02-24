@@ -3,13 +3,13 @@
 The free version of the Mercure.rocks Hub is shipped with transports (BoltDB and local) that can only run on a single node.
 However, the Mercure.rocks Hub has been designed from the ground up to support clusters.
 
-Both [the managed (starting from the Pro plan) and the High Availability (HA) versions of the Mercure.rocks Hub](https://mercure.rocks/pricing) natively run on multiple nodes.
+Both [the managed (starting from the Pro plan) and the On Premise versions of the Mercure.rocks Hub](https://mercure.rocks/pricing) natively run on multiple nodes.
 These versions are designed for fault tolerance and can support very high loads.
 
 Both versions work by providing extra transports supporting synchronization of several nodes.
 They support all features of the free Hub.
 
-If you don't want to purchase a managed or an On Premise version of the Mercure.rocks Hub, you can also create your custom build of Mercure.rocks [using a custom transport](https://github.com/dunglas/mercure/blob/main/hub/transport.go#L13-L22).
+If you don't want to purchase a managed or an On Premise version of the Mercure.rocks Hub, you can also create your custom build of Mercure.rocks [using a custom transport](https://github.com/dunglas/mercure/blob/main/transport.go#L40-L52).
 
 ## Managed Version
 
@@ -20,9 +20,9 @@ After the purchase, a production-ready Hub is instantly deployed.
 
 To use it, just configure your custom domain name (if any) and your secret JWT key from the administration panel, that's all!
 
-## High Availability Version
+## High Availability On Premise Version
 
-The High Availability Mercure.rocks Hub is a drop-in replacement for the free Hub which allows to spread the load across as many servers as you want. It is designed to run on your own servers and is fault tolerant by default.
+The High Availability On Premise Mercure.rocks Hub is a drop-in replacement for the free Hub which allows to spread the load across as many servers as you want. It is designed to run on your own servers and is fault tolerant by default.
 
 The HA version is shipped with transports having node synchronization capabilities.
 These transports can rely on:
@@ -37,7 +37,7 @@ We can help you to decide which synchronization mechanism will be the best suite
 The HA version is provided as binaries and as a Docker image. We also maintain a Helm chart allowing to install it
 on any Kubernetes cluster.
 
-For more details (and a benchmark), [refer to the case study presented by the iGraal's CTO](https://speakerdeck.com/dunglas/mercure-real-time-for-php-made-easy?slide=52).
+For more details (and a benchmark), [read the case studies section](../spec/use-cases.md#case-studies).
 
 ### Purchasing
 
