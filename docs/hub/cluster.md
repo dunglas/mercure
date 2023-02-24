@@ -78,8 +78,7 @@ Most Cloud Computing platforms also provide managed versions of Redis.
 
 ##### Configuration
 
-All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
-See https://mercure.rocks/docs/hub/config.
+All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
 
 To use Redis, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
@@ -111,10 +110,9 @@ Most Cloud Computing platforms also provide managed versions of PostgreSQL.
 | Presence API    | ❌ (planned) |
 | Custom event ID | ✅           |
 
-##### Configuration
+##### PostgreSQL Configuration
 
-All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
-See https://mercure.rocks/docs/hub/config.
+All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
 
 To use PostgreSQL `LISTEN`/`NOTIFY`, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
@@ -124,7 +122,7 @@ To use PostgreSQL `LISTEN`/`NOTIFY`, the `MERCURE_TRANSPORT_URL` environment var
     MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
 
-The following options can be passed as query parameters of the URL set in `transport_url`: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+[Options supported by `libpq`](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) can be passed as query parameters of the URL set in `transport_url`.
 
 #### Kafka Transport
 
@@ -146,10 +144,9 @@ The Mercure.rocks hub has been tested with:
 | Presence API    | ❌           |
 | Custom event ID | ✅           |
 
-##### Configuration
+##### Kafka Configuration
 
-All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
-See https://mercure.rocks/docs/hub/config.
+All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
 
 To use Kafka, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
@@ -182,10 +179,9 @@ To install Apache Pulsar, [read the documentation](https://pulsar.apache.org/doc
 | Presence API    | ❌           |
 | Custom event ID | ❌ (planned) |
 
-##### Configuration
+##### Pulsar Configuration
 
-All the configuration parameters, and formats, supported by the free Mercure.rocks Hub are also available.
-See https://mercure.rocks/docs/hub/config.
+All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
 
 To use Pulsar, the `MERCURE_TRANSPORT_URL` environment variable must be set like in this example:
 
@@ -204,7 +200,7 @@ The following options can be passed as query parameters of the URL set in `trans
 
 ### Docker Images and Kubernetes Chart
 
-An official Docker image and [a Kubernetes Chart](https://github.com/helm/charts/tree/master/stable/mercure) are available.
+An official Docker image and [a Kubernetes Chart](install.md#kubernetes) are available.
 Contact us if you need help to use them.
 
 ### Updates
