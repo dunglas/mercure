@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var errInvalidOrigin = errors.New(`invalid origin, the URL must ward with "https" or "http"`)
+var errInvalidOrigin = errors.New(`invalid origin, the URL must ward with "https", "http" or "capacitor"`)
 
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
@@ -170,7 +170,7 @@ func validateOrigins(origins []string) error {
 		}
 
 		switch u.Scheme {
-		case "http", "https":
+		case "http", "https", "capacitor":
 		default:
 			return errInvalidOrigin
 		}

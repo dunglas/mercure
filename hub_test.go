@@ -140,6 +140,8 @@ func TestOriginsValidator(t *testing.T) {
 		{"https://example.com", "http://example.org"},
 		{"https://example.com", "*"},
 		{"null", "https://example.com:3000"},
+		{"capacitor://"},
+		{"capacitor://www.example.com"},
 	}
 
 	invalidOrigins := [][]string{
