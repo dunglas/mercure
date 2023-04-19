@@ -64,10 +64,10 @@ type Mercure struct {
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
 
 	// Maximum dispatch duration of an update.
-	DispatchTimeout caddy.Duration `json:"dispatch_timeout,omitempty"`
+	DispatchTimeout *caddy.Duration `json:"dispatch_timeout,omitempty"`
 
 	// Frequency of the heartbeat, defaults to 40s.
-	Heartbeat caddy.Duration `json:"heartbeat,omitempty"`
+	Heartbeat *caddy.Duration `json:"heartbeat,omitempty"`
 
 	// JWT key and signing algorithm to use for publishers.
 	PublisherJWT JWTConfig `json:"publisher_jwt,omitempty"`
@@ -196,11 +196,11 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 	if d := m.WriteTimeout; d != nil {
 		opts = append(opts, mercure.WithWriteTimeout(time.Duration(*d)))
 	}
-	if d := m.DispatchTimeout; d != 0 {
-		opts = append(opts, mercure.WithDispatchTimeout(time.Duration(d)))
+	if d := m.DispatchTimeout; d != nil {
+		opts = append(opts, mercure.WithDispatchTimeout(time.Duration(*d)))
 	}
-	if d := m.Heartbeat; d != 0 {
-		opts = append(opts, mercure.WithHeartbeat(time.Duration(d)))
+	if d := m.Heartbeat; d != nil {
+		opts = append(opts, mercure.WithHeartbeat(time.Duration(*d)))
 	}
 	if len(m.PublishOrigins) > 0 {
 		opts = append(opts, mercure.WithPublishOrigins(m.PublishOrigins))
@@ -278,7 +278,8 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err //nolint:wrapcheck
 				}
 
-				m.DispatchTimeout = caddy.Duration(d)
+				cd := caddy.Duration(d)
+				m.DispatchTimeout = &cd
 
 			case "heartbeat":
 				if !d.NextArg() {
@@ -290,7 +291,8 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err //nolint:wrapcheck
 				}
 
-				m.Heartbeat = caddy.Duration(d)
+				cd := caddy.Duration(d)
+				m.Heartbeat = &cd
 
 			case "publisher_jwt":
 				if !d.NextArg() {
