@@ -11,7 +11,7 @@ import (
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -37,7 +37,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 }
 
 func TestLocalTransportDispatch(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -51,7 +51,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -67,7 +67,7 @@ func TestLocalTransportClosed(t *testing.T) {
 }
 
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
-	tr, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
+	tr, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	transport := tr.(*LocalTransport)
 	defer transport.Close()
 
@@ -89,7 +89,7 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 }
 
 func TestLiveReading(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -105,7 +105,7 @@ func TestLiveReading(t *testing.T) {
 }
 
 func TestLocalTransportGetSubscribers(t *testing.T) {
-	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
+	transport, _ := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	defer transport.Close()
 	require.NotNil(t, transport)
 

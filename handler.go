@@ -318,7 +318,7 @@ func registerHealthz(router *mux.Router) {
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.
-func welcomeHandler(w http.ResponseWriter, r *http.Request) {
+func welcomeHandler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
 <title>Mercure Hub</title>
 <h1>Welcome to <a href="https://mercure.rocks">Mercure</a>!</h1>`)

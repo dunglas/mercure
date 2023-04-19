@@ -168,7 +168,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
-		t, err := NewTransport(u, logger, tss)
+		t, err := NewTransport(u, logger)
 		if err != nil {
 			return nil, err
 		}

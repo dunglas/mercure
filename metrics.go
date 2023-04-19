@@ -20,9 +20,9 @@ type Metrics interface {
 
 type NopMetrics struct{}
 
-func (NopMetrics) SubscriberConnected(s *Subscriber)    {}
-func (NopMetrics) SubscriberDisconnected(s *Subscriber) {}
-func (NopMetrics) UpdatePublished(s *Update)            {}
+func (NopMetrics) SubscriberConnected(_ *Subscriber)    {}
+func (NopMetrics) SubscriberDisconnected(_ *Subscriber) {}
+func (NopMetrics) UpdatePublished(_ *Update)            {}
 
 // PrometheusMetrics store Hub collected metrics.
 type PrometheusMetrics struct {
@@ -82,15 +82,15 @@ func (m *PrometheusMetrics) Register(r *mux.Router) {
 	r.Handle("/metrics", promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods(http.MethodGet)
 }
 
-func (m *PrometheusMetrics) SubscriberConnected(s *Subscriber) {
+func (m *PrometheusMetrics) SubscriberConnected(_ *Subscriber) {
 	m.subscribersTotal.Inc()
 	m.subscribers.Inc()
 }
 
-func (m *PrometheusMetrics) SubscriberDisconnected(s *Subscriber) {
+func (m *PrometheusMetrics) SubscriberDisconnected(_ *Subscriber) {
 	m.subscribers.Dec()
 }
 
-func (m *PrometheusMetrics) UpdatePublished(u *Update) {
+func (m *PrometheusMetrics) UpdatePublished(_ *Update) {
 	m.updatesTotal.Inc()
 }
