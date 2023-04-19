@@ -19,7 +19,7 @@ type LocalTransport struct {
 }
 
 // NewLocalTransport create a new LocalTransport.
-func NewLocalTransport(u *url.URL, l Logger, tss *TopicSelectorStore) (Transport, error) { //nolint:ireturn
+func NewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //nolint:ireturn
 	return &LocalTransport{
 		subscribers: NewSubscriberList(1e5),
 		closed:      make(chan struct{}),

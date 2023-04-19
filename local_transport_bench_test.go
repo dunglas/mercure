@@ -18,7 +18,7 @@ func BenchmarkLocalTransport(b *testing.B) {
 func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, testName string) {
 	b.Helper()
 
-	tr, err := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop(), nil)
+	tr, err := NewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
 	if err != nil {
 		panic(err)
 	}

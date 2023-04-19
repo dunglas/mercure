@@ -27,7 +27,7 @@ func (m *responseWriterMock) Write([]byte) (int, error) {
 	return 0, nil
 }
 
-func (m *responseWriterMock) WriteHeader(statusCode int) {
+func (m *responseWriterMock) WriteHeader(_ int) {
 }
 
 type responseTester struct {
