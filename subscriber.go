@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	uritemplate "github.com/yosida95/uritemplate/v3"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -71,12 +72,23 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	}
 
 	s.outMutex.Lock()
-	defer s.outMutex.Unlock()
 	if atomic.LoadInt32(&s.disconnected) > 0 {
+		s.outMutex.Unlock()
+
 		return false
 	}
 
-	s.out <- u
+	select {
+	case s.out <- u:
+		s.outMutex.Unlock()
+	default:
+		s.outMutex.Unlock()
+		s.Disconnect()
+
+		if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
+			c.Write(zap.Object("subscriber", s))
+		}
+	}
 
 	return true
 }
