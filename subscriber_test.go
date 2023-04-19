@@ -71,3 +71,15 @@ func TestMatchTopic(t *testing.T) {
 	assert.True(t, s.Match(&Update{Topics: []string{"https://example.com/books/1"}}))
 	assert.True(t, s.Match(&Update{Topics: []string{"https://example.com/books/1", "https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1"}, Private: true}))
 }
+
+func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
+	s := NewSubscriber("", zap.NewNop())
+	s.Ready()
+
+	for i := 0; i <= 1000; i++ {
+		s.Dispatch(&Update{}, false)
+	}
+
+	t.Log(len(s.out))
+	assert.Equal(t, int32(1), s.disconnected)
+}

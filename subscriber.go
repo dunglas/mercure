@@ -45,7 +45,7 @@ func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 		EscapedID:           url.QueryEscape(id),
 		RequestLastEventID:  lastEventID,
 		responseLastEventID: make(chan string, 1),
-		out:                 make(chan *Update, 1000),
+		out:                 make(chan *Update, 1000), // update TestSubscriberDoesNotBlockWhenChanIsFull if you change the buffer size
 		logger:              logger,
 	}
 
