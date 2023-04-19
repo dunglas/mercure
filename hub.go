@@ -284,7 +284,11 @@ type Hub struct {
 
 // NewHub creates a new Hub instance.
 func NewHub(options ...Option) (*Hub, error) {
-	opt := &opt{writeTimeout: 600 * time.Second}
+	opt := &opt{
+		writeTimeout:    600 * time.Second,
+		dispatchTimeout: 5 * time.Second,
+		heartbeat:       40 * time.Second,
+	}
 
 	for _, o := range options {
 		if err := o(opt); err != nil {
