@@ -76,7 +76,7 @@ func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 	s := NewSubscriber("", zap.NewNop())
 	s.Ready()
 
-	for i := 0; i <= 1000; i++ {
+	for i := 0; i <= outBufferLength; i++ {
 		s.Dispatch(&Update{}, false)
 	}
 

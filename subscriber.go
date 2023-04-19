@@ -37,6 +37,8 @@ type Subscriber struct {
 	liveMutex           sync.RWMutex
 }
 
+const outBufferLength = 1000
+
 // NewSubscriber creates a new subscriber.
 func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
@@ -45,7 +47,7 @@ func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 		EscapedID:           url.QueryEscape(id),
 		RequestLastEventID:  lastEventID,
 		responseLastEventID: make(chan string, 1),
-		out:                 make(chan *Update, 1000), // update TestSubscriberDoesNotBlockWhenChanIsFull if you change the buffer size
+		out:                 make(chan *Update, outBufferLength),
 		logger:              logger,
 	}
 
