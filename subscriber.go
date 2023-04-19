@@ -82,8 +82,9 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	case s.out <- u:
 		s.outMutex.Unlock()
 	default:
+		// Channel is full, disconnect the subscriber
+		atomic.StoreInt32(&s.disconnected, 1)
 		s.outMutex.Unlock()
-		s.Disconnect()
 
 		if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
 			c.Write(zap.Object("subscriber", s))
