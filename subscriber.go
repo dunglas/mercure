@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	uritemplate "github.com/yosida95/uritemplate/v3"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -36,6 +37,8 @@ type Subscriber struct {
 	liveMutex           sync.RWMutex
 }
 
+const outBufferLength = 1000
+
 // NewSubscriber creates a new subscriber.
 func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
@@ -44,7 +47,7 @@ func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 		EscapedID:           url.QueryEscape(id),
 		RequestLastEventID:  lastEventID,
 		responseLastEventID: make(chan string, 1),
-		out:                 make(chan *Update, 1000),
+		out:                 make(chan *Update, outBufferLength),
 		logger:              logger,
 	}
 
@@ -71,28 +74,44 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	}
 
 	s.outMutex.Lock()
-	defer s.outMutex.Unlock()
 	if atomic.LoadInt32(&s.disconnected) > 0 {
+		s.outMutex.Unlock()
+
 		return false
 	}
 
-	s.out <- u
+	select {
+	case s.out <- u:
+		s.outMutex.Unlock()
+	default:
+		s.handleFullChan()
+
+		return false
+	}
 
 	return true
 }
 
 // Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
-func (s *Subscriber) Ready() int {
+func (s *Subscriber) Ready() (n int) {
 	s.liveMutex.Lock()
-	defer s.liveMutex.Unlock()
 	s.outMutex.Lock()
-	defer s.outMutex.Unlock()
 
-	n := len(s.liveQueue)
 	for _, u := range s.liveQueue {
-		s.out <- u
+		select {
+		case s.out <- u:
+			n++
+		default:
+			s.handleFullChan()
+			s.liveMutex.Unlock()
+
+			return n
+		}
 	}
 	atomic.StoreInt32(&s.ready, 1)
+
+	s.outMutex.Unlock()
+	s.liveMutex.Unlock()
 
 	return n
 }
@@ -251,4 +270,14 @@ func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}
 
 	return nil
+}
+
+// handleFullChan disconnects the subscriber when the out channel is full.
+func (s *Subscriber) handleFullChan() {
+	atomic.StoreInt32(&s.disconnected, 1)
+	s.outMutex.Unlock()
+
+	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
+		c.Write(zap.Object("subscriber", s))
+	}
 }
