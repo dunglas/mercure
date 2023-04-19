@@ -270,7 +270,7 @@ func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	return nil
 }
 
-// handleFullChan disconnects the subscriber when the out channel is full
+// handleFullChan disconnects the subscriber when the out channel is full.
 func (s *Subscriber) handleFullChan() {
 	atomic.StoreInt32(&s.disconnected, 1)
 	s.outMutex.Unlock()
