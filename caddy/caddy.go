@@ -146,7 +146,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 			u.RawQuery = query.Encode()
 		}
 
-		transport, err := mercure.NewTransport(u, m.logger, tss)
+		transport, err := mercure.NewTransport(u, m.logger)
 		if err != nil {
 			return nil, err //nolint:wrapcheck
 		}
