@@ -82,30 +82,34 @@ func (s *Subscriber) Dispatch(u *Update, fromHistory bool) bool {
 	case s.out <- u:
 		s.outMutex.Unlock()
 	default:
-		// Channel is full, disconnect the subscriber
-		atomic.StoreInt32(&s.disconnected, 1)
-		s.outMutex.Unlock()
+		s.handleFullChan()
 
-		if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
-			c.Write(zap.Object("subscriber", s))
-		}
+		return false
 	}
 
 	return true
 }
 
 // Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
-func (s *Subscriber) Ready() int {
+func (s *Subscriber) Ready() (n int) {
 	s.liveMutex.Lock()
-	defer s.liveMutex.Unlock()
 	s.outMutex.Lock()
-	defer s.outMutex.Unlock()
 
-	n := len(s.liveQueue)
 	for _, u := range s.liveQueue {
-		s.out <- u
+		select {
+		case s.out <- u:
+			n++
+		default:
+			s.handleFullChan()
+			s.liveMutex.Unlock()
+
+			return n
+		}
 	}
 	atomic.StoreInt32(&s.ready, 1)
+
+	s.outMutex.Unlock()
+	s.liveMutex.Unlock()
 
 	return n
 }
@@ -264,4 +268,14 @@ func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	}
 
 	return nil
+}
+
+// handleFullChan disconnects the subscriber when the out channel is full
+func (s *Subscriber) handleFullChan() {
+	atomic.StoreInt32(&s.disconnected, 1)
+	s.outMutex.Unlock()
+
+	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
+		c.Write(zap.Object("subscriber", s))
+	}
 }
