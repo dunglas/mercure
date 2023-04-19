@@ -80,6 +80,5 @@ func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 		s.Dispatch(&Update{}, false)
 	}
 
-	t.Log(len(s.out))
 	assert.Equal(t, int32(1), s.disconnected)
 }
