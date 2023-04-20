@@ -142,8 +142,10 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 
 		if m.WriteTimeout != nil {
 			query := u.Query()
-			query.Set("write_timeout", time.Duration(*m.WriteTimeout).String())
-			u.RawQuery = query.Encode()
+			if !query.Has("write_timeout") {
+				query.Set("write_timeout", time.Duration(*m.WriteTimeout).String())
+				u.RawQuery = query.Encode()
+			}
 		}
 
 		transport, err := mercure.NewTransport(u, m.logger)

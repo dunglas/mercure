@@ -14,6 +14,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	DefaultWriteTimeout    = 600 * time.Second
+	DefaultDispatchTimeout = 5 * time.Second
+	DefaultHeartbeat       = 40 * time.Second
+)
+
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
 
@@ -285,9 +291,9 @@ type Hub struct {
 // NewHub creates a new Hub instance.
 func NewHub(options ...Option) (*Hub, error) {
 	opt := &opt{
-		writeTimeout:    600 * time.Second,
-		dispatchTimeout: 5 * time.Second,
-		heartbeat:       40 * time.Second,
+		writeTimeout:    DefaultWriteTimeout,
+		dispatchTimeout: DefaultDispatchTimeout,
+		heartbeat:       DefaultHeartbeat,
 	}
 
 	for _, o := range options {
