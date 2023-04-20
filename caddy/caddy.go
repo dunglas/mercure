@@ -63,7 +63,7 @@ type Mercure struct {
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
 
-	// Maximum dispatch duration of an update.
+	// Maximum dispatch duration of an update, defaults to 5s.
 	DispatchTimeout *caddy.Duration `json:"dispatch_timeout,omitempty"`
 
 	// Frequency of the heartbeat, defaults to 40s.

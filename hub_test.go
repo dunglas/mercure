@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/viper"
@@ -25,6 +26,12 @@ func TestNewHub(t *testing.T) {
 	h := createDummy()
 
 	assert.IsType(t, &viper.Viper{}, h.config)
+
+	assert.False(t, h.opt.anonymous)
+	assert.Equal(t, defaultCookieName, h.opt.cookieName)
+	assert.Equal(t, 40*time.Second, h.opt.heartbeat)
+	assert.Equal(t, 5*time.Second, h.opt.dispatchTimeout)
+	assert.Equal(t, 600*time.Second, h.opt.writeTimeout)
 }
 
 func TestNewHubWithConfig(t *testing.T) {
