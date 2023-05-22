@@ -11,7 +11,7 @@ replace github.com/dunglas/mercure => ../
 
 require (
 	github.com/caddyserver/caddy/v2 v2.6.4
-	github.com/dunglas/mercure v0.14.7
+	github.com/dunglas/mercure v0.14.8
 	github.com/prometheus/client_golang v1.15.1
 	github.com/stretchr/testify v1.8.2
 	go.uber.org/zap v1.24.0
