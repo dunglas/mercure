@@ -2,6 +2,11 @@ module github.com/dunglas/mercure/caddy
 
 go 1.19
 
+retract (
+	v0.14.7 // CI problem
+	v0.14.6 // Overwriten tag
+)
+
 replace github.com/dunglas/mercure => ../
 
 require (

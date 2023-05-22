@@ -2,6 +2,11 @@ module github.com/dunglas/mercure
 
 go 1.19
 
+retract (
+	v0.14.7 // CI problem
+	v0.14.6 // Overwriten tag
+)
+
 require (
 	github.com/dgraph-io/ristretto v0.1.1
 	github.com/gofrs/uuid v4.4.0+incompatible
