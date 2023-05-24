@@ -140,12 +140,16 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
-		if m.WriteTimeout != nil {
-			query := u.Query()
-			if !query.Has("write_timeout") {
-				query.Set("write_timeout", time.Duration(*m.WriteTimeout).String())
-				u.RawQuery = query.Encode()
+		const writeTimeoutKey = "write_timeout"
+		query := u.Query()
+		if !query.Has(writeTimeoutKey) {
+			if m.WriteTimeout == nil {
+				query.Set(writeTimeoutKey, mercure.DefaultWriteTimeout.String())
+			} else {
+				query.Set(writeTimeoutKey, time.Duration(*m.WriteTimeout).String())
 			}
+
+			u.RawQuery = query.Encode()
 		}
 
 		transport, err := mercure.NewTransport(u, m.logger)
