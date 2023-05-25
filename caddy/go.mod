@@ -13,7 +13,7 @@ replace github.com/slackhq/nebula => github.com/slackhq/nebula v1.6.1 // Allow c
 
 require (
 	github.com/caddyserver/caddy/v2 v2.6.4
-	github.com/dunglas/mercure v0.14.8
+	github.com/dunglas/mercure v0.14.9
 	github.com/prometheus/client_golang v1.15.1
 	github.com/stretchr/testify v1.8.3
 	go.uber.org/zap v1.24.0
