@@ -233,13 +233,14 @@ func WithCookieName(cookieName string) Option {
 // WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (only version 7 is supported).
 func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	return func(o *opt) error {
-		if protocolVersionCompatibility != 7 {
+		switch protocolVersionCompatibility {
+		case 7:
+			o.protocolVersionCompatibility = protocolVersionCompatibility
+
+			return nil
+		default:
 			return ErrUnsupportedProtocolVersion
 		}
-
-		o.protocolVersionCompatibility = protocolVersionCompatibility
-
-		return nil
 	}
 }
 
