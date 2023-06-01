@@ -259,6 +259,44 @@ func TestSubscribe(t *testing.T) {
 	testSubscribe(t, 3)
 }
 
+func TestSubscribeWithDebug(t *testing.T) {
+	hub := createDummy(WithDebug())
+	s, _ := hub.transport.(*LocalTransport)
+
+	go func() {
+		for {
+			s.RLock()
+			empty := s.subscribers.Len() == 0
+			s.RUnlock()
+
+			if empty {
+				continue
+			}
+
+			hub.transport.Dispatch(&Update{
+				Topics:  []string{"http://example.com/reviews/22"},
+				Event:   Event{Data: "Foo", ID: "a"},
+				Private: true,
+			})
+
+			return
+		}
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"http://example.com/reviews/22"})})
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nid: a\ndata: Foo\n\n",
+		t:                  t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+}
+
 func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 
