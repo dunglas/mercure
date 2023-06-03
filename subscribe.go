@@ -69,12 +69,18 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-heartbeatTimerC:
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(w, s, ":\n") {
+			if ok, c := h.write(w, s, ":\n"); !ok {
+				<-c
 				return
 			}
 			heartbeatTimer.Reset(h.heartbeat)
 		case update, ok := <-s.Receive():
-			if !ok || !h.write(w, s, newSerializedUpdate(update).event) {
+			if !ok {
+				return
+			}
+			var c chan struct{}
+			if ok, c = h.write(w, s, newSerializedUpdate(update).event); !ok {
+				<-c
 				return
 			}
 			if heartbeatTimer != nil {
@@ -195,14 +201,15 @@ func retrieveLastEventID(r *http.Request, opt *opt, logger Logger) string {
 }
 
 // Write sends the given string to the client.
-// It returns false if the dispatch timed out.
+// It returns false if the dispatch timed out and a non-nil channel so the caller can know when
+// the dispatch goroutine finishes.
 // The current write cannot be cancelled because of https://github.com/golang/go/issues/16100
-func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
+func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) (bool, chan struct{}) {
 	if h.dispatchTimeout == 0 {
 		fmt.Fprint(w, data)
 		w.(http.Flusher).Flush()
 
-		return true
+		return true, nil
 	}
 
 	done := make(chan struct{})
@@ -216,13 +223,13 @@ func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
 	defer timeout.Stop()
 	select {
 	case <-done:
-		return true
+		return true, nil
 	case <-timeout.C:
 		if c := h.logger.Check(zap.WarnLevel, "Dispatch timeout reached"); c != nil {
 			c.Write(zap.Object("subscriber", s))
 		}
 
-		return false
+		return false, done
 	}
 }
 
