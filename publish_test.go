@@ -319,7 +319,7 @@ func FuzzPublish(f *testing.F) {
 	}
 
 	for _, tc := range testCases {
-		f.Add(tc...)
+		f.Add(tc...) //nolint:govet
 	}
 
 	f.Fuzz(func(t *testing.T, topic1, topic2, id, data, private, retry, typ string) {
