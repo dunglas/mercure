@@ -222,6 +222,8 @@ func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
 			c.Write(zap.Object("subscriber", s))
 		}
 
+		// wait for the dispatch goroutine to finish
+		<-done
 		return false
 	}
 }
