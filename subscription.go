@@ -125,7 +125,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 		}
 		w.WriteHeader(http.StatusInternalServerError)
 
-		return
+		return lastEventID, subscribers, ok
 	}
 	if r.Header.Get("If-None-Match") == lastEventID {
 		w.WriteHeader(http.StatusNotModified)

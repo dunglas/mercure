@@ -224,6 +224,7 @@ func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
 
 		// wait for the dispatch goroutine to finish
 		<-done
+
 		return false
 	}
 }

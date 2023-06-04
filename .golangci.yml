@@ -19,6 +19,7 @@ linters:
     - nonamedreturns
     - testableexamples
     - musttag
+    - depguard
     # Weird issues
     - nolintlint
 
