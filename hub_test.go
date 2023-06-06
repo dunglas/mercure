@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -129,11 +130,30 @@ func TestWithProtocolVersionCompatibility(t *testing.T) {
 	assert.False(t, op.isBackwardCompatiblyEnabledWith(6))
 }
 
-func TestInvalidWithProtocolVersionCompatibility(t *testing.T) {
+func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 	op := &opt{}
 
-	o := WithProtocolVersionCompatibility(6)
-	require.NotNil(t, o(op))
+	testCases := []struct {
+		version int
+		ok      bool
+	}{
+		{5, false},
+		{6, false},
+		{7, true},
+		{8, false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("version %d", tc.version), func(t *testing.T) {
+			o := WithProtocolVersionCompatibility(tc.version)
+
+			if tc.ok {
+				require.Nil(t, o(op))
+			} else {
+				require.Error(t, o(op))
+			}
+		})
+	}
 }
 
 func TestOriginsValidator(t *testing.T) {
