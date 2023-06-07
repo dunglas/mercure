@@ -15,6 +15,9 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 type responseWriterMock struct{}
@@ -259,8 +262,7 @@ func TestSubscribe(t *testing.T) {
 	testSubscribe(t, 3)
 }
 
-func TestSubscribeWithDebug(t *testing.T) {
-	hub := createDummy(WithDebug())
+func testSubscribeLogs(t *testing.T, hub *Hub) {
 	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {
@@ -295,6 +297,30 @@ func TestSubscribeWithDebug(t *testing.T) {
 	}
 
 	hub.SubscribeHandler(w, req)
+}
+
+func TestSubscribeWithDebug(t *testing.T) {
+
+	core, logs := observer.New(zapcore.DebugLevel)
+	hub := createDummy(
+		WithDebug(),
+		WithLogger(zap.New(core)),
+	)
+
+	testSubscribeLogs(t, hub)
+
+	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 1)
+}
+func TestSubscribeWithoutDebug(t *testing.T) {
+
+	core, logs := observer.New(zapcore.DebugLevel)
+	hub := createDummy(
+		WithLogger(zap.New(core)),
+	)
+
+	testSubscribeLogs(t, hub)
+
+	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 0)
 }
 
 func TestUnsubscribe(t *testing.T) {
