@@ -263,6 +263,7 @@ func TestSubscribe(t *testing.T) {
 }
 
 func testSubscribeLogs(t *testing.T, hub *Hub) {
+	t.Helper()
 	s, _ := hub.transport.(*LocalTransport)
 
 	go func() {
@@ -300,26 +301,19 @@ func testSubscribeLogs(t *testing.T, hub *Hub) {
 }
 
 func TestSubscribeWithDebug(t *testing.T) {
-
 	core, logs := observer.New(zapcore.DebugLevel)
-	hub := createDummy(
+	testSubscribeLogs(t, createDummy(
 		WithDebug(),
 		WithLogger(zap.New(core)),
-	)
-
-	testSubscribeLogs(t, hub)
-
+	))
 	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 1)
 }
+
 func TestSubscribeWithoutDebug(t *testing.T) {
-
 	core, logs := observer.New(zapcore.DebugLevel)
-	hub := createDummy(
+	testSubscribeLogs(t, createDummy(
 		WithLogger(zap.New(core)),
-	)
-
-	testSubscribeLogs(t, hub)
-
+	))
 	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 0)
 }
 
