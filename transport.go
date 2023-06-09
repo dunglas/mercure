@@ -60,8 +60,8 @@ type TransportSubscribers interface {
 // ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
 var ErrClosedTransport = errors.New("hub: read/write on closed Transport")
 
-// ErrIdNotFound is returned by the Transport's AddSubscriber when &lastEventID requested is bogus
-var ErrIdNotFound = errors.New("hub: id not found")
+// ErrIDNotFound is returned by the Transport's AddSubscriber when &lastEventID requested is bogus.
+var ErrIDNotFound = errors.New("hub: id not found")
 
 // TransportError is returned when the Transport's DSN is invalid.
 type TransportError struct {
