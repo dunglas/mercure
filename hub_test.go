@@ -216,6 +216,7 @@ func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
 		Foo string `json:"foo"`
 	}
 	payload.Foo = "bar"
+
 	return createDummyAuthorizedJWTWithPayload(h, r, topics, payload)
 }
 
