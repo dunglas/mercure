@@ -262,59 +262,49 @@ func TestSubscribe(t *testing.T) {
 	testSubscribe(t, 3)
 }
 
-func testSubscribeLogs(t *testing.T, hub *Hub) {
+func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 	t.Helper()
-	s, _ := hub.transport.(*LocalTransport)
 
-	go func() {
-		for {
-			s.RLock()
-			empty := s.subscribers.Len() == 0
-			s.RUnlock()
-
-			if empty {
-				continue
-			}
-
-			hub.transport.Dispatch(&Update{
-				Topics:  []string{"http://example.com/reviews/22"},
-				Event:   Event{Data: "Foo", ID: "a"},
-				Private: true,
-			})
-
-			return
-		}
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"http://example.com/reviews/22"})})
-
-	w := &responseTester{
-		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nid: a\ndata: Foo\n\n",
-		t:                  t,
-		cancel:             cancel,
-	}
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil)
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(hub, roleSubscriber, []string{"http://example.com/reviews/22"}, payload)})
+	w := httptest.NewRecorder()
 
 	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, http.StatusText(http.StatusOK)+"\n", w.Body.String())
 }
 
 func TestSubscribeWithDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
+	var payload struct {
+		Bar string `json:"baz"`
+	}
+	payload.Bar = "baz"
+
 	testSubscribeLogs(t, createDummy(
 		WithDebug(),
 		WithLogger(zap.New(core)),
-	))
-	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 1)
+	), payload)
+
+	assert.Len(t, logs.FilterMessage("New subscriber").FilterField(zap.Reflect("payload", payload)), 1)
 }
 
 func TestSubscribeWithoutDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
+
+	var payload struct {
+		Bar string `json:"baz"`
+	}
+	payload.Bar = "bar"
+
 	testSubscribeLogs(t, createDummy(
 		WithLogger(zap.New(core)),
-	))
-	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 0)
+	), payload)
+	assert.Len(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload"), 0)
 }
 
 func TestUnsubscribe(t *testing.T) {
