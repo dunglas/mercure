@@ -3,6 +3,7 @@ package mercure
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -265,24 +266,27 @@ func TestSubscribe(t *testing.T) {
 func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(hub, roleSubscriber, []string{"http://example.com/reviews/22"}, payload)})
-	w := httptest.NewRecorder()
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		t:                  t,
+		cancel:             cancel,
+	}
 
 	hub.SubscribeHandler(w, req)
-
-	resp := w.Result()
-	defer resp.Body.Close()
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, http.StatusText(http.StatusOK)+"\n", w.Body.String())
 }
 
 func TestSubscribeWithDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
 	var payload struct {
-		Bar string `json:"baz"`
+		Foo string `json:"foo"`
+		Bar string `json:"bar"`
 	}
+	payload.Foo = "bar"
 	payload.Bar = "baz"
 
 	testSubscribeLogs(t, createDummy(
@@ -290,21 +294,26 @@ func TestSubscribeWithDebug(t *testing.T) {
 		WithLogger(zap.New(core)),
 	), payload)
 
-	assert.Len(t, logs.FilterMessage("New subscriber").FilterField(zap.Reflect("payload", payload)), 1)
+	fmt.Print(
+		logs.FilterMessage("New subscriber").FilterFieldKey("payload"),
+		zap.Reflect("payload", payload),
+	)
+	assert.True(t, logs.FilterMessage("New subscriber").FilterField(zap.Reflect("payload", payload)).Len() == 1)
 }
 
 func TestSubscribeWithoutDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
 
 	var payload struct {
-		Bar string `json:"baz"`
+		Bar string `json:"bar"`
 	}
-	payload.Bar = "bar"
+	payload.Bar = "baz"
 
 	testSubscribeLogs(t, createDummy(
 		WithLogger(zap.New(core)),
 	), payload)
-	assert.Len(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload"), 0)
+
+	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 0)
 }
 
 func TestUnsubscribe(t *testing.T) {
