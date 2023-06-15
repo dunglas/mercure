@@ -137,7 +137,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	sendHeaders(w, s)
 
 	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
-		if h.debug {
+		if h.logger.Level() == zap.DebugLevel {
 			c.Write(zap.Object("subscriber", s), zap.Reflect("payload", claims.Mercure.Payload))
 		} else {
 			c.Write(zap.Object("subscriber", s))

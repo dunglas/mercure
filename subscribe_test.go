@@ -280,26 +280,22 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 	hub.SubscribeHandler(w, req)
 }
 
-func TestSubscribeWithDebug(t *testing.T) {
+func TestSubscribeWithLogLevelDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
 	var payload interface{}
 	json.Unmarshal([]byte("{\"bar\": \"baz\", \"foo\": \"bar\"}"), payload)
 
 	testSubscribeLogs(t, createDummy(
-		WithDebug(),
 		WithLogger(zap.New(core)),
 	), payload)
 
 	assert.True(t, logs.FilterMessage("New subscriber").FilterField(zap.Reflect("payload", payload)).Len() == 1)
 }
 
-func TestSubscribeWithoutDebug(t *testing.T) {
-	core, logs := observer.New(zapcore.DebugLevel)
-
-	var payload struct {
-		Bar string `json:"bar"`
-	}
-	payload.Bar = "baz"
+func TestSubscribeLogLevelInfo(t *testing.T) {
+	core, logs := observer.New(zapcore.InfoLevel)
+	var payload interface{}
+	json.Unmarshal([]byte("{\"bar\": \"baz\", \"foo\": \"bar\"}"), payload)
 
 	testSubscribeLogs(t, createDummy(
 		WithLogger(zap.New(core)),

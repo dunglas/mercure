@@ -28,4 +28,5 @@ type Logger interface {
 	Info(msg string, fields ...LogField)
 	Error(msg string, fields ...LogField)
 	Check(Level, string) *CheckedEntry
+	Level() Level
 }
