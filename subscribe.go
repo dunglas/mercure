@@ -96,9 +96,11 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
 	var privateTopics []string
+	var claims *claims
 
 	if h.subscriberJWT != nil {
-		claims, err := authorize(r, h.subscriberJWT, nil, h.cookieName)
+		var err error
+		claims, err = authorize(r, h.subscriberJWT, nil, h.cookieName)
 		if claims != nil {
 			s.Claims = claims
 			privateTopics = claims.Mercure.Subscribe
@@ -135,7 +137,12 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	sendHeaders(w, s)
 
 	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
-		c.Write(zap.Object("subscriber", s))
+		fields := []LogField{zap.Object("subscriber", s)}
+		if h.logger.Level() == zap.DebugLevel {
+			fields = append(fields, zap.Reflect("payload", claims.Mercure.Payload))
+		}
+
+		c.Write(fields...)
 	}
 	h.metrics.SubscriberConnected(s)
 
