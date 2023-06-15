@@ -2,8 +2,8 @@ package mercure
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -282,22 +282,14 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 
 func TestSubscribeWithDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
-	var payload struct {
-		Foo string `json:"foo"`
-		Bar string `json:"bar"`
-	}
-	payload.Foo = "bar"
-	payload.Bar = "baz"
+	var payload interface{}
+	json.Unmarshal([]byte("{\"bar\": \"baz\", \"foo\": \"bar\"}"), payload)
 
 	testSubscribeLogs(t, createDummy(
 		WithDebug(),
 		WithLogger(zap.New(core)),
 	), payload)
 
-	fmt.Print(
-		logs.FilterMessage("New subscriber").FilterFieldKey("payload"),
-		zap.Reflect("payload", payload),
-	)
 	assert.True(t, logs.FilterMessage("New subscriber").FilterField(zap.Reflect("payload", payload)).Len() == 1)
 }
 
