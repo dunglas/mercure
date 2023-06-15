@@ -289,7 +289,7 @@ func TestSubscribeWithLogLevelDebug(t *testing.T) {
 		WithLogger(zap.New(core)),
 	), payload)
 
-	assert.True(t, logs.FilterMessage("New subscriber").FilterField(zap.Reflect("payload", payload)).Len() == 1)
+	assert.Equal(t, 1, logs.FilterMessage("New subscriber").FilterField(zap.Reflect("payload", payload)).Len())
 }
 
 func TestSubscribeLogLevelInfo(t *testing.T) {
@@ -301,7 +301,7 @@ func TestSubscribeLogLevelInfo(t *testing.T) {
 		WithLogger(zap.New(core)),
 	), payload)
 
-	assert.True(t, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len() == 0)
+	assert.Equal(t, 0, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len())
 }
 
 func TestUnsubscribe(t *testing.T) {
