@@ -212,12 +212,9 @@ func createAnonymousDummy(options ...Option) *Hub {
 }
 
 func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
-	var payload struct {
+	return createDummyAuthorizedJWTWithPayload(h, r, topics, struct {
 		Foo string `json:"foo"`
-	}
-	payload.Foo = "bar"
-
-	return createDummyAuthorizedJWTWithPayload(h, r, topics, payload)
+	}{Foo: "bar"})
 }
 
 func createDummyAuthorizedJWTWithPayload(h *Hub, r role, topics []string, payload interface{}) string {
