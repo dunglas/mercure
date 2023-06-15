@@ -2,7 +2,6 @@ package mercure
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -282,8 +281,10 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 
 func TestSubscribeWithLogLevelDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
-	var payload interface{}
-	json.Unmarshal([]byte("{\"bar\": \"baz\", \"foo\": \"bar\"}"), payload)
+	payload := map[string]interface{}{
+		"bar": "baz",
+		"foo": "bar",
+	}
 
 	testSubscribeLogs(t, createDummy(
 		WithLogger(zap.New(core)),
@@ -294,9 +295,10 @@ func TestSubscribeWithLogLevelDebug(t *testing.T) {
 
 func TestSubscribeLogLevelInfo(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
-	var payload interface{}
-	json.Unmarshal([]byte("{\"bar\": \"baz\", \"foo\": \"bar\"}"), payload)
-
+	payload := map[string]interface{}{
+		"bar": "baz",
+		"foo": "bar",
+	}
 	testSubscribeLogs(t, createDummy(
 		WithLogger(zap.New(core)),
 	), payload)
