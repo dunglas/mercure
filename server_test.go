@@ -52,7 +52,7 @@ func TestForwardedHeaders(t *testing.T) {
 	require.Nil(t, err)
 	defer resp2.Body.Close()
 
-	assert.True(t, logs.FilterField(zap.String("remote_addr", "192.0.2.1")).Len() == 1)
+	assert.Equal(t, 1, logs.FilterField(zap.String("remote_addr", "192.0.2.1")).Len())
 
 	h.server.Shutdown(context.Background())
 }

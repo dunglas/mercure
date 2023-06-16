@@ -15,6 +15,9 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 type responseWriterMock struct{}
@@ -257,6 +260,52 @@ func testSubscribe(h interface{ Helper() }, numberOfSubscribers int) {
 
 func TestSubscribe(t *testing.T) {
 	testSubscribe(t, 3)
+}
+
+func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(hub, roleSubscriber, []string{"http://example.com/reviews/22"}, payload)})
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		t:                  t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+}
+
+func TestSubscribeWithLogLevelDebug(t *testing.T) {
+	core, logs := observer.New(zapcore.DebugLevel)
+	payload := map[string]interface{}{
+		"bar": "baz",
+		"foo": "bar",
+	}
+
+	testSubscribeLogs(t, createDummy(
+		WithLogger(zap.New(core)),
+	), payload)
+
+	assert.Equal(t, 1, logs.FilterMessage("New subscriber").FilterField(
+		zap.Reflect("payload", payload)).Len(),
+	)
+}
+
+func TestSubscribeLogLevelInfo(t *testing.T) {
+	core, logs := observer.New(zapcore.InfoLevel)
+	payload := map[string]interface{}{
+		"bar": "baz",
+		"foo": "bar",
+	}
+	testSubscribeLogs(t, createDummy(
+		WithLogger(zap.New(core)),
+	), payload)
+
+	assert.Equal(t, 0, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len())
 }
 
 func TestUnsubscribe(t *testing.T) {
