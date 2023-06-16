@@ -256,8 +256,8 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 		}
 		s.HistoryDispatched(responseLastEventID)
 		if !afterFromID {
-			if c := t.logger.Check(zap.ErrorLevel, "Can't find LastEventID in Bolt DB"); c != nil {
-				c.Write(zap.Error(fmt.Errorf("id not found %s", s.RequestLastEventID)))
+			if c := t.logger.Check(zap.InfoLevel, "Can't find requested LastEventID"); c != nil {
+				c.Write(zap.String("LastEventID", s.RequestLastEventID))
 			}
 		}
 
