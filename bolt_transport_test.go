@@ -52,6 +52,31 @@ func TestBoltTransportHistory(t *testing.T) {
 	}
 }
 
+func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
+	sink, logger := newTestLogger(t)
+	defer sink.Reset()
+
+	u, _ := url.Parse("bolt://test.db")
+	transport, _ := NewBoltTransport(u, logger)
+	defer transport.Close()
+	defer os.Remove("test.db")
+
+	// make sure the db is not empty
+	topics := []string{"https://example.com/foo"}
+	transport.Dispatch(&Update{
+		Event:  Event{ID: "1"},
+		Topics: topics,
+	})
+
+	s := NewSubscriber("711131", logger)
+	s.SetTopics(topics, nil)
+
+	require.Nil(t, transport.AddSubscriber(s))
+
+	log := sink.String()
+	assert.Contains(t, log, `"LastEventID":"711131"`)
+}
+
 func TestBoltTopicSelectorHistory(t *testing.T) {
 	transport := createBoltTransport("bolt://test.db")
 	defer transport.Close()
