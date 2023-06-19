@@ -255,6 +255,7 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 			}
 		}
 		s.HistoryDispatched(responseLastEventID)
+		//nolint:gocognit
 		if !afterFromID {
 			if c := t.logger.Check(zap.InfoLevel, "Can't find requested LastEventID"); c != nil {
 				c.Write(zap.String("LastEventID", s.RequestLastEventID))
