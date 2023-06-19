@@ -216,6 +216,7 @@ func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
 	return t.lastEventID, getSubscribers(t.subscribers), nil
 }
 
+//nolint:gocognit
 func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 	t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
@@ -255,7 +256,6 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 			}
 		}
 		s.HistoryDispatched(responseLastEventID)
-		//nolint:gocognit
 		if !afterFromID {
 			if c := t.logger.Check(zap.InfoLevel, "Can't find requested LastEventID"); c != nil {
 				c.Write(zap.String("LastEventID", s.RequestLastEventID))
