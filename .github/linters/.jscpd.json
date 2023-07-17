@@ -9,7 +9,7 @@
       "**/examples",
       "**/node_modules",
       "**/dist",
-      ".goreleaser.yml"
+      "/.goreleaser.yml"
     ],
     "absolute": true
   }
