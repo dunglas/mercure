@@ -58,6 +58,10 @@ jobs:
           sed '1d' profile.cov >> ../profile.cov
         working-directory: ./caddy
 
+      - name: Print version information
+        run: go run main.go version
+        working-directory: ./caddy/mercure 
+
       - name: Upload coverage results
         uses: shogo82148/actions-goveralls@v1
         with:
