@@ -8,7 +8,8 @@
       "**/*_test.go",
       "**/examples",
       "**/node_modules",
-      "**/dist"
+      "**/dist",
+      ".goreleaser.yml"
     ],
     "absolute": true
   }
