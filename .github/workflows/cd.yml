@@ -45,8 +45,8 @@ jobs:
       - name: Set GoReleaser Git tags
         run: |
           tags=$(git tag --list --sort=-version:refname 'v*')
-          echo GORELEASER_CURRENT_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")  >> "$GITHUB_ENV"
-          echo GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")  >> "$GITHUB_ENV"
+          echo "GORELEASER_CURRENT_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
+          echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
