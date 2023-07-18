@@ -43,10 +43,10 @@ jobs:
           passphrase: ${{ secrets.PASSPHRASE }}
 
       - name: Set GoReleaser Git tags
-        run:
+        run: |
           tags=$(git tag --list --sort=-version:refname 'v*')
-          echo "GORELEASER_CURRENT_TAG=$(awk 'NR==1 {print;exit}' <<< $tags)"  >> "$GITHUB_ENV"
-          echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< $tags)"  >> "$GITHUB_ENV"
+          echo GORELEASER_CURRENT_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")  >> "$GITHUB_ENV"
+          echo GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")  >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
@@ -56,3 +56,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      - name: Display version
+        run: dist/caddy_linux_amd64_v1/mercure version
+
+      - name: Upload snapshot
+        if: ${{!startsWith(github.ref, 'refs/tags/v')}}
+        uses: actions/upload-artifact@v3
+        with:
+          name: snapshot
+          path: dist/*
+          retention-days: 1
