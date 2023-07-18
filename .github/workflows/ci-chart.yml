@@ -23,7 +23,7 @@ jobs:
           python-version: '3.10'
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.4.0
+        uses: helm/chart-testing-action@v2
 
       - name: Run chart-testing (list-changed)
         id: list-changed
@@ -39,7 +39,7 @@ jobs:
 
       - name: Create kind cluster
         if: steps.list-changed.outputs.changed == 'true'
-        uses: helm/kind-action@v1.5.0
+        uses: helm/kind-action@v1
 
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
