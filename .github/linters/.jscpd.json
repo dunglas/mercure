@@ -1,16 +1,13 @@
 {
-    "threshold": 0,
-    "reporters": [
-      "consoleFull"
-    ],
-    "ignore": [
-      "**/__snapshots__/**",
-      "**/*_test.go",
-      "**/examples",
-      "**/node_modules",
-      "**/dist",
-      "/.goreleaser.yml"
-    ],
-    "absolute": true
-  }
-  
+  "threshold": 0,
+  "reporters": ["consoleFull"],
+  "ignore": [
+    "**/__snapshots__/**",
+    "**/*_test.go",
+    "**/examples",
+    "**/node_modules",
+    "**/dist",
+    "/.goreleaser.yml"
+  ],
+  "absolute": true
+}
