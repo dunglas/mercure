@@ -10,9 +10,9 @@ The Mercure.rocks hub is available as a custom build of the [Caddy web server](h
 
 First, download the archive corresponding to your operating system and architecture [from the release page](https://github.com/dunglas/mercure/releases), extract the archive and open a shell in the resulting directory.
 
-*Note:* macOS users must use the `Darwin` binary.
+*Note:* macOS users must download the `Darwin` binary, then run `xattr -d com.apple.quarantine ./mercure` [to release the hub from quarantine](troubleshooting.md#macos-localhost-installation-error).
 
-Then, to start the Mercure.rocks Hub in development mode on Linux and macOS, run:
+To start the Mercure.rocks Hub in development mode on Linux and macOS, run:
 
 ```console
 MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
