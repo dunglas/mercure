@@ -25,9 +25,25 @@ If you don't use an authorization mechanism (anonymous mode), you can set the va
 
 Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ensure that the template matches the topic.
 
-## Mac OS Localhost Installation Error
+## macOS Localhost Installation Error
 
-How to process for Mercure to work in Mac OS Catalina:
+To execute the Mercure.rocks binary, you must first [release it from quarantine](https://eclecticlight.co/2023/03/13/ventura-has-changed-app-quarantine-with-a-new-xattr/).
+
+### macOS Ventura And Later Versions
+
+Remove the `com.apple.quarantine` attribute:
+
+    xattr -d com.apple.quarantine ./mercure
+
+You can now start the hub as usual:
+
+    ./mercure run
+
+The attribute only needs to be deleted once.
+
+### macOS Catalina
+
+On macOS Catalina and later versions, follow these steps:
 
 * In the Finder on your Mac, locate the app that you want to open
 * Control-click on the app icon, then choose "Open" from the shortcut menu
