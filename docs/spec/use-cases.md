@@ -11,7 +11,7 @@ From building a chat room to expose a fully-featured event store, Mercure covers
 
 Example of usage: the Mercure integration in [API Platform](https://api-platform.com/docs/client-generator):
 
-![API Platform screencast](https://api-platform.com/d20c0f7f49b5655a3788d9c570c1c80a/client-generator-demo.gif)
+![API Platform screencast](https://raw.githubusercontent.com/api-platform/docs/3.1/create-client/images/create-client-demo.gif)
 
 ## Use Cases
 

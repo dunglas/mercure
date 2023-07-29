@@ -3,17 +3,17 @@
 The free version of the Mercure.rocks Hub is shipped with transports (BoltDB and local) that can only run on a single node.
 However, the Mercure.rocks Hub has been designed from the ground up to support clusters.
 
-Both [the managed (starting from the Pro plan) and the On Premise versions of the Mercure.rocks Hub](https://mercure.rocks/pricing) natively run on multiple nodes.
+Both [the Cloud (starting from the Pro plan) and the On Premise versions of the Mercure.rocks Hub](https://mercure.rocks/pricing) natively run on multiple nodes.
 These versions are designed for fault tolerance and can support very high loads.
 
 Both versions work by providing extra transports supporting synchronization of several nodes.
 They support all features of the free Hub.
 
-If you don't want to purchase a managed or an On Premise version of the Mercure.rocks Hub, you can also create your custom build of Mercure.rocks [using a custom transport](https://github.com/dunglas/mercure/blob/main/transport.go#L40-L52).
+If you don't want to purchase a Cloud or an On Premise version of the Mercure.rocks Hub, you can also create your custom build of Mercure.rocks [using a custom transport](https://github.com/dunglas/mercure/blob/main/transport.go#L40-L52).
 
 ## Managed Version
 
-[The managed version](https://mercure.rocks/pricing) is hosted on our own High Availability infrastructure (built on top of Kubernetes). This service is 100% hosted and managed: you have nothing to do!
+[The Cloud version](cloud.md) is hosted on our own High Availability infrastructure (built on top of Kubernetes). This service is 100% hosted and managed: you have nothing to do!
 
 The managed version of the Mercure.rocks Hub can be purchased [directly online](https://mercure.rocks/pricing).
 After the purchase, a production-ready Hub is instantly deployed.
