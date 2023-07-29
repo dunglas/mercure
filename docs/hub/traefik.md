@@ -2,7 +2,7 @@
 
 [Traefik](https://doc.traefik.io/traefik/) is a free and open source *edge router* poular in the Docker and Kubernetes ecosystems.
 
-The following Docker Compose file expose a Mercure.rocks hub through Traefik:
+The following Docker Compose file exposes a Mercure.rocks hub through Traefik:
 
 ```yaml
 # docker-compose.yml
