@@ -55,3 +55,8 @@ If you need more requests, upgrade to a higher plan or [the On Premise version](
 The [high availability hub](cluster.md) we use for the cloud service can also be hosted on your own infrastructure. When you use the [on-premise version](cluster.md#high-availability-on-premise-version), there are no limits other than the load that can be handled by your servers.
 
 [Contact us for more information on the On Premise version](mailto:contact@mercure.rocks?subject=I%27m%20interested%20in%20Mercure%20on%20premise).
+
+## Support
+
+For support requests related to the Cloud version of Mercure.rocks, send a mail to [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=Cloud%20support%20request).
+Please include the ID of your hub in the message.

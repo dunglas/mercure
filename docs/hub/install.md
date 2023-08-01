@@ -2,7 +2,8 @@
 
 ## Managed and HA Versions
 
-[Managed and High Availability versions of Mercure.rocks](https://mercure.rocks/pricing) are available, give them a try!
+The easiest way to get started with Mercure is to subscribe to the (Cloud version)(https://mercure.rocks/pricing).
+Give it a try!
 
 ## Prebuilt Binary
 
