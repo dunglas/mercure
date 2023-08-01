@@ -1,4 +1,4 @@
-# Mercure.rocks Cloud Service 
+# Mercure.rocks Cloud Service
 
 Mercure.rocks provides a managed cloud service enabling instant deployment of hosted hubs, without the need for operational or DevOps skills.
 Our SRE team constantly monitors hubs. Updates are automatically applied.
@@ -42,7 +42,7 @@ The switch is made without service interruption.
 
 ## Rate Limiting
 
-If you reach [your current plan limits] (https://mercure.rocks/pricing), the hub will return HTTP status code 429 (`Too Many Requests`).
+If you reach [your current plan limits](https://mercure.rocks/pricing), the hub will return HTTP status code 429 (`Too Many Requests`).
 
 Publication requests will be rejected and subscription requests will fail.
 
