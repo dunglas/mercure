@@ -2,7 +2,7 @@
 
 ## Managed and HA Versions
 
-The easiest way to get started with Mercure is to subscribe to the (Cloud version)(https://mercure.rocks/pricing).
+The easiest way to get started with Mercure is to subscribe to the [Cloud version](https://mercure.rocks/pricing).
 Give it a try!
 
 ## Prebuilt Binary

@@ -1,4 +1,4 @@
-## Using NGINX as an HTTP/2 Reverse Proxy in Front of the Hub
+# Using NGINX as an HTTP/2 Reverse Proxy in Front of the Hub
 
 [NGINX](https://www.nginx.com) is supported out of the box. Use the following proxy configuration:
 
