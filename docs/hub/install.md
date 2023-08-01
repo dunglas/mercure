@@ -1,4 +1,4 @@
-# Install the Mercure.rocks hub
+# Install the Mercure.rocks Hub
 
 ## Managed and HA Versions
 
@@ -114,10 +114,10 @@ If you prefer to use `docker-compose` to run the Mercure.rocks hub, here's a sam
 
 ```yaml
 # docker-compose.yml
-version: "3.7"
+version: '3'
 
 services:
-  caddy:
+  mercure:
     image: dunglas/mercure
     restart: unless-stopped
     environment:
@@ -128,16 +128,18 @@ services:
     # Uncomment the following line to enable the development mode
     #command: /usr/bin/caddy run --config /etc/caddy/Caddyfile.dev
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
-      - caddy_data:/data
-      - caddy_config:/config
+      - mercure_data:/data
+      - mercure_config:/config
 
 volumes:
-  caddy_data:
-  caddy_config:
+  mercure_data:
+  mercure_config:
 ```
+
+Alternatively, you may want to [run the Mercure.rocks hub behind Traefik Proxy](traefik.md).
 
 ## Arch Linux
 
