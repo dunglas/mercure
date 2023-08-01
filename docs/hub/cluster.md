@@ -206,3 +206,7 @@ Contact us if you need help to use them.
 ### Updates
 
 New releases of the High Availability Mercure.rocks Hub are automatically available available in the Amazon S3 bucket containing the binary and on the Docker registry.
+
+## Support
+
+For support requests related to the On Premise version of Mercure.rocks, send a mail to [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=On%20Premise%20support%20request).

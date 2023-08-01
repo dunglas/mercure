@@ -2,7 +2,7 @@
 
 ## Managed and On-Premise Support
 
-* For support requests related to the [managed](https://mercure.rocks/pricing) or the [on premise](https://mercure.rocks/docs/hub/cluster#purchasing) version of Mercure.rocks, send a mail to [contact@mercure.rocks](mailto:contact@mercure.rocks).
+For support requests related to the [Cloud](../hub/cloud.md) or the [On Premise](../hub/cluster.md#purchasing) version of Mercure.rocks, send a mail to [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=Support%20request).
 
 ## Community Support
 
