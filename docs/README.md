@@ -14,11 +14,14 @@
 
 * [Installing the Mercure.rocks Hub](hub/install.md)
 * [Configuration](hub/config.md)
-* [Creating a cluster of Mercure.rocks Hubs](hub/cluster.md)
+* [The Cloud version](hub/cloud.md)
+* [Creating a cluster of hubs](hub/cluster.md)
 * [Cookbooks](hub/cookbooks.md)
+* [Running behind NGINX](hub/nginx.md)
+* [Running behind Traefik Proxy](hub/nginx.md)
 * [Troubleshooting](hub/troubleshooting.md)
 * [Debug the Mercure.rocks Hub](hub/debug.md)
-* [Upgrade to newest versions](UPGRADE.md)
+* [Upgrade to new versions](UPGRADE.md)
 * [Load Testing](hub/load-test.md)
 
 ## Ecosystem
