@@ -17,4 +17,4 @@ For support requests related to the [Cloud](../hub/cloud.md) or the [On Premise]
 
 ## Training
 
-Les-Tilleuls also organizes [official training sessions about the Mercure protocol](https://les-tilleuls.coop/en/masterclass/trainings/introduction-to-mercure) (available in English and in French).
+Les-Tilleuls.coop also organizes [official training sessions about the Mercure protocol](https://les-tilleuls.coop/en/masterclass/trainings/introduction-to-mercure) (available in English and in French).
