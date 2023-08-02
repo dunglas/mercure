@@ -36,6 +36,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Import GPG key
+        if: startsWith(github.ref, 'refs/tags/v')
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
         with:
@@ -52,10 +53,10 @@ jobs:
         uses: goreleaser/goreleaser-action@v4
         with:
           version: latest
-          args: release --clean ${{startsWith(github.ref, 'refs/tags/v') && '' || '--snapshot'}}
+          args: release --clean ${{startsWith(github.ref, 'refs/tags/v') && '' || '--snapshot --skip-sign'}}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GPG_FINGERPRINT: ${{ startsWith(github.ref, 'refs/tags/v') && steps.import_gpg.outputs.fingerprint || '' }}
 
       - name: Display version
         run: dist/caddy_linux_amd64_v1/mercure version
