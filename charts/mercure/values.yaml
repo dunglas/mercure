@@ -144,7 +144,7 @@ affinity: {}
 #    whenUnsatisfiable: DoNotSchedule
 #    labelSelector:
 #      matchLabels:
-#        {{- include "mercure.selectorLabels" . | nindent 6 }}
+#        {{- include "mercure.selectorLabels" . | nindent 8 }}
 
 # -- Enable persistence using [Persistent Volume Claims](http://kubernetes.io/docs/user-guide/persistent-volumes/), only useful if you the BoltDB transport.
 persistence:
