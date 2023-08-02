@@ -6,7 +6,7 @@ For support requests related to the [Cloud](../hub/cloud.md) or the [On Premise]
 
 ## Community Support
 
-* [StackOverflow: ask question on  using the `mercure` tag](https://stackoverflow.com/questions/tagged/mercure)
+* [StackOverflow: ask questions using the `mercure` tag](https://stackoverflow.com/questions/tagged/mercure)
 * [Slack: chat with the community on the `#mercure` channel on Symfony's Slack](https://symfony.com/slack)
 
 ## Commercial Support
@@ -17,4 +17,4 @@ For support requests related to the [Cloud](../hub/cloud.md) or the [On Premise]
 
 ## Training
 
-Les-Tilleuls also organizes [official training sessions about the Mercure protocol]([https://masterclass.les-tilleuls.coop/en/trainings/discover-mercure](https://les-tilleuls.coop/en/masterclass/trainings/introduction-to-mercure)https://les-tilleuls.coop/en/masterclass/trainings/introduction-to-mercure) (available in English and in French).
+Les-Tilleuls also organizes [official training sessions about the Mercure protocol](https://les-tilleuls.coop/en/masterclass/trainings/introduction-to-mercure) (available in English and in French).
