@@ -2,34 +2,98 @@ package mercure
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
+	"errors"
 	"net/http"
 	"time"
 
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
+
+type responseController struct {
+	http.ResponseController
+	rw         http.ResponseWriter
+	end        time.Time
+	hub        *Hub
+	subscriber *Subscriber
+}
+
+func (rc *responseController) setDispatchWriteDeadline() bool {
+	if rc.hub.dispatchTimeout == 0 {
+		return true
+	}
+
+	deadline := time.Now().Add(rc.hub.dispatchTimeout)
+	if deadline.After(rc.end) {
+		return true
+	}
+
+	if err := rc.SetWriteDeadline(deadline); err != nil {
+		if c := rc.hub.logger.Check(zap.ErrorLevel, "Unable to set dispatch write deadline"); c != nil {
+			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func (rc *responseController) setDefaultWriteDeadline() bool {
+	if err := rc.SetWriteDeadline(rc.end); err != nil {
+		if errors.Is(err, http.ErrNotSupported) {
+			panic(err)
+		}
+
+		if c := rc.hub.logger.Check(zap.InfoLevel, "Error while setting default write deadline"); c != nil {
+			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func (rc *responseController) flush() bool {
+	if err := rc.Flush(); err != nil {
+		if errors.Is(err, http.ErrNotSupported) {
+			panic(err)
+		}
+
+		if c := rc.hub.logger.Check(zap.InfoLevel, "Unable to flush"); c != nil {
+			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func newResponseController(w http.ResponseWriter, h *Hub, s *Subscriber) *responseController {
+	var end time.Time
+	if h.writeTimeout != 0 {
+		end = time.Now().Add(h.writeTimeout)
+	}
+
+	if s.Claims != nil && s.Claims.ExpiresAt != nil && (end == time.Time{} || s.Claims.ExpiresAt.Time.Before(end)) {
+		end = s.Claims.ExpiresAt.Time
+	}
+
+	return &responseController{*http.NewResponseController(w), w, end, h, s} // nolint:bodyclose
+}
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
 //
 //nolint:funlen,gocognit
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
-	assertFlusher(w)
-
-	s := h.registerSubscriber(w, r)
+	s, rc := h.registerSubscriber(w, r)
 	if s == nil {
 		return
 	}
 	defer h.shutdown(s)
 
-	var expireTimer *time.Timer
-	var expireTimerC <-chan time.Time
-	if s.Claims != nil && s.Claims.ExpiresAt != nil {
-		expireTimer = time.NewTimer(time.Until(s.Claims.ExpiresAt.Time))
-		defer expireTimer.Stop()
-		expireTimerC = expireTimer.C
-	}
+	rc.setDefaultWriteDeadline()
 
 	var heartbeatTimer *time.Timer
 	var heartbeatTimerC <-chan time.Time
@@ -39,42 +103,22 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
-	var writeTimer *time.Timer
-	var writeTimerC <-chan time.Time
-	if h.writeTimeout != 0 {
-		writeTimer = time.NewTimer(h.writeTimeout - h.dispatchTimeout)
-		defer writeTimer.Stop()
-		writeTimerC = writeTimer.C
-	}
-
 	for {
 		select {
 		case <-r.Context().Done():
-			if c := h.logger.Check(zap.DebugLevel, "connection closed by the client"); c != nil {
-				c.Write(zap.Object("subscriber", s))
-			}
-
-			return
-		case <-expireTimerC:
-			if c := h.logger.Check(zap.DebugLevel, "JWT expired: close the connection"); c != nil {
-				c.Write(zap.Object("subscriber", s))
-			}
-
-			return
-		case <-writeTimerC:
-			if c := h.logger.Check(zap.DebugLevel, "write timeout: close the connection"); c != nil {
+			if c := h.logger.Check(zap.DebugLevel, "Connection closed by the client"); c != nil {
 				c.Write(zap.Object("subscriber", s))
 			}
 
 			return
 		case <-heartbeatTimerC:
 			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(w, s, ":\n") {
+			if !h.write(rc, ":\n") {
 				return
 			}
 			heartbeatTimer.Reset(h.heartbeat)
 		case update, ok := <-s.Receive():
-			if !ok || !h.write(w, s, newSerializedUpdate(update).event) {
+			if !ok || !h.write(rc, newSerializedUpdate(update).event) {
 				return
 			}
 			if heartbeatTimer != nil {
@@ -91,7 +135,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscriber {
+func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subscriber, *responseController) {
 	s := NewSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger)
 	s.Debug = h.debug
 	s.RemoteAddr = r.RemoteAddr
@@ -111,7 +155,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 				c.Write(zap.Object("subscriber", s), zap.Error(err))
 			}
 
-			return nil
+			return nil, nil
 		}
 	}
 
@@ -119,7 +163,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	if len(topics) == 0 {
 		http.Error(w, "Missing \"topic\" parameter.", http.StatusBadRequest)
 
-		return nil
+		return nil, nil
 	}
 	s.SetTopics(topics, privateTopics)
 
@@ -131,10 +175,10 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 			c.Write(zap.Object("subscriber", s), zap.Error(err))
 		}
 
-		return nil
+		return nil, nil
 	}
 
-	sendHeaders(w, s)
+	rc := h.sendHeaders(w, s)
 
 	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
 		fields := []LogField{zap.Object("subscriber", s)}
@@ -146,11 +190,11 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) *Subscr
 	}
 	h.metrics.SubscriberConnected(s)
 
-	return s
+	return s, rc
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func sendHeaders(w http.ResponseWriter, s *Subscriber) {
+func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) *responseController {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
 
@@ -171,8 +215,12 @@ func sendHeaders(w http.ResponseWriter, s *Subscriber) {
 
 	// Write a comment in the body
 	// Go currently doesn't provide a better way to flush the headers
-	fmt.Fprint(w, ":\n")
-	w.(http.Flusher).Flush()
+	w.Write([]byte{':', '\n'})
+
+	rc := newResponseController(w, h, s)
+	rc.flush()
+
+	return rc
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
@@ -202,38 +250,21 @@ func retrieveLastEventID(r *http.Request, opt *opt, logger Logger) string {
 }
 
 // Write sends the given string to the client.
-// It returns false if the dispatch timed out.
-// The current write cannot be cancelled because of https://github.com/golang/go/issues/16100
-func (h *Hub) write(w io.Writer, s zapcore.ObjectMarshaler, data string) bool {
-	if h.dispatchTimeout == 0 {
-		fmt.Fprint(w, data)
-		w.(http.Flusher).Flush()
-
-		return true
+// It returns false if the subscriber has been disconnected (e.g. timeout).
+func (h *Hub) write(rc *responseController, data string) bool {
+	if !rc.setDispatchWriteDeadline() {
+		return false
 	}
 
-	done := make(chan struct{})
-	go func() {
-		fmt.Fprint(w, data)
-		w.(http.Flusher).Flush()
-		close(done)
-	}()
-
-	timeout := time.NewTimer(h.dispatchTimeout)
-	defer timeout.Stop()
-	select {
-	case <-done:
-		return true
-	case <-timeout.C:
-		if c := h.logger.Check(zap.WarnLevel, "Dispatch timeout reached"); c != nil {
-			c.Write(zap.Object("subscriber", s))
+	if _, err := rc.rw.Write([]byte(data)); err != nil {
+		if c := h.logger.Check(zap.DebugLevel, "Error writing to client"); c != nil {
+			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
 		}
-
-		// wait for the dispatch goroutine to finish
-		<-done
 
 		return false
 	}
+
+	return rc.flush() && rc.setDefaultWriteDeadline()
 }
 
 func (h *Hub) shutdown(s *Subscriber) {
@@ -265,11 +296,5 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 			Event:   Event{Data: string(json)},
 		}
 		h.transport.Dispatch(u)
-	}
-}
-
-func assertFlusher(w http.ResponseWriter) {
-	if _, ok := w.(http.Flusher); !ok {
-		panic("http.ResponseWriter must be an instance of http.Flusher")
 	}
 }
