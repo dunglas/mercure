@@ -11,7 +11,9 @@
                 "MERCURE_PUBLISHER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
                 "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
                 "MERCURE_EXTRA_DIRECTIVES": "anonymous",
-                "GLOBAL_OPTIONS": "debug"
+                "GLOBAL_OPTIONS": "debug",
+                "SERVER_NAME": "localhost, host.docker.internal",
+                "EXTRA_DIRECTIVES": "tls internal"
             },
             "args": ["run", "--config", "../../Caddyfile.dev"]
         }

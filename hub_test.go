@@ -105,7 +105,7 @@ func TestStop(t *testing.T) {
 			defer wg.Done()
 			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/foo", nil)
 
-			w := httptest.NewRecorder()
+			w := newSubscribeRecorder()
 			hub.SubscribeHandler(w, req)
 
 			r := w.Result()
