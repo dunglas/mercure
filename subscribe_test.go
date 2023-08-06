@@ -372,6 +372,26 @@ func TestSubscribeLogLevelInfo(t *testing.T) {
 	assert.Equal(t, 0, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len())
 }
 
+func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
+	core, logs := observer.New(zapcore.DebugLevel)
+
+	h := createAnonymousDummy(WithLogger(zap.New(core)))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/", nil).WithContext(ctx)
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		t:                  t,
+		cancel:             cancel,
+	}
+
+	h.SubscribeHandler(w, req)
+
+	assert.Equal(t, 0, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len())
+}
+
 func TestUnsubscribe(t *testing.T) {
 	hub := createAnonymousDummy()
 
