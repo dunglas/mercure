@@ -182,7 +182,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 
 	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
 		fields := []LogField{zap.Object("subscriber", s)}
-		if h.logger.Level() == zap.DebugLevel {
+		if claims != nil && h.logger.Level() == zap.DebugLevel {
 			fields = append(fields, zap.Reflect("payload", claims.Mercure.Payload))
 		}
 
