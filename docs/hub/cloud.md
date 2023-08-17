@@ -28,7 +28,7 @@ If you use the cookie-based authentication mechanism, it is necessary to associa
 
 To associate your personalized domain with your hub:
 
-1. From the administration interface provided by your domain registrar, add a `CNAME` DNS entry pointing to the domain name ending in `.mercure.rocks` displayed in the Mercure.rocks administration interface.
+1. From the administration interface provided by your domain registrar, add a `CNAME` DNS entry pointing to the domain name ending in `.mercure.rocks.` displayed in the Mercure.rocks administration interface.
 2. Define your custom domain name in the Mercure.rocks administration interface.
 
 The DNS entry and TLS certificate may take up to 24 hours to become available.
