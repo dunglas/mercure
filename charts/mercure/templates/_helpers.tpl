@@ -60,3 +60,14 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Get the secret name.
+*/}}
+{{- define "mercure.secretName" -}}
+{{- if .Values.existingSecret -}}
+{{- printf "%s" (tpl .Values.existingSecret $) -}}
+{{- else -}}
+{{- printf "%s" (include "mercure.fullname" .) -}}
+{{- end -}}
+{{- end -}}
