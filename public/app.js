@@ -16,12 +16,15 @@
   const $subscriptionsForm = document.forms.subscriptions;
 
   const error = (e) => {
-    console.log(e);
-
-    if (e.error?.message?.includes?.('Reconnecting')) {
+    if (!e.error || e.error.message?.includes?.('Reconnecting')) {
       // Silent reconnecting messages from the polyfill
+
+      console.log("Connection closed, reconnecting...", e);
+
       return;
     }
+
+    console.log(e);
 
     if (e.toString !== Object.prototype.toString) {
       // Display relevant error message

@@ -11,10 +11,13 @@ import (
 
 type responseController struct {
 	http.ResponseController
-	rw         http.ResponseWriter
-	end        time.Time
-	hub        *Hub
-	subscriber *Subscriber
+	rw http.ResponseWriter
+	// disconnectionTime is the JWT expiration date minus hub.dispatchTimeout, or time.Now() plus hub.writeTimeout minus hub.dispatchTimeout
+	disconnectionTime time.Time
+	// writeDeadline is the JWT expiration date or time.Now() + hub.writeTimeout
+	writeDeadline time.Time
+	hub           *Hub
+	subscriber    *Subscriber
 }
 
 func (rc *responseController) setDispatchWriteDeadline() bool {
@@ -23,7 +26,7 @@ func (rc *responseController) setDispatchWriteDeadline() bool {
 	}
 
 	deadline := time.Now().Add(rc.hub.dispatchTimeout)
-	if deadline.After(rc.end) {
+	if deadline.After(rc.writeDeadline) {
 		return true
 	}
 
@@ -39,7 +42,7 @@ func (rc *responseController) setDispatchWriteDeadline() bool {
 }
 
 func (rc *responseController) setDefaultWriteDeadline() bool {
-	if err := rc.SetWriteDeadline(rc.end); err != nil {
+	if err := rc.SetWriteDeadline(rc.writeDeadline); err != nil {
 		if errors.Is(err, http.ErrNotSupported) {
 			panic(err)
 		}
@@ -70,17 +73,22 @@ func (rc *responseController) flush() bool {
 	return true
 }
 
-func newResponseController(w http.ResponseWriter, h *Hub, s *Subscriber) *responseController {
-	var end time.Time
+func (h *Hub) newResponseController(w http.ResponseWriter, s *Subscriber) *responseController {
+	wd := h.getWriteDeadline(s)
+
+	return &responseController{*http.NewResponseController(w), w, wd.Add(-h.dispatchTimeout), wd, h, s} // nolint:bodyclose
+}
+
+func (h *Hub) getWriteDeadline(s *Subscriber) (deadline time.Time) {
 	if h.writeTimeout != 0 {
-		end = time.Now().Add(h.writeTimeout)
+		deadline = time.Now().Add(h.writeTimeout)
 	}
 
-	if s.Claims != nil && s.Claims.ExpiresAt != nil && (end == time.Time{} || s.Claims.ExpiresAt.Time.Before(end)) {
-		end = s.Claims.ExpiresAt.Time
+	if s.Claims != nil && s.Claims.ExpiresAt != nil && (deadline == time.Time{} || s.Claims.ExpiresAt.Time.Before(deadline)) {
+		deadline = s.Claims.ExpiresAt.Time
 	}
 
-	return &responseController{*http.NewResponseController(w), w, end, h, s} // nolint:bodyclose
+	return
 }
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
@@ -95,12 +103,21 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 	rc.setDefaultWriteDeadline()
 
-	var heartbeatTimer *time.Timer
-	var heartbeatTimerC <-chan time.Time
+	var (
+		heartbeatTimer      *time.Timer
+		heartbeatTimerC     <-chan time.Time
+		disconnectionTimerC <-chan time.Time
+	)
+
 	if h.heartbeat != 0 {
 		heartbeatTimer = time.NewTimer(h.heartbeat)
 		defer heartbeatTimer.Stop()
 		heartbeatTimerC = heartbeatTimer.C
+	}
+	if h.writeTimeout != 0 {
+		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
+		defer disconnectionTimer.Stop()
+		disconnectionTimerC = disconnectionTimer.C
 	}
 
 	for {
@@ -117,6 +134,9 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			heartbeatTimer.Reset(h.heartbeat)
+		case <-disconnectionTimerC:
+			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
+			return
 		case update, ok := <-s.Receive():
 			if !ok || !h.write(rc, newSerializedUpdate(update).event) {
 				return
@@ -178,7 +198,9 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 		return nil, nil
 	}
 
-	rc := h.sendHeaders(w, s)
+	h.sendHeaders(w, s)
+	rc := h.newResponseController(w, s)
+	rc.flush()
 
 	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
 		fields := []LogField{zap.Object("subscriber", s)}
@@ -194,7 +216,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) *responseController {
+func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
 
@@ -216,11 +238,6 @@ func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) *responseControl
 	// Write a comment in the body
 	// Go currently doesn't provide a better way to flush the headers
 	w.Write([]byte{':', '\n'})
-
-	rc := newResponseController(w, h, s)
-	rc.flush()
-
-	return rc
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
