@@ -10,7 +10,7 @@
             "env": {
                 "MERCURE_PUBLISHER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
                 "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
-                "MERCURE_EXTRA_DIRECTIVES": "anonymous",
+                "MERCURE_EXTRA_DIRECTIVES": "anonymous\nwrite_timeout 10s",
                 "GLOBAL_OPTIONS": "debug",
                 "SERVER_NAME": "localhost, host.docker.internal",
                 "EXTRA_DIRECTIVES": "tls internal"
