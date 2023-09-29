@@ -475,6 +475,56 @@ func TestSubscribePrivate(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 }
 
+func TestSubscribePrivateWithJWKS(t *testing.T) {
+	hub, privKey := createDummyWithJWKS(t)
+	jwt := createJWTWithPrivateKey(t, privKey, roleSubscriber, []string{"http://example.com/reviews/22", "http://example.com/reviews/23"})
+
+	s, _ := hub.transport.(*LocalTransport)
+
+	go func() {
+		for {
+			s.RLock()
+			empty := s.subscribers.Len() == 0
+			s.RUnlock()
+
+			if empty {
+				continue
+			}
+
+			hub.transport.Dispatch(&Update{
+				Topics:  []string{"http://example.com/reviews/21"},
+				Event:   Event{Data: "Foo", ID: "a"},
+				Private: true,
+			})
+			hub.transport.Dispatch(&Update{
+				Topics:  []string{"http://example.com/reviews/22"},
+				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+				Private: true,
+			})
+			hub.transport.Dispatch(&Update{
+				Topics:  []string{"http://example.com/reviews/23"},
+				Event:   Event{Data: "Great", ID: "c", Retry: 1},
+				Private: true,
+			})
+
+			return
+		}
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: jwt})
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nevent: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n",
+		t:                  t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+}
+
 func TestSubscriptionEvents(t *testing.T) {
 	hub := createDummy(WithSubscriptions())
 

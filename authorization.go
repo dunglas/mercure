@@ -1,11 +1,13 @@
 package mercure
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/MicahParks/keyfunc"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
 )
@@ -48,18 +50,20 @@ var (
 	ErrInvalidJWT = errors.New("invalid JWT")
 	// ErrPublicKey is returned when there is an error with the public key.
 	ErrPublicKey = errors.New("public key error")
+	// ErrInvalidJWKS is returned when the JWKS config is invalid.
+	ErrInvalidJWKS = errors.New("invalid JWKS")
 )
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
-func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, cookieName string) (*claims, error) {
+func authorize(r *http.Request, jwtConfig *jwtConfig, jwks *jwksConfig, publishOrigins []string, cookieName string) (*claims, error) {
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != bearerPrefix {
 			return nil, ErrInvalidAuthorizationHeader
 		}
 
-		return validateJWT(authorizationHeaders[0][7:], jwtConfig)
+		return validateJWT(authorizationHeaders[0][7:], jwtConfig, jwks)
 	}
 
 	if authorizationQuery, queryExists := r.URL.Query()["authorization"]; queryExists {
@@ -67,7 +71,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 			return nil, ErrInvalidAuthorizationQuery
 		}
 
-		return validateJWT(authorizationQuery[0], jwtConfig)
+		return validateJWT(authorizationQuery[0], jwtConfig, jwks)
 	}
 
 	cookie, err := r.Cookie(cookieName)
@@ -78,7 +82,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 
 	// CSRF attacks cannot occur when using safe methods
 	if r.Method != http.MethodPost {
-		return validateJWT(cookie.Value, jwtConfig)
+		return validateJWT(cookie.Value, jwtConfig, jwks)
 	}
 
 	origin := r.Header.Get("Origin")
@@ -99,7 +103,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 
 	for _, allowedOrigin := range publishOrigins {
 		if allowedOrigin == "*" || origin == allowedOrigin {
-			return validateJWT(cookie.Value, jwtConfig)
+			return validateJWT(cookie.Value, jwtConfig, jwks)
 		}
 	}
 
@@ -107,22 +111,49 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 }
 
 // validateJWT validates that the provided JWT token is a valid Mercure token.
-func validateJWT(encodedToken string, jwtConfig *jwtConfig) (*claims, error) {
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(_ *jwt.Token) (interface{}, error) {
-		switch jwtConfig.signingMethod.(type) {
-		case *jwt.SigningMethodHMAC:
-			return jwtConfig.key, nil
-		case *jwt.SigningMethodRSA:
-			pub, err := jwt.ParseRSAPublicKeyFromPEM(jwtConfig.key)
-			if err != nil {
-				return nil, fmt.Errorf("unable to parse RSA public key: %w", err)
-			}
+func validateJWT(encodedToken string, jwtConfig *jwtConfig, jwksConfig *jwksConfig) (*claims, error) {
+	if jwksConfig != nil {
+		return validateWithJWKS(encodedToken, jwksConfig)
+	}
 
-			return pub, nil
+	return parseJWTClaims(encodedToken, jwtKeyfunc(jwtConfig))
+}
+
+func validateWithJWKS(encodedToken string, jwksConfig *jwksConfig) (*claims, error) {
+	if jwksConfig.url != "" {
+		jwks, err := keyfunc.Get(jwksConfig.url, keyfunc.Options{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get the JWKS from the given URL: %w", err)
 		}
 
-		return nil, fmt.Errorf("%T: %w", jwtConfig.signingMethod, ErrUnexpectedSigningMethod)
-	})
+		return parseJWTClaims(encodedToken, jwks.Keyfunc)
+	}
+
+	if jwksConfig.json != "" {
+		jwksJSON := json.RawMessage(jwksConfig.json)
+
+		jwks, err := keyfunc.NewJSON(jwksJSON)
+		if err != nil {
+			return nil, fmt.Errorf("failed to  create JWKS from JSON: %w", err)
+		}
+
+		return parseJWTClaims(encodedToken, jwks.Keyfunc)
+	}
+
+	if len(jwksConfig.key) == 0 && jwksConfig.keyID != "" {
+		uniquekeyID := jwksConfig.keyID
+		jwks := keyfunc.NewGiven(map[string]keyfunc.GivenKey{
+			uniquekeyID: keyfunc.NewGivenHMAC(jwksConfig.key),
+		})
+
+		return parseJWTClaims(encodedToken, jwks.Keyfunc)
+	}
+
+	return nil, ErrInvalidJWKS
+}
+
+func parseJWTClaims(encodedToken string, keyFunc jwt.Keyfunc) (*claims, error) {
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, keyFunc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse JWT: %w", err)
 	}
@@ -136,6 +167,24 @@ func validateJWT(encodedToken string, jwtConfig *jwtConfig) (*claims, error) {
 	}
 
 	return nil, ErrInvalidJWT
+}
+
+func jwtKeyfunc(jwtConfig *jwtConfig) func(token *jwt.Token) (interface{}, error) {
+	return func(token *jwt.Token) (interface{}, error) {
+		switch jwtConfig.signingMethod.(type) {
+		case *jwt.SigningMethodHMAC:
+			return jwtConfig.key, nil
+		case *jwt.SigningMethodRSA:
+			pub, err := jwt.ParseRSAPublicKeyFromPEM(jwtConfig.key)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse RSA public key: %w", err)
+			}
+
+			return pub, nil
+		}
+
+		return nil, fmt.Errorf("%T: %w", jwtConfig.signingMethod, ErrUnexpectedSigningMethod)
+	}
 }
 
 func canReceive(s *TopicSelectorStore, topics, topicSelectors []string) bool {

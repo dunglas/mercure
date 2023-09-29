@@ -32,6 +32,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/MauriceGit/skiplist v0.0.0-20211105230623-77f5c8d3e145 // indirect
+	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/RoaringBitmap/roaring v1.7.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.9.1 // indirect

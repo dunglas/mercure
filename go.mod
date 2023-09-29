@@ -8,6 +8,8 @@ retract (
 )
 
 require (
+	github.com/MicahParks/jwkset v0.3.1
+	github.com/MicahParks/keyfunc v1.9.0
 	github.com/dgraph-io/ristretto v0.1.1
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.0

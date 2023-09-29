@@ -329,8 +329,8 @@ func TestServeAcme(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	h := createAnonymousDummy(WithAllowedHosts([]string{"example.com"}))
-	h.config.Set("acme_http01_addr", ":8080")
-	h.config.Set("acme_http01_addr", ":8080")
+	h.config.Set("acme_http01_addr", ":9976")
+	h.config.Set("acme_http01_addr", ":9976")
 	h.config.Set("acme_cert_dir", dir)
 
 	go h.Serve()
@@ -342,14 +342,14 @@ func TestServeAcme(t *testing.T) {
 
 	var resp *http.Response
 	for resp == nil {
-		resp, _ = client.Get("http://127.0.0.1:8080") //nolint:bodyclose
+		resp, _ = client.Get("http://127.0.0.1:9976") //nolint:bodyclose
 	}
 
 	require.NotNil(t, resp)
 	assert.Equal(t, 302, resp.StatusCode)
 	resp.Body.Close()
 
-	resp, err := client.Get("http://0.0.0.0:8080/.well-known/acme-challenge/does-not-exists")
+	resp, err := client.Get("http://0.0.0.0:9976/.well-known/acme-challenge/does-not-exists")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	defer resp.Body.Close()
