@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/MicahParks/keyfunc"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
 )
@@ -51,14 +52,14 @@ var (
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
-func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, cookieName string) (*claims, error) {
+func authorize(r *http.Request, jwtConfig *jwtConfig, jwks string, publishOrigins []string, cookieName string) (*claims, error) {
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
 			return nil, ErrInvalidAuthorizationHeader
 		}
 
-		return validateJWT(authorizationHeaders[0][7:], jwtConfig)
+		return validateJWT(authorizationHeaders[0][7:], jwtConfig, jwks)
 	}
 
 	if authorizationQuery, queryExists := r.URL.Query()["authorization"]; queryExists {
@@ -66,7 +67,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 			return nil, ErrInvalidAuthorizationQuery
 		}
 
-		return validateJWT(authorizationQuery[0], jwtConfig)
+		return validateJWT(authorizationQuery[0], jwtConfig, jwks)
 	}
 
 	cookie, err := r.Cookie(cookieName)
@@ -77,7 +78,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 
 	// CSRF attacks cannot occur when using safe methods
 	if r.Method != http.MethodPost {
-		return validateJWT(cookie.Value, jwtConfig)
+		return validateJWT(cookie.Value, jwtConfig, jwks)
 	}
 
 	origin := r.Header.Get("Origin")
@@ -98,7 +99,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 
 	for _, allowedOrigin := range publishOrigins {
 		if allowedOrigin == "*" || origin == allowedOrigin {
-			return validateJWT(cookie.Value, jwtConfig)
+			return validateJWT(cookie.Value, jwtConfig, jwks)
 		}
 	}
 
@@ -106,22 +107,35 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 }
 
 // validateJWT validates that the provided JWT token is a valid Mercure token.
-func validateJWT(encodedToken string, jwtConfig *jwtConfig) (*claims, error) {
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
-		switch jwtConfig.signingMethod.(type) {
-		case *jwt.SigningMethodHMAC:
-			return jwtConfig.key, nil
-		case *jwt.SigningMethodRSA:
-			pub, err := jwt.ParseRSAPublicKeyFromPEM(jwtConfig.key)
-			if err != nil {
-				return nil, fmt.Errorf("unable to parse RSA public key: %w", err)
-			}
+func validateJWT(encodedToken string, jwtConfig *jwtConfig, jwksURL string) (*claims, error) {
+	var keyFunc jwt.Keyfunc
 
-			return pub, nil
+	if jwksURL != "" {
+		jwks, err := keyfunc.Get(jwksURL, keyfunc.Options{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get the JWKS from the given URL.\nError: %s", err)
 		}
 
-		return nil, fmt.Errorf("%T: %w", jwtConfig.signingMethod, ErrUnexpectedSigningMethod)
-	})
+		keyFunc = jwks.Keyfunc		
+	} else {
+		keyFunc = func(token *jwt.Token) (interface{}, error) {
+			switch jwtConfig.signingMethod.(type) {
+			case *jwt.SigningMethodHMAC:
+				return jwtConfig.key, nil
+			case *jwt.SigningMethodRSA:
+				pub, err := jwt.ParseRSAPublicKeyFromPEM(jwtConfig.key)
+				if err != nil {
+					return nil, fmt.Errorf("unable to parse RSA public key: %w", err)
+				}
+	
+				return pub, nil
+			}
+	
+			return nil, fmt.Errorf("%T: %w", jwtConfig.signingMethod, ErrUnexpectedSigningMethod)
+		}
+	}
+	
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, keyFunc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse JWT: %w", err)
 	}

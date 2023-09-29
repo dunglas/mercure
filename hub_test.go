@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"net/http"
@@ -39,6 +40,14 @@ func TestNewHubWithConfig(t *testing.T) {
 	h, err := NewHub(
 		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
+	)
+	require.NotNil(t, h)
+	require.Nil(t, err)
+}
+
+func TestNewHubWithJWKS(t *testing.T) {
+	h, err := NewHub(
+		WithPublisherJWKS("http://localhost:8000/.well-known/keys.jwks"),
 	)
 	require.NotNil(t, h)
 	require.Nil(t, err)
@@ -220,6 +229,27 @@ func createDummy(options ...Option) *Hub {
 	h.config.Set("metrics_addr", testMetricsAddr)
 
 	return h
+}
+
+func createDummyWithJWKS(t *testing.T, options ...Option) (*Hub, ed25519.PrivateKey) {
+	jwksServer, privKey := createDummyJWKSServer(t)
+	tss, _ := NewTopicSelectorStoreLRU(0, 0)
+	options = append(
+		[]Option{
+			WithPublisherJWKS(jwksServer.URL),
+			WithSubscriberJWKS(jwksServer.URL),
+			WithLogger(zap.NewNop()),
+			WithTopicSelectorStore(tss),
+		},
+		options...,
+	)
+
+	h, _ := NewHub(options...)
+	h.config = viper.New()
+	h.config.Set("addr", testAddr)
+	h.config.Set("metrics_addr", testMetricsAddr)
+
+	return h, privKey
 }
 
 func createAnonymousDummy(options ...Option) *Hub {

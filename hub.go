@@ -146,6 +146,22 @@ func WithSubscriberJWT(key []byte, alg string) Option {
 	}
 }
 
+func WithSubscriberJWKS(jwks string) Option {
+	return func(o *opt) error {
+		o.subscriberJWKS = jwks
+
+		return nil
+	}
+}
+
+func WithPublisherJWKS(jwks string) Option {
+	return func(o *opt) error {
+		o.publisherJWKS = jwks
+
+		return nil
+	}
+}
+
 // WithAllowedHosts sets the allowed hosts.
 func WithAllowedHosts(hosts []string) Option {
 	return func(o *opt) error {
@@ -266,6 +282,8 @@ type opt struct {
 	heartbeat                    time.Duration
 	publisherJWT                 *jwtConfig
 	subscriberJWT                *jwtConfig
+	subscriberJWKS               string
+	publisherJWKS                string
 	metrics                      Metrics
 	allowedHosts                 []string
 	publishOrigins               []string

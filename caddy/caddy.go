@@ -75,6 +75,10 @@ type Mercure struct {
 	// JWT key and signing algorithm to use for subscribers.
 	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitempty"`
 
+	SubscriberJWKS string `json:"subscriber_jwks,omitempty"`
+
+	PublisherJWKS string `json:"publisher_jwks,omitempty"`
+
 	// Origins allowed to publish updates
 	PublishOrigins []string `json:"publish_origins,omitempty"`
 
@@ -110,15 +114,20 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 
 	m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
 	m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
+	m.PublisherJWKS = repl.ReplaceKnown(m.PublisherJWKS, "")
 	m.SubscriberJWT.Key = repl.ReplaceKnown(m.SubscriberJWT.Key, "")
 	m.SubscriberJWT.Alg = repl.ReplaceKnown(m.SubscriberJWT.Alg, "HS256")
+	m.SubscriberJWKS = repl.ReplaceKnown(m.SubscriberJWKS, "")
 
-	if m.PublisherJWT.Key == "" {
-		return errors.New("a JWT key for publishers must be provided") //nolint:goerr113
+	if m.PublisherJWKS == "" {
+		if m.PublisherJWT.Key == "" {
+			return errors.New("a JWT key or JWKS URL for publishers must be provided") //nolint:goerr113
+		}
+		if m.PublisherJWT.Alg == "" {
+			m.PublisherJWT.Alg = "HS256"
+		}
 	}
-	if m.PublisherJWT.Alg == "" {
-		m.PublisherJWT.Alg = "HS256"
-	}
+	
 	if m.TransportURL == "" {
 		m.TransportURL = "bolt://mercure.db"
 	}
@@ -164,24 +173,35 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 		mercure.WithTopicSelectorStore(tss),
 		mercure.WithTransport(destructor.(*transportDestructor).transport),
 		mercure.WithMetrics(metrics),
-		mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg),
 		mercure.WithCookieName(m.CookieName),
 	}
+
+	if m.PublisherJWKS == "" {
+		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
+	} else {
+		opts = append(opts, mercure.WithPublisherJWKS(m.PublisherJWKS))
+	}
+
 	if m.logger.Core().Enabled(zapcore.DebugLevel) {
 		opts = append(opts, mercure.WithDebug())
 	}
 
-	if m.SubscriberJWT.Key == "" {
-		if !m.Anonymous {
-			return errors.New("a JWT key for subscribers must be provided") //nolint:goerr113
+	if m.SubscriberJWKS == "" {
+		if m.SubscriberJWT.Key == "" {
+			if !m.Anonymous {
+				return errors.New("a JWT key or JWKS URL for subscribers must be provided") //nolint:goerr113
+			}
+		} else {
+			if m.SubscriberJWT.Alg == "" {
+				m.SubscriberJWT.Alg = "HS256"
+			}
+	
+			opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
 		}
 	} else {
-		if m.SubscriberJWT.Alg == "" {
-			m.SubscriberJWT.Alg = "HS256"
-		}
-
-		opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
+		opts = append(opts, mercure.WithSubscriberJWKS(m.SubscriberJWKS))
 	}
+	
 
 	if m.Anonymous {
 		opts = append(opts, mercure.WithAnonymous())
@@ -315,6 +335,18 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				if d.NextArg() {
 					m.SubscriberJWT.Alg = d.Val()
 				}
+			
+			case "subscriber_jwks_url":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				m.SubscriberJWKS = d.Val()
+			
+			case "publisher_jwks_url":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				m.PublisherJWKS = d.Val()
 
 			case "publish_origins":
 				ra := d.RemainingArgs()
