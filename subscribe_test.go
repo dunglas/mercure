@@ -3,7 +3,6 @@ package mercure
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -482,20 +481,6 @@ func TestSubscribePrivateWithJWKS(t *testing.T) {
 	jwt := createJWTWithPrivateKey(t, privKey, roleSubscriber, []string{"http://example.com/reviews/22", "http://example.com/reviews/23"})
 
 	s, _ := hub.transport.(*LocalTransport)
-
-	res, err := http.Get(hub.subscriberJWKS)
-
-	if err != nil {
-		fmt.Print("unable to complete Get request")
-	}
-	defer res.Body.Close()
-	out, err := io.ReadAll(res.Body)
-	if err != nil {
-		fmt.Print("unable to read response data")
-	}
-
-	fmt.Println(string(out))
-	fmt.Println(defaultHubURL)
 
 	go func() {
 		for {
