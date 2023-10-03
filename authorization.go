@@ -113,7 +113,7 @@ func validateJWT(encodedToken string, jwtConfig *jwtConfig, jwksURL string) (*cl
 	if jwksURL != "" {
 		jwks, err := keyfunc.Get(jwksURL, keyfunc.Options{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to get the JWKS from the given URL.\nError: %s", err)
+			return nil, fmt.Errorf("failed to get the JWKS from the given URL.\nError: %w", err)
 		}
 
 		keyFunc = jwks.Keyfunc		
