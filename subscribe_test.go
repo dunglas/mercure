@@ -477,7 +477,6 @@ func TestSubscribePrivate(t *testing.T) {
 
 func TestSubscribePrivateWithJWKS(t *testing.T) {
 	hub, privKey := createDummyWithJWKS(t)
-	// hub, _ := createDummyWithJWKS(t)
 	jwt := createJWTWithPrivateKey(t, privKey, roleSubscriber, []string{"http://example.com/reviews/22", "http://example.com/reviews/23"})
 
 	s, _ := hub.transport.(*LocalTransport)

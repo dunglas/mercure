@@ -232,6 +232,7 @@ func createDummy(options ...Option) *Hub {
 }
 
 func createDummyWithJWKS(t *testing.T, options ...Option) (*Hub, ed25519.PrivateKey) {
+	t.Helper()
 	jwksServer, privKey := createDummyJWKSServer(t)
 	tss, _ := NewTopicSelectorStoreLRU(0, 0)
 	options = append(

@@ -116,7 +116,7 @@ func validateJWT(encodedToken string, jwtConfig *jwtConfig, jwksURL string) (*cl
 			return nil, fmt.Errorf("failed to get the JWKS from the given URL.\nError: %w", err)
 		}
 
-		keyFunc = jwks.Keyfunc		
+		keyFunc = jwks.Keyfunc
 	} else {
 		keyFunc = func(token *jwt.Token) (interface{}, error) {
 			switch jwtConfig.signingMethod.(type) {
@@ -127,14 +127,14 @@ func validateJWT(encodedToken string, jwtConfig *jwtConfig, jwksURL string) (*cl
 				if err != nil {
 					return nil, fmt.Errorf("unable to parse RSA public key: %w", err)
 				}
-	
+
 				return pub, nil
 			}
-	
+
 			return nil, fmt.Errorf("%T: %w", jwtConfig.signingMethod, ErrUnexpectedSigningMethod)
 		}
 	}
-	
+
 	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, keyFunc)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse JWT: %w", err)
