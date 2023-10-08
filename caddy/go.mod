@@ -17,7 +17,7 @@ replace (
 
 require (
 	github.com/caddyserver/caddy/v2 v2.7.4
-	github.com/dunglas/mercure v0.15.2
+	github.com/dunglas/mercure v0.15.3
 	github.com/prometheus/client_golang v1.16.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/automaxprocs v1.5.3
