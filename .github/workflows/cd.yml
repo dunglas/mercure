@@ -53,7 +53,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
-          args: release --clean ${{ !startsWith(github.ref, 'refs/tags/v') && '--snapshot --skip-sign' || '' }}
+          args: release --clean ${{ !startsWith(github.ref, 'refs/tags/v') && '--snapshot --skip=sign' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ startsWith(github.ref, 'refs/tags/v') && steps.import_gpg.outputs.fingerprint || '' }}
