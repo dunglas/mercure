@@ -59,6 +59,11 @@ jobs:
           sed '1d' profile.cov >> ../profile.cov
         working-directory: ./caddy
 
+      - name: Test building the Caddy module
+        run: |
+          go build
+        working-directory: ./caddy
+
       - name: Upload coverage results
         uses: shogo82148/actions-goveralls@v1
         with:
