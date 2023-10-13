@@ -157,7 +157,6 @@ It's also possible to [download Caddy with Mercure and other modules included](h
 
 ```console
 xcaddy build \
-  --with github.com/dunglas/mercure \
   --with github.com/dunglas/mercure/caddy
 ```
 
