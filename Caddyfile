@@ -1,24 +1,24 @@
 # Learn how to configure the Mercure.rocks Hub on https://mercure.rocks/docs/hub/config
 {
+	order mercure before request_header
+
 	{$GLOBAL_OPTIONS}
 }
 
-{$SERVER_NAME:localhost}
+{$CADDY_EXTRA_CONFIG}
 
-log {
-	format filter {
-		wrap console
-		fields {
-			uri query {
-				replace authorization REDACTED
+{$SERVER_NAME:localhost} {
+	log {
+		format filter {
+			wrap console
+			fields {
+				uri query {
+					replace authorization REDACTED
+				}
 			}
 		}
 	}
-}
 
-{$EXTRA_DIRECTIVES}
-
-route {
 	encode zstd gzip
 
 	mercure {
@@ -31,6 +31,8 @@ route {
 		# Extra directives
 		{$MERCURE_EXTRA_DIRECTIVES}
 	}
+
+	{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
 	header / Content-Type "text/html; charset=utf-8"
 	respond / `<!DOCTYPE html>
