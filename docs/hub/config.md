@@ -11,31 +11,23 @@ A minimal `Caddyfile` for the Mercure hub looks like this:
 
 ```Caddyfile
 # The address of your server
-localhost
+localhost {
+	mercure {
+		# Publisher JWT key
+		publisher_jwt !ChangeThisMercureHubJWTSecretKey!
+		# Subscriber JWT key
+		subscriber_jwt !ChangeThisMercureHubJWTSecretKey!
+	}
 
-route {
-    mercure {
-        # Publisher JWT key
-        publisher_jwt !ChangeThisMercureHubJWTSecretKey!
-        # Subscriber JWT key
-        subscriber_jwt !ChangeThisMercureHubJWTSecretKey!
-    }
-
-    respond "Not Found" 404
+	respond "Not Found" 404
 }
 ```
 
 Caddy will automatically generate a Let's Encrypt TLS certificate for you! So you can use HTTPS.
-To disable HTTPS entirely, set the [`auto_https`](https://caddyserver.com/docs/caddyfile/options#auto-https) global option to off:
+To disable HTTPS, prefix the name of the server by `http://`:
 
 ```Caddyfile
-{
-    auto_https off
-}
-
-my-domain.test:3000
-
-route {
+http://my-domain.test:3000 {
     # ...
 }
 ```

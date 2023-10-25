@@ -8,7 +8,7 @@ To enable the profiler, add the `debug` global directive to your `Caddyfile`:
 
 ```Caddyfile
 {
-    debug
+	debug
 }
 
 # ...
