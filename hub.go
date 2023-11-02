@@ -146,17 +146,17 @@ func WithSubscriberJWT(key []byte, alg string) Option {
 	}
 }
 
-func WithSubscriberJWKS(url string, json string, key []byte, keyId string) Option {
+func WithSubscriberJWKS(url string, json string, key []byte, keyID string) Option {
 	return func(o *opt) error {
-		o.subscriberJWKS = &jwksConfig{url, json, key, keyId}
+		o.subscriberJWKS = &jwksConfig{url, json, key, keyID}
 
 		return nil
 	}
 }
 
-func WithPublisherJWKS(url string, json string, key []byte, keyId string) Option {
+func WithPublisherJWKS(url string, json string, key []byte, keyID string) Option {
 	return func(o *opt) error {
-		o.publisherJWKS = &jwksConfig{url, json, key, keyId}
+		o.publisherJWKS = &jwksConfig{url, json, key, keyID}
 
 		return nil
 	}
@@ -266,10 +266,10 @@ type jwtConfig struct {
 }
 
 type jwksConfig struct {
-	url 	string
-	json 	string 
+	url   string
+	json  string
 	key   []byte
-	keyId string 
+	keyID string
 }
 
 // opt contains the available options.

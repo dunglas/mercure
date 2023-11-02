@@ -111,7 +111,6 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, jwks *jwksConfig, publishO
 
 // validateJWT validates that the provided JWT token is a valid Mercure token.
 func validateJWT(encodedToken string, jwtConfig *jwtConfig, jwksConfig *jwksConfig) (*claims, error) {
-
 	if jwksConfig != nil {
 		return validateWithJWKS(encodedToken, jwksConfig)
 	}
@@ -120,10 +119,8 @@ func validateJWT(encodedToken string, jwtConfig *jwtConfig, jwksConfig *jwksConf
 }
 
 func validateWithJWKS(encodedToken string, jwksConfig *jwksConfig) (*claims, error) {
-
 	if jwksConfig.url != "" {
 		jwks, err := keyfunc.Get(jwksConfig.url, keyfunc.Options{})
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to get the JWKS from the given URL: %w", err)
 		}
@@ -132,10 +129,9 @@ func validateWithJWKS(encodedToken string, jwksConfig *jwksConfig) (*claims, err
 	}
 
 	if jwksConfig.json != "" {
-		var jwksJSON = json.RawMessage(jwksConfig.json)
+		jwksJSON := json.RawMessage(jwksConfig.json)
 
 		jwks, err := keyfunc.NewJSON(jwksJSON)
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to  create JWKS from JSON: %w", err)
 		}
@@ -143,10 +139,10 @@ func validateWithJWKS(encodedToken string, jwksConfig *jwksConfig) (*claims, err
 		return parseJWTClaims(encodedToken, jwks.Keyfunc)
 	}
 
-	if len(jwksConfig.key) == 0 && jwksConfig.keyId != "" {
-		uniqueKeyID := jwksConfig.keyId
-		jwks := keyfunc.NewGiven(map[string] keyfunc.GivenKey{
-			uniqueKeyID: keyfunc.NewGivenHMAC(jwksConfig.key),
+	if len(jwksConfig.key) == 0 && jwksConfig.keyID != "" {
+		uniquekeyID := jwksConfig.keyID
+		jwks := keyfunc.NewGiven(map[string]keyfunc.GivenKey{
+			uniquekeyID: keyfunc.NewGivenHMAC(jwksConfig.key),
 		})
 
 		return parseJWTClaims(encodedToken, jwks.Keyfunc)
@@ -182,10 +178,10 @@ func jwtKeyfunc(jwtConfig *jwtConfig) func(token *jwt.Token) (interface{}, error
 			if err != nil {
 				return nil, fmt.Errorf("unable to parse RSA public key: %w", err)
 			}
-	
+
 			return pub, nil
 		}
-	
+
 		return nil, fmt.Errorf("%T: %w", jwtConfig.signingMethod, ErrUnexpectedSigningMethod)
 	}
 }
