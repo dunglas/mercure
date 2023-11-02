@@ -38,6 +38,13 @@ type JWTConfig struct {
 	Alg string `json:"alg,omitempty"`
 }
 
+type JWKSConfig struct {
+	URL 	string `json:"url,omitempty"`
+	JSON 	string `json:"json,omitempty"`
+	Key 	string `json:"key,omitempty"`
+	KeyId string `json:"key_id,omitempty"`
+}
+
 type transportDestructor struct {
 	transport mercure.Transport
 }
@@ -75,9 +82,11 @@ type Mercure struct {
 	// JWT key and signing algorithm to use for subscribers.
 	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitempty"`
 
-	SubscriberJWKS string `json:"subscriber_jwks,omitempty"`
+	// JWKS configuration to use for publishers.
+	SubscriberJWKS JWKSConfig `json:"subscriber_jwks,omitempty"`
 
-	PublisherJWKS string `json:"publisher_jwks,omitempty"`
+	// JWKS configuration to use for subscribers.
+	PublisherJWKS JWKSConfig `json:"publisher_jwks,omitempty"`
 
 	// Origins allowed to publish updates
 	PublishOrigins []string `json:"publish_origins,omitempty"`
@@ -114,17 +123,23 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 
 	m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
 	m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
-	m.PublisherJWKS = repl.ReplaceKnown(m.PublisherJWKS, "")
+
 	m.SubscriberJWT.Key = repl.ReplaceKnown(m.SubscriberJWT.Key, "")
 	m.SubscriberJWT.Alg = repl.ReplaceKnown(m.SubscriberJWT.Alg, "HS256")
-	m.SubscriberJWKS = repl.ReplaceKnown(m.SubscriberJWKS, "")
 
-	if m.PublisherJWKS == "" {
+	if m.PublisherJWKS == (JWKSConfig{}) {
 		if m.PublisherJWT.Key == "" {
-			return errors.New("a JWT key or JWKS URL for publishers must be provided") //nolint:goerr113
+			return errors.New("a JWT key or JWKS configuration for publishers must be provided") //nolint:goerr113
 		}
 		if m.PublisherJWT.Alg == "" {
 			m.PublisherJWT.Alg = "HS256"
+		}
+	} else {
+		if m.SubscriberJWKS.URL == "" && m.SubscriberJWKS.Key == "" && m.SubscriberJWKS.JSON == "" {
+			return errors.New("one of url, json or key must be provided") //nolint:goerr113
+		}
+		if m.SubscriberJWKS.Key != "" && m.SubscriberJWKS.KeyId == "" {
+			return errors.New("a key id must be provided when using key for jwks") //nolint:goerr113
 		}
 	}
 	
@@ -176,17 +191,23 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 		mercure.WithCookieName(m.CookieName),
 	}
 
-	if m.PublisherJWKS == "" {
+	if m.PublisherJWKS == (JWKSConfig{}) {
 		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
 	} else {
-		opts = append(opts, mercure.WithPublisherJWKS(m.PublisherJWKS))
+		if m.PublisherJWKS.URL == "" && m.PublisherJWKS.Key == "" && m.PublisherJWKS.JSON == "" {
+			return errors.New("one of url, json or key must be provided") //nolint:goerr113
+		}
+		if m.PublisherJWKS.Key != "" && m.PublisherJWKS.KeyId == "" {
+			return errors.New("a key id must be provided when using key for jwks") //nolint:goerr113
+		}
+		opts = append(opts, mercure.WithPublisherJWKS(m.PublisherJWKS.URL, m.PublisherJWKS.JSON, []byte(m.PublisherJWKS.Key), m.PublisherJWKS.KeyId))
 	}
 
 	if m.logger.Core().Enabled(zapcore.DebugLevel) {
 		opts = append(opts, mercure.WithDebug())
 	}
 
-	if m.SubscriberJWKS == "" {
+	if m.SubscriberJWKS == (JWKSConfig{}) {
 		if m.SubscriberJWT.Key == "" {
 			if !m.Anonymous {
 				return errors.New("a JWT key or JWKS URL for subscribers must be provided") //nolint:goerr113
@@ -199,7 +220,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen
 			opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
 		}
 	} else {
-		opts = append(opts, mercure.WithSubscriberJWKS(m.SubscriberJWKS))
+		opts = append(opts, mercure.WithSubscriberJWKS(m.SubscriberJWKS.URL, m.SubscriberJWKS.JSON, []byte(m.SubscriberJWKS.Key), m.SubscriberJWKS.KeyId))
 	}
 	
 
@@ -336,17 +357,68 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					m.SubscriberJWT.Alg = d.Val()
 				}
 			
-			case "subscriber_jwks_url":
-				if !d.NextArg() {
-					return d.ArgErr()
+			case "subscriber_jwks":
+				for nesting := d.Nesting(); d.NextBlock(nesting); {
+					switch d.Val() {
+						case "url":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.SubscriberJWKS.URL = d.Val()
+
+						case "json":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.SubscriberJWKS.JSON = d.Val()
+
+						case "key":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.SubscriberJWKS.Key = d.Val()
+
+						case "key_id":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.SubscriberJWKS.KeyId = d.Val()
+					}
 				}
-				m.SubscriberJWKS = d.Val()
-			
-			case "publisher_jwks_url":
-				if !d.NextArg() {
-					return d.ArgErr()
+
+			case "publisher_jwks":
+				for nesting := d.Nesting(); d.NextBlock(nesting); {
+					switch d.Val() {
+						case "url":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.PublisherJWKS.URL = d.Val()
+						case "json":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.PublisherJWKS.JSON = d.Val()
+						case "key":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.PublisherJWKS.Key = d.Val()
+						case "key_id":
+							if !d.NextArg() {
+								return d.ArgErr()
+							}
+
+							m.PublisherJWKS.KeyId = d.Val()
+					}
 				}
-				m.PublisherJWKS = d.Val()
 
 			case "publish_origins":
 				ra := d.RemainingArgs()

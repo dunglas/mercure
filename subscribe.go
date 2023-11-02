@@ -162,7 +162,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 	var privateTopics []string
 	var claims *claims
 
-	if h.subscriberJWT != nil || h.subscriberJWKS != "" {
+	if h.subscriberJWT != nil || h.subscriberJWKS != nil {
 		var err error
 		claims, err = authorize(r, h.subscriberJWT, h.subscriberJWKS, nil, h.cookieName)
 		if claims != nil {
