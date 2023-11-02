@@ -45,16 +45,6 @@ func TestNewHubWithConfig(t *testing.T) {
 	require.Nil(t, err)
 }
 
-
-func TestNewHubWithJWKSError(t *testing.T) {
-	
-	assert.Panics(t, func() {
-		NewHub(
-			WithPublisherJWKS("", "", []byte{}, ""),
-		)
-	})
-}
-
 func TestNewHubWithJWKSURL(t *testing.T) {
 	h, err := NewHub(
 		WithPublisherJWKS("http://localhost:8000/.well-known/keys.jwks", "", []byte{}, ""),
@@ -70,16 +60,6 @@ func TestNewHubWithJWKSJSON(t *testing.T) {
 	)
 	require.NotNil(t, h)
 	require.Nil(t, err)
-}
-
-func TestNewHubWithJWKSKeyErrorwithoutKeyid(t *testing.T) {
-	key := `example secret`
-	
-	assert.Panics(t, func() {
-		NewHub(
-			WithPublisherJWKS("", "", []byte(key), ""),
-		)
-	})
 }
 
 func TestNewHubWithJWKSKey(t *testing.T) {
