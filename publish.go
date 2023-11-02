@@ -14,8 +14,8 @@ import (
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
 	var err error
-	if h.publisherJWT != nil {
-		claims, err = authorize(r, h.publisherJWT, h.publishOrigins, h.cookieName)
+	if h.publisherJWT != nil || h.publisherJWKS != nil {
+		claims, err = authorize(r, h.publisherJWT, h.publisherJWKS, h.publishOrigins, h.cookieName)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			h.httpAuthorizationError(w, r, err)
 

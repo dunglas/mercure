@@ -146,6 +146,22 @@ func WithSubscriberJWT(key []byte, alg string) Option {
 	}
 }
 
+func WithSubscriberJWKS(url string, json string, key []byte, keyID string) Option {
+	return func(o *opt) error {
+		o.subscriberJWKS = &jwksConfig{url, json, key, keyID}
+
+		return nil
+	}
+}
+
+func WithPublisherJWKS(url string, json string, key []byte, keyID string) Option {
+	return func(o *opt) error {
+		o.publisherJWKS = &jwksConfig{url, json, key, keyID}
+
+		return nil
+	}
+}
+
 // WithAllowedHosts sets the allowed hosts.
 func WithAllowedHosts(hosts []string) Option {
 	return func(o *opt) error {
@@ -249,6 +265,13 @@ type jwtConfig struct {
 	signingMethod jwt.SigningMethod
 }
 
+type jwksConfig struct {
+	url   string
+	json  string
+	key   []byte
+	keyID string
+}
+
 // opt contains the available options.
 //
 // If you change this, also update the Caddy module and the documentation.
@@ -266,6 +289,8 @@ type opt struct {
 	heartbeat                    time.Duration
 	publisherJWT                 *jwtConfig
 	subscriberJWT                *jwtConfig
+	subscriberJWKS               *jwksConfig
+	publisherJWKS                *jwksConfig
 	metrics                      Metrics
 	allowedHosts                 []string
 	publishOrigins               []string

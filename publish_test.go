@@ -235,6 +235,26 @@ func TestPublishNoData(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
+func TestPublishNoDataJWKS(t *testing.T) {
+	hub, privKey := createDummyWithJWKS(t)
+	jwt := createJWTWithPrivateKey(t, privKey, rolePublisher, []string{"*"})
+
+	form := url.Values{}
+	form.Add("topic", "http://example.com/books/1")
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", "Bearer "+jwt)
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
 func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 

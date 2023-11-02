@@ -8,6 +8,8 @@ retract (
 )
 
 require (
+	github.com/MicahParks/jwkset v0.3.1
+	github.com/MicahParks/keyfunc v1.9.0
 	github.com/dgraph-io/ristretto v0.1.1
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.0
@@ -30,7 +32,7 @@ require (
 
 require (
 	github.com/MauriceGit/skiplist v0.0.0-20211105230623-77f5c8d3e145 // indirect
-	github.com/RoaringBitmap/roaring v1.6.0 // indirect
+	github.com/RoaringBitmap/roaring v1.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.9.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
