@@ -45,19 +45,19 @@ NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this docu
 interpreted as described in [@!RFC2119].
 
 *   Topic: The unit to which one can subscribe to changes. The topic **SHOULD** be identified
-    by an IRI [@!RFC3987]. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI [@!RFC3986] is
+    by an IRI [@!RFC3987]. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URL [@!RFC3986] is
     **RECOMMENDED**.
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private, consequently, it must be dispatched only to subscribers allowed to receive it.
-*   Topic selector: An expression matching one or several topics.
+*   Topic pattern: A URL pattern matching topics.
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub
     systems might call the publisher the "source". Typically a website or a web API, but can also be
     a web browser.
 *   Subscriber: A client application that subscribes to real-time updates of topics using topic
     selectors. Typically a web or a mobile application, but can also be a server.
-*   Subscription: A topic selector used by a subscriber to receive updates. A single subscriber can
-    have several subscriptions, when it provides several topic selectors.
+*   Subscription: A topic or topic pattern used by a subscriber to receive updates. A single subscriber can
+    have several subscriptions, when it provides several topics.
 *   Hub: A server that handles subscription requests and distributes the content to subscribers when
     the corresponding topics have been updated. Any hub **MAY** implement its own policies on who
     can use it.
@@ -183,25 +183,21 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 {"@id": "/books/foo", "foo": "bar", "@context": {"@language": "fr-FR"}}
 ~~~
 
-# Topic Selectors
+# Topic Patterns
 
-A topic selector is an expression intended to be matched by one or several topics. A topic selector
-can also be used to match other topic selectors for authorization purposes. See (#authorization).
+A topic pattern is an expression intended to match several topics.
 
-A topic selector can be any string including URI Templates [@!RFC6570] and the reserved string `*`
-that matches all topics. It is **RECOMMENDED** to use URI Templates or the reserved string `*` as
-topic selectors.
+A topic pattern can be either a valid URL pattern [@!urlpattern] or the reserved string `*`
+that matches all topics.
 
-Note: URLs and IRIs are valid URI templates.
+Implementation of topic patterns is **OPTIONAL**.
 
-To determine if a string matches a selector, the following steps must be followed:
+To determine if a topic matches a pattern, the following steps must be followed:
 
-1.  If the topic selector is `*` then the string matches the selector.
-2.  If the topic selector and the string are exactly the same, the string matches the selector. This
-    characteristic allows to compare a URI Template with another one.
-3.  If the topic selector is a valid URI Template, and that the string matches this URI Template,
-    the string matches the selector.
-4.  Otherwise the string does not match the selector.
+1.  If the topic pattern is `*` then the string matches the selector.
+2.  If the topic pattern is a valid URL pattern, and that the string matches this URL pattern,
+    the string matches the pattern.
+3.  Otherwise the string does not match the pattern.
 
 # Subscription
 
@@ -213,12 +209,18 @@ superior to leverage multiplexing and other performance-oriented related feature
 versions.
 
 The subscriber specifies the list of topics to get updates from by using one or several query
-parameters named `topic`. The `topic` query parameters **MUST** contain topic selectors. See
-(#topic-selectors).
+parameters named `topic`. The `topic` query parameters can contain any string.
 
 The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub
 **MAY** apply an arbitrary limit. A subscription is created for every provided `topic` parameter.
 See (#subscription-events).
+
+Alternatively, the subscriber can subscribe to several topics at once
+by specifying a URL pattern in a query parameter named `pattern`.
+Implementation of topic patterns by hubs is **OPTIONAL**.
+If a `pattern` query parameter is passed but the hub doesn't support
+topic patterns, it must reply with a `501 Not Implemented` HTTP status code.
+At most one `pattern` query parameter can be passed.
 
 [The EventSource JavaScript
 interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface)
@@ -226,7 +228,7 @@ interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-ev
 including, but not limited to, readable streams [@W3C.NOTE-streams-api-20161129] and
 [XMLHttpRequest](https://xhr.spec.whatwg.org/) (used by popular polyfills) **MAY** also be used.
 
-The hub sends to the subscriber updates for topics matching the provided topic selectors.
+The hub sends to the subscriber updates for topics matching the provided topics or topic pattern.
 
 If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscribers not authorized
 to receive it. See (#authorization).
@@ -254,11 +256,11 @@ Example:
 ~~~ javascript
 // The subscriber subscribes to updates
 // for the https://example.com/foo topic, the bar topic,
-// and to any topic matching https://example.com/books/{name}
+// and to any topic matching the URL pattern https://example.com/books/(\\d+)
 const url = new URL('https://example.com/.well-known/mercure');
 url.searchParams.append('topic', 'https://example.com/foo');
 url.searchParams.append('topic', 'bar');
-url.searchParams.append('topic', 'https://example.com/bar/{id}');
+url.searchParams.append('pattern', 'https://example.com/bar/(\\d+)');
 
 const eventSource = new EventSource(url);
 
@@ -297,7 +299,7 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     The provided id **MUST NOT** start with the `#` character. The provided id **SHOULD** be a valid
     IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a
     [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively the hub **MAY** generate a
-    relative URI composed of a fragment (starting with `#`). This is convenient to return an offset
+    relative URL composed of a fragment (starting with `#`). This is convenient to return an offset
     or a sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the id
     provided by the client and generate its own id.
 *   `type` (optional): the SSE's `event` property (a specific event type).
@@ -383,7 +385,7 @@ If it's not possible for the client to use an `Authorization` HTTP header nor a 
 be passed as a request URI query component as defined by "Uniform Resource Identifier (URI): Generic
 Syntax" [@!RFC3986], using the `authorization` parameter.
 
-The `authorization` query parameter **MUST** be properly separated from the `topic` parameter and
+The `authorization` query parameter **MUST** be properly separated from the `topic` and `pattern` parameters, and
 from other request-specific parameters using `&` character(s) (ASCII code 38).
 
 For example, the client makes the following HTTP request using transport-layer security:
@@ -410,13 +412,15 @@ Publishers **MUST** be authorized to dispatch updates to the hub, and **MUST** p
 authorized to send updates for the specified topics.
 
 To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim
-called `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
-array of topic selectors. See (#topic-selectors).
+called `mercure`, and this claim **MUST** contain a `publish` key.
+`mercure.publish` **MUST** be an object with at least a `topics` entry
+containing a non-empty array of topics
+or a `pattern` entry containing a topic pattern. See (#topic-patterns).
 
-If `mercure.publish` is not defined, or contains an empty array, then the publisher **MUST NOT**
+If `mercure.publish` is not defined, then the publisher **MUST NOT**
 be authorized to dispatch any update.
 Otherwise, the hub **MUST** check that every topics of the update to dispatch matches at least one
-of the topic selectors contained in `mercure.publish`.
+of the topics contained in `mercure.publish.topics` or the pattern in `mercure.publish.pattern`.
 
 If the publisher is not authorized for all the topics of an update, the hub **MUST NOT** dispatch
 the update (even if some topics in the list are allowed) and **MUST** return a 403 HTTP status code.
@@ -431,25 +435,28 @@ If the presented JWS contains an expiration time in the standard `exp` claim def
 the connection **MUST** be closed by the hub at that time.
 
 To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a
-claim named `mercure` with a key named `subscribe` that contains an array of topic selectors. See
-(#topic-selectors).
+claim named `mercure`, and this claim **MUST** contain a `subscribe` key.
+`mercure.subscribe` **MUST** be an object with at least a `topics` entry
+containing a non-empty array of topics
+or a `pattern` entry containing a topic pattern. See (#topic-patterns).
 
 The hub **MUST** check that at least one topic of the update to dispatch (*canonical* or
-*alternate*) matches at least one topic selector provided in `mercure.subscribe`.
+*alternate*) matches at least one topic provided in `mercure.subscribe.topics`
+or the pattern in `mercure.subscribe.pattern`.
 
-This behavior makes it possible to subscribe to several topics using URI templates while
+This behavior makes it possible to subscribe to several topics using a topic pattern while
 guaranteeing that only authorized subscribers will receive updates marked as private (even if their
-canonical topics are matched by these templates).
+canonical topics are matched by these pattern).
 
 Let's say that a subscriber wants to receive updates concerning all *book* resources it has access
-to. The subscriber can use the topic selector `https://example.com/books/{id}` as value of the
-`topic` query parameter. Adding this same URI template to the `mercure.subscribe` claim of the JWS
+to. The subscriber can use the topic pattern `https://example.com/books/(\\d+)` as value of the
+`pattern` query parameter. Adding this same URL pattern to the `mercure.subscribe.pattern` claim of the JWS
 presented by the subscriber to the hub would allow this subscriber to receive all updates for all
 book resources. It is not what we want here: this subscriber is only authorized to access **some**
 of these resources.
 
-To solve this problem, the `mercure.subscribe` claim could contain a topic selector such as:
-`https://example.com/users/foo/{?topic}`.
+To solve this problem, the `mercure.subscribe` claim could contain a topic pattern such as:
+`https://example.com/users/foo/?topic=*`.
 
 The publisher could then take advantage of the previously described behavior by
 publishing a private update having `https://example.com/books/1` as canonical topic and
@@ -464,13 +471,13 @@ Authorization: Bearer [snip]
 topic=https://example.com/books/1&topic=https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1&private=on
 ~~~
 
-The subscriber is subscribed to `https://example.com/books/{id}` that is matched by the
-canonical topic of the update. This canonical topic isn't matched by the topic selector
-provided in its JWS claim `mercure.subscribe`. However, an alternate topic of the update,
+The subscriber is subscribed to `https://example.com/books/(\\d+)` that is matched by the
+canonical topic of the update. This canonical topic isn't matched by the topic pattern
+provided in its JWS claim `mercure.subscribe.pattern`. However, an alternate topic of the update,
 `https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fa-random-topic`, is matched by it.
 Consequently, this private update will be received by this subscriber, while other updates having
-a canonical topic matched by the selector provided in a `topic` query parameter but not matched by
-selectors in the `mercure.subscribe` claim will not.
+a canonical topic matched by the selector provided in a `pattern` query parameter but not matched by
+the pattern in the `mercure.subscribe.pattern` claim will not.
 
 ## Payload
 
@@ -553,11 +560,16 @@ If the hub supports the active subscriptions feature, it **MUST** publish an upd
 subscription is created or terminated. If this feature is implemented by the hub, an update **MUST**
 be dispatched every time a subscription is created or terminated.
 
-The topic of these updates **MUST** be an expansion of
-`/.well-known/mercure/subscriptions/{topic}/{subscriber}`. `{topic}` is the topic selector used for
+If a topic subscription is used, the topic of these updates **MUST** be an expansion of
+`/.well-known/mercure/subscriptions/topic={topic}/{subscriber}`. `{topic}` is the topic used for
 this subscription and `{subscriber}` is an unique identifier for the subscriber.
 
-Note: Because it is recommended to use URI Templates and IRIs for the `{topic}` and `{subscriber}`
+If a pattern subscription is used, the topic of these updates **MUST** be an expansion of
+`/.well-known/mercure/subscriptions/pattern={pattern}/{subscriber}`. `{pattern}` is the topic pattern used for
+this subscription and `{subscriber}` is an unique identifier for the subscriber.
+
+Note: Because the `{pattern}` variable contains a URL pattern and
+that it is recommended to use URLs for the `{topic}` and `{subscriber}`
 variables, values will usually contain the `:`, `/`, `{` and `}` characters. Per [@!RFC6570], these
 characters are reserved. They **MUST** be percent encoded during the expansion process.
 
@@ -573,7 +585,7 @@ least the following properties:
 *   `id`: the identifier of this update, it **MUST** be the same value as the subscription update's
     topic
 *   `type`: the fixed value `Subscription`
-*   `topic`: the topic selector used of this subscription
+*   `topic` or `pattern`: the topic or the topic pattern used for this subscription
 *   `subscriber`: the topic identifier of the subscriber. It **SHOULD** be an IRI.
 *   `active`: `true` when the subscription is active, and `false` when it is terminated
 *   `payload` (optional): the content of `mercure.payload` in the subscriber's JWS (see
@@ -588,9 +600,9 @@ Example:
 
 ~~~ json
 {
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "id": "/.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
-   "topic": "https://example.com/{selector}",
+   "topic": "https://example.com/*",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"}
@@ -609,9 +621,11 @@ date.
 The web API **MUST** expose endpoints following these patterns:
 
 *   `/.well-known/mercure/subscriptions`: the collection of subscriptions
-*   `/.well-known/mercure/subscriptions/{topic}`: the collection of subscriptions for the given
-    topic selector
-*   `/.well-known/mercure/subscriptions/{topic}/{subscriber}`: a specific subscription
+*   `/.well-known/mercure/subscriptions/topic={topic}`: the collection of subscriptions for the given
+    topic
+*   `/.well-known/mercure/subscriptions/pattern={pattern}`: the collection of subscriptions for the given
+    topic pattern
+*   `/.well-known/mercure/subscriptions/topic={topic}/{subscriber}` or `/.well-known/mercure/subscriptions/pattern={pattern}/{subscriber}`: a specific subscription
 
 To access to the URLs exposed by the web API, clients **MUST** be authorized according to the rules
 defined in (#authorization). The requested URL **MUST** match at least one of the topic selectors
@@ -620,7 +634,7 @@ provided in the `mercure.subscribe` key of the JWS.
 The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
 
 URLs returning a single subscription (following the pattern
-`/.well-known/mercure/subscriptions/{topic}/{subscriber}`) **MUST** expose the same JSON-LD document
+`/.well-known/mercure/subscriptions/topic={topic}/{subscriber}` or `/.well-known/mercure/subscriptions/pattern={pattern}/{subscriber}`) **MUST** expose the same JSON-LD document
 as described in (#subscription-events). If the requested subscription does not exist, a `404` status
 code **MUST** be returned.
 
@@ -667,15 +681,15 @@ Cache-control: must-revalidate
    "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "id": "/.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "pattern": "https://example.com/*",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
+         "id": "/.well-known/mercure/subscriptions/topic=https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "type": "Subscription",
          "topic": "https://example.com/a-topic",
          "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
@@ -683,9 +697,9 @@ Cache-control: must-revalidate
          "payload": {"baz": "bat"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F*/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "pattern": "https://example.com/*",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -695,7 +709,7 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D HTTP/1.1
+GET /.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
@@ -706,22 +720,22 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D",
+   "id": "/.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A",
    "type": "Subscriptions",
    "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "id": "/.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "pattern": "https://example.com/*",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "pattern": "https://example.com/*",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -731,7 +745,7 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
+GET /.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
@@ -742,9 +756,9 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "id": "/.well-known/mercure/subscriptions/pattern=https%3A%2F%2Fexample.com%2F%2A/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
-   "topic": "https://example.com/{selector}",
+   "topic": "https://example.com/*",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"},
@@ -767,6 +781,7 @@ The JSON-LD context available at `https://mercure.rocks` is the following:
    "Subscriptions": "mercure:Subscriptions",
    "subscriptions": "mercure:subscriptions",
    "topic": "mercure:topic",
+   "pattern": "mercure:pattern",
    "subscriber": "mercure:subscriber",
    "active": "mercure:active",
    "payload": "mercure:payload",
@@ -1323,5 +1338,15 @@ Other implementations can be found on GitHub: <https://github.com/topics/mercure
 Parts of this specification, especially (#discovery) have been adapted from the WebSub
 recommendation [@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this
 specification.
+
+<reference anchor="urlpattern" target="https://urlpattern.spec.whatwg.org">
+    <front>
+        <title>The URL Pattern Standard</title>
+        <author>
+            <organization>University of California, Berkeley</organization>
+        </author>
+        <date year="2023"/>
+    </front>
+</reference>
 
 {backmatter}
