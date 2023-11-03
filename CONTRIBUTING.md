@@ -11,7 +11,7 @@ If you include code from another project, please mention it in the Pull Request 
 
 ## Commit Messages
 
-The commit message must follow the [Conventional Commits specification](https://www.conventionalcommits.org/).
+The commit message must follow the [Conventional Commits specification](https://www.conventionalcommits.org).
 The following types are allowed:
 
 * `fix`: bugfix
