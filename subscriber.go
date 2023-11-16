@@ -230,7 +230,7 @@ func (s *Subscriber) Match(u *Update) bool {
 func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
 	var subscriptions []subscription //nolint:prealloc
 	for k, t := range s.SubscribedTopics {
-		if topic != "" && !s.MatchTopics([]string{topic}, false) {
+		if topic != "" && (!s.MatchTopics([]string{topic}, false) || t != topic) {
 			continue
 		}
 
