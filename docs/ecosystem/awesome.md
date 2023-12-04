@@ -74,12 +74,12 @@
 
 ### French 🇫🇷
 
-*  📺 [Notifications instantanées avec Mercure (Grafikart)](https://www.grafikart.fr/tutoriels/symfony-mercure-1151)
-*  📺 [Live Coding : Notifications temps réel avec Mercure](https://www.youtube.com/watch?v=tqqJ1ul2M-E)
-*  📺 [Explication des Server Sent Events (SSE) avec Mercure](https://www.youtube.com/watch?v=Q4LRN2wXuIc)
-*  📺 [Mercure : des UIs toujours synchronisées avec les données en BDD](https://www.youtube.com/watch?v=UcBa4AugNTE)
-*  📺 [Mercure, et PHP s'enamoure enfin du temps réel](https://www.youtube.com/watch?v=GugURP88Rgg)
-*  📺 [Async avec Messenger, AMQP et Mercure](https://www.youtube.com/watch?v=cHPbcuydJiA)
+* 📺 [Notifications instantanées avec Mercure (Grafikart)](https://www.grafikart.fr/tutoriels/symfony-mercure-1151)
+* 📺 [Live Coding : Notifications temps réel avec Mercure](https://www.youtube.com/watch?v=tqqJ1ul2M-E)
+* 📺 [Explication des Server Sent Events (SSE) avec Mercure](https://www.youtube.com/watch?v=Q4LRN2wXuIc)
+* 📺 [Mercure : des UIs toujours synchronisées avec les données en BDD](https://www.youtube.com/watch?v=UcBa4AugNTE)
+* 📺 [Mercure, et PHP s'enamoure enfin du temps réel](https://www.youtube.com/watch?v=GugURP88Rgg)
+* 📺 [Async avec Messenger, AMQP et Mercure](https://www.youtube.com/watch?v=cHPbcuydJiA)
 * [Mercure, un protocole pour pousser des mises à jour vers des navigateurs et app mobiles en temps réel (Les-Tilleuls.coop)](https://les-tilleuls.coop/blog/mercure-un-protocole-pour-pousser-des-mises-a-jour-vers-des-navigateurs-et-app-mobiles-en-temps-reel)
 * [Symfony et Mercure](https://afsy.fr/avent/2019/21-symfony-et-mercure)
 * [À la découverte de Mercure](https://blog.eleven-labs.com/fr/a-la-decouverte-de-mercure/)

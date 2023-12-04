@@ -21,8 +21,10 @@
 MD004: false                  # Unordered list style
 MD007:
   indent: 2                   # Unordered list indentation
+MD010:
+  ignore_code_languages: [caddyfile]
 MD013:
-  line_length: 400            # Line length 80 is far too short
+  line_length: false
   tables: false
 MD026:
   punctuation: ".,;:!。，；:"  # List of not allowed

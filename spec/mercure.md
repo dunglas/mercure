@@ -30,7 +30,7 @@ organization = "Les-Tilleuls.coop"
 Mercure provides a common publish-subscribe mechanism for public and private web resources.
 Mercure enables the pushing of any web content to web browsers and other clients in
 a fast, reliable and battery-efficient way. It is especially useful for publishing real-time updates
-of resources served through websites and web APIs to web and mobile apps.
+of resources served through sites and web APIs to web and mobile apps.
 
 Subscription requests are relayed through hubs, which validate and verify the request.
 When new or updated content becomes available, hubs check if subscribers are authorized to receive it
@@ -52,7 +52,7 @@ interpreted as described in [@!RFC2119].
 *   Topic selector: An expression matching one or several topics.
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub
-    systems might call the publisher the "source". Typically a website or a web API, but can also be
+    systems might call the publisher the "source". Typically a site or a web API, but can also be
     a web browser.
 *   Subscriber: A client application that subscribes to real-time updates of topics using topic
     selectors. Typically a web or a mobile application, but can also be a server.
@@ -294,12 +294,12 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     not authorized to receive it. See (#authorization). It is recommended to set the value to `on`
     but it **CAN** contain any value including an empty string.
 *   `id` (optional): the topic's revision identifier: it will be used as the SSE's `id` property.
-    The provided id **MUST NOT** start with the `#` character. The provided id **SHOULD** be a valid
+    The provided ID **MUST NOT** start with the `#` character. The provided ID **SHOULD** be a valid
     IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a
     [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively the hub **MAY** generate a
     relative URI composed of a fragment (starting with `#`). This is convenient to return an offset
-    or a sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the id
-    provided by the client and generate its own id.
+    or a sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the ID
+    provided by the client and generate its own ID.
 *   `type` (optional): the SSE's `event` property (a specific event type).
 *   `retry` (optional): the SSE's `retry` property (the reconnection time).
 
@@ -493,17 +493,17 @@ UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 According to the server-sent events specification, in case of connection
 lost the subscriber will try to automatically re-connect. During the
-re-connection, the subscriber **MUST** send the last received event id in a
+re-connection, the subscriber **MUST** send the last received event ID in a
 [Last-Event-ID](https://html.spec.whatwg.org/multipage/iana.html#last-event-id) HTTP header.
 
 In order to fetch any update dispatched between the initial resource generation by the publisher and
-the connection to the hub, the subscriber **MUST** send the event id provided during the discovery
+the connection to the hub, the subscriber **MUST** send the event ID provided during the discovery
 as a `Last-Event-ID` header or a `lastEventID` query parameter. See (#discovery).
 
 `EventSource` implementations may not allow to set HTTP headers during the first connection (before
 a reconnection) and implementations in web browsers don't allow to set it.
 
-To work around this problem, the hub **MUST** also allow to pass the last event id in a query
+To work around this problem, the hub **MUST** also allow to pass the last event ID in a query
 parameter named `lastEventID`.
 
 If both the `Last-Event-ID` HTTP header and the `lastEventID` query parameter are present,
@@ -519,7 +519,7 @@ subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** f
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `lastEventID` query parameter the hub **MUST** set
 a `Last-Event-ID` header on the HTTP response.
-The value of the `Last-Event-ID` response header **MUST** be the id of the event
+The value of the `Last-Event-ID` response header **MUST** be the ID of the event
 preceding the first one sent to the subscriber, or the reserved value `earliest` if there is no
 preceding event (it happens when the hub history is empty, when the subscriber requests the earliest
 event or when the subscriber requests an event that doesn't exist).

@@ -21,12 +21,14 @@ The native [`EventSource` class](https://developer.mozilla.org/en-US/docs/Web/AP
 
 To broadcast messages through Turbo Streams, simply send a `POST` HTTP request to [the Mercure hub](../hub/install.md):
 
-    curl \
-      -H 'Authorization: Bearer <snip>' \
-      -d 'topic=my-stream' \
-      -d 'data=<turbo-stream action=...' \
-      -X POST \
-      https://example.com/.well-known/mercure
+```console
+curl \
+  -H 'Authorization: Bearer <snip>' \
+  -d 'topic=my-stream' \
+  -d 'data=<turbo-stream action=...' \
+  -X POST \
+  https://example.com/.well-known/mercure
+```
 
 * `topic` must be the same topic we used in the JavaScript code ;
 * `data` contains the [Turbo Streams messages](https://turbo.hotwire.dev/handbook/streams#stream-messages-and-actions) to broadcast ;

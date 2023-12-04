@@ -18,7 +18,7 @@ It is especially useful to publish async and real-time updates of resources serv
 * [Full documentation](https://mercure.rocks/docs)
 * [Demo](https://demo.mercure.rocks/)
 
-[The protocol](https://mercure.rocks/spec) is maintained in this repository and is also available as [an Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/).
+[The protocol](https://mercure.rocks/spec) is maintained in this repository and is also available as [an Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/).
 
 A reference, production-grade, implementation of [**a Mercure hub**](https://mercure.rocks/docs/hub/install) (the server) is also available in this repository.
 It's free software (AGPL) written in Go. It is provided along with a library that can be used in any Go application to implement the Mercure protocol directly (without a hub) and [an official Docker image](https://hub.docker.com/r/dunglas/mercure).
@@ -31,7 +31,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License and Copyright
 
-See https://mercure.rocks/docs/hub/license.
+See [license information](https://mercure.rocks/docs/hub/license).
 
 ## Credits
 
