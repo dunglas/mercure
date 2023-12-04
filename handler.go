@@ -256,7 +256,13 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	}
 
 	secureHandler := secureMiddleware.Handler(useForwardedHeadersHandlers)
-	loggingHandler := handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
+
+	var loggingHandler http.Handler
+	if h.logger != nil && h.logger.Level().Enabled(zap.FatalLevel) {
+		loggingHandler = handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
+	} else {
+		loggingHandler = secureHandler
+	}
 	recoveryHandler := handlers.RecoveryHandler(
 		handlers.RecoveryLogger(zapRecoveryHandlerLogger{h.logger}),
 		handlers.PrintRecoveryStack(h.debug),

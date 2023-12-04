@@ -223,20 +223,24 @@ func TestServe(t *testing.T) {
 
 func TestClientClosesThenReconnects(t *testing.T) {
 	l := zap.NewNop()
-	u, _ := url.Parse("bolt://test.db")
-	bt, _ := NewTransport(u, l)
+	u, err := url.Parse("bolt://test.db")
+	require.NoError(t, err)
+
+	bt, err := NewTransport(u, l)
+	require.NoError(t, err)
+	defer os.Remove("test.db")
+
 	h := createAnonymousDummy(WithLogger(l), WithTransport(bt))
 	transport := h.transport.(*BoltTransport)
-	defer os.Remove("test.db")
 	go h.Serve()
 
 	// loop until the web server is ready
 	var resp *http.Response
 	client := http.Client{Timeout: 10 * time.Second}
 	for resp == nil {
-		resp, _ = client.Get(testURLscheme + testAddr + "/") //nolint:bodyclose
+		resp, _ = client.Get(testURLscheme + testAddr) //nolint:bodyclose
 	}
-	resp.Body.Close()
+	require.NoError(t, resp.Body.Close())
 
 	var wg sync.WaitGroup
 
@@ -263,7 +267,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 			}
 		}
 
-		resp.Body.Close()
+		require.NoError(t, resp.Body.Close())
 		wg.Done()
 	}
 
@@ -286,7 +290,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		resp, err := client.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
-		resp.Body.Close()
+		require.NoError(t, resp.Body.Close())
 
 		wg.Done()
 	}

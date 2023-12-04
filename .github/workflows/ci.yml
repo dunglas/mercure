@@ -32,6 +32,7 @@ jobs:
     strategy:
       matrix:
         go: [ '1.20', '1.21' ]
+      fail-fast: false
 
     name: Test
     runs-on: ubuntu-latest
