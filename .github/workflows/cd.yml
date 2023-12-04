@@ -1,12 +1,16 @@
 name: Release Hub
 
 on:
-  push:
-    tags:
-      - 'v*'
-    branches:
-      - '*'
   pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - v*.*.*
+  workflow_dispatch:
+    inputs: {}
 
 permissions:
   contents: write
