@@ -31,9 +31,10 @@ type subscriptionCollection struct {
 }
 
 const (
-	subscriptionURL          = defaultHubURL + "/subscriptions/{topic}/{subscriber}"
-	subscriptionsForTopicURL = defaultHubURL + "/subscriptions/{topic}"
-	subscriptionsURL         = defaultHubURL + "/subscriptions"
+	subscriptionsPath        = "/subscriptions"
+	subscriptionURL          = defaultHubURL + subscriptionsPath + "/{topic}/{subscriber}"
+	subscriptionsForTopicURL = defaultHubURL + subscriptionsPath + "/{topic}"
+	subscriptionsURL         = defaultHubURL + subscriptionsPath
 )
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {

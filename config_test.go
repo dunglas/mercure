@@ -7,11 +7,12 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMissingConfig(t *testing.T) {
 	err := ValidateConfig(viper.New())
-	assert.EqualError(t, err, `invalid config: one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`)
+	require.EqualError(t, err, `invalid config: one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`)
 }
 
 func TestMissingKeyFile(t *testing.T) {
@@ -20,7 +21,7 @@ func TestMissingKeyFile(t *testing.T) {
 	v.Set("cert_file", "foo")
 
 	err := ValidateConfig(v)
-	assert.EqualError(t, err, `invalid config: if the "cert_file" configuration parameter is defined, "key_file" must be defined too`)
+	require.EqualError(t, err, `invalid config: if the "cert_file" configuration parameter is defined, "key_file" must be defined too`)
 }
 
 func TestMissingCertFile(t *testing.T) {
@@ -29,7 +30,7 @@ func TestMissingCertFile(t *testing.T) {
 	v.Set("key_file", "foo")
 
 	err := ValidateConfig(v)
-	assert.EqualError(t, err, `invalid config: if the "key_file" configuration parameter is defined, "cert_file" must be defined too`)
+	require.EqualError(t, err, `invalid config: if the "key_file" configuration parameter is defined, "cert_file" must be defined too`)
 }
 
 func TestSetFlags(t *testing.T) {

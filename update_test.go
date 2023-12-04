@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +24,7 @@ func TestAssignUUID(t *testing.T) {
 	assert.True(t, strings.HasPrefix(u.ID, "urn:uuid:"))
 
 	_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
-	assert.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func TestLogUpdate(t *testing.T) {

@@ -82,7 +82,7 @@ func TestMercure(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+publisherJWT)
+	req.Header.Add("Authorization", bearerPrefix+publisherJWT)
 
 	resp := tester.AssertResponseCode(req, http.StatusOK)
 	resp.Body.Close()
@@ -155,7 +155,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.Nil(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer "+publisherJWTRSA)
+	req.Header.Add("Authorization", bearerPrefix+publisherJWTRSA)
 
 	resp := tester.AssertResponseCode(req, http.StatusOK)
 	resp.Body.Close()

@@ -9,6 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const metricsPath = "/metrics"
+
 type Metrics interface {
 	// SubscriberConnected collects metrics about subscriber connections.
 	SubscriberConnected(s *Subscriber)
@@ -79,7 +81,7 @@ func (m *PrometheusMetrics) Register(r *mux.Router) {
 	// Go-unrelated process metrics (memory usage, file descriptors, etc.).
 	m.registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 
-	r.Handle("/metrics", promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods(http.MethodGet)
+	r.Handle(metricsPath, promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods(http.MethodGet)
 }
 
 func (m *PrometheusMetrics) SubscriberConnected(_ *Subscriber) {

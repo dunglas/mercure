@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -41,7 +40,7 @@ func TestNewHubWithConfig(t *testing.T) {
 		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
 	)
 	require.NotNil(t, h)
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func TestNewHubValidationError(t *testing.T) {
@@ -72,7 +71,7 @@ func TestStartCrash(t *testing.T) {
 	err := cmd.Run()
 
 	var e *exec.ExitError
-	require.True(t, errors.As(err, &e))
+	require.ErrorAs(t, err, &e)
 	assert.False(t, e.Success())
 }
 
@@ -123,7 +122,7 @@ func TestWithProtocolVersionCompatibility(t *testing.T) {
 	assert.False(t, op.isBackwardCompatiblyEnabledWith(7))
 
 	o := WithProtocolVersionCompatibility(7)
-	require.Nil(t, o(op))
+	require.NoError(t, o(op))
 	assert.Equal(t, 7, op.protocolVersionCompatibility)
 	assert.True(t, op.isBackwardCompatiblyEnabledWith(7))
 	assert.True(t, op.isBackwardCompatiblyEnabledWith(8))
@@ -148,7 +147,7 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 			o := WithProtocolVersionCompatibility(tc.version)
 
 			if tc.ok {
-				require.Nil(t, o(op))
+				require.NoError(t, o(op))
 			} else {
 				require.Error(t, o(op))
 			}
@@ -187,18 +186,18 @@ func TestOriginsValidator(t *testing.T) {
 
 	for _, origins := range validOrigins {
 		o := WithPublishOrigins(origins)
-		require.Nil(t, o(op), "error while not expected for %#v", origins)
+		require.NoError(t, o(op), "error while not expected for %#v", origins)
 
 		o = WithCORSOrigins(origins)
-		require.Nil(t, o(op), "error while not expected for %#v", origins)
+		require.NoError(t, o(op), "error while not expected for %#v", origins)
 	}
 
 	for _, origins := range invalidOrigins {
 		o := WithPublishOrigins(origins)
-		require.NotNil(t, o(op), "no error while expected for %#v", origins)
+		require.Error(t, o(op), "no error while expected for %#v", origins)
 
 		o = WithCORSOrigins(origins)
-		require.NotNil(t, o(op), "no error while expected for %#v", origins)
+		require.Error(t, o(op), "no error while expected for %#v", origins)
 	}
 }
 
