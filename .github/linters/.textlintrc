@@ -6,7 +6,7 @@
     "terminology": {
         "defaultTerms": true,
         "exclude": [
-            "internet"
+          ["(?<=(?:\\w+[^.?!])? )internet\\b(?! explorer)", "internet"]
         ]
     }
   }

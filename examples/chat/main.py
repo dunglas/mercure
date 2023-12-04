@@ -25,7 +25,7 @@ Environment variables:
 import os
 
 import jwt
-from flask import Flask, make_response, request, render_template, abort
+from flask import Flask, abort, make_response, render_template, request
 from uritemplate import expand
 
 HUB_URL = os.environ.get("HUB_URL", "https://localhost/.well-known/mercure")
