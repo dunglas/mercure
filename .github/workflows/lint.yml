@@ -15,7 +15,9 @@ jobs:
         env:
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_GO: false
+          VALIDATE_PHP_PHPCS: false
           VALIDATE_KUBERNETES_CONFORM: false
+          KUBERNETES_KUBEVAL: false
           VALIDATE_TYPESCRIPT_STANDARD: false
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -5,8 +5,8 @@
   "rules": {
     "terminology": {
         "defaultTerms": true,
-        "terms": [
-            "Internet-Draft"
+        "exclude": [
+            "internet"
         ]
     }
   }

@@ -22,9 +22,10 @@ Environment variables:
     COOKIE_DOMAIN: the cookie domain (default: None)
 """
 
-from flask import Flask, make_response, request, render_template, abort
-import jwt
 import os
+
+import jwt
+from flask import Flask, make_response, request, render_template, abort
 from uritemplate import expand
 
 HUB_URL = os.environ.get("HUB_URL", "https://localhost/.well-known/mercure")

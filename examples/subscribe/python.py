@@ -1,6 +1,7 @@
-from sseclient import SSEClient
-import jwt
 import os
+
+import jwt
+from sseclient import SSEClient
 
 token = jwt.encode(
     {"mercure": {"subscribe": ["*"]}},
