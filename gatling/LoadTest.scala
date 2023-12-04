@@ -1,19 +1,24 @@
 /** Load test for Mercure.
   *
-  * 1. Grab Gatling 3 on https://gatling.io
-  * 2. Run path/to/gatling/bin/gatling.sh --simulations-folder .
+  *   1. Grab Gatling 3 on https://gatling.io 2. Run
+  *      path/to/gatling/bin/gatling.sh --simulations-folder .
   *
   * Available environment variables (all optional):
   *   - HUB_URL: the URL of the hub to test
-  *   - JWT: the JWT to use for authenticating the publisher, fallbacks to JWT if not set and PRIVATE_UPDATES set
-  *   - INITIAL_SUBSCRIBERS: the number of concurrent subscribers initially connected
-  *   - SUBSCRIBERS_RATE_FROM: minimum rate (per second) of additional subscribers to connect
-  *   - SUBSCRIBERS_RATE_TO: maximum rate (per second) of additional subscribers to connect
+  *   - JWT: the JWT to use for authenticating the publisher, fallbacks to JWT
+  *     if not set and PRIVATE_UPDATES set
+  *   - INITIAL_SUBSCRIBERS: the number of concurrent subscribers initially
+  *     connected
+  *   - SUBSCRIBERS_RATE_FROM: minimum rate (per second) of additional
+  *     subscribers to connect
+  *   - SUBSCRIBERS_RATE_TO: maximum rate (per second) of additional subscribers
+  *     to connect
   *   - PUBLISHERS_RATE_FROM: minimum rate (per second) of publications
   *   - PUBLISHERS_RATE_TO: maximum rate (per second) of publications
   *   - INJECTION_DURATION: duration of the publishers injection
   *   - CONNECTION_DURATION: duration of subscribers' connection
-  *   - RANDOM_CONNECTION_DURATION: to randomize the connection duration (will longs CONNECTION_DURATION at max)
+  *   - RANDOM_CONNECTION_DURATION: to randomize the connection duration (will
+  *     longs CONNECTION_DURATION at max)
   */
 
 package mercure
@@ -35,7 +40,9 @@ class LoadTest extends Simulation {
     "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM"
   )
 
-  /** JWT to use to subscribe, fallbacks to JWT if not set and PRIVATE_UPDATES set */
+  /** JWT to use to subscribe, fallbacks to JWT if not set and PRIVATE_UPDATES
+    * set
+    */
   val SubscriberJwt = Properties.envOrElse("SUBSCRIBER_JWT", null)
 
   /** Number of concurrent subscribers initially connected */
@@ -65,13 +72,16 @@ class LoadTest extends Simulation {
   val RandomConnectionDuration =
     Properties.envOrElse("RANDOM_CONNECTION_DURATION", "true").toBoolean
 
-  /** Send private updates with random topics instead of public ones always with the same topic */
+  /** Send private updates with random topics instead of public ones always with
+    * the same topic
+    */
   var PrivateUpdates =
     Properties.envOrElse("PRIVATE_UPDATES", "false").toBoolean
 
   val rnd = new scala.util.Random
 
-  /** Subscriber test as a function to handle conditional Authorization header */
+  /** Subscriber test as a function to handle conditional Authorization header
+    */
   def subscriberTest() = {
     var topic = "https://example.com"
     if (PrivateUpdates) {

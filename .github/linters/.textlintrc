@@ -5,7 +5,7 @@
   "rules": {
     "terminology": {
         "defaultTerms": true,
-        "exclude": [
+        "terms": [
             "Internet-Draft"
         ]
     }

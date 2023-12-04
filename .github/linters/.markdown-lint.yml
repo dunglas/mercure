@@ -24,7 +24,8 @@ MD007:
 MD010:
   ignore_code_languages: [caddyfile]
 MD013:
-  line_length: false
+  line_length: 500
+  code_block_line_length: false
   tables: false
 MD026:
   punctuation: ".,;:!。，；:"  # List of not allowed
