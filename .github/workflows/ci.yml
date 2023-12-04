@@ -33,7 +33,6 @@ jobs:
       matrix:
         go: [ '1.20', '1.21' ]
       fail-fast: false
-
     name: Test
     runs-on: ubuntu-latest
     steps:
@@ -61,10 +60,11 @@ jobs:
         working-directory: ./caddy
 
       - name: Upload coverage results
+          
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: profile.cov
-
+          parallel: true
       - name: Start Mercure
         run: |
           cd caddy/mercure
@@ -88,3 +88,11 @@ jobs:
       - name: Run Playwright tests
         working-directory: conformance-tests/
         run: npx playwright test
+
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true
