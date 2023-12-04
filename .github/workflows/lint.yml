@@ -18,12 +18,13 @@ jobs:
         with:
           fetch-depth: 0
       - name: Lint Code Base
-        uses: super-linter/super-linter/slim@v4
+        uses: super-linter/super-linter/slim@v5
         env:
           VALIDATE_ALL_CODEBASE: true
+          VALIDATE_GITLEAKS: false
           VALIDATE_GO: false
           VALIDATE_PHP_PHPCS: false
-          VALIDATE_KUBERNETES_CONFORM: false
+          VALIDATE_KUBERNETES_KUBECONFORM: false
           VALIDATE_KUBERNETES_KUBEVAL: false
           VALIDATE_TYPESCRIPT_STANDARD: false
           DEFAULT_BRANCH: main
