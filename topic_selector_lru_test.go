@@ -9,7 +9,7 @@ import (
 
 func TestMatchLRU(t *testing.T) {
 	tss, err := NewTopicSelectorStoreLRU(DefaultTopicSelectorStoreLRUMaxEntriesPerShard, DefaultTopicSelectorStoreLRUMaxEntriesPerShard)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.False(t, tss.match("foo", "bar"))
 

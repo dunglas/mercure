@@ -9,6 +9,6 @@ $postData = http_build_query([
 
 echo file_get_contents('https://localhost/.well-known/mercure', false, stream_context_create(['http' => [
     'method'  => 'POST',
-    'header'  => "Content-type: application/x-www-form-urlencoded\r\nAuthorization: Bearer ".DEMO_JWT,
+    'header'  => "Content-type: application/x-www-form-urlencoded\r\nAuthorization: Bearer " . DEMO_JWT,
     'content' => $postData,
 ]]));

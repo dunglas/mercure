@@ -1,7 +1,14 @@
 name: Lint Docs and Non-Go Code
+
 on:
-  push:
   pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - v*.*.*
 
 jobs:
   lint:
@@ -13,8 +20,11 @@ jobs:
       - name: Lint Code Base
         uses: super-linter/super-linter/slim@v4
         env:
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: true
           VALIDATE_GO: false
+          VALIDATE_PHP_PHPCS: false
+          VALIDATE_KUBERNETES_CONFORM: false
           VALIDATE_KUBERNETES_KUBEVAL: false
+          VALIDATE_TYPESCRIPT_STANDARD: false
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

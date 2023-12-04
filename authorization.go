@@ -28,6 +28,7 @@ type role int
 
 const (
 	defaultCookieName      = "mercureAuthorization"
+	bearerPrefix           = "Bearer "
 	roleSubscriber    role = iota
 	rolePublisher
 )
@@ -54,7 +55,7 @@ var (
 func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, cookieName string) (*claims, error) {
 	authorizationHeaders, headerExists := r.Header["Authorization"]
 	if headerExists {
-		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != "Bearer " {
+		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != bearerPrefix {
 			return nil, ErrInvalidAuthorizationHeader
 		}
 

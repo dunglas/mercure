@@ -583,7 +583,7 @@ func TestSubscribeAll(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.Header.Add("Authorization", "Bearer "+createDummyAuthorizedJWT(hub, roleSubscriber, []string{"random", "*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, roleSubscriber, []string{"random", "*"}))
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -928,10 +928,10 @@ func TestSubscribeExpires(t *testing.T) {
 	}
 
 	jwt, err := token.SignedString(hub.subscriberJWT.key)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)
-	req.Header.Add("Authorization", "Bearer "+jwt)
+	req.Header.Add("Authorization", bearerPrefix+jwt)
 
 	w := newSubscribeRecorder()
 	hub.SubscribeHandler(w, req)

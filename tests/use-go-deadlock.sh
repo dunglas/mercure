@@ -14,5 +14,5 @@ find . -name "*.go" -exec sed "${args[@]}" -e 's#sync.RWMutex#deadlock.RWMutex#'
 find . -name "*.go" -exec sed "${args[@]}" -e 's#sync.Mutex#deadlock.Mutex#' {} {} \;
 goimports -w .
 go get github.com/sasha-s/go-deadlock/...@master
-cd caddy
+cd caddy || exit
 go get github.com/sasha-s/go-deadlock/...@master

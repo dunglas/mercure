@@ -1,3 +1,4 @@
+# hadolint ignore=DL3006
 FROM gcr.io/distroless/static
 COPY mercure /
 CMD ["/mercure"]

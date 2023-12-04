@@ -44,3 +44,4 @@ issues:
         - godox
         - noctx
         - wrapcheck
+        - goconst

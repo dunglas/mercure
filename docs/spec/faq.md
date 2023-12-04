@@ -5,7 +5,7 @@
 In a nutshell [the WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is low level, Mercure is a high level.
 Mercure provides convenient built-in features such as authorization, re-connection, state reconciliation and a presence API ; while with WebSockets, you need to implement them yourself.
 
-Also WebSockets [are not designed to leverage HTTP/2+](https://www.infoq.com/articles/websocket-and-http2-coexist) and are known to be [hard to secure](https://gravitational.com/blog/kubernetes-websocket-upgrade-security-vulnerability/). On the other hand Mercure relies on plain HTTP connections and benefits from the performance an security improvement built in the latest versions of this protocol.
+Also WebSockets [are not designed to leverage HTTP/2+](https://www.infoq.com/articles/websocket-and-http2-coexist) and are known to be [hard to secure](https://gravitational.com/blog/kubernetes-websocket-upgrade-security-vulnerability/). On the other hand Mercure relies on plain HTTP connections and benefits from the performance an security improvement built-in the latest versions of this protocol.
 
 HTTP/2 connections are multiplexed and bidirectional by default (it was not the case of HTTP/1).
 When using Mercure over a h2 connection (recommended), your app can receive data through Server-Sent Events, and send data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
@@ -43,7 +43,7 @@ Because they are delivery agnostic, Mercure plays particularly well with [GraphQ
 For instance, [the API Platform framework has native support for GraphQL subscriptions thanks to Mercure](https://api-platform.com/docs/master/core/graphql/#subscriptions).
 
 In response to the subscription query, the GraphQL server may return a corresponding topic URL.
-The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with an URL like `https://example.com/.well-known/mercure?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
+The client can then subscribe to the Mercure's event stream corresponding to this subscription by creating a new `EventSource` with a URL like `https://example.com/.well-known/mercure?topic=https://example.com/subscriptions/<subscription-id>` as parameter.
 
 Updates for the given subscription can then be sent from the GraphQL server to the clients through the Mercure hub (in the `data` property of the server-sent event).
 

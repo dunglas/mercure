@@ -1,8 +1,14 @@
 name: Lint and Test Hub
 
 on:
-  push:
   pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - v*.*.*
 
 env:
   GO111MODULE: 'on'
@@ -32,7 +38,7 @@ jobs:
     strategy:
       matrix:
         go: [ '1.20', '1.21' ]
-
+      fail-fast: false
     name: Test
     runs-on: ubuntu-latest
     steps:
@@ -54,21 +60,20 @@ jobs:
         run: go test -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
 
       - name: Test Caddy module
+        working-directory: caddy/
         run: |
           go test -timeout 1m -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
           sed '1d' profile.cov >> ../profile.cov
-        working-directory: ./caddy
 
       - name: Upload coverage results
         uses: shogo82148/actions-goveralls@v1
         with:
           path-to-profile: profile.cov
+          parallel: true
 
       - name: Start Mercure
-        run: |
-          cd caddy/mercure
-          sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go start --config ../../Caddyfile.dev
-          cd -
+        working-directory: caddy/mercure/
+        run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go start --config ../../Caddyfile.dev
 
       - uses: actions/setup-node@v3
         with:
@@ -87,3 +92,11 @@ jobs:
       - name: Run Playwright tests
         working-directory: conformance-tests/
         run: npx playwright test
+
+  finish:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: shogo82148/actions-goveralls@v1
+        with:
+          parallel-finished: true

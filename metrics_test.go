@@ -75,7 +75,7 @@ func assertGaugeValue(t *testing.T, v float64, g prometheus.Gauge) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, v, *metricOut.Gauge.Value)
+	assert.Equal(t, v, metricOut.GetGauge().GetValue()) //nolint:testifylint
 }
 
 func assertCounterValue(t *testing.T, v float64, c prometheus.Counter) {
@@ -86,5 +86,5 @@ func assertCounterValue(t *testing.T, v float64, c prometheus.Counter) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, v, *metricOut.Counter.Value)
+	assert.Equal(t, v, metricOut.GetCounter().GetValue()) // nolint:testifylint
 }

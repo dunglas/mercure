@@ -27,6 +27,6 @@ type CheckedEntry = zapcore.CheckedEntry
 type Logger interface {
 	Info(msg string, fields ...LogField)
 	Error(msg string, fields ...LogField)
-	Check(Level, string) *CheckedEntry
+	Check(level Level, msg string) *CheckedEntry
 	Level() Level
 }
