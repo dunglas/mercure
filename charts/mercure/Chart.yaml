@@ -12,8 +12,8 @@ keywords:
 - streaming-api
 - async-api
 type: application
-version: 0.15.5
-appVersion: "v0.15.5"
+version: 0.15.6
+appVersion: "v0.15.6"
 maintainers:
   - name: dunglas
     email: kevin@dunglas.fr
