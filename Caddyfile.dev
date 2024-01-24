@@ -10,6 +10,7 @@
 {$SERVER_NAME:localhost} {
 	log {
 		format filter {
+			# Defaults to console while waiting for https://github.com/caddyserver/caddy/pull/5980
 			wrap console
 			fields {
 				uri query {
@@ -41,6 +42,7 @@
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
 	redir / /.well-known/mercure/ui/
+
 	respond /healthz 200
 	respond "Not Found" 404
 }
