@@ -175,7 +175,7 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 
 func (h *Hub) httpAuthorizationError(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-	if c := h.logger.Check(zap.InfoLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {
+	if c := h.logger.Check(zap.DebugLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {
 		c.Write(zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
 	}
 }

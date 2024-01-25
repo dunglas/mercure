@@ -147,7 +147,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				heartbeatTimer.Reset(h.heartbeat)
 			}
-			if c := h.logger.Check(zap.InfoLevel, "Update sent"); c != nil {
+			if c := h.logger.Check(zap.DebugLevel, "Update sent"); c != nil {
 				c.Write(zap.Object("subscriber", s), zap.Object("update", update))
 			}
 		}
@@ -171,7 +171,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 		}
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			if c := h.logger.Check(zap.InfoLevel, "Subscriber unauthorized"); c != nil {
+			if c := h.logger.Check(zap.DebugLevel, "Subscriber unauthorized"); c != nil {
 				c.Write(zap.Object("subscriber", s), zap.Error(err))
 			}
 
