@@ -76,7 +76,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, u.ID)
-	if c := h.logger.Check(zap.InfoLevel, "Update published"); c != nil {
+	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
 		c.Write(zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
 	}
 	h.metrics.UpdatePublished(u)
