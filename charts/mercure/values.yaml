@@ -88,8 +88,7 @@ ingress:
   # -- Ingress [class name](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class).
   className: ""
   # -- Annotations to be added to the ingress.
-  annotations:
-    {}
+  annotations: {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   # -- Ingress host configuration.
@@ -97,8 +96,8 @@ ingress:
   hosts:
     - host: mercure-example.local
       paths:
-        - path: /
-          pathType: ImplementationSpecific
+      - path: /
+        pathType: ImplementationSpecific
   # -- Ingress TLS configuration.
   # @default -- See [values.yaml](values.yaml).
   tls: []
@@ -109,8 +108,7 @@ ingress:
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
 # @default -- No requests or limits.
-resources:
-  {}
+resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
