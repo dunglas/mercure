@@ -41,7 +41,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: SERVER_NAME
-              value: :80
+              value: :{{ .Values.service.targetPort }}
             - name: GLOBAL_OPTIONS
               valueFrom:
                 configMapKeyRef:
@@ -94,7 +94,7 @@ spec:
           {{- end }}
           ports:
             - name: http
-              containerPort: 80
+              containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
           livenessProbe:
             httpGet:

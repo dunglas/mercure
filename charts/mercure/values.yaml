@@ -76,6 +76,8 @@ service:
   type: ClusterIP
   # -- Service port.
   port: 80
+  # -- Service target port.
+  targetPort: 80
   annotations: {}
 
 ingress:
