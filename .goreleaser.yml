@@ -51,6 +51,10 @@ builds:
       - amd64
       - arm
       - arm64
+upx:
+  - enabled: true
+    goos: [linux]
+    compress: best
 archives:
   - builds:
       - caddy
