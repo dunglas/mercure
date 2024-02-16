@@ -41,6 +41,9 @@ jobs:
       fail-fast: false
     name: Test
     runs-on: ubuntu-latest
+    env:
+      # Temporary workaround for https://github.com/golang/go/issues/65653
+      GOEXPERIMENT: nocoverageredesign
     steps:
       - name: Checkout
         uses: actions/checkout@v4
