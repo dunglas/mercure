@@ -108,7 +108,7 @@ func authorize(r *http.Request, jwtConfig *jwtConfig, publishOrigins []string, c
 
 // validateJWT validates that the provided JWT token is a valid Mercure token.
 func validateJWT(encodedToken string, jwtConfig *jwtConfig) (*claims, error) {
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, func(_ *jwt.Token) (interface{}, error) {
 		switch jwtConfig.signingMethod.(type) {
 		case *jwt.SigningMethodHMAC:
 			return jwtConfig.key, nil

@@ -186,7 +186,7 @@ func TestPublishOK(t *testing.T) {
 		defer w.Done()
 		u, ok := <-s.Receive()
 		assert.True(t, ok)
-		require.NotNil(t, u)
+		assert.NotNil(t, u)
 		assert.Equal(t, "id", u.ID)
 		assert.Equal(t, s.SubscribedTopics, u.Topics)
 		assert.Equal(t, "Hello!", u.Data)
@@ -248,10 +248,10 @@ func TestPublishGenerateUUID(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		u := <-s.Receive()
-		require.NotNil(t, u)
+		assert.NotNil(t, u)
 
 		_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}()
 
 	form := url.Values{}

@@ -19,7 +19,7 @@ other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 The Mercure Hub is the reference implementation of the Mercure protocol.
 
 Go to https://mercure.rocks for more information!`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		mercure.Start() //nolint:staticcheck
 	},
 }

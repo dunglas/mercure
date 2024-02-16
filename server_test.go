@@ -185,7 +185,7 @@ func TestServe(t *testing.T) {
 	go func() {
 		defer wgTested.Done()
 		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		wgConnected.Done()
 
 		defer resp.Body.Close()
@@ -197,7 +197,7 @@ func TestServe(t *testing.T) {
 	go func() {
 		defer wgTested.Done()
 		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Falt%2F1")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		wgConnected.Done()
 
 		defer resp.Body.Close()
@@ -335,7 +335,7 @@ func TestServeAcme(t *testing.T) {
 
 	go h.Serve()
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}

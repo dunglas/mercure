@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -31,24 +30,24 @@ func (v *AppVersionInfo) Shortline() string {
 	shortline := v.Version
 
 	if v.Commit != "" {
-		shortline += fmt.Sprintf(", commit %s", v.Commit)
+		shortline += ", commit " + v.Commit
 	}
 
 	if v.BuildDate != "" {
-		shortline += fmt.Sprintf(", built at %s", v.BuildDate)
+		shortline += ", built at " + v.BuildDate
 	}
 
 	return shortline
 }
 
 func (v *AppVersionInfo) ChangelogURL() string {
-	path := "https://github.com/dunglas/mercure"
+	const path = "https://github.com/dunglas/mercure"
 
 	if v.Version == "dev" {
-		return fmt.Sprintf("%s/releases/latest", path)
+		return path + "/releases/latest"
 	}
 
-	return fmt.Sprintf("%s/releases/tag/v%s", path, strings.TrimPrefix(v.Version, "v"))
+	return path + "/releases/tag/v" + strings.TrimPrefix(v.Version, "v")
 }
 
 func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {

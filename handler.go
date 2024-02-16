@@ -318,7 +318,7 @@ func (h *Hub) metricsHandler() http.Handler {
 
 // Deprecated: use the Caddy server module or the standalone library instead.
 func registerHealthz(router *mux.Router) {
-	router.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, "ok")
 	}).Methods(http.MethodGet, http.MethodHead)
 }
