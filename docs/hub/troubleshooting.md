@@ -31,6 +31,15 @@ If you don't use an authorization mechanism (anonymous mode), you can set the va
 
 Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ensure that the template matches the topic.
 
+## Disconnection With the Inability To Reconnect After Some Time
+
+If the JWT supplied to the Mercury hub contains [an `exp` (expiration time) claim](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3) (this is the default for tokens generated with most JWT libraries), the hub will automatically disconnect when the expiry date is reached.
+After that, it is no longer possible to reconnect with the same JWT, as it has expired. The hub will return an HTTP 401 error.
+
+One solution is to generate a new, valid JWT before reconnecting.
+
+Although not setting the `exp` claim allows an open-ended connection, this solution is not recommended as it reduces the security of your data (someone with a valid JWT will be able to connect forever, at least until the secret key is changed).
+
 ## macOS Localhost Installation Error
 
 To execute the Mercure.rocks binary, you must first [release it from quarantine](https://eclecticlight.co/2023/03/13/ventura-has-changed-app-quarantine-with-a-new-xattr/).
