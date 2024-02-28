@@ -29,7 +29,7 @@ jobs:
             caddy/go.sum
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v4
         with:
           version: latest
           args: --timeout=30m
