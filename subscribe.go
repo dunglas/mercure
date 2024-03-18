@@ -162,9 +162,9 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 	var privateTopics []string
 	var claims *claims
 
-	if h.subscriberJWT != nil {
+	if h.subscriberJWTKeyFunc != nil {
 		var err error
-		claims, err = authorize(r, h.subscriberJWT, nil, h.cookieName)
+		claims, err = authorize(r, h.subscriberJWTKeyFunc, nil, h.cookieName)
 		if claims != nil {
 			s.Claims = claims
 			privateTopics = claims.Mercure.Subscribe

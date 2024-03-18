@@ -243,7 +243,7 @@ func createDummyAuthorizedJWTWithPayload(h *Hub, r role, topics []string, payloa
 	switch r {
 	case rolePublisher:
 		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, RegisteredClaims: jwt.RegisteredClaims{}}
-		key = h.publisherJWT.key
+		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
@@ -254,7 +254,7 @@ func createDummyAuthorizedJWTWithPayload(h *Hub, r role, topics []string, payloa
 			RegisteredClaims: jwt.RegisteredClaims{},
 		}
 
-		key = h.subscriberJWT.key
+		key = []byte("subscriber")
 	}
 
 	tokenString, _ := token.SignedString(key)

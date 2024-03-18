@@ -116,21 +116,29 @@ func WithHeartbeat(interval time.Duration) Option {
 	}
 }
 
-func createJWTConfig(key []byte, alg string) (*jwtConfig, error) {
-	sm := jwt.GetSigningMethod(alg)
-	switch sm.(type) {
-	case *jwt.SigningMethodHMAC, *jwt.SigningMethodRSA:
-		return &jwtConfig{key, sm}, nil
-	default:
-		return nil, ErrUnexpectedSigningMethod
+// WithPublisherJWTKeyFunc sets the function to use to parse and verify the publisher JWT.
+func WithPublisherJWTKeyFunc(keyfunc jwt.Keyfunc) Option {
+	return func(o *opt) error {
+		o.publisherJWTKeyFunc = keyfunc
+
+		return nil
+	}
+}
+
+// WithSubscriberJWTKeyFunc sets the function to use to parse and verify the subscriber JWT.
+func WithSubscriberJWTKeyFunc(keyfunc jwt.Keyfunc) Option {
+	return func(o *opt) error {
+		o.subscriberJWTKeyFunc = keyfunc
+
+		return nil
 	}
 }
 
 // WithPublisherJWT sets the JWT key and the signing algorithm to use for publishers.
 func WithPublisherJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
-		jwtConfig, err := createJWTConfig(key, alg)
-		o.publisherJWT = jwtConfig
+		keyfunc, err := createJWTKeyfunc(key, alg)
+		o.publisherJWTKeyFunc = keyfunc
 
 		return err
 	}
@@ -139,8 +147,8 @@ func WithPublisherJWT(key []byte, alg string) Option {
 // WithSubscriberJWT sets the JWT key and the signing algorithm to use for subscribers.
 func WithSubscriberJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
-		jwtConfig, err := createJWTConfig(key, alg)
-		o.subscriberJWT = jwtConfig
+		keyfunc, err := createJWTKeyfunc(key, alg)
+		o.subscriberJWTKeyFunc = keyfunc
 
 		return err
 	}
@@ -264,8 +272,8 @@ type opt struct {
 	writeTimeout                 time.Duration
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
-	publisherJWT                 *jwtConfig
-	subscriberJWT                *jwtConfig
+	publisherJWTKeyFunc          jwt.Keyfunc
+	subscriberJWTKeyFunc         jwt.Keyfunc
 	metrics                      Metrics
 	allowedHosts                 []string
 	publishOrigins               []string

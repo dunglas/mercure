@@ -927,7 +927,7 @@ func TestSubscribeExpires(t *testing.T) {
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Second))},
 	}
 
-	jwt, err := token.SignedString(hub.subscriberJWT.key)
+	jwt, err := token.SignedString([]byte("subscriber"))
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)
