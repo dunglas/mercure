@@ -13,7 +13,7 @@ replace github.com/dunglas/mercure => ../
 
 require (
 	github.com/caddyserver/caddy/v2 v2.7.6
-	github.com/dunglas/mercure v0.15.9
+	github.com/dunglas/mercure v0.15.10
 	github.com/prometheus/client_golang v1.19.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/automaxprocs v1.5.3
