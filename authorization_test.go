@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -117,7 +117,7 @@ func TestAuthorizeAuthorizationHeaderInvalidAlg(t *testing.T) {
 	r.Header.Add("Authorization", bearerPrefix+createDummyNoneSignedJWT())
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: 'none' signature type is not allowed")
+	require.EqualError(t, err, "unable to parse JWT: token signature is invalid: token is unverifiable: 'none' signature type is not allowed")
 	require.Nil(t, claims)
 }
 
@@ -126,7 +126,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKey(t *testing.T) {
 	r.Header.Add("Authorization", bearerPrefix+validEmptyHeader)
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: signature is invalid")
+	require.EqualError(t, err, "unable to parse JWT: token signature is invalid: signature is invalid")
 	require.Nil(t, claims)
 }
 
@@ -135,7 +135,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKeyRsa(t *testing.T) {
 	r.Header.Add("Authorization", bearerPrefix+validEmptyHeaderRsa)
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
+	require.EqualError(t, err, "unable to parse JWT: token is unverifiable: error while executing keyfunc: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
 	require.Nil(t, claims)
 }
 
@@ -204,7 +204,7 @@ func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
 	r.Header.Add("Authorization", bearerPrefix+validFullHeaderRsa)
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), nil}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: <nil>: unexpected signing method")
+	require.EqualError(t, err, "unable to parse JWT: token is unverifiable: error while executing keyfunc: <nil>: unexpected signing method")
 	assert.Nil(t, claims)
 }
 
@@ -226,7 +226,7 @@ func TestAuthorizeAuthorizationQueryInvalidAlg(t *testing.T) {
 	r.URL.RawQuery = query.Encode()
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: 'none' signature type is not allowed")
+	require.EqualError(t, err, "unable to parse JWT: token signature is invalid: token is unverifiable: 'none' signature type is not allowed")
 	require.Nil(t, claims)
 }
 
@@ -237,7 +237,7 @@ func TestAuthorizeAuthorizationQueryInvalidKey(t *testing.T) {
 	r.URL.RawQuery = query.Encode()
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: signature is invalid")
+	require.EqualError(t, err, "unable to parse JWT: token signature is invalid: signature is invalid")
 	require.Nil(t, claims)
 }
 
@@ -248,7 +248,7 @@ func TestAuthorizeAuthorizationQueryInvalidKeyRsa(t *testing.T) {
 	r.URL.RawQuery = query.Encode()
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
+	require.EqualError(t, err, "unable to parse JWT: token is unverifiable: error while executing keyfunc: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
 	require.Nil(t, claims)
 }
 
@@ -331,7 +331,7 @@ func TestAuthorizeAuthorizationQueryWrongAlgorithm(t *testing.T) {
 	r.URL.RawQuery = query.Encode()
 
 	claims, err := authorize(r, &jwtConfig{[]byte(publicKeyRsa), nil}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: <nil>: unexpected signing method")
+	require.EqualError(t, err, "unable to parse JWT: token is unverifiable: error while executing keyfunc: <nil>: unexpected signing method")
 	require.Nil(t, claims)
 }
 
@@ -340,7 +340,7 @@ func TestAuthorizeCookieInvalidAlg(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyNoneSignedJWT()})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: 'none' signature type is not allowed")
+	require.EqualError(t, err, "unable to parse JWT: token signature is invalid: token is unverifiable: 'none' signature type is not allowed")
 	require.Nil(t, claims)
 }
 
@@ -349,7 +349,7 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeader})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodHS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: signature is invalid")
+	require.EqualError(t, err, "unable to parse JWT: token signature is invalid: signature is invalid")
 	require.Nil(t, claims)
 }
 
@@ -358,7 +358,7 @@ func TestAuthorizeCookieEmptyKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte{}, jwt.SigningMethodRS256}, []string{}, defaultCookieName)
-	require.EqualError(t, err, "unable to parse JWT: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
+	require.EqualError(t, err, "unable to parse JWT: token is unverifiable: error while executing keyfunc: unable to parse RSA public key: invalid key: Key must be a PEM encoded PKCS1 or PKCS8 key")
 	require.Nil(t, claims)
 }
 
@@ -367,9 +367,8 @@ func TestAuthorizeCookieInvalidKeyRsa(t *testing.T) {
 	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: validEmptyHeaderRsa})
 
 	claims, err := authorize(r, &jwtConfig{[]byte(privateKeyRsa), jwt.SigningMethodRS256}, []string{}, defaultCookieName)
-	require.Error(t, err)
 	require.Nil(t, claims)
-	assert.Contains(t, err.Error(), "unable to parse JWT: unable to parse RSA public key") // The error message changed in Go 1.17
+	require.EqualError(t, err, "unable to parse JWT: token is unverifiable: error while executing keyfunc: unable to parse RSA public key: asn1: structure error: integer too large")
 }
 
 func TestAuthorizeCookieNoContent(t *testing.T) {
