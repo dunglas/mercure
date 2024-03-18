@@ -230,13 +230,13 @@ func createAnonymousDummy(options ...Option) *Hub {
 	return createDummy(options...)
 }
 
-func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
-	return createDummyAuthorizedJWTWithPayload(h, r, topics, struct {
+func createDummyAuthorizedJWT(r role, topics []string) string {
+	return createDummyAuthorizedJWTWithPayload(r, topics, struct {
 		Foo string `json:"foo"`
 	}{Foo: "bar"})
 }
 
-func createDummyAuthorizedJWTWithPayload(h *Hub, r role, topics []string, payload interface{}) string {
+func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload interface{}) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	var key []byte

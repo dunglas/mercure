@@ -49,7 +49,7 @@ func TestForwardedHeaders(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("X-Forwarded-For", "192.0.2.1")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
 	resp2, err := client.Do(req)
 	require.NoError(t, err)
@@ -137,7 +137,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodOptions, testSecureURL, nil)
 
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(h, roleSubscriber, []string{}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{}))
 	req.Header.Add("Content-Type", "text/plain; boundary=")
 	req.Header.Add("Origin", "https://subscriber.com")
 	req.Header.Add("Host", "subscriber.com")
@@ -211,7 +211,7 @@ func TestServe(t *testing.T) {
 	body := url.Values{"topic": {"http://example.com/foo/1", "http://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
 	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
 	resp2, err := client.Do(req)
 	require.NoError(t, err)
@@ -285,7 +285,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 		require.NoError(t, err)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
+		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
 		resp, err := client.Do(req)
 		require.NoError(t, err)
@@ -475,7 +475,7 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 func (s *testServer) publish(body url.Values) {
 	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(s.h, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
 	resp, err := s.client.Do(req)
 	require.NoError(s.t, err)

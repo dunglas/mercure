@@ -252,11 +252,6 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	}
 }
 
-type jwtConfig struct {
-	key           []byte
-	signingMethod jwt.SigningMethod
-}
-
 // opt contains the available options.
 //
 // If you change this, also update the Caddy module and the documentation.
