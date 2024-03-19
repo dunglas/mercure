@@ -63,7 +63,7 @@ func TestPublishBadContentType(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 	req.Header.Add("Content-Type", "text/plain; boundary=")
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -78,7 +78,7 @@ func TestPublishNoTopic(t *testing.T) {
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -99,7 +99,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -121,7 +121,7 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{"foo"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"foo"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -140,7 +140,7 @@ func TestPublishEmptyTopicSelector(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -159,7 +159,7 @@ func TestPublishLegacyAuthorization(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -201,7 +201,7 @@ func TestPublishOK(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, s.SubscribedTopics))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, s.SubscribedTopics))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -224,7 +224,7 @@ func TestPublishNoData(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -260,7 +260,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(h, rolePublisher, []string{"*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
 	w := httptest.NewRecorder()
 	h.PublishHandler(w, req)
@@ -296,7 +296,7 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, rolePublisher, []string{"foo", "http://example.com/books/1"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"foo", "http://example.com/books/1"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
@@ -311,7 +311,7 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 
 func FuzzPublish(f *testing.F) {
 	hub := createDummy()
-	authorizationHeader := bearerPrefix + createDummyAuthorizedJWT(hub, rolePublisher, []string{"*"})
+	authorizationHeader := bearerPrefix + createDummyAuthorizedJWT(rolePublisher, []string{"*"})
 
 	testCases := [][]interface{}{
 		{"https://localhost/foo/bar", "baz", "", "", "", "", ""},

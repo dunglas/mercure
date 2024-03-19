@@ -331,7 +331,7 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(hub, roleSubscriber, []string{"http://example.com/reviews/22"}, payload)})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(roleSubscriber, []string{"http://example.com/reviews/22"}, payload)})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -463,7 +463,7 @@ func TestSubscribePrivate(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"http://example.com/reviews/22", "http://example.com/reviews/23"})})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"http://example.com/reviews/22", "http://example.com/reviews/23"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -486,7 +486,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		// Authorized to receive connection events
 		defer wg.Done()
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topic}/{subscriber}", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriber}"})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriber}"})})
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
 
@@ -511,7 +511,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		// Not authorized to receive connection events
 		defer wg.Done()
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topicSelector}/{subscriber}", nil).WithContext(ctx2)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
 
@@ -535,7 +535,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		ctx, cancelRequest2 := context.WithCancel(context.Background())
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(hub, roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
@@ -583,7 +583,7 @@ func TestSubscribeAll(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(hub, roleSubscriber, []string{"random", "*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"random", "*"}))
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -927,7 +927,7 @@ func TestSubscribeExpires(t *testing.T) {
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Second))},
 	}
 
-	jwt, err := token.SignedString(hub.subscriberJWT.key)
+	jwt, err := token.SignedString([]byte("subscriber"))
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)

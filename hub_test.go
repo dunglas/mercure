@@ -155,6 +155,38 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 	}
 }
 
+func TestWithPublisherJWTKeyFunc(t *testing.T) {
+	op := &opt{}
+
+	o := WithPublisherJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
+	require.NoError(t, o(op))
+	require.NotNil(t, op.publisherJWTKeyFunc)
+}
+
+func TestWithSubscriberJWTKeyFunc(t *testing.T) {
+	op := &opt{}
+
+	o := WithSubscriberJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
+	require.NoError(t, o(op))
+	require.NotNil(t, op.subscriberJWTKeyFunc)
+}
+
+func TestWithDebug(t *testing.T) {
+	op := &opt{}
+
+	o := WithDebug()
+	require.NoError(t, o(op))
+	require.True(t, op.debug)
+}
+
+func TestWithUI(t *testing.T) {
+	op := &opt{}
+
+	o := WithUI()
+	require.NoError(t, o(op))
+	require.True(t, op.ui)
+}
+
 func TestOriginsValidator(t *testing.T) {
 	op := &opt{}
 
@@ -230,20 +262,20 @@ func createAnonymousDummy(options ...Option) *Hub {
 	return createDummy(options...)
 }
 
-func createDummyAuthorizedJWT(h *Hub, r role, topics []string) string {
-	return createDummyAuthorizedJWTWithPayload(h, r, topics, struct {
+func createDummyAuthorizedJWT(r role, topics []string) string {
+	return createDummyAuthorizedJWTWithPayload(r, topics, struct {
 		Foo string `json:"foo"`
 	}{Foo: "bar"})
 }
 
-func createDummyAuthorizedJWTWithPayload(h *Hub, r role, topics []string, payload interface{}) string {
+func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload interface{}) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	var key []byte
 	switch r {
 	case rolePublisher:
 		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, RegisteredClaims: jwt.RegisteredClaims{}}
-		key = h.publisherJWT.key
+		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
@@ -254,7 +286,7 @@ func createDummyAuthorizedJWTWithPayload(h *Hub, r role, topics []string, payloa
 			RegisteredClaims: jwt.RegisteredClaims{},
 		}
 
-		key = h.subscriberJWT.key
+		key = []byte("subscriber")
 	}
 
 	tokenString, _ := token.SignedString(key)
