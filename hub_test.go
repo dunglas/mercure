@@ -155,6 +155,38 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 	}
 }
 
+func TestWithPublisherJWTKeyFunc(t *testing.T) {
+	op := &opt{}
+
+	o := WithPublisherJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
+	require.NoError(t, o(op))
+	require.NotNil(t, op.publisherJWTKeyFunc)
+}
+
+func TestWithSubscriberJWTKeyFunc(t *testing.T) {
+	op := &opt{}
+
+	o := WithSubscriberJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
+	require.NoError(t, o(op))
+	require.NotNil(t, op.subscriberJWTKeyFunc)
+}
+
+func TestWithDebug(t *testing.T) {
+	op := &opt{}
+
+	o := WithDebug()
+	require.NoError(t, o(op))
+	require.True(t, op.debug)
+}
+
+func TestWithUI(t *testing.T) {
+	op := &opt{}
+
+	o := WithUI()
+	require.NoError(t, o(op))
+	require.True(t, op.ui)
+}
+
 func TestOriginsValidator(t *testing.T) {
 	op := &opt{}
 
