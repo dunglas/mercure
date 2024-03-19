@@ -12,6 +12,7 @@ retract (
 replace github.com/dunglas/mercure => ../
 
 require (
+	github.com/MicahParks/keyfunc/v3 v3.2.9
 	github.com/caddyserver/caddy/v2 v2.7.6
 	github.com/dunglas/mercure v0.15.11
 	github.com/prometheus/client_golang v1.19.0
@@ -34,6 +35,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
 	github.com/MauriceGit/skiplist v0.0.0-20211105230623-77f5c8d3e145 // indirect
+	github.com/MicahParks/jwkset v0.5.15 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/RoaringBitmap/roaring v1.9.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.9.1 // indirect
@@ -173,6 +175,7 @@ require (
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.20.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
