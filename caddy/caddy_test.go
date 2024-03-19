@@ -81,7 +81,7 @@ func TestMercure(t *testing.T) {
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", bearerPrefix+publisherJWT)
 
@@ -154,7 +154,7 @@ func TestJWTPlaceholders(t *testing.T) {
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", bearerPrefix+publisherJWTRSA)
 
@@ -254,7 +254,7 @@ func TestCookieName(t *testing.T) {
 
 	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}, "private": {"1"}}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Origin", "http://localhost:9080")
 	req.AddCookie(&http.Cookie{Name: "foo", Value: publisherJWT})
