@@ -13,7 +13,7 @@
                 "MERCURE_EXTRA_DIRECTIVES": "anonymous\nwrite_timeout 10s",
                 "GLOBAL_OPTIONS": "debug",
                 "SERVER_NAME": "localhost, host.docker.internal",
-                "EXTRA_DIRECTIVES": "tls internal"
+                "CADDY_SERVER_EXTRA_DIRECTIVES": "tls internal"
             },
             "args": ["run", "--config", "../../Caddyfile.dev"]
         }
