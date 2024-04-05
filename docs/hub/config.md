@@ -62,18 +62,19 @@ See also [the list of built-in Caddyfile directives](https://caddyserver.com/doc
 
 The provided `Caddyfile` and the Docker image provide convenient environment variables:
 
-| Environment variable           | Description                                                                                                                          | Default value       |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
-| `GLOBAL_OPTIONS`               | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line |                     |
-| `CADDY_SERVER_EXTRA_DIRECTIVES`| [`Caddyfile` statements](https://caddyserver.com/docs/caddyfile)                                                                     |                     |
-| `SERVER_NAME`                  | the server name or address                                                                                                           | `localhost`         |
-| `MERCURE_TRANSPORT_URL`        | the value passed to the `transport_url` directive                                                                                    | `bolt://mercure.db` |
-| `MERCURE_PUBLISHER_JWT_KEY`    | the JWT key to use for publishers                                                                                                    |                     |
-| `MERCURE_PUBLISHER_JWT_ALG`    | the JWT algorithm to use for publishers                                                                                              | `HS256`             |
-| `MERCURE_SUBSCRIBER_JWT_KEY`   | the JWT key to use for subscribers                                                                                                   |                     |
-| `MERCURE_SUBSCRIBER_JWT_ALG`   | the JWT algorithm to use for subscribers                                                                                             | `HS256`             |
-| `MERCURE_EXTRA_DIRECTIVES`     | a list of extra Mercure directives inject in the Caddy file, one per line                                                            |                     |
-| `MERCURE_LICENSE`              | the license to use ([only applicable for the HA version](cluster.md))                                                                |                     |
+| Environment variable           | Description                                                                                                                                                                                                          | Default value       |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `GLOBAL_OPTIONS`               | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line                                                                                 |                     |
+| `CADDY_EXTRA_CONFIG`           | the [snippet](https://caddyserver.com/docs/caddyfile/concepts#snippets) or the [named-routes](https://caddyserver.com/docs/caddyfile/concepts#named-routes) options block to inject in the `Caddyfile`, one per line |                     |
+| `CADDY_SERVER_EXTRA_DIRECTIVES`| [`Caddyfile` directives](https://caddyserver.com/docs/caddyfile/concepts#directives)                                                                                                                                 |                     |
+| `SERVER_NAME`                  | the server name or address                                                                                                                                                                                           | `localhost`         |
+| `MERCURE_TRANSPORT_URL`        | the value passed to the `transport_url` directive                                                                                                                                                                    | `bolt://mercure.db` |
+| `MERCURE_PUBLISHER_JWT_KEY`    | the JWT key to use for publishers                                                                                                                                                                                    |                     |
+| `MERCURE_PUBLISHER_JWT_ALG`    | the JWT algorithm to use for publishers                                                                                                                                                                              | `HS256`             |
+| `MERCURE_SUBSCRIBER_JWT_KEY`   | the JWT key to use for subscribers                                                                                                                                                                                   |                     |
+| `MERCURE_SUBSCRIBER_JWT_ALG`   | the JWT algorithm to use for subscribers                                                                                                                                                                             | `HS256`             |
+| `MERCURE_EXTRA_DIRECTIVES`     | a list of extra [Mercure directives](#directives) inject in the Caddy file, one per line                                                                                                                             |                     |
+| `MERCURE_LICENSE`              | the license to use ([only applicable for the HA version](cluster.md))                                                                                                                                                |                     |
 
 ## JWT Verification
 
