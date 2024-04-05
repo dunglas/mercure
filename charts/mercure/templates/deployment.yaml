@@ -47,7 +47,7 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mercure.fullname" . }}
                   key: global-options
-            - name: EXTRA_DIRECTIVES
+            - name: CADDY_SERVER_EXTRA_DIRECTIVES
               valueFrom:
                 secretKeyRef:
                   name: {{ include "mercure.fullname" . }}
