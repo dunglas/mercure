@@ -4,7 +4,7 @@
 
 # -- Inject global options in the Caddyfile.
 globalOptions: ""
-# -- inject snippet or named-routes options in the Caddyfile
+# -- Inject snippet or named-routes options in the Caddyfile
 caddyExtraConfig: ""
 # -- Enable the development mode, including the debug UI and the demo.
 dev: false
