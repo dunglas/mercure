@@ -4,6 +4,8 @@
 
 # -- Inject global options in the Caddyfile.
 globalOptions: ""
+# -- inject snippet or named-routes options in the Caddyfile
+caddyExtraConfig: ""
 # -- Enable the development mode, including the debug UI and the demo.
 dev: false
 # -- The URL representation of the transport to use.
