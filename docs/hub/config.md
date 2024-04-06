@@ -76,6 +76,23 @@ The provided `Caddyfile` and the Docker image provide convenient environment var
 | `MERCURE_EXTRA_DIRECTIVES`     | a list of extra [Mercure directives](#directives) inject in the Caddy file, one per line                                                                                                                             |                     |
 | `MERCURE_LICENSE`              | the license to use ([only applicable for the HA version](cluster.md))                                                                                                                                                |                     |
 
+## HealthCheck
+
+The Mercure.rocks Hub provides a `/healthz` endpoint that returns a `200 OK` status code if the server is healthy.
+
+Here is an example of how to use the health check in a Docker Compose file:
+```yaml
+# compose.yaml
+services:
+  mercure:
+    # ...
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost/healthz"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+```
+
 ## JWT Verification
 
 When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm as second parameter of the `publisher_jwt` or `subscriber_jwt` directives (for example `RS256`).

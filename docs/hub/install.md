@@ -111,12 +111,10 @@ See [the list of available values](https://github.com/dunglas/mercure/blob/main/
 
 ## Docker Compose
 
-If you prefer to use `docker-compose` to run the Mercure.rocks hub, here's a sample service definition:
+If you prefer to use `docker compose` to run the Mercure.rocks hub, here's a sample service definition:
 
 ```yaml
-# docker-compose.yml
-version: '3'
-
+# compose.yaml
 services:
   mercure:
     image: dunglas/mercure
@@ -128,6 +126,11 @@ services:
       MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
     # Uncomment the following line to enable the development mode
     #command: /usr/bin/caddy run --config /etc/caddy/Caddyfile.dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost/healthz"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     ports:
       - '80:80'
       - '443:443'

@@ -5,9 +5,7 @@
 The following Docker Compose file exposes a Mercure.rocks hub through Traefik:
 
 ```yaml
-# docker-compose.yml
-version: '3'
-
+# compose.yaml
 services:
   reverse-proxy:
     # The official v2 Traefik image
@@ -33,6 +31,11 @@ services:
       MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
     # Enables the development mode, comment the following line to run the hub in prod mode
     command: /usr/bin/caddy run --config /etc/caddy/Caddyfile.dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost/healthz"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     volumes:
       - mercure_data:/data
       - mercure_config:/config
