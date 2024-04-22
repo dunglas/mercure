@@ -4,6 +4,7 @@
 
 * Double-check that the request to the hub includes an authorization cookie (the default name is  `mercureAuthorization`), an `Authorization` HTTP header or an `authorization` query parameter
 * If the cookie isn't set, you may have to explicitly include [the request credentials](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters) (`new EventSource(url, {withCredentials: true})` and `fetch(url, {credentials: 'include'})`)
+* Double-check that only one `mercureAuthorization` cookie is set (Sometimes, especially in development, old Mercure cookies from other environments may remain)
 * Check the logs written by the hub on `stderr`, they contain the exact reason why the token has been rejected
 * Be sure to set a **secret key** (and not a JWT) in `JWT_KEY` (or in `SUBSCRIBER_JWT_KEY` and `PUBLISHER_JWT_KEY`)
 * If the secret key contains special characters, be sure to escape them properly, especially if you set the environment variable in a shell, or in a YAML file (Kubernetes...)
