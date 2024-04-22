@@ -50,6 +50,14 @@ Be sure to catch and logs these errors in your code.
 
 If you need more requests, upgrade to a higher plan or [the On Premise version](#on-premise).
 
+Rate limiting implements the [leaky bucket algorithm](https://en.wikipedia.org/wiki/Leaky_bucket).
+Requests are tracked at millisecond granularity. A queue of 10 requests exceeding the limit is allowed (*burst*).
+
+## TLS Certificates
+
+TLS certificates are automatically provisionned using [Let's Encrypt](https://letsencrypt.org).
+[A `CAA` DNS entry](https://letsencrypt.org/docs/caa/) is maintained for all `mercure.rocks` subdomains.
+
 ## On Premise
 
 The [high availability hub](cluster.md) we use for the cloud service can also be hosted on your own infrastructure. When you use the [on-premise version](cluster.md#high-availability-on-premise-version), there are no limits other than the load that can be handled by your servers.
