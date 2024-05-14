@@ -1,3 +1,4 @@
+---
 run:
   tests: true
 
@@ -20,8 +21,11 @@ linters:
     - testableexamples
     - musttag
     - depguard
-    # Weird issues
+    - mnd
+
+    # weird issues
     - nolintlint
+    - canonicalheader
 
     # deprecated
     - interfacer
