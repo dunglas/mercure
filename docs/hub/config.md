@@ -42,6 +42,8 @@ The following Mercure-specific directives are available:
 |--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|
 | `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                             |                        |
 | `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                            |                        |
+| `publisher_jwks_url`                 | the URL of the JSON Web Key Set (JWK Set) URL (provided by identity providers such as Keycloak or AWS Cognito) to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                     |                        |
+| `subscriber_jwks_url`                | the URL of the JSON Web Key Set (JWK Set) URL to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                                                                                      |                        |
 | `anonymous`                          | allow subscribers with no valid JWT to connect                                                                                                                                                                                                 | `false`                |
 | `publish_origins <origins...>`       | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                        |                        |
 | `cors_origins <origin...>`           | a list of allowed CORS origins, ([troubleshoot CORS issues](troubleshooting.md#cors-issues))                                                                                                                                                   |                        |
@@ -94,6 +96,9 @@ services:
 ```
 
 ## JWT Verification
+
+JWT can validated using HMAC and RSA algorithms.
+In addition, it's possible to use JSON Web Key Sets (JWK Sets) (usually provided by OAuth and OIDC providers such as Keycloak or Amazon Cognito) to validate the keys.
 
 When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm as second parameter of the `publisher_jwt` or `subscriber_jwt` directives (for example `RS256`).
 

@@ -7,7 +7,8 @@
     "**/examples",
     "**/node_modules",
     "**/dist",
-    "**/.goreleaser.yml"
+    "**/.goreleaser.yml",
+    "**/caddy/caddy.go"
   ],
   "absolute": true
 }
