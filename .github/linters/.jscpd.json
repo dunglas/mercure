@@ -8,7 +8,7 @@
     "**/node_modules",
     "**/dist",
     "**/.goreleaser.yml",
-    "caddy/caddy.go"
+    "**/caddy/caddy.go"
   ],
   "absolute": true
 }
