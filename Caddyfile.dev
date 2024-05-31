@@ -10,10 +10,8 @@
 {$SERVER_NAME:localhost} {
 	log {
 		format filter {
-			# Defaults to console while waiting for https://github.com/caddyserver/caddy/pull/5980
-			wrap console
 			fields {
-				uri query {
+				request>uri query {
 					replace authorization REDACTED
 				}
 			}
