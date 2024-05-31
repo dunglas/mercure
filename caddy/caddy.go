@@ -33,6 +33,7 @@ var (
 func init() { //nolint:gochecknoinits
 	caddy.RegisterModule(Mercure{})
 	httpcaddyfile.RegisterHandlerDirective("mercure", parseCaddyfile)
+	httpcaddyfile.RegisterDirectiveOrder("mercure", "after", "encode")
 }
 
 type JWTConfig struct {
