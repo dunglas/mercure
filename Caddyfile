@@ -8,10 +8,8 @@
 {$SERVER_NAME:localhost} {
 	log {
 		format filter {
-			# Defaults to json while waiting for https://github.com/caddyserver/caddy/pull/5980
-			wrap json
 			fields {
-				uri query {
+				request>uri query {
 					replace authorization REDACTED
 				}
 			}
