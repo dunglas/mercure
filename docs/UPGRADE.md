@@ -1,5 +1,10 @@
 # Upgrade
 
+## 0.16.2
+
+The `Caddyfile.dev` file has been renamed `dev.Caddyfile` to match new Caddy best practices
+and prevent "ambigous adapter" issues.
+
 ## 0.14.4
 
 This release is built on top of [Caddy 2.6](https://github.com/caddyserver/caddy/releases/tag/v2.6.0).

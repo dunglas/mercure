@@ -15,7 +15,7 @@
                 "SERVER_NAME": "localhost, host.docker.internal",
                 "CADDY_SERVER_EXTRA_DIRECTIVES": "tls internal"
             },
-            "args": ["run", "--config", "../../Caddyfile.dev"]
+            "args": ["run", "--config", "../../dev.Caddyfile"]
         }
     ]
 }

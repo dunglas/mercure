@@ -36,7 +36,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           {{- if .Values.dev }}
           command: ["caddy"]
-          args: ["run", "--config", "/etc/caddy/Caddyfile.dev", "--adapter", "caddyfile"]
+          args: ["run", "--config", "/etc/caddy/dev.Caddyfile", "--adapter", "caddyfile"]
           {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:

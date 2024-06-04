@@ -18,13 +18,13 @@ To start the Mercure.rocks Hub in development mode on Linux and macOS, run:
 ```console
 MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
 MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-./mercure run --config Caddyfile.dev
+./mercure run --config dev.Caddyfile
 ```
 
 On Windows, start PowerShell, go into the extracted directory and run:
 
 ```powershell
-$env:MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; .\mercure.exe run --config Caddyfile.dev
+$env:MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; .\mercure.exe run --config dev.Caddyfile
 ```
 
 *Note:* The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
@@ -65,7 +65,7 @@ docker run \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -p 80:80 \
     -p 443:443 \
-    dunglas/mercure caddy run --config /etc/caddy/Caddyfile.dev
+    dunglas/mercure caddy run --config /etc/caddy/dev.Caddyfile
 ```
 
 The server is then available on `https://localhost`. Anonymous subscribers are allowed and the debugger UI is available on `https://localhost/.well-known/mercure/ui/`.
@@ -125,7 +125,7 @@ services:
       MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
       MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
     # Uncomment the following line to enable the development mode
-    #command: /usr/bin/caddy run --config /etc/caddy/Caddyfile.dev
+    #command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
     healthcheck:
       test: ["CMD", "curl", "-f", "https://localhost/healthz"]
       timeout: 5s
