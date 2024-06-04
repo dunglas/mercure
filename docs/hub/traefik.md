@@ -30,7 +30,7 @@ services:
       MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
       MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
     # Enables the development mode, comment the following line to run the hub in prod mode
-    command: /usr/bin/caddy run --config /etc/caddy/Caddyfile.dev
+    command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
     healthcheck:
       test: ["CMD", "curl", "-f", "https://localhost/healthz"]
       timeout: 5s

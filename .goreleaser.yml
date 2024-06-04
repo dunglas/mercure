@@ -70,7 +70,7 @@ archives:
       - LICENSE
       - README.md
       - Caddyfile
-      - Caddyfile.dev
+      - dev.Caddyfile
     format_overrides:
       - goos: windows
         format: zip
@@ -106,7 +106,7 @@ dockers:
       - "--platform=linux/amd64"
     extra_files:
       - Caddyfile
-      - Caddyfile.dev
+      - dev.Caddyfile
   - ids:
       - caddy
     goos: linux
@@ -121,7 +121,7 @@ dockers:
       - "--platform=linux/arm64/v8"
     extra_files:
       - Caddyfile
-      - Caddyfile.dev
+      - dev.Caddyfile
   - ids:
       - legacy
     dockerfile: Dockerfile.legacy

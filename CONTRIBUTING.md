@@ -48,7 +48,7 @@ To run the test suite:
 To test the Caddy module:
 
     cd caddy/mercure
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go run --config ../../Caddyfile.dev
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go run --config ../../dev.Caddyfile
 
 Go to `https://localhost` and enjoy!
 
