@@ -54,7 +54,7 @@ jobs:
           echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
           args: release --clean --timeout 60m ${{ !startsWith(github.ref, 'refs/tags/v') && '--snapshot --skip=sign' || '' }}
