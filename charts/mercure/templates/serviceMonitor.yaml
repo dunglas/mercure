@@ -1,0 +1,15 @@
+{{- if and .Values.metrics.enabled .Values.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "mercure.fullname" . }}-metrics
+  labels:
+    app.kubernetes.io/name: {{ include "mercure.name" . }}
+spec:
+  selector:
+    matchLabels:
+      caca: proute
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.metrics.interval }}
+{{- end }}
