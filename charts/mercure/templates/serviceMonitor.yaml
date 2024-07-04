@@ -4,7 +4,7 @@ kind: ServiceMonitor
 metadata:
   name: {{ include "mercure.fullname" . }}-metrics
   labels:
-    app.kubernetes.io/name: {{ include "mercure.name" . }}
+    prometheus-operated: true
 spec:
   selector:
     matchLabels:
