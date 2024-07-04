@@ -28,6 +28,16 @@ subscriberJwtAlg: HS256
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
 license: ""
 
+# -- Enable the metrics. You must also add the [metrics](https://caddyserver.com/docs/caddyfile/directives/metrics) in the `globalOptions` for Caddy server.
+# servers {
+#     metrics
+# }
+# admin :9181
+metrics:
+  enabled: false
+  # -- The port to use for the metrics server.
+  port: 9181
+
 # -- The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).
 replicaCount: 1
 
