@@ -4,11 +4,11 @@ kind: ServiceMonitor
 metadata:
   name: {{ include "mercure.fullname" . }}-metrics
   labels:
-    prometheus-operated: true
+    app.kubernetes.io/name: {{ include "mercure.name" . }}
 spec:
   selector:
     matchLabels:
-      caca: proute
+      prometheus-operated: "true"
   endpoints:
     - port: metrics
       interval: {{ .Values.metrics.interval }}
