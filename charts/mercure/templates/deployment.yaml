@@ -55,17 +55,17 @@ spec:
             - name: CADDY_SERVER_EXTRA_DIRECTIVES
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.secretName" . }}
                   key: caddy-extra-directives
             - name: MERCURE_TRANSPORT_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.secretName" . }}
                   key: transport-url
             - name: MERCURE_PUBLISHER_JWT_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.secretName" . }}
                   key: publisher-jwt-key
             - name: MERCURE_PUBLISHER_JWT_ALG
               valueFrom:
@@ -75,7 +75,7 @@ spec:
             - name: MERCURE_SUBSCRIBER_JWT_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.secretName" . }}
                   key: subscriber-jwt-key
             - name: MERCURE_SUBSCRIBER_JWT_ALG
               valueFrom:
@@ -85,12 +85,12 @@ spec:
             - name: MERCURE_EXTRA_DIRECTIVES
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.secretName" . }}
                   key: extra-directives
             - name: MERCURE_LICENSE
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.secretName" . }}
                   key: license
           {{- if .Values.persistence.enabled }}
           volumeMounts:

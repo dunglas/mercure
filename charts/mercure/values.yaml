@@ -25,6 +25,16 @@ subscriberJwtKey: ""
 # -- The JWT algorithm to use for subscribers.
 subscriberJwtAlg: HS256
 
+# -- Allows to pass an existing secret name, the above values will be used if empty.
+existingSecret: ""
+# These keys must exist in the provided secret:
+# -  transport-url
+# -  publisher-jwt-key
+# -  subscriber-jwt-key
+# -  extra-directives:
+# -  license:
+# -  caddy-extra-directives:
+
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
 license: ""
 
