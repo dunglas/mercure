@@ -63,7 +63,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ startsWith(github.ref, 'refs/tags/v') && steps.import_gpg.outputs.fingerprint || '' }}
-  
+
       - name: Attest
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/attest-build-provenance@v1
