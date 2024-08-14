@@ -31,9 +31,9 @@
 
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}
 
-	skip_log /robots.txt
-	skip_log /healthz
-	skip_log /favicon.ico
+	log_skip /robots.txt
+	log_skip /healthz
+	log_skip /favicon.ico
 
 	header / Content-Type "text/html; charset=utf-8"
 	respond / `<!DOCTYPE html>
