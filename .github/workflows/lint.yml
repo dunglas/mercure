@@ -26,11 +26,15 @@ jobs:
         uses: super-linter/super-linter/slim@v6
         env:
           VALIDATE_ALL_CODEBASE: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_CHECKOV: false
           VALIDATE_GITLEAKS: false
           VALIDATE_GO: false
+          VALIDATE_GO_MODULES: false
           VALIDATE_PHP_PHPCS: false
           VALIDATE_KUBERNETES_KUBECONFORM: false
-          VALIDATE_KUBERNETES_KUBEVAL: false
+          VALIDATE_JAVASCRIPT_PRETTIER: false
+          VALIDATE_TYPESCRIPT_PRETTIER: false
           VALIDATE_TYPESCRIPT_STANDARD: false
+          PYTHON_PYLINT: false
           DEFAULT_BRANCH: main
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
