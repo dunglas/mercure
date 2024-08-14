@@ -76,7 +76,8 @@ func TestStartCrash(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
-	numberOfSubscribers := 2
+	const numberOfSubscribers = 2
+
 	hub := createAnonymousDummy()
 
 	go func() {

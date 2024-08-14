@@ -231,7 +231,6 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	defer os.Remove("test.db")
 
 	h := createAnonymousDummy(WithLogger(l), WithTransport(bt))
-	transport := h.transport.(*BoltTransport)
 	go h.Serve()
 
 	// loop until the web server is ready
@@ -242,7 +241,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	}
 	require.NoError(t, resp.Body.Close())
 
-	var wg sync.WaitGroup
+	var wg, subscribingWG sync.WaitGroup
 
 	subscribe := func(expectedBodyData string) {
 		cx, cancel := context.WithCancel(context.Background())
@@ -250,6 +249,8 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		req = req.WithContext(cx)
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
+
+		subscribingWG.Done()
 
 		var receivedBody strings.Builder
 		buf := make([]byte, 1024)
@@ -271,15 +272,8 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		wg.Done()
 	}
 
-	publish := func(data string, waitForSubscribers int) {
-		for {
-			transport.RLock()
-			l := transport.subscribers.Len()
-			transport.RUnlock()
-			if l >= waitForSubscribers {
-				break
-			}
-		}
+	publish := func(data string) {
+		subscribingWG.Wait()
 
 		body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {data}, "id": {data}}
 		req, err := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
@@ -296,29 +290,31 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	}
 
 	nbSubscribers := 10
+	subscribingWG.Add(nbSubscribers)
 	wg.Add(nbSubscribers + 1)
 	for i := 0; i < nbSubscribers; i++ {
 		go subscribe("first")
 	}
 
-	publish("first", nbSubscribers)
+	publish("first")
 	wg.Wait()
 
 	nbPublishers := 5
 	wg.Add(nbPublishers)
 	for i := 0; i < nbPublishers; i++ {
-		go publish("lost", 0)
+		go publish("lost")
 	}
 	wg.Wait()
 
 	nbSubscribers = 20
 	nbPublishers = 10
+	subscribingWG.Add(nbSubscribers)
 	wg.Add(nbSubscribers + nbPublishers)
 	for i := 0; i < nbSubscribers; i++ {
 		go subscribe("second")
 	}
 	for i := 0; i < nbPublishers; i++ {
-		go publish("second", nbSubscribers)
+		go publish("second")
 	}
 	wg.Wait()
 	h.server.Shutdown(context.Background())
