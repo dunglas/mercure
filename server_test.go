@@ -272,7 +272,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		wg.Done()
 	}
 
-	publish := func(data string, waitForSubscribers int) {
+	publish := func(data string) {
 		subscribingWG.Wait()
 
 		body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {data}, "id": {data}}
@@ -296,13 +296,13 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		go subscribe("first")
 	}
 
-	publish("first", nbSubscribers)
+	publish("first")
 	wg.Wait()
 
 	nbPublishers := 5
 	wg.Add(nbPublishers)
 	for i := 0; i < nbPublishers; i++ {
-		go publish("lost", 0)
+		go publish("lost")
 	}
 	wg.Wait()
 
@@ -314,7 +314,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		go subscribe("second")
 	}
 	for i := 0; i < nbPublishers; i++ {
-		go publish("second", nbSubscribers)
+		go publish("second")
 	}
 	wg.Wait()
 	h.server.Shutdown(context.Background())

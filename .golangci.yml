@@ -28,16 +28,7 @@ linters:
     - canonicalheader
 
     # deprecated
-    - interfacer
-    - maligned
-    - scopelint
-    - golint
-    - exhaustivestruct
-    - varcheck
-    - ifshort
-    - deadcode
-    - nosnakecase
-    - structcheck
+    - execinquery
 
 issues:
   exclude-rules:
