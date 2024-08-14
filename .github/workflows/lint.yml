@@ -10,6 +10,11 @@ on:
     tags:
       - v*.*.*
 
+permissions:
+  contents: read
+  packages: read
+  statuses: write
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -18,14 +23,18 @@ jobs:
         with:
           fetch-depth: 0
       - name: Lint Code Base
-        uses: super-linter/super-linter/slim@v5
+        uses: super-linter/super-linter/slim@v6
         env:
-          VALIDATE_ALL_CODEBASE: true
-          VALIDATE_GITLEAKS: false
-          VALIDATE_GO: false
-          VALIDATE_PHP_PHPCS: false
-          VALIDATE_KUBERNETES_KUBECONFORM: false
-          VALIDATE_KUBERNETES_KUBEVAL: false
-          VALIDATE_TYPESCRIPT_STANDARD: false
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: true
+          VALIDATE_CHECKOV: false
+          VALIDATE_GITLEAKS: false
+          VALIDATE_GO: false
+          VALIDATE_GO_MODULES: false
+          VALIDATE_PHP_PHPCS: false
+          VALIDATE_KUBERNETES_KUBECONFORM: false
+          VALIDATE_JAVASCRIPT_PRETTIER: false
+          VALIDATE_TYPESCRIPT_PRETTIER: false
+          VALIDATE_TYPESCRIPT_STANDARD: false
+          VALIDATE_PYTHON_PYLINT: false

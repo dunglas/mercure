@@ -69,8 +69,8 @@ When you send a PR, make sure that:
 
 ### Configuring Visual Studio Code
 
-A configuration for VSCode is provided in the `.vscode/` directory of the repository.
-It is automatically loaded by VS Code.
+A configuration for Visual Studio Code is provided in the `.vscode/` directory of the repository.
+It is automatically loaded by Visual Studio Code.
 
 ### Finding Deadlocks
 

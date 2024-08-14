@@ -2,10 +2,10 @@
 # Install github.com/sasha-s/go-deadlock and use it to test mutexes
 
 SEP="\n\t"
-args=( "-i" )
-if [[ "$(uname)" = "Darwin" ]]; then
-    SEP=$'\\\n\\\t'
-    args=( "-i" "" )
+args=("-i")
+if [[ "$(uname || true)" = "Darwin" ]]; then
+	SEP=$'\\\n\\\t'
+	args=("-i" "")
 fi
 
 go install golang.org/x/tools/cmd/goimports@latest
