@@ -41,9 +41,6 @@ jobs:
       fail-fast: false
     name: Test
     runs-on: ubuntu-latest
-    env:
-      # Temporary workaround for https://github.com/golang/go/issues/65653
-      GOEXPERIMENT: nocoverageredesign
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,6 +54,8 @@ jobs:
             caddy/go.sum
 
       - name: Use go-deadlock
+        # Blocked by https://github.com/sasha-s/go-deadlock/issues/34
+        if: matrix.go != '1.23'
         run: ./tests/use-go-deadlock.sh
 
       - name: Test
