@@ -148,7 +148,7 @@ func (m *Mercure) populateJWTConfig() error {
 	return nil
 }
 
-func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
+func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit,gocyclo
 	if err := m.populateJWTConfig(); err != nil {
 		return err
 	}
@@ -194,6 +194,14 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 	})
 	if err != nil {
 		return err //nolint:wrapcheck
+	}
+
+	if t, ok := destructor.(*transportDestructor).transport.(ContextAwareTransport); ok {
+		// Give a chance to the transport to access the Caddy context,
+		// this can be useful to retrieve other modules such as storages.
+		if err := t.SetContext(ctx); err != nil {
+			return err //nolint:wrapcheck
+		}
 	}
 
 	opts := []mercure.Option{
