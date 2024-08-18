@@ -1,7 +1,7 @@
 <!-- markdownlint-disable -->
 # Mercure Chart for Kubernetes
 
-![Version: 0.16.2](https://img.shields.io/badge/Version-0.16.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.16.2](https://img.shields.io/badge/AppVersion-v0.16.2-informational?style=flat-square)
+![Version: 0.16.3](https://img.shields.io/badge/Version-0.16.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.16.3](https://img.shields.io/badge/AppVersion-v0.16.3-informational?style=flat-square)
 
 A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 
@@ -23,6 +23,7 @@ To install the chart with the release name `my-release`, run the following comma
 | caddyExtraConfig | string | `""` | Inject snippet or named-routes options in the Caddyfile |
 | caddyExtraDirectives | string | `""` | Inject extra Caddy directives in the Caddyfile. |
 | dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
+| existingSecret | string | `""` | Allows to pass an existing secret name, the above values will be used if empty. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
 | globalOptions | string | `""` | Inject global options in the Caddyfile. |
