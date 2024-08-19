@@ -2,8 +2,15 @@
 
 ## 0.17
 
-The `TRANSPORT_URL` environment variable has been removed and the `transport_url` directive has been deprecated.
+The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive have been deprecated.
 Use the new `transport` directive instead.
+
+The `MERCURE_TRANSPORT_URL` environement variable has been removed from the default `Caddyfile`s,
+but a backward compatibility layer is provided.
+
+If both the `transport` and the deprecated `transport_url` are not explicitly set
+and the `MERCURE_TRANSPORT_URL` environement variable is set, the `transport_url` will be automatically populated.
+To disable this behavior, unset `MERCURE_TRANSPORT_URL` or set it to an empty string.
 
 Before:
 

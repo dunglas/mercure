@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -153,7 +154,7 @@ func (m *Mercure) populateJWTConfig() error {
 //
 //nolint:wrapcheck,ireturn
 func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
-	m.logger.Warn(`Setting transport_url is deprecated, use the "transport" directive instead`)
+	m.logger.Warn(`Setting the transport_url or the MERCURE_TRANSPORT_URL environment variable is deprecated, use the "transport" directive instead`)
 
 	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
 		u, err := url.Parse(m.TransportURL)
@@ -487,6 +488,15 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 				m.ProtocolVersionCompatibility = v
 			}
+		}
+	}
+
+	// BC layer with old versions of the built-in Caddyfile
+	if m.TransportRaw == nil && m.TransportURL == "" {
+		deprecatedTransportURL := os.Getenv("MERCURE_TRANSPORT_URL")
+
+		if deprecatedTransportURL != "" {
+			m.TransportURL = deprecatedTransportURL
 		}
 	}
 

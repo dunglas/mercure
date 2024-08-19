@@ -57,11 +57,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "mercure.secretName" . }}
                   key: caddy-extra-directives
+            {{- if .Values.transportUrl }}
             - name: MERCURE_TRANSPORT_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ include "mercure.secretName" . }}
                   key: transport-url
+            {{- end }}
             - name: MERCURE_PUBLISHER_JWT_KEY
               valueFrom:
                 secretKeyRef:
@@ -92,6 +94,9 @@ spec:
                 secretKeyRef:
                   name: {{ include "mercure.secretName" . }}
                   key: license
+          {{- if .Values.extraEnvs }}
+            {{- toYaml .Values.extraEnvs | nindent 12 }}
+          {{- end }}
           {{- if .Values.persistence.enabled }}
           volumeMounts:
             - mountPath: /data

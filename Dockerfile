@@ -8,8 +8,6 @@ LABEL org.opencontainers.image.source=https://github.com/dunglas/mercure
 LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 LABEL org.opencontainers.image.vendor="Kévin Dunglas"
 
-ENV MERCURE_TRANSPORT_URL=bolt:///data/mercure.db
-
 COPY mercure /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY dev.Caddyfile /etc/caddy/dev.Caddyfile

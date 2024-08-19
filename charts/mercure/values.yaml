@@ -8,8 +8,8 @@ globalOptions: ""
 caddyExtraConfig: ""
 # -- Enable the development mode, including the debug UI and the demo.
 dev: false
-# -- The URL representation of the transport to use.
-transportUrl: bolt:///data/mercure.db
+# -- Deprecated: The URL representation of the transport to use.
+transportUrl: ""
 # -- Inject extra Mercure directives in the Caddyfile.
 extraDirectives: ""
 # -- Inject extra Caddy directives in the Caddyfile.
@@ -25,10 +25,18 @@ subscriberJwtKey: ""
 # -- The JWT algorithm to use for subscribers.
 subscriberJwtAlg: HS256
 
+# -- Additional environment variables to set
+extraEnvs: []
+# extraEnvs:
+#   - name: FOO
+#     valueFrom:
+#       secretKeyRef:
+#         key: FOO
+#         name: secret-resource
+
 # -- Allows to pass an existing secret name, the above values will be used if empty.
 existingSecret: ""
 # These keys must exist in the provided secret:
-# -  transport-url
 # -  publisher-jwt-key
 # -  subscriber-jwt-key
 # -  extra-directives:
