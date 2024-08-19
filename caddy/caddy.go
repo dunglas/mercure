@@ -3,6 +3,7 @@
 package caddy
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
@@ -26,8 +28,10 @@ const defaultHubURL = "/.well-known/mercure"
 
 var (
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
-	transports       = caddy.NewUsagePool()                                       //nolint:gochecknoglobals
 	metrics          = mercure.NewPrometheusMetrics(prometheus.DefaultRegisterer) //nolint:gochecknoglobals
+
+	// Deprecated: use transports Caddy modules.
+	transports = caddy.NewUsagePool() //nolint:gochecknoglobals
 )
 
 func init() { //nolint:gochecknoinits
@@ -39,14 +43,6 @@ func init() { //nolint:gochecknoinits
 type JWTConfig struct {
 	Key string `json:"key,omitempty"`
 	Alg string `json:"alg,omitempty"`
-}
-
-type transportDestructor struct {
-	transport mercure.Transport
-}
-
-func (d *transportDestructor) Destruct() error {
-	return d.transport.Close() //nolint:wrapcheck
 }
 
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
@@ -91,6 +87,8 @@ type Mercure struct {
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
 	// Transport to use.
+	//
+	// Deprecated: use transports Caddy modules.
 	TransportURL string `json:"transport_url,omitempty"`
 
 	// Triggers use of LRU topic selector cache and avoidance of select priority queue (recommend 10,000 - 1,000,000)
@@ -101,6 +99,9 @@ type Mercure struct {
 
 	// The version of the Mercure protocol to be backward compatible with (only version 7 is supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
+
+	// The transport configuration.
+	TransportRaw json.RawMessage `json:"transport,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
 
 	hub    *mercure.Hub
 	logger *zap.Logger
@@ -148,26 +149,12 @@ func (m *Mercure) populateJWTConfig() error {
 	return nil
 }
 
-func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
-	if err := m.populateJWTConfig(); err != nil {
-		return err
-	}
+// Deprecated
+//
+//nolint:wrapcheck,ireturn
+func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
+	m.logger.Warn(`Setting transport_url is deprecated, use the "transport" directive instead`)
 
-	if m.TransportURL == "" {
-		m.TransportURL = "bolt://mercure.db"
-	}
-
-	maxEntriesPerShard := mercure.DefaultTopicSelectorStoreLRUMaxEntriesPerShard
-	if m.LRUShardSize != nil {
-		maxEntriesPerShard = *m.LRUShardSize
-	}
-
-	tss, err := mercure.NewTopicSelectorStoreLRU(maxEntriesPerShard, mercure.DefaultTopicSelectorStoreLRUShardCount)
-	if err != nil {
-		return err //nolint:wrapcheck
-	}
-
-	m.logger = ctx.Logger(m)
 	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
 		u, err := url.Parse(m.TransportURL)
 		if err != nil {
@@ -187,19 +174,57 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 
 		transport, err := mercure.NewTransport(u, m.logger)
 		if err != nil {
-			return nil, err //nolint:wrapcheck
+			return nil, err
 		}
 
-		return &transportDestructor{transport}, nil
+		return &transportDestructor[mercure.Transport]{transport}, nil
 	})
 	if err != nil {
-		return err //nolint:wrapcheck
+		return nil, err
+	}
+
+	return destructor.(*transportDestructor[mercure.Transport]).transport, nil
+}
+
+//nolint:wrapcheck
+func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
+	if err := m.populateJWTConfig(); err != nil {
+		return err
+	}
+
+	maxEntriesPerShard := mercure.DefaultTopicSelectorStoreLRUMaxEntriesPerShard
+	if m.LRUShardSize != nil {
+		maxEntriesPerShard = *m.LRUShardSize
+	}
+
+	tss, err := mercure.NewTopicSelectorStoreLRU(maxEntriesPerShard, mercure.DefaultTopicSelectorStoreLRUShardCount)
+	if err != nil {
+		return err
+	}
+
+	m.logger = ctx.Logger()
+
+	var transport mercure.Transport
+	if m.TransportURL == "" {
+		var mod any
+		if m.TransportRaw == nil {
+			mod, err = ctx.LoadModuleByID("http.handlers.mercure.bolt", nil)
+		} else {
+			mod, err = ctx.LoadModule(m, "TransportRaw")
+		}
+		if err != nil {
+			return err
+		}
+
+		transport = mod.(Transport).GetTransport()
+	} else if transport, err = createTransportLegacy(m); err != nil {
+		return err
 	}
 
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
 		mercure.WithTopicSelectorStore(tss),
-		mercure.WithTransport(destructor.(*transportDestructor).transport),
+		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
 	}
@@ -261,7 +286,7 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 
 	h, err := mercure.NewHub(opts...)
 	if err != nil {
-		return err //nolint:wrapcheck
+		return err
 	}
 
 	m.hub = h
@@ -269,10 +294,17 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 	return nil
 }
 
+// Deprecated: use transports Caddy modules.
+//
+//nolint:wrapcheck
 func (m *Mercure) Cleanup() error {
+	if m.TransportURL == "" {
+		return nil
+	}
+
 	_, err := transports.Delete(m.TransportURL)
 
-	return err //nolint:wrapcheck
+	return err
 }
 
 func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -286,6 +318,8 @@ func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 }
 
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
+//
+//nolint:wrapcheck
 func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:funlen,gocognit,gocyclo
 	for d.Next() {
 		for d.NextBlock(0) {
@@ -304,12 +338,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 			case "write_timeout":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				d, err := caddy.ParseDuration(d.Val())
 				if err != nil {
-					return err //nolint:wrapcheck
+					return err
 				}
 
 				cd := caddy.Duration(d)
@@ -317,12 +351,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 			case "dispatch_timeout":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				d, err := caddy.ParseDuration(d.Val())
 				if err != nil {
-					return err //nolint:wrapcheck
+					return err
 				}
 
 				cd := caddy.Duration(d)
@@ -330,12 +364,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 			case "heartbeat":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				d, err := caddy.ParseDuration(d.Val())
 				if err != nil {
-					return err //nolint:wrapcheck
+					return err
 				}
 
 				cd := caddy.Duration(d)
@@ -343,14 +377,14 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 			case "publisher_jwks_url":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.PublisherJWKSURL = d.Val()
 
 			case "publisher_jwt":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.PublisherJWT.Key = d.Val()
@@ -360,14 +394,14 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 			case "subscriber_jwks_url":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.SubscriberJWKSURL = d.Val()
 
 			case "subscriber_jwt":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.SubscriberJWT.Key = d.Val()
@@ -378,7 +412,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 			case "publish_origins":
 				ra := d.RemainingArgs()
 				if len(ra) == 0 {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.PublishOrigins = ra
@@ -386,45 +420,65 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 			case "cors_origins":
 				ra := d.RemainingArgs()
 				if len(ra) == 0 {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.CORSOrigins = ra
 
+			case "transport":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				name := d.Val()
+				modID := "http.handlers.mercure." + name
+
+				unm, err := caddyfile.UnmarshalModule(d, modID)
+				if err != nil {
+					return err
+				}
+
+				t, ok := unm.(Transport)
+				if !ok {
+					return d.Errf(`module %s (%T) is not a supported transport implementation (requires "github.com/dunglas/mercure/caddy".Transport)`, modID, unm)
+				}
+
+				m.TransportRaw = caddyconfig.JSONModuleObject(t, "name", name, nil)
+
 			case "transport_url":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.TransportURL = d.Val()
 
 			case "lru_cache":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				v, err := strconv.ParseInt(d.Val(), 10, 64)
 				if err != nil {
-					return err //nolint:wrapcheck
+					return err
 				}
 
 				m.LRUShardSize = &v
 
 			case "cookie_name":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				m.CookieName = d.Val()
 
 			case "protocol_version_compatibility":
 				if !d.NextArg() {
-					return d.ArgErr() //nolint:wrapcheck
+					return d.ArgErr()
 				}
 
 				v, err := strconv.Atoi(d.Val())
 				if err != nil {
-					return err //nolint:wrapcheck
+					return err
 				}
 
 				if v != 7 {

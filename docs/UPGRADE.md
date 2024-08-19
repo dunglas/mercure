@@ -1,5 +1,30 @@
 # Upgrade
 
+## 0.17
+
+The `TRANSPORT_URL` environment variable has been removed and the `transport_url` directive has been deprecated.
+Use the new `transport` directive instead.
+
+Before:
+
+```caddyfile
+transport_url bolt://mercure.db?cleanup_frequency=0.2
+```
+
+After:
+
+```caddyfile
+transport bolt {
+  cleanup_frequency 0.2
+}
+```
+
+To configure the transport using an environment variable, append the `transport directive` to the `MERCURE_EXTRA_DIRECTIVES` environment variable.
+
+To prevent security issues, be sure to not pass credentials such as API tokens or password in `MERCURE_EXTRA_DIRECTIVES` (ex: when using transports [provided by the paid version](hub/cluster.md) such as Redis).
+
+To pass credentials security, create a custom `Caddyfile` an use the `{env.MY_ENV_VAR}` syntax, which is interpreted at runtime.
+
 ## 0.16.2
 
 The `Caddyfile.dev` file has been renamed `dev.Caddyfile` to match new Caddy best practices

@@ -325,7 +325,7 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	if opt.transport == nil {
-		t, _ := NewLocalTransport(nil, nil)
+		t, _ := DeprecatedNewLocalTransport(nil, nil)
 		opt.transport = t
 	}
 
