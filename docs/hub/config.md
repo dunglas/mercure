@@ -38,25 +38,26 @@ Note that HTTPS is automatically disabled if you set the server port to 80.
 
 The following Mercure-specific directives are available:
 
-| Directive                            | Description                                                                                                                                                                                                                                    | Default                |
-|--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|
-| `publisher_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                             |                        |
-| `subscriber_jwt <key> [<algorithm>]` | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                            |                        |
-| `publisher_jwks_url`                 | the URL of the JSON Web Key Set (JWK Set) URL (provided by identity providers such as Keycloak or AWS Cognito) to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                     |                        |
-| `subscriber_jwks_url`                | the URL of the JSON Web Key Set (JWK Set) URL to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                                                                                      |                        |
-| `anonymous`                          | allow subscribers with no valid JWT to connect                                                                                                                                                                                                 | `false`                |
-| `publish_origins <origins...>`       | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                        |                        |
-| `cors_origins <origin...>`           | a list of allowed CORS origins, ([troubleshoot CORS issues](troubleshooting.md#cors-issues))                                                                                                                                                   |                        |
-| `cookie_name <name>`                 | the name of the cookie to use for the authorization mechanism                                                                                                                                                                                  | `mercureAuthorization` |
-| `subscriptions`                      | expose the subscription web API and dispatch private updates when a subscription between the Hub and a subscriber is established or closed. The topic follows the template `/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}` |                        |
-| `heartbeat`                          | interval between heartbeats (useful with some proxies, and old browsers), set to `0s` disable                                                                                                                                                  | `40s`                  |
-| `transport_url <url>`                | URL representation of the transport to use. Use `local://local` to disabled history, (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`), see also [the cluster mode](cluster.md)                                            | `bolt://mercure.db`    |
-| `dispatch_timeout <duration>`        | maximum duration of the dispatch of a single update, set to `0s` disable                                                                                                                                                                       | `5s`                   |
-| `write_timeout <duration>`           | maximum duration before closing the connection, set to `0s` disable                                                                                                                                                                            | `600s`                 |
-| `protocol_version_compatibility`     | version of the protocol to be backward compatible with (only version 7 is supported)                                                                                                                                                           | disabled               |
-| `demo`                               | enable the UI and expose demo endpoints                                                                                                                                                                                                        |                        |
-| `ui`                                 | enable the UI but do not expose demo endpoints                                                                                                                                                                                                 |                        |
-| `cache <num-counters> <max-cost>`    | cache configuration (see [Ristretto's docs](https://github.com/dgraph-io/ristretto)), set to -1 to disable the cache                                                                                                                           | `6e7` `1e8` (100MB)    |
+| Directive                             | Description                                                                                                                                                                                                                                     | Default                |
+|---------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|
+| `publisher_jwt <key> [<algorithm>]`   | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                              |                        |
+| `subscriber_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                             |                        |
+| `publisher_jwks_url`                  | the URL of the JSON Web Key Set (JWK Set) URL (provided by identity providers such as Keycloak or AWS Cognito) to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                      |                        |
+| `subscriber_jwks_url`                 | the URL of the JSON Web Key Set (JWK Set) URL to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                                                                                       |                        |
+| `anonymous`                           | allow subscribers with no valid JWT to connect                                                                                                                                                                                                  | `false`                |
+| `publish_origins <origins...>`        | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                         |                        |
+| `cors_origins <origin...>`            | a list of allowed CORS origins, ([troubleshoot CORS issues](troubleshooting.md#cors-issues))                                                                                                                                                    |                        |
+| `cookie_name <name>`                  | the name of the cookie to use for the authorization mechanism                                                                                                                                                                                   | `mercureAuthorization` |
+| `subscriptions`                       | expose the subscription web API and dispatch private updates when a subscription between the Hub and a subscriber is established or closed. The topic follows the template `/.well-known/mercure/subscriptions/{topicSelector}/{subscriberID}`  |                        |
+| `heartbeat`                           | interval between heartbeats (useful with some proxies, and old browsers), set to `0s` disable                                                                                                                                                   | `40s`                  |
+| `transport <name> [{ <options...> }]` | The transport to use. Options are transport-specific. See also [the cluster mode](cluster.md)                                                                                                                                                   | `bolt://mercure.db`    |
+| `dispatch_timeout <duration>`         | maximum duration of the dispatch of a single update, set to `0s` disable                                                                                                                                                                        | `5s`                   |
+| `write_timeout <duration>`            | maximum duration before closing the connection, set to `0s` disable                                                                                                                                                                             | `600s`                 |
+| `protocol_version_compatibility`      | version of the protocol to be backward compatible with (only version 7 is supported)                                                                                                                                                            | disabled               |
+| `demo`                                | enable the UI and expose demo endpoints                                                                                                                                                                                                         |                        |
+| `ui`                                  | enable the UI but do not expose demo endpoints                                                                                                                                                                                                  |                        |
+| `cache <num-counters> <max-cost>`     | cache configuration (see [Ristretto's docs](https://github.com/dgraph-io/ristretto)), set to -1 to disable the cache                                                                                                                            | `6e7` `1e8` (100MB)    |
+| `transport_url <url>`                 | **Deprecated: use `transport` instead.** URL representation of the transport to use. Use `local://local` to disable the history, (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`), see also [the cluster mode](cluster.md) | `bolt://mercure.db`    |
 
 See also [the list of built-in Caddyfile directives](https://caddyserver.com/docs/caddyfile/directives).
 
@@ -70,7 +71,6 @@ The provided `Caddyfile` and the Docker image provide convenient environment var
 | `CADDY_EXTRA_CONFIG`           | the [snippet](https://caddyserver.com/docs/caddyfile/concepts#snippets) or the [named-routes](https://caddyserver.com/docs/caddyfile/concepts#named-routes) options block to inject in the `Caddyfile`, one per line |                     |
 | `CADDY_SERVER_EXTRA_DIRECTIVES`| [`Caddyfile` directives](https://caddyserver.com/docs/caddyfile/concepts#directives)                                                                                                                                 |                     |
 | `SERVER_NAME`                  | the server name or address                                                                                                                                                                                           | `localhost`         |
-| `MERCURE_TRANSPORT_URL`        | the value passed to the `transport_url` directive                                                                                                                                                                    | `bolt://mercure.db` |
 | `MERCURE_PUBLISHER_JWT_KEY`    | the JWT key to use for publishers                                                                                                                                                                                    |                     |
 | `MERCURE_PUBLISHER_JWT_ALG`    | the JWT algorithm to use for publishers                                                                                                                                                                              | `HS256`             |
 | `MERCURE_SUBSCRIBER_JWT_KEY`   | the JWT key to use for subscribers                                                                                                                                                                                   |                     |
@@ -126,13 +126,20 @@ MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
 
 ## Bolt Adapter
 
-The [Data Source Name (DSN)](https://en.wikipedia.org/wiki/Data_source_name) specifies the path to the [bolt](https://github.com/etcd-io/bbolt) database as well as options
-
-| Parameter           | Description                                                                                                                                                         |
+| Option              | Description                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `path`              | path of the database file (default: `mercure.db`)                                                                                                                   |
 | `bucket_name`       | name of the bolt bucket to store events. default to `updates`                                                                                                       |
 | `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`. |
 | `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                   |
+
+You can visualize and edit the content of the database using [boltdbweb](https://github.com/evnix/boltdbweb).
+
+### Legacy URL
+
+**This feature is deprecated: use the new `transport` directive instead**.
+
+The [Data Source Name (DSN)](https://en.wikipedia.org/wiki/Data_source_name) specifies the path to the [bolt](https://github.com/etcd-io/bbolt) database as well as options. All options available as directive except `path` can be passed.
 
 Below are common examples of valid DSNs showing a combination of available values:
 
@@ -146,8 +153,6 @@ transport_url bolt://database.db
 # custom options
 transport_url bolt://database.db?bucket_name=demo&size=1000&cleanup_frequency=0.5
 ```
-
-You can visualize and edit the content of the database using [boltdbweb](https://github.com/evnix/boltdbweb).
 
 ## Legacy Server
 

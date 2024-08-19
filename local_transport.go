@@ -6,7 +6,7 @@ import (
 )
 
 func init() { //nolint:gochecknoinits
-	RegisterTransportFactory("local", NewLocalTransport)
+	RegisterTransportFactory("local", DeprecatedNewLocalTransport)
 }
 
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
@@ -18,13 +18,20 @@ type LocalTransport struct {
 	closedOnce  sync.Once
 }
 
-// NewLocalTransport create a new LocalTransport.
-func NewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //nolint:ireturn
+// DeprecatedNewLocalTransport creates a new LocalTransport.
+//
+// Deprecated: use NewLocalTransport() instead.
+func DeprecatedNewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //nolint:ireturn
+	return NewLocalTransport(), nil
+}
+
+// NewLocalTransport creates a new LocalTransport.
+func NewLocalTransport() *LocalTransport {
 	return &LocalTransport{
 		subscribers: NewSubscriberList(1e5),
 		closed:      make(chan struct{}),
 		lastEventID: EarliestLastEventID,
-	}, nil
+	}
 }
 
 // Dispatch dispatches an update to all subscribers.

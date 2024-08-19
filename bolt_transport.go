@@ -18,7 +18,7 @@ import (
 const BoltDefaultCleanupFrequency = 0.3
 
 func init() { //nolint:gochecknoinits
-	RegisterTransportFactory("bolt", NewBoltTransport)
+	RegisterTransportFactory("bolt", DeprecatedNewBoltTransport)
 }
 
 const defaultBoltBucketName = "updates"
@@ -38,8 +38,10 @@ type BoltTransport struct {
 	lastEventID      string
 }
 
-// NewBoltTransport create a new boltTransport.
-func NewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
+// DeprecatedNewBoltTransport creates a new BoltTransport.
+//
+// Deprecated: use NewBoltTransport() instead.
+func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
 	var err error
 	q := u.Query()
 	bucketName := defaultBoltBucketName
@@ -72,20 +74,40 @@ func NewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nolint:iretur
 		return nil, &TransportError{u.Redacted(), "missing path", err}
 	}
 
+	return NewBoltTransport(l, path, bucketName, size, cleanupFrequency)
+}
+
+// NewBoltTransport creates a new BoltTransport.
+func NewBoltTransport(
+	logger Logger,
+	path string,
+	bucketName string,
+	size uint64,
+	cleanupFrequency float64,
+) (*BoltTransport, error) {
+	if path == "" {
+		path = "bolt.db"
+	}
+
+	if bucketName == "" {
+		bucketName = defaultBoltBucketName
+	}
+
 	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
-		return nil, &TransportError{dsn: u.Redacted(), err: err}
+		return nil, &TransportError{err: err}
 	}
 
 	return &BoltTransport{
-		logger:           l,
+		logger:           logger,
 		db:               db,
 		bucketName:       bucketName,
 		size:             size,
 		cleanupFrequency: cleanupFrequency,
-		subscribers:      NewSubscriberList(1e5),
-		closed:           make(chan struct{}),
-		lastEventID:      getDBLastEventID(db, bucketName),
+
+		subscribers: NewSubscriberList(1e5),
+		closed:      make(chan struct{}),
+		lastEventID: getDBLastEventID(db, bucketName),
 	}, nil
 }
 

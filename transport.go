@@ -14,16 +14,19 @@ const EarliestLastEventID = "earliest"
 type TransportFactory = func(u *url.URL, l Logger) (Transport, error)
 
 var (
+	// Deprecated: directly instantiate the transport or use transports Caddy modules.
 	transportFactories   = make(map[string]TransportFactory) //nolint:gochecknoglobals
 	transportFactoriesMu sync.RWMutex                        //nolint:gochecknoglobals
 )
 
+// Deprecated: directly instantiate the transport or use transports Caddy modules.
 func RegisterTransportFactory(scheme string, factory TransportFactory) {
 	transportFactoriesMu.Lock()
 	transportFactories[scheme] = factory
 	transportFactoriesMu.Unlock()
 }
 
+// Deprecated: directly instantiate the transport or use transports Caddy modules.
 func NewTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
 	transportFactoriesMu.RLock()
 	f, ok := transportFactories[u.Scheme]

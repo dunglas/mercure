@@ -3,6 +3,7 @@ package caddy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/caddyserver/caddy/v2/caddytest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,75 +25,96 @@ const (
 )
 
 func TestMercure(t *testing.T) {
-	tester := caddytest.NewTester(t)
-	tester.InitServer(`
-	{
-		skip_install_trust
-		admin localhost:2999
-		http_port     9080
-		https_port    9443
+	data := []struct {
+		name            string
+		transportConfig string
+	}{
+		{"bolt", ""},
+		{"local", "transport local\n"},
 	}
 
-	localhost:9080 {
-		route {
-			mercure {
-				anonymous
-				publisher_jwt !ChangeMe!
+	for _, d := range data {
+		t.Run(d.name, func(t *testing.T) {
+			if d.name == "bolt" {
+				defer os.Remove("bolt.db")
 			}
-	
-			respond 404
+
+			tester := caddytest.NewTester(t)
+			tester.InitServer(fmt.Sprintf(`{
+	skip_install_trust
+	admin localhost:2999
+	http_port     9080
+	https_port    9443
+}
+
+localhost:9080 {
+	route {
+		mercure {
+			anonymous
+			publisher_jwt !ChangeMe!
+			%s
 		}
+
+		respond 404
 	}
-	`, "caddyfile")
+}`, d.transportConfig), "caddyfile")
 
-	var connected sync.WaitGroup
-	var received sync.WaitGroup
-	connected.Add(1)
-	received.Add(1)
+			var connected sync.WaitGroup
+			var received sync.WaitGroup
+			connected.Add(1)
+			received.Add(1)
 
-	go func() {
-		cx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
-		req = req.WithContext(cx)
-		resp := tester.AssertResponseCode(req, http.StatusOK)
+			go func() {
+				cx, cancel := context.WithCancel(context.Background())
+				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+				req = req.WithContext(cx)
+				resp := tester.AssertResponseCode(req, http.StatusOK)
 
-		connected.Done()
+				connected.Done()
 
-		var receivedBody strings.Builder
-		buf := make([]byte, 1024)
-		for {
-			_, err := resp.Body.Read(buf)
-			if errors.Is(err, io.EOF) {
-				panic("EOF")
+				var receivedBody strings.Builder
+				buf := make([]byte, 1024)
+				for {
+					_, err := resp.Body.Read(buf)
+					if errors.Is(err, io.EOF) {
+						panic("EOF")
+					}
+
+					receivedBody.Write(buf)
+					if strings.Contains(receivedBody.String(), "data: bar\n") {
+						cancel()
+
+						break
+					}
+				}
+
+				resp.Body.Close()
+				received.Done()
+			}()
+
+			connected.Wait()
+
+			body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
+			req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+			require.NoError(t, err)
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Authorization", bearerPrefix+publisherJWT)
+
+			resp := tester.AssertResponseCode(req, http.StatusOK)
+			resp.Body.Close()
+
+			received.Wait()
+
+			if d.name != "bolt" {
+				assert.NoFileExists(t, "bolt.db")
 			}
-
-			receivedBody.Write(buf)
-			if strings.Contains(receivedBody.String(), "data: bar\n") {
-				cancel()
-
-				break
-			}
-		}
-
-		resp.Body.Close()
-		received.Done()
-	}()
-
-	connected.Wait()
-
-	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
-	require.NoError(t, err)
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+publisherJWT)
-
-	resp := tester.AssertResponseCode(req, http.StatusOK)
-	resp.Body.Close()
-
-	received.Wait()
+		})
+	}
 }
 
 func TestJWTPlaceholders(t *testing.T) {
+	defer os.Remove("bolt.db")
+
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	t.Setenv("TEST_JWT_KEY", string(k))
 	t.Setenv("TEST_JWT_ALG", "RS256")
@@ -165,6 +188,8 @@ func TestJWTPlaceholders(t *testing.T) {
 }
 
 func TestSubscriptionAPI(t *testing.T) {
+	defer os.Remove("bolt.db")
+
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
@@ -193,6 +218,8 @@ func TestSubscriptionAPI(t *testing.T) {
 }
 
 func TestCookieName(t *testing.T) {
+	defer os.Remove("bolt.db")
+
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
@@ -263,4 +290,121 @@ func TestCookieName(t *testing.T) {
 	resp.Body.Close()
 
 	received.Wait()
+}
+
+func TestBoltConfig(t *testing.T) {
+	defer os.Remove("test.db")
+
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+{
+	skip_install_trust
+	admin localhost:2999
+	http_port     9080
+	https_port    9443
+}
+
+localhost:9080 {
+	route {
+		mercure {
+			anonymous
+			publisher_jwt !ChangeMe!
+			transport bolt {
+				path test.db
+				bucket_name foo
+				size 20
+				cleanup_frequency 0.2
+			}
+		}
+
+		respond 404
+	}
+}`, "caddyfile")
+
+	assert.FileExists(t, "test.db")
+}
+
+func TestAdaptBoltConfig(t *testing.T) {
+	caddytest.AssertAdapt(t, `http://
+
+mercure {
+	publisher_jwt !ChangeMe!
+	transport bolt {
+		path test.db
+		bucket_name foo
+		size 20
+		cleanup_frequency 0.2
+	}
+}
+`, "caddyfile", `{
+	"apps": {
+		"http": {
+			"servers": {
+				"srv0": {
+					"listen": [
+						":80"
+					],
+					"routes": [
+						{
+							"handle": [
+								{
+									"handler": "mercure",
+									"publisher_jwt": {
+										"key": "!ChangeMe!"
+									},
+									"subscriber_jwt": {},
+									"transport": {
+										"bucket_name": "foo",
+										"cleanup_frequency": 0.2,
+										"name": "bolt",
+										"path": "test.db",
+										"size": 20
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		}
+	}
+}`)
+}
+
+func TestAdaptLocalConfig(t *testing.T) {
+	caddytest.AssertAdapt(t, `http://
+
+mercure {
+	publisher_jwt !ChangeMe!
+	transport local
+}
+`, "caddyfile", `{
+	"apps": {
+		"http": {
+			"servers": {
+				"srv0": {
+					"listen": [
+						":80"
+					],
+					"routes": [
+						{
+							"handle": [
+								{
+									"handler": "mercure",
+									"publisher_jwt": {
+										"key": "!ChangeMe!"
+									},
+									"subscriber_jwt": {},
+									"transport": {
+										"name": "local"
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		}
+	}
+}`)
 }
