@@ -127,7 +127,7 @@ services:
     # Uncomment the following line to enable the development mode
     #command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
     healthcheck:
-      test: ["CMD", "curl", "-f", "https://localhost/healthz"]
+      test: ["CMD", "wget", "-q", "--spider", "https://localhost/healthz"]
       timeout: 5s
       retries: 5
       start_period: 60s
