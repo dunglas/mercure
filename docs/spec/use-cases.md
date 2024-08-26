@@ -5,7 +5,7 @@ From building a chat room to expose a fully-featured event store, Mercure covers
 
 ## Case Studies
 
-* [How Raven Controls is using Mercury to power major events such as Cop 21 and Euro 2020](https://api-platform.com/con/2022/conferences/real-time-and-beyond-with-mercure/)
+* [How Raven Controls is using Mercure to power major events such as Cop 21 and Euro 2020](https://api-platform.com/con/2022/conferences/real-time-and-beyond-with-mercure/)
 * [Pushing 8 million of Mercure notifications per day to run mail.tm](https://les-tilleuls.coop/en/blog/mail-tm-mercure-rocks-and-api-platform)
 * [100,000 simultaneous Mercure users to power iGraal](https://speakerdeck.com/dunglas/mercure-real-time-for-php-made-easy?slide=52)
 
