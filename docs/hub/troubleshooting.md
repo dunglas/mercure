@@ -33,7 +33,7 @@ Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ens
 
 ## Disconnection With the Inability To Reconnect After Some Time
 
-If the JWT supplied to the Mercury hub contains [an `exp` (expiration time) claim](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3) (this is the default for tokens generated with most JWT libraries), the hub will automatically disconnect when the expiry date is reached.
+If the JWT supplied to the Mercure hub contains [an `exp` (expiration time) claim](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3) (this is the default for tokens generated with most JWT libraries), the hub will automatically disconnect when the expiry date is reached.
 After that, it is no longer possible to reconnect with the same JWT, as it has expired. The hub will return an HTTP 401 error.
 
 One solution is to generate a new, valid JWT before reconnecting.
