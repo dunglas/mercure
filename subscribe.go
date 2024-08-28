@@ -206,12 +206,30 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
 		fields := []LogField{zap.Object("subscriber", s)}
 		if claims != nil && h.logger.Level() == zap.DebugLevel {
-			fields = append(fields, zap.Reflect("payload", claims.Mercure.Payload))
+			if claims.Mercure.Payload != nil && h.opt.isBackwardCompatiblyEnabledWith(8) {
+				fields = append(
+					fields,
+					zap.Reflect("payload", claims.Mercure.Payload),
+				)
+			}
+
+			fields = append(
+				fields,
+				zap.Reflect("payloads", claims.Mercure.Payloads),
+			)
 		}
 
 		c.Write(fields...)
 	}
 	h.metrics.SubscriberConnected(s)
+
+	if claims != nil && claims.Mercure.Payload != nil {
+		if h.opt.isBackwardCompatiblyEnabledWith(8) {
+			h.logger.Info(`Deprecated: the "mercure.payload" JWT claim deprecated since the version 8 of the protocol, use "mercure.payloads" claim with a "*" key instead.`)
+		} else {
+			claims.Mercure.Payload = nil
+		}
+	}
 
 	return s, rc
 }

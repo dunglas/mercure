@@ -209,8 +209,21 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 			Topic:      t,
 			Active:     active,
 		}
-		if s.Claims != nil && s.Claims.Mercure.Payload != nil {
-			subscription.Payload = s.Claims.Mercure.Payload
+		if s.Claims != nil { //nolint:nestif
+			if s.Claims.Mercure.Payloads == nil {
+				if s.Claims.Mercure.Payload != nil {
+					subscription.Payload = s.Claims.Mercure.Payload
+				}
+			} else {
+				for k, v := range s.Claims.Mercure.Payloads {
+					if !s.topicSelectorStore.match(topic, k) {
+						continue
+					}
+					subscription.Payload = v
+
+					break
+				}
+			}
 		}
 
 		subscriptions = append(subscriptions, subscription)
