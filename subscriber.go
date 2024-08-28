@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -144,20 +145,22 @@ func (s *Subscriber) SetTopics(subscribedTopics, allowedPrivateTopics []string) 
 	s.SubscribedTopics = subscribedTopics
 	s.SubscribedTopicRegexps = make([]*regexp.Regexp, len(subscribedTopics))
 	for i, ts := range subscribedTopics {
-		var r *regexp.Regexp
-		if tpl, err := uritemplate.New(ts); err == nil {
-			r = tpl.Regexp()
+		if !strings.Contains(ts, "{") {
+			continue
 		}
-		s.SubscribedTopicRegexps[i] = r
+		if tpl, err := uritemplate.New(ts); err == nil {
+			s.SubscribedTopicRegexps[i] = tpl.Regexp()
+		}
 	}
 	s.AllowedPrivateTopics = allowedPrivateTopics
 	s.AllowedPrivateRegexps = make([]*regexp.Regexp, len(allowedPrivateTopics))
 	for i, ts := range allowedPrivateTopics {
-		var r *regexp.Regexp
-		if tpl, err := uritemplate.New(ts); err == nil {
-			r = tpl.Regexp()
+		if !strings.Contains(ts, "{") {
+			continue
 		}
-		s.AllowedPrivateRegexps[i] = r
+		if tpl, err := uritemplate.New(ts); err == nil {
+			s.AllowedPrivateRegexps[i] = tpl.Regexp()
+		}
 	}
 	s.EscapedTopics = escapeTopics(subscribedTopics)
 }
