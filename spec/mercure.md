@@ -549,9 +549,8 @@ Variables are templated and expanded in accordance with [@!RFC6570].
 
 ## Subscription Events
 
-If the hub supports the active subscriptions feature, it **MUST** publish an update when a
-subscription is created or terminated. If this feature is implemented by the hub, an update **MUST**
-be dispatched every time a subscription is created or terminated.
+If the hub supports the active subscriptions feature, it **MUST** publish an update every time a
+subscription is created or terminated.
 
 The topic of these updates **MUST** be an expansion of
 `/.well-known/mercure/subscriptions/{topic}/{subscriber}`. `{topic}` is the topic selector used for
