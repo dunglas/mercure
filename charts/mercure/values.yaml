@@ -29,20 +29,27 @@ subscriberJwtAlg: HS256
 license: ""
 
 metrics:
-  # -- Enable the metrics. You must also add the [metrics](https://caddyserver.com/docs/caddyfile/directives/metrics) in the `globalOptions` for Caddy server.
+  # -- Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value.
   # servers {
   #     metrics
   # }
-  # admin :9181
   enabled: false
   # -- The port to use for exposing the metrics.
-  port: 9181
+  port: 2019
 
   serviceMonitor:
     # -- Whether to create a ServiceMonitor for Prometheus Operator.
     enabled: false
     # -- The interval to use for the ServiceMonitor to scrape the metrics.
     interval: 15s
+    # -- Timeout after which the scrape is ended
+    scrapeTimeout: ""
+    # -- Additional labels that can be used so ServiceMonitor will be discovered by Prometheus
+    selector: {}
+    # -- RelabelConfigs to apply to samples before scraping
+    relabelings: []
+    # -- Specify honorLabels parameter to add the scrape endpoint
+    honorLabels: false
 
 # -- The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).
 replicaCount: 1
@@ -76,12 +83,14 @@ podAnnotations: {}
 
 # -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details.
-podSecurityContext: {}
+podSecurityContext:
+  {}
   # fsGroup: 2000
 
 # -- Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details.
-securityContext: {}
+securityContext:
+  {}
   # capabilities:
   #   drop:
   #   - ALL
@@ -104,7 +113,8 @@ ingress:
   # -- Ingress [class name](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class).
   className: ""
   # -- Annotations to be added to the ingress.
-  annotations: {}
+  annotations:
+    {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   # -- Ingress host configuration.
@@ -112,8 +122,8 @@ ingress:
   hosts:
     - host: mercure-example.local
       paths:
-      - path: /
-        pathType: ImplementationSpecific
+        - path: /
+          pathType: ImplementationSpecific
   # -- Ingress TLS configuration.
   # @default -- See [values.yaml](values.yaml).
   tls: []
@@ -124,7 +134,8 @@ ingress:
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
 # @default -- No requests or limits.
-resources: {}
+resources:
+  {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
