@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
-	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/gofrs/uuid"
-	uritemplate "github.com/yosida95/uritemplate/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -36,12 +34,13 @@ type Subscriber struct {
 	ready               int32
 	liveQueue           []*Update
 	liveMutex           sync.RWMutex
+	topicSelectorStore  *TopicSelectorStore
 }
 
 const outBufferLength = 1000
 
 // NewSubscriber creates a new subscriber.
-func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
+func NewSubscriber(lastEventID string, logger Logger, topicSelectorStore *TopicSelectorStore) *Subscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &Subscriber{
 		ID:                  id,
@@ -50,6 +49,7 @@ func NewSubscriber(lastEventID string, logger Logger) *Subscriber {
 		responseLastEventID: make(chan string, 1),
 		out:                 make(chan *Update, outBufferLength),
 		logger:              logger,
+		topicSelectorStore:  topicSelectorStore,
 	}
 
 	return s
@@ -143,25 +143,7 @@ func (s *Subscriber) Disconnect() {
 // SetTopics compiles topic selector regexps.
 func (s *Subscriber) SetTopics(subscribedTopics, allowedPrivateTopics []string) {
 	s.SubscribedTopics = subscribedTopics
-	s.SubscribedTopicRegexps = make([]*regexp.Regexp, len(subscribedTopics))
-	for i, ts := range subscribedTopics {
-		if !strings.Contains(ts, "{") {
-			continue
-		}
-		if tpl, err := uritemplate.New(ts); err == nil {
-			s.SubscribedTopicRegexps[i] = tpl.Regexp()
-		}
-	}
 	s.AllowedPrivateTopics = allowedPrivateTopics
-	s.AllowedPrivateRegexps = make([]*regexp.Regexp, len(allowedPrivateTopics))
-	for i, ts := range allowedPrivateTopics {
-		if !strings.Contains(ts, "{") {
-			continue
-		}
-		if tpl, err := uritemplate.New(ts); err == nil {
-			s.AllowedPrivateRegexps[i] = tpl.Regexp()
-		}
-	}
 	s.EscapedTopics = escapeTopics(subscribedTopics)
 }
 
@@ -183,15 +165,8 @@ func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
 
 	for _, topic := range topics {
 		if !subscribed {
-			for i, ts := range s.SubscribedTopics {
-				if ts == "*" || ts == topic {
-					subscribed = true
-
-					break
-				}
-
-				r := s.SubscribedTopicRegexps[i]
-				if r != nil && r.MatchString(topic) {
+			for _, ts := range s.SubscribedTopics {
+				if s.topicSelectorStore.match(topic, ts) {
 					subscribed = true
 
 					break
@@ -200,28 +175,17 @@ func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
 		}
 
 		if !canAccess {
-			for i, ts := range s.AllowedPrivateTopics {
-				if ts == "*" || ts == topic {
-					canAccess = true
-
-					break
-				}
-
-				r := s.AllowedPrivateRegexps[i]
-				if r != nil && r.MatchString(topic) {
+			for _, ts := range s.AllowedPrivateTopics {
+				if s.topicSelectorStore.match(topic, ts) {
 					canAccess = true
 
 					break
 				}
 			}
 		}
-
-		if subscribed && canAccess {
-			return true
-		}
 	}
 
-	return false
+	return subscribed && canAccess
 }
 
 // Match checks if the current subscriber can receive the given update.

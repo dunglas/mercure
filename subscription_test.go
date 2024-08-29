@@ -82,13 +82,16 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 }
 
 func TestSubscriptionsHandler(t *testing.T) {
-	hub := createDummy()
+	logger := zap.NewNop()
 
-	s1 := NewSubscriber("", zap.NewNop())
+	hub := createDummy(WithLogger(logger))
+	tss := &TopicSelectorStore{}
+
+	s1 := NewSubscriber("", logger, tss)
 	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", zap.NewNop())
+	s2 := NewSubscriber("", logger, tss)
 	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s2))
 
@@ -121,13 +124,15 @@ func TestSubscriptionsHandler(t *testing.T) {
 }
 
 func TestSubscriptionsHandlerForTopic(t *testing.T) {
-	hub := createDummy()
+	logger := zap.NewNop()
+	hub := createDummy(WithLogger(logger))
+	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", zap.NewNop())
+	s1 := NewSubscriber("", logger, tss)
 	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", zap.NewNop())
+	s2 := NewSubscriber("", logger, tss)
 	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s2))
 
@@ -166,13 +171,15 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 }
 
 func TestSubscriptionHandler(t *testing.T) {
-	hub := createDummy()
+	logger := zap.NewNop()
+	hub := createDummy(WithLogger(logger))
+	tss := &TopicSelectorStore{}
 
-	otherS := NewSubscriber("", zap.NewNop())
+	otherS := NewSubscriber("", logger, tss)
 	otherS.SetTopics([]string{"http://example.com/other"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(otherS))
 
-	s := NewSubscriber("", zap.NewNop())
+	s := NewSubscriber("", logger, tss)
 	s.SetTopics([]string{"http://example.com/other", "http://example.com/{foo}"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s))
 

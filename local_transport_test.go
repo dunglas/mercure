@@ -11,7 +11,8 @@ import (
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	logger := zap.NewNop()
+	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -19,7 +20,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	err := transport.Dispatch(u)
 	require.NoError(t, err)
 
-	s := NewSubscriber("", zap.NewNop())
+	s := NewSubscriber("", logger, &TopicSelectorStore{})
 	s.SetTopics(u.Topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -37,11 +38,12 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 }
 
 func TestLocalTransportDispatch(t *testing.T) {
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	logger := zap.NewNop()
+	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", zap.NewNop())
+	s := NewSubscriber("", logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -51,14 +53,17 @@ func TestLocalTransportDispatch(t *testing.T) {
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	logger := zap.NewNop()
+	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", zap.NewNop())
+	tss := &TopicSelectorStore{}
+
+	s := NewSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s))
 	require.NoError(t, transport.Close())
-	assert.Equal(t, transport.AddSubscriber(NewSubscriber("", zap.NewNop())), ErrClosedTransport)
+	assert.Equal(t, transport.AddSubscriber(NewSubscriber("", logger, tss)), ErrClosedTransport)
 	assert.Equal(t, transport.Dispatch(&Update{}), ErrClosedTransport)
 
 	_, ok := <-s.out
@@ -66,14 +71,17 @@ func TestLocalTransportClosed(t *testing.T) {
 }
 
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
-	tr, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	logger := zap.NewNop()
+	tr, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
 	transport := tr.(*LocalTransport)
 	defer transport.Close()
 
-	s1 := NewSubscriber("", zap.NewNop())
+	tss := &TopicSelectorStore{}
+
+	s1 := NewSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", zap.NewNop())
+	s2 := NewSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s2))
 
 	assert.Equal(t, 2, transport.subscribers.Len())
@@ -88,11 +96,12 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 }
 
 func TestLiveReading(t *testing.T) {
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	logger := zap.NewNop()
+	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", zap.NewNop())
+	s := NewSubscriber("", logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -104,14 +113,17 @@ func TestLiveReading(t *testing.T) {
 }
 
 func TestLocalTransportGetSubscribers(t *testing.T) {
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
+	logger := zap.NewNop()
+	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
 	defer transport.Close()
 	require.NotNil(t, transport)
 
-	s1 := NewSubscriber("", zap.NewNop())
+	tss := &TopicSelectorStore{}
+
+	s1 := NewSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", zap.NewNop())
+	s2 := NewSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s2))
 
 	lastEventID, subscribers, err := transport.(TransportSubscribers).GetSubscribers()

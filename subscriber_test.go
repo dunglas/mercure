@@ -9,7 +9,7 @@ import (
 )
 
 func TestDispatch(t *testing.T) {
-	s := NewSubscriber("1", zap.NewNop())
+	s := NewSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
 	s.SubscribedTopics = []string{"http://example.com"}
 	s.SubscribedTopics = []string{"http://example.com"}
 	defer s.Disconnect()
@@ -32,7 +32,7 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
-	s := NewSubscriber("", zap.NewNop())
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()
@@ -44,7 +44,7 @@ func TestLogSubscriber(t *testing.T) {
 	sink, logger := newTestLogger(t)
 	defer sink.Reset()
 
-	s := NewSubscriber("123", logger)
+	s := NewSubscriber("123", logger, &TopicSelectorStore{})
 	s.RemoteAddr = "127.0.0.1"
 	s.SetTopics([]string{"https://example.com/bar"}, []string{"https://example.com/foo"})
 
@@ -59,7 +59,7 @@ func TestLogSubscriber(t *testing.T) {
 }
 
 func TestMatchTopic(t *testing.T) {
-	s := NewSubscriber("", zap.NewNop())
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/no-match", "https://example.com/books/{id}"}, []string{"https://example.com/users/foo/{?topic}"})
 
 	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}}))
@@ -73,7 +73,7 @@ func TestMatchTopic(t *testing.T) {
 }
 
 func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
-	s := NewSubscriber("", zap.NewNop())
+	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Ready()
 
 	for i := 0; i <= outBufferLength; i++ {

@@ -35,7 +35,7 @@ func TestBoltTransportHistory(t *testing.T) {
 		})
 	}
 
-	s := NewSubscriber("8", transport.logger)
+	s := NewSubscriber("8", transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
 
 	require.NoError(t, transport.AddSubscriber(s))
@@ -68,7 +68,7 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 		Topics: topics,
 	})
 
-	s := NewSubscriber("711131", logger)
+	s := NewSubscriber("711131", logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
 
 	require.NoError(t, transport.AddSubscriber(s))
@@ -87,7 +87,7 @@ func TestBoltTopicSelectorHistory(t *testing.T) {
 	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}})
 	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed-public-only"}, Event: Event{ID: "4"}})
 
-	s := NewSubscriber(EarliestLastEventID, transport.logger)
+	s := NewSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"http://example.com/subscribed", "http://example.com/subscribed-public-only"}, []string{"http://example.com/subscribed"})
 
 	require.NoError(t, transport.AddSubscriber(s))
@@ -109,7 +109,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 		})
 	}
 
-	s := NewSubscriber(EarliestLastEventID, transport.logger)
+	s := NewSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -139,7 +139,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		})
 	}
 
-	s := NewSubscriber("8", transport.logger)
+	s := NewSubscriber("8", transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -221,7 +221,7 @@ func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", transport.logger)
+	s := NewSubscriber("", transport.logger, &TopicSelectorStore{})
 	require.NoError(t, transport.AddSubscriber(s))
 
 	var wg sync.WaitGroup
@@ -245,7 +245,7 @@ func TestBoltTransportDispatch(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", transport.logger)
+	s := NewSubscriber("", transport.logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/foo", "https://example.com/private"}, []string{"https://example.com/private"})
 
 	require.NoError(t, transport.AddSubscriber(s))
@@ -274,7 +274,7 @@ func TestBoltTransportClosed(t *testing.T) {
 	defer os.Remove("test.db")
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", transport.logger)
+	s := NewSubscriber("", transport.logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/foo"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -293,11 +293,11 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	s1 := NewSubscriber("", transport.logger)
+	s1 := NewSubscriber("", transport.logger, &TopicSelectorStore{})
 	s1.SetTopics([]string{"foo"}, []string{})
 	require.NoError(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", transport.logger)
+	s2 := NewSubscriber("", transport.logger, &TopicSelectorStore{})
 	s2.SetTopics([]string{"foo"}, []string{})
 	require.NoError(t, transport.AddSubscriber(s2))
 
@@ -318,10 +318,10 @@ func TestBoltGetSubscribers(t *testing.T) {
 	defer transport.Close()
 	defer os.Remove("test.db")
 
-	s1 := NewSubscriber("", transport.logger)
+	s1 := NewSubscriber("", transport.logger, &TopicSelectorStore{})
 	require.NoError(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", transport.logger)
+	s2 := NewSubscriber("", transport.logger, &TopicSelectorStore{})
 	require.NoError(t, transport.AddSubscriber(s2))
 
 	lastEventID, subscribers, err := transport.GetSubscribers()

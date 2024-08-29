@@ -39,8 +39,9 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		}
 	}
 	out := make(chan *Update, 50000)
+	tss := &TopicSelectorStore{}
 	for i := 0; i < concurrency; i++ {
-		s := NewSubscriber("", zap.NewNop())
+		s := NewSubscriber("", zap.NewNop(), tss)
 		if i%100 < matchPct {
 			s.SetTopics(tsMatch, nil)
 		} else {
