@@ -3,6 +3,7 @@ package mercure
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -56,8 +57,13 @@ func (rt *responseTester) Write(buf []byte) (int, error) {
 	if rt.body == rt.expectedBody {
 		rt.cancel()
 	} else if !strings.HasPrefix(rt.expectedBody, rt.body) {
-		rt.t.Errorf(`Received body "%s" doesn't match expected body "%s"`, rt.body, rt.expectedBody)
-		rt.cancel()
+		defer rt.cancel()
+
+		mess := fmt.Sprintf(`Received body "%s" doesn't match expected body "%s"`, rt.body, rt.expectedBody)
+		if rt.t == nil {
+			panic(mess)
+		}
+		rt.t.Error(mess)
 	}
 
 	return len(buf), nil

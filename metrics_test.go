@@ -12,12 +12,15 @@ import (
 func TestNumberOfRunningSubscribers(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
-	s1 := NewSubscriber("", zap.NewNop())
+	logger := zap.NewNop()
+	tss := &TopicSelectorStore{}
+
+	s1 := NewSubscriber("", logger, tss)
 	s1.SetTopics([]string{"topic1", "topic2"}, nil)
 	m.SubscriberConnected(s1)
 	assertGaugeValue(t, 1.0, m.subscribers)
 
-	s2 := NewSubscriber("", zap.NewNop())
+	s2 := NewSubscriber("", logger, tss)
 	s2.SetTopics([]string{"topic2"}, nil)
 	m.SubscriberConnected(s2)
 	assertGaugeValue(t, 2.0, m.subscribers)
@@ -32,12 +35,15 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
-	s1 := NewSubscriber("", zap.NewNop())
+	logger := zap.NewNop()
+	tss := &TopicSelectorStore{}
+
+	s1 := NewSubscriber("", logger, tss)
 	s1.SetTopics([]string{"topic1", "topic2"}, nil)
 	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal)
 
-	s2 := NewSubscriber("", zap.NewNop())
+	s2 := NewSubscriber("", logger, tss)
 	s2.SetTopics([]string{"topic2"}, nil)
 	m.SubscriberConnected(s2)
 	assertCounterValue(t, 2.0, m.subscribersTotal)
