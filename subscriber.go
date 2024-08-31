@@ -216,7 +216,7 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 				}
 			} else {
 				for k, v := range s.Claims.Mercure.Payloads {
-					if !s.topicSelectorStore.match(topic, k) {
+					if !s.topicSelectorStore.match(t, k) {
 						continue
 					}
 					subscription.Payload = v
