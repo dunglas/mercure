@@ -480,7 +480,7 @@ and in subscription events.
 See (#subscription-events).
 
 The `mercure` claim of the JWS **CAN** contain a JSON object under the `payloads` key.
-This JSON document **MUST** have selectors as keys, and the user-defined data as values.
+This JSON document **MUST** have selectors as keys, and user-defined data as values.
 
 The value associated with the first topic selector matching the topic of the subscription
 **MUST** be included under the `payload` key in the JSON object describing a subscription in

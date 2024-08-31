@@ -4,7 +4,7 @@
 
 The `mercure.payload` JWT key has been deprecated. It is now possible to make topic-specific data
 available in subscriptions events and through the subscription API.
-To make data available in all events and API documents describing subscriptions, use the `*` topic selector.
+To make data available in all events and API responses describing subscriptions, use the `*` topic selector.
 
 Before:
 
