@@ -45,6 +45,7 @@
 
 ## Useful Related Libraries
 
+* [Microsoft's Fetch Event Source, a better JavaScript API for making Event Source requests](https://github.com/Azure/fetch-event-source)
 * [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource)
 * [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)
 * [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)

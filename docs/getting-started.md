@@ -27,7 +27,9 @@ const eventSource = new EventSource(url);
 eventSource.onmessage = e => console.log(e); // do something with the payload
 ```
 
-The `EventSource` class is available [in all modern web browsers](https://caniuse.com/eventsource). And for legacy browsers, [there are polyfills](ecosystem/awesome.md#useful-related-libraries).
+The `EventSource` class is available [in all modern web browsers](https://caniuse.com/eventsource).
+
+Although the native `EventSource` class is generally quite good, we recommend [Microsoft's `fetch-event-source` library](https://github.com/Azure/fetch-event-source) for advanced use cases, as it allows finer-grained error handling and supports authentication via the `Authorization` header.
 
 ## Closing Connection
 
