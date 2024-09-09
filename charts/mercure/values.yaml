@@ -46,6 +46,29 @@ existingSecret: ""
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
 license: ""
 
+metrics:
+  # -- Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value.
+  # servers {
+  #     metrics
+  # }
+  enabled: false
+  # -- The port to use for exposing the metrics.
+  port: 2019
+
+  serviceMonitor:
+    # -- Whether to create a ServiceMonitor for Prometheus Operator.
+    enabled: false
+    # -- The interval to use for the ServiceMonitor to scrape the metrics.
+    interval: 15s
+    # -- Timeout after which the scrape is ended
+    scrapeTimeout: ""
+    # -- Additional labels that can be used so ServiceMonitor will be discovered by Prometheus
+    selector: {}
+    # -- RelabelConfigs to apply to samples before scraping
+    relabelings: []
+    # -- Specify honorLabels parameter to add the scrape endpoint
+    honorLabels: false
+
 # -- The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).
 replicaCount: 1
 
@@ -114,8 +137,8 @@ ingress:
   hosts:
     - host: mercure-example.local
       paths:
-      - path: /
-        pathType: ImplementationSpecific
+        - path: /
+          pathType: ImplementationSpecific
   # -- Ingress TLS configuration.
   # @default -- See [values.yaml](values.yaml).
   tls: []
