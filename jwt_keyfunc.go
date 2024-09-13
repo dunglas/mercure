@@ -24,6 +24,20 @@ func createJWTKeyfunc(key []byte, alg string) (jwt.Keyfunc, error) {
 		}
 
 		k = pub
+	case *jwt.SigningMethodECDSA:
+		pub, err := jwt.ParseECPublicKeyFromPEM(key)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse EC public key: %w", err)
+		}
+
+		k = pub
+	case *jwt.SigningMethodEd25519:
+		pub, err := jwt.ParseEdPublicKeyFromPEM(key)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse Ed public key: %w", err)
+		}
+
+		k = pub
 	default:
 		return nil, fmt.Errorf("%T: %w", signingMethod, ErrUnexpectedSigningMethod)
 	}
