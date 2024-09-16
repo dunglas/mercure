@@ -472,14 +472,34 @@ Consequently, this private update will be received by this subscriber, while oth
 a canonical topic matched by the selector provided in a `topic` query parameter but not matched by
 selectors in the `mercure.subscribe` claim will not.
 
-## Payload
+## Payloads
 
-The `mercure` claim of the JWS **CAN** also contain user-defined values under the `payload` key.
-This JSON document will be attached to the subscription and made available in subscription events.
+User-defined data can be attached to subscriptions and made available through the subscription API
+and in subscription events.
+
 See (#subscription-events).
 
-For instance, `mercure.payload` can contain the user ID of the subscriber, a list of groups it
-belongs to, or its IP address. Storing data in `mercure.payload` is a convenient way to share data
+The `mercure` claim of the JWS **CAN** contain a JSON object under the `payloads` key.
+This JSON document **MUST** have selectors as keys, and user-defined data as values.
+
+The value associated with the first topic selector matching the topic of the subscription
+**MUST** be included under the `payload` key in the JSON object describing a subscription in
+the subscription API and in subscription events.
+
+Example JWT document containing payloads:
+
+~~~ json
+{
+    "subscribe": ["https://example.com/foo", "https://example.com/bar/baz"]
+    "payloads": {
+        "https://example.com/bar/{val}": {"custom": "data only available for subscriptions matching this selector"},
+        "*": {"data": "available for all other topics"}
+    }
+}
+~~~
+
+For instance, payloads can contain the user ID of the subscriber, its username, a list of groups it
+belongs to, or its IP address. Storing data in `mercure.payloads` is a convenient way to share data
 related to one subscriber to other subscribers.
 
 # Reconnection, State Reconciliation and Event Sourcing {#reconciliation}
@@ -575,8 +595,8 @@ least the following properties:
 *   `topic`: the topic selector used of this subscription
 *   `subscriber`: the topic identifier of the subscriber. It **SHOULD** be an IRI.
 *   `active`: `true` when the subscription is active, and `false` when it is terminated
-*   `payload` (optional): the content of `mercure.payload` in the subscriber's JWS (see
-    (#authorization))
+*   `payload` (optional): content of the `mercure.payloads` in the subscriber's JWS matching the topic
+    (see (#authorization))
 
 The JSON-LD document **MAY** contain other properties.
 
