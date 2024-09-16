@@ -29,6 +29,7 @@ linters:
 
     # deprecated
     - execinquery
+    - exportloopref
 
 issues:
   exclude-rules:
