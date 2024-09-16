@@ -28,6 +28,8 @@ After:
 }
 ```
 
+[Read the updated specification](../spec/mercure.md#payloads) to learn how to leverage this new feature.
+
 The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive have been deprecated.
 Use the new `transport` directive instead.
 
