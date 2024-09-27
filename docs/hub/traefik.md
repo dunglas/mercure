@@ -32,7 +32,7 @@ services:
     # Enables the development mode, comment the following line to run the hub in prod mode
     command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
     healthcheck:
-      test: ["CMD", "curl", "-f", "https://localhost/healthz"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/healthz"]
       timeout: 5s
       retries: 5
       start_period: 60s
