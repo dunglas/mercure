@@ -89,7 +89,7 @@ services:
   mercure:
     # ...
     healthcheck:
-      test: ["CMD", "curl", "-f", "https://localhost/healthz"]
+      test: ["CMD", "wget", "-O-", "https://localhost/healthz"]
       timeout: 5s
       retries: 5
       start_period: 60s
