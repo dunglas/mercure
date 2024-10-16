@@ -130,7 +130,7 @@ Example:
 const url = new URL('https://example.com/.well-known/mercure');
 url.searchParams.append('topic', 'https://example.com/foo');
 url.searchParams.append('topic', 'bar');
-url.searchParams.append('matchurlpattern', 'https://example.com/bar/:id');
+url.searchParams.append('matchURLPattern', 'https://example.com/bar/:id');
 
 const eventSource = new EventSource(url);
 
