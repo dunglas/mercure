@@ -30,7 +30,7 @@ organization = "Les-Tilleuls.coop"
 Mercure provides a common publish-subscribe mechanism for public and private web resources.
 Mercure enables the pushing of any web content to web browsers and other clients in
 a fast, reliable and battery-efficient way. It is especially useful for publishing real-time updates
-of resources served through sites and web APIs to web and mobile apps, but can also be used
+of resources served through sites and web APIs to web and mobile apps and can also be used
 as a simple publish subcribe system.
 
 Subscription requests are relayed through hubs, which validate and verify the request.
