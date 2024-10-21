@@ -51,9 +51,8 @@ interpreted as described in [@!RFC2119].
     private, consequently, it must be dispatched only to subscribers allowed to receive it.
 *   Topic matcher: An expression intended to be matched by one or several topics,
     depending on the matcher type.
-*   Topic matcher type: Several types of matchers **MAY** be supported by the hub. The hub **MUST** support exact matching of topics and **SHOULD** support
-    matching topics using I-Regexp [@!RFC9485], URL patterns [@!urlpattern], and URI Templates [@!RFC6570] as
-    topic matcher types. The hub **MAY** also support other implementation-specific matcher types.
+*   Topic matcher type: The type of a matching expression,
+    such as exact matching, regular expressions or URL patterns.
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
     systems might call the publisher the "source". Typically a site or a web API, but can also be
@@ -82,19 +81,17 @@ one of the `match` query parameters.
 In addition to `match` query parameters, the subscriber can pass other topic matchers by passing
 query parameters starting with the string `match` and followed by the topic matcher type.
 
-The hub **MUST** support query parameters starting with `match` regardless of their case.
-`matchFoo`, `matchFOO`, or `MaTChFoO` must be considered as the same query parameter.
+The `matcExact` query parameter **MUST** be considered the same as `match`.
+
+The hub **MUST** ignore the case of query parameters starting with `match`.
+For instance, `matchExact`, `matchEXACT`, `matchexact` and `MaTCheXaCt` must be considered
+the same query parameter.
+
+If the type of one or more matchers is not supported by the hub, it **MUST** respond with a
+501 "Not Implemented" HTTP status code.
 
 The subscriber receives updates for all topics matching at least a topic matcher according to
 the matcher type rules.
-
-The hub **SHOULD** support the `Regexp` and `URLPattern`, matcher types.
-The corresponding query parameters are respectively `matchRegexp` and `matchURLPattern`.
-
-The hub **MAY** support the `URITemplate` matcher type.
-The corresponding query parameter is `matchURITemplate`.
-
-The hub **MAY** implement other matcher types.
 
 The protocol doesn't specify the maximum number of query parameters that can be sent, but the hub
 **MAY** apply an arbitrary limit. A subscription is created for every provided parameter starting with the string `match`. See (#subscription-events).
@@ -132,10 +129,10 @@ Example:
 ~~~ javascript
 // The subscriber subscribes to updates
 // for the https://example.com/foo topic, the bar topic,
-// and to any topic matching https://example.com/books/{name}
+// and to any topic matching the https://example.com/bar/:id URL Pattern
 const url = new URL('https://example.com/.well-known/mercure');
-url.searchParams.append('topic', 'https://example.com/foo');
-url.searchParams.append('topic', 'bar');
+url.searchParams.append('match', 'https://example.com/foo');
+url.searchParams.append('match', 'bar');
 url.searchParams.append('matchURLPattern', 'https://example.com/bar/:id');
 
 const eventSource = new EventSource(url);
@@ -148,6 +145,58 @@ eventSource.onmessage = function ({data}) {
 
 The hub **MAY** require subscribers and publishers to be authenticated, and **MAY** apply extra
 authorization rules not defined in this specification.
+
+# Matcher Types
+
+## Exact Matching
+
+The hub **MUST** support exact matching.
+With this type of matchers, an exact case-sensitive comparison must be made between the topic and the matcher.
+
+The matcher type name is `Exact`.
+The corresponding query parameters are `match` and `matchExact`.
+
+## URL Pattern
+
+The hub **SHOULD** support using URL patterns [@!urlpattern] as matchers.
+URL patterns **SHOULD** be preferred to regular expressions when topics to match are URLs.
+
+The base URL **MUST** be set to the URL of the Mercure hub.
+
+The matcher type name is `URLPattern`.
+The corresponding query parameter is `matchURLPattern`.
+
+## Regular Expression
+
+The hub **SHOULD** support using I-Regexp regular expressions [@!RFC9485] as matchers.
+
+The matcher type name is `Regexp`.
+The corresponding query parameter is `matchRegexp`.
+
+## Common Expression Language (CEL)
+
+The hub **MAY** support using CEL expressions [@cel] as matchers.
+
+A variable named `topics` containing an array of string **MSUT** be passed
+to the expression. This variable **MUST** contain the canonical topic followed by the alternate topics of the update to match.
+
+The hub **MAY** pass other implementation-specific variables and expose implementation-specific functions.
+
+The expression **MUST** return a boolean value: true if the topic matches, false otherwise.
+
+If parsing or checking of a CEL expression fails or if the expression does not return a boolean value, the hub **MUST** return a 400 "Bad Request" HTTP status code.
+
+## URI Template
+
+The hub **MAY** support using URI templates [@!RFC6570] as matchers.
+Whenever possible, using URL patterns **SHOULD** be preferred.
+
+The matcher type name is `URITemplate`.
+The corresponding query parameter is `matchURITemplate`.
+
+## Other Matcher Types
+
+In addition, the hub **MAY** implement any matcher types, including implementation-specific matcher types.
 
 # Publication
 
@@ -188,14 +237,14 @@ authorized to publish updates. See (#authorization).
 Example:
 
 ~~~ http
-POST /.well-known/mercure HTTP/1.1
+POST /.well-known/mercure
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
 Authorization: Bearer [snip]
 
 topic=https://example.com/foo&data=the%20content
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: text/plain
 
 urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
@@ -267,7 +316,7 @@ and from other request-specific parameters using `&` character(s) (ASCII code 38
 For example, the client makes the following HTTP request using transport-layer security:
 
 ~~~ http
-GET /.well-known/mercure?match=https://example.com/books/foo&authorization=<JWS> HTTP/1.1
+GET /.well-known/mercure?match=https://example.com/books/foo&authorization=<JWS>
 Host: hub.example.com
 ~~~
 
@@ -287,22 +336,9 @@ This method is not recommended due to its security deficiencies.
 Publishers **MUST** be authorized to dispatch updates to the hub, and **MUST** prove that they are
 authorized to send updates for the specified topics.
 
-To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim
+To be allowed to publish an update (#subscription), the JWS presented by the publisher **MUST** contain a claim
 called `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
-array of topic matchers. See (#subscription).
-
-Topic matchers must **MUST** either be strings or objects.
-
-If it is represented as a string, it **MUST** be matched exactly by the topic.
-
-If it is an object, it **MUST** have a `match` property containing the topic matcher itself,
-and it can have an **OPTIONAL** `matchType` property containing the topic matcher type.
-The value of the `matchType` key **MUST** be considered case-insensitive.
-If no `matchType` key is present, exact matching **MUST** be used.
-
-The hub **SHOULD** support the `Regexp` and `URLPattern` types.
-It **MAY** support the `URITemplate` topic matcher types.
-It **MAY** also support other types.
+array of topic matchers as defined in #topic-matcher-list.
 
 If `mercure.publish` is not defined, or contains an empty array, then the publisher **MUST NOT**
 be authorized to dispatch any update.
@@ -322,8 +358,7 @@ If the presented JWS contains an expiration time in the standard `exp` claim def
 the connection **MUST** be closed by the hub at that time.
 
 To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a
-claim named `mercure` with a key named `subscribe` that contains an array of topic matchers
-following the same format as defined for the `mercure.publish` key.
+claim named `mercure` with a key named `subscribe` that contains an array of topic matchers as described in #topic-matcher-list.
 
 The hub **MUST** check that at least one topic of the update to dispatch (*canonical* or
 *alternate*) matches at least one topic matcher provided in `mercure.subscribe`.
@@ -347,7 +382,7 @@ publishing a private update having `https://example.com/books/1` as the canonica
 `https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1` as an alternate topic:
 
 ~~~ http
-POST /.well-known/mercure HTTP/1.1
+POST /.well-known/mercure
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
 Authorization: Bearer [snip]
@@ -362,6 +397,20 @@ provided in its JWS claim `mercure.subscribe`. However, an alternate topic of th
 Consequently, this private update will be received by this subscriber, while other updates having
 a canonical topic matched by the matcher provided in a `topic` query parameter but not matched by
 matchers in the `mercure.subscribe` claim will not.
+
+## Topic Matcher List
+
+Topic matchers present in the `mercure.subscribe` or `mercure.publish` **MUST** either be strings or objects.
+
+If it is represented as a string, the matcher type **MUST** be considered as `Exact`.
+
+If it is an object, it **MUST** have a `match` property containing the topic matcher itself,
+and it can have an **OPTIONAL** `matchType` property containing the topic matcher type.
+The value of the `matchType` key **MUST** be considered case-insensitive.
+If no `matchType` key is present, the hub **MUST** cosider that the `Exact` matcher type is used.
+
+If the type of one or more matchers present in the array is not supported by the hub, it **MUST** respond with a
+501 "Not Implemented" HTTP status code and no update should be sent.
 
 ## Payloads
 
@@ -396,7 +445,7 @@ Example JWT document containing payloads:
         },
         {
             "match": ".*",
-            "matchType": "Regexp"
+            "matchType": "Regexp",
             "payload": {
                 "custom3": "data available for all other subscriptions"
             }
@@ -504,7 +553,7 @@ least the following properties:
 *   `id`: the identifier of this update, it **MUST** be the same value as the subscription update's
     topic
 *   `type`: the fixed value `Subscription`
-*   `matchType`: the topic matcher type used for this subscription, **MUST** be omitted if the matcher type is exactly matching and **MUST** be considered case-insensitive
+*   `matchType`: the topic matcher type used for this subscription, it **MUST** be considered case-insensitive
 *   `match`: the topic matcher used for this subscription
 *   `subscriber`: the topic identifier of the subscriber. It **SHOULD** be an IRI.
 *   `active`: `true` when the subscription is active, and `false` when it is terminated
@@ -523,7 +572,7 @@ Example:
    "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
    "matchType": "URLPattern",
-   "matcher": "https://example.com/:id",
+   "matcher": "https://example.com/:selector",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"}
@@ -584,10 +633,10 @@ from cache is still valid before using it.
 Examples:
 
 ~~~ http
-GET /.well-known/mercure/subscriptions HTTP/1.1
+GET /.well-known/mercure/subscriptions
 Host: example.com
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
@@ -609,18 +658,19 @@ Cache-control: must-revalidate
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
+         "id": "/.well-known/mercure/subscriptions/Exact/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "type": "Subscription",
          "match": "https://example.com/a-topic",
+         "matchType": "Exact",
          "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "active": true,
          "payload": {"baz": "bat"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/URITemplate/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "matcherType": "URITemplate",
-         "match": "https://example.com/{selector}",
+         "matcherType": "URLPattern",
+         "match": "https://example.com/:selector}",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -630,10 +680,10 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D HTTP/1.1
+GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector
 Host: example.com
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
@@ -641,22 +691,24 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D",
+   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector",
    "type": "Subscriptions",
    "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "match": "https://example.com/:selector",
+         "matchType": "URLPattern",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "match": "https://example.com/:selector",
+         "matchType": "URLPattern",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -666,10 +718,10 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
+GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6
 Host: example.com
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
@@ -677,9 +729,10 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d66",
    "type": "Subscription",
-   "topic": "https://example.com/{selector}",
+   "match": "https://example.com/:selector",
+   "matchType:" URLPattern",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"},
@@ -752,10 +805,10 @@ All these attributes are optional.
 Minimal example:
 
 ~~~ http
-GET /books/foo HTTP/1.1
+GET /books/foo
 Host: example.com
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
@@ -792,11 +845,11 @@ The example below illustrates how a topic URL can return different `Link` header
 `Accept` header that was sent.
 
 ~~~ http
-GET /books/foo HTTP/1.1
+GET /books/foo
 Host: example.com
 Accept: application/ld+json
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: </books/foo.jsonld>; rel="self"
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
@@ -805,11 +858,11 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ~~~
 
 ~~~ http
-GET /books/foo HTTP/1.1
+GET /books/foo
 Host: example.com
 Accept: text/html
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: text/html
 Link: </books/foo.html>; rel="self"
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
@@ -824,11 +877,12 @@ Similarly, the technique can also be used to return a different `rel=self` URL d
 language requested by the `Accept-Language` header.
 
 ~~~ http
-GET /books/foo HTTP/1.1
+GET /books/foo
 Host: example.com
+Accept: application/ld+json
 Accept-Language: fr-FR
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Content-Language: fr-FR
 Link: </books/foo-fr-FR.jsonld>; rel="self"
@@ -944,7 +998,7 @@ information as they see fit."
 
 Organization responsible for the implementation:
 
-Dunglas Services SAS Les-Tilleuls.coop
+Dunglas Services SAS
 
 Implementation Name and Details:
 
@@ -1412,6 +1466,16 @@ specification.
         <title>XMLHttpRequest Living Standard</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
+        </author>
+        <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="cel" target="https://cel.dev/">
+    <front>
+        <title>Common Expression Language</title>
+        <author>
+            <organization>Google</organization>
         </author>
         <date year="2024"/>
     </front>
