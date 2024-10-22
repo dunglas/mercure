@@ -23,6 +23,9 @@ linters:
     - depguard
     - mnd
 
+    # Go 1.22+
+    - intrange
+
     # weird issues
     - nolintlint
     - canonicalheader

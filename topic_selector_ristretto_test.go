@@ -9,7 +9,7 @@ import (
 )
 
 func TestMatchRistretto(t *testing.T) {
-	cache, _ := ristretto.NewCache(&ristretto.Config{
+	cache, _ := ristretto.NewCache(&ristretto.Config[string, interface{}]{
 		NumCounters: TopicSelectorStoreRistrettoDefaultCacheNumCounters,
 		MaxCost:     TopicSelectorStoreRistrettoCacheMaxCost,
 		BufferItems: 64,
