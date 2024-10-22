@@ -67,7 +67,7 @@ jobs:
       - name: Test Caddy module
         working-directory: caddy/
         run: |
-          go test -timeout 1m -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
+          go test -timeout 1m -race -covermode atomic -tags=nobadger,nomysql,nopgx -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
           sed '1d' profile.cov >> ../profile.cov
 
       - name: Upload coverage results
