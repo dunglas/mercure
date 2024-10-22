@@ -52,6 +52,7 @@ To install the chart with the release name `my-release`, run the following comma
 | securityContext | object | `{}` | Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details. |
 | service.annotations | object | `{}` |  |
 | service.port | int | `80` | Service port. |
+| service.nodePort | int | 0 | The exposed nodePort. Required when `service.type` is [`"NodePort"`](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport). |
 | service.targetPort | int | `80` | Service target port. |
 | service.type | string | `"ClusterIP"` | Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types). |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
