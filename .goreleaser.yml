@@ -24,7 +24,7 @@ builds:
   - id: caddy
     dir: caddy/mercure
     flags:
-      -tags nobadger,nomysql,nopgx
+      -tags=nobadger,nomysql,nopgx
     ldflags:
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
     goos:
