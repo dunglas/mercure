@@ -1,34 +1,6 @@
 # Upgrade
 
-## 0.20
-
-The `mercure.payload` JWT key has been deprecated. It is now possible to make topic-specific data
-available in subscriptions events and through the subscription API.
-To make data available in all events and API responses describing subscriptions, use the `*` topic selector.
-
-Before:
-
-```json
-{
-  "mercure": {
-    "payload": { "foo": "bar" }
-  }
-}
-```
-
-After:
-
-```json
-{
-  "mercure": {
-    "payloads": {
-      "*": { "foo": "bar" }
-    }
-  }
-}
-```
-
-[Read the updated specification](../spec/mercure.md#payloads) to learn how to leverage this new feature.
+## 0.17
 
 The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive have been deprecated.
 Use the new `transport` directive instead.
