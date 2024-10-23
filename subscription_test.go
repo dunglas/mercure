@@ -210,38 +210,3 @@ func TestSubscriptionHandler(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, res.StatusCode)
 	res.Body.Close()
 }
-
-func TestSubscriptionPayload(t *testing.T) {
-	logger := zap.NewNop()
-	tss := &TopicSelectorStore{}
-
-	for _, selector := range []string{"*", "http://example.com/foo", "http://example.com/{var}"} {
-		t.Run("selector "+selector, func(t *testing.T) {
-			hub := createDummy(WithLogger(logger))
-
-			s1 := NewSubscriber("", logger, tss)
-			s1.SetTopics([]string{"http://example.com/foo"}, nil)
-
-			s1.Claims = &claims{}
-			s1.Claims.Mercure.Payloads = map[string]interface{}{}
-			s1.Claims.Mercure.Payloads[selector] = "foo"
-			s1.Claims.Mercure.Payloads["http://example.com/bar"] = "bar"
-
-			require.NoError(t, hub.transport.AddSubscriber(s1))
-
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
-			req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
-			w := httptest.NewRecorder()
-			hub.SubscriptionsHandler(w, req)
-			res := w.Result()
-			assert.Equal(t, http.StatusOK, res.StatusCode)
-			res.Body.Close()
-
-			var subscriptions subscriptionCollection
-			json.Unmarshal(w.Body.Bytes(), &subscriptions)
-
-			require.Len(t, subscriptions.Subscriptions, 1)
-			assert.Equal(t, "foo", subscriptions.Subscriptions[0].Payload)
-		})
-	}
-}

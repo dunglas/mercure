@@ -264,13 +264,12 @@ func createAnonymousDummy(options ...Option) *Hub {
 }
 
 func createDummyAuthorizedJWT(r role, topics []string) string {
-	payloads := map[string]interface{}{"*": make(map[string]string)}
-	payloads["*"].(map[string]string)["foo"] = "bar"
-
-	return createDummyAuthorizedJWTWithPayload(r, topics, payloads)
+	return createDummyAuthorizedJWTWithPayload(r, topics, struct {
+		Foo string `json:"foo"`
+	}{Foo: "bar"})
 }
 
-func createDummyAuthorizedJWTWithPayload(r role, topics []string, payloads map[string]interface{}) string {
+func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload interface{}) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	var key []byte
@@ -283,7 +282,7 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payloads map[s
 		token.Claims = &claims{
 			Mercure: mercureClaim{
 				Subscribe: topics,
-				Payloads:  payloads,
+				Payload:   payload,
 			},
 			RegisteredClaims: jwt.RegisteredClaims{},
 		}

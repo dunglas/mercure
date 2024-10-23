@@ -203,47 +203,17 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 	rc := h.newResponseController(w, s)
 	rc.flush()
 
-	h.normalizeClaims(claims)
-	h.logNewSubscriber(claims, s)
+	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
+		fields := []LogField{zap.Object("subscriber", s)}
+		if claims != nil && h.logger.Level() == zap.DebugLevel {
+			fields = append(fields, zap.Reflect("payload", claims.Mercure.Payload))
+		}
+
+		c.Write(fields...)
+	}
 	h.metrics.SubscriberConnected(s)
 
 	return s, rc
-}
-
-func (h *Hub) logNewSubscriber(claims *claims, s *Subscriber) {
-	c := h.logger.Check(zap.InfoLevel, "New subscriber")
-	if c == nil {
-		return
-	}
-
-	fields := []LogField{zap.Object("subscriber", s)}
-	if claims != nil && h.logger.Level() == zap.DebugLevel {
-		if claims.Mercure.Payload != nil && h.opt.isBackwardCompatiblyEnabledWith(8) {
-			fields = append(
-				fields,
-				zap.Reflect("payload", claims.Mercure.Payload),
-			)
-		}
-
-		fields = append(
-			fields,
-			zap.Reflect("payloads", claims.Mercure.Payloads),
-		)
-	}
-
-	c.Write(fields...)
-}
-
-func (h *Hub) normalizeClaims(c *claims) {
-	if c == nil || c.Mercure.Payload == nil {
-		return
-	}
-
-	if h.opt.isBackwardCompatiblyEnabledWith(8) {
-		h.logger.Info(`Deprecated: the "mercure.payload" JWT claim deprecated since the version 8 of the protocol, use "mercure.payloads" claim with a "*" key instead.`)
-	} else {
-		c.Mercure.Payload = nil
-	}
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.

@@ -19,11 +19,9 @@ type claims struct {
 }
 
 type mercureClaim struct {
-	Publish   []string `json:"publish"`
-	Subscribe []string `json:"subscribe"`
-	// Deprecated: use the Payloads field instead
-	Payload  interface{}            `json:"payload"`
-	Payloads map[string]interface{} `json:"payloads"`
+	Publish   []string    `json:"publish"`
+	Subscribe []string    `json:"subscribe"`
+	Payload   interface{} `json:"payload"`
 }
 
 type role int
