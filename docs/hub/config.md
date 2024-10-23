@@ -39,7 +39,7 @@ Note that HTTPS is automatically disabled if you set the server port to 80.
 The following Mercure-specific directives are available:
 
 | Directive                             | Description                                                                                                                                                                                                                                     | Default                |
-|---------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
 | `publisher_jwt <key> [<algorithm>]`   | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                              |                        |
 | `subscriber_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                             |                        |
 | `publisher_jwks_url`                  | the URL of the JSON Web Key Set (JWK Set) URL (provided by identity providers such as Keycloak or AWS Cognito) to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                      |                        |
@@ -65,24 +65,25 @@ See also [the list of built-in Caddyfile directives](https://caddyserver.com/doc
 
 The provided `Caddyfile` and the Docker image provide convenient environment variables:
 
-| Environment variable           | Description                                                                                                                                                                                                          | Default value       |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| `GLOBAL_OPTIONS`               | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line                                                                                 |                     |
-| `CADDY_EXTRA_CONFIG`           | the [snippet](https://caddyserver.com/docs/caddyfile/concepts#snippets) or the [named-routes](https://caddyserver.com/docs/caddyfile/concepts#named-routes) options block to inject in the `Caddyfile`, one per line |                     |
-| `CADDY_SERVER_EXTRA_DIRECTIVES`| [`Caddyfile` directives](https://caddyserver.com/docs/caddyfile/concepts#directives)                                                                                                                                 |                     |
-| `SERVER_NAME`                  | the server name or address                                                                                                                                                                                           | `localhost`         |
-| `MERCURE_PUBLISHER_JWT_KEY`    | the JWT key to use for publishers                                                                                                                                                                                    |                     |
-| `MERCURE_PUBLISHER_JWT_ALG`    | the JWT algorithm to use for publishers                                                                                                                                                                              | `HS256`             |
-| `MERCURE_SUBSCRIBER_JWT_KEY`   | the JWT key to use for subscribers                                                                                                                                                                                   |                     |
-| `MERCURE_SUBSCRIBER_JWT_ALG`   | the JWT algorithm to use for subscribers                                                                                                                                                                             | `HS256`             |
-| `MERCURE_EXTRA_DIRECTIVES`     | a list of extra [Mercure directives](#directives) inject in the Caddy file, one per line                                                                                                                             |                     |
-| `MERCURE_LICENSE`              | the license to use ([only applicable for the HA version](cluster.md))                                                                                                                                                |                     |
+| Environment variable            | Description                                                                                                                                                                                                          | Default value |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `GLOBAL_OPTIONS`                | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line                                                                                 |               |
+| `CADDY_EXTRA_CONFIG`            | the [snippet](https://caddyserver.com/docs/caddyfile/concepts#snippets) or the [named-routes](https://caddyserver.com/docs/caddyfile/concepts#named-routes) options block to inject in the `Caddyfile`, one per line |               |
+| `CADDY_SERVER_EXTRA_DIRECTIVES` | [`Caddyfile` directives](https://caddyserver.com/docs/caddyfile/concepts#directives)                                                                                                                                 |               |
+| `SERVER_NAME`                   | the server name or address                                                                                                                                                                                           | `localhost`   |
+| `MERCURE_PUBLISHER_JWT_KEY`     | the JWT key to use for publishers                                                                                                                                                                                    |               |
+| `MERCURE_PUBLISHER_JWT_ALG`     | the JWT algorithm to use for publishers                                                                                                                                                                              | `HS256`       |
+| `MERCURE_SUBSCRIBER_JWT_KEY`    | the JWT key to use for subscribers                                                                                                                                                                                   |               |
+| `MERCURE_SUBSCRIBER_JWT_ALG`    | the JWT algorithm to use for subscribers                                                                                                                                                                             | `HS256`       |
+| `MERCURE_EXTRA_DIRECTIVES`      | a list of extra [Mercure directives](#directives) inject in the Caddy file, one per line                                                                                                                             |               |
+| `MERCURE_LICENSE`               | the license to use ([only applicable for the HA version](cluster.md))                                                                                                                                                |               |
 
 ## HealthCheck
 
 The Mercure.rocks Hub provides a `/healthz` endpoint that returns a `200 OK` status code if the server is healthy.
 
 Here is an example of how to use the health check in a Docker Compose file:
+
 ```yaml
 # compose.yaml
 services:
@@ -127,7 +128,7 @@ MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
 ## Bolt Adapter
 
 | Option              | Description                                                                                                                                                         |
-|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `path`              | path of the database file (default: `mercure.db`)                                                                                                                   |
 | `bucket_name`       | name of the bolt bucket to store events. default to `updates`                                                                                                       |
 | `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`. |
@@ -165,16 +166,16 @@ Run `./mercure -h` to see all available command-line flags.
 
 Configuration files must be named `mercure.<format>` (ex: `mercure.yaml`) and stored in one of the following directories:
 
-* the current directory (`$PWD`)
-* `~/.config/mercure/` (or any other XDG configuration directory set with the `XDG_CONFIG_HOME` environment variable)
-* `/etc/mercure`
+- the current directory (`$PWD`)
+- `~/.config/mercure/` (or any other XDG configuration directory set with the `XDG_CONFIG_HOME` environment variable)
+- `/etc/mercure`
 
 Most configuration parameters are hot reloaded: changes made to environment variables or configuration files are immediately taken into account, without having to restart the hub.
 
 When using environment variables, list must be space separated. As flags parameters, they must be comma separated.
 
 | Parameter                  | Description                                                                                                                                                                                                                                                                                                                                                                                  | Default                                                  |
-|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------|
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `acme_cert_dir`            | the directory where to store Let's Encrypt certificates                                                                                                                                                                                                                                                                                                                                      |                                                          |
 | `acme_hosts`               | a list of hosts for which Let's Encrypt certificates must be issued                                                                                                                                                                                                                                                                                                                          |                                                          |
 | `acme_http01_addr`         | the address used by the acme server to listen on (example: `0.0.0.0:8080`)                                                                                                                                                                                                                                                                                                                   | `:http`                                                  |

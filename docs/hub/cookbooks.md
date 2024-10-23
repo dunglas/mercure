@@ -12,11 +12,10 @@ You may also be interested in spreading the load across several servers using [t
 
 To reproduce the problem, we provide [a load test](load-test.md) that you can use to stress your infrastructure.
 
-
 ## Using Mercure Behind a Reverse Proxy
 
 Mercure hubs run perfectly well behind reverse proxies.
 Here are some configuration for popular proxies:
 
-* [NGINX](nginx.md)
-* [Traefik](traefik.md)
+- [NGINX](nginx.md)
+- [Traefik](traefik.md)

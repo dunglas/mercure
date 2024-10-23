@@ -56,7 +56,10 @@ Also, Mercure can easily be integrated with Apollo GraphQL by creating [a dedica
 Cookies are automatically sent by the browser when opening an `EventSource` connection if the `withCredentials` property is set to `true`:
 
 ```javascript
-const eventSource = new EventSource('https://example.com/.well-known/mercure?topic=foo', {
-    withCredentials: true
-});
+const eventSource = new EventSource(
+  "https://example.com/.well-known/mercure?topic=foo",
+  {
+    withCredentials: true,
+  },
+);
 ```

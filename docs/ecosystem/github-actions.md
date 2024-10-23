@@ -9,24 +9,24 @@ name: Create a Mercure service
 on: push
 
 jobs:
-    my-job-using-mercure:
-        runs-on: ubuntu-latest
+  my-job-using-mercure:
+    runs-on: ubuntu-latest
 
-        services:
-            mercure:
-                image: dunglas/mercure
-                env:
-                    SERVER_NAME: :1337
-                    MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
-                    MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
-                    MERCURE_EXTRA_DIRECTIVES: |
-                        # Custom directives, see https://mercure.rocks/docs/hub/config
-                        anonymous
-                        cors_origins *
-                ports:
-                    - 1337:1337
-        steps:
-            # ...
+    services:
+      mercure:
+        image: dunglas/mercure
+        env:
+          SERVER_NAME: :1337
+          MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+          MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+          MERCURE_EXTRA_DIRECTIVES: |
+            # Custom directives, see https://mercure.rocks/docs/hub/config
+            anonymous
+            cors_origins *
+        ports:
+          - 1337:1337
+    steps:
+      # ...
 ```
 
 A Mercure hub is available at the address `http://localhost:1337/.well-known/mercure`.

@@ -1,6 +1,6 @@
 <h1 align="center"><a href="https://mercure.rocks"><img src="public/mercure.svg" alt="Mercure: Real-time Made Easy" title="Live Updates Made Easy"></a></h1>
 
-*Protocol and Reference Implementation*
+_Protocol and Reference Implementation_
 
 Mercure is a protocol for pushing data updates to web browsers and other HTTP clients in a convenient, fast, reliable, and battery-efficient way.
 It is especially useful to publish async and real-time updates of resources served through web APIs, to reactive web and mobile apps.
@@ -14,9 +14,9 @@ It is especially useful to publish async and real-time updates of resources serv
 
 ![Subscriptions Schema](spec/subscriptions.png)
 
-* [Getting started](https://mercure.rocks/docs/getting-started)
-* [Full documentation](https://mercure.rocks/docs)
-* [Demo](https://demo.mercure.rocks/)
+- [Getting started](https://mercure.rocks/docs/getting-started)
+- [Full documentation](https://mercure.rocks/docs)
+- [Demo](https://demo.mercure.rocks/)
 
 [The protocol](https://mercure.rocks/spec) is maintained in this repository and is also available as [an Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/).
 

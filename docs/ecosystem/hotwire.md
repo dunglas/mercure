@@ -11,7 +11,9 @@ Using Mercure to power a Turbo Stream is straightforward, and doesn't require an
 import { connectStreamSource } from "@hotwired/turbo";
 
 // The "topic" parameter can be any string or URI
-const es = new EventSource("https://example.com/.well-known/mercure?topic=my-stream");
+const es = new EventSource(
+  "https://example.com/.well-known/mercure?topic=my-stream",
+);
 connectStreamSource(es);
 ```
 
@@ -30,9 +32,9 @@ curl \
   https://example.com/.well-known/mercure
 ```
 
-* `topic` must be the same topic we used in the JavaScript code ;
-* `data` contains the [Turbo Streams messages](https://turbo.hotwire.dev/handbook/streams#stream-messages-and-actions) to broadcast ;
-* the `Authorization` header must contain [a valid publisher JWT](../../spec/mercure.md#publication).
+- `topic` must be the same topic we used in the JavaScript code ;
+- `data` contains the [Turbo Streams messages](https://turbo.hotwire.dev/handbook/streams#stream-messages-and-actions) to broadcast ;
+- the `Authorization` header must contain [a valid publisher JWT](../../spec/mercure.md#publication).
 
 [Other Mercure features](../../spec/mercure.md#publication), including broadcasting private updates to authorized subscribers, are also supported.
 
@@ -75,7 +77,10 @@ export default class extends Controller {
 ```
 
 ```html
-<div data-controller="turbo-stream" data-turbo-stream-url-value="https://example.com/.well-known/mercure?topic=my-stream">
+<div
+  data-controller="turbo-stream"
+  data-turbo-stream-url-value="https://example.com/.well-known/mercure?topic=my-stream"
+>
   <!-- ... -->
 </div>
 ```
