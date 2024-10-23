@@ -1,7 +1,3 @@
-# We use standardjs for JavaScript and TypeScript files
-**/*.js
-**/*.ts
-
 # The spec is in the IETF flavor of Markdown
 spec/mercure.md
 
