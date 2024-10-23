@@ -6,8 +6,8 @@ For support requests related to the [Cloud](../hub/cloud.md) or the [On Premise]
 
 ## Community Support
 
-* [Stack Overflow: ask questions using the `mercure` tag](https://stackoverflow.com/questions/tagged/mercure)
-* [Slack: chat with the community on the `#mercure` channel on Symfony's Slack](https://symfony.com/slack)
+- [Stack Overflow: ask questions using the `mercure` tag](https://stackoverflow.com/questions/tagged/mercure)
+- [Slack: chat with the community on the `#mercure` channel on Symfony's Slack](https://symfony.com/slack)
 
 ## Commercial Support
 

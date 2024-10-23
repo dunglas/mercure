@@ -27,10 +27,10 @@ The High Availability On Premise Mercure.rocks Hub is a drop-in replacement for 
 The HA version is shipped with transports having node synchronization capabilities.
 These transports can rely on:
 
-* Redis
-* Postgres `LISTEN`/`NOTIFY`
-* Apache Kafka
-* Apache Pulsar
+- Redis
+- Postgres `LISTEN`/`NOTIFY`
+- Apache Kafka
+- Apache Pulsar
 
 We can help you to decide which synchronization mechanism will be the best suited for your needs, and help you to install and configure it on your infrastructure.
 
@@ -71,7 +71,7 @@ To install Redis, [read the documentation](https://redis.io/topics/quickstart).
 Most Cloud Computing platforms also provide managed versions of Redis.
 
 | Feature         | Supported |
-|-----------------|-----------|
+| --------------- | --------- |
 | History         | ✅        |
 | Presence API    | ✅        |
 | Custom event ID | ✅        |
@@ -91,10 +91,9 @@ To use Redis, the `MERCURE_TRANSPORT_URL` environment variable must be set like 
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
 | Parameter        | Description                                                                                            | Default |
-|------------------|--------------------------------------------------------------------------------------------------------|---------|
+| ---------------- | ------------------------------------------------------------------------------------------------------ | ------- |
 | `tls`            | set to `1` to enable TLS support                                                                       | `0`     |
 | `max_len_approx` | the approximative maximum number of messages to store in the history, set to `0` to store all messages | `0`     |
-
 
 #### PostgreSQL Transport
 
@@ -105,7 +104,7 @@ To install PostgreSQL, [read the documentation](https://www.postgresql.org/docs/
 Most Cloud Computing platforms also provide managed versions of PostgreSQL.
 
 | Feature         | Supported    |
-|-----------------|--------------|
+| --------------- | ------------ |
 | History         | ✅           |
 | Presence API    | ❌ (planned) |
 | Custom event ID | ✅           |
@@ -133,16 +132,16 @@ To install Apache Kafka, [read the quickstart guide](https://kafka.apache.org/qu
 Most Cloud Computing platforms also provide managed versions of Kafka.
 The Mercure.rocks hub has been tested with:
 
-* Bitnami's Kafka Docker images (Kubernetes and the like)
-* Amazon Managed Streaming for Apache Kafka (Amazon MSK)
-* IBM Event Streams for IBM Cloud
-* Heroku Kafka
+- Bitnami's Kafka Docker images (Kubernetes and the like)
+- Amazon Managed Streaming for Apache Kafka (Amazon MSK)
+- IBM Event Streams for IBM Cloud
+- Heroku Kafka
 
-| Feature         | Supported    |
-|-----------------|--------------|
-| History         | ✅           |
-| Presence API    | ❌           |
-| Custom event ID | ✅           |
+| Feature         | Supported |
+| --------------- | --------- |
+| History         | ✅        |
+| Presence API    | ❌        |
+| Custom event ID | ✅        |
 
 ##### Kafka Configuration
 
@@ -159,10 +158,10 @@ To use Kafka, the `MERCURE_TRANSPORT_URL` environment variable must be set like 
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
 | Parameter        | Description                                                                                                                                 |
-|------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `addr`           | addresses of the Kafka servers, you can pass several `addr` parameters to use several Kafka servers (ex: `addr=host1:9092&addr=host2:9092`) |
-| `topic`          | the name of the Kafka topic to use (ex: `topic=mercure-ha`), **all Mercure.rocks hub instances must use the same topic**                          |
-| `consumer_group` | consumer group, **must be different for every instance of the Mercure.rocks hub** (ex: `consumer_group=<random-string>`)                          |
+| `topic`          | the name of the Kafka topic to use (ex: `topic=mercure-ha`), **all Mercure.rocks hub instances must use the same topic**                    |
+| `consumer_group` | consumer group, **must be different for every instance of the Mercure.rocks hub** (ex: `consumer_group=<random-string>`)                    |
 | `user`           | Kafka SASL user (optional, ex: `user=kevin`)                                                                                                |
 | `password`       | Kafka SASL password (optional, ex: `password=maman`)                                                                                        |
 | `tls`            | Set to `1` to enable TLS (ex: `tls=1`)                                                                                                      |
@@ -174,7 +173,7 @@ The Pulsar transport should only be used when Pulsar is already part of your sta
 To install Apache Pulsar, [read the documentation](https://pulsar.apache.org/docs/en/standalone/).
 
 | Feature         | Supported    |
-|-----------------|--------------|
+| --------------- | ------------ |
 | History         | ✅           |
 | Presence API    | ❌           |
 | Custom event ID | ❌ (planned) |
@@ -193,10 +192,10 @@ To use Pulsar, the `MERCURE_TRANSPORT_URL` environment variable must be set like
 
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
-| Parameters          | Description                                                                                                                                |   |
-|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------|---|
-| `topic`             | the name of the Pulsar topic to use (ex: `topic=mercure`), **all Mercure.rocks hub instances must use the same topic**                           |   |
-| `subscription_name` | the subscription name for this node, **must be different for every instance of the Mercure.rocks hub** (ex: `subscription_name=<random-string>`) |   |
+| Parameters          | Description                                                                                                                                      |     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --- |
+| `topic`             | the name of the Pulsar topic to use (ex: `topic=mercure`), **all Mercure.rocks hub instances must use the same topic**                           |     |
+| `subscription_name` | the subscription name for this node, **must be different for every instance of the Mercure.rocks hub** (ex: `subscription_name=<random-string>`) |     |
 
 ### Docker Images and Kubernetes Chart
 

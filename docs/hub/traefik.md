@@ -1,6 +1,6 @@
 # Use the Mercure.rocks Hub with Traefik Proxy
 
-[Traefik](https://doc.traefik.io/traefik/) is a free and open source *edge router* poular in the Docker and Kubernetes ecosystems.
+[Traefik](https://doc.traefik.io/traefik/) is a free and open source _edge router_ poular in the Docker and Kubernetes ecosystems.
 
 The following Docker Compose file exposes a Mercure.rocks hub through Traefik:
 
@@ -13,9 +13,9 @@ services:
     command: --api.insecure=true --providers.docker
     ports:
       # The HTTP port
-      - '80:80'
+      - "80:80"
       # The Web UI (enabled by --api.insecure=true)
-      - '8080:8080'
+      - "8080:8080"
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
@@ -26,13 +26,21 @@ services:
     restart: unless-stopped
     environment:
       # Disables Mercure.rocks auto-HTTPS feature, HTTPS must be handled at edge by Traefik or another proxy in front of it
-      SERVER_NAME: ':80'
-      MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
-      MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+      SERVER_NAME: ":80"
+      MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
     # Enables the development mode, comment the following line to run the hub in prod mode
     command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/healthz"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost/healthz",
+        ]
       timeout: 5s
       retries: 5
       start_period: 60s

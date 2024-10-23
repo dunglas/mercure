@@ -11,7 +11,7 @@ The Mercure.rocks hub is available as a custom build of the [Caddy web server](h
 
 First, download the archive corresponding to your operating system and architecture [from the release page](https://github.com/dunglas/mercure/releases), extract the archive and open a shell in the resulting directory.
 
-*Note:* macOS users must download the `Darwin` binary, then run `xattr -d com.apple.quarantine ./mercure` [to release the hub from quarantine](troubleshooting.md#macos-localhost-installation-error).
+_Note:_ macOS users must download the `Darwin` binary, then run `xattr -d com.apple.quarantine ./mercure` [to release the hub from quarantine](troubleshooting.md#macos-localhost-installation-error).
 
 To start the Mercure.rocks Hub in development mode on Linux and macOS, run:
 
@@ -27,13 +27,13 @@ On Windows, start PowerShell, go into the extracted directory and run:
 $env:MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; $env:MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'; .\mercure.exe run --config dev.Caddyfile
 ```
 
-*Note:* The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
+_Note:_ The Windows Defender Firewall will ask you if you want to allow `mercure.exe` to communicate through it.
 Allow it for both public and private networks. If you use an antivirus, or another firewall software, be sure to whitelist `mercure.exe`.
 
 The server is now available on `https://localhost` (TLS is automatically enabled, [learn how to disable it](config.md)).
 In development mode, anonymous subscribers are allowed and the debug UI is available on `https://localhost/.well-known/mercure/ui/`.
 
-*Note:* if you get an error similar to `bind: address already in use`, it means that the port `80` or `443` is already used by another service (the usual suspects are Apache and NGINX). Before starting Mercure, stop the service using the port(s) first, or set the `SERVER_NAME` environment variable to use a free port (ex: `SERVER_NAME=:3000`).
+_Note:_ if you get an error similar to `bind: address already in use`, it means that the port `80` or `443` is already used by another service (the usual suspects are Apache and NGINX). Before starting Mercure, stop the service using the port(s) first, or set the `SERVER_NAME` environment variable to use a free port (ex: `SERVER_NAME=:3000`).
 
 To run the server in production mode, run this command:
 
@@ -48,8 +48,8 @@ To change these default settings, [learn how to configure the Mercure.rocks hub]
 
 When the server is up and running, the following endpoints are available:
 
-* `POST https://localhost/.well-known/mercure`: to publish updates
-* `GET https://localhost/.well-known/mercure`: to subscribe to updates
+- `POST https://localhost/.well-known/mercure`: to publish updates
+- `GET https://localhost/.well-known/mercure`: to subscribe to updates
 
 See [the protocol](../../spec/mercure.md) for more details about these endpoints.
 
@@ -122,8 +122,8 @@ services:
     environment:
       # Uncomment the following line to disable HTTPS
       #SERVER_NAME: ':80'
-      MERCURE_PUBLISHER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
-      MERCURE_SUBSCRIBER_JWT_KEY: '!ChangeThisMercureHubJWTSecretKey!'
+      MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
     # Uncomment the following line to enable the development mode
     #command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
     healthcheck:
@@ -132,8 +132,8 @@ services:
       retries: 5
       start_period: 60s
     ports:
-      - '80:80'
-      - '443:443'
+      - "80:80"
+      - "443:443"
     volumes:
       - mercure_data:/data
       - mercure_config:/config
@@ -152,6 +152,7 @@ Mercure.rocks is available [on the AUR](https://aur.archlinux.org/packages/mercu
 ```console
 yay -S mercure
 ```
+
 Or download the `PKGBUILD` and compile and install it: `makepkg -sri`.
 
 ## Custom Caddy Build
