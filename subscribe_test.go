@@ -332,12 +332,12 @@ func TestSubscribe(t *testing.T) {
 	testSubscribe(t, 3)
 }
 
-func testSubscribeLogs(t *testing.T, hub *Hub, payloads map[string]interface{}) {
+func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(roleSubscriber, []string{"http://example.com/reviews/22"}, payloads)})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(roleSubscriber, []string{"http://example.com/reviews/22"}, payload)})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -351,18 +351,18 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payloads map[string]interface{}) 
 
 func TestSubscribeWithLogLevelDebug(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
-	payloads := map[string]interface{}{
-		"*": make(map[string]string),
+	payload := map[string]interface{}{
+		"bar": "baz",
+		"foo": "bar",
 	}
-
-	payloads["*"].(map[string]string)["bar"] = "baz"
-	payloads["*"].(map[string]string)["foo"] = "bar"
 
 	testSubscribeLogs(t, createDummy(
 		WithLogger(zap.New(core)),
-	), payloads)
+	), payload)
 
-	assert.Equal(t, 1, logs.FilterMessage("New subscriber").FilterFieldKey("payloads").Len())
+	assert.Equal(t, 1, logs.FilterMessage("New subscriber").FilterField(
+		zap.Reflect("payload", payload)).Len(),
+	)
 }
 
 func TestSubscribeLogLevelInfo(t *testing.T) {
