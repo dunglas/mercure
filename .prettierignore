@@ -1,0 +1,12 @@
+# We use standardjs for JavaScript and TypeScript files
+**/*.js
+
+# The spec is in the IETF flavor of Markdown
+spec/mercure.md
+
+# Ignore Kubernetes templates
+**/charts/**/*.yaml
+**/chart/**/*.yaml
+charts/mercure/README.md
+
+*cache
