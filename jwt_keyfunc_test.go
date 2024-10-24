@@ -7,7 +7,7 @@ import (
 )
 
 func TestCreateJWTKeyfunc(t *testing.T) {
-	f, err := createJWTKeyfunc(([]byte{}), "invalid")
+	f, err := createJWTKeyfunc([]byte{}, "invalid")
 	require.Error(t, err)
 	require.Nil(t, f)
 }
