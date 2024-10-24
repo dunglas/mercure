@@ -22,7 +22,7 @@ var uiContent embed.FS
 // The Content-Type header will automatically be set according to the URL's extension.
 func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 	// JSON-LD is the preferred format
-	mime.AddExtensionType(".jsonld", "application/ld+json")
+	_ = mime.AddExtensionType(".jsonld", "application/ld+json")
 
 	url := r.URL.String()
 	mimeType := mime.TypeByExtension(filepath.Ext(r.URL.Path))

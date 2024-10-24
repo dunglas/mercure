@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	uritemplate "github.com/yosida95/uritemplate/v3"
+	"github.com/yosida95/uritemplate/v3"
 )
 
 type TopicSelectorStoreCache interface {
