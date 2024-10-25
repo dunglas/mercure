@@ -186,6 +186,9 @@ The expression **MUST** return a boolean value: true if the topic matches, false
 
 If parsing or checking of a CEL expression fails or if the expression does not return a boolean value, the hub **MUST** return a 400 "Bad Request" HTTP status code.
 
+The matcher type name is `CEL`.
+The corresponding query parameter is `matchCEL`.
+
 ## URI Template
 
 The hub **MAY** support using URI templates [@!RFC6570] as matchers.
