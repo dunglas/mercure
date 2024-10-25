@@ -81,7 +81,7 @@ one of the `match` query parameters.
 In addition to `match` query parameters, the subscriber can pass other topic matchers by passing
 query parameters starting with the string `match` and followed by the topic matcher type.
 
-The `matcExact` query parameter **MUST** be considered the same as `match`.
+The `matchExact` query parameter **MUST** be considered the same as `match`.
 
 The hub **MUST** ignore the case of query parameters starting with `match`.
 For instance, `matchExact`, `matchEXACT`, `matchexact` and `MaTCheXaCt` must be considered
