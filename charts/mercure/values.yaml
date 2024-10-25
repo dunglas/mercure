@@ -121,6 +121,8 @@ service:
   port: 80
   # -- Service target port.
   targetPort: 80
+  # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
+  nodePort:
   annotations: {}
 
 ingress:

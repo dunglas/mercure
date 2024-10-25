@@ -31,11 +31,11 @@ func NewTopicSelectorStoreLRU(maxEntriesPerShard, shardCount int64) (*TopicSelec
 
 type shardedLRUCache map[int]*lru.Cache
 
-func (c *shardedLRUCache) Get(k interface{}) (interface{}, bool) {
+func (c *shardedLRUCache) Get(k string) (interface{}, bool) {
 	return c.getShard(k).Get(k)
 }
 
-func (c *shardedLRUCache) Set(k interface{}, v interface{}, _ int64) bool {
+func (c *shardedLRUCache) Set(k string, v interface{}, _ int64) bool {
 	c.getShard(k).Add(k, v)
 
 	return true

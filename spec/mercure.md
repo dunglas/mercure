@@ -412,11 +412,10 @@ If no `matchType` key is present, the hub **MUST** cosider that the `Exact` matc
 If the type of one or more matchers present in the array is not supported by the hub, it **MUST** respond with a
 501 "Not Implemented" HTTP status code and no update should be sent.
 
-## Payloads
+## Payload
 
-User-defined data can be attached to subscriptions and made available through the subscription API
-and in subscription events.
-
+The `mercure` claim of the JWS **CAN** also contain user-defined values under the `payload` key.
+This JSON document will be attached to the subscription and made available in subscription events.
 See (#subscription-events).
 
 Each entry in the `mercure.subscribe` claim of the JWS **CAN** contain a JSON object under the `payload` key.

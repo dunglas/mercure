@@ -15,10 +15,10 @@ After purchase, your hub will be instantly provisionned and available under a `m
 
 You'll have access to an administration interface allowing you to:
 
-* configure your hub (the same [configuration settings](config.md) as for the free and open-source hub are available)
-* access to the logs of your hub
-* [set a custom domain name](#custom-domain)
-* [switch to another plan](#switching-between-plans)
+- configure your hub (the same [configuration settings](config.md) as for the free and open-source hub are available)
+- access to the logs of your hub
+- [set a custom domain name](#custom-domain)
+- [switch to another plan](#switching-between-plans)
 
 ## Custom Domain
 

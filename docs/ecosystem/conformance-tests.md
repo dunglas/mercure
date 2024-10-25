@@ -15,9 +15,9 @@ This test suite is based on [Playwright](https://playwright.dev/).
 
 The test suite can be configured by setting environment variables:
 
-* `BASE_URL`: the URL of the hub to test
-* `CUSTOM_ID`: enable or disable tests related to custom IDs support
+- `BASE_URL`: the URL of the hub to test
+- `CUSTOM_ID`: enable or disable tests related to custom IDs support
 
 ## See Also
 
-* [The load test](../hub/load-test.md)
+- [The load test](../hub/load-test.md)

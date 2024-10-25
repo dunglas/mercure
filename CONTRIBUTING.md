@@ -14,13 +14,13 @@ If you include code from another project, please mention it in the Pull Request 
 The commit message must follow the [Conventional Commits specification](https://www.conventionalcommits.org/).
 The following types are allowed:
 
-* `fix`: bugfix
-* `feat`: new feature
-* `docs`: change in the documentation
-* `spec`: spec change
-* `test`: test-related change
-* `perf`: performance optimization
-* `ci`: CI-related change
+- `fix`: bugfix
+- `feat`: new feature
+- `docs`: change in the documentation
+- `spec`: spec change
+- `test`: test-related change
+- `perf`: performance optimization
+- `ci`: CI-related change
 
 Examples:
 
@@ -48,23 +48,23 @@ To run the test suite:
 To test the Caddy module:
 
     cd caddy/mercure
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go run --config ../../dev.Caddyfile
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags nobadger,nomysql,nopgx main.go run --config ../../dev.Caddyfile
 
 Go to `https://localhost` and enjoy!
 
 To test the legacy server:
 
     cd cmd/mercure
-    go run main.go
+    go run -tags=nobadger,nomysql,nopgx main.go
 
 Go to `http://localhost:3000` and enjoy!
 
 When you send a PR, make sure that:
 
-* You add valid test cases.
-* Tests are green.
-* You make a PR on the related documentation.
-* You make the PR on the same branch you based your changes on. If you see commits
+- You add valid test cases.
+- Tests are green.
+- You make a PR on the related documentation.
+- You make the PR on the same branch you based your changes on. If you see commits
   that you did not make in your PR, you're doing it wrong.
 
 ### Configuring Visual Studio Code
@@ -88,10 +88,10 @@ It is then converted in the [the "xml2rfc" Version 3 Vocabulary](https://tools.i
 
 To contribute to the protocol itself:
 
-* Make your changes
-* [Download Mmark](https://github.com/mmarkdown/mmark/releases)
-* [Download `xml2rfc` using pip](https://pypi.org/project/xml2rfc/): `pip install xml2rfc`
-* Generate the XML file: `mmark spec/mercure.md > spec/mercure.xml`
-* Validate the generated XML file and generate the text file: `xml2rfc --text --v3 spec/mercure.xml`
-* Remove non-ASCII characters from the generated `mercure.txt` file (example: K**é**vin)
-* If appropriate, be sure to update the reference implementation accordingly
+- Make your changes
+- [Download Mmark](https://github.com/mmarkdown/mmark/releases)
+- [Download `xml2rfc` using pip](https://pypi.org/project/xml2rfc/): `pip install xml2rfc`
+- Generate the XML file: `mmark spec/mercure.md > spec/mercure.xml`
+- Validate the generated XML file and generate the text file: `xml2rfc --text --v3 spec/mercure.xml`
+- Remove non-ASCII characters from the generated `mercure.txt` file (example: K**é**vin)
+- If appropriate, be sure to update the reference implementation accordingly

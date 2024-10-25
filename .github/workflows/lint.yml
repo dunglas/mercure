@@ -32,9 +32,9 @@ jobs:
           VALIDATE_GITLEAKS: false
           VALIDATE_GO: false
           VALIDATE_GO_MODULES: false
+          VALIDATE_GO_RELEASER: false
           VALIDATE_PHP_PHPCS: false
           VALIDATE_KUBERNETES_KUBECONFORM: false
-          VALIDATE_JAVASCRIPT_PRETTIER: false
-          VALIDATE_TYPESCRIPT_PRETTIER: false
+          VALIDATE_JAVASCRIPT_STANDARD: false
           VALIDATE_TYPESCRIPT_STANDARD: false
           VALIDATE_PYTHON_PYLINT: false

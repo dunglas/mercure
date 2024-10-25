@@ -11,7 +11,7 @@ on:
       - v*.*.*
 
 env:
-  GO111MODULE: 'on'
+  GO111MODULE: "on"
 
 jobs:
   golangci:
@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.23"
           cache-dependency-path: |
             go.sum
             caddy/go.sum
@@ -37,7 +37,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go: [ '1.21', '1.22', '1.23' ]
+        go: ["1.21", "1.22", "1.23"]
       fail-fast: false
     name: Test
     runs-on: ubuntu-latest
@@ -67,7 +67,7 @@ jobs:
       - name: Test Caddy module
         working-directory: caddy/
         run: |
-          go test -timeout 1m -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
+          go test -timeout 1m -race -covermode atomic -tags=nobadger,nomysql,nopgx -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
           sed '1d' profile.cov >> ../profile.cov
 
       - name: Upload coverage results
@@ -78,12 +78,12 @@ jobs:
 
       - name: Start Mercure
         working-directory: caddy/mercure/
-        run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go start --config ../../dev.Caddyfile
+        run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags=nobadger,nomysql,nopgx main.go start --config ../../dev.Caddyfile
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '16'
-          cache: 'npm'
+          node-version: "16"
+          cache: "npm"
           cache-dependency-path: conformance-tests/package-lock.json
 
       - name: Install Playwrigth dependencies

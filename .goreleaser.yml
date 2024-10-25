@@ -1,10 +1,11 @@
+version: 2
 before:
   hooks:
     - go mod tidy
 checksum:
   name_template: "checksums.txt"
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
   sort: asc
   filters:
@@ -24,6 +25,10 @@ builds:
     dir: caddy/mercure
     ldflags:
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
+    tags:
+      - nobadger
+      - nomysql
+      - nopgx
     goos:
       - linux
       - darwin
