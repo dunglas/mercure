@@ -94,7 +94,8 @@ The subscriber receives updates for all topics matching at least a topic matcher
 the matcher type rules.
 
 The protocol doesn't specify the maximum number of query parameters that can be sent, but the hub
-**MAY** apply an arbitrary limit. A subscription is created for every provided parameter starting with the string `match`. See (#subscription-events).
+**MAY** apply an arbitrary limit. A subscription is created for every provided parameter starting
+with the string `match`. See (#subscription-events).
 
 The `EventSource` JavaScript interface [@!eventsource-interface] **MAY** be used to establish the connection.
 Any other appropriate mechanism
