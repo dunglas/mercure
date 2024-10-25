@@ -116,7 +116,7 @@ func (Mercure) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
-func (m Mercure) populateJWTConfig() error {
+func (m *Mercure) populateJWTConfig() error {
 	repl := caddy.NewReplacer()
 
 	if m.PublisherJWKSURL == "" {
@@ -153,7 +153,7 @@ func (m Mercure) populateJWTConfig() error {
 // Deprecated
 //
 //nolint:wrapcheck,ireturn
-func createTransportLegacy(m Mercure) (mercure.Transport, error) {
+func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
 	m.logger.Warn(`Setting the transport_url or the MERCURE_TRANSPORT_URL environment variable is deprecated, use the "transport" directive instead`)
 
 	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
@@ -188,7 +188,7 @@ func createTransportLegacy(m Mercure) (mercure.Transport, error) {
 }
 
 //nolint:wrapcheck
-func (m Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
+func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 	if err := m.populateJWTConfig(); err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (m Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 // Deprecated: use transports Caddy modules.
 //
 //nolint:wrapcheck
-func (m Mercure) Cleanup() error {
+func (m *Mercure) Cleanup() error {
 	if m.TransportURL == "" {
 		return nil
 	}
@@ -321,7 +321,7 @@ func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
 //
 //nolint:wrapcheck
-func (m Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:funlen,gocognit,gocyclo
+func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:funlen,gocognit,gocyclo
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {

@@ -26,7 +26,7 @@ func (Local) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
-func (l Local) GetTransport() mercure.Transport { //nolint:ireturn
+func (l *Local) GetTransport() mercure.Transport { //nolint:ireturn
 	return l.transport
 }
 
@@ -42,14 +42,14 @@ func (l Local) Provision(_ caddy.Context) error {
 }
 
 //nolint:wrapcheck
-func (l Local) Cleanup() error {
+func (l *Local) Cleanup() error {
 	_, err := transport.Delete(localTransportKey)
 
 	return err
 }
 
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
-func (l Local) UnmarshalCaddyfile(_ *caddyfile.Dispenser) error {
+func (l *Local) UnmarshalCaddyfile(_ *caddyfile.Dispenser) error {
 	return nil
 }
 

@@ -32,14 +32,14 @@ func (Bolt) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
-func (b Bolt) GetTransport() mercure.Transport { //nolint:ireturn
+func (b *Bolt) GetTransport() mercure.Transport { //nolint:ireturn
 	return b.transport
 }
 
 // Provision provisions b's configuration.
 //
 //nolint:wrapcheck
-func (b Bolt) Provision(ctx caddy.Context) error {
+func (b *Bolt) Provision(ctx caddy.Context) error {
 	var key bytes.Buffer
 	if err := gob.NewEncoder(&key).Encode(b); err != nil {
 		return err
@@ -64,7 +64,7 @@ func (b Bolt) Provision(ctx caddy.Context) error {
 }
 
 //nolint:wrapcheck
-func (b Bolt) Cleanup() error {
+func (b *Bolt) Cleanup() error {
 	_, err := transport.Delete(b.transportKey)
 
 	return err
@@ -73,7 +73,7 @@ func (b Bolt) Cleanup() error {
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
 //
 //nolint:wrapcheck
-func (b Bolt) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (b *Bolt) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
