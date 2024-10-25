@@ -19,19 +19,19 @@ type Local struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (*Local) CaddyModule() caddy.ModuleInfo {
+func (Local) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.mercure.local",
 		New: func() caddy.Module { return new(Local) },
 	}
 }
 
-func (l *Local) GetTransport() mercure.Transport { //nolint:ireturn
+func (l Local) GetTransport() mercure.Transport { //nolint:ireturn
 	return l.transport
 }
 
 // Provision provisions b's configuration.
-func (l *Local) Provision(_ caddy.Context) error {
+func (l Local) Provision(_ caddy.Context) error {
 	destructor, _, _ := transport.LoadOrNew(localTransportKey, func() (caddy.Destructor, error) {
 		return transportDestructor[*mercure.LocalTransport]{transport: mercure.NewLocalTransport()}, nil
 	})
@@ -42,14 +42,14 @@ func (l *Local) Provision(_ caddy.Context) error {
 }
 
 //nolint:wrapcheck
-func (l *Local) Cleanup() error {
+func (l Local) Cleanup() error {
 	_, err := transport.Delete(localTransportKey)
 
 	return err
 }
 
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
-func (l *Local) UnmarshalCaddyfile(_ *caddyfile.Dispenser) error {
+func (l Local) UnmarshalCaddyfile(_ *caddyfile.Dispenser) error {
 	return nil
 }
 
