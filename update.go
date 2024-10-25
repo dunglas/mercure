@@ -16,7 +16,7 @@ type Update struct {
 	// Private updates can only be dispatched to subscribers authorized to receive them.
 	Private bool
 
-	// To print debug informations
+	// To print debug information
 	Debug bool
 
 	// The Server-Sent Event to send.

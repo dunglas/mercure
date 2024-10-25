@@ -5,11 +5,11 @@
 The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive have been deprecated.
 Use the new `transport` directive instead.
 
-The `MERCURE_TRANSPORT_URL` environement variable has been removed from the default `Caddyfile`s,
+The `MERCURE_TRANSPORT_URL` environment variable has been removed from the default `Caddyfile`s,
 but a backward compatibility layer is provided.
 
 If both the `transport` and the deprecated `transport_url` are not explicitly set
-and the `MERCURE_TRANSPORT_URL` environement variable is set, the `transport_url` will be automatically populated.
+and the `MERCURE_TRANSPORT_URL` environment variable is set, the `transport_url` will be automatically populated.
 To disable this behavior, unset `MERCURE_TRANSPORT_URL` or set it to an empty string.
 
 Before:
@@ -30,12 +30,12 @@ To configure the transport using an environment variable, append the `transport 
 
 To prevent security issues, be sure to not pass credentials such as API tokens or password in `MERCURE_EXTRA_DIRECTIVES` (ex: when using transports [provided by the paid version](hub/cluster.md) such as Redis).
 
-To pass credentials security, create a custom `Caddyfile` an use the `{env.MY_ENV_VAR}` syntax, which is interpreted at runtime.
+To pass credentials security, create a custom `Caddyfile` and use the `{env.MY_ENV_VAR}` syntax, which is interpreted at runtime.
 
 ## 0.16.2
 
 The `Caddyfile.dev` file has been renamed `dev.Caddyfile` to match new Caddy best practices
-and prevent "ambigous adapter" issues.
+and prevent "ambiguous adapter" issues.
 
 ## 0.14.4
 
@@ -52,9 +52,9 @@ The default dev key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecret
 
 ## 0.14
 
-The query parameter allowing to fetch past events has been renamed `lastEventID`: in your clients, replace all occurences of the `Last-Event-ID` query parameter by `lastEventID`.
+The query parameter allowing to fetch past events has been renamed `lastEventID`: in your clients, replace all occurrences of the `Last-Event-ID` query parameter by `lastEventID`.
 
-Publishing public updates in topics not explictly listed in the `mercure.publish` JWT claim isn't supported anymore.
+Publishing public updates in topics not explicitly listed in the `mercure.publish` JWT claim isn't supported anymore.
 To let your publishers publish (public and private updates) in all topics, use the special `*` topic selector:
 
 ```patch

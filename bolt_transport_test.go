@@ -203,7 +203,7 @@ func TestNewBoltTransport(t *testing.T) {
 	u, _ = url.Parse("bolt:///test.db")
 	_, err = DeprecatedNewBoltTransport(u, zap.NewNop())
 
-	// The exact error message depends of the OS
+	// The exact error message depends on the OS
 	assert.Contains(t, err.Error(), "open /test.db:")
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
@@ -351,7 +351,7 @@ func TestBoltLastEventID(t *testing.T) {
 		// The sequence value is prepended to the update id to create an ordered list
 		key := bytes.Join([][]byte{prefix, []byte("foo")}, []byte{})
 
-		// The DB is append only
+		// The DB is append-only
 		bucket.FillPercent = 1
 
 		return bucket.Put(key, []byte("invalid"))

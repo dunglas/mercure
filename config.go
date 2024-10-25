@@ -244,7 +244,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	return h, err
 }
 
-// Start is an helper method to start the Mercure Hub.
+// Start is a helper method to start the Mercure Hub.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
 func Start() {

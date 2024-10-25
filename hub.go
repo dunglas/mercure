@@ -1,5 +1,5 @@
-// Package mercure helps implementing the Mercure protocol (https://mercure.rocks) in Go projects.
-// It provides an implementation of a Mercure hub as a HTTP handler.
+// Package mercure helps implement the Mercure protocol (https://mercure.rocks) in Go projects.
+// It provides an implementation of a Mercure hub as an HTTP handler.
 package mercure
 
 import (

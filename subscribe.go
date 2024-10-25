@@ -129,7 +129,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case <-heartbeatTimerC:
-			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			// Send an SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
 			if !h.write(rc, ":\n") {
 				return
 			}

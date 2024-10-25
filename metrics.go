@@ -35,7 +35,7 @@ type PrometheusMetrics struct {
 }
 
 // NewPrometheusMetrics creates a Prometheus metrics collector.
-// This method must be called only one time or it will panic.
+// This method must be called only one time, or it will panic.
 func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 	if registry == nil {
 		registry = prometheus.NewRegistry()

@@ -1,6 +1,6 @@
 # Use the Mercure.rocks Hub with Traefik Proxy
 
-[Traefik](https://doc.traefik.io/traefik/) is a free and open source _edge router_ poular in the Docker and Kubernetes ecosystems.
+[Traefik](https://doc.traefik.io/traefik/) is a free and open source _edge router_ popular in the Docker and Kubernetes ecosystems.
 
 The following Docker Compose file exposes a Mercure.rocks hub through Traefik:
 

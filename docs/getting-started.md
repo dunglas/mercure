@@ -5,7 +5,8 @@
 ## Starting the Hub
 
 The easiest way to get started is to [install the official Mercure.rocks
-Hub](hub/install.md). When it's done, go directly to the next step. There are also other unofficial [libraries implementing Mercure](ecosystem/awesome.md#hubs-and-server-libraries). In the rest of this tutorial, we'll assume that the hub is running on `https://localhost` and that the `JWT_KEY` is `!ChangeThisMercureHubJWTSecretKey!`.
+Hub](hub/install.md). When it's done, go directly to the next step.
+There are other unofficial [libraries implementing Mercure](ecosystem/awesome.md#hubs-and-server-libraries). In the rest of this tutorial, we'll assume that the hub is running on `https://localhost` and that the `JWT_KEY` is `!ChangeThisMercureHubJWTSecretKey!`.
 
 Please note that the hub is entirely optional when using the Mercure protocol. Your app can also implement the Mercure protocol directly.
 
@@ -47,7 +48,7 @@ Optionally, [the authorization mechanism](../spec/mercure.md#authorization) can 
 
 ## Discovering the Mercure Hub
 
-Also optionally, the hub URL can be automatically discovered:
+Also, optionally, the hub URL can be automatically discovered:
 
 ![Discovery Schema](../spec/discovery.png)
 

@@ -81,7 +81,7 @@ docker run \
     dunglas/mercure
 ```
 
-HTTPS support is automatically enabled. If you run the Mercure hub behind a reverse proxy [such as NGINX](cookbooks.md#using-nginx-as-an-http-2-reverse-proxy-in-front-of-the-hub), you usually want to use unencrypted HTTP.
+HTTPS support is automatically enabled. If you run the Mercure hub behind a reverse proxy [such as NGINX](nginx.md), you usually want to use unencrypted HTTP.
 This can be done like that:
 
 ```console
