@@ -19,7 +19,7 @@ type Local struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (Local) CaddyModule() caddy.ModuleInfo {
+func (*Local) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.mercure.local",
 		New: func() caddy.Module { return new(Local) },

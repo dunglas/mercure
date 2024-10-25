@@ -25,7 +25,7 @@ type Bolt struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (Bolt) CaddyModule() caddy.ModuleInfo {
+func (*Bolt) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.mercure.bolt",
 		New: func() caddy.Module { return new(Bolt) },

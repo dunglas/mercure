@@ -109,7 +109,7 @@ type Mercure struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (Mercure) CaddyModule() caddy.ModuleInfo {
+func (*Mercure) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.mercure",
 		New: func() caddy.Module { return new(Mercure) },
@@ -308,7 +308,7 @@ func (m *Mercure) Cleanup() error {
 	return err
 }
 
-func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !strings.HasPrefix(r.URL.Path, defaultHubURL) {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
