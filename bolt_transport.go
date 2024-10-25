@@ -130,9 +130,8 @@ func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 
 		return nil
 	})
-
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to get lastEventID from BoltDB: %w", err)
 	}
 
 	return lastEventID, nil
@@ -185,7 +184,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		// The sequence value is prepended to the update id to create an ordered list
 		key := bytes.Join([][]byte{prefix, []byte(updateID)}, []byte{})
 
-		// The DB is append only
+		// The DB is append-only
 		bucket.FillPercent = 1
 
 		t.lastSeq = seq
@@ -251,7 +250,7 @@ func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
 
 //nolint:gocognit
 func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) error {
-	return t.db.View(func(tx *bolt.Tx) error {
+	err := t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
 			s.HistoryDispatched(EarliestLastEventID)
@@ -297,6 +296,11 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) error {
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("unable to retrieve history from BoltDB: %w", err)
+	}
+
+	return nil
 }
 
 // Close closes the Transport.
