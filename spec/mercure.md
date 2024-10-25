@@ -177,7 +177,7 @@ The corresponding query parameter is `matchRegexp`.
 
 The hub **MAY** support using CEL expressions [@cel] as matchers.
 
-A variable named `topics` containing an array of string **MSUT** be passed
+A variable named `topics` containing an array of string **MUST** be passed
 to the expression. This variable **MUST** contain the canonical topic followed by the alternate topics of the update to match.
 
 The hub **MAY** pass other implementation-specific variables and expose implementation-specific functions.
