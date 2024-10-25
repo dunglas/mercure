@@ -129,7 +129,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case <-heartbeatTimerC:
-			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			// Send an SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
 			if !h.write(rc, ":\n") {
 				return
 			}
@@ -238,7 +238,11 @@ func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) {
 
 	// Write a comment in the body
 	// Go currently doesn't provide a better way to flush the headers
-	w.Write([]byte{':', '\n'})
+	if _, err := w.Write([]byte{':', '\n'}); err != nil {
+		if c := h.logger.Check(zap.WarnLevel, "Failed to write comment"); c != nil {
+			c.Write(zap.Object("subscriber", s), zap.Error(err))
+		}
+	}
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
@@ -288,7 +292,12 @@ func (h *Hub) write(rc *responseController, data string) bool {
 func (h *Hub) shutdown(s *Subscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
-	h.transport.RemoveSubscriber(s)
+	if err := h.transport.RemoveSubscriber(s); err != nil {
+		if c := h.logger.Check(zap.WarnLevel, "Failed to remove subscriber on shutdown"); c != nil {
+			c.Write(zap.Object("subscriber", s), zap.Error(err))
+		}
+	}
+
 	h.dispatchSubscriptionUpdate(s, false)
 	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
 		c.Write(zap.Object("subscriber", s))
@@ -302,7 +311,7 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 	}
 
 	for _, subscription := range s.getSubscriptions("", jsonldContext, active) {
-		json, err := json.MarshalIndent(subscription, "", "  ")
+		j, err := json.MarshalIndent(subscription, "", "  ")
 		if err != nil {
 			panic(err)
 		}
@@ -311,8 +320,12 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 			Topics:  []string{subscription.ID},
 			Private: true,
 			Debug:   h.debug,
-			Event:   Event{Data: string(json)},
+			Event:   Event{Data: string(j)},
 		}
-		h.transport.Dispatch(u)
+		if err := h.transport.Dispatch(u); err != nil {
+			if c := h.logger.Check(zap.WarnLevel, "Failed to dispatch update"); c != nil {
+				c.Write(zap.Object("subscriber", s), zap.Object("update", u), zap.Error(err))
+			}
+		}
 	}
 }

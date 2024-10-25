@@ -5,7 +5,8 @@
 In a nutshell [the WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) is low level, Mercure is a high level.
 Mercure provides convenient built-in features such as authorization, re-connection, state reconciliation and a presence API ; while with WebSockets, you need to implement them yourself.
 
-Also WebSockets [are not designed to leverage HTTP/2+](https://www.infoq.com/articles/websocket-and-http2-coexist) and are known to be [hard to secure](https://gravitational.com/blog/kubernetes-websocket-upgrade-security-vulnerability/). On the other hand Mercure relies on plain HTTP connections and benefits from the performance an security improvement built-in the latest versions of this protocol.
+Also, WebSockets [are not designed to leverage HTTP/2+](https://www.infoq.com/articles/websocket-and-http2-coexist) and are known to be [hard to secure](https://gravitational.com/blog/kubernetes-websocket-upgrade-security-vulnerability/).
+On the other hand Mercure relies on plain HTTP connections and benefits from the performance and security improvement built-in the latest versions of this protocol.
 
 HTTP/2 connections are multiplexed and bidirectional by default (it was not the case of HTTP/1).
 When using Mercure over a h2 connection (recommended), your app can receive data through Server-Sent Events, and send data to the server with regular `POST` (or `PUT`/`PATCH`/`DELETE`) requests, with no overhead.
@@ -34,7 +35,7 @@ In summary, use the Push API to send notifications to offline users (that will b
 When using HTTP/2+ ([the default for almost all users](https://caniuse.com/#feat=http2)), the maximum number of simultaneous HTTP **streams** is negotiated between the server and the client (it defaults to 100).
 When using HTTP 1.1, this limit is of 6.
 
-By using template selectors and by passing several `topic` parameters, it's possible to subscribe to an unlimited of topics using a single HTTP connection.
+By using template selectors and by passing several `topic` parameters, it's possible to subscribe to an unlimited number of topics using a single HTTP connection.
 
 ## How to Use Mercure with GraphQL?
 

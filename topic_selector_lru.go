@@ -43,7 +43,7 @@ func (c *shardedLRUCache) Set(k string, v interface{}, _ int64) bool {
 
 func (c *shardedLRUCache) getShard(k interface{}) *lru.Cache {
 	h := fnv.New32a()
-	h.Write([]byte(k.(string)))
+	_, _ = h.Write([]byte(k.(string)))
 
 	return (*c)[int(h.Sum32())%len(*c)]
 }

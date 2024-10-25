@@ -11,7 +11,7 @@ The Cloud service is built on top of the free and open-source hub and helps fund
 
 Purchase your managed Mercure.rocks hub [directly online](https://mercure.rocks/pricing)!
 
-After purchase, your hub will be instantly provisionned and available under a `mercure.rocks` subdomain. A TLS certificate is also automatically created.
+After purchase, your hub will be instantly provisioned and available under a `mercure.rocks` subdomain. A TLS certificate is also automatically created.
 
 You'll have access to an administration interface allowing you to:
 

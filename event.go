@@ -26,14 +26,14 @@ func (e *Event) String() string {
 	var b strings.Builder
 
 	if e.Type != "" {
-		fmt.Fprintf(&b, "event: %s\n", e.Type)
+		_, _ = fmt.Fprintf(&b, "event: %s\n", e.Type)
 	}
 	if e.Retry != 0 {
-		fmt.Fprintf(&b, "retry: %d\n", e.Retry)
+		_, _ = fmt.Fprintf(&b, "retry: %d\n", e.Retry)
 	}
 
 	r := strings.NewReplacer("\r\n", "\ndata: ", "\r", "\ndata: ", "\n", "\ndata: ")
-	fmt.Fprintf(&b, "id: %s\ndata: %s\n\n", e.ID, r.Replace(e.Data))
+	_, _ = fmt.Fprintf(&b, "id: %s\ndata: %s\n\n", e.ID, r.Replace(e.Data))
 
 	return b.String()
 }

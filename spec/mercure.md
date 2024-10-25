@@ -51,11 +51,11 @@ interpreted as described in [@!RFC2119].
     private, consequently, it must be dispatched only to subscribers allowed to receive it.
 *   Topic selector: An expression matching one or several topics.
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
-    almost all pubsub systems, the publisher is unaware of the subscribers, if any. Other pubsub
-    systems might call the publisher the "source". Typically a site or a web API, but can also be
+    almost all pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
+    systems might call the publisher the "source". Typically, a site or a web API, but can also be
     a web browser.
 *   Subscriber: A client application that subscribes to real-time updates of topics using topic
-    selectors. Typically a web or a mobile application, but can also be a server.
+    selectors. Typically, a web or a mobile application, but can also be a server.
 *   Subscription: A topic selector used by a subscriber to receive updates. A single subscriber can
     have several subscriptions, when it provides several topic selectors.
 *   Hub: A server that handles subscription requests and distributes the content to subscribers when
@@ -73,7 +73,7 @@ The URL of the hub **MUST** be the "well-known" [@!RFC5785] fixed path `/.well-k
 
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber,
 allowing it to receive live updates when topics are updated. If more than one hub URL is specified,
-the publisher **MUST** notifies each hub, so the subscriber **MAY** subscribe to one or more of
+the publisher **MUST** notify each hub, so the subscriber **MAY** subscribe to one or more of
 them.
 
 Note: Publishers may wish to advertise and publish to more than one hub for fault tolerance and
@@ -201,7 +201,7 @@ To determine if a string matches a selector, the following steps must be followe
     characteristic allows to compare a URI Template with another one.
 3.  If the topic selector is a valid URI Template, and that the string matches this URI Template,
     the string matches the selector.
-4.  Otherwise the string does not match the selector.
+4.  Otherwise, the string does not match the selector.
 
 # Subscription
 
@@ -295,7 +295,7 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     but it **CAN** contain any value including an empty string.
 *   `id` (optional): the topic's revision identifier: it will be used as the SSE's `id` property.
     The provided ID **MUST NOT** start with the `#` character. The provided ID **SHOULD** be a valid
-    IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a
+    IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC4122] or a
     [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively the hub **MAY** generate a
     relative URI composed of a fragment (starting with `#`). This is convenient to return an offset
     or a sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the ID
@@ -415,7 +415,7 @@ array of topic selectors. See (#topic-selectors).
 
 If `mercure.publish` is not defined, or contains an empty array, then the publisher **MUST NOT**
 be authorized to dispatch any update.
-Otherwise, the hub **MUST** check that every topics of the update to dispatch matches at least one
+Otherwise, the hub **MUST** check that every topic of the update to dispatch matches at least one
 of the topic selectors contained in `mercure.publish`.
 
 If the publisher is not authorized for all the topics of an update, the hub **MUST NOT** dispatch
@@ -488,8 +488,8 @@ The protocol allows to reconciliate states after a reconnection. It can also be 
 [Event store](https://en.wikipedia.org/wiki/Event_store).
 
 To allow re-establishment in case of connection lost, events dispatched by the hub **MUST** include
-an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987]. An
-UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
+an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987].
+A UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 According to the server-sent events specification, in case of connection
 lost the subscriber will try to automatically re-connect. During the
@@ -529,7 +529,7 @@ hub stores only a limited number of events in its history). In some cases (for i
 partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an event store),
 updates lost can cause data lost.
 
-To detect if a data lost ocurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
+To detect if a data lost occurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
 response HTTP header with the last event ID it requested. In case of data lost, the subscriber
 **SHOULD** re-fetch the original topic.
 
@@ -554,14 +554,14 @@ subscription is created or terminated.
 
 The topic of these updates **MUST** be an expansion of
 `/.well-known/mercure/subscriptions/{topic}/{subscriber}`. `{topic}` is the topic selector used for
-this subscription and `{subscriber}` is an unique identifier for the subscriber.
+this subscription and `{subscriber}` is a unique identifier for the subscriber.
 
 Note: Because it is recommended to use URI Templates and IRIs for the `{topic}` and `{subscriber}`
 variables, values will usually contain the `:`, `/`, `{` and `}` characters. Per [@!RFC6570], these
 characters are reserved. They **MUST** be percent encoded during the expansion process.
 
 If a subscriber has several subscriptions, it **SHOULD** be identified by the same
-identifier. `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. An UUID [@RFC4122] or a
+identifier. `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC4122] or a
 [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
@@ -775,7 +775,7 @@ The JSON-LD context available at `https://mercure.rocks` is the following:
 
 # Encryption
 
-Using HTTPS does not prevent the hub from accessing the update's content. Depending of the intended
+Using HTTPS does not prevent the hub from accessing the update's content. Depending on the intended
 privacy of information contained in the update, it **MAY** be necessary to prevent eavesdropping by
 the hub.
 
@@ -1320,7 +1320,7 @@ Other implementations can be found on GitHub: <https://github.com/topics/mercure
 # Acknowledgements
 
 Parts of this specification, especially (#discovery) have been adapted from the WebSub
-recommendation [@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this
+recommendation [@W3C.REC-websub-20180123]. The editor wish to thank all the authors of this
 specification.
 
 {backmatter}

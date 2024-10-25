@@ -98,12 +98,12 @@ services:
 
 ## JWT Verification
 
-JWT can validated using HMAC and RSA algorithms.
+JWT can be validated using HMAC and RSA algorithms.
 In addition, it's possible to use JSON Web Key Sets (JWK Sets) (usually provided by OAuth and OIDC providers such as Keycloak or Amazon Cognito) to validate the keys.
 
 When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm as second parameter of the `publisher_jwt` or `subscriber_jwt` directives (for example `RS256`).
 
-Here is an example of how to use environments variables with a RSA public key.
+Here is an example of how to use environments variables with an RSA public key.
 
 Generate keys (if you don't already have them):
 
