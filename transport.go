@@ -54,10 +54,15 @@ type Transport interface {
 	Close() error
 }
 
-// TransportSubscribers provide a method to retrieve the list of active subscribers.
+// TransportSubscribers provides a method to retrieve the list of active subscribers.
 type TransportSubscribers interface {
 	// GetSubscribers gets the last event ID and the list of active subscribers at this time.
 	GetSubscribers() (string, []*Subscriber, error)
+}
+
+// TransportTopicSelectorStore provides a method to pass the TopicSelectorStore to the transport.
+type TransportTopicSelectorStore interface {
+	SetTopicSelectorStore(store *TopicSelectorStore)
 }
 
 // ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
