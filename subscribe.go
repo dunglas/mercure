@@ -156,9 +156,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subscriber, *responseController) {
-	s := NewSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, &TopicSelectorStore{})
-	s.topicSelectorStore = h.topicSelectorStore
-	s.Debug = h.debug
+	s := NewSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, h.topicSelectorStore)
 	s.RemoteAddr = r.RemoteAddr
 	var privateTopics []string
 	var claims *claims
