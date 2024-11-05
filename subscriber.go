@@ -24,7 +24,6 @@ type Subscriber struct {
 	SubscribedTopicRegexps []*regexp.Regexp
 	AllowedPrivateTopics   []string
 	AllowedPrivateRegexps  []*regexp.Regexp
-	Debug                  bool
 
 	disconnected        int32
 	out                 chan *Update
