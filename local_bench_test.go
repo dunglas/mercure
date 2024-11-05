@@ -86,35 +86,18 @@ set -e
 
 mkdir -p _dist
 
-# --- Generating a diff ---
-
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_CACHE=ristretto \
-SUB_TEST_SHARDS=256 \
-go test -bench=. -run=BenchmarkLocalTransport -benchmem -count 5 | tee _dist/output.5kc.noskip.ristretto.256.txt
-
-SUB_TEST_CONCURRENCY=5000 \
-SUB_TEST_CACHE=lru \
-SUB_TEST_SHARDS=256 \
-go test -bench=. -run=BenchmarkLocalTransport -benchmem -count 5 | tee _dist/output.5kc.skip.lru.256.txt
-
-benchstat _dist/output.5kc.noskip.ristretto.256.txt \
-          _dist/output.5kc.skip.lru.256.txt \
-        > _dist/diff-cache.5kc.256.txt
-
-
 # --- Generating a cpu call graph ---
 
 SUB_TEST_CONCURRENCY=20000 \
 SUB_TEST_TOPICS=20 \
 SUB_TEST_MATCHPCT=50 \
-SUB_TEST_CACHE=ristretto \
+SUB_TEST_CACHE=lru \
 SUB_TEST_SHARDS=256 \
-go test -bench=. -run=BenchmarkLocalTransport -cpuprofile _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.out -benchmem
+go test -bench=. -run=BenchmarkLocalTransport -cpuprofile _dist/profile.20kc.20top.50pct.noskip.lru.256sh.out -benchmem
 
 go build -o _dist/bin
 
-go tool pprof --pdf _dist/bin _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.out \
-                            > _dist/profile.20kc.20top.50pct.noskip.ristretto.256sh.pdf
+go tool pprof --pdf _dist/bin _dist/profile.20kc.20top.50pct.noskip.lru.256sh.out \
+                            > _dist/profile.20kc.20top.50pct.noskip.lru.256sh.pdf
 
 */
