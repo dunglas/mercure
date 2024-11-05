@@ -324,11 +324,6 @@ func NewHub(options ...Option) (*Hub, error) {
 		opt.logger = l
 	}
 
-	if opt.transport == nil {
-		t, _ := DeprecatedNewLocalTransport(nil, nil)
-		opt.transport = t
-	}
-
 	if opt.topicSelectorStore == nil {
 		tss, err := NewTopicSelectorStoreLRU(DefaultTopicSelectorStoreLRUMaxEntriesPerShard, DefaultTopicSelectorStoreLRUShardCount)
 		if err != nil {
@@ -336,6 +331,14 @@ func NewHub(options ...Option) (*Hub, error) {
 		}
 
 		opt.topicSelectorStore = tss
+	}
+
+	if opt.transport == nil {
+		opt.transport = NewLocalTransport()
+	}
+
+	if ttss, ok := opt.transport.(TransportTopicSelectorStore); ok {
+		ttss.SetTopicSelectorStore(opt.topicSelectorStore)
 	}
 
 	if opt.metrics == nil {
