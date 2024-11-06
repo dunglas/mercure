@@ -17,7 +17,7 @@ type responseController struct {
 	// writeDeadline is the JWT expiration date or time.Now() + hub.writeTimeout
 	writeDeadline time.Time
 	hub           *Hub
-	subscriber    *Subscriber
+	subscriber    *LocalSubscriber
 }
 
 func (rc *responseController) setDispatchWriteDeadline() bool {
@@ -73,13 +73,13 @@ func (rc *responseController) flush() bool {
 	return true
 }
 
-func (h *Hub) newResponseController(w http.ResponseWriter, s *Subscriber) *responseController {
+func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *responseController {
 	wd := h.getWriteDeadline(s)
 
 	return &responseController{*http.NewResponseController(w), w, wd.Add(-h.dispatchTimeout), wd, h, s} // nolint:bodyclose
 }
 
-func (h *Hub) getWriteDeadline(s *Subscriber) (deadline time.Time) {
+func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 	if h.writeTimeout != 0 {
 		deadline = time.Now().Add(h.writeTimeout)
 	}
@@ -155,8 +155,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subscriber, *responseController) {
-	s := NewSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, h.topicSelectorStore)
+func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) {
+	s := NewLocalSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, h.topicSelectorStore)
 	s.RemoteAddr = r.RemoteAddr
 	var privateTopics []string
 	var claims *claims
@@ -170,7 +170,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 		}
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			if c := h.logger.Check(zap.DebugLevel, "Subscriber unauthorized"); c != nil {
+			if c := h.logger.Check(zap.DebugLevel, "LocalSubscriber unauthorized"); c != nil {
 				c.Write(zap.Object("subscriber", s), zap.Error(err))
 			}
 
@@ -215,7 +215,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) {
+func (h *Hub) sendHeaders(w http.ResponseWriter, s *LocalSubscriber) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
 
@@ -287,7 +287,7 @@ func (h *Hub) write(rc *responseController, data string) bool {
 	return rc.flush() && rc.setDefaultWriteDeadline()
 }
 
-func (h *Hub) shutdown(s *Subscriber) {
+func (h *Hub) shutdown(s *LocalSubscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
 	if err := h.transport.RemoveSubscriber(s); err != nil {
@@ -297,13 +297,13 @@ func (h *Hub) shutdown(s *Subscriber) {
 	}
 
 	h.dispatchSubscriptionUpdate(s, false)
-	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
+	if c := h.logger.Check(zap.InfoLevel, "LocalSubscriber disconnected"); c != nil {
 		c.Write(zap.Object("subscriber", s))
 	}
 	h.metrics.SubscriberDisconnected(s)
 }
 
-func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
+func (h *Hub) dispatchSubscriptionUpdate(s *LocalSubscriber, active bool) {
 	if !h.subscriptions {
 		return
 	}

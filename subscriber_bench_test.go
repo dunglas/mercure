@@ -85,7 +85,7 @@ func strInt(s string) int {
 func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testName string) {
 	b.Helper()
 
-	s := NewSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop(), &TopicSelectorStore{})
 	ts := make([]string, topics)
 	tsMatch := make([]string, topics)
 	tsNoMatch := make([]string, topics)

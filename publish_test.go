@@ -174,7 +174,7 @@ func TestPublishOK(t *testing.T) {
 	hub := createDummy()
 
 	topics := []string{"http://example.com/books/1"}
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics(topics, topics)
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
 
@@ -238,7 +238,7 @@ func TestPublishNoData(t *testing.T) {
 func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"http://example.com/books/1"}, s.SubscribedTopics)
 
 	require.NoError(t, h.transport.AddSubscriber(s))

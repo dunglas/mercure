@@ -238,16 +238,16 @@ func (*addSubscriberErrorTransport) Dispatch(*Update) error {
 	return nil
 }
 
-func (*addSubscriberErrorTransport) AddSubscriber(*Subscriber) error {
+func (*addSubscriberErrorTransport) AddSubscriber(*LocalSubscriber) error {
 	return errFailedToAddSubscriber
 }
 
-func (*addSubscriberErrorTransport) RemoveSubscriber(*Subscriber) error {
+func (*addSubscriberErrorTransport) RemoveSubscriber(*LocalSubscriber) error {
 	return nil
 }
 
-func (*addSubscriberErrorTransport) GetSubscribers() (string, []*Subscriber, error) {
-	return "", []*Subscriber{}, nil
+func (*addSubscriberErrorTransport) GetSubscribers() (string, []*LocalSubscriber, error) {
+	return "", []*LocalSubscriber{}, nil
 }
 
 func (*addSubscriberErrorTransport) Close() error {
@@ -412,7 +412,7 @@ func TestUnsubscribe(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/books/1", nil).WithContext(ctx)
 		hub.SubscribeHandler(newSubscribeRecorder(), req)
 		assert.Equal(t, 0, s.subscribers.Len())
-		s.subscribers.Walk(0, func(s *Subscriber) bool {
+		s.subscribers.Walk(0, func(s *LocalSubscriber) bool {
 			_, ok := <-s.out
 			assert.False(t, ok)
 
