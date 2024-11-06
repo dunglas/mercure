@@ -87,11 +87,11 @@ func TestSubscriptionsHandler(t *testing.T) {
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s2))
 
@@ -128,11 +128,11 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s2))
 
@@ -175,11 +175,11 @@ func TestSubscriptionHandler(t *testing.T) {
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
-	otherS := NewSubscriber("", logger, tss)
+	otherS := NewLocalSubscriber("", logger, tss)
 	otherS.SetTopics([]string{"http://example.com/other"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(otherS))
 
-	s := NewSubscriber("", logger, tss)
+	s := NewLocalSubscriber("", logger, tss)
 	s.SetTopics([]string{"http://example.com/other", "http://example.com/{foo}"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s))
 

@@ -54,7 +54,7 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 }
 
 // AddSubscriber adds a new subscriber to the transport.
-func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
+func (t *LocalTransport) AddSubscriber(s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -74,7 +74,7 @@ func (t *LocalTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // RemoveSubscriber removes a subscriber from the transport.
-func (t *LocalTransport) RemoveSubscriber(s *Subscriber) error {
+func (t *LocalTransport) RemoveSubscriber(s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -102,7 +102,7 @@ func (t *LocalTransport) Close() (err error) {
 		t.Lock()
 		defer t.Unlock()
 		close(t.closed)
-		t.subscribers.Walk(0, func(s *Subscriber) bool {
+		t.subscribers.Walk(0, func(s *LocalSubscriber) bool {
 			s.Disconnect()
 
 			return true

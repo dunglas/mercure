@@ -26,7 +26,7 @@ var replacer = strings.NewReplacer(
 func NewSubscriberList(size int) *SubscriberList {
 	return &SubscriberList{
 		skipfilter: skipfilter.New(func(s interface{}, filter interface{}) bool {
-			return s.(*Subscriber).MatchTopics(decode(filter.(string)))
+			return s.(*LocalSubscriber).MatchTopics(decode(filter.(string)))
 		}, size),
 	}
 }
@@ -89,25 +89,25 @@ func decode(f string) (topics []string, private bool) {
 	return topics, private
 }
 
-func (sl *SubscriberList) MatchAny(u *Update) (res []*Subscriber) {
+func (sl *SubscriberList) MatchAny(u *Update) (res []*LocalSubscriber) {
 	for _, m := range sl.skipfilter.MatchAny(encode(u.Topics, u.Private)) {
-		res = append(res, m.(*Subscriber))
+		res = append(res, m.(*LocalSubscriber))
 	}
 
 	return
 }
 
-func (sl *SubscriberList) Walk(start uint64, callback func(s *Subscriber) bool) uint64 {
+func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {
 	return sl.skipfilter.Walk(start, func(val interface{}) bool {
-		return callback(val.(*Subscriber))
+		return callback(val.(*LocalSubscriber))
 	})
 }
 
-func (sl *SubscriberList) Add(s *Subscriber) {
+func (sl *SubscriberList) Add(s *LocalSubscriber) {
 	sl.skipfilter.Add(s)
 }
 
-func (sl *SubscriberList) Remove(s *Subscriber) {
+func (sl *SubscriberList) Remove(s *LocalSubscriber) {
 	sl.skipfilter.Remove(s)
 }
 

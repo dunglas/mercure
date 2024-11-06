@@ -202,7 +202,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 }
 
 // AddSubscriber adds a new subscriber to the transport.
-func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
+func (t *BoltTransport) AddSubscriber(s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -226,7 +226,7 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // RemoveSubscriber removes a new subscriber from the transport.
-func (t *BoltTransport) RemoveSubscriber(s *Subscriber) error {
+func (t *BoltTransport) RemoveSubscriber(s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -249,7 +249,7 @@ func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
 }
 
 //nolint:gocognit
-func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) error {
+func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error {
 	err := t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
@@ -311,7 +311,7 @@ func (t *BoltTransport) Close() (err error) {
 		t.Lock()
 		defer t.Unlock()
 
-		t.subscribers.Walk(0, func(s *Subscriber) bool {
+		t.subscribers.Walk(0, func(s *LocalSubscriber) bool {
 			s.Disconnect()
 
 			return true

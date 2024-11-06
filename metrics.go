@@ -13,18 +13,18 @@ const metricsPath = "/metrics"
 
 type Metrics interface {
 	// SubscriberConnected collects metrics about subscriber connections.
-	SubscriberConnected(s *Subscriber)
+	SubscriberConnected(s *LocalSubscriber)
 	// SubscriberDisconnected collects metrics about subscriber disconnections.
-	SubscriberDisconnected(s *Subscriber)
+	SubscriberDisconnected(s *LocalSubscriber)
 	// UpdatePublished collects metrics about update publications.
 	UpdatePublished(u *Update)
 }
 
 type NopMetrics struct{}
 
-func (NopMetrics) SubscriberConnected(_ *Subscriber)    {}
-func (NopMetrics) SubscriberDisconnected(_ *Subscriber) {}
-func (NopMetrics) UpdatePublished(_ *Update)            {}
+func (NopMetrics) SubscriberConnected(_ *LocalSubscriber)    {}
+func (NopMetrics) SubscriberDisconnected(_ *LocalSubscriber) {}
+func (NopMetrics) UpdatePublished(_ *Update)                 {}
 
 // PrometheusMetrics store Hub collected metrics.
 type PrometheusMetrics struct {
@@ -84,12 +84,12 @@ func (m *PrometheusMetrics) Register(r *mux.Router) {
 	r.Handle(metricsPath, promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods(http.MethodGet)
 }
 
-func (m *PrometheusMetrics) SubscriberConnected(_ *Subscriber) {
+func (m *PrometheusMetrics) SubscriberConnected(_ *LocalSubscriber) {
 	m.subscribersTotal.Inc()
 	m.subscribers.Inc()
 }
 
-func (m *PrometheusMetrics) SubscriberDisconnected(_ *Subscriber) {
+func (m *PrometheusMetrics) SubscriberDisconnected(_ *LocalSubscriber) {
 	m.subscribers.Dec()
 }
 

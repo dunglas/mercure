@@ -45,10 +45,10 @@ type Transport interface {
 	Dispatch(update *Update) error
 
 	// AddSubscriber adds a new subscriber to the transport.
-	AddSubscriber(s *Subscriber) error
+	AddSubscriber(s *LocalSubscriber) error
 
 	// RemoveSubscriber removes a subscriber from the transport.
-	RemoveSubscriber(s *Subscriber) error
+	RemoveSubscriber(s *LocalSubscriber) error
 
 	// Close closes the Transport.
 	Close() error
@@ -96,8 +96,8 @@ func (e *TransportError) Unwrap() error {
 }
 
 func getSubscribers(sl *SubscriberList) (subscribers []*Subscriber) {
-	sl.Walk(0, func(s *Subscriber) bool {
-		subscribers = append(subscribers, s)
+	sl.Walk(0, func(s *LocalSubscriber) bool {
+		subscribers = append(subscribers, &s.Subscriber)
 
 		return true
 	})

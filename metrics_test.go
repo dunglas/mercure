@@ -15,12 +15,12 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"topic1", "topic2"}, nil)
 	m.SubscriberConnected(s1)
 	assertGaugeValue(t, 1.0, m.subscribers)
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"topic2"}, nil)
 	m.SubscriberConnected(s2)
 	assertGaugeValue(t, 2.0, m.subscribers)
@@ -38,12 +38,12 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"topic1", "topic2"}, nil)
 	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal)
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"topic2"}, nil)
 	m.SubscriberConnected(s2)
 	assertCounterValue(t, 2.0, m.subscribersTotal)
