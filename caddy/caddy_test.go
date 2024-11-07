@@ -30,7 +30,7 @@ func TestMercure(t *testing.T) {
 		transportConfig string
 	}{
 		{"bolt", ""},
-		{"local", "transport local\n"},
+		{"local", "TransportUsagePool local\n"},
 	}
 
 	for _, d := range data {
@@ -309,7 +309,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
-			transport bolt {
+			TransportUsagePool bolt {
 				path test.db
 				bucket_name foo
 				size 20
@@ -329,7 +329,7 @@ func TestAdaptBoltConfig(t *testing.T) {
 
 mercure {
 	publisher_jwt !ChangeMe!
-	transport bolt {
+	TransportUsagePool bolt {
 		path test.db
 		bucket_name foo
 		size 20
@@ -353,7 +353,7 @@ mercure {
 										"key": "!ChangeMe!"
 									},
 									"subscriber_jwt": {},
-									"transport": {
+									"TransportUsagePool": {
 										"bucket_name": "foo",
 										"cleanup_frequency": 0.2,
 										"name": "bolt",
@@ -376,7 +376,7 @@ func TestAdaptLocalConfig(t *testing.T) {
 
 mercure {
 	publisher_jwt !ChangeMe!
-	transport local
+	TransportUsagePool local
 }
 `, "caddyfile", `{
 	"apps": {
@@ -395,7 +395,7 @@ mercure {
 										"key": "!ChangeMe!"
 									},
 									"subscriber_jwt": {},
-									"transport": {
+									"TransportUsagePool": {
 										"name": "local"
 									}
 								}

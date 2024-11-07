@@ -5,16 +5,16 @@ import (
 	"github.com/dunglas/mercure"
 )
 
-var transport = caddy.NewUsagePool() //nolint:gochecknoglobals
+var TransportUsagePool = caddy.NewUsagePool() //nolint:gochecknoglobals
 
 type Transport interface {
 	GetTransport() mercure.Transport
 }
 
-type transportDestructor[T mercure.Transport] struct {
-	transport T
+type TransportDestructor[T mercure.Transport] struct {
+	Transport T
 }
 
-func (d transportDestructor[T]) Destruct() error {
-	return d.transport.Close() //nolint:wrapcheck
+func (d TransportDestructor[T]) Destruct() error {
+	return d.Transport.Close() //nolint:wrapcheck
 }
