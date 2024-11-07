@@ -158,7 +158,6 @@ nfpms:
     file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}.{{ .Format }}"
     builds:
       - caddy
-      - legacy
     formats:
       - apk
       - deb
