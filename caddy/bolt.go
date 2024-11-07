@@ -46,26 +46,26 @@ func (b *Bolt) Provision(ctx caddy.Context) error {
 	}
 	b.transportKey = key.String()
 
-	destructor, _, err := transport.LoadOrNew(b.transportKey, func() (caddy.Destructor, error) {
+	destructor, _, err := TransportUsagePool.LoadOrNew(b.transportKey, func() (caddy.Destructor, error) {
 		t, err := mercure.NewBoltTransport(ctx.Logger(), b.Path, b.BucketName, b.Size, b.CleanupFrequency)
 		if err != nil {
 			return nil, err
 		}
 
-		return transportDestructor[*mercure.BoltTransport]{transport: t}, nil
+		return TransportDestructor[*mercure.BoltTransport]{Transport: t}, nil
 	})
 	if err != nil {
 		return err
 	}
 
-	b.transport = destructor.(transportDestructor[*mercure.BoltTransport]).transport
+	b.transport = destructor.(TransportDestructor[*mercure.BoltTransport]).Transport
 
 	return nil
 }
 
 //nolint:wrapcheck
 func (b *Bolt) Cleanup() error {
-	_, err := transport.Delete(b.transportKey)
+	_, err := TransportUsagePool.Delete(b.transportKey)
 
 	return err
 }
