@@ -152,6 +152,23 @@ docker_manifests:
     image_templates:
       - dunglas/mercure:latest-amd64
       - dunglas/mercure:latest-arm64v8
+nfpms:
+  - id: linux_packages  # Unique ID for the package configuration
+    package_name: mercure  # Name of the package
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}.{{ .Format }}"
+    builds:
+      - caddy  # Referencing the build ID for the binaries to be packaged
+      - legacy  # Optionally, you can include this if needed
+    formats:
+      - apk
+      - deb
+      - rpm
+    maintainer: "Kévin Dunglas <kevin@dunglas.fr>"
+    description: "Mercure is a protocol enabling real-time updates."
+    license: "AGPL-3.0-or-later"
+    vendor: "Mercure Project"
+    homepage: "https://mercure.rocks"
+    bindir: /usr/bin 
 signs:
   - artifacts: checksum
     args:
