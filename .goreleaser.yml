@@ -153,12 +153,12 @@ docker_manifests:
       - dunglas/mercure:latest-amd64
       - dunglas/mercure:latest-arm64v8
 nfpms:
-  - id: linux_packages  # Unique ID for the package configuration
-    package_name: mercure  # Name of the package
+  - id: linux_packages
+    package_name: mercure
     file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}.{{ .Format }}"
     builds:
-      - caddy  # Referencing the build ID for the binaries to be packaged
-      - legacy  # Optionally, you can include this if needed
+      - caddy
+      - legacy
     formats:
       - apk
       - deb
