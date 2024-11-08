@@ -18,3 +18,13 @@ type TransportDestructor[T mercure.Transport] struct {
 func (d TransportDestructor[T]) Destruct() error {
 	return d.Transport.Close() //nolint:wrapcheck
 }
+
+type (
+	subscriptionsKeyType struct{}
+	writeTimeoutKeyType  struct{}
+)
+
+var (
+	SubscriptionsKey = subscriptionsKeyType{} //nolint:gochecknoglobals
+	WriteTimeoutKey  = writeTimeoutKeyType{}  //nolint:gochecknoglobals
+)
