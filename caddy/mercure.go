@@ -101,8 +101,8 @@ type Mercure struct {
 	// The version of the Mercure protocol to be backward compatible with (only version 7 is supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
-	// The TransportUsagePool configuration.
-	TransportRaw json.RawMessage `json:"TransportUsagePool,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
+	// The transport configuration.
+	TransportRaw json.RawMessage `json:"transport,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
 
 	hub    *mercure.Hub
 	logger *zap.Logger
@@ -154,12 +154,12 @@ func (m *Mercure) populateJWTConfig() error {
 //
 //nolint:wrapcheck,ireturn
 func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
-	m.logger.Warn(`Setting the transport_url or the MERCURE_TRANSPORT_URL environment variable is deprecated, use the "TransportUsagePool" directive instead`)
+	m.logger.Warn(`Setting the transport_url or the MERCURE_TRANSPORT_URL environment variable is deprecated, use the "transport" directive instead`)
 
 	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
 		u, err := url.Parse(m.TransportURL)
 		if err != nil {
-			return nil, fmt.Errorf("invalid TransportUsagePool url: %w", err)
+			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
 		query := u.Query()
@@ -422,7 +422,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return d.ArgErr()
 				}
 
-			case "TransportUsagePool":
+			case "transport":
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
@@ -437,7 +437,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 				t, ok := unm.(Transport)
 				if !ok {
-					return d.Errf(`module %s (%T) is not a supported TransportUsagePool implementation (requires "github.com/dunglas/mercure/caddy".Transport)`, modID, unm)
+					return d.Errf(`module %s (%T) is not a supported transport implementation (requires "github.com/dunglas/mercure/caddy".Transport)`, modID, unm)
 				}
 
 				m.TransportRaw = caddyconfig.JSONModuleObject(t, "name", name, nil)
