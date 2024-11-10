@@ -1,7 +1,7 @@
 <!-- markdownlint-disable -->
 # Mercure Chart for Kubernetes
 
-![Version: 0.16.3](https://img.shields.io/badge/Version-0.16.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.16.3](https://img.shields.io/badge/AppVersion-v0.16.3-informational?style=flat-square)
+![Version: 0.17.0](https://img.shields.io/badge/Version-0.17.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.17.0](https://img.shields.io/badge/AppVersion-v0.17.0-informational?style=flat-square)
 
 A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 
@@ -25,6 +25,7 @@ To install the chart with the release name `my-release`, run the following comma
 | dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
 | existingSecret | string | `""` | Allows to pass an existing secret name, the above values will be used if empty. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
+| extraEnvs | list | `[]` | Additional environment variables to set |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
 | globalOptions | string | `""` | Inject global options in the Caddyfile. |
 | image.pullPolicy | string | `"IfNotPresent"` | [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node. |
@@ -37,6 +38,14 @@ To install the chart with the release name `my-release`, run the following comma
 | ingress.hosts | list | See [values.yaml](values.yaml). | Ingress host configuration. |
 | ingress.tls | list | See [values.yaml](values.yaml). | Ingress TLS configuration. |
 | license | string | `""` | The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version). |
+| metrics.enabled | bool | `false` | Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value. servers {     metrics } |
+| metrics.port | int | `2019` | The port to use for exposing the metrics. |
+| metrics.serviceMonitor.enabled | bool | `false` | Whether to create a ServiceMonitor for Prometheus Operator. |
+| metrics.serviceMonitor.honorLabels | bool | `false` | Specify honorLabels parameter to add the scrape endpoint |
+| metrics.serviceMonitor.interval | string | `"15s"` | The interval to use for the ServiceMonitor to scrape the metrics. |
+| metrics.serviceMonitor.relabelings | list | `[]` | RelabelConfigs to apply to samples before scraping |
+| metrics.serviceMonitor.scrapeTimeout | string | `""` | Timeout after which the scrape is ended |
+| metrics.serviceMonitor.selector | object | `{}` | Additional labels that can be used so ServiceMonitor will be discovered by Prometheus |
 | nameOverride | string | `""` | A name in place of the chart name for `app:` labels. |
 | nodeSelector | object | `{}` | [Node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) configuration. |
 | persistence | object | `{"accessMode":"ReadWriteOnce","enabled":false,"existingClaim":"","size":"1Gi","storageClass":""}` | Enable persistence using [Persistent Volume Claims](http://kubernetes.io/docs/user-guide/persistent-volumes/), only useful if you the BoltDB transport. |
@@ -51,8 +60,8 @@ To install the chart with the release name `my-release`, run the following comma
 | resources | object | No requests or limits. | Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details. |
 | securityContext | object | `{}` | Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details. |
 | service.annotations | object | `{}` |  |
+| service.nodePort | string | `nil` | Set this, to pin the external nodePort in case `service.type` is `NodePort`. |
 | service.port | int | `80` | Service port. |
-| service.nodePort | int | 0 | The exposed nodePort. Required when `service.type` is [`"NodePort"`](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport). |
 | service.targetPort | int | `80` | Service target port. |
 | service.type | string | `"ClusterIP"` | Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types). |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
@@ -61,5 +70,5 @@ To install the chart with the release name `my-release`, run the following comma
 | subscriberJwtAlg | string | `"HS256"` | The JWT algorithm to use for subscribers. |
 | subscriberJwtKey | string | `""` | The JWT key to use for subscribers, a random key will be generated if empty. |
 | tolerations | list | `[]` | [Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for node taints. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
-| transportUrl | string | `"bolt:///data/mercure.db"` | The URL representation of the transport to use. |
+| transportUrl | string | `""` | Deprecated: The URL representation of the transport to use. |
 
