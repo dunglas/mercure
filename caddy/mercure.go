@@ -203,8 +203,8 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 		return err
 	}
 
-	ctx = ctx.WithValue(SubscriptionsKey, m.Subscriptions)
-	ctx = ctx.WithValue(WriteTimeoutKey, m.WriteTimeout)
+	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
+	ctx = ctx.WithValue(WriteTimeoutContextKey, m.WriteTimeout)
 
 	m.logger = ctx.Logger()
 

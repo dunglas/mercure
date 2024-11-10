@@ -25,6 +25,6 @@ type (
 )
 
 var (
-	SubscriptionsKey = subscriptionsKeyType{} //nolint:gochecknoglobals
-	WriteTimeoutKey  = writeTimeoutKeyType{}  //nolint:gochecknoglobals
+	SubscriptionsContextKey = subscriptionsKeyType{} //nolint:gochecknoglobals
+	WriteTimeoutContextKey  = writeTimeoutKeyType{}  //nolint:gochecknoglobals
 )
