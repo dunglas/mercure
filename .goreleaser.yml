@@ -162,10 +162,10 @@ nfpms:
       - apk
       - deb
       - rpm
-    maintainer: "Kévin Dunglas <kevin@dunglas.fr>"
-    description: "Mercure is a protocol enabling real-time updates."
+    maintainer: "Kévin Dunglas <kevin@dunglas.dev>"
+    description: "An open, easy, fast, reliable and battery-efficient solution for real-time communications."
     license: "AGPL-3.0-or-later"
-    vendor: "Mercure Project"
+    vendor: "Dunglas Services SAS"
     homepage: "https://mercure.rocks"
     bindir: /usr/bin 
 signs:
