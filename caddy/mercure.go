@@ -178,13 +178,13 @@ func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
 			return nil, err
 		}
 
-		return &transportDestructor[mercure.Transport]{transport}, nil
+		return &TransportDestructor[mercure.Transport]{transport}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return destructor.(*transportDestructor[mercure.Transport]).transport, nil
+	return destructor.(*TransportDestructor[mercure.Transport]).Transport, nil
 }
 
 //nolint:wrapcheck
@@ -202,6 +202,9 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 	if err != nil {
 		return err
 	}
+
+	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
+	ctx = ctx.WithValue(WriteTimeoutContextKey, m.WriteTimeout)
 
 	m.logger = ctx.Logger()
 
@@ -411,20 +414,16 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				}
 
 			case "publish_origins":
-				ra := d.RemainingArgs()
-				if len(ra) == 0 {
+				m.PublishOrigins = d.RemainingArgs()
+				if len(m.PublishOrigins) == 0 {
 					return d.ArgErr()
 				}
-
-				m.PublishOrigins = ra
 
 			case "cors_origins":
-				ra := d.RemainingArgs()
-				if len(ra) == 0 {
+				m.CORSOrigins = d.RemainingArgs()
+				if len(m.CORSOrigins) == 0 {
 					return d.ArgErr()
 				}
-
-				m.CORSOrigins = ra
 
 			case "transport":
 				if !d.NextArg() {

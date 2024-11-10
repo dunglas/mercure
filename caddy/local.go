@@ -30,20 +30,20 @@ func (l *Local) GetTransport() mercure.Transport { //nolint:ireturn
 	return l.transport
 }
 
-// Provision provisions b's configuration.
+// Provision provisions l's configuration.
 func (l *Local) Provision(_ caddy.Context) error {
-	destructor, _, _ := transport.LoadOrNew(localTransportKey, func() (caddy.Destructor, error) {
-		return transportDestructor[*mercure.LocalTransport]{transport: mercure.NewLocalTransport()}, nil
+	destructor, _, _ := TransportUsagePool.LoadOrNew(localTransportKey, func() (caddy.Destructor, error) {
+		return TransportDestructor[*mercure.LocalTransport]{Transport: mercure.NewLocalTransport()}, nil
 	})
 
-	l.transport = destructor.(transportDestructor[*mercure.LocalTransport]).transport
+	l.transport = destructor.(TransportDestructor[*mercure.LocalTransport]).Transport
 
 	return nil
 }
 
 //nolint:wrapcheck
 func (l *Local) Cleanup() error {
-	_, err := transport.Delete(localTransportKey)
+	_, err := TransportUsagePool.Delete(localTransportKey)
 
 	return err
 }
