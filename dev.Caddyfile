@@ -39,6 +39,6 @@
 
 	respond /healthz 200
 	respond /robots.txt `User-agent: *
-Disallow: /`
+	Disallow: /`
 	respond "Not Found" 404
 }
