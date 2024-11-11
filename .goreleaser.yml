@@ -7,17 +7,10 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^ci:"
-      - "^build:"
-      - "^chore:"
-      - "^Merge"
+  use: github-native
 release:
   prerelease: auto
+  draft: true
 env:
   - CGO_ENABLED=0
 builds:
