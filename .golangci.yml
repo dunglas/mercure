@@ -9,7 +9,6 @@ linters:
     - errcheck
     - lll
     - wsl
-    - gomnd
     - testpackage
     - exhaustruct
     - paralleltest
@@ -31,7 +30,6 @@ linters:
     - canonicalheader
 
     # deprecated
-    - execinquery
     - exportloopref
 
 issues:
