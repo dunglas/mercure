@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -402,7 +401,7 @@ func TestMetricsVersionIsAccessible(t *testing.T) {
 	require.NoError(t, err)
 
 	pattern := "mercure_version_info{architecture=\".+\",built_at=\".*\",commit=\".*\",go_version=\".+\",os=\".+\",version=\"dev\"} 1"
-	assert.Regexp(t, regexp.MustCompile(pattern), string(b))
+	assert.Regexp(t, pattern, string(b))
 	server.assertMetric("mercure_version_info")
 }
 
