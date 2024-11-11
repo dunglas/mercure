@@ -22,6 +22,7 @@ After:
 
 ```caddyfile
 transport bolt {
+  path mercure.db
   cleanup_frequency 0.2
 }
 ```
