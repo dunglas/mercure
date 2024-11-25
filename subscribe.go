@@ -170,7 +170,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 		}
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			if c := h.logger.Check(zap.DebugLevel, "LocalSubscriber unauthorized"); c != nil {
+			if c := h.logger.Check(zap.DebugLevel, "Subscriber unauthorized"); c != nil {
 				c.Write(zap.Object("subscriber", s), zap.Error(err))
 			}
 
@@ -297,7 +297,7 @@ func (h *Hub) shutdown(s *LocalSubscriber) {
 	}
 
 	h.dispatchSubscriptionUpdate(s, false)
-	if c := h.logger.Check(zap.InfoLevel, "LocalSubscriber disconnected"); c != nil {
+	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
 		c.Write(zap.Object("subscriber", s))
 	}
 	h.metrics.SubscriberDisconnected(s)
