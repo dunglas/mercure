@@ -67,6 +67,7 @@ docker run \
     -p 443:443 \
     dunglas/mercure caddy run --config /etc/caddy/dev.Caddyfile
 ```
+_Note:_ Docker images before tag v0.16.2 use **Caddyfile.dev** instead of dev.Caddyfile
 
 The server is then available on `https://localhost`. Anonymous subscribers are allowed and the debugger UI is available on `https://localhost/.well-known/mercure/ui/`.
 
