@@ -70,7 +70,7 @@
 - [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure (Symfony blog)](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
 - [Tech Workshop: Mercure by Kévin Dunglas at SensioLabs (SensioLabs)](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
 - [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
-- [Using Mercure on Stackhero](https://www.stackhero.io/fr-fr/services/Mercure-Hub/documentations)
+- [Using Mercure on Stackhero](https://www.stackhero.io/services/Mercure-Hub/documentations)
 - [Mercure - install and run](https://mysiar.github.io/dev/2020/04/12/mercure-part1.html)
 
 ### French 🇫🇷
