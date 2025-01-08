@@ -14,7 +14,7 @@ replace github.com/dunglas/mercure => ../
 require (
 	github.com/MicahParks/keyfunc/v3 v3.3.5
 	github.com/caddyserver/caddy/v2 v2.9.0
-	github.com/dunglas/mercure v0.17.1
+	github.com/dunglas/mercure v0.18.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
