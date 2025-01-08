@@ -320,13 +320,10 @@ func TestClientClosesThenReconnects(t *testing.T) {
 }
 
 func TestServeAcme(t *testing.T) {
-	dir, _ := os.MkdirTemp("", "cert")
-	defer os.RemoveAll(dir)
-
 	h := createAnonymousDummy(WithAllowedHosts([]string{"example.com"}))
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_http01_addr", ":8080")
-	h.config.Set("acme_cert_dir", dir)
+	h.config.Set("acme_cert_dir", t.TempDir())
 
 	go h.Serve()
 	client := &http.Client{
