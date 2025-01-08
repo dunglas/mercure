@@ -13,7 +13,7 @@
   "author": "Kévin Dunglas",
   "license": "AGPL-3.0-or-later",
   "devDependencies": {
-    "@playwright/test": "^1.19.1"
+    "@playwright/test": "^1.49.1"
   },
   "dependencies": {
     "dotenv": "^16.0.0"
