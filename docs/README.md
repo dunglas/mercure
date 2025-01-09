@@ -5,7 +5,7 @@
 
 ## Protocol Specification
 
-- [The Specification](../spec/mercure.md) (also available as an [IETF's Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) designed to be published as an RFC)
+- [The Specification](../spec/mercure.md) (also available as an [IETF Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) designed to be published as an RFC)
 - [Case studies and use cases](spec/use-cases.md)
 - [Frequently Asked Questions](spec/faq.md)
 - [OpenAPI spec](https://github.com/dunglas/mercure/blob/master/spec/openapi.yaml)
