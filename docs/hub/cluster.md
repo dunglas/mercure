@@ -70,6 +70,8 @@ The Redis transport should fit most use cases.
 To install Redis, [read the documentation](https://redis.io/topics/quickstart).
 Most Cloud Computing platforms also provide managed versions of Redis.
 
+<!-- markdownlint-disable MD009 -->
+
 | Feature         | Supported |
 |-----------------|-----------|
 | History         | ✅         |
