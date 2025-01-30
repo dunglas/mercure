@@ -127,12 +127,12 @@ MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
 
 ## Bolt Adapter
 
-| Option              | Description                                                                                                                                                         |
-|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `path`              | path of the database file (default: `mercure.db`)                                                                                                                   |
-| `bucket_name`       | name of the bolt bucket to store events. default to `updates`                                                                                                       |
-| `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`. |
-| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                   |
+| Option              | Description                                                                                                                                                        |
+|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `path`              | path of the database file (default: `mercure.db`)                                                                                                                  |
+| `bucket_name`       | name of the bolt bucket to store events (default: `updates`)                                                                                                       |
+| `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication, default to `0.3`) |
+| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                  |
 
 You can visualize and edit the content of the database using [boltdbweb](https://github.com/evnix/boltdbweb).
 
