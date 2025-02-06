@@ -16,6 +16,9 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Connection "";
 
+        # Enable fast reply in SSE
+        proxy_buffering off;
+
         ## Be sure to set USE_FORWARDED_HEADERS=1 to allow the hub to use those headers ##
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Host $host;
