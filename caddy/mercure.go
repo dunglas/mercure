@@ -20,7 +20,6 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/dunglas/mercure"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -29,7 +28,6 @@ const defaultHubURL = "/.well-known/mercure"
 
 var (
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
-	metrics          = mercure.NewPrometheusMetrics(prometheus.DefaultRegisterer) //nolint:gochecknoglobals
 
 	// Deprecated: use transports Caddy modules.
 	transports = caddy.NewUsagePool() //nolint:gochecknoglobals
@@ -189,6 +187,8 @@ func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
 
 //nolint:wrapcheck
 func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
+	metrics := mercure.NewPrometheusMetrics(ctx.GetMetricsRegistry())
+
 	if err := m.populateJWTConfig(); err != nil {
 		return err
 	}
