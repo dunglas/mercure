@@ -10,6 +10,3 @@ dist
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml
-*.rdb
-__debug*
-_dist
