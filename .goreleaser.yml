@@ -71,7 +71,7 @@ archives:
       - dev.Caddyfile
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ zip ]
   - id: legacy
     builds:
       - legacy
@@ -88,7 +88,7 @@ archives:
       - README.md
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ zip ]
 dockers:
   - ids:
       - caddy
