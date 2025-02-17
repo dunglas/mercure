@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"go.uber.org/zap"
 )
 
@@ -19,27 +21,19 @@ type MemorySink struct {
 func (s *MemorySink) Close() error { return nil }
 func (s *MemorySink) Sync() error  { return nil }
 
-var sink *MemorySink
-
 func newTestLogger(t *testing.T) (*MemorySink, *zap.Logger) {
 	t.Helper()
 
-	if sink == nil {
-		sink = &MemorySink{new(bytes.Buffer)}
-		if err := zap.RegisterSink("memory", func(*url.URL) (zap.Sink, error) {
-			return sink, nil
-		}); err != nil {
-			t.Fatal(err)
-		}
-	}
+	sink := &MemorySink{new(bytes.Buffer)}
+	require.NoError(t, zap.RegisterSink(t.Name(), func(*url.URL) (zap.Sink, error) {
+		return sink, nil
+	}))
 
 	conf := zap.NewProductionConfig()
-	conf.OutputPaths = []string{"memory://"}
+	conf.OutputPaths = []string{t.Name() + "://"}
 
 	logger, err := conf.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return sink, logger
 }
