@@ -14,6 +14,8 @@ import (
 )
 
 func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, subscriptionsURL, nil)
@@ -41,6 +43,8 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 }
 
 func TestSubscriptionHandlerAccessDenied(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar/baz", nil)
@@ -60,6 +64,8 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 }
 
 func TestSubscriptionHandlersETag(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
@@ -82,6 +88,8 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 }
 
 func TestSubscriptionsHandler(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 
 	hub := createDummy(WithLogger(logger))
@@ -124,6 +132,8 @@ func TestSubscriptionsHandler(t *testing.T) {
 }
 
 func TestSubscriptionsHandlerForTopic(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}
@@ -171,6 +181,8 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 }
 
 func TestSubscriptionHandler(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}

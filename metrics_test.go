@@ -10,6 +10,8 @@ import (
 )
 
 func TestNumberOfRunningSubscribers(t *testing.T) {
+	t.Parallel()
+
 	m := NewPrometheusMetrics(nil)
 
 	logger := zap.NewNop()
@@ -33,6 +35,8 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 }
 
 func TestTotalNumberOfHandledSubscribers(t *testing.T) {
+	t.Parallel()
+
 	m := NewPrometheusMetrics(nil)
 
 	logger := zap.NewNop()
@@ -55,6 +59,8 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 }
 
 func TestTotalOfHandledUpdates(t *testing.T) {
+	t.Parallel()
+
 	m := NewPrometheusMetrics(nil)
 
 	m.UpdatePublished(&Update{

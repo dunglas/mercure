@@ -126,6 +126,8 @@ func (r *subscribeRecorder) FlushError() error {
 }
 
 func TestSubscribeNotAFlusher(t *testing.T) {
+	t.Parallel()
+
 	hub := createAnonymousDummy()
 
 	go func() {
@@ -153,6 +155,8 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 }
 
 func TestSubscribeNoCookie(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -168,6 +172,8 @@ func TestSubscribeNoCookie(t *testing.T) {
 }
 
 func TestSubscribeInvalidJWT(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -184,6 +190,8 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 }
 
 func TestSubscribeUnauthorizedJWT(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -201,6 +209,8 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 }
 
 func TestSubscribeInvalidAlgJWT(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -217,6 +227,8 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 }
 
 func TestSubscribeNoTopic(t *testing.T) {
+	t.Parallel()
+
 	hub := createAnonymousDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -255,6 +267,8 @@ func (*addSubscriberErrorTransport) Close() error {
 }
 
 func TestSubscribeAddSubscriberError(t *testing.T) {
+	t.Parallel()
+
 	hub := createAnonymousDummy(WithTransport(&addSubscriberErrorTransport{}))
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)
@@ -329,6 +343,8 @@ func testSubscribe(h interface{ Helper() }, numberOfSubscribers int) {
 }
 
 func TestSubscribe(t *testing.T) {
+	t.Parallel()
+
 	testSubscribe(t, 3)
 }
 
@@ -350,6 +366,8 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
 }
 
 func TestSubscribeWithLogLevelDebug(t *testing.T) {
+	t.Parallel()
+
 	core, logs := observer.New(zapcore.DebugLevel)
 	payload := map[string]interface{}{
 		"bar": "baz",
@@ -366,6 +384,8 @@ func TestSubscribeWithLogLevelDebug(t *testing.T) {
 }
 
 func TestSubscribeLogLevelInfo(t *testing.T) {
+	t.Parallel()
+
 	core, logs := observer.New(zapcore.InfoLevel)
 	payload := map[string]interface{}{
 		"bar": "baz",
@@ -379,6 +399,8 @@ func TestSubscribeLogLevelInfo(t *testing.T) {
 }
 
 func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
+	t.Parallel()
+
 	core, logs := observer.New(zapcore.DebugLevel)
 
 	h := createAnonymousDummy(WithLogger(zap.New(core)))
@@ -399,6 +421,8 @@ func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
 }
 
 func TestUnsubscribe(t *testing.T) {
+	t.Parallel()
+
 	hub := createAnonymousDummy()
 
 	s, _ := hub.transport.(*LocalTransport)
@@ -434,6 +458,8 @@ func TestUnsubscribe(t *testing.T) {
 }
 
 func TestSubscribePrivate(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 	s, _ := hub.transport.(*LocalTransport)
 
@@ -482,6 +508,8 @@ func TestSubscribePrivate(t *testing.T) {
 }
 
 func TestSubscriptionEvents(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy(WithSubscriptions())
 
 	var wg sync.WaitGroup
@@ -559,6 +587,8 @@ func TestSubscriptionEvents(t *testing.T) {
 }
 
 func TestSubscribeAll(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 	s, _ := hub.transport.(*LocalTransport)
 
@@ -602,11 +632,12 @@ func TestSubscribeAll(t *testing.T) {
 }
 
 func TestSendMissedEvents(t *testing.T) {
-	bt := createBoltTransport("bolt://test.db")
-	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt), WithProtocolVersionCompatibility(7))
-	transport := hub.transport.(*BoltTransport)
-	defer transport.Close()
-	defer os.Remove("test.db")
+	t.Parallel()
+
+	transport, cleanup := createBoltTransport(t, 0, 0)
+	defer cleanup()
+
+	hub := createAnonymousDummy(WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -680,11 +711,11 @@ func TestSendMissedEvents(t *testing.T) {
 }
 
 func TestSendAllEvents(t *testing.T) {
-	bt := createBoltTransport("bolt://test.db")
-	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
-	transport := hub.transport.(*BoltTransport)
-	defer transport.Close()
-	defer os.Remove("test.db")
+	t.Parallel()
+
+	transport, cleanup := createBoltTransport(t, 0, 0)
+	defer cleanup()
+	hub := createAnonymousDummy(WithLogger(transport.logger), WithTransport(transport))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -743,11 +774,12 @@ func TestSendAllEvents(t *testing.T) {
 }
 
 func TestUnknownLastEventID(t *testing.T) {
-	bt := createBoltTransport("bolt://test.db")
-	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
-	transport := hub.transport.(*BoltTransport)
-	defer transport.Close()
-	defer os.Remove("test.db")
+	t.Parallel()
+
+	transport, cleanup := createBoltTransport(t, 0, 0)
+	defer cleanup()
+
+	hub := createAnonymousDummy(WithLogger(transport.logger), WithTransport(transport))
 
 	transport.Dispatch(&Update{
 		Topics: []string{"http://example.com/foos/a"},
@@ -819,11 +851,12 @@ func TestUnknownLastEventID(t *testing.T) {
 }
 
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
-	bt := createBoltTransport("bolt://test.db")
-	hub := createAnonymousDummy(WithLogger(bt.logger), WithTransport(bt))
-	transport := hub.transport.(*BoltTransport)
-	defer transport.Close()
-	defer os.Remove("test.db")
+	t.Parallel()
+
+	transport, cleanup := createBoltTransport(t, 0, 0)
+	defer cleanup()
+
+	hub := createAnonymousDummy(WithLogger(transport.logger), WithTransport(transport))
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -923,6 +956,8 @@ func TestSubscribeHeartbeat(t *testing.T) {
 }
 
 func TestSubscribeExpires(t *testing.T) {
+	t.Parallel()
+
 	hub := createAnonymousDummy(WithWriteTimeout(0), WithDispatchTimeout(0), WithHeartbeat(500*time.Millisecond))
 	token := jwt.New(jwt.SigningMethodHS256)
 
