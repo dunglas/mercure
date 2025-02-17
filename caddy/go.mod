@@ -15,7 +15,7 @@ require (
 	github.com/KimMachineGun/automemlimit v0.7.0
 	github.com/MicahParks/keyfunc/v3 v3.3.10
 	github.com/caddyserver/caddy/v2 v2.9.1
-	github.com/dunglas/mercure v0.18.2
+	github.com/dunglas/mercure v0.18.3
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	go.uber.org/zap/exp v0.3.0
