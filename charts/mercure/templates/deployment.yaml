@@ -40,6 +40,22 @@ spec:
           {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+            {{- if .Values.redis.address }}
+            - name: MERCURE_REDIS_ADDRESS
+              value: "{{ .Values.redis.address }}"
+            {{- end }}
+            {{- if .Values.redis.username }}
+            - name: MERCURE_REDIS_USERNAME
+              value: "{{ .Values.redis.username }}"
+            {{- end }}
+            {{- if .Values.redis.subscribers_size }}
+            - name: MERCURE_REDIS_SUBSCRIBERS_SIZE
+              value: "{{ .Values.redis.subscribers_size }}"
+            {{- end }}
+            {{- if .Values.redis.subscribers_broadcast_parallel }}
+            - name: MERCURE_REDIS_SUBSCRIBERS_BROADCAST_PARALLEL
+              value: "{{ .Values.redis.subscribers_broadcast_parallel }}"
+            {{- end }}
             - name: SERVER_NAME
               value: :{{ .Values.service.targetPort }}
             - name: GLOBAL_OPTIONS
@@ -63,6 +79,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "mercure.secretName" . }}
                   key: transport-url
+            {{- end }}
+            {{- if .Values.redis.password }}
+            - name: MERCURE_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mercure.secretName" . }}
+                  key: redis-password
             {{- end }}
             - name: MERCURE_PUBLISHER_JWT_KEY
               valueFrom:

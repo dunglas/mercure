@@ -15,7 +15,34 @@
         "SERVER_NAME": "localhost, host.docker.internal",
         "CADDY_SERVER_EXTRA_DIRECTIVES": "tls internal"
       },
-      "args": ["run", "--config", "../../dev.Caddyfile"]
+      "args": [
+        "run",
+        "--config",
+        "../../dev.Caddyfile"
+      ]
+    },
+    {
+      "name": "Launch the redis hub",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/caddy/mercure",
+      "env": {
+        "MERCURE_PUBLISHER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
+        "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
+        "MERCURE_EXTRA_DIRECTIVES": "anonymous\nwrite_timeout 10s",
+        "MERCURE_REDIS_ADDRESS": "localhost:6379",
+        "MERCURE_REDIS_SUBSCRIBERS_SIZE": "10000",
+        "MERCURE_REDIS_SUBSCRIBERS_BROADCAST_PARALLEL": "16",
+        "GLOBAL_OPTIONS": "debug",
+        "SERVER_NAME": ":1234",
+        "CADDY_SERVER_EXTRA_DIRECTIVES": ""
+      },
+      "args": [
+        "run",
+        "--config",
+        "../../redis.Caddyfile"
+      ]
     }
   ]
 }

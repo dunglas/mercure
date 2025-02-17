@@ -1,0 +1,52 @@
+# Learn how to configure the Mercure.rocks Hub on https://mercure.rocks/docs/hub/config
+{
+	{$GLOBAL_OPTIONS}
+}
+
+{$CADDY_EXTRA_CONFIG}
+
+{$SERVER_NAME:localhost} {
+	log {
+		format filter {
+			fields {
+				request>uri query {
+					replace authorization REDACTED
+				}
+			}
+		}
+	}
+
+	encode zstd gzip
+
+	mercure {
+		# Publisher JWT key
+		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+		# Subscriber JWT key
+		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+		# Permissive configuration for the development environment
+		cors_origins *
+		publish_origins *
+		demo
+		anonymous
+		subscriptions
+		# Extra directives
+		{$MERCURE_EXTRA_DIRECTIVES}
+    
+    transport redis {
+      address {env.MERCURE_REDIS_ADDRESS}
+      username {env.MERCURE_REDIS_USERNAME}
+      password {env.MERCURE_REDIS_PASSWORD}
+      subscribers_size {env.MERCURE_REDIS_SUBSCRIBERS_SIZE}
+      subscribers_broadcast_parallel {env.MERCURE_REDIS_SUBSCRIBERS_BROADCAST_PARALLEL}
+    }
+	}
+
+	{$CADDY_SERVER_EXTRA_DIRECTIVES}
+
+	redir / /.well-known/mercure/ui/
+
+	respond /healthz 200
+	respond /robots.txt `User-agent: *
+	Disallow: /`
+	respond "Not Found" 404
+}
