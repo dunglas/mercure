@@ -313,13 +313,15 @@ func FuzzPublish(f *testing.F) {
 	hub := createDummy()
 	authorizationHeader := bearerPrefix + createDummyAuthorizedJWT(rolePublisher, []string{"*"})
 
-	testCases := [][]interface{}{
+	testCases := []struct {
+		topic1, topic2, id, data, private, retry, typ string
+	}{
 		{"https://localhost/foo/bar", "baz", "", "", "", "", ""},
 		{"https://localhost/foo/baz", "bat", "id", "data", "on", "22", "mytype"},
 	}
 
 	for _, tc := range testCases {
-		f.Add(tc...) //nolint:govet
+		f.Add(tc.topic1, tc.topic2, tc.id, tc.data, tc.private, tc.retry, tc.typ)
 	}
 
 	f.Fuzz(func(t *testing.T, topic1, topic2, id, data, private, retry, typ string) {
