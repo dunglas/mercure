@@ -12,11 +12,13 @@ retract (
 replace github.com/dunglas/mercure => ../
 
 require (
+	github.com/KimMachineGun/automemlimit v0.7.0
 	github.com/MicahParks/keyfunc/v3 v3.3.10
 	github.com/caddyserver/caddy/v2 v2.9.1
 	github.com/dunglas/mercure v0.18.2
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
+	go.uber.org/zap/exp v0.3.0
 )
 
 require (
@@ -102,6 +104,7 @@ require (
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/ginkgo/v2 v2.22.2 // indirect
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pires/go-proxyproto v0.8.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -162,7 +165,6 @@ require (
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap/exp v0.3.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/crypto/x509roots/fallback v0.0.0-20250214233241-911360c8a4f4 // indirect
 	golang.org/x/exp v0.0.0-20250215185904-eff6e970281f // indirect
