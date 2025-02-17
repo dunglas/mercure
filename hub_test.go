@@ -23,6 +23,8 @@ const (
 )
 
 func TestNewHub(t *testing.T) {
+	t.Parallel()
+
 	h := createDummy()
 
 	assert.IsType(t, &viper.Viper{}, h.config)
@@ -35,6 +37,8 @@ func TestNewHub(t *testing.T) {
 }
 
 func TestNewHubWithConfig(t *testing.T) {
+	t.Parallel()
+
 	h, err := NewHub(
 		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
@@ -50,6 +54,8 @@ func TestNewHubValidationError(t *testing.T) {
 }
 
 func TestNewHubTransportValidationError(t *testing.T) {
+	t.Parallel()
+
 	v := viper.New()
 	v.Set("publisher_jwt_key", "foo")
 	v.Set("jwt_key", "bar")
@@ -61,6 +67,8 @@ func TestNewHubTransportValidationError(t *testing.T) {
 }
 
 func TestStartCrash(t *testing.T) {
+	t.Parallel()
+
 	if os.Getenv("BE_START_CRASH") == "1" {
 		Start()
 
@@ -76,6 +84,8 @@ func TestStartCrash(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
+	t.Parallel()
+
 	const numberOfSubscribers = 2
 
 	hub := createAnonymousDummy()
@@ -118,6 +128,8 @@ func TestStop(t *testing.T) {
 }
 
 func TestWithProtocolVersionCompatibility(t *testing.T) {
+	t.Parallel()
+
 	op := &opt{}
 
 	assert.False(t, op.isBackwardCompatiblyEnabledWith(7))
@@ -131,6 +143,8 @@ func TestWithProtocolVersionCompatibility(t *testing.T) {
 }
 
 func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
+	t.Parallel()
+
 	op := &opt{}
 
 	testCases := []struct {
@@ -145,6 +159,8 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("version %d", tc.version), func(t *testing.T) {
+			t.Parallel()
+
 			o := WithProtocolVersionCompatibility(tc.version)
 
 			if tc.ok {
@@ -157,6 +173,8 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 }
 
 func TestWithPublisherJWTKeyFunc(t *testing.T) {
+	t.Parallel()
+
 	op := &opt{}
 
 	o := WithPublisherJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
@@ -165,6 +183,8 @@ func TestWithPublisherJWTKeyFunc(t *testing.T) {
 }
 
 func TestWithSubscriberJWTKeyFunc(t *testing.T) {
+	t.Parallel()
+
 	op := &opt{}
 
 	o := WithSubscriberJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
@@ -181,6 +201,8 @@ func TestWithDebug(t *testing.T) {
 }
 
 func TestWithUI(t *testing.T) {
+	t.Parallel()
+
 	op := &opt{}
 
 	o := WithUI()
@@ -189,6 +211,8 @@ func TestWithUI(t *testing.T) {
 }
 
 func TestOriginsValidator(t *testing.T) {
+	t.Parallel()
+
 	op := &opt{}
 
 	validOrigins := [][]string{

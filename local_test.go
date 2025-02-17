@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"net/url"
 	"sync"
 	"testing"
 
@@ -11,16 +10,18 @@ import (
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
+
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	u := &Update{Topics: []string{"http://example.com/books/1"}}
 	err := transport.Dispatch(u)
 	require.NoError(t, err)
 
-	s := NewLocalSubscriber("", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics(u.Topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -38,12 +39,14 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 }
 
 func TestLocalTransportDispatch(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
+
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewLocalSubscriber("", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -53,12 +56,15 @@ func TestLocalTransportDispatch(t *testing.T) {
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
+
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	tss := &TopicSelectorStore{}
+	logger := zap.NewNop()
 
 	s := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s))
@@ -71,12 +77,13 @@ func TestLocalTransportClosed(t *testing.T) {
 }
 
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
-	logger := zap.NewNop()
-	tr, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
-	transport := tr.(*LocalTransport)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
 
 	tss := &TopicSelectorStore{}
+	logger := zap.NewNop()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s1))
@@ -96,12 +103,13 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 }
 
 func TestLiveReading(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewLocalSubscriber("", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -113,8 +121,11 @@ func TestLiveReading(t *testing.T) {
 }
 
 func TestLocalTransportGetSubscribers(t *testing.T) {
+	t.Parallel()
+
 	transport := NewLocalTransport()
 	defer transport.Close()
+
 	require.NotNil(t, transport)
 
 	logger := zap.NewNop()

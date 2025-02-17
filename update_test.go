@@ -11,6 +11,8 @@ import (
 )
 
 func TestAssignUUID(t *testing.T) {
+	t.Parallel()
+
 	u := &Update{
 		Topics:  []string{"foo"},
 		Private: true,
@@ -28,6 +30,8 @@ func TestAssignUUID(t *testing.T) {
 }
 
 func TestLogUpdate(t *testing.T) {
+	t.Parallel()
+
 	sink, logger := newTestLogger(t)
 	defer sink.Reset()
 

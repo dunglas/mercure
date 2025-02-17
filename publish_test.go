@@ -16,6 +16,8 @@ import (
 )
 
 func TestPublishNoAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -30,6 +32,8 @@ func TestPublishNoAuthorizationHeader(t *testing.T) {
 }
 
 func TestPublishUnauthorizedJWT(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -45,6 +49,8 @@ func TestPublishUnauthorizedJWT(t *testing.T) {
 }
 
 func TestPublishInvalidAlgJWT(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -60,6 +66,8 @@ func TestPublishInvalidAlgJWT(t *testing.T) {
 }
 
 func TestPublishBadContentType(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -75,6 +83,8 @@ func TestPublishBadContentType(t *testing.T) {
 }
 
 func TestPublishNoTopic(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -90,6 +100,8 @@ func TestPublishNoTopic(t *testing.T) {
 }
 
 func TestPublishInvalidRetry(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -112,6 +124,8 @@ func TestPublishInvalidRetry(t *testing.T) {
 }
 
 func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -133,6 +147,8 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 }
 
 func TestPublishEmptyTopicSelector(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -152,6 +168,8 @@ func TestPublishEmptyTopicSelector(t *testing.T) {
 }
 
 func TestPublishLegacyAuthorization(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy(WithProtocolVersionCompatibility(7))
 
 	form := url.Values{}
@@ -171,6 +189,8 @@ func TestPublishLegacyAuthorization(t *testing.T) {
 }
 
 func TestPublishOK(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	topics := []string{"http://example.com/books/1"}
@@ -217,6 +237,8 @@ func TestPublishOK(t *testing.T) {
 }
 
 func TestPublishNoData(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -236,6 +258,8 @@ func TestPublishNoData(t *testing.T) {
 }
 
 func TestPublishGenerateUUID(t *testing.T) {
+	t.Parallel()
+
 	h := createDummy()
 
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
@@ -279,6 +303,8 @@ func TestPublishGenerateUUID(t *testing.T) {
 }
 
 func TestPublishWithErrorInTransport(t *testing.T) {
+	t.Parallel()
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("The code did not panic")

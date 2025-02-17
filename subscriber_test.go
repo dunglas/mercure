@@ -9,6 +9,8 @@ import (
 )
 
 func TestDispatch(t *testing.T) {
+	t.Parallel()
+
 	s := NewLocalSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
 	s.SubscribedTopics = []string{"http://example.com"}
 	s.SubscribedTopics = []string{"http://example.com"}
@@ -32,6 +34,8 @@ func TestDispatch(t *testing.T) {
 }
 
 func TestDisconnect(t *testing.T) {
+	t.Parallel()
+
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Disconnect()
 	// can be called two times without crashing
@@ -41,6 +45,8 @@ func TestDisconnect(t *testing.T) {
 }
 
 func TestLogSubscriber(t *testing.T) {
+	t.Parallel()
+
 	sink, logger := newTestLogger(t)
 	defer sink.Reset()
 
@@ -59,6 +65,8 @@ func TestLogSubscriber(t *testing.T) {
 }
 
 func TestMatchTopic(t *testing.T) {
+	t.Parallel()
+
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/no-match", "https://example.com/books/{id}"}, []string{"https://example.com/users/foo/{?topic}"})
 
@@ -73,6 +81,8 @@ func TestMatchTopic(t *testing.T) {
 }
 
 func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
+	t.Parallel()
+
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.Ready()
 

@@ -29,9 +29,6 @@ linters:
     - nolintlint
     - canonicalheader
 
-    # deprecated
-    - exportloopref
-
 issues:
   exclude-rules:
     - path: _test\.go

@@ -11,11 +11,15 @@ import (
 )
 
 func TestMissingConfig(t *testing.T) {
+	t.Parallel()
+
 	err := ValidateConfig(viper.New())
 	require.EqualError(t, err, `invalid config: one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`)
 }
 
 func TestMissingKeyFile(t *testing.T) {
+	t.Parallel()
+
 	v := viper.New()
 	v.Set("jwt_key", "abc")
 	v.Set("cert_file", "foo")
@@ -25,6 +29,8 @@ func TestMissingKeyFile(t *testing.T) {
 }
 
 func TestMissingCertFile(t *testing.T) {
+	t.Parallel()
+
 	v := viper.New()
 	v.Set("jwt_key", "abc")
 	v.Set("key_file", "foo")
@@ -34,6 +40,8 @@ func TestMissingCertFile(t *testing.T) {
 }
 
 func TestSetFlags(t *testing.T) {
+	t.Parallel()
+
 	v := viper.New()
 	fs := pflag.NewFlagSet("test", pflag.PanicOnError)
 	SetFlags(fs, v)
@@ -52,6 +60,8 @@ func TestInitConfig(t *testing.T) {
 }
 
 func TestMetricsAreDisabledByDefault(t *testing.T) {
+	t.Parallel()
+
 	v := viper.New()
 	SetConfigDefaults(v)
 

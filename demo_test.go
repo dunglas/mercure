@@ -11,6 +11,8 @@ import (
 )
 
 func TestEmptyBodyAndJWT(t *testing.T) {
+	t.Parallel()
+
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo.jsonld", nil)
 	w := httptest.NewRecorder()
 
@@ -32,6 +34,8 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 }
 
 func TestBodyAndJWT(t *testing.T) {
+	t.Parallel()
+
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
 	w := httptest.NewRecorder()
 

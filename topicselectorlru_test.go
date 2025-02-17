@@ -8,6 +8,8 @@ import (
 )
 
 func TestMatchLRU(t *testing.T) {
+	t.Parallel()
+
 	tss, err := NewTopicSelectorStoreLRU(DefaultTopicSelectorStoreLRUMaxEntriesPerShard, DefaultTopicSelectorStoreLRUMaxEntriesPerShard)
 	require.NoError(t, err)
 
