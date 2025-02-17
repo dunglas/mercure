@@ -1,0 +1,48 @@
+name: Lint and Test Hub
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+env:
+  GO111MODULE: "on"
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout for tag
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry for tag
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx for tag
+        uses: docker/setup-buildx-action@v3
+
+      - name: Inject enhanced GitHub environment variables for tag
+        uses: rlespinasse/github-slug-action@v5
+
+      - name: Build image for tag
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{  github.ref_name }},ghcr.io/${{ github.repository }}:latest
+          file: Dockerfile.redis
+
+      - name: Install Helm for tag
+        uses: azure/setup-helm@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Chart for tag
+        uses: JimCronqvist/action-helm-chart-repo@master
+        with:
+          chartsPath: charts/mercure
+          token: ${{ secrets.GITHUB_TOKEN }}

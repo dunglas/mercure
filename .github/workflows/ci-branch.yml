@@ -7,8 +7,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - v*.*.*
 
 env:
   GO111MODULE: "on"
@@ -34,15 +32,48 @@ jobs:
           version: latest
           args: --timeout=30m
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Inject enhanced GitHub environment variables
+        uses: rlespinasse/github-slug-action@v5
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ env.GITHUB_SHA_SHORT }}
+          file: Dockerfile.redis
+
+      - name: Build Chart
+        uses: JimCronqvist/action-helm-chart-repo@master
+        with:
+          chartsPath: charts/mercure
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   test:
     strategy:
       matrix:
         go: ["1.21", "1.22", "1.23"]
       fail-fast: false
     name: Test
+    needs: build
     runs-on: ubuntu-latest
     env:
-      # Temporary workaround for https://github.com/golang/go/issues/65653
       GOEXPERIMENT: nocoverageredesign
     steps:
       - name: Checkout
@@ -57,12 +88,15 @@ jobs:
             caddy/go.sum
 
       - name: Use go-deadlock
-        # Blocked by https://github.com/sasha-s/go-deadlock/issues/34
         if: matrix.go != '1.23'
         run: ./tests/use-go-deadlock.sh
 
+      - uses: shogo82148/actions-setup-redis@v1
+        with:
+          redis-version: "7.x"
+
       - name: Test
-        run: go test -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
+        run: go test -timeout 300s -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
 
       - name: Test Caddy module
         working-directory: caddy/
