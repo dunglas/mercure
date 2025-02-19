@@ -52,7 +52,19 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
-			%s
+			%[1]s
+		}
+
+		respond 404
+	}
+}
+
+example.com:9080 {
+	route {
+		mercure {
+			anonymous
+			publisher_jwt !ChangeMe!
+			%[1]s
 		}
 
 		respond 404

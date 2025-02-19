@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/dunglas/mercure/common"
@@ -62,9 +63,19 @@ func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 		),
 	}
 
-	m.registry.MustRegister(m.subscribers)
-	m.registry.MustRegister(m.subscribersTotal)
-	m.registry.MustRegister(m.updatesTotal)
+	// https://github.com/caddyserver/caddy/pull/6820
+	if err := m.registry.Register(m.subscribers); err != nil &&
+		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+		panic(err)
+	}
+	if err := m.registry.Register(m.subscribersTotal); err != nil &&
+		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+		panic(err)
+	}
+	if err := m.registry.Register(m.updatesTotal); err != nil &&
+		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+		panic(err)
+	}
 
 	return m
 }
