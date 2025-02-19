@@ -35,6 +35,9 @@ Common labels
 */}}
 {{- define "mercure.labels" -}}
 helm.sh/chart: {{ include "mercure.chart" . }}
+{{- if .Values.customLabels }}
+{{- toYaml .Values.customLabels | nindent 0 }}
+{{- end }}
 {{ include "mercure.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}

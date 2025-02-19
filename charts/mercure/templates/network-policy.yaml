@@ -1,0 +1,19 @@
+---
+{{- if .Values.networkPolicy }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "mercure.fullname" . }}
+  labels:
+    {{- include "mercure.labels" . | nindent 4}}
+spec:
+  ingress:
+    - ports:
+       - port: 80
+         protocol: TCP
+       - port: 443
+         protocol: TCP
+  podSelector:
+    matchLabels:
+      {{- toYaml .Values.networkPolicy.podSelectorLabels | nindent 8 }}
+{{- end }}

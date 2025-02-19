@@ -224,3 +224,9 @@ redis:
   dispatch_timer: ~
   subscribers_size: ~
   subscribers_broadcast_parallel: ~
+
+customLabels: ~
+
+deployment: ~
+
+networkPolicy: ~
