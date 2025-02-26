@@ -157,6 +157,20 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 	return true
 }
 
+// canDispatchPublic checks if the payload  allow public updates by examining the "allow_public_updates" field in the payload.
+// It returns true if the field is set to true, or if the field is not present (for backward compatibility).
+func canDispatchPublic(payload interface{}) bool {
+	if payloadMap, ok := payload.(map[string]interface{}); ok {
+		if publicPublish, exists := payloadMap["allow_public_updates"]; exists {
+			if isPublicPublish, ok := publicPublish.(bool); ok {
+				return isPublicPublish
+			}
+		}
+	}
+	// Default to true for backward compatibility
+	return true
+}
+
 func (h *Hub) httpAuthorizationError(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	if c := h.logger.Check(zap.DebugLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {

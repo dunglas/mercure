@@ -724,3 +724,40 @@ func TestCanDispatch(t *testing.T) {
 	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz"}))
 	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz", "bat"}))
 }
+func TestCanDispatchPublic(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		payload  interface{}
+		expected bool
+	}{
+		{
+			name:     "allow_public_updates is true",
+			payload:  map[string]interface{}{"allow_public_updates": true},
+			expected: true,
+		},
+		{
+			name:     "allow_public_updates is false",
+			payload:  map[string]interface{}{"allow_public_updates": false},
+			expected: false,
+		},
+		{
+			name:     "allow_public_updates is missing",
+			payload:  map[string]interface{}{},
+			expected: true,
+		},
+		{
+			name:     "payload is not a map",
+			payload:  "invalid payload",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := canDispatchPublic(tt.payload)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
