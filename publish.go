@@ -66,6 +66,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	if !private && !canDispatchPublic(claims.Mercure.Payload) {
 		h.logger.Info("Unauthorized: token does not allow public updates, 'allow_public_updates' is set to false")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
 		return
 	}
 
