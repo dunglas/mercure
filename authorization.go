@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
@@ -162,8 +163,15 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 func canDispatchPublic(payload interface{}) bool {
 	if payloadMap, ok := payload.(map[string]interface{}); ok {
 		if publicPublish, exists := payloadMap["allow_public_updates"]; exists {
+			// Check if it's a boolean
 			if isPublicPublish, ok := publicPublish.(bool); ok {
 				return isPublicPublish
+			}
+
+			// Check if it's a string representation
+			if strValue, ok := publicPublish.(string); ok {
+				// Compare lowercased string to handle "false", "False", "FALSE", etc.
+				return strings.ToLower(strValue) != "false"
 			}
 		}
 	}

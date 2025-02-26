@@ -738,8 +738,18 @@ func TestCanDispatchPublic(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "allow_public_updates is true as a string",
+			payload:  map[string]interface{}{"allow_public_updates": "true"},
+			expected: true,
+		},
+		{
 			name:     "allow_public_updates is false",
 			payload:  map[string]interface{}{"allow_public_updates": false},
+			expected: false,
+		},
+		{
+			name:     "allow_public_updates is false as a string",
+			payload:  map[string]interface{}{"allow_public_updates": "false"},
 			expected: false,
 		},
 		{
