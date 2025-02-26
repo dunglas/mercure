@@ -724,6 +724,7 @@ func TestCanDispatch(t *testing.T) {
 	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz"}))
 	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz", "bat"}))
 }
+
 func TestCanDispatchPublic(t *testing.T) {
 	t.Parallel()
 
@@ -765,7 +766,9 @@ func TestCanDispatchPublic(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := canDispatchPublic(tt.payload)
 			assert.Equal(t, tt.expected, result)
 		})

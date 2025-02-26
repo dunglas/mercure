@@ -161,21 +161,26 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 // canDispatchPublic checks if the payload  allow public updates by examining the "allow_public_updates" field in the payload.
 // It returns true if the field is set to true, or if the field is not present (for backward compatibility).
 func canDispatchPublic(payload interface{}) bool {
-	if payloadMap, ok := payload.(map[string]interface{}); ok {
-		if publicPublish, exists := payloadMap["allow_public_updates"]; exists {
-			// Check if it's a boolean
-			if isPublicPublish, ok := publicPublish.(bool); ok {
-				return isPublicPublish
-			}
-
-			// Check if it's a string representation
-			if strValue, ok := publicPublish.(string); ok {
-				// Compare lowercased string to handle "false", "False", "FALSE", etc.
-				return strings.ToLower(strValue) != "false"
-			}
-		}
+	payloadMap, ok := payload.(map[string]interface{})
+	if !ok {
+		return true
 	}
-	// Default to true for backward compatibility
+
+	publicPublish, exists := payloadMap["allow_public_updates"]
+	if !exists {
+		return true
+	}
+
+	// Check boolean value
+	if isPublicPublish, ok := publicPublish.(bool); ok {
+		return isPublicPublish
+	}
+
+	// Check string value
+	if strValue, ok := publicPublish.(string); ok {
+		return strings.ToLower(strValue) != "false"
+	}
+
 	return true
 }
 
