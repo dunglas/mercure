@@ -2,6 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "mercure.fullname" . }}
+  {{- with .Values.deployment.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
 spec:
@@ -40,6 +44,26 @@ spec:
           {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+            {{- if .Values.redis.address }}
+            - name: MERCURE_REDIS_ADDRESS
+              value: "{{ .Values.redis.address }}"
+            {{- end }}
+            {{- if .Values.redis.username }}
+            - name: MERCURE_REDIS_USERNAME
+              value: "{{ .Values.redis.username }}"
+            {{- end }}
+            {{- if .Values.redis.subscribers_size }}
+            - name: MERCURE_REDIS_SUBSCRIBERS_SIZE
+              value: "{{ .Values.redis.subscribers_size }}"
+            {{- end }}
+            {{- if .Values.redis.dispatcher_pool_size }}
+            - name: MERCURE_REDIS_DISPATCHER_POOL_SIZE
+              value: "{{ .Values.redis.dispatcher_pool_size }}"
+            {{- end }}
+            {{- if .Values.redis.redis_channel }}
+            - name: MERCURE_REDIS_CHANNEL
+              value: "{{ .Values.redis.redis_channel }}"
+            {{- end }}
             - name: SERVER_NAME
               value: :{{ .Values.service.targetPort }}
             - name: GLOBAL_OPTIONS
@@ -63,6 +87,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "mercure.secretName" . }}
                   key: transport-url
+            {{- end }}
+            {{- if .Values.redis.password }}
+            - name: MERCURE_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mercure.secretName" . }}
+                  key: redis-password
             {{- end }}
             - name: MERCURE_PUBLISHER_JWT_KEY
               valueFrom:
