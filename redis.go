@@ -94,9 +94,15 @@ func NewRedisTransportInstance(
 		case <-subscribeCtx.Done():
 		}
 	}()
-	go transport.subscribe(subscribeCtx, subscribeCancel, subscriber)
 
 	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		transport.subscribe(subscribeCtx, subscribeCancel, subscriber)
+	}()
+
 	wg.Add(dispatcherPoolSize)
 	for range dispatcherPoolSize {
 		go func() {
@@ -104,6 +110,7 @@ func NewRedisTransportInstance(
 			transport.dispatch()
 		}()
 	}
+
 	go func() {
 		wg.Wait()
 		close(transport.dispatcher)
