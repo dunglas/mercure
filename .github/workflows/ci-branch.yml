@@ -32,46 +32,12 @@ jobs:
           version: latest
           args: --timeout=30m
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Inject enhanced GitHub environment variables
-        uses: rlespinasse/github-slug-action@v5
-
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          push: true
-          tags: ghcr.io/${{ github.repository }}:${{ env.GITHUB_SHA_SHORT }}
-          file: Dockerfile.redis
-
-      - name: Build Chart
-        uses: JimCronqvist/action-helm-chart-repo@master
-        with:
-          chartsPath: charts/mercure
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   test:
     strategy:
       matrix:
         go: ["1.23", "1.24"]
       fail-fast: false
     name: Test
-    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
