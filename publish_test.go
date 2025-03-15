@@ -385,3 +385,59 @@ func FuzzPublish(f *testing.F) {
 		assert.Equal(t, id, string(body))
 	})
 }
+
+func TestPublishPublicEventWithAllowPublicUpdatesFalse(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy()
+
+	form := url.Values{}
+	form.Add("topic", "http://example.com/books/1")
+	form.Add("data", "foo")
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	payload := map[string]interface{}{
+		"bar":                  "baz",
+		"allow_public_updates": false,
+	}
+
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWTWithPayload(rolePublisher, []string{"foo"}, payload))
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestPublishPublicEventWithAllowPublicUpdatesTrue(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy()
+
+	form := url.Values{}
+	form.Add("topic", "http://example.com/books/1")
+	form.Add("data", "foo")
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	payload := map[string]interface{}{
+		"bar":                  "baz",
+		"allow_public_updates": true,
+	}
+
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWTWithPayload(rolePublisher, []string{"*"}, payload))
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
