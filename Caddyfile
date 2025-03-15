@@ -1,5 +1,6 @@
 # Learn how to configure the Mercure.rocks Hub on https://mercure.rocks/docs/hub/config
 {
+	grace_period 1s
 	{$GLOBAL_OPTIONS}
 }
 
