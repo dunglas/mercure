@@ -85,6 +85,26 @@ func (s *Subscriber) Match(u *Update) bool {
 	return s.MatchTopics(u.Topics, u.Private)
 }
 
+func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	enc.AddString("id", s.ID)
+	enc.AddString("last_event_id", s.RequestLastEventID)
+	if s.RemoteAddr != "" {
+		enc.AddString("remote_addr", s.RemoteAddr)
+	}
+	if s.AllowedPrivateTopics != nil {
+		if err := enc.AddArray("topic_selectors", stringArray(s.AllowedPrivateTopics)); err != nil {
+			return fmt.Errorf("log error: %w", err)
+		}
+	}
+	if s.SubscribedTopics != nil {
+		if err := enc.AddArray("topics", stringArray(s.SubscribedTopics)); err != nil {
+			return fmt.Errorf("log error: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // getSubscriptions return the list of subscriptions associated to this subscriber.
 func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
 	var subscriptions []subscription //nolint:prealloc
@@ -109,24 +129,4 @@ func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subs
 	}
 
 	return subscriptions
-}
-
-func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("id", s.ID)
-	enc.AddString("last_event_id", s.RequestLastEventID)
-	if s.RemoteAddr != "" {
-		enc.AddString("remote_addr", s.RemoteAddr)
-	}
-	if s.AllowedPrivateTopics != nil {
-		if err := enc.AddArray("topic_selectors", stringArray(s.AllowedPrivateTopics)); err != nil {
-			return fmt.Errorf("log error: %w", err)
-		}
-	}
-	if s.SubscribedTopics != nil {
-		if err := enc.AddArray("topics", stringArray(s.SubscribedTopics)); err != nil {
-			return fmt.Errorf("log error: %w", err)
-		}
-	}
-
-	return nil
 }

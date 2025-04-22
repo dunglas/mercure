@@ -29,11 +29,11 @@ func TestNewHub(t *testing.T) {
 
 	assert.IsType(t, &viper.Viper{}, h.config)
 
-	assert.False(t, h.opt.anonymous)
-	assert.Equal(t, defaultCookieName, h.opt.cookieName)
-	assert.Equal(t, 40*time.Second, h.opt.heartbeat)
-	assert.Equal(t, 5*time.Second, h.opt.dispatchTimeout)
-	assert.Equal(t, 600*time.Second, h.opt.writeTimeout)
+	assert.False(t, h.anonymous)
+	assert.Equal(t, defaultCookieName, h.cookieName)
+	assert.Equal(t, 40*time.Second, h.heartbeat)
+	assert.Equal(t, 5*time.Second, h.dispatchTimeout)
+	assert.Equal(t, 600*time.Second, h.writeTimeout)
 }
 
 func TestNewHubWithConfig(t *testing.T) {

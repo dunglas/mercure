@@ -26,19 +26,6 @@ func RegisterTransportFactory(scheme string, factory TransportFactory) {
 	transportFactoriesMu.Unlock()
 }
 
-// Deprecated: directly instantiate the transport or use transports Caddy modules.
-func NewTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
-	transportFactoriesMu.RLock()
-	f, ok := transportFactories[u.Scheme]
-	transportFactoriesMu.RUnlock()
-
-	if !ok {
-		return nil, &TransportError{dsn: u.Redacted(), msg: "no such transport available"}
-	}
-
-	return f(u, l)
-}
-
 // Transport provides methods to dispatch and persist updates.
 type Transport interface {
 	// Dispatch dispatches an update to all subscribers.
@@ -52,6 +39,19 @@ type Transport interface {
 
 	// Close closes the Transport.
 	Close() error
+}
+
+// Deprecated: directly instantiate the transport or use transports Caddy modules.
+func NewTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
+	transportFactoriesMu.RLock()
+	f, ok := transportFactories[u.Scheme]
+	transportFactoriesMu.RUnlock()
+
+	if !ok {
+		return nil, &TransportError{dsn: u.Redacted(), msg: "no such transport available"}
+	}
+
+	return f(u, l)
 }
 
 // TransportSubscribers provides a method to retrieve the list of active subscribers.

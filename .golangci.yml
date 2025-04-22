@@ -1,41 +1,56 @@
----
+version: "2"
 run:
   tests: true
-
 linters:
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  enable-all: true
+  default: all
   disable:
-    - errcheck
-    - lll
-    - wsl
-    - testpackage
-    - exhaustruct
-    - paralleltest
-    - cyclop
-    - forcetypeassert
-    - tagliatelle
-    - varnamelen
-    - nonamedreturns
-    - testableexamples
-    - musttag
-    - depguard
-    - mnd
-
-    # Go 1.22+
-    - intrange
-
-    # weird issues
-    - nolintlint
     - canonicalheader
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gochecknoglobals
-        - funlen
-        - godox
-        - noctx
-        - wrapcheck
-        - goconst
+    - cyclop
+    - depguard
+    - errcheck
+    - exhaustruct
+    - forcetypeassert
+    - intrange
+    - lll
+    - mnd
+    - musttag
+    - nolintlint
+    - nonamedreturns
+    - paralleltest
+    - tagliatelle
+    - testableexamples
+    - testpackage
+    - varnamelen
+    - wsl
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - funlen
+          - gochecknoglobals
+          - goconst
+          - godox
+          - noctx
+          - wrapcheck
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
