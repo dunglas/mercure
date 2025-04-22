@@ -1,3 +1,4 @@
+//go:debug rsa1024min=0
 package mercure
 
 import (
