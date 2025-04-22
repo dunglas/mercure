@@ -77,7 +77,7 @@ example.com:9080 {
 			received.Add(1)
 
 			go func() {
-				cx, cancel := context.WithCancel(context.Background())
+				cx, cancel := context.WithCancel(t.Context())
 				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 				req = req.WithContext(cx)
 				resp := tester.AssertResponseCode(req, http.StatusOK)
@@ -158,7 +158,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	received.Add(1)
 
 	go func() {
-		cx, cancel := context.WithCancel(context.Background())
+		cx, cancel := context.WithCancel(t.Context())
 		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp := tester.AssertResponseCode(req, http.StatusOK)
@@ -260,7 +260,7 @@ func TestCookieName(t *testing.T) {
 	received.Add(1)
 
 	go func() {
-		cx, cancel := context.WithCancel(context.Background())
+		cx, cancel := context.WithCancel(t.Context())
 		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req.Header.Add("Origin", "http://localhost:9080")
 		req.AddCookie(&http.Cookie{Name: "foo", Value: subscriberJWT})

@@ -50,7 +50,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		s.out = out
 		tr.AddSubscriber(s)
 	}
-	ctx, done := context.WithCancel(context.Background())
+	ctx, done := context.WithCancel(b.Context())
 	defer done()
 	for i := 0; i < 1; i++ {
 		go func() {
