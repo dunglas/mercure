@@ -56,7 +56,7 @@ func TestForwardedHeaders(t *testing.T) {
 
 	assert.Equal(t, 1, logs.FilterField(zap.String("remote_addr", "192.0.2.1")).Len())
 
-	h.server.Shutdown(context.Background())
+	h.server.Shutdown(t.Context())
 }
 
 func TestSecurityOptions(t *testing.T) {
@@ -105,7 +105,7 @@ func TestSecurityOptions(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
 	resp3.Body.Close()
 
-	h.server.Shutdown(context.Background())
+	h.server.Shutdown(t.Context())
 }
 
 func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
@@ -152,7 +152,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 	assert.Equal(t, "https://subscriber.com", resp2.Header.Get("Access-Control-Allow-Origin"))
 	resp2.Body.Close()
 
-	h.server.Shutdown(context.Background())
+	h.server.Shutdown(t.Context())
 }
 
 func TestServe(t *testing.T) {
@@ -216,7 +216,7 @@ func TestServe(t *testing.T) {
 	require.NoError(t, err)
 	defer resp2.Body.Close()
 
-	h.server.Shutdown(context.Background())
+	h.server.Shutdown(t.Context())
 	wgTested.Wait()
 }
 
@@ -243,7 +243,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	var wg, subscribingWG sync.WaitGroup
 
 	subscribe := func(expectedBodyData string) {
-		cx, cancel := context.WithCancel(context.Background())
+		cx, cancel := context.WithCancel(t.Context())
 		req, _ := http.NewRequest(http.MethodGet, testURL+"?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp, err := http.DefaultClient.Do(req)
@@ -316,7 +316,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		go publish("second")
 	}
 	wg.Wait()
-	h.server.Shutdown(context.Background())
+	h.server.Shutdown(t.Context())
 }
 
 func TestServeAcme(t *testing.T) {
@@ -347,7 +347,7 @@ func TestServeAcme(t *testing.T) {
 	defer resp.Body.Close()
 
 	assert.Equal(t, 403, resp.StatusCode)
-	h.server.Shutdown(context.Background())
+	h.server.Shutdown(t.Context())
 }
 
 func TestMetricsAccess(t *testing.T) {
@@ -441,8 +441,8 @@ func newTestServer(t *testing.T) testServer {
 }
 
 func (s *testServer) shutdown() {
-	s.h.server.Shutdown(context.Background())
-	s.h.metricsServer.Shutdown(context.Background())
+	s.h.server.Shutdown(s.t.Context())
+	s.h.metricsServer.Shutdown(s.t.Context())
 	s.wgShutdown.Done()
 	s.wgTested.Wait()
 }
