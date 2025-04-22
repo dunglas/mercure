@@ -84,7 +84,7 @@ func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 		deadline = time.Now().Add(h.writeTimeout)
 	}
 
-	if s.Claims != nil && s.Claims.ExpiresAt != nil && (deadline == time.Time{} || s.Claims.ExpiresAt.Time.Before(deadline)) {
+	if s.Claims != nil && s.Claims.ExpiresAt != nil && (deadline.Equal(time.Time{}) || s.Claims.ExpiresAt.Before(deadline)) {
 		deadline = s.Claims.ExpiresAt.Time
 	}
 

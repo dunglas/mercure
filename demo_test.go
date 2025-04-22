@@ -30,7 +30,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, "", string(body))
+	assert.Empty(t, string(body))
 }
 
 func TestBodyAndJWT(t *testing.T) {

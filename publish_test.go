@@ -377,7 +377,7 @@ func FuzzPublish(f *testing.F) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		if id == "" {
-			assert.NotEqual(t, "", string(body))
+			assert.NotEmpty(t, string(body))
 
 			return
 		}

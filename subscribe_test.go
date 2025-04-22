@@ -112,7 +112,7 @@ func (r *subscribeRecorder) WriteString(str string) (int, error) {
 		return 0, os.ErrDeadlineExceeded
 	}
 
-	return r.ResponseRecorder.WriteString(str)
+	return r.WriteString(str)
 }
 
 func (r *subscribeRecorder) FlushError() error {
@@ -120,7 +120,7 @@ func (r *subscribeRecorder) FlushError() error {
 		return os.ErrDeadlineExceeded
 	}
 
-	r.ResponseRecorder.Flush()
+	r.Flush()
 
 	return nil
 }
@@ -554,7 +554,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Equal(t, "", string(body))
+		assert.Empty(t, string(body))
 	}()
 
 	go func() {
