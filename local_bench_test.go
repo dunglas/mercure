@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"net/url"
 	"sync"
 	"testing"
 
@@ -18,10 +17,7 @@ func BenchmarkLocalTransport(b *testing.B) {
 func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, testName string) {
 	b.Helper()
 
-	tr, err := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, zap.NewNop())
-	if err != nil {
-		panic(err)
-	}
+	tr := NewLocalTransport()
 	defer tr.Close()
 	top := make([]string, topics)
 	tsMatch := make([]string, topics)

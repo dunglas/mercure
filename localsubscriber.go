@@ -128,6 +128,7 @@ func (s *LocalSubscriber) Disconnect() {
 // handleFullChan disconnects the subscriber when the out channel is full.
 func (s *LocalSubscriber) handleFullChan() {
 	atomic.StoreInt32(&s.disconnected, 1)
+	close(s.out)
 	s.outMutex.Unlock()
 
 	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
