@@ -44,6 +44,11 @@ type JWTConfig struct {
 	Alg string `json:"alg,omitempty"`
 }
 
+type TopicSelectorCacheConfig struct {
+	MaxEntriesPerShard uint `json:"max_entries_per_shard,omitempty"`
+	ShardCount         uint `json:"shard_count,omitempty"`
+}
+
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 type Mercure struct {
 	// Allow subscribers with no valid JWT.
@@ -90,8 +95,11 @@ type Mercure struct {
 	// Deprecated: use transports Caddy modules.
 	TransportURL string `json:"transport_url,omitempty"`
 
-	// Triggers use of LRU topic selector cache and avoidance of select priority queue (recommend 10,000 - 1,000,000)
+	// Deprecated: not used anymore.
 	LRUShardSize *int64 `json:"lru_shard_size,omitempty"`
+
+	// Triggers use of LRU topic selector cache and avoidance of select priority queue.
+	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
 
 	// The name of the authorization cookie. Defaults to "mercureAuthorization".
 	CookieName string `json:"cookie_name,omitempty"`
@@ -194,11 +202,18 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 	}
 
 	maxEntriesPerShard := mercure.DefaultTopicSelectorStoreLRUMaxEntriesPerShard
-	if m.LRUShardSize != nil {
-		maxEntriesPerShard = *m.LRUShardSize
+	shardCount := mercure.DefaultTopicSelectorStoreLRUShardCount
+	if m.TopicSelectorCache != nil {
+		if m.TopicSelectorCache.MaxEntriesPerShard != 0 {
+			maxEntriesPerShard = int(m.TopicSelectorCache.MaxEntriesPerShard)
+		}
+
+		if m.TopicSelectorCache.ShardCount != 0 {
+			shardCount = int(m.TopicSelectorCache.ShardCount)
+		}
 	}
 
-	tss, err := mercure.NewTopicSelectorStoreLRU(maxEntriesPerShard, mercure.DefaultTopicSelectorStoreLRUShardCount)
+	tss, err := mercure.NewTopicSelectorStoreLRU(maxEntriesPerShard, shardCount)
 	if err != nil {
 		return err
 	}
@@ -452,18 +467,22 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 
 				m.TransportURL = d.Val()
 
-			case "lru_cache":
+			case "topic_selector_cache":
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
 
-				v, err := strconv.ParseInt(d.Val(), 10, 64)
+				maxEntriesPerShard, err := strconv.ParseInt(d.Val(), 10, 64)
 				if err != nil {
 					return err
 				}
 
-				m.LRUShardSize = &v
+				shardCount, err := strconv.ParseInt(d.Val(), 10, 64)
+				if err != nil {
+					return err
+				}
 
+				m.TopicSelectorCache = &TopicSelectorCacheConfig{uint(maxEntriesPerShard), uint(shardCount)}
 			case "cookie_name":
 				if !d.NextArg() {
 					return d.ArgErr()
