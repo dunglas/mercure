@@ -53,9 +53,9 @@ func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 
 	if !fromHistory && s.ready.Load() < 1 {
 		s.liveMutex.Lock()
-		defer s.liveMutex.Unlock()
-
 		s.liveQueue = append(s.liveQueue, u)
+		s.liveMutex.Unlock()
+
 		s.outMutex.Unlock()
 
 		return true

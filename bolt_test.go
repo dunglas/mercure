@@ -247,14 +247,15 @@ func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		defer wg.Done()
-
 		for range s.Receive() {
 			t.Fail()
 		}
+
+		wg.Done()
 	}()
 
 	s.Disconnect()
+
 	wg.Wait()
 }
 
@@ -303,7 +304,8 @@ func TestBoltTransportClosed(t *testing.T) {
 
 	assert.Equal(t, transport.Dispatch(&Update{Topics: s.SubscribedTopics}), ErrClosedTransport)
 
-	<-s.Receive()
+	_, ok := <-s.Receive()
+	assert.False(t, ok)
 }
 
 func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
