@@ -13,11 +13,11 @@ import (
 type LocalSubscriber struct {
 	Subscriber
 
-	disconnected        int32
+	disconnected        atomic.Uint32
 	out                 chan *Update
-	outMutex            sync.RWMutex
+	outMutex            sync.Mutex
 	responseLastEventID chan string
-	ready               int32
+	ready               atomic.Uint32
 	liveQueue           []*Update
 	liveMutex           sync.RWMutex
 }
@@ -44,26 +44,22 @@ func NewLocalSubscriber(lastEventID string, logger Logger, topicSelectorStore *T
 // Security checks must (topics matching) be done before calling Dispatch,
 // for instance by calling Match.
 func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
-	if atomic.LoadInt32(&s.disconnected) > 0 {
-		return false
-	}
-
-	if !fromHistory && atomic.LoadInt32(&s.ready) < 1 {
-		s.liveMutex.Lock()
-		if s.ready < 1 {
-			s.liveQueue = append(s.liveQueue, u)
-			s.liveMutex.Unlock()
-
-			return true
-		}
-		s.liveMutex.Unlock()
-	}
-
 	s.outMutex.Lock()
-	if atomic.LoadInt32(&s.disconnected) > 0 {
+
+	if s.disconnected.Load() > 0 {
 		s.outMutex.Unlock()
 
 		return false
+	}
+
+	if !fromHistory && s.ready.Load() < 1 {
+		s.liveMutex.Lock()
+		s.liveQueue = append(s.liveQueue, u)
+		s.liveMutex.Unlock()
+
+		s.outMutex.Unlock()
+
+		return true
 	}
 
 	select {
@@ -80,24 +76,34 @@ func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 
 // Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
 func (s *LocalSubscriber) Ready() (n int) {
-	s.liveMutex.Lock()
 	s.outMutex.Lock()
+
+	s.liveMutex.RLock()
+	defer s.liveMutex.RUnlock()
+
+	if s.disconnected.Load() > 0 || s.ready.Load() > 0 {
+		s.outMutex.Unlock()
+
+		return 0
+	}
 
 	for _, u := range s.liveQueue {
 		select {
 		case s.out <- u:
 			n++
 		default:
+			s.ready.Store(1)
 			s.handleFullChan()
-			s.liveMutex.Unlock()
+			s.liveQueue = nil
 
 			return n
 		}
 	}
-	atomic.StoreInt32(&s.ready, 1)
+
+	s.ready.Store(1)
+	s.liveQueue = nil
 
 	s.outMutex.Unlock()
-	s.liveMutex.Unlock()
 
 	return n
 }
@@ -114,21 +120,26 @@ func (s *LocalSubscriber) HistoryDispatched(responseLastEventID string) {
 
 // Disconnect disconnects the subscriber.
 func (s *LocalSubscriber) Disconnect() {
-	if atomic.LoadInt32(&s.disconnected) > 0 {
-		return
-	}
-
 	s.outMutex.Lock()
 	defer s.outMutex.Unlock()
 
-	atomic.StoreInt32(&s.disconnected, 1)
+	if s.disconnected.Load() > 0 {
+		return // already disconnected
+	}
+
+	s.disconnected.Store(1)
 	close(s.out)
 }
 
 // handleFullChan disconnects the subscriber when the out channel is full.
 func (s *LocalSubscriber) handleFullChan() {
-	atomic.StoreInt32(&s.disconnected, 1)
-	s.outMutex.Unlock()
+	defer s.outMutex.Unlock()
+	if s.disconnected.Load() > 0 {
+		return // already disconnected
+	}
+
+	s.disconnected.Store(1)
+	close(s.out)
 
 	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
 		c.Write(zap.Object("subscriber", s))
