@@ -33,25 +33,31 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 			tsMatch[i] = tsNoMatch[i]
 		}
 	}
-	out := make(chan *Update, 50000)
 	tss := &TopicSelectorStore{}
+	logger := zap.NewNop()
+
+	subscribers := make([]*LocalSubscriber, concurrency)
 	for i := 0; i < concurrency; i++ {
-		s := NewLocalSubscriber("", zap.NewNop(), tss)
+		s := NewLocalSubscriber("", logger, tss)
 		if i%100 < matchPct {
 			s.SetTopics(tsMatch, nil)
 		} else {
 			s.SetTopics(tsNoMatch, nil)
 		}
-		s.out = out
+
+		subscribers[i] = s
 		tr.AddSubscriber(s)
 	}
 	ctx, done := context.WithCancel(b.Context())
 	defer done()
-	for i := 0; i < 1; i++ {
+	for i := 0; i < concurrency; i++ {
 		go func() {
 			for {
 				select {
-				case <-out:
+				case _, ok := <-subscribers[i].Receive():
+					if !ok {
+						return
+					}
 				case <-ctx.Done():
 					return
 				}
