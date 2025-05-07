@@ -39,12 +39,12 @@ func init() { //nolint:gochecknoinits
 	httpcaddyfile.RegisterDirectiveOrder("mercure", "after", "encode")
 }
 
-type JWTConfig struct {
+type jwtConfig struct {
 	Key string `json:"key,omitempty"`
 	Alg string `json:"alg,omitempty"`
 }
 
-type TopicSelectorCacheConfig struct {
+type topicSelectorCacheConfig struct {
 	MaxEntriesPerShard uint `json:"max_entries_per_shard,omitempty"`
 	ShardCount         uint `json:"shard_count,omitempty"`
 }
@@ -73,13 +73,13 @@ type Mercure struct {
 	Heartbeat *caddy.Duration `json:"heartbeat,omitempty"`
 
 	// JWT key and signing algorithm to use for publishers.
-	PublisherJWT JWTConfig `json:"publisher_jwt,omitempty"`
+	PublisherJWT jwtConfig `json:"publisher_jwt,omitempty"`
 
 	// JWK Set URL to use for publishers.
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
 	// JWT key and signing algorithm to use for subscribers.
-	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitempty"`
+	SubscriberJWT jwtConfig `json:"subscriber_jwt,omitempty"`
 
 	// JWK Set URL to use for subscribers.
 	SubscriberJWKSURL string `json:"subscriber_jwks_url,omitempty"`
@@ -99,7 +99,7 @@ type Mercure struct {
 	LRUShardSize *int64 `json:"lru_shard_size,omitempty"`
 
 	// Triggers use of LRU topic selector cache and avoidance of select priority queue.
-	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
+	TopicSelectorCache *topicSelectorCacheConfig `json:"cache,omitempty"`
 
 	// The name of the authorization cookie. Defaults to "mercureAuthorization".
 	CookieName string `json:"cookie_name,omitempty"`
@@ -482,7 +482,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err
 				}
 
-				m.TopicSelectorCache = &TopicSelectorCacheConfig{uint(maxEntriesPerShard), uint(shardCount)}
+				m.TopicSelectorCache = &topicSelectorCacheConfig{uint(maxEntriesPerShard), uint(shardCount)}
 			case "cookie_name":
 				if !d.NextArg() {
 					return d.ArgErr()
