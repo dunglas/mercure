@@ -17,7 +17,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Helper()
 
 	tr := NewLocalTransport()
-	// defer tr.Close()
+	defer tr.Close()
 	top := make([]string, topics)
 	tsMatch := make([]string, topics)
 	tsNoMatch := make([]string, topics)
