@@ -137,8 +137,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		case <-disconnectionTimerC:
 			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
 			return
-		case update, ok := <-s.Receive():
-			if !ok || !h.write(rc, newSerializedUpdate(update).event) {
+		case update := <-s.Receive():
+			if !h.write(rc, newSerializedUpdate(update).event) {
 				return
 			}
 			if heartbeatTimer != nil {
@@ -150,6 +150,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			if c := h.logger.Check(zap.DebugLevel, "Update sent"); c != nil {
 				c.Write(zap.Object("subscriber", s), zap.Object("update", update))
 			}
+		case <-s.Disconnected():
+			return
 		}
 	}
 }

@@ -29,7 +29,10 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for range s.Receive() {
+		select {
+		case <-s.Disconnected():
+			return
+		case <-s.Receive():
 			t.Fail()
 		}
 	}()
@@ -72,8 +75,7 @@ func TestLocalTransportClosed(t *testing.T) {
 	assert.Equal(t, transport.AddSubscriber(NewLocalSubscriber("", logger, tss)), ErrClosedTransport)
 	assert.Equal(t, transport.Dispatch(&Update{}), ErrClosedTransport)
 
-	_, ok := <-s.out
-	assert.False(t, ok)
+	<-s.Disconnected()
 }
 
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {

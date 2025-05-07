@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"sync"
 	"testing"
 
 	"go.uber.org/zap"
@@ -18,7 +17,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Helper()
 
 	tr := NewLocalTransport()
-	defer tr.Close()
+	// defer tr.Close()
 	top := make([]string, topics)
 	tsMatch := make([]string, topics)
 	tsNoMatch := make([]string, topics)
@@ -61,14 +60,11 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	}
 	b.SetParallelism(concurrency)
 	b.Run(testName, func(b *testing.B) {
-		var wg sync.WaitGroup
-		wg.Add(concurrency)
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
 				tr.Dispatch(&Update{Topics: top})
 			}
 		})
-		wg.Done()
 	})
 }
 

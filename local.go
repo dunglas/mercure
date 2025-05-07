@@ -28,10 +28,14 @@ func DeprecatedNewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //no
 // NewLocalTransport creates a new LocalTransport.
 func NewLocalTransport() *LocalTransport {
 	return &LocalTransport{
-		subscribers: NewSubscriberList(1e5),
+		subscribers: newSubscriberList(),
 		closed:      make(chan struct{}),
 		lastEventID: EarliestLastEventID,
 	}
+}
+
+func newSubscriberList() *SubscriberList {
+	return NewSubscriberList(1e5)
 }
 
 // Dispatch dispatches an update to all subscribers.
@@ -107,6 +111,7 @@ func (t *LocalTransport) Close() (err error) {
 
 			return true
 		})
+		t.subscribers = newSubscriberList()
 	})
 
 	return nil
