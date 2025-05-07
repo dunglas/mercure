@@ -90,6 +90,12 @@ func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 		s.Dispatch(&Update{}, false)
 	}
 
-	for range s.Receive() {
+	for {
+		select {
+		case _, ok := <-s.Receive():
+			if !ok {
+				return
+			}
+		}
 	}
 }

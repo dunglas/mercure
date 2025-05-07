@@ -48,6 +48,7 @@ func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 
 	if s.disconnected.Load() > 0 {
 		s.outMutex.Unlock()
+
 		return false
 	}
 
