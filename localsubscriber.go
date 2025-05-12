@@ -110,24 +110,23 @@ func (s *LocalSubscriber) Disconnect() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if s.disconnected.Load() > 0 {
-		return // already disconnected
-	}
-
-	s.disconnected.Store(1)
-	close(s.out)
+	s.doDisconnect()
 }
 
 // handleFullChan disconnects the subscriber when the out channel is full.
 func (s *LocalSubscriber) handleFullChan() {
+	s.doDisconnect()
+
+	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
+		c.Write(zap.Object("subscriber", s))
+	}
+}
+
+func (s *LocalSubscriber) doDisconnect() {
 	if s.disconnected.Load() > 0 {
 		return // already disconnected
 	}
 
 	s.disconnected.Store(1)
 	close(s.out)
-
-	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
-		c.Write(zap.Object("subscriber", s))
-	}
 }
