@@ -15,11 +15,10 @@ type LocalSubscriber struct {
 
 	disconnected        atomic.Uint32
 	out                 chan *Update
-	outMutex            sync.Mutex
+	mutex               sync.Mutex
 	responseLastEventID chan string
 	ready               atomic.Uint32
 	liveQueue           []*Update
-	liveMutex           sync.RWMutex
 }
 
 const outBufferLength = 1000
@@ -44,45 +43,39 @@ func NewLocalSubscriber(lastEventID string, logger Logger, topicSelectorStore *T
 // Security checks must (topics matching) be done before calling Dispatch,
 // for instance by calling Match.
 func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
-	s.outMutex.Lock()
+	s.mutex.Lock()
 
 	if s.disconnected.Load() > 0 {
-		s.outMutex.Unlock()
+		s.mutex.Unlock()
 
 		return false
 	}
 
 	if !fromHistory && s.ready.Load() < 1 {
-		s.liveMutex.Lock()
 		s.liveQueue = append(s.liveQueue, u)
-		s.liveMutex.Unlock()
-
-		s.outMutex.Unlock()
+		s.mutex.Unlock()
 
 		return true
 	}
 
 	select {
 	case s.out <- u:
-		s.outMutex.Unlock()
+		s.mutex.Unlock()
+
+		return true
 	default:
 		s.handleFullChan()
 
 		return false
 	}
-
-	return true
 }
 
 // Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
 func (s *LocalSubscriber) Ready() (n int) {
-	s.outMutex.Lock()
-
-	s.liveMutex.RLock()
-	defer s.liveMutex.RUnlock()
+	s.mutex.Lock()
 
 	if s.disconnected.Load() > 0 || s.ready.Load() > 0 {
-		s.outMutex.Unlock()
+		s.mutex.Unlock()
 
 		return 0
 	}
@@ -103,7 +96,7 @@ func (s *LocalSubscriber) Ready() (n int) {
 	s.ready.Store(1)
 	s.liveQueue = nil
 
-	s.outMutex.Unlock()
+	s.mutex.Unlock()
 
 	return n
 }
@@ -120,8 +113,8 @@ func (s *LocalSubscriber) HistoryDispatched(responseLastEventID string) {
 
 // Disconnect disconnects the subscriber.
 func (s *LocalSubscriber) Disconnect() {
-	s.outMutex.Lock()
-	defer s.outMutex.Unlock()
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	if s.disconnected.Load() > 0 {
 		return // already disconnected
@@ -133,7 +126,7 @@ func (s *LocalSubscriber) Disconnect() {
 
 // handleFullChan disconnects the subscriber when the out channel is full.
 func (s *LocalSubscriber) handleFullChan() {
-	defer s.outMutex.Unlock()
+	defer s.mutex.Unlock()
 	if s.disconnected.Load() > 0 {
 		return // already disconnected
 	}
