@@ -44,23 +44,20 @@ func NewLocalSubscriber(lastEventID string, logger Logger, topicSelectorStore *T
 // for instance by calling Match.
 func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	if s.disconnected.Load() > 0 {
-		s.mutex.Unlock()
-
 		return false
 	}
 
 	if !fromHistory && s.ready.Load() < 1 {
 		s.liveQueue = append(s.liveQueue, u)
-		s.mutex.Unlock()
 
 		return true
 	}
 
 	select {
 	case s.out <- u:
-		s.mutex.Unlock()
 
 		return true
 	default:
@@ -73,10 +70,9 @@ func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 // Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
 func (s *LocalSubscriber) Ready() (n int) {
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	if s.disconnected.Load() > 0 || s.ready.Load() > 0 {
-		s.mutex.Unlock()
-
 		return 0
 	}
 
@@ -95,8 +91,6 @@ func (s *LocalSubscriber) Ready() (n int) {
 
 	s.ready.Store(1)
 	s.liveQueue = nil
-
-	s.mutex.Unlock()
 
 	return n
 }
@@ -126,7 +120,6 @@ func (s *LocalSubscriber) Disconnect() {
 
 // handleFullChan disconnects the subscriber when the out channel is full.
 func (s *LocalSubscriber) handleFullChan() {
-	defer s.mutex.Unlock()
 	if s.disconnected.Load() > 0 {
 		return // already disconnected
 	}
