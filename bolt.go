@@ -98,6 +98,11 @@ func NewBoltTransport(
 		return nil, &TransportError{err: err}
 	}
 
+	lastEventID, err := getDBLastEventID(db, bucketName)
+	if err != nil {
+		return nil, &TransportError{err: err}
+	}
+
 	return &BoltTransport{
 		logger:           logger,
 		db:               db,
@@ -107,13 +112,13 @@ func NewBoltTransport(
 
 		subscribers: NewSubscriberList(1e5),
 		closed:      make(chan struct{}),
-		lastEventID: getDBLastEventID(db, bucketName),
+		lastEventID: lastEventID,
 	}, nil
 }
 
-func getDBLastEventID(db *bolt.DB, bucketName string) string {
+func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 	lastEventID := EarliestLastEventID
-	db.View(func(tx *bolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return nil // No data
@@ -125,8 +130,11 @@ func getDBLastEventID(db *bolt.DB, bucketName string) string {
 
 		return nil
 	})
+	if err != nil {
+		return "", fmt.Errorf("unable to get lastEventID from BoltDB: %w", err)
+	}
 
-	return lastEventID
+	return lastEventID, nil
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
@@ -158,43 +166,8 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 	return nil
 }
 
-// persist stores update in the database.
-func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
-	if err := t.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
-		if err != nil {
-			return fmt.Errorf("error when creating Bolt DB bucket: %w", err)
-		}
-
-		seq, err := bucket.NextSequence()
-		if err != nil {
-			return fmt.Errorf("error when generating Bolt DB sequence: %w", err)
-		}
-		prefix := make([]byte, 8)
-		binary.BigEndian.PutUint64(prefix, seq)
-
-		// The sequence value is prepended to the update id to create an ordered list
-		key := bytes.Join([][]byte{prefix, []byte(updateID)}, []byte{})
-
-		// The DB is append only
-		bucket.FillPercent = 1
-
-		t.lastSeq = seq
-		t.lastEventID = updateID
-		if err := bucket.Put(key, updateJSON); err != nil {
-			return fmt.Errorf("unable to put value in Bolt DB: %w", err)
-		}
-
-		return t.cleanup(bucket, seq)
-	}); err != nil {
-		return fmt.Errorf("bolt error: %w", err)
-	}
-
-	return nil
-}
-
 // AddSubscriber adds a new subscriber to the transport.
-func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
+func (t *BoltTransport) AddSubscriber(s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -203,11 +176,13 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 
 	t.Lock()
 	t.subscribers.Add(s)
-	toSeq := t.lastSeq //nolint:ifshort
+	toSeq := t.lastSeq
 	t.Unlock()
 
 	if s.RequestLastEventID != "" {
-		t.dispatchHistory(s, toSeq)
+		if err := t.dispatchHistory(s, toSeq); err != nil {
+			return err
+		}
 	}
 
 	s.Ready()
@@ -216,7 +191,7 @@ func (t *BoltTransport) AddSubscriber(s *Subscriber) error {
 }
 
 // RemoveSubscriber removes a new subscriber from the transport.
-func (t *BoltTransport) RemoveSubscriber(s *Subscriber) error {
+func (t *BoltTransport) RemoveSubscriber(s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -238,9 +213,32 @@ func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
 	return t.lastEventID, getSubscribers(t.subscribers), nil
 }
 
+// Close closes the Transport.
+func (t *BoltTransport) Close() (err error) {
+	t.closedOnce.Do(func() {
+		close(t.closed)
+
+		t.Lock()
+		defer t.Unlock()
+
+		t.subscribers.Walk(0, func(s *LocalSubscriber) bool {
+			s.Disconnect()
+
+			return true
+		})
+		err = t.db.Close()
+	})
+
+	if err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("unable to close Bolt DB: %w", err)
+}
+
 //nolint:gocognit
-func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
-	t.db.View(func(tx *bolt.Tx) error {
+func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error {
+	err := t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
 			s.HistoryDispatched(EarliestLastEventID)
@@ -286,29 +284,46 @@ func (t *BoltTransport) dispatchHistory(s *Subscriber, toSeq uint64) {
 
 		return nil
 	})
-}
-
-// Close closes the Transport.
-func (t *BoltTransport) Close() (err error) {
-	t.closedOnce.Do(func() {
-		close(t.closed)
-
-		t.Lock()
-		defer t.Unlock()
-
-		t.subscribers.Walk(0, func(s *Subscriber) bool {
-			s.Disconnect()
-
-			return true
-		})
-		err = t.db.Close()
-	})
-
-	if err == nil {
-		return nil
+	if err != nil {
+		return fmt.Errorf("unable to retrieve history from BoltDB: %w", err)
 	}
 
-	return fmt.Errorf("unable to close Bolt DB: %w", err)
+	return nil
+}
+
+// persist stores update in the database.
+func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
+	if err := t.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
+		if err != nil {
+			return fmt.Errorf("error when creating Bolt DB bucket: %w", err)
+		}
+
+		seq, err := bucket.NextSequence()
+		if err != nil {
+			return fmt.Errorf("error when generating Bolt DB sequence: %w", err)
+		}
+		prefix := make([]byte, 8)
+		binary.BigEndian.PutUint64(prefix, seq)
+
+		// The sequence value is prepended to the update id to create an ordered list
+		key := bytes.Join([][]byte{prefix, []byte(updateID)}, []byte{})
+
+		// The DB is append-only
+		bucket.FillPercent = 1
+
+		t.lastSeq = seq
+		t.lastEventID = updateID
+		if err := bucket.Put(key, updateJSON); err != nil {
+			return fmt.Errorf("unable to put value in Bolt DB: %w", err)
+		}
+
+		return t.cleanup(bucket, seq)
+	}); err != nil {
+		return fmt.Errorf("bolt error: %w", err)
+	}
+
+	return nil
 }
 
 // cleanup removes entries in the history above the size limit, triggered probabilistically.

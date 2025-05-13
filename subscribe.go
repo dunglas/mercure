@@ -17,7 +17,7 @@ type responseController struct {
 	// writeDeadline is the JWT expiration date or time.Now() + hub.writeTimeout
 	writeDeadline time.Time
 	hub           *Hub
-	subscriber    *Subscriber
+	subscriber    *LocalSubscriber
 }
 
 func (rc *responseController) setDispatchWriteDeadline() bool {
@@ -73,18 +73,18 @@ func (rc *responseController) flush() bool {
 	return true
 }
 
-func (h *Hub) newResponseController(w http.ResponseWriter, s *Subscriber) *responseController {
+func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *responseController {
 	wd := h.getWriteDeadline(s)
 
 	return &responseController{*http.NewResponseController(w), w, wd.Add(-h.dispatchTimeout), wd, h, s} // nolint:bodyclose
 }
 
-func (h *Hub) getWriteDeadline(s *Subscriber) (deadline time.Time) {
+func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 	if h.writeTimeout != 0 {
 		deadline = time.Now().Add(h.writeTimeout)
 	}
 
-	if s.Claims != nil && s.Claims.ExpiresAt != nil && (deadline == time.Time{} || s.Claims.ExpiresAt.Time.Before(deadline)) {
+	if s.Claims != nil && s.Claims.ExpiresAt != nil && (deadline.Equal(time.Time{}) || s.Claims.ExpiresAt.Before(deadline)) {
 		deadline = s.Claims.ExpiresAt.Time
 	}
 
@@ -129,7 +129,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case <-heartbeatTimerC:
-			// Send a SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
+			// Send an SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
 			if !h.write(rc, ":\n") {
 				return
 			}
@@ -155,10 +155,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subscriber, *responseController) {
-	s := NewSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, &TopicSelectorStore{})
-	s.topicSelectorStore = h.topicSelectorStore
-	s.Debug = h.debug
+func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) {
+	s := NewLocalSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, h.topicSelectorStore)
 	s.RemoteAddr = r.RemoteAddr
 	var privateTopics []string
 	var claims *claims
@@ -217,7 +215,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Subsc
 }
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) {
+func (h *Hub) sendHeaders(w http.ResponseWriter, s *LocalSubscriber) {
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	w.Header().Set("Connection", "keep-alive")
 
@@ -238,7 +236,11 @@ func (h *Hub) sendHeaders(w http.ResponseWriter, s *Subscriber) {
 
 	// Write a comment in the body
 	// Go currently doesn't provide a better way to flush the headers
-	w.Write([]byte{':', '\n'})
+	if _, err := w.Write([]byte{':', '\n'}); err != nil {
+		if c := h.logger.Check(zap.WarnLevel, "Failed to write comment"); c != nil {
+			c.Write(zap.Object("subscriber", s), zap.Error(err))
+		}
+	}
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
@@ -285,10 +287,15 @@ func (h *Hub) write(rc *responseController, data string) bool {
 	return rc.flush() && rc.setDefaultWriteDeadline()
 }
 
-func (h *Hub) shutdown(s *Subscriber) {
+func (h *Hub) shutdown(s *LocalSubscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
-	h.transport.RemoveSubscriber(s)
+	if err := h.transport.RemoveSubscriber(s); err != nil {
+		if c := h.logger.Check(zap.WarnLevel, "Failed to remove subscriber on shutdown"); c != nil {
+			c.Write(zap.Object("subscriber", s), zap.Error(err))
+		}
+	}
+
 	h.dispatchSubscriptionUpdate(s, false)
 	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
 		c.Write(zap.Object("subscriber", s))
@@ -296,13 +303,13 @@ func (h *Hub) shutdown(s *Subscriber) {
 	h.metrics.SubscriberDisconnected(s)
 }
 
-func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
+func (h *Hub) dispatchSubscriptionUpdate(s *LocalSubscriber, active bool) {
 	if !h.subscriptions {
 		return
 	}
 
 	for _, subscription := range s.getSubscriptions("", jsonldContext, active) {
-		json, err := json.MarshalIndent(subscription, "", "  ")
+		j, err := json.MarshalIndent(subscription, "", "  ")
 		if err != nil {
 			panic(err)
 		}
@@ -311,8 +318,12 @@ func (h *Hub) dispatchSubscriptionUpdate(s *Subscriber, active bool) {
 			Topics:  []string{subscription.ID},
 			Private: true,
 			Debug:   h.debug,
-			Event:   Event{Data: string(json)},
+			Event:   Event{Data: string(j)},
 		}
-		h.transport.Dispatch(u)
+		if err := h.transport.Dispatch(u); err != nil {
+			if c := h.logger.Check(zap.WarnLevel, "Failed to dispatch update"); c != nil {
+				c.Write(zap.Object("subscriber", s), zap.Object("update", u), zap.Error(err))
+			}
+		}
 	}
 }

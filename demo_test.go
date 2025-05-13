@@ -11,6 +11,8 @@ import (
 )
 
 func TestEmptyBodyAndJWT(t *testing.T) {
+	t.Parallel()
+
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo.jsonld", nil)
 	w := httptest.NewRecorder()
 
@@ -28,10 +30,12 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, "", string(body))
+	assert.Empty(t, string(body))
 }
 
 func TestBodyAndJWT(t *testing.T) {
+	t.Parallel()
+
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
 	w := httptest.NewRecorder()
 

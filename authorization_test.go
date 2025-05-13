@@ -1,3 +1,4 @@
+//go:debug rsa1024min=0
 package mercure
 
 import (
@@ -167,6 +168,8 @@ var AuthTestData = []AuthorizationTestData{
 }
 
 func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", testdata.validEmpty)
@@ -181,6 +184,8 @@ func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderTooShort(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", "Bearer x")
@@ -194,6 +199,8 @@ func TestAuthorizeAuthorizationHeaderTooShort(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderNoBearer(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", "Greater "+testdata.validEmpty)
@@ -207,6 +214,8 @@ func TestAuthorizeAuthorizationHeaderNoBearer(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderInvalidAlg(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", bearerPrefix+createDummyNoneSignedJWT())
@@ -221,6 +230,8 @@ func TestAuthorizeAuthorizationHeaderInvalidAlg(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderInvalidKey(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", bearerPrefix+testdata.validEmpty)
@@ -235,6 +246,8 @@ func TestAuthorizeAuthorizationHeaderInvalidKey(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderInvalidSignature(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", bearerPrefix+testdata.validEmpty[:len(testdata.validEmpty)-8]+"12345678")
@@ -249,6 +262,8 @@ func TestAuthorizeAuthorizationHeaderInvalidSignature(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderNoContent(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", bearerPrefix+testdata.validEmpty)
@@ -263,6 +278,8 @@ func TestAuthorizeAuthorizationHeaderNoContent(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", bearerPrefix+testdata.valid)
@@ -277,6 +294,8 @@ func TestAuthorizeAuthorizationHeader(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderWithCert(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		if testdata.validForCert != "" {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -293,6 +312,8 @@ func TestAuthorizeAuthorizationHeaderWithCert(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderNamespaced(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		if testdata.validNamespaced != "" {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -309,6 +330,8 @@ func TestAuthorizeAuthorizationHeaderNamespaced(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
+	t.Parallel()
+
 	for idx, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.Header.Add("Authorization", bearerPrefix+testdata.valid)
@@ -324,6 +347,8 @@ func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryTooShort(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		query := r.URL.Query()
@@ -339,6 +364,8 @@ func TestAuthorizeAuthorizationQueryTooShort(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryInvalidAlg(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		query := r.URL.Query()
@@ -355,6 +382,8 @@ func TestAuthorizeAuthorizationQueryInvalidAlg(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryInvalidKey(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		query := r.URL.Query()
@@ -371,6 +400,8 @@ func TestAuthorizeAuthorizationQueryInvalidKey(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryInvalidSignature(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		query := r.URL.Query()
@@ -387,6 +418,8 @@ func TestAuthorizeAuthorizationQueryInvalidSignature(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryNoContent(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		query := r.URL.Query()
@@ -403,6 +436,8 @@ func TestAuthorizeAuthorizationQueryNoContent(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQuery(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		query := r.URL.Query()
@@ -419,6 +454,8 @@ func TestAuthorizeAuthorizationQuery(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryNamespaced(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		if testdata.validNamespaced != "" {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -437,6 +474,8 @@ func TestAuthorizeAuthorizationQueryNamespaced(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryRsaWithCert(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		if testdata.validForCert != "" {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -455,6 +494,8 @@ func TestAuthorizeAuthorizationQueryRsaWithCert(t *testing.T) {
 }
 
 func TestAuthorizeAuthorizationQueryWrongAlgorithm(t *testing.T) {
+	t.Parallel()
+
 	for idx, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		query := r.URL.Query()
@@ -472,6 +513,8 @@ func TestAuthorizeAuthorizationQueryWrongAlgorithm(t *testing.T) {
 }
 
 func TestAuthorizeCookieInvalidAlg(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyNoneSignedJWT()})
@@ -485,6 +528,8 @@ func TestAuthorizeCookieInvalidAlg(t *testing.T) {
 }
 
 func TestAuthorizeCookieInvalidKey(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.validEmpty})
@@ -499,6 +544,8 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 }
 
 func TestAuthorizeCookieInvalidSignature(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.validEmpty[:len(testdata.validEmpty)-8] + "12345678"})
@@ -513,6 +560,8 @@ func TestAuthorizeCookieInvalidSignature(t *testing.T) {
 }
 
 func TestAuthorizeCookieNoContent(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.validEmpty})
@@ -527,6 +576,8 @@ func TestAuthorizeCookieNoContent(t *testing.T) {
 }
 
 func TestAuthorizeCookie(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.valid})
@@ -541,6 +592,8 @@ func TestAuthorizeCookie(t *testing.T) {
 }
 
 func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.valid})
@@ -554,6 +607,8 @@ func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 }
 
 func TestAuthorizeCookieOriginNotAllowed(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
 		r.Header.Add("Origin", "http://example.com")
@@ -568,6 +623,8 @@ func TestAuthorizeCookieOriginNotAllowed(t *testing.T) {
 }
 
 func TestAuthorizeCookieRefererNotAllowed(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
 		r.Header.Add("Referer", "http://example.com/foo/bar")
@@ -582,6 +639,8 @@ func TestAuthorizeCookieRefererNotAllowed(t *testing.T) {
 }
 
 func TestAuthorizeCookieInvalidReferer(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
 		r.Header.Add("Referer", "http://192.168.0.%31/")
@@ -596,6 +655,8 @@ func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 }
 
 func TestAuthorizeCookieOriginHasPriority(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
 		r.Header.Add("Origin", "http://example.net")
@@ -612,6 +673,8 @@ func TestAuthorizeCookieOriginHasPriority(t *testing.T) {
 }
 
 func TestAuthorizeAllOriginsAllowed(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
 		r.Header.Add("Origin", "http://example.com")
@@ -625,6 +688,8 @@ func TestAuthorizeAllOriginsAllowed(t *testing.T) {
 }
 
 func TestAuthorizeCustomCookieName(t *testing.T) {
+	t.Parallel()
+
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
 		r.Header.Add("Origin", "http://example.com")
@@ -638,6 +703,8 @@ func TestAuthorizeCustomCookieName(t *testing.T) {
 }
 
 func TestCanReceive(t *testing.T) {
+	t.Parallel()
+
 	tss := &TopicSelectorStore{}
 	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
 	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"bar"}))
@@ -648,6 +715,8 @@ func TestCanReceive(t *testing.T) {
 }
 
 func TestCanDispatch(t *testing.T) {
+	t.Parallel()
+
 	tss := &TopicSelectorStore{}
 	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
 	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"*"}))

@@ -16,6 +16,8 @@ import (
 )
 
 func TestPublishNoAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -30,6 +32,8 @@ func TestPublishNoAuthorizationHeader(t *testing.T) {
 }
 
 func TestPublishUnauthorizedJWT(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -45,6 +49,8 @@ func TestPublishUnauthorizedJWT(t *testing.T) {
 }
 
 func TestPublishInvalidAlgJWT(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -60,6 +66,8 @@ func TestPublishInvalidAlgJWT(t *testing.T) {
 }
 
 func TestPublishBadContentType(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -75,6 +83,8 @@ func TestPublishBadContentType(t *testing.T) {
 }
 
 func TestPublishNoTopic(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
@@ -90,6 +100,8 @@ func TestPublishNoTopic(t *testing.T) {
 }
 
 func TestPublishInvalidRetry(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -112,6 +124,8 @@ func TestPublishInvalidRetry(t *testing.T) {
 }
 
 func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -133,6 +147,8 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 }
 
 func TestPublishEmptyTopicSelector(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -152,6 +168,8 @@ func TestPublishEmptyTopicSelector(t *testing.T) {
 }
 
 func TestPublishLegacyAuthorization(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy(WithProtocolVersionCompatibility(7))
 
 	form := url.Values{}
@@ -171,10 +189,12 @@ func TestPublishLegacyAuthorization(t *testing.T) {
 }
 
 func TestPublishOK(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	topics := []string{"http://example.com/books/1"}
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics(topics, topics)
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
 
@@ -217,6 +237,8 @@ func TestPublishOK(t *testing.T) {
 }
 
 func TestPublishNoData(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	form := url.Values{}
@@ -236,9 +258,11 @@ func TestPublishNoData(t *testing.T) {
 }
 
 func TestPublishGenerateUUID(t *testing.T) {
+	t.Parallel()
+
 	h := createDummy()
 
-	s := NewSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"http://example.com/books/1"}, s.SubscribedTopics)
 
 	require.NoError(t, h.transport.AddSubscriber(s))
@@ -279,6 +303,8 @@ func TestPublishGenerateUUID(t *testing.T) {
 }
 
 func TestPublishWithErrorInTransport(t *testing.T) {
+	t.Parallel()
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("The code did not panic")
@@ -313,13 +339,15 @@ func FuzzPublish(f *testing.F) {
 	hub := createDummy()
 	authorizationHeader := bearerPrefix + createDummyAuthorizedJWT(rolePublisher, []string{"*"})
 
-	testCases := [][]interface{}{
+	testCases := []struct {
+		topic1, topic2, id, data, private, retry, typ string
+	}{
 		{"https://localhost/foo/bar", "baz", "", "", "", "", ""},
 		{"https://localhost/foo/baz", "bat", "id", "data", "on", "22", "mytype"},
 	}
 
 	for _, tc := range testCases {
-		f.Add(tc...) //nolint:govet
+		f.Add(tc.topic1, tc.topic2, tc.id, tc.data, tc.private, tc.retry, tc.typ)
 	}
 
 	f.Fuzz(func(t *testing.T, topic1, topic2, id, data, private, retry, typ string) {
@@ -349,7 +377,7 @@ func FuzzPublish(f *testing.F) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		if id == "" {
-			assert.NotEqual(t, "", string(body))
+			assert.NotEmpty(t, string(body))
 
 			return
 		}

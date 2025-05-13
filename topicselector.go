@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	uritemplate "github.com/yosida95/uritemplate/v3"
+	"github.com/yosida95/uritemplate/v3"
 )
 
 type TopicSelectorStoreCache interface {
@@ -51,7 +51,7 @@ func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 
 // getRegexp retrieves regexp for this template selector.
 func (tss *TopicSelectorStore) getRegexp(topicSelector string) *regexp.Regexp {
-	// If it's definitely not an URI template, skip to save some resources
+	// If it's definitely not a URI template, skip to save some resources
 	if !strings.Contains(topicSelector, "{") {
 		return nil
 	}

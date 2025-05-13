@@ -14,6 +14,8 @@ import (
 )
 
 func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, subscriptionsURL, nil)
@@ -41,6 +43,8 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 }
 
 func TestSubscriptionHandlerAccessDenied(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar/baz", nil)
@@ -60,6 +64,8 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 }
 
 func TestSubscriptionHandlersETag(t *testing.T) {
+	t.Parallel()
+
 	hub := createDummy()
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
@@ -82,16 +88,18 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 }
 
 func TestSubscriptionsHandler(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s2))
 
@@ -124,15 +132,17 @@ func TestSubscriptionsHandler(t *testing.T) {
 }
 
 func TestSubscriptionsHandlerForTopic(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"http://example.com/bar"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s2))
 
@@ -171,15 +181,17 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 }
 
 func TestSubscriptionHandler(t *testing.T) {
+	t.Parallel()
+
 	logger := zap.NewNop()
 	hub := createDummy(WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
-	otherS := NewSubscriber("", logger, tss)
+	otherS := NewLocalSubscriber("", logger, tss)
 	otherS.SetTopics([]string{"http://example.com/other"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(otherS))
 
-	s := NewSubscriber("", logger, tss)
+	s := NewLocalSubscriber("", logger, tss)
 	s.SetTopics([]string{"http://example.com/other", "http://example.com/{foo}"}, nil)
 	require.NoError(t, hub.transport.AddSubscriber(s))
 

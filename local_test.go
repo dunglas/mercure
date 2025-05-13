@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"net/url"
 	"sync"
 	"testing"
 
@@ -11,16 +10,18 @@ import (
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
+
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	u := &Update{Topics: []string{"http://example.com/books/1"}}
 	err := transport.Dispatch(u)
 	require.NoError(t, err)
 
-	s := NewSubscriber("", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics(u.Topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -38,12 +39,14 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 }
 
 func TestLocalTransportDispatch(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
+
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"http://example.com/foo"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -53,17 +56,20 @@ func TestLocalTransportDispatch(t *testing.T) {
 }
 
 func TestLocalTransportClosed(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
+
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	tss := &TopicSelectorStore{}
+	logger := zap.NewNop()
 
-	s := NewSubscriber("", logger, tss)
+	s := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s))
 	require.NoError(t, transport.Close())
-	assert.Equal(t, transport.AddSubscriber(NewSubscriber("", logger, tss)), ErrClosedTransport)
+	assert.Equal(t, transport.AddSubscriber(NewLocalSubscriber("", logger, tss)), ErrClosedTransport)
 	assert.Equal(t, transport.Dispatch(&Update{}), ErrClosedTransport)
 
 	_, ok := <-s.out
@@ -71,17 +77,18 @@ func TestLocalTransportClosed(t *testing.T) {
 }
 
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
-	logger := zap.NewNop()
-	tr, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
-	transport := tr.(*LocalTransport)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
 
 	tss := &TopicSelectorStore{}
+	logger := zap.NewNop()
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s2))
 
 	assert.Equal(t, 2, transport.subscribers.Len())
@@ -96,12 +103,13 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 }
 
 func TestLiveReading(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewSubscriber("", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -113,23 +121,26 @@ func TestLiveReading(t *testing.T) {
 }
 
 func TestLocalTransportGetSubscribers(t *testing.T) {
-	logger := zap.NewNop()
-	transport, _ := DeprecatedNewLocalTransport(&url.URL{Scheme: "local"}, logger)
+	t.Parallel()
+
+	transport := NewLocalTransport()
 	defer transport.Close()
+
 	require.NotNil(t, transport)
 
+	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
 
-	s1 := NewSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s1))
 
-	s2 := NewSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s2))
 
-	lastEventID, subscribers, err := transport.(TransportSubscribers).GetSubscribers()
+	lastEventID, subscribers, err := transport.GetSubscribers()
 	require.NoError(t, err)
 	assert.Equal(t, EarliestLastEventID, lastEventID)
 	assert.Len(t, subscribers, 2)
-	assert.Contains(t, subscribers, s1)
-	assert.Contains(t, subscribers, s2)
+	assert.Contains(t, subscribers, &s1.Subscriber)
+	assert.Contains(t, subscribers, &s2.Subscriber)
 }

@@ -39,11 +39,11 @@ Note that HTTPS is automatically disabled if you set the server port to 80.
 The following Mercure-specific directives are available:
 
 | Directive                             | Description                                                                                                                                                                                                                                     | Default                |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+|---------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|
 | `publisher_jwt <key> [<algorithm>]`   | the JWT key and algorithm to use for publishers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                              |                        |
 | `subscriber_jwt <key> [<algorithm>]`  | the JWT key and algorithm to use for subscribers, can contain [placeholders](https://caddyserver.com/docs/conventions#placeholders)                                                                                                             |                        |
 | `publisher_jwks_url`                  | the URL of the JSON Web Key Set (JWK Set) URL (provided by identity providers such as Keycloak or AWS Cognito) to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                      |                        |
-| `subscriber_jwks_url`                 | the URL of the JSON Web Key Set (JWK Set) URL to use for validating publishers JWT (take precedence over `publisher_jwt`)                                                                                                                       |                        |
+| `subscriber_jwks_url`                 | the URL of the JSON Web Key Set (JWK Set) URL to use for validating subscribers JWT (take precedence over `subscriber_jwt`)                                                                                                                       |                        |
 | `anonymous`                           | allow subscribers with no valid JWT to connect                                                                                                                                                                                                  | `false`                |
 | `publish_origins <origins...>`        | a list of origins allowed publishing, can be `*` for all (only applicable when using cookie-based auth)                                                                                                                                         |                        |
 | `cors_origins <origin...>`            | a list of allowed CORS origins, ([troubleshoot CORS issues](troubleshooting.md#cors-issues))                                                                                                                                                    |                        |
@@ -56,7 +56,7 @@ The following Mercure-specific directives are available:
 | `protocol_version_compatibility`      | version of the protocol to be backward compatible with (only version 7 is supported)                                                                                                                                                            | disabled               |
 | `demo`                                | enable the UI and expose demo endpoints                                                                                                                                                                                                         |                        |
 | `ui`                                  | enable the UI but do not expose demo endpoints                                                                                                                                                                                                  |                        |
-| `cache <num-counters> <max-cost>`     | cache configuration (see [Ristretto's docs](https://github.com/dgraph-io/ristretto)), set to -1 to disable the cache                                                                                                                            | `6e7` `1e8` (100MB)    |
+| `lru_cache <size>`                    | LRU cache size (see [golang-lru docs](https://github.com/hashicorp/golang-lru)), set to -1 to disable the cache                                                                                                                                 | `6e7` `1e8` (100MB)    |
 | `transport_url <url>`                 | **Deprecated: use `transport` instead.** URL representation of the transport to use. Use `local://local` to disable the history, (example `bolt:///var/run/mercure.db?size=100&cleanup_frequency=0.4`), see also [the cluster mode](cluster.md) | `bolt://mercure.db`    |
 
 See also [the list of built-in Caddyfile directives](https://caddyserver.com/docs/caddyfile/directives).
@@ -66,7 +66,7 @@ See also [the list of built-in Caddyfile directives](https://caddyserver.com/doc
 The provided `Caddyfile` and the Docker image provide convenient environment variables:
 
 | Environment variable            | Description                                                                                                                                                                                                          | Default value |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+|---------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|
 | `GLOBAL_OPTIONS`                | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line                                                                                 |               |
 | `CADDY_EXTRA_CONFIG`            | the [snippet](https://caddyserver.com/docs/caddyfile/concepts#snippets) or the [named-routes](https://caddyserver.com/docs/caddyfile/concepts#named-routes) options block to inject in the `Caddyfile`, one per line |               |
 | `CADDY_SERVER_EXTRA_DIRECTIVES` | [`Caddyfile` directives](https://caddyserver.com/docs/caddyfile/concepts#directives)                                                                                                                                 |               |
@@ -98,12 +98,12 @@ services:
 
 ## JWT Verification
 
-JWT can validated using HMAC and RSA algorithms.
+JWT can be validated using HMAC and RSA algorithms.
 In addition, it's possible to use JSON Web Key Sets (JWK Sets) (usually provided by OAuth and OIDC providers such as Keycloak or Amazon Cognito) to validate the keys.
 
 When using RSA public keys for verification make sure the key is properly formatted and make sure to set the correct algorithm as second parameter of the `publisher_jwt` or `subscriber_jwt` directives (for example `RS256`).
 
-Here is an example of how to use environments variables with a RSA public key.
+Here is an example of how to use environments variables with an RSA public key.
 
 Generate keys (if you don't already have them):
 
@@ -127,12 +127,12 @@ MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
 
 ## Bolt Adapter
 
-| Option              | Description                                                                                                                                                         |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `path`              | path of the database file (default: `mercure.db`)                                                                                                                   |
-| `bucket_name`       | name of the bolt bucket to store events. default to `updates`                                                                                                       |
-| `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication), default to `0.3`. |
-| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                   |
+| Option              | Description                                                                                                                                                        |
+|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `path`              | path of the database file (default: `mercure.db`)                                                                                                                  |
+| `bucket_name`       | name of the bolt bucket to store events (default: `updates`)                                                                                                       |
+| `cleanup_frequency` | chances to trigger history cleanup when an update occurs, must be a number between `0` (never cleanup) and `1` (cleanup after every publication, default to `0.3`) |
+| `size`              | size of the history (to retrieve lost messages using the `Last-Event-ID` header), set to `0` to never remove old events (default)                                  |
 
 You can visualize and edit the content of the database using [boltdbweb](https://github.com/evnix/boltdbweb).
 
@@ -175,7 +175,7 @@ Most configuration parameters are hot reloaded: changes made to environment vari
 When using environment variables, list must be space separated. As flags parameters, they must be comma separated.
 
 | Parameter                  | Description                                                                                                                                                                                                                                                                                                                                                                                  | Default                                                  |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------|
 | `acme_cert_dir`            | the directory where to store Let's Encrypt certificates                                                                                                                                                                                                                                                                                                                                      |                                                          |
 | `acme_hosts`               | a list of hosts for which Let's Encrypt certificates must be issued                                                                                                                                                                                                                                                                                                                          |                                                          |
 | `acme_http01_addr`         | the address used by the acme server to listen on (example: `0.0.0.0:8080`)                                                                                                                                                                                                                                                                                                                   | `:http`                                                  |

@@ -7,17 +7,10 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^ci:"
-      - "^build:"
-      - "^chore:"
-      - "^Merge"
+  use: github-native
 release:
   prerelease: auto
+  draft: true
 env:
   - CGO_ENABLED=0
 builds:
@@ -78,7 +71,7 @@ archives:
       - dev.Caddyfile
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ zip ]
   - id: legacy
     builds:
       - legacy
@@ -95,7 +88,7 @@ archives:
       - README.md
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ zip ]
 dockers:
   - ids:
       - caddy
@@ -152,6 +145,22 @@ docker_manifests:
     image_templates:
       - dunglas/mercure:latest-amd64
       - dunglas/mercure:latest-arm64v8
+nfpms:
+  - id: linux_packages
+    package_name: mercure
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}.{{ .Format }}"
+    builds:
+      - caddy
+    formats:
+      - apk
+      - deb
+      - rpm
+    maintainer: "Kévin Dunglas <kevin@dunglas.dev>"
+    description: "An open, easy, fast, reliable and battery-efficient solution for real-time communications."
+    license: "AGPL-3.0-or-later"
+    vendor: "Dunglas Services SAS"
+    homepage: "https://mercure.rocks"
+    bindir: /usr/bin 
 signs:
   - artifacts: checksum
     args:

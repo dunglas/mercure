@@ -26,6 +26,21 @@ func RegisterTransportFactory(scheme string, factory TransportFactory) {
 	transportFactoriesMu.Unlock()
 }
 
+// Transport provides methods to dispatch and persist updates.
+type Transport interface {
+	// Dispatch dispatches an update to all subscribers.
+	Dispatch(update *Update) error
+
+	// AddSubscriber adds a new subscriber to the transport.
+	AddSubscriber(s *LocalSubscriber) error
+
+	// RemoveSubscriber removes a subscriber from the transport.
+	RemoveSubscriber(s *LocalSubscriber) error
+
+	// Close closes the Transport.
+	Close() error
+}
+
 // Deprecated: directly instantiate the transport or use transports Caddy modules.
 func NewTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
 	transportFactoriesMu.RLock()
@@ -39,25 +54,15 @@ func NewTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
 	return f(u, l)
 }
 
-// Transport provides methods to dispatch and persist updates.
-type Transport interface {
-	// Dispatch dispatches an update to all subscribers.
-	Dispatch(update *Update) error
-
-	// AddSubscriber adds a new subscriber to the transport.
-	AddSubscriber(s *Subscriber) error
-
-	// RemoveSubscriber removes a subscriber from the transport.
-	RemoveSubscriber(s *Subscriber) error
-
-	// Close closes the Transport.
-	Close() error
-}
-
-// TransportSubscribers provide a method to retrieve the list of active subscribers.
+// TransportSubscribers provides a method to retrieve the list of active subscribers.
 type TransportSubscribers interface {
 	// GetSubscribers gets the last event ID and the list of active subscribers at this time.
 	GetSubscribers() (string, []*Subscriber, error)
+}
+
+// TransportTopicSelectorStore provides a method to pass the TopicSelectorStore to the transport.
+type TransportTopicSelectorStore interface {
+	SetTopicSelectorStore(store *TopicSelectorStore)
 }
 
 // ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
@@ -91,8 +96,8 @@ func (e *TransportError) Unwrap() error {
 }
 
 func getSubscribers(sl *SubscriberList) (subscribers []*Subscriber) {
-	sl.Walk(0, func(s *Subscriber) bool {
-		subscribers = append(subscribers, s)
+	sl.Walk(0, func(s *LocalSubscriber) bool {
+		subscribers = append(subscribers, &s.Subscriber)
 
 		return true
 	})

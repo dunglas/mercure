@@ -1,5 +1,5 @@
-// Package mercure helps implementing the Mercure protocol (https://mercure.rocks) in Go projects.
-// It provides an implementation of a Mercure hub as a HTTP handler.
+// Package mercure helps implement the Mercure protocol (https://mercure.rocks) in Go projects.
+// It provides an implementation of a Mercure hub as an HTTP handler.
 package mercure
 
 import (
@@ -324,11 +324,6 @@ func NewHub(options ...Option) (*Hub, error) {
 		opt.logger = l
 	}
 
-	if opt.transport == nil {
-		t, _ := DeprecatedNewLocalTransport(nil, nil)
-		opt.transport = t
-	}
-
 	if opt.topicSelectorStore == nil {
 		tss, err := NewTopicSelectorStoreLRU(DefaultTopicSelectorStoreLRUMaxEntriesPerShard, DefaultTopicSelectorStoreLRUShardCount)
 		if err != nil {
@@ -336,6 +331,14 @@ func NewHub(options ...Option) (*Hub, error) {
 		}
 
 		opt.topicSelectorStore = tss
+	}
+
+	if opt.transport == nil {
+		opt.transport = NewLocalTransport()
+	}
+
+	if ttss, ok := opt.transport.(TransportTopicSelectorStore); ok {
+		ttss.SetTopicSelectorStore(opt.topicSelectorStore)
 	}
 
 	if opt.metrics == nil {

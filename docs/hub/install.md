@@ -67,6 +67,7 @@ docker run \
     -p 443:443 \
     dunglas/mercure caddy run --config /etc/caddy/dev.Caddyfile
 ```
+_Note:_ Docker images before tag v0.16.2 use **Caddyfile.dev** instead of dev.Caddyfile
 
 The server is then available on `https://localhost`. Anonymous subscribers are allowed and the debugger UI is available on `https://localhost/.well-known/mercure/ui/`.
 
@@ -81,7 +82,7 @@ docker run \
     dunglas/mercure
 ```
 
-HTTPS support is automatically enabled. If you run the Mercure hub behind a reverse proxy [such as NGINX](cookbooks.md#using-nginx-as-an-http-2-reverse-proxy-in-front-of-the-hub), you usually want to use unencrypted HTTP.
+HTTPS support is automatically enabled. If you run the Mercure hub behind a reverse proxy [such as NGINX](nginx.md), you usually want to use unencrypted HTTP.
 This can be done like that:
 
 ```console

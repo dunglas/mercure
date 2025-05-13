@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/dunglas/mercure/common"
@@ -13,18 +14,18 @@ const metricsPath = "/metrics"
 
 type Metrics interface {
 	// SubscriberConnected collects metrics about subscriber connections.
-	SubscriberConnected(s *Subscriber)
+	SubscriberConnected(s *LocalSubscriber)
 	// SubscriberDisconnected collects metrics about subscriber disconnections.
-	SubscriberDisconnected(s *Subscriber)
+	SubscriberDisconnected(s *LocalSubscriber)
 	// UpdatePublished collects metrics about update publications.
 	UpdatePublished(u *Update)
 }
 
 type NopMetrics struct{}
 
-func (NopMetrics) SubscriberConnected(_ *Subscriber)    {}
-func (NopMetrics) SubscriberDisconnected(_ *Subscriber) {}
-func (NopMetrics) UpdatePublished(_ *Update)            {}
+func (NopMetrics) SubscriberConnected(_ *LocalSubscriber)    {}
+func (NopMetrics) SubscriberDisconnected(_ *LocalSubscriber) {}
+func (NopMetrics) UpdatePublished(_ *Update)                 {}
 
 // PrometheusMetrics store Hub collected metrics.
 type PrometheusMetrics struct {
@@ -35,7 +36,7 @@ type PrometheusMetrics struct {
 }
 
 // NewPrometheusMetrics creates a Prometheus metrics collector.
-// This method must be called only one time or it will panic.
+// This method must be called only one time, or it will panic.
 func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 	if registry == nil {
 		registry = prometheus.NewRegistry()
@@ -62,9 +63,19 @@ func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 		),
 	}
 
-	m.registry.MustRegister(m.subscribers)
-	m.registry.MustRegister(m.subscribersTotal)
-	m.registry.MustRegister(m.updatesTotal)
+	// https://github.com/caddyserver/caddy/pull/6820
+	if err := m.registry.Register(m.subscribers); err != nil &&
+		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+		panic(err)
+	}
+	if err := m.registry.Register(m.subscribersTotal); err != nil &&
+		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+		panic(err)
+	}
+	if err := m.registry.Register(m.updatesTotal); err != nil &&
+		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+		panic(err)
+	}
 
 	return m
 }
@@ -84,12 +95,12 @@ func (m *PrometheusMetrics) Register(r *mux.Router) {
 	r.Handle(metricsPath, promhttp.HandlerFor(m.registry.(*prometheus.Registry), promhttp.HandlerOpts{})).Methods(http.MethodGet)
 }
 
-func (m *PrometheusMetrics) SubscriberConnected(_ *Subscriber) {
+func (m *PrometheusMetrics) SubscriberConnected(_ *LocalSubscriber) {
 	m.subscribersTotal.Inc()
 	m.subscribers.Inc()
 }
 
-func (m *PrometheusMetrics) SubscriberDisconnected(_ *Subscriber) {
+func (m *PrometheusMetrics) SubscriberDisconnected(_ *LocalSubscriber) {
 	m.subscribers.Dec()
 }
 

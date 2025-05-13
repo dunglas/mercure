@@ -59,12 +59,16 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		subscriptionCollection.Subscriptions = append(subscriptionCollection.Subscriptions, subscriber.getSubscriptions(t, "", true)...)
 	}
 
-	json, err := json.MarshalIndent(subscriptionCollection, "", "  ")
+	j, err := json.MarshalIndent(subscriptionCollection, "", "  ")
 	if err != nil {
 		panic(err)
 	}
 
-	w.Write(json)
+	if _, err := w.Write(j); err != nil {
+		if c := h.logger.Check(zap.WarnLevel, "Failed to write subscriptions response"); c != nil {
+			c.Write(zap.Error(err))
+		}
+	}
 }
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
@@ -89,12 +93,16 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			subscription.LastEventID = lastEventID
-			json, err := json.MarshalIndent(subscription, "", "  ")
+			j, err := json.MarshalIndent(subscription, "", "  ")
 			if err != nil {
 				panic(err)
 			}
 
-			w.Write(json)
+			if _, err := w.Write(j); err != nil {
+				if c := h.logger.Check(zap.WarnLevel, "Failed to write subscription response"); c != nil {
+					c.Write(zap.Error(err), zap.Object("subscriber", subscriber), zap.String("remote_addr", r.RemoteAddr))
+				}
+			}
 
 			return
 		}

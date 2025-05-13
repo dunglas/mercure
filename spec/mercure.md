@@ -51,14 +51,14 @@ interpreted as described in [@!RFC2119].
     private, consequently, it must be dispatched only to subscribers allowed to receive it.
 *   Topic matcher: An expression intended to be matched by one or several topics,
     depending on the matcher type.
-*   Topic matcher type: The type of a matching expression,
+*   Topic matcher type: The type of matching expression,
     such as exact matching, regular expressions or URL patterns.
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
-    systems might call the publisher the "source". Typically a site or a web API, but can also be
+    systems might call the publisher the "source". Typically, a site or a web API, but can also be
     a web browser.
 *   Subscriber: A client application that subscribes to real-time updates of topics using topic
-    matchers. Typically a web or a mobile application, but can also be a server.
+    matchers. Typically, a web or a mobile application, but can also be a server.
 *   Subscription: A topic matcher used by a subscriber to receive updates. A single subscriber can
     have several subscriptions, when it provides several topic matchers.
 *   Hub: A server that handles subscription requests and distributes the content to subscribers when
@@ -224,9 +224,9 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 *   `private` (optional): if this name is set, the update **MUST NOT** be dispatched to subscribers
     not authorized to receive it. See (#authorization). It is recommended to set the value to `on`
     but it **CAN** contain any value including an empty string.
-*   `id` (optional): the topic's revision identifier: will be used as the SSE's `id` property.
-    The provided ID **MUST NOT** start with the `#` character. The provided ID **MAY** be a valid
-    IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a
+*   `id` (optional): the topic's revision identifier: it will be used as the SSE's `id` property.
+    The provided ID **MUST NOT** start with the `#` character. The provided ID **SHOULD** be a valid
+    IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC4122] or a
     [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively the hub **MAY** generate a
     relative URI composed of a fragment (starting with `#`). This is convenient to return an offset
     or a sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the ID
@@ -467,8 +467,8 @@ The protocol allows the reconciliation of states after a reconnection. It can al
 [Event store](https://en.wikipedia.org/wiki/Event_store).
 
 To allow re-establishment in case of connection loss, events dispatched by the hub **MUST** include
-an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987]. An
-UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
+an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987].
+A  UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 According to the server-sent events specification, in case of connection
 lost the subscriber will try to automatically re-connect. During the
@@ -545,8 +545,8 @@ the values of all variables **MUST** be percent-encoded during the expansion pro
 If a subscriber has several subscriptions, it **SHOULD** be identified by a
 `{subscriber}` variable having the same value.
 
-`{subscriber}` **SHOULD** be an IRI [@!RFC3987]. An UUID [@RFC4122] or a
-[DID](https://www.w3.org/TR/did-core/) **MAY** also be used.
+`{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC4122] or a
+[DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
 least the following properties:
@@ -1441,7 +1441,7 @@ Other implementations can be found on GitHub: <https://github.com/topics/mercure
 # Acknowledgements
 
 Parts of this specification, especially (#discovery) have been adapted from the WebSub
-recommendation [@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this
+recommendation [@W3C.REC-websub-20180123]. The editor wish to thank all the authors of this
 specification.
 
 <reference anchor="urlpattern" target="https://urlpattern.spec.whatwg.org">

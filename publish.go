@@ -75,7 +75,12 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	io.WriteString(w, u.ID)
+	if _, err := io.WriteString(w, u.ID); err != nil {
+		if c := h.logger.Check(zap.WarnLevel, "Failed to write publish response"); c != nil {
+			c.Write(zap.Object("update", u), zap.Error(err), zap.String("remote_addr", r.RemoteAddr))
+		}
+	}
+
 	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
 		c.Write(zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
 	}
