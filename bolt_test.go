@@ -304,7 +304,7 @@ func TestBoltTransportClosed(t *testing.T) {
 
 	assert.Equal(t, transport.Dispatch(&Update{Topics: s.SubscribedTopics}), ErrClosedTransport)
 
-	_, ok := <-s.out
+	_, ok := <-s.Receive()
 	assert.False(t, ok)
 }
 

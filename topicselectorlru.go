@@ -8,12 +8,12 @@ import (
 
 // Gather stats to find the best default values.
 const (
-	DefaultTopicSelectorStoreLRUMaxEntriesPerShard = int64(1e4)
-	DefaultTopicSelectorStoreLRUShardCount         = int64(256) // 2.5 million entries.
+	DefaultTopicSelectorStoreLRUMaxEntriesPerShard = int(1e4)
+	DefaultTopicSelectorStoreLRUShardCount         = int(256) // 2.5 million entries.
 )
 
 // NewTopicSelectorStoreLRU creates a TopicSelectorStore with an LRU cache.
-func NewTopicSelectorStoreLRU(maxEntriesPerShard, shardCount int64) (*TopicSelectorStore, error) {
+func NewTopicSelectorStoreLRU(maxEntriesPerShard, shardCount int) (*TopicSelectorStore, error) {
 	if maxEntriesPerShard == 0 {
 		return &TopicSelectorStore{}, nil
 	}
@@ -22,8 +22,8 @@ func NewTopicSelectorStoreLRU(maxEntriesPerShard, shardCount int64) (*TopicSelec
 	}
 
 	lruMap := make(shardedLRUCache, shardCount)
-	for i := 0; i < int(shardCount); i++ {
-		lruMap[i], _ = lru.New(int(maxEntriesPerShard))
+	for i := 0; i < shardCount; i++ {
+		lruMap[i], _ = lru.New(maxEntriesPerShard)
 	}
 
 	return &TopicSelectorStore{cache: &lruMap, skipSelect: true}, nil
