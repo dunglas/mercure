@@ -32,6 +32,7 @@
 - [Dart (publish and subscribe)](https://github.com/wallforfry/dart_mercure)
 - [Amphp (publish)](https://github.com/eislambey/amp-mercure-publisher)
 - [Java (publish)](https://github.com/vitorluis/java-mercure)
+- [Rust (publish)](https://github.com/teohhanhui/mercure-rs)
 
 ## Frameworks and Services Integrations
 
