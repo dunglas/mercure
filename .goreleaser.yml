@@ -54,7 +54,7 @@ upx:
     goos: [linux]
     compress: best
 archives:
-  - builds:
+  - ids:
       - caddy
     name_template: >-
       {{ .ProjectName }}_
@@ -73,7 +73,7 @@ archives:
       - goos: windows
         formats: [ zip ]
   - id: legacy
-    builds:
+    ids:
       - legacy
     name_template: >-
       {{ .ProjectName }}-legacy_
@@ -149,7 +149,7 @@ nfpms:
   - id: linux_packages
     package_name: mercure
     file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}.{{ .Format }}"
-    builds:
+    ids:
       - caddy
     formats:
       - apk
