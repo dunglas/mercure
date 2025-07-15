@@ -1,7 +1,7 @@
 /** Load test for Mercure.
   *
-  *   1. Grab Gatling 3 on https://gatling.io 2. Run
-  *      path/to/gatling/bin/gatling.sh --simulations-folder .
+  * Run the load test:
+  *   ./mvnw gatling:test
   *
   * Available environment variables (all optional):
   *   - HUB_URL: the URL of the hub to test
@@ -88,7 +88,7 @@ class LoadTest extends Simulation {
       topic = topic + "/{id}"
     }
 
-    var requestBuilder = sse("Subscribe").connect("?topic=" + topic)
+    var requestBuilder = sse("Subscribe").get("?topic=" + topic)
 
     if (SubscriberJwt != null) {
       requestBuilder =

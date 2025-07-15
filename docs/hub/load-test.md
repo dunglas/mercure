@@ -7,9 +7,9 @@ To test your own infrastructure, we provide a [Gatling](https://gatling.io)-base
 
 ## Running the Load Test
 
-1. Download [Gatling version 3](https://gatling.io/open-source/)
-2. Clone the Mercure repository: `git clone https://github.com/dunglas/mercure`
-3. Run `path/to/gatling/bin/gatling.sh --simulations-folder mercure/gatling/`
+1. Clone the Mercure repository: `git clone https://github.com/dunglas/mercure`
+2. Go to the `gatling` directory: `cd gatling`
+3. Run `./mvnw gatling:test`
 
 ## Configuration
 
