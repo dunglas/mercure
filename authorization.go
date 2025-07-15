@@ -12,10 +12,11 @@ import (
 
 // claims contains Mercure's JWT claims.
 type claims struct {
+	jwt.RegisteredClaims
+
 	Mercure mercureClaim `json:"mercure"`
 	// Optional fallback
 	MercureNamespaced *mercureClaim `json:"https://mercure.rocks/"`
-	jwt.RegisteredClaims
 }
 
 type mercureClaim struct {
@@ -27,9 +28,10 @@ type mercureClaim struct {
 type role int
 
 const (
-	defaultCookieName      = "mercureAuthorization"
-	bearerPrefix           = "Bearer "
-	roleSubscriber    role = iota
+	defaultCookieName = "mercureAuthorization"
+	bearerPrefix      = "Bearer "
+
+	roleSubscriber role = iota
 	rolePublisher
 )
 
@@ -44,8 +46,6 @@ var (
 	ErrOriginNotAllowed = errors.New("origin not allowed to post updates")
 	// ErrInvalidJWT is returned when the JWT is invalid.
 	ErrInvalidJWT = errors.New("invalid JWT")
-	// ErrPublicKey is returned when there is an error with the public key.
-	ErrPublicKey = errors.New("public key error")
 )
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
@@ -137,6 +137,7 @@ func canReceive(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 	for _, topic := range topics {
 		var matched bool
+
 		for _, topicSelector := range topicSelectors {
 			if topicSelector == "*" {
 				return true
@@ -159,6 +160,7 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 
 func (h *Hub) httpAuthorizationError(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
 	if c := h.logger.Check(zap.DebugLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {
 		c.Write(zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
 	}

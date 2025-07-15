@@ -39,6 +39,7 @@ func TestForwardedHeaders(t *testing.T) {
 
 	// loop until the web server is ready
 	var resp *http.Response
+
 	for resp == nil {
 		resp, _ = client.Get(testURL) //nolint:bodyclose
 	}
@@ -52,6 +53,7 @@ func TestForwardedHeaders(t *testing.T) {
 
 	resp2, err := client.Do(req)
 	require.NoError(t, err)
+
 	defer resp2.Body.Close()
 
 	assert.Equal(t, 1, logs.FilterField(zap.String("remote_addr", "192.0.2.1")).Len())
@@ -162,7 +164,9 @@ func TestServe(t *testing.T) {
 
 	// loop until the web server is ready
 	var resp *http.Response
+
 	client := http.Client{Timeout: 100 * time.Millisecond}
+
 	for resp == nil {
 		resp, _ = client.Get(testURLscheme + testAddr + "/") //nolint:bodyclose
 	}
@@ -173,7 +177,9 @@ func TestServe(t *testing.T) {
 
 	respHealthz, err := client.Get(testURLscheme + testAddr + "/healthz")
 	require.NoError(t, err)
+
 	defer respHealthz.Body.Close()
+
 	healthzBody, _ := io.ReadAll(respHealthz.Body)
 	assert.Contains(t, string(healthzBody), "ok")
 
@@ -183,11 +189,13 @@ func TestServe(t *testing.T) {
 
 	go func() {
 		defer wgTested.Done()
+
 		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1")
 		assert.NoError(t, err)
 		wgConnected.Done()
 
 		defer resp.Body.Close()
+
 		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
@@ -195,11 +203,13 @@ func TestServe(t *testing.T) {
 
 	go func() {
 		defer wgTested.Done()
+
 		resp, err := client.Get(testURL + "?topic=http%3A%2F%2Fexample.com%2Falt%2F1")
 		assert.NoError(t, err)
 		wgConnected.Done()
 
 		defer resp.Body.Close()
+
 		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, []byte(":\nid: first\ndata: hello\n\n"), body)
@@ -214,6 +224,7 @@ func TestServe(t *testing.T) {
 
 	resp2, err := client.Do(req)
 	require.NoError(t, err)
+
 	defer resp2.Body.Close()
 
 	h.server.Shutdown(t.Context())
@@ -227,6 +238,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 	bt, err := NewTransport(u, l)
 	require.NoError(t, err)
+
 	defer os.Remove("test.db")
 
 	h := createAnonymousDummy(WithLogger(l), WithTransport(bt))
@@ -234,10 +246,12 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 	// loop until the web server is ready
 	var resp *http.Response
+
 	client := http.Client{Timeout: 10 * time.Second}
 	for resp == nil {
 		resp, _ = client.Get(testURLscheme + testAddr) //nolint:bodyclose
 	}
+
 	require.NoError(t, resp.Body.Close())
 
 	var wg, subscribingWG sync.WaitGroup
@@ -252,6 +266,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		subscribingWG.Done()
 
 		var receivedBody strings.Builder
+
 		buf := make([]byte, 1024)
 		for {
 			_, err := resp.Body.Read(buf)
@@ -260,6 +275,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 			}
 
 			receivedBody.Write(buf)
+
 			if strings.Contains(receivedBody.String(), "data: "+expectedBodyData+"\n") {
 				cancel()
 
@@ -291,6 +307,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	nbSubscribers := 10
 	subscribingWG.Add(nbSubscribers)
 	wg.Add(nbSubscribers + 1)
+
 	for i := 0; i < nbSubscribers; i++ {
 		go subscribe("first")
 	}
@@ -300,21 +317,27 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 	nbPublishers := 5
 	wg.Add(nbPublishers)
+
 	for i := 0; i < nbPublishers; i++ {
 		go publish("lost")
 	}
+
 	wg.Wait()
 
 	nbSubscribers = 20
 	nbPublishers = 10
+
 	subscribingWG.Add(nbSubscribers)
 	wg.Add(nbSubscribers + nbPublishers)
+
 	for i := 0; i < nbSubscribers; i++ {
 		go subscribe("second")
 	}
+
 	for i := 0; i < nbPublishers; i++ {
 		go publish("second")
 	}
+
 	wg.Wait()
 	h.server.Shutdown(t.Context())
 }
@@ -326,6 +349,7 @@ func TestServeAcme(t *testing.T) {
 	h.config.Set("acme_cert_dir", t.TempDir())
 
 	go h.Serve()
+
 	client := &http.Client{
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -343,6 +367,7 @@ func TestServeAcme(t *testing.T) {
 
 	resp, err := client.Get("http://0.0.0.0:8080/.well-known/acme-challenge/does-not-exists")
 	require.NoError(t, err)
+
 	require.NotNil(t, resp)
 	defer resp.Body.Close()
 
@@ -356,10 +381,12 @@ func TestMetricsAccess(t *testing.T) {
 
 	resp, err := server.client.Get(testURLscheme + testMetricsAddr + metricsPath)
 	require.NoError(t, err)
+
 	defer resp.Body.Close()
 
 	resp, err = server.client.Get(testURLscheme + testMetricsAddr + "/healthz")
 	require.NoError(t, err)
+
 	defer resp.Body.Close()
 
 	assert.Equal(t, 200, resp.StatusCode)
@@ -392,6 +419,7 @@ func TestMetricsVersionIsAccessible(t *testing.T) {
 
 	resp, err := server.client.Get(testURLscheme + testMetricsAddr + metricsPath)
 	require.NoError(t, err)
+
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
@@ -421,7 +449,9 @@ func newTestServer(t *testing.T) testServer {
 
 	// loop until the web server is ready
 	var resp *http.Response
+
 	client := http.Client{Timeout: 100 * time.Millisecond}
+
 	for resp == nil {
 		resp, _ = client.Get(testURLscheme + testAddr + "/") //nolint:bodyclose
 	}
@@ -453,9 +483,12 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 
 	go func() {
 		defer s.wgTested.Done()
+
 		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
 		require.NoError(s.t, err)
+
 		defer resp.Body.Close()
+
 		s.wgConnected.Done()
 
 		if keepAlive {
@@ -471,6 +504,7 @@ func (s *testServer) publish(body url.Values) {
 
 	resp, err := s.client.Do(req)
 	require.NoError(s.t, err)
+
 	defer resp.Body.Close()
 }
 
@@ -481,6 +515,7 @@ func (s *testServer) waitSubscribers() {
 func (s *testServer) assertMetric(metric string) {
 	resp, err := s.client.Get(testURLscheme + testMetricsAddr + metricsPath)
 	require.NoError(s.t, err)
+
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)

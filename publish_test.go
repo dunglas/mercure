@@ -38,6 +38,7 @@ func TestPublishUnauthorizedJWT(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyUnauthorizedJWT())
+
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -55,6 +56,7 @@ func TestPublishInvalidAlgJWT(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyNoneSignedJWT())
+
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -73,6 +75,7 @@ func TestPublishBadContentType(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 	req.Header.Add("Content-Type", "text/plain; boundary=")
+
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -89,6 +92,7 @@ func TestPublishNoTopic(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -202,8 +206,10 @@ func TestPublishOK(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
+
 		u, ok := <-s.Receive()
 		assert.True(t, ok)
 		assert.NotNil(t, u)
@@ -228,6 +234,7 @@ func TestPublishOK(t *testing.T) {
 
 	resp := w.Result()
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -269,8 +276,10 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
+
 		u := <-s.Receive()
 		assert.NotNil(t, u)
 
@@ -291,6 +300,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	resp := w.Result()
 	defer resp.Body.Close()
+
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	bodyBytes, _ := io.ReadAll(resp.Body)
@@ -329,6 +339,7 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 
 	resp := w.Result()
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -369,6 +380,7 @@ func FuzzPublish(f *testing.F) {
 
 		resp := w.Result()
 		defer resp.Body.Close()
+
 		body, _ := io.ReadAll(resp.Body)
 
 		if resp.StatusCode == http.StatusBadRequest {
@@ -376,6 +388,7 @@ func FuzzPublish(f *testing.F) {
 		}
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
 		if id == "" {
 			assert.NotEmpty(t, string(body))
 

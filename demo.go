@@ -40,6 +40,7 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 	// Several Link headers are set on purpose to allow testing advanced discovery mechanism
 	header.Add("Link", hubLink)
 	header.Add("Link", "<"+url+">; rel=\"self\"")
+
 	if mimeType != "" {
 		header.Set("Content-Type", mimeType)
 	}
@@ -55,6 +56,7 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 		// Remove cookie if not provided, to be sure a previous one doesn't exist
 		cookie.Expires = time.Unix(0, 0)
 	}
+
 	http.SetCookie(w, cookie)
 
 	io.WriteString(w, body)

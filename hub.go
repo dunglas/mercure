@@ -284,6 +284,7 @@ func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
 	*opt
+
 	handler http.Handler
 
 	// Deprecated: use the Caddy server module or the standalone library instead.

@@ -36,7 +36,9 @@ func TestMercure(t *testing.T) {
 	for _, d := range data {
 		t.Run(d.name, func(t *testing.T) {
 			if d.name == "bolt" {
-				defer os.Remove("bolt.db")
+				t.Cleanup(func() {
+					require.NoError(t, os.Remove("bolt.db"))
+				})
 			}
 
 			tester := caddytest.NewTester(t)

@@ -41,6 +41,7 @@ func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 	if registry == nil {
 		registry = prometheus.NewRegistry()
 	}
+
 	m := &PrometheusMetrics{
 		registry: registry,
 		subscribersTotal: prometheus.NewCounter(
@@ -68,10 +69,12 @@ func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
 		panic(err)
 	}
+
 	if err := m.registry.Register(m.subscribersTotal); err != nil &&
 		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
 		panic(err)
 	}
+
 	if err := m.registry.Register(m.updatesTotal); err != nil &&
 		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
 		panic(err)

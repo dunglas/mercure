@@ -26,6 +26,7 @@ const defaultBoltBucketName = "updates"
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
 	sync.RWMutex
+
 	subscribers      *SubscriberList
 	logger           Logger
 	db               *bolt.DB
@@ -43,8 +44,10 @@ type BoltTransport struct {
 // Deprecated: use NewBoltTransport() instead.
 func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
 	var err error
+
 	q := u.Query()
 	bucketName := defaultBoltBucketName
+
 	if q.Get("bucket_name") != "" {
 		bucketName = q.Get("bucket_name")
 	}
@@ -59,6 +62,7 @@ func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nol
 
 	cleanupFrequency := BoltDefaultCleanupFrequency
 	cleanupFrequencyParameter := q.Get("cleanup_frequency")
+
 	if cleanupFrequencyParameter != "" {
 		cleanupFrequency, err = strconv.ParseFloat(cleanupFrequencyParameter, 64)
 		if err != nil {
@@ -67,9 +71,11 @@ func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nol
 	}
 
 	path := u.Path // absolute path (bolt:///path.db)
+
 	if path == "" {
 		path = u.Host // relative path (bolt://path.db)
 	}
+
 	if path == "" {
 		return nil, &TransportError{u.Redacted(), "missing path", err}
 	}
@@ -118,6 +124,7 @@ func NewBoltTransport(
 
 func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 	lastEventID := EarliestLastEventID
+
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
@@ -146,6 +153,7 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 	}
 
 	AssignUUID(update)
+
 	updateJSON, err := json.Marshal(*update)
 	if err != nil {
 		return fmt.Errorf("error when marshaling update: %w", err)
@@ -200,6 +208,7 @@ func (t *BoltTransport) RemoveSubscriber(s *LocalSubscriber) error {
 
 	t.Lock()
 	defer t.Unlock()
+
 	t.subscribers.Remove(s)
 
 	return nil
@@ -248,6 +257,7 @@ func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error 
 
 		c := b.Cursor()
 		responseLastEventID := EarliestLastEventID
+
 		afterFromID := s.RequestLastEventID == EarliestLastEventID
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			if !afterFromID {
@@ -262,6 +272,7 @@ func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error 
 			var update *Update
 			if err := json.Unmarshal(v, &update); err != nil {
 				s.HistoryDispatched(responseLastEventID)
+
 				if c := t.logger.Check(zap.ErrorLevel, "Unable to unmarshal update coming from the Bolt DB"); c != nil {
 					c.Write(zap.Error(err))
 				}
@@ -275,7 +286,9 @@ func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error 
 				return nil
 			}
 		}
+
 		s.HistoryDispatched(responseLastEventID)
+
 		if !afterFromID {
 			if c := t.logger.Check(zap.InfoLevel, "Can't find requested LastEventID"); c != nil {
 				c.Write(zap.String("LastEventID", s.RequestLastEventID))
@@ -336,6 +349,7 @@ func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	}
 
 	removeUntil := lastID - t.size
+
 	c := bucket.Cursor()
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
 		if binary.BigEndian.Uint64(k[:8]) > removeUntil {

@@ -29,6 +29,7 @@ func BenchmarkSubscriberList(b *testing.B) {
 	tss := &TopicSelectorStore{}
 
 	l := NewSubscriberList(100)
+
 	for i := 0; i < 100; i++ {
 		s := NewLocalSubscriber("", logger, tss)
 		t := fmt.Sprintf("https://example.com/%d", i%10)

@@ -57,6 +57,7 @@ func decode(f string) (topics []string, private bool) {
 	for _, char := range f {
 		if inEscape {
 			builder.WriteRune(char)
+
 			inEscape = false
 
 			continue

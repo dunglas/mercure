@@ -9,6 +9,9 @@ import (
 
 // Update represents an update to send to subscribers.
 type Update struct {
+	// The Server-Sent Event to send.
+	Event
+
 	// The topics' Internationalized Resource Identifier (RFC3987) (will most likely be URLs).
 	// The first one is the canonical IRI, while next ones are alternate IRIs.
 	Topics []string
@@ -18,18 +21,17 @@ type Update struct {
 
 	// To print debug information
 	Debug bool
-
-	// The Server-Sent Event to send.
-	Event
 }
 
 func (u *Update) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("id", u.ID)
 	enc.AddString("type", u.Type)
 	enc.AddUint64("retry", u.Retry)
+
 	if err := enc.AddArray("topics", stringArray(u.Topics)); err != nil {
 		return fmt.Errorf("log error: %w", err)
 	}
+
 	enc.AddBool("private", u.Private)
 
 	if u.Debug {
@@ -41,6 +43,7 @@ func (u *Update) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 
 type serializedUpdate struct {
 	*Update
+
 	event string
 }
 

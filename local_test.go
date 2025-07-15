@@ -27,6 +27,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		for range s.Receive() {
 			t.Fail()
@@ -108,6 +109,7 @@ func TestLiveReading(t *testing.T) {
 
 	transport := NewLocalTransport()
 	defer transport.Close()
+
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})

@@ -28,9 +28,11 @@ func (h *Hub) initHandler() {
 	router.SkipClean(true)
 
 	csp := "default-src 'self'"
+
 	if h.demo {
 		router.PathPrefix(defaultDemoURL).HandlerFunc(h.Demo).Methods(http.MethodGet, http.MethodHead)
 	}
+
 	if h.ui {
 		public, err := fs.Sub(uiContent, "public")
 		if err != nil {
@@ -103,6 +105,7 @@ func (h *Hub) Serve() { //nolint:funlen
 		if c := h.logger.Check(zap.InfoLevel, "Mercure metrics started"); c != nil {
 			c.Write(zap.String("addr", addr))
 		}
+
 		go h.metricsServer.ListenAndServe()
 	}
 
@@ -112,6 +115,7 @@ func (h *Hub) Serve() { //nolint:funlen
 	keyFile := h.config.GetString("key_file")
 
 	done := h.listenShutdown()
+
 	var err error
 
 	if !acme && certFile == "" && keyFile == "" { //nolint:nestif
@@ -132,6 +136,7 @@ func (h *Hub) Serve() { //nolint:funlen
 			if acmeCertDir != "" {
 				certManager.Cache = autocert.DirCache(acmeCertDir)
 			}
+
 			h.server.TLSConfig = certManager.TLSConfig()
 
 			// Mandatory for Let's Encrypt http-01 challenge
@@ -176,6 +181,7 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 				c.Write(zap.Error(err))
 			}
 		}
+
 		if h.metricsServer != nil {
 			if err := h.metricsServer.Shutdown(context.Background()); err != nil {
 				if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during metrics server shutdown"); c != nil {
@@ -183,6 +189,7 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 				}
 			}
 		}
+
 		if c := h.logger.Check(zap.InfoLevel, "My Baby Shot Me Down"); c != nil {
 			c.Write()
 		}
@@ -206,6 +213,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
 
 	csp := "default-src 'self'"
+
 	if h.demo {
 		r.PathPrefix("/demo").HandlerFunc(h.Demo).Methods(http.MethodGet, http.MethodHead)
 	}
@@ -217,6 +225,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 		}
 
 		r.PathPrefix("/").Handler(http.FileServer(http.FS(public)))
+
 		csp += " mercure.rocks cdn.jsdelivr.net"
 	} else {
 		r.HandleFunc("/", welcomeHandler).Methods(http.MethodGet, http.MethodHead)
@@ -232,6 +241,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	})
 
 	var corsHandler http.Handler
+
 	if len(h.corsOrigins) > 0 {
 		allowedOrigins := handlers.AllowedOrigins(h.corsOrigins)
 		allowedHeaders := handlers.AllowedHeaders([]string{"authorization", "cache-control", "last-event-id"})
@@ -263,6 +273,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	} else {
 		loggingHandler = secureHandler
 	}
+
 	recoveryHandler := handlers.RecoveryHandler(
 		handlers.RecoveryLogger(zapRecoveryHandlerLogger{h.logger}),
 		handlers.PrintRecoveryStack(h.debug),
@@ -275,6 +286,7 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	if !h.subscriptions {
 		return
 	}
+
 	if _, ok := h.transport.(TransportSubscribers); !ok {
 		if c := h.logger.Check(zap.ErrorLevel, "The current transport doesn't support subscriptions. Subscription API disabled."); c != nil {
 			c.Write()

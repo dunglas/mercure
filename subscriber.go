@@ -53,6 +53,7 @@ func escapeTopics(topics []string) []string {
 //nolint:gocognit
 func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
 	var subscribed bool
+
 	canAccess := !private
 
 	for _, topic := range topics {
@@ -88,14 +89,17 @@ func (s *Subscriber) Match(u *Update) bool {
 func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddString("id", s.ID)
 	enc.AddString("last_event_id", s.RequestLastEventID)
+
 	if s.RemoteAddr != "" {
 		enc.AddString("remote_addr", s.RemoteAddr)
 	}
+
 	if s.AllowedPrivateTopics != nil {
 		if err := enc.AddArray("topic_selectors", stringArray(s.AllowedPrivateTopics)); err != nil {
 			return fmt.Errorf("log error: %w", err)
 		}
 	}
+
 	if s.SubscribedTopics != nil {
 		if err := enc.AddArray("topics", stringArray(s.SubscribedTopics)); err != nil {
 			return fmt.Errorf("log error: %w", err)
@@ -108,6 +112,7 @@ func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 // getSubscriptions return the list of subscriptions associated to this subscriber.
 func (s *Subscriber) getSubscriptions(topic, context string, active bool) []subscription {
 	var subscriptions []subscription //nolint:prealloc
+
 	for k, t := range s.SubscribedTopics {
 		if topic != "" && (!s.MatchTopics([]string{topic}, false) || t != topic) {
 			continue

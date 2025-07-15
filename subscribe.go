@@ -11,6 +11,7 @@ import (
 
 type responseController struct {
 	http.ResponseController
+
 	rw http.ResponseWriter
 	// disconnectionTime is the JWT expiration date minus hub.dispatchTimeout, or time.Now() plus hub.writeTimeout minus hub.dispatchTimeout
 	disconnectionTime time.Time
@@ -112,11 +113,14 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	if h.heartbeat != 0 {
 		heartbeatTimer = time.NewTimer(h.heartbeat)
 		defer heartbeatTimer.Stop()
+
 		heartbeatTimerC = heartbeatTimer.C
 	}
+
 	if h.writeTimeout != 0 {
 		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
 		defer disconnectionTimer.Stop()
+
 		disconnectionTimerC = disconnectionTimer.C
 	}
 
@@ -133,6 +137,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			if !h.write(rc, ":\n") {
 				return
 			}
+
 			heartbeatTimer.Reset(h.heartbeat)
 		case <-disconnectionTimerC:
 			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
@@ -141,12 +146,15 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			if !ok || !h.write(rc, newSerializedUpdate(update).event) {
 				return
 			}
+
 			if heartbeatTimer != nil {
 				if !heartbeatTimer.Stop() {
 					<-heartbeatTimer.C
 				}
+
 				heartbeatTimer.Reset(h.heartbeat)
 			}
+
 			if c := h.logger.Check(zap.DebugLevel, "Update sent"); c != nil {
 				c.Write(zap.Object("subscriber", s), zap.Object("update", update))
 			}
@@ -155,21 +163,27 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) {
+func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) { //nolint:funlen
 	s := NewLocalSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, h.topicSelectorStore)
 	s.RemoteAddr = r.RemoteAddr
-	var privateTopics []string
-	var claims *claims
+
+	var (
+		privateTopics []string
+		claims        *claims
+	)
 
 	if h.subscriberJWTKeyFunc != nil {
 		var err error
+
 		claims, err = authorize(r, h.subscriberJWTKeyFunc, nil, h.cookieName)
 		if claims != nil {
 			s.Claims = claims
 			privateTopics = claims.Mercure.Subscribe
 		}
+
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
 			if c := h.logger.Check(zap.DebugLevel, "Subscriber unauthorized"); c != nil {
 				c.Write(zap.Object("subscriber", s), zap.Error(err))
 			}
@@ -184,12 +198,15 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 
 		return nil, nil
 	}
+
 	s.SetTopics(topics, privateTopics)
 
 	h.dispatchSubscriptionUpdate(s, true)
+
 	if err := h.transport.AddSubscriber(s); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(s, false)
+
 		if c := h.logger.Check(zap.ErrorLevel, "Unable to add subscriber"); c != nil {
 			c.Write(zap.Object("subscriber", s), zap.Error(err))
 		}
@@ -209,6 +226,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 
 		c.Write(fields...)
 	}
+
 	h.metrics.SubscriberConnected(s)
 
 	return s, rc
@@ -290,6 +308,7 @@ func (h *Hub) write(rc *responseController, data string) bool {
 func (h *Hub) shutdown(s *LocalSubscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
+
 	if err := h.transport.RemoveSubscriber(s); err != nil {
 		if c := h.logger.Check(zap.WarnLevel, "Failed to remove subscriber on shutdown"); c != nil {
 			c.Write(zap.Object("subscriber", s), zap.Error(err))
@@ -297,9 +316,11 @@ func (h *Hub) shutdown(s *LocalSubscriber) {
 	}
 
 	h.dispatchSubscriptionUpdate(s, false)
+
 	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
 		c.Write(zap.Object("subscriber", s))
 	}
+
 	h.metrics.SubscriberDisconnected(s)
 }
 
