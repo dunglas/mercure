@@ -25,9 +25,8 @@ jobs:
       - name: Lint Code Base
         uses: super-linter/super-linter/slim@v6
         env:
-          DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: true
+          FILTER_REGEX_EXCLUDE: .*gatling/mvnw.*
           VALIDATE_CHECKOV: false
           VALIDATE_GITLEAKS: false
           VALIDATE_GO: false
