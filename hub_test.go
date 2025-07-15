@@ -74,6 +74,7 @@ func TestStartCrash(t *testing.T) {
 
 		return
 	}
+
 	cmd := exec.Command(os.Args[0], "-test.run=TestStartCrash") //nolint:gosec
 	cmd.Env = append(os.Environ(), "BE_START_CRASH=1")
 	err := cmd.Run()
@@ -92,6 +93,7 @@ func TestStop(t *testing.T) {
 
 	go func() {
 		s := hub.transport.(*LocalTransport)
+
 		var ready bool
 
 		for !ready {
@@ -110,9 +112,11 @@ func TestStop(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(numberOfSubscribers)
+
 	for i := 0; i < numberOfSubscribers; i++ {
 		go func() {
 			defer wg.Done()
+
 			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/foo", nil)
 
 			w := newSubscribeRecorder()
@@ -297,6 +301,7 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload interf
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	var key []byte
+
 	switch r {
 	case rolePublisher:
 		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, RegisteredClaims: jwt.RegisteredClaims{}}

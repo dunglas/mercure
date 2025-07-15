@@ -28,6 +28,7 @@ func (e *Event) String() string {
 	if e.Type != "" {
 		_, _ = fmt.Fprintf(&b, "event: %s\n", e.Type)
 	}
+
 	if e.Retry != 0 {
 		_, _ = fmt.Fprintf(&b, "retry: %d\n", e.Retry)
 	}

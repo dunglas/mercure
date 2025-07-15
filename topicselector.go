@@ -28,6 +28,7 @@ func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 	var k string
 	if tss.cache != nil {
 		k = "m_" + topicSelector + "_" + topic
+
 		value, found := tss.cache.Get(k)
 		if found {
 			return value.(bool)
@@ -59,6 +60,7 @@ func (tss *TopicSelectorStore) getRegexp(topicSelector string) *regexp.Regexp {
 	var k string
 	if tss.cache != nil {
 		k = "t_" + topicSelector
+
 		value, found := tss.cache.Get(k)
 		if found {
 			return value.(*regexp.Regexp)

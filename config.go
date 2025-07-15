@@ -49,12 +49,15 @@ func ValidateConfig(v *viper.Viper) error {
 	if v.GetString("publisher_jwt_key") == "" && v.GetString("jwt_key") == "" {
 		return fmt.Errorf(`%w: one of "jwt_key" or "publisher_jwt_key" configuration parameter must be defined`, ErrInvalidConfig)
 	}
+
 	if v.GetString("cert_file") != "" && v.GetString("key_file") == "" {
 		return fmt.Errorf(`%w: if the "cert_file" configuration parameter is defined, "key_file" must be defined too`, ErrInvalidConfig)
 	}
+
 	if v.GetString("key_file") != "" && v.GetString("cert_file") == "" {
 		return fmt.Errorf(`%w: if the "key_file" configuration parameter is defined, "cert_file" must be defined too`, ErrInvalidConfig)
 	}
+
 	if !v.GetBool("metrics_enabled") {
 		return nil
 	}
@@ -62,6 +65,7 @@ func ValidateConfig(v *viper.Viper) error {
 	if v.GetString("metrics_addr") == "" {
 		return fmt.Errorf(`%w: "metrics_addr" must be defined when metrics is enabled`, ErrInvalidConfig)
 	}
+
 	if v.GetString("metrics_addr") == v.GetString("addr") {
 		return fmt.Errorf(`%w: "metrics_addr" must not be the same as "addr"`, ErrInvalidConfig)
 	}
@@ -117,10 +121,12 @@ func InitConfig(v *viper.Viper) {
 	v.AutomaticEnv()
 
 	v.AddConfigPath(".")
+
 	configDir := os.Getenv("XDG_CONFIG_HOME")
 	if configDir == "" {
 		configDir = "$HOME/.config"
 	}
+
 	v.AddConfigPath(configDir + "/mercure/")
 	v.AddConfigPath("/etc/mercure/")
 
@@ -136,11 +142,13 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	}
 
 	options := []Option{}
+
 	var (
 		logger Logger
 		err    error
 		k      string
 	)
+
 	if v.GetBool("debug") {
 		options = append(options, WithDebug())
 		logger, err = zap.NewDevelopment()
@@ -153,10 +161,12 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	}
 
 	var tss *TopicSelectorStore
+
 	tcsz := v.GetInt("tcsz")
 	if tcsz == 0 {
 		tcsz = DefaultTopicSelectorStoreLRUMaxEntriesPerShard
 	}
+
 	tss, err = NewTopicSelectorStoreLRU(tcsz, DefaultTopicSelectorStoreLRUShardCount)
 	if err != nil {
 		return nil, err
@@ -184,24 +194,31 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	if v.GetBool("allow_anonymous") {
 		options = append(options, WithAnonymous())
 	}
+
 	if v.GetBool("demo") {
 		options = append(options, WithDemo())
 	}
+
 	if d := v.GetDuration("write_timeout"); d != 600*time.Second {
 		options = append(options, WithWriteTimeout(d))
 	}
+
 	if d := v.GetDuration("dispatch_timeout"); d != 0 {
 		options = append(options, WithDispatchTimeout(d))
 	}
+
 	if v.GetBool("subscriptions") {
 		options = append(options, WithSubscriptions())
 	}
+
 	if d := v.GetDuration("heartbeat_interval"); d != 0 {
 		options = append(options, WithHeartbeat(d))
 	}
+
 	if k = v.GetString("publisher_jwt_key"); k == "" {
 		k = v.GetString("jwt_key")
 	}
+
 	if k != "" {
 		alg := v.GetString("publisher_jwt_algorithm")
 		if alg == "" {
@@ -212,9 +229,11 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 
 		options = append(options, WithPublisherJWT([]byte(k), alg))
 	}
+
 	if k = v.GetString("subscriber_jwt_key"); k == "" {
 		k = v.GetString("jwt_key")
 	}
+
 	if k != "" {
 		alg := v.GetString("subscriber_jwt_algorithm")
 		if alg == "" {
@@ -225,12 +244,15 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 
 		options = append(options, WithSubscriberJWT([]byte(k), alg))
 	}
+
 	if h := v.GetStringSlice("acme_hosts"); len(h) > 0 {
 		options = append(options, WithAllowedHosts(h))
 	}
+
 	if o := v.GetStringSlice("publish_allowed_origins"); len(o) > 0 {
 		options = append(options, WithPublishOrigins(o))
 	}
+
 	if o := v.GetStringSlice("cors_allowed_origins"); len(o) > 0 {
 		options = append(options, WithCORSOrigins(o))
 	}
@@ -239,6 +261,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	if err != nil {
 		return nil, err
 	}
+
 	h.config = v
 
 	return h, err

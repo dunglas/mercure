@@ -47,16 +47,19 @@ func subscribeBenchmarkHelper(b *testing.B, subBench func(b *testing.B, topics, 
 		if len(topicOpts) > 1 {
 			arg = append(arg, topics)
 		}
+
 		for _, concurrency := range concurrencyOpts {
 			arg := arg
 			if len(concurrencyOpts) > 1 {
 				arg = append(arg, concurrency)
 			}
+
 			for _, matchPct := range matchPctOpts {
 				arg := arg
 				if len(matchPctOpts) > 1 {
 					arg = append(arg, matchPct)
 				}
+
 				subBench(b,
 					topics,
 					concurrency,
@@ -87,9 +90,11 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop(), &TopicSelectorStore{})
 	ts := make([]string, topics)
 	tsMatch := make([]string, topics)
+
 	tsNoMatch := make([]string, topics)
 	for i := 0; i < topics; i++ {
-		ts[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())      //nolint:gosec
+		ts[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int()) //nolint:gosec
+
 		tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int()) //nolint:gosec
 		if topics/2 == i {
 			// Insert matching topic half-way through matching topic list to simulate match
@@ -98,10 +103,13 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 			tsMatch[i] = tsNoMatch[i]
 		}
 	}
+
 	s.SetTopics(ts, nil)
 	defer s.Disconnect()
+
 	ctx, done := context.WithCancel(b.Context())
 	defer done()
+
 	for i := 0; i < 1; i++ {
 		go func() {
 			for {
@@ -113,6 +121,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 			}
 		}()
 	}
+
 	b.SetParallelism(concurrency)
 	b.Run(testName, func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {

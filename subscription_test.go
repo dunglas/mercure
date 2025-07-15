@@ -27,6 +27,7 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 
 	req = httptest.NewRequest(http.MethodGet, subscriptionsURL, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo{/subscriber}"})})
+
 	w = httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res = w.Result()
@@ -35,6 +36,7 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar", nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo{/subscriber}"})})
+
 	w = httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res = w.Result()
@@ -56,6 +58,7 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar/baz", nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo{/subscriber}"})})
+
 	w = httptest.NewRecorder()
 	hub.SubscriptionHandler(w, req)
 	res = w.Result()
@@ -71,6 +74,7 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	req.Header.Add("If-None-Match", EarliestLastEventID)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
+
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res := w.Result()
@@ -80,6 +84,7 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/foo/bar", nil)
 	req.Header.Add("If-None-Match", EarliestLastEventID)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo/bar"})})
+
 	w = httptest.NewRecorder()
 	hub.SubscriptionHandler(w, req)
 	res = w.Result()
@@ -105,6 +110,7 @@ func TestSubscriptionsHandler(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
+
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res := w.Result()
@@ -122,9 +128,11 @@ func TestSubscriptionsHandler(t *testing.T) {
 
 	assert.Equal(t, lastEventID, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
+
 	for _, s := range subscribers {
 		currentSubs := s.getSubscriptions("", "", true)
 		require.NotEmpty(t, currentSubs)
+
 		for _, sub := range currentSubs {
 			assert.Contains(t, subscriptions.Subscriptions, sub)
 		}
@@ -155,6 +163,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/"+s2.EscapedTopics[0], nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/" + s2.EscapedTopics[0]})})
+
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res := w.Result()
@@ -172,6 +181,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 
 	assert.Equal(t, lastEventID, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
+
 	for _, s := range subscribers {
 		for _, sub := range s.getSubscriptions("http://example.com/bar", "", true) {
 			require.NotContains(t, "foo", sub.Topic)
@@ -202,6 +212,7 @@ func TestSubscriptionHandler(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/"+s.EscapedTopics[1]+"/"+s.EscapedID, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	res := w.Result()
@@ -210,12 +221,14 @@ func TestSubscriptionHandler(t *testing.T) {
 
 	var subscription subscription
 	json.Unmarshal(w.Body.Bytes(), &subscription)
+
 	expectedSub := s.getSubscriptions(s.SubscribedTopics[1], "https://mercure.rocks/", true)[0]
 	expectedSub.LastEventID, _, _ = hub.transport.(TransportSubscribers).GetSubscribers()
 	assert.Equal(t, expectedSub, subscription)
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/notexist/"+s.EscapedID, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})
+
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	res = w.Result()

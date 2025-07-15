@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) (*BoltTransport, func()) {
+func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *BoltTransport {
 	t.Helper()
 
 	if cleanupFrequency == 0 {
@@ -26,24 +26,25 @@ func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) (*
 	transport, err := NewBoltTransport(zap.NewNop(), path, defaultBoltBucketName, size, cleanupFrequency)
 	require.NoError(t, err)
 
-	return transport, func() {
-		os.Remove(path)
-		transport.Close()
-	}
+	t.Cleanup(func() {
+		require.NoError(t, os.Remove(path))
+		require.NoError(t, transport.Close())
+	})
+
+	return transport
 }
 
 func TestBoltTransportHistory(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(&Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: topics,
-		})
+		}))
 	}
 
 	s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
@@ -52,10 +53,12 @@ func TestBoltTransportHistory(t *testing.T) {
 	require.NoError(t, transport.AddSubscriber(s))
 
 	var count int
+
 	for {
 		u := <-s.Receive()
 		// the reading loop must read the #9 and #10 messages
 		assert.Equal(t, strconv.Itoa(9+count), u.ID)
+
 		count++
 		if count == 2 {
 			return
@@ -69,16 +72,15 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 	sink, logger := newTestLogger(t)
 	defer sink.Reset()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
+	transport := createBoltTransport(t, 0, 0)
 	transport.logger = logger
-	defer cleanup()
 
 	// make sure the db is not empty
 	topics := []string{"https://example.com/foo"}
-	transport.Dispatch(&Update{
+	require.NoError(t, transport.Dispatch(&Update{
 		Event:  Event{ID: "1"},
 		Topics: topics,
-	})
+	}))
 
 	s := NewLocalSubscriber("711131", logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
@@ -92,16 +94,15 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 func TestBoltTopicSelectorHistory(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 
-	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed"}, Event: Event{ID: "1"}})
-	transport.Dispatch(&Update{Topics: []string{"http://example.com/not-subscribed"}, Event: Event{ID: "2"}})
-	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}})
-	transport.Dispatch(&Update{Topics: []string{"http://example.com/subscribed-public-only"}, Event: Event{ID: "4"}})
+	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/subscribed"}, Event: Event{ID: "1"}}))
+	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/not-subscribed"}, Event: Event{ID: "2"}}))
+	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}}))
+	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/subscribed-public-only"}, Event: Event{ID: "4"}}))
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
-	s.SetTopics([]string{"http://example.com/subscribed", "http://example.com/subscribed-public-only"}, []string{"http://example.com/subscribed"})
+	s.SetTopics([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}, []string{"https://example.com/subscribed"})
 
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -112,15 +113,14 @@ func TestBoltTopicSelectorHistory(t *testing.T) {
 func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(&Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: topics,
-		})
+		}))
 	}
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
@@ -128,30 +128,32 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	require.NoError(t, transport.AddSubscriber(s))
 
 	var count int
+
 	for {
 		u := <-s.Receive()
 		// the reading loop must read all messages
 		count++
 		assert.Equal(t, strconv.Itoa(count), u.ID)
+
 		if count == 10 {
 			break
 		}
 	}
+
 	assert.Equal(t, 10, count)
 }
 
 func TestBoltTransportHistoryAndLive(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(&Update{
 			Topics: topics,
 			Event:  Event{ID: strconv.Itoa(i)},
-		})
+		}))
 	}
 
 	s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
@@ -160,14 +162,18 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
+
 		var count int
+
 		for {
 			u := <-s.Receive()
 
 			// the reading loop must read the #9, #10 and #11 messages
 			assert.Equal(t, strconv.Itoa(9+count), u.ID)
+
 			count++
 			if count == 3 {
 				return
@@ -175,10 +181,10 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		}
 	}()
 
-	transport.Dispatch(&Update{
+	require.NoError(t, transport.Dispatch(&Update{
 		Event:  Event{ID: "11"},
 		Topics: topics,
-	})
+	}))
 
 	wg.Wait()
 }
@@ -186,23 +192,22 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 func TestBoltTransportPurgeHistory(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 5, 1)
-	defer cleanup()
+	transport := createBoltTransport(t, 5, 1)
 
 	for i := 0; i < 12; i++ {
-		transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(&Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: []string{"https://example.com/foo"},
-		})
+		}))
 	}
 
-	transport.db.View(func(tx *bolt.Tx) error {
+	require.NoError(t, transport.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("updates"))
 
 		assert.Equal(t, 5, b.Stats().KeyN)
 
 		return nil
-	})
+	}))
 }
 
 func TestNewBoltTransport(t *testing.T) {
@@ -212,8 +217,8 @@ func TestNewBoltTransport(t *testing.T) {
 	transport, err := DeprecatedNewBoltTransport(u, zap.NewNop())
 	require.NoError(t, err)
 	require.NotNil(t, transport)
-	transport.Close()
-	os.Remove("bolt://test-" + t.Name() + ".db?bucket_name=demo")
+	require.NoError(t, transport.Close())
+	require.NoError(t, os.Remove("test-"+t.Name()+".db"))
 
 	u, _ = url.Parse("bolt://")
 	_, err = DeprecatedNewBoltTransport(u, zap.NewNop())
@@ -237,8 +242,7 @@ func TestNewBoltTransport(t *testing.T) {
 func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
@@ -246,6 +250,7 @@ func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		for range s.Receive() {
 			t.Fail()
@@ -262,8 +267,7 @@ func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 func TestBoltTransportDispatch(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
@@ -291,8 +295,7 @@ func TestBoltTransportDispatch(t *testing.T) {
 func TestBoltTransportClosed(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
@@ -311,8 +314,7 @@ func TestBoltTransportClosed(t *testing.T) {
 func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 
 	s1 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	s1.SetTopics([]string{"foo"}, []string{})
@@ -325,19 +327,18 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	assert.Equal(t, 2, transport.subscribers.Len())
 
 	s1.Disconnect()
-	transport.RemoveSubscriber(s1)
+	require.NoError(t, transport.RemoveSubscriber(s1))
 	assert.Equal(t, 1, transport.subscribers.Len())
 
 	s2.Disconnect()
-	transport.RemoveSubscriber(s2)
+	require.NoError(t, transport.RemoveSubscriber(s2))
 	assert.Zero(t, transport.subscribers.Len())
 }
 
 func TestBoltGetSubscribers(t *testing.T) {
 	t.Parallel()
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 
 	s1 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	require.NoError(t, transport.AddSubscriber(s1))
@@ -359,10 +360,13 @@ func TestBoltLastEventID(t *testing.T) {
 
 	path := "test-" + t.Name() + ".db"
 	db, err := bolt.Open(path, 0o600, nil)
-	defer os.Remove(path)
+
+	t.Cleanup(func() {
+		_ = os.Remove(path)
+	})
 	require.NoError(t, err)
 
-	db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(defaultBoltBucketName))
 		require.NoError(t, err)
 
@@ -379,11 +383,10 @@ func TestBoltLastEventID(t *testing.T) {
 		bucket.FillPercent = 1
 
 		return bucket.Put(key, []byte("invalid"))
-	})
+	}))
 	require.NoError(t, db.Close())
 
-	transport, cleanup := createBoltTransport(t, 0, 0)
-	defer cleanup()
+	transport := createBoltTransport(t, 0, 0)
 
 	lastEventID, _, _ := transport.GetSubscribers()
 	assert.Equal(t, "foo", lastEventID)

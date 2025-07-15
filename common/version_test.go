@@ -1,4 +1,4 @@
-package common
+package common //nolint:revive
 
 import (
 	"testing"
@@ -85,6 +85,7 @@ func TestVersionMetricsCollectorInitialization(t *testing.T) {
 		"os":           v.OS,
 		"architecture": v.Architecture,
 	}
+
 	m, err := c.GetMetricWith(labelValues)
 	if err != nil {
 		t.Fatal(err)

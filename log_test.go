@@ -24,6 +24,7 @@ func newTestLogger(t *testing.T) (*MemorySink, *zap.Logger) {
 	t.Helper()
 
 	sink := &MemorySink{new(bytes.Buffer)}
+
 	require.NoError(t, zap.RegisterSink(t.Name(), func(*url.URL) (zap.Sink, error) {
 		return sink, nil
 	}))

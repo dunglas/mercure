@@ -12,8 +12,11 @@ import (
 //
 //nolint:funlen
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
-	var claims *claims
-	var err error
+	var (
+		claims *claims
+		err    error
+	)
+
 	if h.publisherJWTKeyFunc != nil {
 		claims, err = authorize(r, h.publisherJWTKeyFunc, h.publishOrigins, h.cookieName)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
@@ -84,5 +87,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
 		c.Write(zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
 	}
+
 	h.metrics.UpdatePublished(u)
 }

@@ -58,7 +58,6 @@ func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 
 	select {
 	case s.out <- u:
-
 		return true
 	default:
 		s.handleFullChan()

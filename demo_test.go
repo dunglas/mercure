@@ -29,6 +29,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 	assert.True(t, cookie.Expires.Before(time.Now()))
 
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	assert.Empty(t, string(body))
 }
@@ -52,6 +53,7 @@ func TestBodyAndJWT(t *testing.T) {
 	assert.Empty(t, cookie.Expires)
 
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "<hello/>", string(body))
 }

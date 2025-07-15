@@ -14,6 +14,7 @@ func createJWTKeyfunc(key []byte, alg string) (jwt.Keyfunc, error) {
 	signingMethod := jwt.GetSigningMethod(alg)
 
 	var k interface{}
+
 	switch signingMethod.(type) {
 	case *jwt.SigningMethodHMAC:
 		k = key

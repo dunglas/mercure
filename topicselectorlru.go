@@ -17,6 +17,7 @@ func NewTopicSelectorStoreLRU(maxEntriesPerShard, shardCount int) (*TopicSelecto
 	if maxEntriesPerShard == 0 {
 		return &TopicSelectorStore{}, nil
 	}
+
 	if shardCount == 0 {
 		shardCount = DefaultTopicSelectorStoreLRUShardCount
 	}

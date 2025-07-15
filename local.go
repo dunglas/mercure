@@ -12,6 +12,7 @@ func init() { //nolint:gochecknoinits
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
 type LocalTransport struct {
 	sync.RWMutex
+
 	subscribers *SubscriberList
 	lastEventID string
 	closed      chan struct{}
@@ -43,9 +44,11 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 	}
 
 	AssignUUID(update)
+
 	for _, s := range t.subscribers.MatchAny(update) {
 		s.Dispatch(update, false)
 	}
+
 	t.Lock()
 	t.lastEventID = update.ID
 	t.Unlock()
@@ -65,9 +68,11 @@ func (t *LocalTransport) AddSubscriber(s *LocalSubscriber) error {
 	defer t.Unlock()
 
 	t.subscribers.Add(s)
+
 	if s.RequestLastEventID != "" {
 		s.HistoryDispatched(EarliestLastEventID)
 	}
+
 	s.Ready()
 
 	return nil
@@ -83,6 +88,7 @@ func (t *LocalTransport) RemoveSubscriber(s *LocalSubscriber) error {
 
 	t.Lock()
 	defer t.Unlock()
+
 	t.subscribers.Remove(s)
 
 	return nil
@@ -101,6 +107,7 @@ func (t *LocalTransport) Close() (err error) {
 	t.closedOnce.Do(func() {
 		t.Lock()
 		defer t.Unlock()
+
 		close(t.closed)
 		t.subscribers.Walk(0, func(s *LocalSubscriber) bool {
 			s.Disconnect()

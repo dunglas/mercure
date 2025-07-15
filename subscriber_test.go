@@ -13,6 +13,7 @@ func TestDispatch(t *testing.T) {
 
 	s := NewLocalSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
 	s.SubscribedTopics = []string{"http://example.com"}
+
 	s.SubscribedTopics = []string{"http://example.com"}
 	defer s.Disconnect()
 
