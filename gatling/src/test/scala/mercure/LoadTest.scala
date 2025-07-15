@@ -1,7 +1,6 @@
 /** Load test for Mercure.
   *
-  * Run the load test:
-  *   ./mvnw gatling:test
+  * Run the load test: ./mvnw gatling:test
   *
   * Available environment variables (all optional):
   *   - HUB_URL: the URL of the hub to test
