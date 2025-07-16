@@ -8,7 +8,7 @@ retract (
 )
 
 require (
-	github.com/gofrs/uuid v4.4.0+incompatible
+	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
