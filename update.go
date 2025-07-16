@@ -3,7 +3,7 @@ package mercure
 import (
 	"fmt"
 
-	"github.com/gofrs/uuid"
+	"github.com/gofrs/uuid/v5"
 	"go.uber.org/zap/zapcore"
 )
 
