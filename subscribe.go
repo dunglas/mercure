@@ -3,6 +3,7 @@ package mercure
 import (
 	"encoding/json"
 	"errors"
+	"math/rand/v2"
 	"net/http"
 	"time"
 
@@ -82,11 +83,12 @@ func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *
 
 func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 	if h.writeTimeout != 0 {
-		deadline = time.Now().Add(h.writeTimeout)
+		deadline = time.Now().Add(randomizeWriteDeadline(h.writeTimeout))
 	}
 
 	if s.Claims != nil && s.Claims.ExpiresAt != nil && (deadline.Equal(time.Time{}) || s.Claims.ExpiresAt.Before(deadline)) {
-		deadline = s.Claims.ExpiresAt.Time
+		now := time.Now()
+		deadline = now.Add(randomizeWriteDeadline(s.Claims.ExpiresAt.Sub(now)))
 	}
 
 	return
@@ -347,4 +349,32 @@ func (h *Hub) dispatchSubscriptionUpdate(s *LocalSubscriber, active bool) {
 			}
 		}
 	}
+}
+
+// randomizeWriteDeadline generates a random duration between 80% and 100% of the original value.
+// This is useful to avoid all subscribers disconnecting at the same time, which can lead to a thundering herd problem.
+func randomizeWriteDeadline(originalValue time.Duration) time.Duration {
+	minV := int64(float64(originalValue) * 0.80)
+	maxV := int64(originalValue)
+
+	// Ensure min is not greater than max. This handles cases where originalValue is very small (e.g., 1, 2, 3, 4).
+	// For originalValue = 1, min becomes 0. For originalValue = 4, min becomes 3.
+	// This shouldn't happen in practice, but it's a good safeguard.
+	if minV > maxV {
+		minV = maxV
+	}
+
+	// Calculate the range size. Add 1 because Int64N is exclusive of the upper bound.
+	rangeSize := maxV - minV + 1
+
+	// If rangeSize is 0 or less (e.g., if originalValue was 0), just return min (which would be 0).
+	// rand.Int64N requires a positive argument.
+	if rangeSize <= 0 {
+		return time.Duration(minV)
+	}
+
+	// Generate a random number in the range [min, max]
+	// rand.Int64n(n) returns a non-negative pseudo-random 64-bit integer in the half-open interval [0, n).
+	// Adding 'min' shifts this result to the desired range [min, max].
+	return time.Duration(rand.Int64N(rangeSize) + minV) //nolint:gosec
 }
