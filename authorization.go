@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
@@ -153,6 +154,32 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 		if !matched {
 			return false
 		}
+	}
+
+	return true
+}
+
+// canDispatchPublic checks if the payload  allow public updates by examining the "allow_public_updates" field in the payload.
+// It returns true if the field is set to true, or if the field is not present (for backward compatibility).
+func canDispatchPublic(payload interface{}) bool {
+	payloadMap, ok := payload.(map[string]interface{})
+	if !ok {
+		return true
+	}
+
+	publicPublish, exists := payloadMap["allow_public_updates"]
+	if !exists {
+		return true
+	}
+
+	// Check boolean value
+	if isPublicPublish, ok := publicPublish.(bool); ok {
+		return isPublicPublish
+	}
+
+	// Check string value
+	if strValue, ok := publicPublish.(string); ok {
+		return strings.ToLower(strValue) != "false"
 	}
 
 	return true
