@@ -204,12 +204,16 @@ func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
 	maxEntriesPerShard := mercure.DefaultTopicSelectorStoreLRUMaxEntriesPerShard
 	shardCount := mercure.DefaultTopicSelectorStoreLRUShardCount
 	if m.TopicSelectorCache != nil {
-		if m.TopicSelectorCache.MaxEntriesPerShard != 0 {
+		if m.TopicSelectorCache.MaxEntriesPerShard > 0 {
 			maxEntriesPerShard = int(m.TopicSelectorCache.MaxEntriesPerShard)
+		} else {
+			maxEntriesPerShard = 0
 		}
 
-		if m.TopicSelectorCache.ShardCount != 0 {
+		if m.TopicSelectorCache.ShardCount > 0 {
 			shardCount = int(m.TopicSelectorCache.ShardCount)
+		} else {
+			shardCount = 0
 		}
 	}
 
