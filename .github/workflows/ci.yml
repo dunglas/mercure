@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.25"
           cache-dependency-path: |
             go.sum
             caddy/go.sum
@@ -37,7 +37,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go: ["1.24"]
+        go: ["1.25"]
       fail-fast: false
     name: Test
     runs-on: ubuntu-latest

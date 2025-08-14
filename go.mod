@@ -1,6 +1,6 @@
 module github.com/dunglas/mercure
 
-go 1.24.0
+go 1.25.0
 
 retract (
 	v0.14.7 // CI problem
