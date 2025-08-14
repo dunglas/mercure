@@ -12,14 +12,14 @@ import (
 const jsonldContext = "https://mercure.rocks/"
 
 type subscription struct {
-	Context     string      `json:"@context,omitempty"`
-	ID          string      `json:"id"`
-	Type        string      `json:"type"`
-	Subscriber  string      `json:"subscriber"`
-	Topic       string      `json:"topic"`
-	Active      bool        `json:"active"`
-	LastEventID string      `json:"lastEventID,omitempty"`
-	Payload     interface{} `json:"payload,omitempty"`
+	Context     string `json:"@context,omitempty"`
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	Subscriber  string `json:"subscriber"`
+	Topic       string `json:"topic"`
+	Active      bool   `json:"active"`
+	LastEventID string `json:"lastEventID,omitempty"`
+	Payload     any    `json:"payload,omitempty"`
 }
 
 type subscriptionCollection struct {

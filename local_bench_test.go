@@ -23,7 +23,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	tsMatch := make([]string, topics)
 
 	tsNoMatch := make([]string, topics)
-	for i := 0; i < topics; i++ {
+	for i := range topics {
 		tsNoMatch[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int()) //nolint:gosec
 		if topics/2 == i {
 			n1 := rand.Int() //nolint:gosec
@@ -40,7 +40,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	logger := zap.NewNop()
 
 	subscribers := make([]*LocalSubscriber, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		s := NewLocalSubscriber("", logger, tss)
 		if i%100 < matchPct {
 			s.SetTopics(tsMatch, nil)
@@ -55,7 +55,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	ctx, done := context.WithCancel(b.Context())
 	defer done()
 
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func() {
 			for {
 				select {
