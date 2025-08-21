@@ -194,7 +194,7 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 
 	transport := createBoltTransport(t, 5, 1)
 
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		require.NoError(t, transport.Dispatch(&Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: []string{"https://example.com/foo"},

@@ -347,6 +347,6 @@ type zapRecoveryHandlerLogger struct {
 	logger Logger
 }
 
-func (z zapRecoveryHandlerLogger) Println(args ...interface{}) {
+func (z zapRecoveryHandlerLogger) Println(args ...any) {
 	z.logger.Error(fmt.Sprint(args...))
 }

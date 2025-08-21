@@ -350,7 +350,7 @@ func testSubscribe(h interface{ Helper() }, numberOfSubscribers int) {
 	var wg sync.WaitGroup
 	wg.Add(numberOfSubscribers)
 
-	for i := 0; i < numberOfSubscribers; i++ {
+	for range numberOfSubscribers {
 		go func() {
 			defer wg.Done()
 
@@ -376,7 +376,7 @@ func TestSubscribe(t *testing.T) {
 	testSubscribe(t, 3)
 }
 
-func testSubscribeLogs(t *testing.T, hub *Hub, payload interface{}) {
+func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -397,7 +397,7 @@ func TestSubscribeWithLogLevelDebug(t *testing.T) {
 	t.Parallel()
 
 	core, logs := observer.New(zapcore.DebugLevel)
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"bar": "baz",
 		"foo": "bar",
 	}
@@ -415,7 +415,7 @@ func TestSubscribeLogLevelInfo(t *testing.T) {
 	t.Parallel()
 
 	core, logs := observer.New(zapcore.InfoLevel)
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"bar": "baz",
 		"foo": "bar",
 	}
@@ -1031,7 +1031,7 @@ func TestSubscribeExpires(t *testing.T) {
 }
 
 func BenchmarkSubscribe(b *testing.B) {
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		testSubscribe(b, 1000)
 	}
 }

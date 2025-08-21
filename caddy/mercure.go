@@ -73,13 +73,13 @@ type Mercure struct {
 	Heartbeat *caddy.Duration `json:"heartbeat,omitempty"`
 
 	// JWT key and signing algorithm to use for publishers.
-	PublisherJWT JWTConfig `json:"publisher_jwt,omitempty"`
+	PublisherJWT JWTConfig `json:"publisher_jwt,omitzero"`
 
 	// JWK Set URL to use for publishers.
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
 	// JWT key and signing algorithm to use for subscribers.
-	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitempty"`
+	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitzero"`
 
 	// JWK Set URL to use for subscribers.
 	SubscriberJWKSURL string `json:"subscriber_jwks_url,omitempty"`

@@ -41,7 +41,7 @@ func subscribeBenchmarkHelper(b *testing.B, subBench func(b *testing.B, topics, 
 		str = append(str, "matchpct %d")
 	}
 
-	var arg []interface{}
+	var arg []any
 	for _, topics := range topicOpts {
 		arg := arg
 		if len(topicOpts) > 1 {
@@ -92,7 +92,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 	tsMatch := make([]string, topics)
 
 	tsNoMatch := make([]string, topics)
-	for i := 0; i < topics; i++ {
+	for i := range topics {
 		ts[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int()) //nolint:gosec
 
 		tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int()) //nolint:gosec
@@ -110,7 +110,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 	ctx, done := context.WithCancel(b.Context())
 	defer done()
 
-	for i := 0; i < 1; i++ {
+	for range 1 {
 		go func() {
 			for {
 				select {

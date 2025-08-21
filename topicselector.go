@@ -8,8 +8,8 @@ import (
 )
 
 type TopicSelectorStoreCache interface {
-	Get(key string) (interface{}, bool)
-	Set(key string, value interface{}, n int64) bool
+	Get(key string) (any, bool)
+	Set(key string, value any, n int64) bool
 }
 
 // TopicSelectorStore caches compiled templates to improve memory and CPU usage.
