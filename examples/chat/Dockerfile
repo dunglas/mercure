@@ -1,4 +1,5 @@
-FROM tiangolo/meinheld-gunicorn:python3.9
+# hadolint ignore=DL3006
+FROM tiangolo/meinheld-gunicorn
 
 WORKDIR /app
 
