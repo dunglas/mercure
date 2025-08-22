@@ -5,69 +5,86 @@ metadata:
   labels:
     {{- include "mercure-example-chat.labels" . | nindent 4 }}
 spec:
-{{- if not .Values.autoscaling.enabled }}
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-{{- end }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "mercure-example-chat.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-    {{- with .Values.podAnnotations }}
+      {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
-    {{- end }}
+      {{- end }}
       labels:
-        {{- include "mercure-example-chat.selectorLabels" . | nindent 8 }}
+        {{- include "mercure-example-chat.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "mercure-example-chat.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
+          {{- with .Values.securityContext }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 80
+              containerPort: {{ .Values.service.port }}
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
           env:
-            - name: HUB_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mercure-example-chat.fullname" . }}
-                  key: hubUrl
-            - name: COOKIE_DOMAIN
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mercure-example-chat.fullname" . }}
-                  key: cookieDomain
-            - name: JWT_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "mercure-example-chat.fullname" . }}
-                  key: jwtKey    
-            - name: MESSAGE_URI_TEMPLATE
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mercure-example-chat.fullname" . }}
-                  key: messageUriTemplate
+          - name: HUB_URL
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "mercure-example-chat.fullname" . }}
+                key: hubUrl
+          - name: COOKIE_DOMAIN
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "mercure-example-chat.fullname" . }}
+                key: cookieDomain
+          - name: JWT_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "mercure-example-chat.fullname" . }}
+                key: jwtKey
+          - name: MESSAGE_URI_TEMPLATE
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "mercure-example-chat.fullname" . }}
+                key: messageUriTemplate
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
