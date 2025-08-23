@@ -13,7 +13,7 @@ var ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
 func createJWTKeyfunc(key []byte, alg string) (jwt.Keyfunc, error) {
 	signingMethod := jwt.GetSigningMethod(alg)
 
-	var k interface{}
+	var k any
 
 	switch signingMethod.(type) {
 	case *jwt.SigningMethodHMAC:
@@ -43,7 +43,7 @@ func createJWTKeyfunc(key []byte, alg string) (jwt.Keyfunc, error) {
 		return nil, fmt.Errorf("%T: %w", signingMethod, ErrUnexpectedSigningMethod)
 	}
 
-	return func(t *jwt.Token) (interface{}, error) {
+	return func(t *jwt.Token) (any, error) {
 		if t.Method != signingMethod {
 			return nil, fmt.Errorf("%T: %w", t.Method, ErrUnexpectedSigningMethod)
 		}

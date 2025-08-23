@@ -20,9 +20,9 @@ type claims struct {
 }
 
 type mercureClaim struct {
-	Publish   []string    `json:"publish"`
-	Subscribe []string    `json:"subscribe"`
-	Payload   interface{} `json:"payload"`
+	Publish   []string `json:"publish"`
+	Subscribe []string `json:"subscribe"`
+	Payload   any      `json:"payload"`
 }
 
 type role int

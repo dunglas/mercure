@@ -127,7 +127,9 @@ example.com:9080 {
 }
 
 func TestJWTPlaceholders(t *testing.T) {
-	defer os.Remove("bolt.db")
+	t.Cleanup(func() {
+		_ = os.Remove("bolt.db")
+	})
 
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	t.Setenv("TEST_JWT_KEY", string(k))
@@ -202,7 +204,9 @@ func TestJWTPlaceholders(t *testing.T) {
 }
 
 func TestSubscriptionAPI(t *testing.T) {
-	defer os.Remove("bolt.db")
+	t.Cleanup(func() {
+		_ = os.Remove("bolt.db")
+	})
 
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
@@ -232,7 +236,9 @@ func TestSubscriptionAPI(t *testing.T) {
 }
 
 func TestCookieName(t *testing.T) {
-	defer os.Remove("bolt.db")
+	t.Cleanup(func() {
+		_ = os.Remove("bolt.db")
+	})
 
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
@@ -307,7 +313,9 @@ func TestCookieName(t *testing.T) {
 }
 
 func TestBoltConfig(t *testing.T) {
-	defer os.Remove("test.db")
+	t.Cleanup(func() {
+		_ = os.Remove("test.db")
+	})
 
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
@@ -366,7 +374,6 @@ mercure {
 									"publisher_jwt": {
 										"key": "!ChangeMe!"
 									},
-									"subscriber_jwt": {},
 									"transport": {
 										"bucket_name": "foo",
 										"cleanup_frequency": 0.2,
@@ -408,7 +415,6 @@ mercure {
 									"publisher_jwt": {
 										"key": "!ChangeMe!"
 									},
-									"subscriber_jwt": {},
 									"transport": {
 										"name": "local"
 									}

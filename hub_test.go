@@ -113,7 +113,7 @@ func TestStop(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(numberOfSubscribers)
 
-	for i := 0; i < numberOfSubscribers; i++ {
+	for range numberOfSubscribers {
 		go func() {
 			defer wg.Done()
 
@@ -181,7 +181,7 @@ func TestWithPublisherJWTKeyFunc(t *testing.T) {
 
 	op := &opt{}
 
-	o := WithPublisherJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
+	o := WithPublisherJWTKeyFunc(func(_ *jwt.Token) (any, error) { return []byte{}, nil })
 	require.NoError(t, o(op))
 	require.NotNil(t, op.publisherJWTKeyFunc)
 }
@@ -191,7 +191,7 @@ func TestWithSubscriberJWTKeyFunc(t *testing.T) {
 
 	op := &opt{}
 
-	o := WithSubscriberJWTKeyFunc(func(_ *jwt.Token) (interface{}, error) { return []byte{}, nil })
+	o := WithSubscriberJWTKeyFunc(func(_ *jwt.Token) (any, error) { return []byte{}, nil })
 	require.NoError(t, o(op))
 	require.NotNil(t, op.subscriberJWTKeyFunc)
 }
@@ -297,7 +297,7 @@ func createDummyAuthorizedJWT(r role, topics []string) string {
 	}{Foo: "bar"})
 }
 
-func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload interface{}) string {
+func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	var key []byte

@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           cache: false
-          go-version: "1.24"
+          go-version: "1.25"
           check-latest: true
           cache-dependency-path: |
             go.sum
