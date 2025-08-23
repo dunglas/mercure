@@ -71,7 +71,7 @@ archives:
       - dev.Caddyfile
     format_overrides:
       - goos: windows
-        formats: [ zip ]
+        formats: [zip]
   - id: legacy
     ids:
       - legacy
@@ -88,7 +88,7 @@ archives:
       - README.md
     format_overrides:
       - goos: windows
-        formats: [ zip ]
+        formats: [zip]
 dockers:
   - ids:
       - caddy
@@ -160,7 +160,7 @@ nfpms:
     license: "AGPL-3.0-or-later"
     vendor: "Dunglas Services SAS"
     homepage: "https://mercure.rocks"
-    bindir: /usr/bin 
+    bindir: /usr/bin
 signs:
   - artifacts: checksum
     args:

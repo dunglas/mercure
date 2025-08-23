@@ -73,22 +73,22 @@ Most Cloud Computing platforms also provide managed versions of Redis.
 <!-- markdownlint-disable MD009 -->
 
 | Feature         | Supported |
-|-----------------|-----------|
-| History         | ✅         |
-| Presence API    | ✅         |
-| Custom event ID | ✅         |
+| --------------- | --------- |
+| History         | ✅        |
+| Presence API    | ✅        |
+| Custom event ID | ✅        |
 
 ##### Redis Configuration
 
 The following options can be passed to the `transport` directive:
 
-| Option                   | Description                                                                                                                                           |  
-|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `address` or `addresses` | the address(es) of the Redis server(s), you can pass several addresses to use several Redis servers (ex: `addresses host1:6379 host2:6379`, required) | 
-| `stream`                 | the name of the Redis stream to use (required)                                                                                                        |                                                                                       
-| `password`               | the Redis password                                                                                                                                    |                                                                                       
+| Option                   | Description                                                                                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `address` or `addresses` | the address(es) of the Redis server(s), you can pass several addresses to use several Redis servers (ex: `addresses host1:6379 host2:6379`, required) |
+| `stream`                 | the name of the Redis stream to use (required)                                                                                                        |
+| `password`               | the Redis password                                                                                                                                    |
 | `tls`                    | enable TLS support                                                                                                                                    |
-| `max_length`             | the approximate maximum number of messages to store in the history, set to `0` to store all messages                                                  | 
+| `max_length`             | the approximate maximum number of messages to store in the history, set to `0` to store all messages                                                  |
 
 All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
 
@@ -99,7 +99,7 @@ All [the configuration parameters and formats](https://mercure.rocks/docs/hub/co
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
 | Parameter        | Description                                                                                          | Default |
-|------------------|------------------------------------------------------------------------------------------------------|---------|
+| ---------------- | ---------------------------------------------------------------------------------------------------- | ------- |
 | `tls`            | set to `1` to enable TLS support                                                                     | `0`     |
 | `max_len_approx` | the approximate maximum number of messages to store in the history, set to `0` to store all messages | `0`     |
 
@@ -113,8 +113,8 @@ This feature uses PostgreSQL `LISTEN`/`NOTIFY`.
 To install PostgreSQL, [read the documentation](https://www.postgresql.org/docs/12/tutorial-install.html).
 Most Cloud Computing platforms also provide managed versions of PostgreSQL.
 
-| Feature         | Supported   |
-|-----------------|-------------|
+| Feature         | Supported    |
+| --------------- | ------------ |
 | History         | ✅           |
 | Presence API    | ❌ (planned) |
 | Custom event ID | ✅           |
@@ -123,8 +123,8 @@ Most Cloud Computing platforms also provide managed versions of PostgreSQL.
 
 The following options can be passed to the `transport` directive:
 
-| Option | Description                                                                                                 |  
-|--------|-------------------------------------------------------------------------------------------------------------|
+| Option | Description                                                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------------- |
 | `url`  | The URL (DSN) to use to connect to Postgres (ex: `postgres://user:password@127.0.0.1/mercure-ha`, required) |
 
 [Options supported by `libpq`](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) can be passed as query parameters of the URL set in `_url`.
@@ -152,22 +152,22 @@ The Mercure.rocks hub has been tested with:
 - Heroku Kafka
 
 | Feature         | Supported |
-|-----------------|-----------|
-| History         | ✅         |
-| Presence API    | ❌         |
-| Custom event ID | ✅         |
+| --------------- | --------- |
+| History         | ✅        |
+| Presence API    | ❌        |
+| Custom event ID | ✅        |
 
 ##### Kafka Configuration
 
 The following options can be passed to the `transport` directive:
 
-| Option                   | Description                                                                                                                                           |  
-|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `address` or `addresses` | the address(es) of the Kafka server(s), you can pass several addresses to use several Kafka servers (ex: `addresses host1:9092 host2:9092`, required) | 
-| `topic`                  | the name of the Kafka topic to use, **all Mercure.rocks hub instances must use the same topic** (required)                                            |                                                                                       
+| Option                   | Description                                                                                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `address` or `addresses` | the address(es) of the Kafka server(s), you can pass several addresses to use several Kafka servers (ex: `addresses host1:9092 host2:9092`, required) |
+| `topic`                  | the name of the Kafka topic to use, **all Mercure.rocks hub instances must use the same topic** (required)                                            |
 | `consumer_group`         | the consumer group of this node, **must be different for every instance of the Mercure.rocks hub**                                                    |
 | `user`                   | the Kafka SASL user (optional)                                                                                                                        |
-| `password`               | the Kafka SASL password (optional)                                                                                                                    |                                                                                       
+| `password`               | the Kafka SASL password (optional)                                                                                                                    |
 | `tls`                    | enable TLS support                                                                                                                                    |
 
 All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
@@ -179,7 +179,7 @@ All [the configuration parameters and formats](https://mercure.rocks/docs/hub/co
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
 | Parameter        | Description                                                                                                                                 |
-|------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `addr`           | addresses of the Kafka servers, you can pass several `addr` parameters to use several Kafka servers (ex: `addr=host1:9092&addr=host2:9092`) |
 | `topic`          | the name of the Kafka topic to use (ex: `topic=mercure-ha`), **all Mercure.rocks hub instances must use the same topic**                    |
 | `consumer_group` | the consumer group of this node, **must be different for every instance of the Mercure.rocks hub** (ex: `consumer_group=<random-string>`)   |
@@ -193,8 +193,8 @@ The Pulsar transport should only be used when Pulsar is already part of your sta
 
 To install Apache Pulsar, [read the documentation](https://pulsar.apache.org/docs/en/standalone/).
 
-| Feature         | Supported   |
-|-----------------|-------------|
+| Feature         | Supported    |
+| --------------- | ------------ |
 | History         | ✅           |
 | Presence API    | ❌           |
 | Custom event ID | ❌ (planned) |
@@ -203,10 +203,10 @@ To install Apache Pulsar, [read the documentation](https://pulsar.apache.org/doc
 
 The following options can be passed to the `transport` directive:
 
-| Option              | Description                                                                                                 |  
-|---------------------|-------------------------------------------------------------------------------------------------------------|
-| `url`               | the address of the Pulsar server (required)                                                                 | 
-| `topic`             | the name of the Pulsar topic to use, **all Mercure.rocks hub instances must use the same topic** (required) |                                                                                       
+| Option              | Description                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `url`               | the address of the Pulsar server (required)                                                                 |
+| `topic`             | the name of the Pulsar topic to use, **all Mercure.rocks hub instances must use the same topic** (required) |
 | `subscription_name` | the subscription name for this node, **must be different for every instance of the Mercure.rocks hub**      |
 
 All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
@@ -218,7 +218,7 @@ All [the configuration parameters and formats](https://mercure.rocks/docs/hub/co
 The following options can be passed as query parameters of the URL set in `transport_url`:
 
 | Parameters          | Description                                                                                                                                      |     |
-|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|-----|
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --- |
 | `topic`             | the name of the Pulsar topic to use (ex: `topic=mercure`), **all Mercure.rocks hub instances must use the same topic**                           |     |
 | `subscription_name` | the subscription name for this node, **must be different for every instance of the Mercure.rocks hub** (ex: `subscription_name=<random-string>`) |     |
 
