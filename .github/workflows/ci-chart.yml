@@ -10,6 +10,8 @@ on:
     tags:
       - v*.*.*
 
+permissions: {}
+
 jobs:
   lint-test:
     runs-on: ubuntu-latest
@@ -17,8 +19,9 @@ jobs:
       CT_TARGET_BRANCH: main
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Helm
