@@ -11,9 +11,9 @@ replace github.com/dunglas/mercure => ../
 
 require (
 	github.com/MicahParks/keyfunc/v3 v3.6.1
-	github.com/caddyserver/caddy/v2 v2.10.0
+	github.com/caddyserver/caddy/v2 v2.10.2
 	github.com/dunglas/mercure v0.20.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	go.uber.org/zap v1.27.0
 )
 
@@ -66,7 +66,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
-	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gofrs/uuid/v5 v5.3.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
@@ -76,7 +75,6 @@ require (
 	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/google/go-tspi v0.3.0 // indirect
-	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
@@ -106,7 +104,6 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/onsi/ginkgo/v2 v2.25.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pires/go-proxyproto v0.8.1 // indirect
@@ -117,7 +114,7 @@ require (
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
-	github.com/quic-go/quic-go v0.52.0 // indirect
+	github.com/quic-go/quic-go v0.54.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.10.0 // indirect
