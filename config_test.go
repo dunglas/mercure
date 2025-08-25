@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"os"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -51,10 +50,6 @@ func TestSetFlags(t *testing.T) {
 
 func TestInitConfig(t *testing.T) {
 	t.Setenv("JWT_KEY", "foo")
-
-	t.Cleanup(func() {
-		assert.NoError(t, os.Unsetenv("JWT_KEY"))
-	})
 
 	v := viper.New()
 	InitConfig(v)
