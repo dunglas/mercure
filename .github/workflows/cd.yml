@@ -19,6 +19,7 @@ permissions:
 
 env:
   GOTOOLCHAIN: local
+  GOFLAGS: "-tags=nobadger,nomysql,nopgx"
 
 jobs:
   release:
