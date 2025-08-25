@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -17,7 +19,10 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Helper()
 
 	tr := NewLocalTransport()
-	defer tr.Close()
+
+	b.Cleanup(func() {
+		assert.NoError(b, tr.Close())
+	})
 
 	top := make([]string, topics)
 	tsMatch := make([]string, topics)
@@ -49,11 +54,11 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		}
 
 		subscribers[i] = s
-		tr.AddSubscriber(s)
+		require.NoError(b, tr.AddSubscriber(s))
 	}
 
 	ctx, done := context.WithCancel(b.Context())
-	defer done()
+	b.Cleanup(done)
 
 	for i := range concurrency {
 		go func() {
@@ -74,7 +79,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Run(testName, func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
-				tr.Dispatch(&Update{Topics: top})
+				require.NoError(b, tr.Dispatch(&Update{Topics: top}))
 			}
 		})
 	})
@@ -82,7 +87,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 
 /* --- test.sh ---
 These are example commands that can be used to run subsets of this test for analysis.
-Omission of any environment variable causes the test to enumate a few meaningful options.
+Omission of any environment variable causes the test to enumerate a few meaningful options.
 
 #!/usr/bin/sh
 

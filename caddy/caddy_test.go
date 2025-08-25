@@ -73,20 +73,21 @@ example.com:9080 {
 	}
 }`, d.transportConfig), "caddyfile")
 
-			var connected sync.WaitGroup
-			var received sync.WaitGroup
+			var connected, received sync.WaitGroup
+
 			connected.Add(1)
 			received.Add(1)
 
 			go func() {
 				cx, cancel := context.WithCancel(t.Context())
-				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 				req = req.WithContext(cx)
 				resp := tester.AssertResponseCode(req, http.StatusOK)
 
 				connected.Done()
 
 				var receivedBody strings.Builder
+
 				buf := make([]byte, 1024)
 				for {
 					_, err := resp.Body.Read(buf)
@@ -95,6 +96,7 @@ example.com:9080 {
 					}
 
 					receivedBody.Write(buf)
+
 					if strings.Contains(receivedBody.String(), "data: bar\n") {
 						cancel()
 
@@ -102,20 +104,20 @@ example.com:9080 {
 					}
 				}
 
-				resp.Body.Close()
+				assert.NoError(t, resp.Body.Close())
 				received.Done()
 			}()
 
 			connected.Wait()
 
-			body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
+			body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
 			req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 			require.NoError(t, err)
 			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Add("Authorization", bearerPrefix+publisherJWT)
 
 			resp := tester.AssertResponseCode(req, http.StatusOK)
-			resp.Body.Close()
+			require.NoError(t, resp.Body.Close())
 
 			received.Wait()
 
@@ -128,7 +130,7 @@ example.com:9080 {
 
 func TestJWTPlaceholders(t *testing.T) {
 	t.Cleanup(func() {
-		_ = os.Remove("bolt.db")
+		require.NoError(t, os.Remove("bolt.db"))
 	})
 
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
@@ -156,20 +158,21 @@ func TestJWTPlaceholders(t *testing.T) {
 	}
 	`, "caddyfile")
 
-	var connected sync.WaitGroup
-	var received sync.WaitGroup
+	var connected, received sync.WaitGroup
+
 	connected.Add(1)
 	received.Add(1)
 
 	go func() {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp := tester.AssertResponseCode(req, http.StatusOK)
 
 		connected.Done()
 
 		var receivedBody strings.Builder
+
 		buf := make([]byte, 1024)
 		for {
 			_, err := resp.Body.Read(buf)
@@ -178,6 +181,7 @@ func TestJWTPlaceholders(t *testing.T) {
 			}
 
 			receivedBody.Write(buf)
+
 			if strings.Contains(receivedBody.String(), "data: bar\n") {
 				cancel()
 
@@ -185,29 +189,25 @@ func TestJWTPlaceholders(t *testing.T) {
 			}
 		}
 
-		resp.Body.Close()
+		assert.NoError(t, resp.Body.Close())
 		received.Done()
 	}()
 
 	connected.Wait()
 
-	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.NoError(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", bearerPrefix+publisherJWTRSA)
 
 	resp := tester.AssertResponseCode(req, http.StatusOK)
-	resp.Body.Close()
+	require.NoError(t, resp.Body.Close())
 
 	received.Wait()
 }
 
 func TestSubscriptionAPI(t *testing.T) {
-	t.Cleanup(func() {
-		_ = os.Remove("bolt.db")
-	})
-
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
@@ -232,14 +232,10 @@ func TestSubscriptionAPI(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure/subscriptions", nil)
 	resp := tester.AssertResponseCode(req, http.StatusOK)
-	resp.Body.Close()
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestCookieName(t *testing.T) {
-	t.Cleanup(func() {
-		_ = os.Remove("bolt.db")
-	})
-
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
 	{
@@ -262,14 +258,14 @@ func TestCookieName(t *testing.T) {
 	}
 	`, "caddyfile")
 
-	var connected sync.WaitGroup
-	var received sync.WaitGroup
+	var connected, received sync.WaitGroup
+
 	connected.Add(1)
 	received.Add(1)
 
 	go func() {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=http%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req.Header.Add("Origin", "http://localhost:9080")
 		req.AddCookie(&http.Cookie{Name: "foo", Value: subscriberJWT})
 		req = req.WithContext(cx)
@@ -278,6 +274,7 @@ func TestCookieName(t *testing.T) {
 		connected.Done()
 
 		var receivedBody strings.Builder
+
 		buf := make([]byte, 1024)
 		for {
 			_, err := resp.Body.Read(buf)
@@ -286,6 +283,7 @@ func TestCookieName(t *testing.T) {
 			}
 
 			receivedBody.Write(buf)
+
 			if strings.Contains(receivedBody.String(), "data: bar\n") {
 				cancel()
 
@@ -293,13 +291,13 @@ func TestCookieName(t *testing.T) {
 			}
 		}
 
-		resp.Body.Close()
+		assert.NoError(t, resp.Body.Close())
 		received.Done()
 	}()
 
 	connected.Wait()
 
-	body := url.Values{"topic": {"http://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}, "private": {"1"}}
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}, "private": {"1"}}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.NoError(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -307,14 +305,14 @@ func TestCookieName(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: "foo", Value: publisherJWT})
 
 	resp := tester.AssertResponseCode(req, http.StatusOK)
-	resp.Body.Close()
+	require.NoError(t, resp.Body.Close())
 
 	received.Wait()
 }
 
 func TestBoltConfig(t *testing.T) {
 	t.Cleanup(func() {
-		_ = os.Remove("test.db")
+		require.NoError(t, os.Remove("test.db"))
 	})
 
 	tester := caddytest.NewTester(t)

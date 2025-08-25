@@ -13,7 +13,7 @@ import (
 func TestEmptyBodyAndJWT(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo.jsonld", nil)
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/demo/foo.jsonld", nil)
 	w := httptest.NewRecorder()
 
 	h, _ := NewHub()
@@ -21,14 +21,16 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
-	assert.Equal(t, []string{"<" + defaultHubURL + linkSuffix, "<http://example.com/demo/foo.jsonld>; rel=\"self\""}, resp.Header["Link"])
+	assert.Equal(t, []string{"<" + defaultHubURL + linkSuffix, "<https://example.com/demo/foo.jsonld>; rel=\"self\""}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
 	assert.Equal(t, "mercureAuthorization", cookie.Name)
 	assert.Empty(t, cookie.Value)
 	assert.True(t, cookie.Expires.Before(time.Now()))
 
-	defer resp.Body.Close()
+	t.Cleanup(func() {
+		_ = resp.Body.Close()
+	})
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Empty(t, string(body))
@@ -37,7 +39,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 func TestBodyAndJWT(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
 	w := httptest.NewRecorder()
 
 	h, _ := NewHub()
@@ -45,14 +47,16 @@ func TestBodyAndJWT(t *testing.T) {
 
 	resp := w.Result()
 	assert.Contains(t, resp.Header.Get("Content-Type"), "xml") // Before Go 1.17, the charset wasn't set
-	assert.Equal(t, []string{"<" + defaultHubURL + linkSuffix, "<http://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token>; rel=\"self\""}, resp.Header["Link"])
+	assert.Equal(t, []string{"<" + defaultHubURL + linkSuffix, "<https://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token>; rel=\"self\""}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
 	assert.Equal(t, "mercureAuthorization", cookie.Name)
 	assert.Equal(t, "token", cookie.Value)
 	assert.Empty(t, cookie.Expires)
 
-	defer resp.Body.Close()
+	t.Cleanup(func() {
+		_ = resp.Body.Close()
+	})
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "<hello/>", string(body))

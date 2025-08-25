@@ -610,13 +610,13 @@ func TestAuthorizeCookieOriginNotAllowed(t *testing.T) {
 
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
-		r.Header.Add("Origin", "http://example.com")
+		r.Header.Add("Origin", "https://example.com")
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.valid})
 
 		keyfunc, _ := createJWTKeyfunc([]byte(testdata.publicKey), testdata.algorithm)
 
-		claims, err := authorize(r, keyfunc, []string{"http://example.net"}, defaultCookieName)
-		require.EqualError(t, err, `"http://example.com": origin not allowed to post updates`, testdata.algorithm)
+		claims, err := authorize(r, keyfunc, []string{"https://example.net"}, defaultCookieName)
+		require.EqualError(t, err, `"https://example.com": origin not allowed to post updates`, testdata.algorithm)
 		require.Nil(t, claims, testdata.algorithm)
 	}
 }
@@ -626,13 +626,13 @@ func TestAuthorizeCookieRefererNotAllowed(t *testing.T) {
 
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
-		r.Header.Add("Referer", "http://example.com/foo/bar")
+		r.Header.Add("Referer", "https://example.com/foo/bar")
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.valid})
 
 		keyfunc, _ := createJWTKeyfunc([]byte(testdata.publicKey), testdata.algorithm)
 
-		claims, err := authorize(r, keyfunc, []string{"http://example.net"}, defaultCookieName)
-		require.EqualError(t, err, `"http://example.com": origin not allowed to post updates`, testdata.algorithm)
+		claims, err := authorize(r, keyfunc, []string{"https://example.net"}, defaultCookieName)
+		require.EqualError(t, err, `"https://example.com": origin not allowed to post updates`, testdata.algorithm)
 		require.Nil(t, claims, testdata.algorithm)
 	}
 }
@@ -642,13 +642,13 @@ func TestAuthorizeCookieInvalidReferer(t *testing.T) {
 
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
-		r.Header.Add("Referer", "http://192.168.0.%31/")
+		r.Header.Add("Referer", "https://192.168.0.%31/")
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.valid})
 
 		keyfunc, _ := createJWTKeyfunc([]byte(testdata.publicKey), testdata.algorithm)
 
-		claims, err := authorize(r, keyfunc, []string{"http://example.net"}, defaultCookieName)
-		require.EqualError(t, err, `unable to parse referer: parse "http://192.168.0.%31/": invalid URL escape "%31"`, testdata.algorithm)
+		claims, err := authorize(r, keyfunc, []string{"https://example.net"}, defaultCookieName)
+		require.EqualError(t, err, `unable to parse referer: parse "https://192.168.0.%31/": invalid URL escape "%31"`, testdata.algorithm)
 		require.Nil(t, claims, testdata.algorithm)
 	}
 }
@@ -658,13 +658,13 @@ func TestAuthorizeCookieOriginHasPriority(t *testing.T) {
 
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
-		r.Header.Add("Origin", "http://example.net")
-		r.Header.Add("Referer", "http://example.com")
+		r.Header.Add("Origin", "https://example.net")
+		r.Header.Add("Referer", "https://example.com")
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.valid})
 
 		keyfunc, _ := createJWTKeyfunc([]byte(testdata.publicKey), testdata.algorithm)
 
-		claims, err := authorize(r, keyfunc, []string{"http://example.net"}, defaultCookieName)
+		claims, err := authorize(r, keyfunc, []string{"https://example.net"}, defaultCookieName)
 		require.NoError(t, err, testdata.algorithm)
 		assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
 		assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
@@ -676,7 +676,7 @@ func TestAuthorizeAllOriginsAllowed(t *testing.T) {
 
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
-		r.Header.Add("Origin", "http://example.com")
+		r.Header.Add("Origin", "https://example.com")
 		r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.valid})
 
 		keyfunc, _ := createJWTKeyfunc([]byte(testdata.publicKey), testdata.algorithm)
@@ -691,7 +691,7 @@ func TestAuthorizeCustomCookieName(t *testing.T) {
 
 	for _, testdata := range AuthTestData {
 		r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
-		r.Header.Add("Origin", "http://example.com")
+		r.Header.Add("Origin", "https://example.com")
 		r.AddCookie(&http.Cookie{Name: "foo", Value: testdata.valid})
 
 		keyfunc, _ := createJWTKeyfunc([]byte(testdata.publicKey), testdata.algorithm)

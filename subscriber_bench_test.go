@@ -105,7 +105,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 	}
 
 	s.SetTopics(ts, nil)
-	defer s.Disconnect()
+	b.Cleanup(s.Disconnect)
 
 	ctx, done := context.WithCancel(b.Context())
 	defer done()

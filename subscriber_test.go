@@ -12,9 +12,9 @@ func TestDispatch(t *testing.T) {
 	t.Parallel()
 
 	s := NewLocalSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
-	s.SubscribedTopics = []string{"http://example.com"}
+	s.SubscribedTopics = []string{"https://example.com"}
 
-	s.SubscribedTopics = []string{"http://example.com"}
+	s.SubscribedTopics = []string{"https://example.com"}
 	defer s.Disconnect()
 
 	// Dispatch must be non-blocking
@@ -49,7 +49,7 @@ func TestLogSubscriber(t *testing.T) {
 	t.Parallel()
 
 	sink, logger := newTestLogger(t)
-	defer sink.Reset()
+	t.Cleanup(sink.Reset)
 
 	s := NewLocalSubscriber("123", logger, &TopicSelectorStore{})
 	s.RemoteAddr = "127.0.0.1"

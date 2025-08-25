@@ -25,7 +25,10 @@ func TestPublishNoAuthorizationHeader(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		_ = resp.Body.Close()
+	})
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -43,7 +46,10 @@ func TestPublishUnauthorizedJWT(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -61,7 +67,10 @@ func TestPublishInvalidAlgJWT(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
@@ -80,7 +89,10 @@ func TestPublishBadContentType(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
@@ -97,10 +109,14 @@ func TestPublishNoTopic(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Equal(t, "Missing \"topic\" parameter\n", w.Body.String())
+	assert.Equal(t, `Missing "topic" parameter
+`, w.Body.String())
 }
 
 func TestPublishInvalidRetry(t *testing.T) {
@@ -109,7 +125,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 	hub := createDummy()
 
 	form := url.Values{}
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 	form.Add("data", "foo")
 	form.Add("retry", "invalid")
 
@@ -121,10 +137,14 @@ func TestPublishInvalidRetry(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Equal(t, "Invalid \"retry\" parameter\n", w.Body.String())
+	assert.Equal(t, `Invalid "retry" parameter
+`, w.Body.String())
 }
 
 func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
@@ -133,7 +153,7 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 	hub := createDummy()
 
 	form := url.Values{}
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 	form.Add("data", "foo")
 	form.Add("private", "on")
 
@@ -145,7 +165,10 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
@@ -156,7 +179,7 @@ func TestPublishEmptyTopicSelector(t *testing.T) {
 	hub := createDummy()
 
 	form := url.Values{}
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -166,7 +189,10 @@ func TestPublishEmptyTopicSelector(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
@@ -177,7 +203,7 @@ func TestPublishLegacyAuthorization(t *testing.T) {
 	hub := createDummy(WithProtocolVersionCompatibility(7))
 
 	form := url.Values{}
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -187,7 +213,10 @@ func TestPublishLegacyAuthorization(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -197,7 +226,7 @@ func TestPublishOK(t *testing.T) {
 
 	hub := createDummy()
 
-	topics := []string{"http://example.com/books/1"}
+	topics := []string{"https://example.com/books/1"}
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics(topics, topics)
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
@@ -221,7 +250,7 @@ func TestPublishOK(t *testing.T) {
 
 	form := url.Values{}
 	form.Add("id", "id")
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 	form.Add("data", "Hello!")
 	form.Add("private", "on")
 
@@ -233,7 +262,10 @@ func TestPublishOK(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -249,7 +281,7 @@ func TestPublishNoData(t *testing.T) {
 	hub := createDummy()
 
 	form := url.Values{}
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -259,7 +291,10 @@ func TestPublishNoData(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
@@ -270,7 +305,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	h := createDummy()
 
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
-	s.SetTopics([]string{"http://example.com/books/1"}, s.SubscribedTopics)
+	s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
 
 	require.NoError(t, h.transport.AddSubscriber(s))
 
@@ -288,7 +323,7 @@ func TestPublishGenerateUUID(t *testing.T) {
 	}()
 
 	form := url.Values{}
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 	form.Add("data", "Hello!")
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
@@ -299,7 +334,10 @@ func TestPublishGenerateUUID(t *testing.T) {
 	h.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -322,23 +360,26 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 	}()
 
 	hub := createDummy()
-	hub.transport.Close()
+	require.NoError(t, hub.transport.Close())
 
 	form := url.Values{}
 	form.Add("id", "id")
-	form.Add("topic", "http://example.com/books/1")
+	form.Add("topic", "https://example.com/books/1")
 	form.Add("data", "Hello!")
 	form.Add("private", "on")
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"foo", "http://example.com/books/1"}))
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"foo", "https://example.com/books/1"}))
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
-	defer resp.Body.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -379,7 +420,10 @@ func FuzzPublish(f *testing.F) {
 		hub.PublishHandler(w, req)
 
 		resp := w.Result()
-		defer resp.Body.Close()
+
+		t.Cleanup(func() {
+			assert.NoError(t, resp.Body.Close())
+		})
 
 		body, _ := io.ReadAll(resp.Body)
 

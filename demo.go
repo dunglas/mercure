@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 const linkSuffix = `>; rel="mercure"`
@@ -33,13 +35,13 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 
 	hubLink := "<" + defaultHubURL + linkSuffix
 	if h.cookieName != defaultCookieName {
-		hubLink = hubLink + "; cookie-name=\"" + h.cookieName + "\""
+		hubLink = hubLink + `; cookie-name="` + h.cookieName + `"`
 	}
 
 	header := w.Header()
 	// Several Link headers are set on purpose to allow testing advanced discovery mechanism
 	header.Add("Link", hubLink)
-	header.Add("Link", "<"+url+">; rel=\"self\"")
+	header.Add("Link", "<"+url+`>; rel="self"`)
 
 	if mimeType != "" {
 		header.Set("Content-Type", mimeType)
@@ -59,5 +61,9 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, cookie)
 
-	io.WriteString(w, body)
+	if _, err := io.WriteString(w, body); err != nil {
+		if c := h.logger.Check(zap.InfoLevel, "Failed to write demo response"); c != nil {
+			c.Write(zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
+		}
+	}
 }

@@ -49,7 +49,7 @@ func TestNewHubWithConfig(t *testing.T) {
 
 func TestNewHubValidationError(t *testing.T) {
 	assert.Panics(t, func() {
-		NewHubFromViper(viper.New())
+		_, _ = NewHubFromViper(viper.New())
 	})
 }
 
@@ -62,7 +62,7 @@ func TestNewHubTransportValidationError(t *testing.T) {
 	v.Set("transport_url", "foo://")
 
 	assert.Panics(t, func() {
-		NewHubFromViper(viper.New())
+		_, _ = NewHubFromViper(viper.New())
 	})
 }
 
@@ -102,12 +102,12 @@ func TestStop(t *testing.T) {
 			s.RUnlock()
 		}
 
-		hub.transport.Dispatch(&Update{
-			Topics: []string{"http://example.com/foo"},
+		_ = hub.transport.Dispatch(&Update{
+			Topics: []string{"https://example.com/foo"},
 			Event:  Event{Data: "Hello World"},
 		})
 
-		hub.Stop()
+		_ = hub.Stop()
 	}()
 
 	var wg sync.WaitGroup
@@ -117,13 +117,13 @@ func TestStop(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=http://example.com/foo", nil)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
 
 			w := newSubscribeRecorder()
 			hub.SubscribeHandler(w, req)
 
 			r := w.Result()
-			r.Body.Close()
+			_ = r.Body.Close()
 			assert.Equal(t, 200, r.StatusCode)
 		}()
 	}
@@ -223,8 +223,8 @@ func TestOriginsValidator(t *testing.T) {
 		{"*"},
 		{"null"},
 		{"https://example.com"},
-		{"http://example.com:8000"},
-		{"https://example.com", "http://example.org"},
+		{"https://example.com:8000"},
+		{"https://example.com", "https://example.org"},
 		{"https://example.com", "*"},
 		{"null", "https://example.com:3000"},
 		{"capacitor://"},
@@ -240,7 +240,7 @@ func TestOriginsValidator(t *testing.T) {
 		{"https://example.com/"},
 		{"https://user@example.com"},
 		{"https://example.com:abc"},
-		{"https://example.com", "http://example.org/hello"},
+		{"https://example.com", "https://example.org/hello"},
 		{"https://example.com?query", "*"},
 		{"null", "https://example.com:3000#fragment"},
 	}

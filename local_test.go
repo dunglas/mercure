@@ -13,11 +13,14 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	t.Parallel()
 
 	transport := NewLocalTransport()
-	defer transport.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, transport.Close())
+	})
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	u := &Update{Topics: []string{"http://example.com/books/1"}}
+	u := &Update{Topics: []string{"https://example.com/books/1"}}
 	err := transport.Dispatch(u)
 	require.NoError(t, err)
 
@@ -44,12 +47,15 @@ func TestLocalTransportDispatch(t *testing.T) {
 	t.Parallel()
 
 	transport := NewLocalTransport()
-	defer transport.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, transport.Close())
+	})
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
-	s.SetTopics([]string{"http://example.com/foo"}, nil)
+	s.SetTopics([]string{"https://example.com/foo"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
 	u := &Update{Topics: s.SubscribedTopics}
@@ -61,7 +67,10 @@ func TestLocalTransportClosed(t *testing.T) {
 	t.Parallel()
 
 	transport := NewLocalTransport()
-	defer transport.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, transport.Close())
+	})
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -82,7 +91,10 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	t.Parallel()
 
 	transport := NewLocalTransport()
-	defer transport.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, transport.Close())
+	})
 
 	tss := &TopicSelectorStore{}
 	logger := zap.NewNop()
@@ -96,11 +108,11 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	assert.Equal(t, 2, transport.subscribers.Len())
 
 	s1.Disconnect()
-	transport.RemoveSubscriber(s1)
+	require.NoError(t, transport.RemoveSubscriber(s1))
 	assert.Equal(t, 1, transport.subscribers.Len())
 
 	s2.Disconnect()
-	transport.RemoveSubscriber(s2)
+	require.NoError(t, transport.RemoveSubscriber(s2))
 	assert.Equal(t, 0, transport.subscribers.Len())
 }
 
@@ -108,7 +120,10 @@ func TestLiveReading(t *testing.T) {
 	t.Parallel()
 
 	transport := NewLocalTransport()
-	defer transport.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, transport.Close())
+	})
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
@@ -127,7 +142,10 @@ func TestLocalTransportGetSubscribers(t *testing.T) {
 	t.Parallel()
 
 	transport := NewLocalTransport()
-	defer transport.Close()
+
+	t.Cleanup(func() {
+		assert.NoError(t, transport.Close())
+	})
 
 	require.NotNil(t, transport)
 
