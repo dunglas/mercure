@@ -11,7 +11,7 @@ on:
       - v*.*.*
 
 permissions:
-    contents: read
+  contents: read
 
 env:
   DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
