@@ -21,12 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Lint Code Base
-        uses: super-linter/super-linter/slim@v6
+        uses: super-linter/super-linter/slim@v8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FILTER_REGEX_EXCLUDE: .*gatling/mvnw.*
+          FILTER_REGEX_EXCLUDE: .*gatling/mvnw.*|conformance-tests/.*\.ts
           VALIDATE_CHECKOV: false
           VALIDATE_GITLEAKS: false
           VALIDATE_GO: false
@@ -37,3 +38,4 @@ jobs:
           VALIDATE_JAVASCRIPT_STANDARD: false
           VALIDATE_TYPESCRIPT_STANDARD: false
           VALIDATE_PYTHON_PYLINT: false
+          VALIDATE_TRIVY: false

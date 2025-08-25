@@ -145,7 +145,6 @@ test.describe("Publish update", () => {
             resolveReady();
           };
 
-          let id: string;
           es.onmessage = (e) => {
             console.log(`EventSource event received: ${e.data}`);
             if (
@@ -170,7 +169,7 @@ test.describe("Publish update", () => {
             body: event,
           });
 
-          id = await resp.text();
+          const id = await resp.text();
           console.log(
             `POST request done: ${JSON.stringify({ status: resp.status, id, event: event.toString() })}`,
           );

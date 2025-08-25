@@ -38,7 +38,7 @@ curl \
 
 [Other Mercure features](../../spec/mercure.md#publication), including broadcasting private updates to authorized subscribers, are also supported.
 
-In this example, we use `curl` but any HTTP client or [Mercure client library](awesome.md#client-libraries) will work.
+In this example, we use cURL but any HTTP client or [Mercure client library](awesome.md#client-libraries) will work.
 
 ## Disconnecting From a Stream
 

@@ -27,11 +27,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
+          cache: false
           go-version: "1.25"
           check-latest: true
           cache-dependency-path: |

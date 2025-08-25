@@ -12,10 +12,10 @@
   ],
   "author": "Kévin Dunglas",
   "license": "AGPL-3.0-or-later",
+  "type": "commonjs",
   "devDependencies": {
-    "@playwright/test": "^1.49.1"
-  },
-  "dependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0",
     "dotenv": "^16.0.0"
   }
 }
