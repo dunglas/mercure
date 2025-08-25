@@ -116,8 +116,7 @@ foo`;
         publishTopics.value = topic.value;
       }
 
-      const text = await resp.text();
-      body.value = text;
+      body.value = await resp.text();
     } catch (e) {
       error(e);
     }

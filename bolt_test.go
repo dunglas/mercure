@@ -70,7 +70,7 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 	t.Parallel()
 
 	sink, logger := newTestLogger(t)
-	defer sink.Reset()
+	t.Cleanup(sink.Reset)
 
 	transport := createBoltTransport(t, 0, 0)
 	transport.logger = logger

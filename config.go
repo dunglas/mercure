@@ -107,7 +107,7 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.String("metrics-addr", "127.0.0.1:9764", "metrics HTTP server address")
 
 	fs.VisitAll(func(f *pflag.Flag) {
-		v.BindPFlag(strings.ReplaceAll(f.Name, "-", "_"), fs.Lookup(f.Name))
+		_ = v.BindPFlag(strings.ReplaceAll(f.Name, "-", "_"), fs.Lookup(f.Name))
 	})
 }
 
@@ -130,7 +130,7 @@ func InitConfig(v *viper.Viper) {
 	v.AddConfigPath(configDir + "/mercure/")
 	v.AddConfigPath("/etc/mercure/")
 
-	v.ReadInConfig()
+	_ = v.ReadInConfig()
 }
 
 // NewHubFromViper creates a new Hub from the Viper config.
