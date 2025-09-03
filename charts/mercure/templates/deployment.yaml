@@ -50,7 +50,7 @@ spec:
             - name: CADDY_EXTRA_CONFIG
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                  name: {{ include "mercure.secretName" . }}
                   key: caddy-extra-config
             - name: CADDY_SERVER_EXTRA_DIRECTIVES
               valueFrom:
