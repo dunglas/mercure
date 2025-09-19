@@ -7,8 +7,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - v*.*.*
 
 env:
   GOTOOLCHAIN: local
@@ -56,8 +54,14 @@ jobs:
       - name: Use go-deadlock
         run: ./tests/use-go-deadlock.sh
 
+      - name: Setup Valkey
+        uses: shogo82148/actions-setup-redis@v1
+        with:
+          distribution: "valkey"
+          redis-version: "8.1"
+
       - name: Test
-        run: go test -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
+        run: go test -timeout 300s -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
 
       - name: Test Caddy module
         working-directory: caddy/
@@ -73,7 +77,7 @@ jobs:
 
       - name: Start Mercure
         working-directory: caddy/mercure/
-        run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags=nobadger,nomysql,nopgx main.go start --config ../../dev.Caddyfile
+        run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags=nobadger,nomysql,nopgx main.go start --config ../../test.Caddyfile
 
       - uses: actions/setup-node@v4
         with:

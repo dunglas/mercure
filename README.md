@@ -37,3 +37,7 @@ See [license information](https://mercure.rocks/docs/hub/license).
 
 Created by [Kévin Dunglas](https://dunglas.fr). Graphic design by [Laury Sorriaux](https://github.com/ginifizz).
 Sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+
+## Fork Additions
+
+This fork includes a significant enhancement to Mercure availability (HA) capabilities from [another fork.](https://github.com/semrush/mercure) and adds support for Redis and Valkey instances running in [Memorystore](https://cloud.google.com/memorystore?hl=en) with [IAM authentication.](https://cloud.google.com/memorystore/docs/valkey/about-iam-auth)

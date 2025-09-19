@@ -3,7 +3,7 @@
 	{$GLOBAL_OPTIONS}
 }
 
-{$CADDY_EXTRA_CONFIG} 
+{$CADDY_EXTRA_CONFIG}
 
 {$SERVER_NAME:localhost} {
 	log {
@@ -19,9 +19,10 @@
 	encode zstd gzip
 
 	mercure {
-		# Auth0 public JWKS keys:
-		publisher_jwks_url {$MERCURE_JWKS_URL}
-		subscriber_jwks_url {$MERCURE_JWKS_URL}
+		# Publisher JWT key
+		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+		# Subscriber JWT key
+		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
 		# Permissive configuration for the development environment
 		cors_origins *
 		publish_origins *
@@ -30,17 +31,6 @@
 		subscriptions
 		# Extra directives
 		{$MERCURE_EXTRA_DIRECTIVES}
-
-		transport redis {
-			# Google Cloud Memorystore Redis instance address (e.g., 10.0.0.1:6379)
-			address {env.MERCURE_REDIS_ADDRESS}
-			# Enable IAM authentication
-			use_iam_auth true
-			# Google Cloud project ID
-			project_id {env.GOOGLE_CLOUD_PROJECT_ID}
-			subscribers_size {env.MERCURE_REDIS_SUBSCRIBERS_SIZE}
-			redis_channel {env.MERCURE_REDIS_CHANNEL}
-		}
 	}
 
 	{$CADDY_SERVER_EXTRA_DIRECTIVES}

@@ -1,86 +1,59 @@
-name: Release Hub
+name: Build and Push Docker Image
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
-    tags:
-      - v*.*.*
   workflow_dispatch:
-    inputs: {}
-
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
-
-env:
-  GOTOOLCHAIN: local
 
 jobs:
-  release:
+  build-and-push:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-          check-latest: true
-          cache-dependency-path: |
-            go.sum
-            caddy/go.sum
+      - name: Sync tags from upstream repository and get latest tag
+        id: get-latest-tag
+        run: |
+          git remote add upstream https://github.com/dunglas/mercure.git
+          echo "Fetching tags from upstream..."
+          git fetch upstream --tags
+          latest_tag=$(git tag --sort=-v:refname | head -n 1)
+          echo "Latest tag is: $latest_tag"
+          echo "latest_tag=$latest_tag" >> "$GITHUB_OUTPUT"
 
-      - name: Login to Docker Hub
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          access_token_lifetime: 3600s
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT }}'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Login to Google Artifact Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ secrets.GAR_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
 
-      - name: Import GPG key
-        if: startsWith(github.ref, 'refs/tags/v')
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v6
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.PASSPHRASE }}
-
-      - name: Set GoReleaser Git tags
-        run: |
-          tags=$(git tag --list --sort=-version:refname 'v*')
-          echo "GORELEASER_CURRENT_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
-          echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          version: latest
-          args: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'build --single-target --snapshot' }} --clean --timeout 60m
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ startsWith(github.ref, 'refs/tags/v') && steps.import_gpg.outputs.fingerprint || '' }}
-
-      - name: Attest
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: "${{ github.workspace }}/dist/**/mercure"
-
-      - name: Display version
-        run: dist/caddy_linux_amd64_v1/mercure version
-
-      - name: Upload snapshot
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: snapshot
-          path: dist/*
-          retention-days: 1
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ secrets.MERCURE_PACKAGE_NAME }}:${{ steps.get-latest-tag.outputs.latest_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

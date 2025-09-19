@@ -1,0 +1,69 @@
+# Learn how to configure the Mercure.rocks Hub with IAM authentication for Google Cloud Memorystore
+# https://mercure.rocks/docs/hub/config
+{
+	{$GLOBAL_OPTIONS}
+}
+
+{$CADDY_EXTRA_CONFIG}
+
+{$SERVER_NAME:localhost} {
+	log {
+		format filter {
+			fields {
+				request>uri query {
+					replace authorization REDACTED
+				}
+			}
+		}
+	}
+
+	encode zstd gzip
+
+	mercure {
+		# Publisher JWT key
+		publisher_jwks_url {$MERCURE_JWKS_URL}
+		# Subscriber JWT key
+		subscriber_jwks_url {$MERCURE_JWKS_URL}
+		# Extra directives
+		{$MERCURE_EXTRA_DIRECTIVES}
+
+    transport redis {
+      # Google Cloud Memorystore Redis instance address (e.g., 10.0.0.1:6379)
+      address {env.MERCURE_REDIS_ADDRESS}
+      # Enable IAM authentication
+      use_iam_auth true
+      # Google Cloud project ID
+      project_id {env.GOOGLE_CLOUD_PROJECT_ID}
+      subscribers_size {env.MERCURE_REDIS_SUBSCRIBERS_SIZE}
+      redis_channel {env.MERCURE_REDIS_CHANNEL}
+    }
+	}
+
+	{$CADDY_SERVER_EXTRA_DIRECTIVES}
+
+	log_skip /robots.txt
+	log_skip /healthz
+	log_skip /favicon.ico
+
+	header / Content-Type "text/html; charset=utf-8"
+	respond / `<!DOCTYPE html>
+	<html lang=en>
+	<meta charset="utf-8">
+	<meta name="robots" content="noindex">
+	<title>Welcome to Mercure with IAM Auth</title>
+	<h1>Welcome to Mercure with IAM Authentication</h1>
+	<p>The URL of your hub is <code>/.well-known/mercure</code>.
+	This instance is configured to use Google Cloud Memorystore with IAM authentication.
+	Read the documentation on <a href="https://mercure.rocks">Mercure.rocks, real-time apps made easy</a>.</p>
+	<p><strong>Note:</strong> This configuration requires:</p>
+	<ul>
+		<li>Google Cloud Memorystore for Redis instance</li>
+		<li>Workload Identity binding configured</li>
+		<li>Service account with Memorystore User role</li>
+		<li>GOOGLE_CLOUD_PROJECT_ID environment variable set</li>
+	</ul>`
+	respond /robots.txt `User-agent: *
+	Disallow: /`
+	respond /healthz 200
+	respond "Not Found" 404
+} 

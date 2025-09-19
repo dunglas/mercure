@@ -1,13 +1,10 @@
 # syntax=docker/dockerfile:1
+FROM docker.io/golang:1.24-alpine AS builder
+WORKDIR /image
+COPY . /image
+WORKDIR /image/caddy
+RUN go mod tidy && go build -o ../mercure mercure/main.go
+
 FROM caddy:2-alpine
-
-LABEL org.opencontainers.image.title=Mercure.rocks
-LABEL org.opencontainers.image.description="Real-time made easy"
-LABEL org.opencontainers.image.url=https://mercure.rocks
-LABEL org.opencontainers.image.source=https://github.com/dunglas/mercure
-LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
-LABEL org.opencontainers.image.vendor="Kévin Dunglas"
-
-COPY mercure /usr/bin/caddy
-COPY Caddyfile /etc/caddy/Caddyfile
-COPY dev.Caddyfile /etc/caddy/dev.Caddyfile
+COPY --from=builder /image/mercure /usr/bin/caddy
+RUN chmod +x /usr/bin/caddy
