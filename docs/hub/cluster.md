@@ -32,6 +32,11 @@ These transports can rely on:
 - Apache Kafka
 - Apache Pulsar
 
+The On Premise version also has support for enterprise features including:
+
+- advanced rate limiting
+- drop-in replacements builds for [FrankenPHP](https://frankenphp.dev) including High Availability transports
+
 We can help you to decide which synchronization mechanism will be the best suited for your needs, and help you to install and configure it on your infrastructure.
 
 The HA version is provided as binaries and as a Docker image. We also maintain a Helm chart allowing to install it
@@ -92,6 +97,24 @@ The following options can be passed to the `transport` directive:
 | `max_length`             | the approximate maximum number of messages to store in the history, set to `0` to store all messages                                                  |
 
 All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
+
+###### Reusing an Existing Caddy Storage Redis Instance
+
+[The Redis storage module for Caddy](https://github.com/pberkel/caddy-storage-redis), is shipped with the HA build of Mercure.rocks.
+
+If you use it (for instance, as the storage for [the Caddy ratelimit module](https://github.com/mholt/caddy-ratelimit) that is also included),
+you can reuse the same Redis instance for Mercure.rocks by using the special `caddy-storage-redis.alt` value as `address` in your `Caddyfile`:
+
+Here is an example using the built-in environment variables:
+
+```env
+MERCURE_EXTRA_DIRECTIVES="transport redis {
+	address caddy-storage-redis.alt
+	stream mercure
+    # ...	
+}"
+GLOBAL_OPTIONS="storage redis"
+```
 
 ###### Legacy Redis URL
 
