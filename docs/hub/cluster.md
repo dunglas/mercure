@@ -27,7 +27,7 @@ The High Availability On Premise Mercure.rocks Hub is a drop-in replacement for 
 The HA version is shipped with transports having node synchronization capabilities.
 These transports can rely on:
 
-- Redis
+- Redis or Valkey
 - Postgres `LISTEN`/`NOTIFY`
 - Apache Kafka
 - Apache Pulsar
@@ -62,13 +62,14 @@ If you use the Helm chart, set the `license` value and change the Docker image t
 The clustered mode of the Mercure.rocks Hub requires transport to work.
 Supported transports are Apache Pulsar, Apache Kafka and PostgreSQL.
 
-#### Redis Transport
+#### Redis/Valkey Transport
 
 This is the recommended transport when the Hub isn't the main storage system and low latency is needed.
 The Redis transport should fit most use cases.
 
 To install Redis, [read the documentation](https://redis.io/topics/quickstart).
-Most Cloud Computing platforms also provide managed versions of Redis.
+[Valkey](https://valkey.io) is also supported.
+Most Cloud Computing platforms also provide managed versions of Redis or Valkey.
 
 <!-- markdownlint-disable MD009 -->
 
