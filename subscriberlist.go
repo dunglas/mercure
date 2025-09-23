@@ -95,7 +95,7 @@ func (sl *SubscriberList) MatchAny(u *Update) (res []*LocalSubscriber) {
 		res = append(res, m.(*LocalSubscriber))
 	}
 
-	return
+	return res
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {

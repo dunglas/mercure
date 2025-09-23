@@ -30,7 +30,9 @@ type role int
 const (
 	defaultCookieName = "mercureAuthorization"
 	bearerPrefix      = "Bearer "
+)
 
+const (
 	roleSubscriber role = iota
 	rolePublisher
 )
