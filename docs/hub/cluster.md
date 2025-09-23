@@ -27,10 +27,15 @@ The High Availability On Premise Mercure.rocks Hub is a drop-in replacement for 
 The HA version is shipped with transports having node synchronization capabilities.
 These transports can rely on:
 
-- Redis
+- Redis or Valkey
 - Postgres `LISTEN`/`NOTIFY`
 - Apache Kafka
 - Apache Pulsar
+
+The On Premise version also has support for enterprise features including:
+
+- advanced rate limiting
+- drop-in replacements builds for [FrankenPHP](https://frankenphp.dev) including High Availability transports
 
 We can help you to decide which synchronization mechanism will be the best suited for your needs, and help you to install and configure it on your infrastructure.
 
@@ -50,10 +55,12 @@ This key must be set in an environment variable named `MERCURE_LICENSE`.
 
 Ex:
 
-    MERCURE_LICENSE=snip \
+```console
+MERCURE_LICENSE=snip \
     MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
+```
 
 If you use the Helm chart, set the `license` value and change the Docker image to use the one provided.
 
@@ -62,15 +69,14 @@ If you use the Helm chart, set the `license` value and change the Docker image t
 The clustered mode of the Mercure.rocks Hub requires transport to work.
 Supported transports are Apache Pulsar, Apache Kafka and PostgreSQL.
 
-#### Redis Transport
+#### Redis/Valkey Transport
 
 This is the recommended transport when the Hub isn't the main storage system and low latency is needed.
 The Redis transport should fit most use cases.
 
 To install Redis, [read the documentation](https://redis.io/topics/quickstart).
-Most Cloud Computing platforms also provide managed versions of Redis.
-
-<!-- markdownlint-disable MD009 -->
+[Valkey](https://valkey.io) is also supported.
+Most Cloud Computing platforms also provide managed versions of Redis or Valkey.
 
 | Feature         | Supported |
 | --------------- | --------- |
@@ -83,14 +89,37 @@ Most Cloud Computing platforms also provide managed versions of Redis.
 The following options can be passed to the `transport` directive:
 
 | Option                   | Description                                                                                                                                           |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `address` or `addresses` | the address(es) of the Redis server(s), you can pass several addresses to use several Redis servers (ex: `addresses host1:6379 host2:6379`, required) |
 | `stream`                 | the name of the Redis stream to use (required)                                                                                                        |
 | `password`               | the Redis password                                                                                                                                    |
 | `tls`                    | enable TLS support                                                                                                                                    |
 | `max_length`             | the approximate maximum number of messages to store in the history, set to `0` to store all messages                                                  |
+| `gob`                    |                                                                                                                                                       | use the Go `gob` encoding instead of JSON (faster but not compatible with third-party systems querying the Redis instance directly) |
 
 All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
+
+###### Reusing an Existing Caddy Storage Redis Instance
+
+[The Redis storage module for Caddy](https://github.com/pberkel/caddy-storage-redis), is shipped with the HA build of Mercure.rocks.
+
+If you use it (for instance, as the storage for [the Caddy ratelimit module](https://github.com/mholt/caddy-ratelimit) that is also included),
+you can reuse the same Redis instance for Mercure.rocks by using the special `caddy-storage-redis.alt` value as `address` in your `Caddyfile`:
+
+Here is an example using the built-in environment variables:
+
+<!-- markdownlint-disable MD010 -->
+
+```env
+MERCURE_EXTRA_DIRECTIVES="transport redis {
+	address caddy-storage-redis.alt
+	stream mercure
+    # ...
+}"
+GLOBAL_OPTIONS="storage redis"
+```
+
+<!-- markdownlint-enable MD010 -->
 
 ###### Legacy Redis URL
 
