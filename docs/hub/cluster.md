@@ -78,8 +78,6 @@ To install Redis, [read the documentation](https://redis.io/topics/quickstart).
 [Valkey](https://valkey.io) is also supported.
 Most Cloud Computing platforms also provide managed versions of Redis or Valkey.
 
-<!-- markdownlint-disable MD009 -->
-
 | Feature         | Supported |
 | --------------- | --------- |
 | History         | ✅        |
@@ -110,6 +108,8 @@ you can reuse the same Redis instance for Mercure.rocks by using the special `ca
 
 Here is an example using the built-in environment variables:
 
+<!-- markdownlint-disable MD010 -->
+
 ```env
 MERCURE_EXTRA_DIRECTIVES="transport redis {
 	address caddy-storage-redis.alt
@@ -118,6 +118,8 @@ MERCURE_EXTRA_DIRECTIVES="transport redis {
 }"
 GLOBAL_OPTIONS="storage redis"
 ```
+
+<!-- markdownlint-enable MD010 -->
 
 ###### Legacy Redis URL
 
