@@ -106,5 +106,5 @@ func getSubscribers(sl *SubscriberList) (subscribers []*Subscriber) {
 		return true
 	})
 
-	return
+	return subscribers
 }

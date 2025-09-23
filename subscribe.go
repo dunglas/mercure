@@ -91,7 +91,7 @@ func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 		deadline = now.Add(randomizeWriteDeadline(s.Claims.ExpiresAt.Sub(now)))
 	}
 
-	return
+	return deadline
 }
 
 // SubscribeHandler creates a keep alive connection and sends the events to the subscribers.
