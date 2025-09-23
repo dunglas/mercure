@@ -55,10 +55,12 @@ This key must be set in an environment variable named `MERCURE_LICENSE`.
 
 Ex:
 
-    MERCURE_LICENSE=snip \
+```console
+MERCURE_LICENSE=snip \
     MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     ./mercure run
+```
 
 If you use the Helm chart, set the `license` value and change the Docker image to use the one provided.
 
