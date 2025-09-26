@@ -29,7 +29,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: "v2.3.0"
           args: --timeout=30m
 
   test:
@@ -69,12 +69,6 @@ jobs:
           go test -timeout 1m -race -covermode atomic -tags=nobadger,nomysql,nopgx -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
           sed '1d' profile.cov >> ../profile.cov
 
-      - name: Upload coverage results
-        uses: shogo82148/actions-goveralls@v1
-        with:
-          path-to-profile: profile.cov
-          parallel: true
-
       - name: Start Mercure
         working-directory: caddy/mercure/
         run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags=nobadger,nomysql,nopgx main.go start --config ../../test.Caddyfile
@@ -96,11 +90,3 @@ jobs:
       - name: Run Playwright tests
         working-directory: conformance-tests/
         run: npx playwright test
-
-  finish:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: shogo82148/actions-goveralls@v1
-        with:
-          parallel-finished: true
