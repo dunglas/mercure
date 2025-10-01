@@ -45,8 +45,8 @@ type JWTConfig struct {
 }
 
 type TopicSelectorCacheConfig struct {
-	MaxEntriesPerShard uint `json:"max_entries_per_shard,omitempty"`
-	ShardCount         uint `json:"shard_count,omitempty"`
+	MaxEntriesPerShard int `json:"max_entries_per_shard,omitempty"`
+	ShardCount         int `json:"shard_count,omitempty"`
 }
 
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
@@ -96,9 +96,9 @@ type Mercure struct {
 	TransportURL string `json:"transport_url,omitempty"`
 
 	// Deprecated: not used anymore.
-	LRUShardSize *int64 `json:"lru_shard_size,omitempty"`
+	CacheShardSize *int64 `json:"cache_shard_size,omitempty"`
 
-	// Triggers use of LRU topic selector cache and avoidance of select priority queue.
+	// Triggers use of topic selector cache and avoidance of select priority queue.
 	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
 
 	// The name of the authorization cookie. Defaults to "mercureAuthorization".
@@ -194,32 +194,31 @@ func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
 }
 
 //nolint:wrapcheck
-func (m *Mercure) Provision(ctx caddy.Context) error { //nolint:funlen,gocognit
+func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,gocognit
 	metrics := mercure.NewPrometheusMetrics(ctx.GetMetricsRegistry())
 
 	if err := m.populateJWTConfig(); err != nil {
 		return err
 	}
 
-	maxEntriesPerShard := mercure.DefaultTopicSelectorStoreLRUMaxEntriesPerShard
-	shardCount := mercure.DefaultTopicSelectorStoreLRUShardCount
+	maxEntriesPerShard := mercure.DefaultTopicSelectorStoreCacheMaxEntriesPerShard
+	shardCount := mercure.DefaultTopicSelectorStoreCacheShardCount
 	if m.TopicSelectorCache != nil {
-		if m.TopicSelectorCache.MaxEntriesPerShard > 0 {
-			maxEntriesPerShard = int(m.TopicSelectorCache.MaxEntriesPerShard)
-		} else {
-			maxEntriesPerShard = 0
-		}
-
-		if m.TopicSelectorCache.ShardCount > 0 {
-			shardCount = int(m.TopicSelectorCache.ShardCount)
-		} else {
-			shardCount = 0
-		}
+		maxEntriesPerShard = m.TopicSelectorCache.MaxEntriesPerShard
+		shardCount = m.TopicSelectorCache.ShardCount
 	}
 
-	tss, err := mercure.NewTopicSelectorStoreLRU(maxEntriesPerShard, shardCount)
-	if err != nil {
-		return err
+	if shardCount <= 0 {
+		shardCount = mercure.DefaultTopicSelectorStoreCacheShardCount
+	}
+
+	var tss *mercure.TopicSelectorStore
+	if maxEntriesPerShard < 0 {
+		tss = &mercure.TopicSelectorStore{}
+	} else {
+		if tss, err = mercure.NewTopicSelectorStoreCache(maxEntriesPerShard, shardCount); err != nil {
+			return err
+		}
 	}
 
 	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
@@ -476,17 +475,17 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return d.ArgErr()
 				}
 
-				maxEntriesPerShard, err := strconv.ParseInt(d.Val(), 10, 64)
+				maxEntriesPerShard, err := strconv.Atoi(d.Val())
 				if err != nil {
 					return err
 				}
 
-				shardCount, err := strconv.ParseInt(d.Val(), 10, 64)
+				shardCount, err := strconv.Atoi(d.Val())
 				if err != nil {
 					return err
 				}
 
-				m.TopicSelectorCache = &TopicSelectorCacheConfig{uint(maxEntriesPerShard), uint(shardCount)}
+				m.TopicSelectorCache = &TopicSelectorCacheConfig{maxEntriesPerShard, shardCount}
 			case "cookie_name":
 				if !d.NextArg() {
 					return d.ArgErr()

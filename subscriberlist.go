@@ -4,11 +4,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kevburnsjr/skipfilter"
+	"github.com/dunglas/skipfilter"
 )
 
 type SubscriberList struct {
-	skipfilter *skipfilter.SkipFilter
+	skipfilter *skipfilter.SkipFilter[*LocalSubscriber, string]
 }
 
 // We choose a delimiter and an escape character which are unlikely to be used.
@@ -25,8 +25,8 @@ var replacer = strings.NewReplacer(
 
 func NewSubscriberList(size int) *SubscriberList {
 	return &SubscriberList{
-		skipfilter: skipfilter.New(func(s any, filter any) bool {
-			return s.(*LocalSubscriber).MatchTopics(decode(filter.(string)))
+		skipfilter: skipfilter.New[*LocalSubscriber, string](func(s *LocalSubscriber, filter string) bool {
+			return s.MatchTopics(decode(filter))
 		}, size),
 	}
 }
@@ -91,16 +91,12 @@ func decode(f string) (topics []string, private bool) {
 }
 
 func (sl *SubscriberList) MatchAny(u *Update) (res []*LocalSubscriber) {
-	for _, m := range sl.skipfilter.MatchAny(encode(u.Topics, u.Private)) {
-		res = append(res, m.(*LocalSubscriber))
-	}
-
-	return res
+	return append(res, sl.skipfilter.MatchAny(encode(u.Topics, u.Private))...)
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {
-	return sl.skipfilter.Walk(start, func(val any) bool {
-		return callback(val.(*LocalSubscriber))
+	return sl.skipfilter.Walk(start, func(val *LocalSubscriber) bool {
+		return callback(val)
 	})
 }
 

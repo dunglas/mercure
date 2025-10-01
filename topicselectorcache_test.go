@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMatchLRU(t *testing.T) {
+func TestMatchCache(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStoreLRU(DefaultTopicSelectorStoreLRUMaxEntriesPerShard, DefaultTopicSelectorStoreLRUMaxEntriesPerShard)
+	tss, err := NewTopicSelectorStoreCache(DefaultTopicSelectorStoreCacheMaxEntriesPerShard, DefaultTopicSelectorStoreCacheMaxEntriesPerShard)
 	require.NoError(t, err)
 
 	assert.False(t, tss.match("foo", "bar"))
