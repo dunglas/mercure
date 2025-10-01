@@ -1,13 +1,16 @@
 package mercure
 
 import (
+	"sync"
+
 	"github.com/cespare/xxhash/v2"
 	"github.com/maypok86/otter/v2"
 )
 
 // Let's say that a topic selector is 100 bytes on average, a cache with
 // 10,000 entries per shard and 256 shards will use about 256 * 10,000 * 100 = 256MB of RAM.
-// TODO: gather stats to find the best default values.
+//
+// TODO: gather stats to find the best default values. // nolint:godox
 const (
 	DefaultTopicSelectorStoreCacheMaxEntriesPerShard = 10_000
 	DefaultTopicSelectorStoreCacheShardCount         = uint64(256)
@@ -43,8 +46,16 @@ func (c *shardedCache) Set(k string, v any, _ int64) bool {
 	return true
 }
 
+var hashPool = sync.Pool{
+	New: func() any {
+		return xxhash.New()
+	},
+}
+
 func (c *shardedCache) getShard(k string) *otter.Cache[string, any] {
-	h := xxhash.New()
+	h := hashPool.Get().(*xxhash.Digest)
+	h.Reset()
+
 	_, _ = h.Write([]byte(k))
 
 	return (*c)[h.Sum64()%uint64(len(*c))]
