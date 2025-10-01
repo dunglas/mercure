@@ -46,7 +46,7 @@ func (c *shardedCache) Set(k string, v any, _ int64) bool {
 	return true
 }
 
-var hashPool = sync.Pool{
+var hashPool = sync.Pool{ // nolint:gochecknoglobals
 	New: func() any {
 		return xxhash.New()
 	},
