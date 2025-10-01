@@ -45,8 +45,8 @@ type JWTConfig struct {
 }
 
 type TopicSelectorCacheConfig struct {
-	MaxEntriesPerShard int `json:"max_entries_per_shard,omitempty"`
-	ShardCount         int `json:"shard_count,omitempty"`
+	MaxEntriesPerShard int    `json:"max_entries_per_shard,omitempty"`
+	ShardCount         uint64 `json:"shard_count,omitempty"`
 }
 
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
@@ -203,12 +203,13 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	maxEntriesPerShard := mercure.DefaultTopicSelectorStoreCacheMaxEntriesPerShard
 	shardCount := mercure.DefaultTopicSelectorStoreCacheShardCount
+
 	if m.TopicSelectorCache != nil {
 		maxEntriesPerShard = m.TopicSelectorCache.MaxEntriesPerShard
 		shardCount = m.TopicSelectorCache.ShardCount
 	}
 
-	if shardCount <= 0 {
+	if shardCount == 0 {
 		shardCount = mercure.DefaultTopicSelectorStoreCacheShardCount
 	}
 
@@ -480,7 +481,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 					return err
 				}
 
-				shardCount, err := strconv.Atoi(d.Val())
+				shardCount, err := strconv.ParseUint(d.Val(), 10, 64)
 				if err != nil {
 					return err
 				}

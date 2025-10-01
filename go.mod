@@ -8,6 +8,7 @@ retract (
 )
 
 require (
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/dunglas/skipfilter v1.0.0
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -32,7 +33,6 @@ require (
 	github.com/RoaringBitmap/roaring/v2 v2.10.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect

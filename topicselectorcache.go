@@ -1,8 +1,7 @@
 package mercure
 
 import (
-	"hash/fnv"
-
+	"github.com/cespare/xxhash/v2"
 	"github.com/maypok86/otter/v2"
 )
 
@@ -10,12 +9,12 @@ import (
 // 10,000 entries per shard and 256 shards will use about 256 * 10,000 * 100 = 256MB of RAM.
 // TODO: gather stats to find the best default values.
 const (
-	DefaultTopicSelectorStoreCacheMaxEntriesPerShard = int(10_000)
-	DefaultTopicSelectorStoreCacheShardCount         = int(256)
+	DefaultTopicSelectorStoreCacheMaxEntriesPerShard = 10_000
+	DefaultTopicSelectorStoreCacheShardCount         = uint64(256)
 )
 
 // NewTopicSelectorStoreCache creates a TopicSelectorStore with a cache.
-func NewTopicSelectorStoreCache(maxEntriesPerShard, shardCount int) (*TopicSelectorStore, error) {
+func NewTopicSelectorStoreCache(maxEntriesPerShard int, shardCount uint64) (*TopicSelectorStore, error) {
 	if maxEntriesPerShard == 0 {
 		return &TopicSelectorStore{}, nil
 	}
@@ -25,14 +24,14 @@ func NewTopicSelectorStoreCache(maxEntriesPerShard, shardCount int) (*TopicSelec
 	}
 
 	cacheMap := make(shardedCache, shardCount)
-	for i := 0; i < shardCount; i++ {
+	for i := uint64(0); i < shardCount; i++ {
 		cacheMap[i] = otter.Must(&otter.Options[string, any]{MaximumSize: maxEntriesPerShard})
 	}
 
 	return &TopicSelectorStore{cache: &cacheMap, skipSelect: true}, nil
 }
 
-type shardedCache map[int]*otter.Cache[string, any]
+type shardedCache map[uint64]*otter.Cache[string, any]
 
 func (c *shardedCache) Get(k string) (any, bool) {
 	return c.getShard(k).GetIfPresent(k)
@@ -45,8 +44,8 @@ func (c *shardedCache) Set(k string, v any, _ int64) bool {
 }
 
 func (c *shardedCache) getShard(k string) *otter.Cache[string, any] {
-	h := fnv.New32a()
+	h := xxhash.New()
 	_, _ = h.Write([]byte(k))
 
-	return (*c)[int(h.Sum32())%len(*c)]
+	return (*c)[h.Sum64()%uint64(len(*c))]
 }
