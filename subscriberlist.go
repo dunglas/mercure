@@ -23,11 +23,11 @@ var replacer = strings.NewReplacer(
 	string(delim), string([]rune{escape, delim}),
 )
 
-func NewSubscriberList(size int) *SubscriberList {
+func NewSubscriberList() *SubscriberList {
 	return &SubscriberList{
 		skipfilter: skipfilter.New[*LocalSubscriber, string](func(s *LocalSubscriber, filter string) bool {
 			return s.MatchTopics(decode(filter))
-		}, size),
+		}, 0),
 	}
 }
 
