@@ -263,7 +263,7 @@ func TestOriginsValidator(t *testing.T) {
 }
 
 func createDummy(options ...Option) *Hub {
-	tss, _ := NewTopicSelectorStoreLRU(0, 0)
+	tss, _ := NewTopicSelectorStoreCache(0, 0)
 	options = append(
 		[]Option{
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),

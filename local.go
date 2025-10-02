@@ -29,7 +29,7 @@ func DeprecatedNewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //no
 // NewLocalTransport creates a new LocalTransport.
 func NewLocalTransport() *LocalTransport {
 	return &LocalTransport{
-		subscribers: NewSubscriberList(1e5),
+		subscribers: NewSubscriberList(),
 		closed:      make(chan struct{}),
 		lastEventID: EarliestLastEventID,
 	}

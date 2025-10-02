@@ -85,28 +85,13 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	})
 }
 
-/* --- test.sh ---
+/*
 These are example commands that can be used to run subsets of this test for analysis.
 Omission of any environment variable causes the test to enumerate a few meaningful options.
 
-#!/usr/bin/sh
-
-set -e
-
-mkdir -p _dist
-
-# --- Generating a cpu call graph ---
-
 SUB_TEST_CONCURRENCY=20000 \
-SUB_TEST_TOPICS=20 \
-SUB_TEST_MATCHPCT=50 \
-SUB_TEST_CACHE=lru \
-SUB_TEST_SHARDS=256 \
-go test -bench=. -run=BenchmarkLocalTransport -cpuprofile _dist/profile.20kc.20top.50pct.noskip.lru.256sh.out -benchmem
-
-go build -o _dist/bin
-
-go tool pprof --pdf _dist/bin _dist/profile.20kc.20top.50pct.noskip.lru.256sh.out \
-                            > _dist/profile.20kc.20top.50pct.noskip.lru.256sh.pdf
-
+	SUB_TEST_TOPICS=20 \
+	SUB_TEST_MATCHPCT=50 \
+	go test -bench=. -run=BenchmarkLocalTransport -cpuprofile profile.out -benchmem
+go tool pprof --pdf _dist/bin profile.out > profile.pdf
 */

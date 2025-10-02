@@ -28,7 +28,7 @@ func BenchmarkSubscriberList(b *testing.B) {
 	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
 
-	l := NewSubscriberList(100)
+	l := NewSubscriberList()
 
 	for i := range 100 {
 		s := NewLocalSubscriber("", logger, tss)

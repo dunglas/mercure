@@ -116,7 +116,7 @@ func NewBoltTransport(
 		size:             size,
 		cleanupFrequency: cleanupFrequency,
 
-		subscribers: NewSubscriberList(1e5),
+		subscribers: NewSubscriberList(),
 		closed:      make(chan struct{}),
 		lastEventID: lastEventID,
 	}, nil

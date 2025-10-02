@@ -326,7 +326,7 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	if opt.topicSelectorStore == nil {
-		tss, err := NewTopicSelectorStoreLRU(DefaultTopicSelectorStoreLRUMaxEntriesPerShard, DefaultTopicSelectorStoreLRUShardCount)
+		tss, err := NewTopicSelectorStoreCache(DefaultTopicSelectorStoreCacheMaxEntriesPerShard, DefaultTopicSelectorStoreCacheShardCount)
 		if err != nil {
 			return nil, err
 		}
