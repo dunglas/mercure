@@ -10,7 +10,8 @@ import (
 // Let's say that a topic selector is 100 bytes on average, a cache with
 // 10,000 entries per shard and 256 shards will use about 256 * 10,000 * 100 = 256MB of RAM.
 //
-// TODO: gather stats to find the best default values. // nolint:godox
+// nolint:godox
+// TODO: gather stats to find the best default values.
 const (
 	DefaultTopicSelectorStoreCacheMaxEntriesPerShard = 10_000
 	DefaultTopicSelectorStoreCacheShardCount         = uint64(256)
