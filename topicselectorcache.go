@@ -55,9 +55,11 @@ var hashPool = sync.Pool{ // nolint:gochecknoglobals
 
 func (c *shardedCache) getShard(k string) *otter.Cache[string, any] {
 	h := hashPool.Get().(*xxhash.Digest)
-	h.Reset()
-
 	_, _ = h.Write([]byte(k))
+	s := h.Sum64()
 
-	return (*c)[h.Sum64()%uint64(len(*c))]
+	h.Reset()
+	hashPool.Put(h)
+
+	return (*c)[s%uint64(len(*c))]
 }
