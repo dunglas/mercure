@@ -18,7 +18,7 @@ func BenchmarkLocalTransport(b *testing.B) {
 func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, testName string) {
 	b.Helper()
 
-	tr := NewLocalTransport()
+	tr := NewLocalTransport(NewSubscriberList(1_000))
 
 	b.Cleanup(func() {
 		assert.NoError(b, tr.Close())

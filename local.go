@@ -23,13 +23,13 @@ type LocalTransport struct {
 //
 // Deprecated: use NewLocalTransport() instead.
 func DeprecatedNewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //nolint:ireturn
-	return NewLocalTransport(), nil
+	return NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize)), nil
 }
 
 // NewLocalTransport creates a new LocalTransport.
-func NewLocalTransport() *LocalTransport {
+func NewLocalTransport(sl *SubscriberList) *LocalTransport {
 	return &LocalTransport{
-		subscribers: NewSubscriberList(),
+		subscribers: sl,
 		closed:      make(chan struct{}),
 		lastEventID: EarliestLastEventID,
 	}

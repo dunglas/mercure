@@ -48,7 +48,7 @@ func escapeTopics(topics []string) []string {
 	return escapedTopics
 }
 
-// MatchTopics checks if the current subscriber can access to the given topic.
+// MatchTopics checks if the current subscriber can access to at least one of the given topics.
 //
 //nolint:gocognit
 func (s *Subscriber) MatchTopics(topics []string, private bool) bool {

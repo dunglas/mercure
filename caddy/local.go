@@ -31,9 +31,13 @@ func (l *Local) GetTransport() mercure.Transport { //nolint:ireturn
 }
 
 // Provision provisions l's configuration.
-func (l *Local) Provision(_ caddy.Context) error {
+func (l *Local) Provision(ctx caddy.Context) error {
 	destructor, _, _ := TransportUsagePool.LoadOrNew(localTransportKey, func() (caddy.Destructor, error) {
-		return TransportDestructor[*mercure.LocalTransport]{Transport: mercure.NewLocalTransport()}, nil
+		return TransportDestructor[*mercure.LocalTransport]{
+			Transport: mercure.NewLocalTransport(
+				mercure.NewSubscriberList(ctx.Value(SubscriberListCacheSizeContextKey).(int)),
+			),
+		}, nil
 	})
 
 	l.transport = destructor.(TransportDestructor[*mercure.LocalTransport]).Transport

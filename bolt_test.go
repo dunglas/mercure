@@ -23,7 +23,7 @@ func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *B
 	}
 
 	path := "test-" + t.Name() + ".db"
-	transport, err := NewBoltTransport(zap.NewNop(), path, defaultBoltBucketName, size, cleanupFrequency)
+	transport, err := NewBoltTransport(NewSubscriberList(0), zap.NewNop(), path, defaultBoltBucketName, size, cleanupFrequency)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {

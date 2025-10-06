@@ -80,11 +80,12 @@ func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nol
 		return nil, &TransportError{u.Redacted(), "missing path", err}
 	}
 
-	return NewBoltTransport(l, path, bucketName, size, cleanupFrequency)
+	return NewBoltTransport(NewSubscriberList(DefaultSubscriberListCacheSize), l, path, bucketName, size, cleanupFrequency)
 }
 
 // NewBoltTransport creates a new BoltTransport.
 func NewBoltTransport(
+	subscriberList *SubscriberList,
 	logger Logger,
 	path string,
 	bucketName string,
@@ -115,10 +116,9 @@ func NewBoltTransport(
 		bucketName:       bucketName,
 		size:             size,
 		cleanupFrequency: cleanupFrequency,
-
-		subscribers: NewSubscriberList(),
-		closed:      make(chan struct{}),
-		lastEventID: lastEventID,
+		subscribers:      subscriberList,
+		closed:           make(chan struct{}),
+		lastEventID:      lastEventID,
 	}, nil
 }
 

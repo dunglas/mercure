@@ -335,7 +335,7 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	if opt.transport == nil {
-		opt.transport = NewLocalTransport()
+		opt.transport = NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize))
 	}
 
 	if ttss, ok := opt.transport.(TransportTopicSelectorStore); ok {

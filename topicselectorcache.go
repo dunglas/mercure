@@ -1,8 +1,6 @@
 package mercure
 
 import (
-	"sync"
-
 	"github.com/cespare/xxhash/v2"
 	"github.com/maypok86/otter/v2"
 )
@@ -28,7 +26,7 @@ func NewTopicSelectorStoreCache(maxEntriesPerShard int, shardCount uint64) (*Top
 	}
 
 	cacheMap := make(shardedCache, shardCount)
-	for i := uint64(0); i < shardCount; i++ {
+	for i := range shardCount {
 		cacheMap[i] = otter.Must(&otter.Options[string, any]{MaximumSize: maxEntriesPerShard})
 	}
 
@@ -47,19 +45,10 @@ func (c *shardedCache) Set(k string, v any, _ int64) bool {
 	return true
 }
 
-var hashPool = sync.Pool{ // nolint:gochecknoglobals
-	New: func() any {
-		return xxhash.New()
-	},
-}
-
 func (c *shardedCache) getShard(k string) *otter.Cache[string, any] {
-	h := hashPool.Get().(*xxhash.Digest)
+	h := xxhash.New()
 	_, _ = h.Write([]byte(k))
 	s := h.Sum64()
-
-	h.Reset()
-	hashPool.Put(h)
 
 	return (*c)[s%uint64(len(*c))]
 }
