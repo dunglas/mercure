@@ -508,25 +508,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 					return d.ArgErr()
 				}
 
-				var size int
-
-				switch d.Val() {
-				case "unlimited":
-					size = -1
-
-				default:
-					s, err := strconv.Atoi(d.Val())
-					if err != nil {
-						return err
-					}
-
-					if s <= 0 {
-						return errors.New(`subscriber_list_cache_size must be greater than 0, "off" or "unlimited"`) //nolint:err113
-					}
-
-					size = s
+				s, err := strconv.ParseUint(d.Val(), 10, 64)
+				if err != nil {
+					return err
 				}
 
+				size := int(s)
 				m.SubscriberListCacheSize = &size
 
 			case "cookie_name":
