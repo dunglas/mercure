@@ -101,6 +101,8 @@ type Mercure struct {
 	// Triggers use of topic selector cache and avoidance of select priority queue.
 	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
 
+	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
+
 	// The name of the authorization cookie. Defaults to "mercureAuthorization".
 	CookieName string `json:"cookie_name,omitempty"`
 
@@ -223,7 +225,11 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
-	ctx = ctx.WithValue(WriteTimeoutContextKey, m.WriteTimeout)
+	if m.SubscriberListCacheSize == nil {
+		ctx = ctx.WithValue(SubscriberListCacheSizeContextKey, mercure.DefaultSubscriberListCacheSize)
+	} else {
+		ctx = ctx.WithValue(SubscriberListCacheSizeContextKey, *m.SubscriberListCacheSize)
+	}
 
 	m.logger = ctx.Logger()
 
@@ -487,6 +493,32 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:fu
 				}
 
 				m.TopicSelectorCache = &TopicSelectorCacheConfig{maxEntriesPerShard, shardCount}
+			case "subscriber_list_cache_size":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				var size int
+
+				switch d.Val() {
+				case "unlimited":
+					size = -1
+
+				default:
+					s, err := strconv.Atoi(d.Val())
+					if err != nil {
+						return err
+					}
+
+					if s <= 0 {
+						return errors.New(`subscriber_list_cache_size must be greater than 0, "off" or "unlimited"`) //nolint:err113
+					}
+
+					size = s
+				}
+
+				m.SubscriberListCacheSize = &size
+
 			case "cookie_name":
 				if !d.NextArg() {
 					return d.ArgErr()

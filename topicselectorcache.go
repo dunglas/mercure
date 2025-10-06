@@ -28,7 +28,7 @@ func NewTopicSelectorStoreCache(maxEntriesPerShard int, shardCount uint64) (*Top
 	}
 
 	cacheMap := make(shardedCache, shardCount)
-	for i := uint64(0); i < shardCount; i++ {
+	for i := range shardCount {
 		cacheMap[i] = otter.Must(&otter.Options[string, any]{MaximumSize: maxEntriesPerShard})
 	}
 
