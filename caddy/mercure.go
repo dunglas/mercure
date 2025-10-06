@@ -132,7 +132,7 @@ func (m *Mercure) populateJWTConfig() error {
 		m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
 
 		if m.PublisherJWT.Key == "" {
-			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:goerr113
+			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
 		}
 
 		if m.PublisherJWT.Alg == "" {
@@ -146,7 +146,7 @@ func (m *Mercure) populateJWTConfig() error {
 
 		if m.SubscriberJWT.Key == "" {
 			if !m.Anonymous {
-				return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:goerr113
+				return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
 			}
 		}
 
@@ -241,6 +241,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		} else {
 			mod, err = ctx.LoadModule(m, "TransportRaw")
 		}
+
 		if err != nil {
 			return err
 		}
@@ -285,30 +286,39 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	if m.Anonymous {
 		opts = append(opts, mercure.WithAnonymous())
 	}
+
 	if m.Demo {
 		opts = append(opts, mercure.WithDemo())
 	}
+
 	if m.UI {
 		opts = append(opts, mercure.WithUI())
 	}
+
 	if m.Subscriptions {
 		opts = append(opts, mercure.WithSubscriptions())
 	}
+
 	if d := m.WriteTimeout; d != nil {
 		opts = append(opts, mercure.WithWriteTimeout(time.Duration(*d)))
 	}
+
 	if d := m.DispatchTimeout; d != nil {
 		opts = append(opts, mercure.WithDispatchTimeout(time.Duration(*d)))
 	}
+
 	if d := m.Heartbeat; d != nil {
 		opts = append(opts, mercure.WithHeartbeat(time.Duration(*d)))
 	}
+
 	if len(m.PublishOrigins) > 0 {
 		opts = append(opts, mercure.WithPublishOrigins(m.PublishOrigins))
 	}
+
 	if len(m.CORSOrigins) > 0 {
 		opts = append(opts, mercure.WithCORSOrigins(m.CORSOrigins))
 	}
+
 	if m.ProtocolVersionCompatibility != 0 {
 		opts = append(opts, mercure.WithProtocolVersionCompatibility(m.ProtocolVersionCompatibility))
 	}
@@ -349,7 +359,7 @@ func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
 //
 //nolint:wrapcheck
-func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:funlen,gocognit,gocyclo
+func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:maintidx,funlen,gocognit,gocyclo
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
