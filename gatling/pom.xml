@@ -5,7 +5,7 @@
 
   <groupId>rocks.mercure.gatling</groupId>
   <artifactId>mercure-load-test</artifactId>
-  <version>3.14.5</version>
+  <version>3.14.6</version>
 
   <properties>
     <maven.compiler.release>11</maven.compiler.release>
