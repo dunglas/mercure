@@ -12,7 +12,7 @@ import (
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	t.Parallel()
 
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(NewSubscriberList(0))
 
 	t.Cleanup(func() {
 		assert.NoError(t, transport.Close())
@@ -46,7 +46,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 func TestLocalTransportDispatch(t *testing.T) {
 	t.Parallel()
 
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(NewSubscriberList(0))
 
 	t.Cleanup(func() {
 		assert.NoError(t, transport.Close())
@@ -66,7 +66,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 func TestLocalTransportClosed(t *testing.T) {
 	t.Parallel()
 
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(NewSubscriberList(0))
 
 	t.Cleanup(func() {
 		assert.NoError(t, transport.Close())
@@ -90,7 +90,7 @@ func TestLocalTransportClosed(t *testing.T) {
 func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	t.Parallel()
 
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(NewSubscriberList(0))
 
 	t.Cleanup(func() {
 		assert.NoError(t, transport.Close())
@@ -119,7 +119,7 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 func TestLiveReading(t *testing.T) {
 	t.Parallel()
 
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(NewSubscriberList(0))
 
 	t.Cleanup(func() {
 		assert.NoError(t, transport.Close())
@@ -141,7 +141,7 @@ func TestLiveReading(t *testing.T) {
 func TestLocalTransportGetSubscribers(t *testing.T) {
 	t.Parallel()
 
-	transport := NewLocalTransport()
+	transport := NewLocalTransport(NewSubscriberList(0))
 
 	t.Cleanup(func() {
 		assert.NoError(t, transport.Close())

@@ -23,11 +23,17 @@ var replacer = strings.NewReplacer(
 	string(delim), string([]rune{escape, delim}),
 )
 
-func NewSubscriberList() *SubscriberList {
+// DefaultSubscriberListCacheSize is the default size of the skipfilter cache.
+//
+// Let's say update topics take 100 bytes on average, a cache with
+// 100,000 entries will use about 10MB.
+const DefaultSubscriberListCacheSize = 100_000
+
+func NewSubscriberList(cacheSize int) *SubscriberList {
 	return &SubscriberList{
 		skipfilter: skipfilter.New[*LocalSubscriber, string](func(s *LocalSubscriber, filter string) bool {
 			return s.MatchTopics(decode(filter))
-		}, 0),
+		}, cacheSize),
 	}
 }
 
@@ -90,8 +96,8 @@ func decode(f string) (topics []string, private bool) {
 	return topics, private
 }
 
-func (sl *SubscriberList) MatchAny(u *Update) (res []*LocalSubscriber) {
-	return append(res, sl.skipfilter.MatchAny(encode(u.Topics, u.Private))...)
+func (sl *SubscriberList) MatchAny(u *Update) []*LocalSubscriber {
+	return sl.skipfilter.MatchAny(encode(u.Topics, u.Private))
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {

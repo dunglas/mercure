@@ -20,11 +20,13 @@ func (d TransportDestructor[T]) Destruct() error {
 }
 
 type (
-	subscriptionsKeyType struct{}
-	writeTimeoutKeyType  struct{}
+	subscriptionsKeyType        struct{}
+	writeTimeoutKeyType         struct{}
+	subscriberListCacheSizeType struct{}
 )
 
 var (
-	SubscriptionsContextKey = subscriptionsKeyType{} //nolint:gochecknoglobals
-	WriteTimeoutContextKey  = writeTimeoutKeyType{}  //nolint:gochecknoglobals
+	SubscriptionsContextKey           = subscriptionsKeyType{}        //nolint:gochecknoglobals
+	WriteTimeoutContextKey            = writeTimeoutKeyType{}         //nolint:gochecknoglobals
+	SubscriberListCacheSizeContextKey = subscriberListCacheSizeType{} //nolint:gochecknoglobals
 )
