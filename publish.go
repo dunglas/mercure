@@ -8,6 +8,22 @@ import (
 	"go.uber.org/zap"
 )
 
+// Publish broadcasts the given update to all subscribers.
+// The id field of the Update instance can be updated by the underlying Transport.
+func (h *Hub) Publish(update *Update) error {
+	if err := h.transport.Dispatch(update); err != nil {
+		return err //nolint:wrapcheck
+	}
+
+	h.metrics.UpdatePublished(update)
+
+	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
+		c.Write(zap.Object("update", update))
+	}
+
+	return nil
+}
+
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 //
 //nolint:funlen
@@ -49,7 +65,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	private := len(r.PostForm["private"]) != 0
-	if !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) {
+	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) {
 		if private {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
@@ -75,7 +91,13 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast the update
 	if err := h.transport.Dispatch(u); err != nil {
-		panic(err)
+		if c := h.logger.Check(zap.ErrorLevel, "Failed to dispatch the update"); c != nil {
+			c.Write(zap.Object("update", u), zap.Error(err), zap.String("remote_addr", r.RemoteAddr))
+		}
+
+		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+
+		return
 	}
 
 	if _, err := io.WriteString(w, u.ID); err != nil {
@@ -84,9 +106,9 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	h.metrics.UpdatePublished(u)
+
 	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
 		c.Write(zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
 	}
-
-	h.metrics.UpdatePublished(u)
 }
