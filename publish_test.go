@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,42 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestPublishNoAuthorizationHeader(t *testing.T) {
+func TestPublish(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		hub := createDummy()
+
+		topics := []string{"https://example.com/books/1"}
+		s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+		s.SetTopics(topics, topics)
+		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
+
+		require.NoError(t, hub.transport.AddSubscriber(s))
+
+		go func() {
+			u, ok := <-s.Receive()
+
+			assert.True(t, ok)
+			assert.NotNil(t, u)
+			assert.Equal(t, "id", u.ID)
+			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, "Hello!", u.Data)
+			assert.True(t, u.Private)
+		}()
+
+		require.NoError(t, hub.Publish(&Update{
+			Event: Event{
+				ID:   "id",
+				Data: "Hello!",
+			},
+			Topics:  s.SubscribedTopics,
+			Private: true,
+		}))
+
+		synctest.Wait()
+	})
+}
+
+func TestPublishHandlerNoAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -34,7 +70,7 @@ func TestPublishNoAuthorizationHeader(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
 }
 
-func TestPublishUnauthorizedJWT(t *testing.T) {
+func TestPublishHandlerUnauthorizedJWT(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -55,7 +91,7 @@ func TestPublishUnauthorizedJWT(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
 }
 
-func TestPublishInvalidAlgJWT(t *testing.T) {
+func TestPublishHandlerInvalidAlgJWT(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -76,7 +112,7 @@ func TestPublishInvalidAlgJWT(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
 }
 
-func TestPublishBadContentType(t *testing.T) {
+func TestPublishHandlerBadContentType(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -97,7 +133,7 @@ func TestPublishBadContentType(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-func TestPublishNoTopic(t *testing.T) {
+func TestPublishHandlerNoTopic(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -119,7 +155,7 @@ func TestPublishNoTopic(t *testing.T) {
 `, w.Body.String())
 }
 
-func TestPublishInvalidRetry(t *testing.T) {
+func TestPublishHandlerInvalidRetry(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -147,7 +183,7 @@ func TestPublishInvalidRetry(t *testing.T) {
 `, w.Body.String())
 }
 
-func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
+func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -173,7 +209,7 @@ func TestPublishNotAuthorizedTopicSelector(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestPublishEmptyTopicSelector(t *testing.T) {
+func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -197,7 +233,7 @@ func TestPublishEmptyTopicSelector(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestPublishLegacyAuthorization(t *testing.T) {
+func TestPublishHandlerLegacyAuthorization(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(WithProtocolVersionCompatibility(7))
@@ -221,7 +257,7 @@ func TestPublishLegacyAuthorization(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestPublishOK(t *testing.T) {
+func TestPublishHandlerOK(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -275,7 +311,7 @@ func TestPublishOK(t *testing.T) {
 	wg.Wait()
 }
 
-func TestPublishNoData(t *testing.T) {
+func TestPublishHandlerNoData(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy()
@@ -299,7 +335,7 @@ func TestPublishNoData(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestPublishGenerateUUID(t *testing.T) {
+func TestPublishHandlerGenerateUUID(t *testing.T) {
 	t.Parallel()
 
 	h := createDummy()
@@ -350,14 +386,8 @@ func TestPublishGenerateUUID(t *testing.T) {
 	wg.Wait()
 }
 
-func TestPublishWithErrorInTransport(t *testing.T) {
+func TestPublishHandlerWithErrorInTransport(t *testing.T) {
 	t.Parallel()
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("The code did not panic")
-		}
-	}()
 
 	hub := createDummy()
 	require.NoError(t, hub.transport.Close())
@@ -383,8 +413,8 @@ func TestPublishWithErrorInTransport(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "id", string(body))
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, "500 internal server error\n", string(body))
 }
 
 func FuzzPublish(f *testing.F) {

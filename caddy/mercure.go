@@ -258,9 +258,11 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
 	}
+
 	if m.logger.Core().Enabled(zapcore.DebugLevel) {
 		opts = append(opts, mercure.WithDebug())
 	}
+
 	if m.PublisherJWKSURL == "" {
 		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
 	} else {
@@ -557,9 +559,8 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 // parseCaddyfile unmarshals tokens from h into a new Middleware.
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) { //nolint:ireturn
 	var m Mercure
-	err := m.UnmarshalCaddyfile(h.Dispenser)
 
-	return m, err
+	return m, m.UnmarshalCaddyfile(h.Dispenser)
 }
 
 // Interface guards.
