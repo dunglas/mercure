@@ -29,6 +29,9 @@ const defaultHubURL = "/.well-known/mercure"
 var (
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
 
+	// EXPERIMENTAL: list of registered Mercure hubs, the key is the top-most subroute
+	Hubs = make(map[caddy.Module]*mercure.Hub) //nolint:gochecknoglobals
+
 	// Deprecated: use transports Caddy modules.
 	transports = caddy.NewUsagePool() //nolint:gochecknoglobals
 )
@@ -331,6 +334,21 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	m.hub = h
+
+	var found bool
+
+	for _, m := range ctx.Modules() {
+		if _, ok := m.(*caddyhttp.Subroute); ok {
+			Hubs[m] = h
+			found = true
+
+			break
+		}
+	}
+
+	if !found {
+		Hubs[nil] = h
+	}
 
 	return nil
 }
