@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
-	"sync"
 	"testing"
+	"testing/synctest"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/assert"
@@ -233,46 +233,43 @@ func TestPublishOK(t *testing.T) {
 
 	require.NoError(t, hub.transport.AddSubscriber(s))
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			u, ok := <-s.Receive()
+			assert.True(t, ok)
+			assert.NotNil(t, u)
+			assert.Equal(t, "id", u.ID)
+			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, "Hello!", u.Data)
+			assert.True(t, u.Private)
+		}()
 
-	go func(w *sync.WaitGroup) {
-		defer w.Done()
+		form := url.Values{}
+		form.Add("id", "id")
+		form.Add("topic", "https://example.com/books/1")
+		form.Add("data", "Hello!")
+		form.Add("private", "on")
 
-		u, ok := <-s.Receive()
-		assert.True(t, ok)
-		assert.NotNil(t, u)
-		assert.Equal(t, "id", u.ID)
-		assert.Equal(t, s.SubscribedTopics, u.Topics)
-		assert.Equal(t, "Hello!", u.Data)
-		assert.True(t, u.Private)
-	}(&wg)
+		req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, s.SubscribedTopics))
 
-	form := url.Values{}
-	form.Add("id", "id")
-	form.Add("topic", "https://example.com/books/1")
-	form.Add("data", "Hello!")
-	form.Add("private", "on")
+		w := httptest.NewRecorder()
+		hub.PublishHandler(w, req)
 
-	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, s.SubscribedTopics))
+		resp := w.Result()
 
-	w := httptest.NewRecorder()
-	hub.PublishHandler(w, req)
+		t.Cleanup(func() {
+			assert.NoError(t, resp.Body.Close())
+		})
 
-	resp := w.Result()
+		body, _ := io.ReadAll(resp.Body)
 
-	t.Cleanup(func() {
-		assert.NoError(t, resp.Body.Close())
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "id", string(body))
+
+		synctest.Wait()
 	})
-
-	body, _ := io.ReadAll(resp.Body)
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "id", string(body))
-
-	wg.Wait()
 }
 
 func TestPublishNoData(t *testing.T) {
@@ -309,45 +306,42 @@ func TestPublishGenerateUUID(t *testing.T) {
 
 	require.NoError(t, h.transport.AddSubscriber(s))
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			u := <-s.Receive()
+			assert.NotNil(t, u)
 
-	go func() {
-		defer wg.Done()
+			_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
+			assert.NoError(t, err)
+		}()
 
-		u := <-s.Receive()
-		assert.NotNil(t, u)
+		form := url.Values{}
+		form.Add("topic", "https://example.com/books/1")
+		form.Add("data", "Hello!")
 
-		_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
-		assert.NoError(t, err)
-	}()
+		req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
-	form := url.Values{}
-	form.Add("topic", "https://example.com/books/1")
-	form.Add("data", "Hello!")
+		w := httptest.NewRecorder()
+		h.PublishHandler(w, req)
 
-	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+		resp := w.Result()
 
-	w := httptest.NewRecorder()
-	h.PublishHandler(w, req)
+		t.Cleanup(func() {
+			assert.NoError(t, resp.Body.Close())
+		})
 
-	resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	t.Cleanup(func() {
-		assert.NoError(t, resp.Body.Close())
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		body := string(bodyBytes)
+
+		_, err := uuid.FromString(strings.TrimPrefix(body, "urn:uuid:"))
+		require.NoError(t, err)
+
+		synctest.Wait()
 	})
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	body := string(bodyBytes)
-
-	_, err := uuid.FromString(strings.TrimPrefix(body, "urn:uuid:"))
-	require.NoError(t, err)
-
-	wg.Wait()
 }
 
 func TestPublishWithErrorInTransport(t *testing.T) {

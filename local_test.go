@@ -1,8 +1,8 @@
 package mercure
 
 import (
-	"sync"
 	"testing"
+	"testing/synctest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,19 +28,16 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	s.SetTopics(u.Topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			for range s.Receive() {
+				t.Fail()
+			}
+		}()
 
-	go func() {
-		for range s.Receive() {
-			t.Fail()
-		}
-
-		wg.Done()
-	}()
-
-	s.Disconnect()
-	wg.Wait()
+		s.Disconnect()
+		synctest.Wait()
+	})
 }
 
 func TestLocalTransportDispatch(t *testing.T) {

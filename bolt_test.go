@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
+	"testing/synctest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -160,33 +160,30 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 	s.SetTopics(topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			var count int
 
-	go func() {
-		defer wg.Done()
+			for {
+				u := <-s.Receive()
 
-		var count int
+				// the reading loop must read the #9, #10 and #11 messages
+				assert.Equal(t, strconv.Itoa(9+count), u.ID)
 
-		for {
-			u := <-s.Receive()
-
-			// the reading loop must read the #9, #10 and #11 messages
-			assert.Equal(t, strconv.Itoa(9+count), u.ID)
-
-			count++
-			if count == 3 {
-				return
+				count++
+				if count == 3 {
+					return
+				}
 			}
-		}
-	}()
+		}()
 
-	require.NoError(t, transport.Dispatch(&Update{
-		Event:  Event{ID: "11"},
-		Topics: topics,
-	}))
+		require.NoError(t, transport.Dispatch(&Update{
+			Event:  Event{ID: "11"},
+			Topics: topics,
+		}))
 
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestBoltTransportPurgeHistory(t *testing.T) {
@@ -248,20 +245,17 @@ func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	require.NoError(t, transport.AddSubscriber(s))
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			for range s.Receive() {
+				t.Fail()
+			}
+		}()
 
-	go func() {
-		for range s.Receive() {
-			t.Fail()
-		}
+		s.Disconnect()
 
-		wg.Done()
-	}()
-
-	s.Disconnect()
-
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestBoltTransportDispatch(t *testing.T) {
