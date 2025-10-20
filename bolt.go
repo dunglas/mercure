@@ -20,7 +20,7 @@ import (
 const BoltDefaultCleanupFrequency = 0.3
 
 func init() { //nolint:gochecknoinits
-	deadlock.Opts.TimerPool = deadlock.TimerPoolDisabled
+	//mercure:deadlock
 	RegisterTransportFactory("bolt", DeprecatedNewBoltTransport)
 }
 
