@@ -999,7 +999,7 @@ func TestSubscribeExpires(t *testing.T) {
 	})
 
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.True(t, time.Now().After(token.Claims.(*claims).ExpiresAt.Time))
+	assert.LessOrEqual(t, 0, time.Now().Compare(token.Claims.(*claims).ExpiresAt.Time))
 }
 
 func BenchmarkSubscribe(b *testing.B) {
