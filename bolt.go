@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	deadlock "github.com/sasha-s/go-deadlock"
-
 	bolt "go.etcd.io/bbolt"
 	"go.uber.org/zap"
 )
@@ -28,7 +26,7 @@ const defaultBoltBucketName = "updates"
 
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
-	deadlock.RWMutex
+	sync.RWMutex
 
 	subscribers      *SubscriberList
 	logger           Logger
