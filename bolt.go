@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	deadlock "github.com/sasha-s/go-deadlock"
+
 	bolt "go.etcd.io/bbolt"
 	"go.uber.org/zap"
 )
@@ -18,6 +20,7 @@ import (
 const BoltDefaultCleanupFrequency = 0.3
 
 func init() { //nolint:gochecknoinits
+	deadlock.Opts.TimerPool = deadlock.TimerPoolDisabled
 	RegisterTransportFactory("bolt", DeprecatedNewBoltTransport)
 }
 
@@ -25,7 +28,7 @@ const defaultBoltBucketName = "updates"
 
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
-	sync.RWMutex
+	deadlock.RWMutex
 
 	subscribers      *SubscriberList
 	logger           Logger
