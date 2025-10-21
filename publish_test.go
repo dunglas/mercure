@@ -17,7 +17,7 @@ import (
 
 func TestPublish(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		hub := createDummy()
+		hub := createDummy(t)
 
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
@@ -53,7 +53,7 @@ func TestPublish(t *testing.T) {
 func TestPublishHandlerNoAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	w := httptest.NewRecorder()
@@ -72,7 +72,7 @@ func TestPublishHandlerNoAuthorizationHeader(t *testing.T) {
 func TestPublishHandlerUnauthorizedJWT(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyUnauthorizedJWT())
@@ -93,7 +93,7 @@ func TestPublishHandlerUnauthorizedJWT(t *testing.T) {
 func TestPublishHandlerInvalidAlgJWT(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyNoneSignedJWT())
@@ -114,7 +114,7 @@ func TestPublishHandlerInvalidAlgJWT(t *testing.T) {
 func TestPublishHandlerBadContentType(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
@@ -135,7 +135,7 @@ func TestPublishHandlerBadContentType(t *testing.T) {
 func TestPublishHandlerNoTopic(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
@@ -157,7 +157,7 @@ func TestPublishHandlerNoTopic(t *testing.T) {
 func TestPublishHandlerInvalidRetry(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	form := url.Values{}
 	form.Add("topic", "https://example.com/books/1")
@@ -185,7 +185,7 @@ func TestPublishHandlerInvalidRetry(t *testing.T) {
 func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	form := url.Values{}
 	form.Add("topic", "https://example.com/books/1")
@@ -211,7 +211,7 @@ func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	form := url.Values{}
 	form.Add("topic", "https://example.com/books/1")
@@ -235,7 +235,7 @@ func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 func TestPublishHandlerLegacyAuthorization(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(WithProtocolVersionCompatibility(7))
+	hub := createDummy(t, WithProtocolVersionCompatibility(7))
 
 	form := url.Values{}
 	form.Add("topic", "https://example.com/books/1")
@@ -259,7 +259,7 @@ func TestPublishHandlerLegacyAuthorization(t *testing.T) {
 func TestPublishHandlerOK(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	topics := []string{"https://example.com/books/1"}
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
@@ -310,7 +310,7 @@ func TestPublishHandlerOK(t *testing.T) {
 func TestPublishHandlerNoData(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	form := url.Values{}
 	form.Add("topic", "https://example.com/books/1")
@@ -334,7 +334,7 @@ func TestPublishHandlerNoData(t *testing.T) {
 func TestPublishHandlerGenerateUUID(t *testing.T) {
 	t.Parallel()
 
-	h := createDummy()
+	h := createDummy(t)
 
 	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
@@ -382,7 +382,7 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 func TestPublishHandlerWithErrorInTransport(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 	require.NoError(t, hub.transport.Close())
 
 	form := url.Values{}
@@ -411,7 +411,7 @@ func TestPublishHandlerWithErrorInTransport(t *testing.T) {
 }
 
 func FuzzPublish(f *testing.F) {
-	hub := createDummy()
+	hub := createDummy(f)
 	authorizationHeader := bearerPrefix + createDummyAuthorizedJWT(rolePublisher, []string{"*"})
 
 	testCases := []struct {

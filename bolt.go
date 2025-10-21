@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"net/url"
-	"strconv"
 	"sync"
 	"time"
 
@@ -16,11 +14,6 @@ import (
 )
 
 const BoltDefaultCleanupFrequency = 0.3
-
-func init() { //nolint:gochecknoinits
-	//mercure:deadlock
-	RegisterTransportFactory("bolt", DeprecatedNewBoltTransport)
-}
 
 const defaultBoltBucketName = "updates"
 
@@ -38,50 +31,6 @@ type BoltTransport struct {
 	closedOnce       sync.Once
 	lastSeq          uint64
 	lastEventID      string
-}
-
-// DeprecatedNewBoltTransport creates a new BoltTransport.
-//
-// Deprecated: use NewBoltTransport() instead.
-func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
-	var err error
-
-	q := u.Query()
-	bucketName := defaultBoltBucketName
-
-	if q.Get("bucket_name") != "" {
-		bucketName = q.Get("bucket_name")
-	}
-
-	size := uint64(0)
-	if sizeParameter := q.Get("size"); sizeParameter != "" {
-		size, err = strconv.ParseUint(sizeParameter, 10, 64)
-		if err != nil {
-			return nil, &TransportError{u.Redacted(), fmt.Sprintf(`invalid "size" parameter %q`, sizeParameter), err}
-		}
-	}
-
-	cleanupFrequency := BoltDefaultCleanupFrequency
-	cleanupFrequencyParameter := q.Get("cleanup_frequency")
-
-	if cleanupFrequencyParameter != "" {
-		cleanupFrequency, err = strconv.ParseFloat(cleanupFrequencyParameter, 64)
-		if err != nil {
-			return nil, &TransportError{u.Redacted(), fmt.Sprintf(`invalid "cleanup_frequency" parameter %q`, cleanupFrequencyParameter), err}
-		}
-	}
-
-	path := u.Path // absolute path (bolt:///path.db)
-
-	if path == "" {
-		path = u.Host // relative path (bolt://path.db)
-	}
-
-	if path == "" {
-		return nil, &TransportError{u.Redacted(), "missing path", err}
-	}
-
-	return NewBoltTransport(NewSubscriberList(DefaultSubscriberListCacheSize), l, path, bucketName, size, cleanupFrequency)
 }
 
 // NewBoltTransport creates a new BoltTransport.

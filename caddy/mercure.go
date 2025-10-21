@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -31,9 +29,6 @@ var (
 
 	// EXPERIMENTAL: list of registered Mercure hubs, the key is the top-most subroute
 	Hubs = make(map[caddy.Module]*mercure.Hub) //nolint:gochecknoglobals
-
-	// Deprecated: use transports Caddy modules.
-	transports = caddy.NewUsagePool() //nolint:gochecknoglobals
 )
 
 func init() { //nolint:gochecknoinits
@@ -93,11 +88,6 @@ type Mercure struct {
 	// Allowed CORS origins.
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
-	// Transport to use.
-	//
-	// Deprecated: use transports Caddy modules.
-	TransportURL string `json:"transport_url,omitempty"`
-
 	// Deprecated: not used anymore.
 	CacheShardSize *int64 `json:"cache_shard_size,omitempty"`
 
@@ -114,6 +104,8 @@ type Mercure struct {
 
 	// The transport configuration.
 	TransportRaw json.RawMessage `json:"transport,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
+
+	deprecatedTransport
 
 	hub    *mercure.Hub
 	logger *zap.Logger
@@ -161,43 +153,6 @@ func (m *Mercure) populateJWTConfig() error {
 	return nil
 }
 
-// Deprecated
-//
-//nolint:wrapcheck,ireturn
-func createTransportLegacy(m *Mercure) (mercure.Transport, error) {
-	m.logger.Warn(`Setting the transport_url or the MERCURE_TRANSPORT_URL environment variable is deprecated, use the "transport" directive instead`)
-
-	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
-		u, err := url.Parse(m.TransportURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid transport url: %w", err)
-		}
-
-		query := u.Query()
-		if m.WriteTimeout != nil && !query.Has("write_timeout") {
-			query.Set("write_timeout", time.Duration(*m.WriteTimeout).String())
-		}
-
-		if m.Subscriptions && !query.Has("subscriptions") {
-			query.Set("subscriptions", "1")
-		}
-
-		u.RawQuery = query.Encode()
-
-		transport, err := mercure.NewTransport(u, m.logger)
-		if err != nil {
-			return nil, err
-		}
-
-		return &TransportDestructor[mercure.Transport]{transport}, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return destructor.(*TransportDestructor[mercure.Transport]).Transport, nil
-}
-
 //nolint:wrapcheck
 func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,gocognit
 	metrics := mercure.NewPrometheusMetrics(ctx.GetMetricsRegistry())
@@ -237,7 +192,11 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	m.logger = ctx.Logger()
 
 	var transport mercure.Transport
-	if m.TransportURL == "" {
+	if transport, err = m.createTransportDeprecated(); err != nil {
+		return err
+	}
+
+	if transport == nil {
 		var mod any
 		if m.TransportRaw == nil {
 			mod, err = ctx.LoadModuleByID("http.handlers.mercure.bolt", nil)
@@ -250,8 +209,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		}
 
 		transport = mod.(Transport).GetTransport()
-	} else if transport, err = createTransportLegacy(m); err != nil {
-		return err
 	}
 
 	opts := []mercure.Option{
@@ -351,19 +308,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	return nil
-}
-
-// Deprecated: use transports Caddy modules.
-//
-//nolint:wrapcheck
-func (m *Mercure) Cleanup() error {
-	if m.TransportURL == "" {
-		return nil
-	}
-
-	_, err := transports.Delete(m.TransportURL)
-
-	return err
 }
 
 func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -505,7 +449,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 					return d.ArgErr()
 				}
 
-				m.TransportURL = d.Val()
+				m.assignDeprecatedTransportURL(d.Val())
 
 			case "topic_selector_cache":
 				if !d.NextArg() {
@@ -562,14 +506,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 		}
 	}
 
-	// BC layer with old versions of the built-in Caddyfile
-	if m.TransportRaw == nil && m.TransportURL == "" {
-		deprecatedTransportURL := os.Getenv("MERCURE_TRANSPORT_URL")
-
-		if deprecatedTransportURL != "" {
-			m.TransportURL = deprecatedTransportURL
-		}
-	}
+	m.assignDeprecatedTransportURLForEnv()
 
 	return nil
 }
@@ -584,7 +521,6 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 // Interface guards.
 var (
 	_ caddy.Provisioner           = (*Mercure)(nil)
-	_ caddy.CleanerUpper          = (*Mercure)(nil)
 	_ caddyhttp.MiddlewareHandler = (*Mercure)(nil)
 	_ caddyfile.Unmarshaler       = (*Mercure)(nil)
 )

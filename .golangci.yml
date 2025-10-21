@@ -2,6 +2,8 @@ version: "2"
 run:
   tests: true
   build-tags:
+    - deprecated_transport
+    - deprecated_server
     - nobadger
     - nomysql
     - nopgx

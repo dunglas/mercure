@@ -48,14 +48,14 @@ To run the test suite:
 To test the Caddy module:
 
     cd caddy/mercure
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags nobadger,nomysql,nopgx main.go run --config ../../dev.Caddyfile
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags deprecated_transport,nobadger,nomysql,nopgx main.go run --config ../../dev.Caddyfile
 
 Go to `https://localhost` and enjoy!
 
 To test the legacy server:
 
     cd cmd/mercure
-    go run -tags=nobadger,nomysql,nopgx main.go
+    go run -tags=deprecated_transport,deprecated_server main.go
 
 Go to `http://localhost:3000` and enjoy!
 

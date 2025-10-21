@@ -1,3 +1,5 @@
+//go:build deprecated_server
+
 package mercure
 
 import (

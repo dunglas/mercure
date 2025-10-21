@@ -14,6 +14,6 @@ find . -name "*.go" -exec sed "${args[@]}" -e 's#sync.RWMutex#deadlock.RWMutex#'
 find . -name "*.go" -exec sed "${args[@]}" -e 's#sync.Mutex#deadlock.Mutex#' {} {} \;
 goimports -w .
 go get github.com/sasha-s/go-deadlock/...@79f094da96d9ff124cee7ade8d47f5d49bfc0aef
-sed -i'' 's|//mercure:deadlock|deadlock.Opts.TimerPool = deadlock.TimerPoolDisabled|' bolt.go
+sed -i'' 's|//mercure:deadlock|deadlock.Opts.TimerPool = deadlock.TimerPoolDisabled|' transport_deprecated.go
 cd caddy || exit
 go get github.com/sasha-s/go-deadlock/...@79f094da96d9ff124cee7ade8d47f5d49bfc0aef
