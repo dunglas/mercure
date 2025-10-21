@@ -3,30 +3,10 @@ package mercure
 import (
 	"errors"
 	"fmt"
-	"net/url"
-	"sync"
 )
 
 // EarliestLastEventID is the reserved value representing the earliest available event id.
 const EarliestLastEventID = "earliest"
-
-// TransportFactory is the factory to initialize a new transport.
-type TransportFactory = func(u *url.URL, l Logger) (Transport, error)
-
-var (
-	// Deprecated: directly instantiate the transport or use transports Caddy modules.
-	transportFactories   = make(map[string]TransportFactory) //nolint:gochecknoglobals
-	transportFactoriesMu sync.RWMutex                        //nolint:gochecknoglobals
-)
-
-// Deprecated: directly instantiate the transport or use transports Caddy modules.
-func RegisterTransportFactory(scheme string, factory TransportFactory) {
-	transportFactoriesMu.Lock()
-
-	transportFactories[scheme] = factory
-
-	transportFactoriesMu.Unlock()
-}
 
 // Transport provides methods to dispatch and persist updates.
 type Transport interface {
@@ -41,21 +21,6 @@ type Transport interface {
 
 	// Close closes the Transport.
 	Close() error
-}
-
-// Deprecated: directly instantiate the transport or use transports Caddy modules.
-func NewTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
-	transportFactoriesMu.RLock()
-
-	f, ok := transportFactories[u.Scheme]
-
-	transportFactoriesMu.RUnlock()
-
-	if !ok {
-		return nil, &TransportError{dsn: u.Redacted(), msg: "no such transport available"}
-	}
-
-	return f(u, l)
 }
 
 // TransportSubscribers provides a method to retrieve the list of active subscribers.

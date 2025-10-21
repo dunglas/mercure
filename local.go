@@ -1,13 +1,8 @@
 package mercure
 
 import (
-	"net/url"
 	"sync"
 )
-
-func init() { //nolint:gochecknoinits
-	RegisterTransportFactory("local", DeprecatedNewLocalTransport)
-}
 
 // LocalTransport implements the TransportInterface without database and simply broadcast the live Updates.
 type LocalTransport struct {
@@ -17,13 +12,6 @@ type LocalTransport struct {
 	lastEventID string
 	closed      chan struct{}
 	closedOnce  sync.Once
-}
-
-// DeprecatedNewLocalTransport creates a new LocalTransport.
-//
-// Deprecated: use NewLocalTransport() instead.
-func DeprecatedNewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //nolint:ireturn
-	return NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize)), nil
 }
 
 // NewLocalTransport creates a new LocalTransport.

@@ -16,7 +16,7 @@ import (
 func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, subscriptionsURL, nil)
 	w := httptest.NewRecorder()
@@ -47,7 +47,7 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar/baz", nil)
 	w := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 func TestSubscriptionHandlersETag(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy()
+	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	req.Header.Add("If-None-Match", EarliestLastEventID)
@@ -97,7 +97,7 @@ func TestSubscriptionsHandler(t *testing.T) {
 
 	logger := zap.NewNop()
 
-	hub := createDummy(WithLogger(logger))
+	hub := createDummy(t, WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
 	s1 := NewLocalSubscriber("", logger, tss)
@@ -143,7 +143,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	t.Parallel()
 
 	logger := zap.NewNop()
-	hub := createDummy(WithLogger(logger))
+	hub := createDummy(t, WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
 	s1 := NewLocalSubscriber("", logger, tss)
@@ -194,7 +194,7 @@ func TestSubscriptionHandler(t *testing.T) {
 	t.Parallel()
 
 	logger := zap.NewNop()
-	hub := createDummy(WithLogger(logger))
+	hub := createDummy(t, WithLogger(logger))
 	tss := &TopicSelectorStore{}
 
 	otherS := NewLocalSubscriber("", logger, tss)

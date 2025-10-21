@@ -13,7 +13,7 @@ permissions:
 
 env:
   GOTOOLCHAIN: local
-  GOFLAGS: "-tags=nobadger,nomysql,nopgx"
+  GOFLAGS: "-tags=deprecated_server,deprecated_transport,nobadger,nomysql,nopgx"
 
 jobs:
   golangci:

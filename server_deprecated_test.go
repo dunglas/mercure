@@ -1,3 +1,5 @@
+//go:build deprecated_server
+
 package mercure
 
 import (
@@ -30,7 +32,7 @@ const (
 
 func TestForwardedHeaders(t *testing.T) {
 	core, logs := observer.New(zapcore.DebugLevel)
-	h := createDummy(WithLogger(zap.New(core)))
+	h := createDummy(t, WithLogger(zap.New(core)))
 	h.config.Set("use_forwarded_headers", true)
 
 	go h.Serve()
@@ -67,7 +69,7 @@ func TestForwardedHeaders(t *testing.T) {
 }
 
 func TestSecurityOptions(t *testing.T) {
-	h := createAnonymousDummy(WithSubscriptions(), WithDemo(), WithCORSOrigins([]string{"*"}))
+	h := createAnonymousDummy(t, WithSubscriptions(), WithDemo(), WithCORSOrigins([]string{"*"}))
 	h.config.Set("cert_file", "fixtures/tls/server.crt")
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
@@ -116,7 +118,7 @@ func TestSecurityOptions(t *testing.T) {
 }
 
 func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
-	h := createDummy(WithSubscriptions(), WithCORSOrigins([]string{"https://subscriber.com"}))
+	h := createDummy(t, WithSubscriptions(), WithCORSOrigins([]string{"https://subscriber.com"}))
 	h.config.Set("cert_file", "fixtures/tls/server.crt")
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
@@ -163,7 +165,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 }
 
 func TestServe(t *testing.T) {
-	h := createAnonymousDummy()
+	h := createAnonymousDummy(t)
 
 	go h.Serve()
 
@@ -252,7 +254,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		require.NoError(t, os.Remove("test.db"))
 	})
 
-	h := createAnonymousDummy(WithLogger(l), WithTransport(bt))
+	h := createAnonymousDummy(t, WithLogger(l), WithTransport(bt))
 	go h.Serve()
 
 	// loop until the web server is ready
@@ -354,7 +356,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 }
 
 func TestServeAcme(t *testing.T) {
-	h := createAnonymousDummy(WithAllowedHosts([]string{"example.com"}))
+	h := createAnonymousDummy(t, WithAllowedHosts([]string{"example.com"}))
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_cert_dir", t.TempDir())
@@ -449,7 +451,7 @@ func newTestServer(t *testing.T) testServer {
 	t.Helper()
 
 	m := NewPrometheusMetrics(nil)
-	h := createAnonymousDummy(WithMetrics(m))
+	h := createAnonymousDummy(t, WithMetrics(m))
 
 	go h.Serve()
 

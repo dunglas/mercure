@@ -4,14 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -25,9 +22,7 @@ const (
 func TestNewHub(t *testing.T) {
 	t.Parallel()
 
-	h := createDummy()
-
-	assert.IsType(t, &viper.Viper{}, h.config)
+	h := createDummy(t)
 
 	assert.False(t, h.anonymous)
 	assert.Equal(t, defaultCookieName, h.cookieName)
@@ -47,47 +42,10 @@ func TestNewHubWithConfig(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNewHubValidationError(t *testing.T) {
-	assert.Panics(t, func() {
-		_, _ = NewHubFromViper(viper.New())
-	})
-}
-
-func TestNewHubTransportValidationError(t *testing.T) {
-	t.Parallel()
-
-	v := viper.New()
-	v.Set("publisher_jwt_key", "foo")
-	v.Set("jwt_key", "bar")
-	v.Set("transport_url", "foo://")
-
-	assert.Panics(t, func() {
-		_, _ = NewHubFromViper(viper.New())
-	})
-}
-
-func TestStartCrash(t *testing.T) {
-	t.Parallel()
-
-	if os.Getenv("BE_START_CRASH") == "1" {
-		Start()
-
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run=TestStartCrash") //nolint:gosec
-	cmd.Env = append(os.Environ(), "BE_START_CRASH=1")
-	err := cmd.Run()
-
-	var e *exec.ExitError
-	require.ErrorAs(t, err, &e)
-	assert.False(t, e.Success())
-}
-
 func TestStop(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy()
+	hub := createAnonymousDummy(t)
 
 	synctest.Test(t, func(t *testing.T) {
 		go func() {
@@ -257,7 +215,9 @@ func TestOriginsValidator(t *testing.T) {
 	}
 }
 
-func createDummy(options ...Option) *Hub {
+func createDummy(tb testing.TB, options ...Option) *Hub {
+	tb.Helper()
+
 	tss, _ := NewTopicSelectorStoreCache(0, 0)
 	options = append(
 		[]Option{
@@ -270,20 +230,20 @@ func createDummy(options ...Option) *Hub {
 	)
 
 	h, _ := NewHub(options...)
-	h.config = viper.New()
-	h.config.Set("addr", testAddr)
-	h.config.Set("metrics_addr", testMetricsAddr)
+	setDeprecatedOptions(tb, h)
 
 	return h
 }
 
-func createAnonymousDummy(options ...Option) *Hub {
+func createAnonymousDummy(tb testing.TB, options ...Option) *Hub {
+	tb.Helper()
+
 	options = append(
 		[]Option{WithAnonymous()},
 		options...,
 	)
 
-	return createDummy(options...)
+	return createDummy(tb, options...)
 }
 
 func createDummyAuthorizedJWT(r role, topics []string) string {

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -283,14 +282,10 @@ func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
+	deprecatedHub
 	*opt
 
 	handler http.Handler
-
-	// Deprecated: use the Caddy server module or the standalone library instead.
-	config        *viper.Viper
-	server        *http.Server
-	metricsServer *http.Server
 }
 
 // NewHub creates a new Hub instance.
