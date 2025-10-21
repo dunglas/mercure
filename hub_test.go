@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
-	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -87,48 +87,43 @@ func TestStartCrash(t *testing.T) {
 func TestStop(t *testing.T) {
 	t.Parallel()
 
-	const numberOfSubscribers = 2
-
 	hub := createAnonymousDummy()
 
-	go func() {
-		s := hub.transport.(*LocalTransport)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			s := hub.transport.(*LocalTransport)
 
-		var ready bool
+			var ready bool
 
-		for !ready {
-			s.RLock()
-			ready = s.subscribers.Len() == numberOfSubscribers
-			s.RUnlock()
+			for !ready {
+				s.RLock()
+				ready = s.subscribers.Len() == 2
+				s.RUnlock()
+			}
+
+			_ = hub.transport.Dispatch(&Update{
+				Topics: []string{"https://example.com/foo"},
+				Event:  Event{Data: "Hello World"},
+			})
+
+			_ = hub.Stop()
+		}()
+
+		for range 2 {
+			go func() {
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+
+				w := newSubscribeRecorder()
+				hub.SubscribeHandler(w, req)
+
+				r := w.Result()
+				_ = r.Body.Close()
+				assert.Equal(t, 200, r.StatusCode)
+			}()
 		}
 
-		_ = hub.transport.Dispatch(&Update{
-			Topics: []string{"https://example.com/foo"},
-			Event:  Event{Data: "Hello World"},
-		})
-
-		_ = hub.Stop()
-	}()
-
-	var wg sync.WaitGroup
-	wg.Add(numberOfSubscribers)
-
-	for range numberOfSubscribers {
-		go func() {
-			defer wg.Done()
-
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
-
-			w := newSubscribeRecorder()
-			hub.SubscribeHandler(w, req)
-
-			r := w.Result()
-			_ = r.Body.Close()
-			assert.Equal(t, 200, r.StatusCode)
-		}()
-	}
-
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestWithProtocolVersionCompatibility(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -347,27 +348,24 @@ func testSubscribe(h interface{ Helper() }, numberOfSubscribers int) {
 
 	t, _ := h.(*testing.T)
 
-	var wg sync.WaitGroup
-	wg.Add(numberOfSubscribers)
+	synctest.Test(t, func(t *testing.T) {
+		for range numberOfSubscribers {
+			go func() {
+				ctx, cancel := context.WithCancel(t.Context())
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1&topic=string&topic=https://example.com/reviews/{id}&topic=https://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
 
-	for range numberOfSubscribers {
-		go func() {
-			defer wg.Done()
+				w := &responseTester{
+					expectedStatusCode: http.StatusOK,
+					expectedBody:       ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\nid: e\ndata: string\n\n",
+					t:                  t,
+					cancel:             cancel,
+				}
+				hub.SubscribeHandler(w, req)
+			}()
+		}
 
-			ctx, cancel := context.WithCancel(t.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1&topic=string&topic=https://example.com/reviews/{id}&topic=https://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
-
-			w := &responseTester{
-				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\nid: e\ndata: string\n\n",
-				t:                  t,
-				cancel:             cancel,
-			}
-			hub.SubscribeHandler(w, req)
-		}()
-	}
-
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestSubscribe(t *testing.T) {
@@ -457,35 +455,32 @@ func TestUnsubscribe(t *testing.T) {
 	assert.Equal(t, 0, s.subscribers.Len())
 	ctx, cancel := context.WithCancel(t.Context())
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1", nil).WithContext(ctx)
+			hub.SubscribeHandler(newSubscribeRecorder(), req)
+			assert.Equal(t, 0, s.subscribers.Len())
+			s.subscribers.Walk(0, func(s *LocalSubscriber) bool {
+				_, ok := <-s.out
+				assert.False(t, ok)
 
-	go func() {
-		defer wg.Done()
+				return true
+			})
+		}()
 
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1", nil).WithContext(ctx)
-		hub.SubscribeHandler(newSubscribeRecorder(), req)
-		assert.Equal(t, 0, s.subscribers.Len())
-		s.subscribers.Walk(0, func(s *LocalSubscriber) bool {
-			_, ok := <-s.out
-			assert.False(t, ok)
+		for {
+			s.RLock()
+			notEmpty := s.subscribers.Len() != 0
+			s.RUnlock()
 
-			return true
-		})
-	}()
-
-	for {
-		s.RLock()
-		notEmpty := s.subscribers.Len() != 0
-		s.RUnlock()
-
-		if notEmpty {
-			break
+			if notEmpty {
+				break
+			}
 		}
-	}
 
-	cancel()
-	wg.Wait()
+		cancel()
+		synctest.Wait()
+	})
 }
 
 func TestSubscribePrivate(t *testing.T) {
@@ -543,11 +538,10 @@ func TestSubscriptionEvents(t *testing.T) {
 
 	hub := createDummy(WithSubscriptions())
 
-	var wg sync.WaitGroup
-
 	ctx1, cancel1 := context.WithCancel(t.Context())
 	ctx2, cancel2 := context.WithCancel(t.Context())
 
+	var wg sync.WaitGroup
 	wg.Add(3)
 
 	go func() {
@@ -700,60 +694,53 @@ func TestSendMissedEvents(t *testing.T) {
 		},
 	}))
 
-	var wg sync.WaitGroup
-	wg.Add(3)
+	synctest.Test(t, func(t *testing.T) {
+		// Using deprecated 'Last-Event-ID' query parameter
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
 
-	// Using deprecated 'Last-Event-ID' query parameter
-	go func() {
-		defer wg.Done()
+			w := &responseTester{
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
 
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
+			hub.SubscribeHandler(w, req)
+		}()
 
-		w := &responseTester{
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
-		}
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=a", nil).WithContext(ctx)
 
-		hub.SubscribeHandler(w, req)
-	}()
+			w := &responseTester{
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
 
-	go func() {
-		defer wg.Done()
+			hub.SubscribeHandler(w, req)
+		}()
 
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=a", nil).WithContext(ctx)
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
+			req.Header.Add("Last-Event-ID", "a")
 
-		w := &responseTester{
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
-		}
+			w := &responseTester{
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
 
-		hub.SubscribeHandler(w, req)
-	}()
+			hub.SubscribeHandler(w, req)
+		}()
 
-	go func() {
-		defer wg.Done()
-
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
-		req.Header.Add("Last-Event-ID", "a")
-
-		w := &responseTester{
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
-		}
-
-		hub.SubscribeHandler(w, req)
-	}()
-
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestSendAllEvents(t *testing.T) {
@@ -777,45 +764,40 @@ func TestSendAllEvents(t *testing.T) {
 		},
 	}))
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID="+EarliestLastEventID, nil).WithContext(ctx)
 
-	go func() {
-		defer wg.Done()
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
 
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID="+EarliestLastEventID, nil).WithContext(ctx)
+			hub.SubscribeHandler(w, req)
+		}()
 
-		w := &responseTester{
-			header:             http.Header{},
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
-		}
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
+			req.Header.Add("Last-Event-ID", EarliestLastEventID)
 
-		hub.SubscribeHandler(w, req)
-	}()
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
 
-	go func() {
-		defer wg.Done()
+			hub.SubscribeHandler(w, req)
+		}()
 
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
-		req.Header.Add("Last-Event-ID", EarliestLastEventID)
-
-		w := &responseTester{
-			header:             http.Header{},
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
-		}
-
-		hub.SubscribeHandler(w, req)
-	}()
-
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestUnknownLastEventID(t *testing.T) {
@@ -833,65 +815,60 @@ func TestUnknownLastEventID(t *testing.T) {
 		},
 	}))
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(ctx)
 
-	go func() {
-		defer wg.Done()
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
 
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(ctx)
+			hub.SubscribeHandler(w, req)
+			assert.Equal(t, "a", w.Header().Get("Last-Event-ID"))
+		}()
 
-		w := &responseTester{
-			header:             http.Header{},
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
+			req.Header.Add("Last-Event-ID", "unknown")
+
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
+
+			hub.SubscribeHandler(w, req)
+			assert.Equal(t, "a", w.Header().Get("Last-Event-ID"))
+		}()
+
+		for {
+			transport.RLock()
+			done := transport.subscribers.Len() == 2
+			transport.RUnlock()
+
+			if done {
+				break
+			}
 		}
 
-		hub.SubscribeHandler(w, req)
-		assert.Equal(t, "a", w.Header().Get("Last-Event-ID"))
-	}()
+		require.NoError(t, transport.Dispatch(&Update{
+			Topics: []string{"https://example.com/foos/b"},
+			Event: Event{
+				ID:   "b",
+				Data: "d2",
+			},
+		}))
 
-	go func() {
-		defer wg.Done()
-
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
-		req.Header.Add("Last-Event-ID", "unknown")
-
-		w := &responseTester{
-			header:             http.Header{},
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
-		}
-
-		hub.SubscribeHandler(w, req)
-		assert.Equal(t, "a", w.Header().Get("Last-Event-ID"))
-	}()
-
-	for {
-		transport.RLock()
-		done := transport.subscribers.Len() == 2
-		transport.RUnlock()
-
-		if done {
-			break
-		}
-	}
-
-	require.NoError(t, transport.Dispatch(&Update{
-		Topics: []string{"https://example.com/foos/b"},
-		Event: Event{
-			ID:   "b",
-			Data: "d2",
-		},
-	}))
-
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
@@ -901,65 +878,60 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 	hub := createAnonymousDummy(WithLogger(transport.logger), WithTransport(transport))
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	synctest.Test(t, func(t *testing.T) {
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(ctx)
 
-	go func() {
-		defer wg.Done()
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
 
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(ctx)
+			hub.SubscribeHandler(w, req)
+			assert.Equal(t, EarliestLastEventID, w.Header().Get("Last-Event-ID"))
+		}()
 
-		w := &responseTester{
-			header:             http.Header{},
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
+			req.Header.Add("Last-Event-ID", "unknown")
+
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				t:                  t,
+				cancel:             cancel,
+			}
+
+			hub.SubscribeHandler(w, req)
+			assert.Equal(t, EarliestLastEventID, w.Header().Get("Last-Event-ID"))
+		}()
+
+		for {
+			transport.RLock()
+			done := transport.subscribers.Len() == 2
+			transport.RUnlock()
+
+			if done {
+				break
+			}
 		}
 
-		hub.SubscribeHandler(w, req)
-		assert.Equal(t, EarliestLastEventID, w.Header().Get("Last-Event-ID"))
-	}()
+		require.NoError(t, transport.Dispatch(&Update{
+			Topics: []string{"https://example.com/foos/b"},
+			Event: Event{
+				ID:   "b",
+				Data: "d2",
+			},
+		}))
 
-	go func() {
-		defer wg.Done()
-
-		ctx, cancel := context.WithCancel(t.Context())
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
-		req.Header.Add("Last-Event-ID", "unknown")
-
-		w := &responseTester{
-			header:             http.Header{},
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\nid: b\ndata: d2\n\n",
-			t:                  t,
-			cancel:             cancel,
-		}
-
-		hub.SubscribeHandler(w, req)
-		assert.Equal(t, EarliestLastEventID, w.Header().Get("Last-Event-ID"))
-	}()
-
-	for {
-		transport.RLock()
-		done := transport.subscribers.Len() == 2
-		transport.RUnlock()
-
-		if done {
-			break
-		}
-	}
-
-	require.NoError(t, transport.Dispatch(&Update{
-		Topics: []string{"https://example.com/foos/b"},
-		Event: Event{
-			ID:   "b",
-			Data: "d2",
-		},
-	}))
-
-	wg.Wait()
+		synctest.Wait()
+	})
 }
 
 func TestSubscribeHeartbeat(t *testing.T) {
@@ -1027,7 +999,7 @@ func TestSubscribeExpires(t *testing.T) {
 	})
 
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.True(t, time.Now().After(token.Claims.(*claims).ExpiresAt.Time))
+	assert.LessOrEqual(t, 0, time.Now().Compare(token.Claims.(*claims).ExpiresAt.Time))
 }
 
 func BenchmarkSubscribe(b *testing.B) {
