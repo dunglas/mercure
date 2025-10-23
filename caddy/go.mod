@@ -121,7 +121,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/slackhq/nebula v1.9.6 // indirect
+	github.com/slackhq/nebula v1.9.7 // indirect
 	github.com/smallstep/certificates v0.28.4 // indirect
 	github.com/smallstep/cli-utils v0.12.1 // indirect
 	github.com/smallstep/go-attestation v0.4.4-0.20241119153605-2306d5b464ca // indirect
