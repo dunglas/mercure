@@ -339,7 +339,7 @@ func (m *Mercure) Cleanup() error {
 		}
 	}
 
-	return nil
+	return m.cleanupTransportDeprecated()
 }
 
 func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
