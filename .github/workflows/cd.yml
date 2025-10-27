@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload snapshot
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: snapshot
           path: dist/*
