@@ -103,7 +103,7 @@ func TestSecurityOptions(t *testing.T) {
 	require.NotNil(t, resp2)
 
 	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
-	assert.Equal(t, "Authorization,Cache-Control,Last-Event-Id", resp2.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "authorization,cache-control,last-event-id", resp2.Header.Get("Access-Control-Allow-Headers"))
 	assert.Equal(t, "*", resp2.Header.Get("Access-Control-Allow-Origin"))
 	require.NoError(t, resp2.Body.Close())
 
@@ -157,7 +157,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 	require.NotNil(t, resp2)
 
 	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
-	assert.Equal(t, "Authorization,Cache-Control,Last-Event-Id", resp2.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "authorization,cache-control,last-event-id", resp2.Header.Get("Access-Control-Allow-Headers"))
 	assert.Equal(t, "https://subscriber.com", resp2.Header.Get("Access-Control-Allow-Origin"))
 	require.NoError(t, resp2.Body.Close())
 

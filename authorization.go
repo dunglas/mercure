@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
@@ -49,6 +50,17 @@ var (
 	// ErrInvalidJWT is returned when the JWT is invalid.
 	ErrInvalidJWT = errors.New("invalid JWT")
 )
+
+type wildcard struct {
+	prefix string
+	suffix string
+}
+
+func (w wildcard) match(s string) bool {
+	return len(s) >= len(w.prefix)+len(w.suffix) &&
+		strings.HasPrefix(s, w.prefix) &&
+		strings.HasSuffix(s, w.suffix)
+}
 
 // Authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
