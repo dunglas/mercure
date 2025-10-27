@@ -4,8 +4,8 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"github.com/unrolled/secure"
 	"go.uber.org/zap"
 )
@@ -59,11 +59,12 @@ func (h *Hub) initHandler() {
 	}
 
 	h.handler = secureMiddleware.Handler(
-		handlers.CORS(
-			handlers.AllowCredentials(),
-			handlers.AllowedOrigins(h.corsOrigins),
-			handlers.AllowedHeaders([]string{"authorization", "cache-control", "last-event-id"}),
-		)(router),
+		cors.New(cors.Options{
+			AllowedOrigins:   h.corsOrigins,
+			AllowCredentials: true,
+			AllowedHeaders:   []string{"authorization", "cache-control", "last-event-id"},
+			Debug:            h.debug,
+		}).Handler(router),
 	)
 }
 

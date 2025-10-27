@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -184,6 +186,7 @@ func TestOriginsValidator(t *testing.T) {
 		{"capacitor://www.example.com"},
 		{"ionic://"},
 		{"foobar://"},
+		{"https://*.example.com"},
 	}
 
 	invalidOrigins := [][]string{
@@ -213,6 +216,63 @@ func TestOriginsValidator(t *testing.T) {
 		o = WithCORSOrigins(origins)
 		require.Error(t, o(op), "no error while expected for %#v", origins)
 	}
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithSubscriptions(), WithCORSOrigins([]string{"https://example.com"}), WithDemo())
+
+	form := url.Values{}
+	form.Add("id", "id")
+	form.Add("topic", "https://example.com/books/1")
+	form.Add("data", "Hello!")
+	form.Add("private", "on")
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, "default-src 'self' mercure.rocks cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
+	require.NoError(t, resp.Body.Close())
+
+	// Preflight request
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodOptions, defaultHubURL, nil)
+	req.Header.Add("Origin", "https://example.com")
+	req.Header.Add("Access-Control-Request-Headers", "authorization,cache-control,last-event-id")
+	req.Header.Add("Access-Control-Request-Method", http.MethodGet)
+	hub.ServeHTTP(w, req)
+
+	resp2 := w.Result()
+	require.NotNil(t, resp2)
+
+	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
+	assert.Equal(t, "authorization,cache-control,last-event-id", resp2.Header.Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "https://example.com", resp2.Header.Get("Access-Control-Allow-Origin"))
+	require.NoError(t, resp2.Body.Close())
+
+	// Subscriptions
+	w = httptest.NewRecorder()
+	req, _ = http.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
+	hub.ServeHTTP(w, req)
+	resp3 := w.Result()
+
+	require.NotNil(t, resp3)
+	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
+	require.NoError(t, resp3.Body.Close())
 }
 
 func createDummy(tb testing.TB, options ...Option) *Hub {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"github.com/unrolled/secure"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
@@ -185,10 +186,11 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	var corsHandler http.Handler
 
 	if len(h.corsOrigins) > 0 {
-		allowedOrigins := handlers.AllowedOrigins(h.corsOrigins)
-		allowedHeaders := handlers.AllowedHeaders([]string{"authorization", "cache-control", "last-event-id"})
-
-		corsHandler = handlers.CORS(handlers.AllowCredentials(), allowedOrigins, allowedHeaders)(r)
+		corsHandler = cors.New(cors.Options{
+			AllowedOrigins:   h.corsOrigins,
+			AllowCredentials: true,
+			AllowedHeaders:   []string{"authorization", "cache-control", "last-event-id"},
+		}).Handler(r)
 	} else {
 		corsHandler = r
 	}
