@@ -76,7 +76,7 @@ func (m *Mercure) assignDeprecatedTransportURLForEnv() {
 }
 
 //nolint:wrapcheck
-func (m *Mercure) cleanupTransport() error {
+func (m *Mercure) cleanupTransportDeprecated() error {
 	if m.TransportURL == "" {
 		return nil
 	}
