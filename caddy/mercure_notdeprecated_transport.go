@@ -14,4 +14,8 @@ func (m *Mercure) assignDeprecatedTransportURL(_ string) {
 func (m *Mercure) assignDeprecatedTransportURLForEnv() {
 }
 
+func (m *Mercure) cleanupTransportDeprecated() error {
+	return nil
+}
+
 type deprecatedTransport struct{}

@@ -14,20 +14,6 @@ import (
 
 // Deprecated: use transports Caddy modules.
 var transports = caddy.NewUsagePool() //nolint:gochecknoglobals
-
-// Deprecated: use transports Caddy modules.
-//
-//nolint:wrapcheck
-func (m *Mercure) Cleanup() error {
-	if m.TransportURL == "" {
-		return nil
-	}
-
-	_, err := transports.Delete(m.TransportURL)
-
-	return err
-}
-
 // Deprecated
 //
 //nolint:wrapcheck,ireturn
@@ -89,4 +75,13 @@ func (m *Mercure) assignDeprecatedTransportURLForEnv() {
 	m.TransportURL = os.Getenv("MERCURE_TRANSPORT_URL")
 }
 
-var _ caddy.CleanerUpper = (*Mercure)(nil)
+//nolint:wrapcheck
+func (m *Mercure) cleanupTransportDeprecated() error {
+	if m.TransportURL == "" {
+		return nil
+	}
+
+	_, err := transports.Delete(m.TransportURL)
+
+	return err
+}

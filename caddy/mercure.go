@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
@@ -27,14 +28,29 @@ const defaultHubURL = "/.well-known/mercure"
 var (
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
 
-	// EXPERIMENTAL: list of registered Mercure hubs, the key is the top-most subroute
-	Hubs = make(map[caddy.Module]*mercure.Hub) //nolint:gochecknoglobals
+	// list of registered Mercure hubs, the key is the top-most subroute
+	hubs   = make(map[caddy.Module]*mercure.Hub) //nolint:gochecknoglobals
+	hubsMu sync.Mutex
 )
 
 func init() { //nolint:gochecknoinits
 	caddy.RegisterModule(Mercure{})
 	httpcaddyfile.RegisterHandlerDirective("mercure", parseCaddyfile)
 	httpcaddyfile.RegisterDirectiveOrder("mercure", "after", "encode")
+}
+
+// EXPERIMENTAL: FindHub finds the Mercure hub configured for the current route
+func FindHub(modules []caddy.Module) *mercure.Hub {
+	hubsMu.Lock()
+	defer hubsMu.Unlock()
+
+	for _, m := range modules {
+		if h, ok := hubs[m]; ok {
+			return h
+		}
+	}
+
+	return hubs[nil]
 }
 
 type JWTConfig struct {
@@ -294,9 +310,12 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	var found bool
 
+	hubsMu.Lock()
+	defer hubsMu.Unlock()
+
 	for _, m := range ctx.Modules() {
 		if _, ok := m.(*caddyhttp.Subroute); ok {
-			Hubs[m] = h
+			hubs[m] = h
 			found = true
 
 			break
@@ -304,10 +323,23 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	if !found {
-		Hubs[nil] = h
+		hubs[nil] = h
 	}
 
 	return nil
+}
+
+func (m *Mercure) Cleanup() error {
+	hubsMu.Lock()
+	defer hubsMu.Unlock()
+
+	for k, h := range hubs {
+		if h == m.hub {
+			delete(hubs, k)
+		}
+	}
+
+	return m.cleanupTransportDeprecated()
 }
 
 func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -521,6 +553,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 // Interface guards.
 var (
 	_ caddy.Provisioner           = (*Mercure)(nil)
+	_ caddy.CleanerUpper          = (*Mercure)(nil)
 	_ caddyhttp.MiddlewareHandler = (*Mercure)(nil)
 	_ caddyfile.Unmarshaler       = (*Mercure)(nil)
 )
