@@ -278,7 +278,9 @@ func TestSecurityHeaders(t *testing.T) {
 func createDummy(tb testing.TB, options ...Option) *Hub {
 	tb.Helper()
 
-	tss, _ := NewTopicSelectorStoreCache(0, 0)
+	tss, err := NewTopicSelectorStoreCache(0, 0)
+	require.NoError(tb, err)
+
 	options = append(
 		[]Option{
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
@@ -289,7 +291,9 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 		options...,
 	)
 
-	h, _ := NewHub(options...)
+	h, err := NewHub(options...)
+	require.NoError(tb, err)
+
 	setDeprecatedOptions(tb, h)
 
 	return h

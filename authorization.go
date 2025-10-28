@@ -51,6 +51,9 @@ var (
 	ErrInvalidJWT = errors.New("invalid JWT")
 )
 
+// wildcard has been copied from https://github.com/rs/cors/blob/1084d89a16921942356d1c831fbe523426cf836e/utils.go
+// Copyright (c) 2014 Olivier Poitrey <rs@dailymotion.com>
+// MIT licensed.
 type wildcard struct {
 	prefix string
 	suffix string
@@ -62,11 +65,18 @@ func (w wildcard) match(s string) bool {
 		strings.HasSuffix(s, w.suffix)
 }
 
-// Authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
+// authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
-func authorize(r *http.Request, jwtKeyfunc jwt.Keyfunc, publishOrigins []string, cookieName string) (*claims, error) {
-	authorizationHeaders, headerExists := r.Header["Authorization"]
-	if headerExists {
+func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //nolint:funlen
+	var jwtKeyfunc jwt.Keyfunc
+	if publish {
+		jwtKeyfunc = h.publisherJWTKeyFunc
+	} else {
+		jwtKeyfunc = h.subscriberJWTKeyFunc
+	}
+
+	authorizationHeaders, authorizationHeaderExists := r.Header["Authorization"]
+	if authorizationHeaderExists {
 		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != bearerPrefix {
 			return nil, ErrInvalidAuthorizationHeader
 		}
@@ -82,7 +92,7 @@ func authorize(r *http.Request, jwtKeyfunc jwt.Keyfunc, publishOrigins []string,
 		return validateJWT(authorizationQuery[0], jwtKeyfunc)
 	}
 
-	cookie, err := r.Cookie(cookieName)
+	cookie, err := r.Cookie(h.cookieName)
 	if err != nil {
 		// Anonymous
 		return nil, nil //nolint:nilerr,nilnil
@@ -109,8 +119,18 @@ func authorize(r *http.Request, jwtKeyfunc jwt.Keyfunc, publishOrigins []string,
 		origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 	}
 
-	for _, allowedOrigin := range publishOrigins {
-		if allowedOrigin == "*" || origin == allowedOrigin {
+	if h.publishOriginsAll {
+		return validateJWT(cookie.Value, jwtKeyfunc)
+	}
+
+	for _, allowedOrigin := range h.publishOrigins {
+		if origin == allowedOrigin {
+			return validateJWT(cookie.Value, jwtKeyfunc)
+		}
+	}
+
+	for _, allowedOrigin := range h.publishWOrigins {
+		if allowedOrigin.match(origin) {
 			return validateJWT(cookie.Value, jwtKeyfunc)
 		}
 	}

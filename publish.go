@@ -34,7 +34,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if h.publisherJWTKeyFunc != nil {
-		claims, err = authorize(r, h.publisherJWTKeyFunc, h.publishOrigins, h.cookieName)
+		claims, err = h.authorize(r, true)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			h.httpAuthorizationError(w, r, err)
 

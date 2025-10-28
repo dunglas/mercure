@@ -118,7 +118,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http.Request) (lastEventID string, subscribers []*Subscriber, ok bool) {
 	if h.subscriberJWTKeyFunc != nil {
-		claims, err := authorize(r, h.subscriberJWTKeyFunc, nil, h.cookieName)
+		claims, err := h.authorize(r, false)
 		if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
 			h.httpAuthorizationError(w, r, err)
 

@@ -177,7 +177,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 	if h.subscriberJWTKeyFunc != nil {
 		var err error
 
-		claims, err = authorize(r, h.subscriberJWTKeyFunc, nil, h.cookieName)
+		claims, err = h.authorize(r, false)
 		if claims != nil {
 			s.Claims = claims
 			privateTopics = claims.Mercure.Subscribe
