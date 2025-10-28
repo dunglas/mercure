@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -191,7 +192,28 @@ func WithPublishOrigins(origins []string) Option {
 			return err
 		}
 
-		o.publishOrigins = origins
+		// wildcard support has been adapted from https://github.com/rs/cors/blob/1084d89a16921942356d1c831fbe523426cf836e/cors.go#L171
+		// Copyright (c) 2014 Olivier Poitrey <rs@dailymotion.com>
+		// MIT licensed.
+		for _, origin := range origins {
+			// Note: for origins matching, the spec requires a case-sensitive matching.
+			// As it may error-prone, we chose to ignore the spec here.
+			origin = strings.ToLower(origin)
+			if origin == "*" {
+				// If "*" is present in the list, turn the whole list into a match all
+				o.publishOriginsAll = true
+				o.publishOrigins = nil
+				o.publishWOrigins = nil
+
+				break
+			} else if i := strings.IndexByte(origin, '*'); i >= 0 {
+				// Split the origin in two: start and end string without the *
+				w := wildcard{origin[0:i], origin[i+1:]}
+				o.publishWOrigins = append(o.publishWOrigins, w)
+			} else {
+				o.publishOrigins = append(o.publishOrigins, origin)
+			}
+		}
 
 		return nil
 	}
@@ -270,7 +292,9 @@ type opt struct {
 	subscriberJWTKeyFunc         jwt.Keyfunc
 	metrics                      Metrics
 	allowedHosts                 []string
+	publishOriginsAll            bool
 	publishOrigins               []string
+	publishWOrigins              []wildcard
 	corsOrigins                  []string
 	cookieName                   string
 	protocolVersionCompatibility int
