@@ -494,13 +494,10 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 	s.t.Helper()
 
 	s.wgConnected.Add(1)
-	s.wgTested.Add(1)
 
-	go func() {
-		defer s.wgTested.Done()
-
+	s.wgTested.Go(func() {
 		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
-		assert.NoError(s.t, err)
+		require.NoError(s.t, err)
 
 		s.wgConnected.Done()
 
@@ -508,8 +505,8 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 			s.wgShutdown.Wait()
 		}
 
-		assert.NoError(s.t, resp.Body.Close())
-	}()
+		require.NoError(s.t, resp.Body.Close())
+	})
 }
 
 func (s *testServer) publish(body url.Values) {

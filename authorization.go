@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -123,10 +124,8 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 		return validateJWT(cookie.Value, jwtKeyfunc)
 	}
 
-	for _, allowedOrigin := range h.publishOrigins {
-		if origin == allowedOrigin {
-			return validateJWT(cookie.Value, jwtKeyfunc)
-		}
+	if slices.Contains(h.publishOrigins, origin) {
+		return validateJWT(cookie.Value, jwtKeyfunc)
 	}
 
 	for _, allowedOrigin := range h.publishWOrigins {

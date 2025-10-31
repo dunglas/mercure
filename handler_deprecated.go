@@ -147,6 +147,7 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 }
 
 // chainHandlers configures and chains handlers.
+//
 // Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	r := mux.NewRouter()
