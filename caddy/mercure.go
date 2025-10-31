@@ -28,7 +28,7 @@ const defaultHubURL = "/.well-known/mercure"
 var (
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
 
-	// list of registered Mercure hubs, the key is the top-most subroute
+	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*mercure.Hub) //nolint:gochecknoglobals
 	hubsMu sync.Mutex
 )
@@ -39,7 +39,7 @@ func init() { //nolint:gochecknoinits
 	httpcaddyfile.RegisterDirectiveOrder("mercure", "after", "encode")
 }
 
-// EXPERIMENTAL: FindHub finds the Mercure hub configured for the current route
+// EXPERIMENTAL: FindHub finds the Mercure hub configured for the current route.
 func FindHub(modules []caddy.Module) *mercure.Hub {
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
@@ -355,7 +355,7 @@ func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
 //
 //nolint:wrapcheck
-func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:maintidx,funlen,gocognit,gocyclo
+func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nolint:maintidx,funlen,gocognit,gocyclo
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
@@ -372,43 +372,19 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 				m.Subscriptions = true
 
 			case "write_timeout":
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-
-				d, err := caddy.ParseDuration(d.Val())
-				if err != nil {
+				if m.WriteTimeout, err = parseDurationParameter(d); err != nil {
 					return err
 				}
-
-				cd := caddy.Duration(d)
-				m.WriteTimeout = &cd
 
 			case "dispatch_timeout":
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-
-				d, err := caddy.ParseDuration(d.Val())
-				if err != nil {
+				if m.DispatchTimeout, err = parseDurationParameter(d); err != nil {
 					return err
 				}
-
-				cd := caddy.Duration(d)
-				m.DispatchTimeout = &cd
 
 			case "heartbeat":
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-
-				d, err := caddy.ParseDuration(d.Val())
-				if err != nil {
+				if m.Heartbeat, err = parseDurationParameter(d); err != nil {
 					return err
 				}
-
-				cd := caddy.Duration(d)
-				m.Heartbeat = &cd
 
 			case "publisher_jwks_url":
 				if !d.NextArg() {
@@ -490,12 +466,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 
 				maxEntriesPerShard, err := strconv.Atoi(d.Val())
 				if err != nil {
-					return err
+					return d.WrapErr(err)
 				}
 
 				shardCount, err := strconv.ParseUint(d.Val(), 10, 64)
 				if err != nil {
-					return err
+					return d.WrapErr(err)
 				}
 
 				m.TopicSelectorCache = &TopicSelectorCacheConfig{maxEntriesPerShard, shardCount}
@@ -506,7 +482,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 
 				s, err := strconv.ParseUint(d.Val(), 10, 64)
 				if err != nil {
-					return err
+					return d.WrapErr(err)
 				}
 
 				size := int(s)
@@ -526,11 +502,11 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) error { //nolint:ma
 
 				v, err := strconv.Atoi(d.Val())
 				if err != nil {
-					return err
+					return d.WrapErr(err)
 				}
 
 				if v != 7 {
-					return ErrCompatibility
+					return d.WrapErr(ErrCompatibility)
 				}
 
 				m.ProtocolVersionCompatibility = v
@@ -548,6 +524,21 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	var m Mercure
 
 	return m, m.UnmarshalCaddyfile(h.Dispenser)
+}
+
+func parseDurationParameter(d *caddyfile.Dispenser) (*caddy.Duration, error) {
+	if !d.NextArg() {
+		return nil, d.ArgErr()
+	}
+
+	du, err := caddy.ParseDuration(d.Val())
+	if err != nil {
+		return nil, d.WrapErr(err)
+	}
+
+	cd := caddy.Duration(du)
+
+	return &cd, nil
 }
 
 // Interface guards.
