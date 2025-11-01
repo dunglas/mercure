@@ -40,8 +40,13 @@ func (h *Hub) initHandler() {
 
 	h.registerSubscriptionHandlers(router)
 
-	router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
-	router.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
+	if h.subscriberJWTKeyFunc != nil || h.anonymous {
+		router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
+	}
+
+	if h.publisherJWTKeyFunc != nil {
+		router.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
+	}
 
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         h.debug,
