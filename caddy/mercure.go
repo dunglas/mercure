@@ -30,7 +30,8 @@ var (
 	//
 	// It is usually set to true in the init() function of Go applications allowing to publish programmatically by
 	// calling mercure.Publish() directly.
-	AllowNoPublish   bool
+	AllowNoPublish bool
+
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
@@ -145,7 +146,6 @@ func (m *Mercure) populateJWTConfig() error {
 
 	if m.PublisherJWKSURL == "" {
 		m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
-
 		if m.PublisherJWT.Key == "" {
 			if AllowNoPublish {
 				return nil
@@ -155,7 +155,6 @@ func (m *Mercure) populateJWTConfig() error {
 		}
 
 		m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
-
 		if m.PublisherJWT.Alg == "" {
 			m.PublisherJWT.Alg = "HS256"
 		}
@@ -257,7 +256,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 		opts = append(opts, mercure.WithPublisherJWTKeyFunc(k.Keyfunc))
 	} else if m.PublisherJWT.Key != "" {
-		opts = append(opts, mercure.WithPublisherJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
+		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
 	}
 
 	if m.SubscriberJWKSURL != "" {
