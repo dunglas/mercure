@@ -30,7 +30,7 @@ var (
 	//
 	// It is usually set to true in the init() function of Go applications allowing to publish programmatically by
 	// calling mercure.Publish() directly.
-	AllowNoPublish bool
+	AllowNoPublish bool //nolint:gochecknoglobals
 
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
 
@@ -146,17 +146,14 @@ func (m *Mercure) populateJWTConfig() error {
 
 	if m.PublisherJWKSURL == "" {
 		m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
-		if m.PublisherJWT.Key == "" {
-			if AllowNoPublish {
-				return nil
+
+		if m.PublisherJWT.Key != "" {
+			m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
+			if m.PublisherJWT.Alg == "" {
+				m.PublisherJWT.Alg = "HS256"
 			}
-
+		} else if !AllowNoPublish {
 			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
-		}
-
-		m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
-		if m.PublisherJWT.Alg == "" {
-			m.PublisherJWT.Alg = "HS256"
 		}
 	}
 
