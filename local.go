@@ -31,7 +31,7 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 	default:
 	}
 
-	AssignUUID(update)
+	update.AssignUUID()
 
 	for _, s := range t.subscribers.MatchAny(update) {
 		s.Dispatch(update, false)
