@@ -18,7 +18,7 @@ func TestAssignUUID(t *testing.T) {
 		Private: true,
 		Event:   Event{Retry: 3},
 	}
-	AssignUUID(u)
+	u.AssignUUID()
 
 	assert.Equal(t, []string{"foo"}, u.Topics)
 	assert.True(t, u.Private)

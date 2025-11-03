@@ -48,9 +48,9 @@ type serializedUpdate struct {
 }
 
 // AssignUUID generates a new UUID an assign it to the given update if no ID is already set.
-func AssignUUID(u *Update) {
+func (u *Update) AssignUUID() {
 	if u.ID == "" {
-		u.ID = "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
+		u.ID = "urn:uuid:" + uuid.Must(uuid.NewV7()).String()
 	}
 }
 
