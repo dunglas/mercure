@@ -26,6 +26,12 @@ import (
 const defaultHubURL = "/.well-known/mercure"
 
 var (
+	// EXPERIMENTAL: AllowNoPublish allows not setting the publisher JWT, and then disable the publish endpoint.
+	//
+	// It is usually set to true in the init() function of Go applications allowing to publish programmatically by
+	// calling mercure.Publish() directly.
+	AllowNoPublish bool //nolint:gochecknoglobals
+
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
@@ -140,14 +146,14 @@ func (m *Mercure) populateJWTConfig() error {
 
 	if m.PublisherJWKSURL == "" {
 		m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
-		m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
 
-		if m.PublisherJWT.Key == "" {
+		if m.PublisherJWT.Key != "" {
+			m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
+			if m.PublisherJWT.Alg == "" {
+				m.PublisherJWT.Alg = "HS256"
+			}
+		} else if !AllowNoPublish {
 			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
-		}
-
-		if m.PublisherJWT.Alg == "" {
-			m.PublisherJWT.Alg = "HS256"
 		}
 	}
 
@@ -239,15 +245,15 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithDebug())
 	}
 
-	if m.PublisherJWKSURL == "" {
-		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
-	} else {
+	if m.PublisherJWKSURL != "" {
 		k, err := keyfunc.NewDefaultCtx(ctx, []string{m.PublisherJWKSURL})
 		if err != nil {
 			return fmt.Errorf("failed to retrieve publisher JWK Set: %w", err)
 		}
 
 		opts = append(opts, mercure.WithPublisherJWTKeyFunc(k.Keyfunc))
+	} else if m.PublisherJWT.Key != "" {
+		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
 	}
 
 	if m.SubscriberJWKSURL != "" {

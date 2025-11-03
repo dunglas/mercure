@@ -275,6 +275,32 @@ func TestSecurityHeaders(t *testing.T) {
 	require.NoError(t, resp3.Body.Close())
 }
 
+func TestWithPublishDisabled(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(WithAnonymous(), WithLogger(zap.NewNop()))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodPost, defaultHubURL, nil))
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestWithSubscribeDisabled(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(WithPublisherJWT([]byte(""), "HS256"), WithLogger(zap.NewNop()))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, defaultHubURL, nil))
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
 func createDummy(tb testing.TB, options ...Option) *Hub {
 	tb.Helper()
 

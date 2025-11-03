@@ -310,6 +310,37 @@ func TestCookieName(t *testing.T) {
 	received.Wait()
 }
 
+func TestAllowNoPublish(t *testing.T) {
+	AllowNoPublish = true
+
+	t.Cleanup(func() {
+		AllowNoPublish = false
+	})
+
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				subscriber_jwt !ChangeMe!
+			}
+	
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	req, _ := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", nil)
+	r := tester.AssertResponseCode(req, http.StatusMethodNotAllowed)
+	require.NoError(t, r.Body.Close())
+}
+
 func TestBoltConfig(t *testing.T) {
 	t.Cleanup(func() {
 		require.NoError(t, os.Remove("test.db"))
