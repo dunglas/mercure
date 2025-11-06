@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 // ErrInvalidConfig is returned when the configuration is invalid.
@@ -146,20 +146,13 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 	options := []Option{}
 
 	var (
-		logger Logger
-		err    error
-		k      string
+		err error
+		k   string
 	)
 
 	if v.GetBool("debug") {
 		options = append(options, WithDebug())
-		logger, err = zap.NewDevelopment()
-	} else {
-		logger, err = zap.NewProduction()
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to create logger: %w", err)
+		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 
 	var tss *TopicSelectorStore
@@ -180,7 +173,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
-		t, err := NewTransport(u, logger)
+		t, err := NewTransport(u, slog.Default())
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +185,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithMetrics(NewPrometheusMetrics(nil)))
 	}
 
-	options = append(options, WithLogger(logger), WithTopicSelectorStore(tss))
+	options = append(options, WithTopicSelectorStore(tss))
 	if v.GetBool("allow_anonymous") {
 		options = append(options, WithAnonymous())
 	}

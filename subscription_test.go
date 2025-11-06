@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
@@ -95,10 +95,9 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 func TestSubscriptionsHandler(t *testing.T) {
 	t.Parallel()
 
-	logger := zap.NewNop()
-
-	hub := createDummy(t, WithLogger(logger))
+	hub := createDummy(t)
 	tss := &TopicSelectorStore{}
+	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"https://example.com/foo"}, nil)
@@ -142,9 +141,9 @@ func TestSubscriptionsHandler(t *testing.T) {
 func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	t.Parallel()
 
-	logger := zap.NewNop()
-	hub := createDummy(t, WithLogger(logger))
+	hub := createDummy(t)
 	tss := &TopicSelectorStore{}
+	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"https://example.com/foo"}, nil)
@@ -193,9 +192,9 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 func TestSubscriptionHandler(t *testing.T) {
 	t.Parallel()
 
-	logger := zap.NewNop()
-	hub := createDummy(t, WithLogger(logger))
+	hub := createDummy(t)
 	tss := &TopicSelectorStore{}
+	logger := slog.Default()
 
 	otherS := NewLocalSubscriber("", logger, tss)
 	otherS.SetTopics([]string{"https://example.com/other"}, nil)

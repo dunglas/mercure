@@ -1,10 +1,14 @@
 package mercure
 
 import (
+	"flag"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -13,13 +17,21 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 const (
 	testAddr        = "127.0.0.1:4242"
 	testMetricsAddr = "127.0.0.1:4243"
 )
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if !testing.Verbose() {
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}
+
+	os.Exit(m.Run())
+}
 
 func TestNewHub(t *testing.T) {
 	t.Parallel()
@@ -278,7 +290,7 @@ func TestSecurityHeaders(t *testing.T) {
 func TestWithPublishDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(WithAnonymous(), WithLogger(zap.NewNop()))
+	h, err := NewHub(WithAnonymous())
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -291,7 +303,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(WithPublisherJWT([]byte(""), "HS256"), WithLogger(zap.NewNop()))
+	h, err := NewHub(WithPublisherJWT([]byte(""), "HS256"))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -311,7 +323,6 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 		[]Option{
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
-			WithLogger(zap.NewNop()),
 			WithTopicSelectorStore(tss),
 		},
 		options...,

@@ -2,10 +2,10 @@ package mercure
 
 import (
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func TestEncode(t *testing.T) {
@@ -25,10 +25,10 @@ func TestDecode(t *testing.T) {
 }
 
 func BenchmarkSubscriberList(b *testing.B) {
-	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
 
 	l := NewSubscriberList(DefaultSubscriberListCacheSize)
+	logger := slog.Default()
 
 	for i := range 100 {
 		s := NewLocalSubscriber("", logger, tss)

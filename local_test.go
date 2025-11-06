@@ -1,12 +1,12 @@
 package mercure
 
 import (
+	"log/slog"
 	"testing"
 	"testing/synctest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
@@ -24,7 +24,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	err := transport.Dispatch(u)
 	require.NoError(t, err)
 
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.SetTopics(u.Topics, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -51,7 +51,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/foo"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -72,7 +72,7 @@ func TestLocalTransportClosed(t *testing.T) {
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	tss := &TopicSelectorStore{}
-	logger := zap.NewNop()
+	logger := slog.Default()
 
 	s := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s))
@@ -94,7 +94,7 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 	})
 
 	tss := &TopicSelectorStore{}
-	logger := zap.NewNop()
+	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s1))
@@ -124,7 +124,7 @@ func TestLiveReading(t *testing.T) {
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com"}, nil)
 	require.NoError(t, transport.AddSubscriber(s))
 
@@ -146,8 +146,8 @@ func TestLocalTransportGetSubscribers(t *testing.T) {
 
 	require.NotNil(t, transport)
 
-	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
+	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	require.NoError(t, transport.AddSubscriber(s1))

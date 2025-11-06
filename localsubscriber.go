@@ -1,12 +1,12 @@
 package mercure
 
 import (
+	"log/slog"
 	"net/url"
 	"sync"
 	"sync/atomic"
 
 	"github.com/gofrs/uuid/v5"
-	"go.uber.org/zap"
 )
 
 // LocalSubscriber represents a client subscribed to a list of topics on the current hub.
@@ -24,7 +24,7 @@ type LocalSubscriber struct {
 const outBufferLength = 1000
 
 // NewLocalSubscriber creates a new subscriber.
-func NewLocalSubscriber(lastEventID string, logger Logger, topicSelectorStore *TopicSelectorStore) *LocalSubscriber {
+func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *LocalSubscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &LocalSubscriber{
 		Subscriber:          *NewSubscriber(logger, topicSelectorStore),
@@ -116,9 +116,7 @@ func (s *LocalSubscriber) Disconnect() {
 func (s *LocalSubscriber) handleFullChan() {
 	s.doDisconnect()
 
-	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
-		c.Write(zap.Object("subscriber", s))
-	}
+	s.logger.ErrorContext(nil, "Subscriber unable to receive updates fast enough", slog.Any("subscriber", s))
 }
 
 func (s *LocalSubscriber) doDisconnect() {

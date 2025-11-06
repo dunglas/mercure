@@ -3,15 +3,16 @@
 package mercure
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"go.uber.org/zap"
 )
 
 const (
@@ -24,7 +25,15 @@ const (
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
 
 // Option instances allow to configure the library.
-type Option func(h *opt) error
+type Option func(o *opt) error
+
+func WithContext(ctx context.Context) Option {
+	return func(o *opt) error {
+		o.context = ctx
+
+		return nil
+	}
+}
 
 // WithAnonymous allows subscribers with no valid JWT.
 func WithAnonymous() Option {
@@ -81,7 +90,7 @@ func WithSubscriptions() Option {
 }
 
 // WithLogger sets the logger to use.
-func WithLogger(logger Logger) Option {
+func WithLogger(logger *slog.Logger) Option {
 	return func(o *opt) error {
 		o.logger = logger
 
@@ -277,6 +286,7 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 //
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
+	context                      context.Context
 	transport                    Transport
 	topicSelectorStore           *TopicSelectorStore
 	anonymous                    bool
@@ -284,7 +294,7 @@ type opt struct {
 	subscriptions                bool
 	ui                           bool
 	demo                         bool
-	logger                       Logger
+	logger                       *slog.Logger
 	writeTimeout                 time.Duration
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
@@ -327,21 +337,7 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	if opt.logger == nil {
-		var (
-			l   Logger
-			err error
-		)
-		if opt.debug {
-			l, err = zap.NewDevelopment()
-		} else {
-			l, err = zap.NewProduction()
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("error when creating logger: %w", err)
-		}
-
-		opt.logger = l
+		opt.logger = slog.Default()
 	}
 
 	if opt.topicSelectorStore == nil {

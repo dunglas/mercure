@@ -1,10 +1,12 @@
 package mercure
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,9 +19,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap/zaptest/observer"
 )
 
 type responseWriterMock struct{}
@@ -395,44 +394,50 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 func TestSubscribeWithLogLevelDebug(t *testing.T) {
 	t.Parallel()
 
-	core, logs := observer.New(zapcore.DebugLevel)
 	payload := map[string]any{
 		"bar": "baz",
 		"foo": "bar",
 	}
 
+	var buf bytes.Buffer
+	opts := slog.HandlerOptions{Level: slog.LevelDebug}
+	logger := slog.New(slog.NewTextHandler(&buf, &opts))
+
 	testSubscribeLogs(t, createDummy(
 		t,
-		WithLogger(zap.New(core)),
+		WithLogger(logger),
 	), payload)
 
-	assert.Equal(t, 1, logs.FilterMessage("New subscriber").FilterField(
-		zap.Reflect("payload", payload)).Len(),
-	)
+	assert.Contains(t, buf.String(), "baz")
 }
 
 func TestSubscribeLogLevelInfo(t *testing.T) {
 	t.Parallel()
 
-	core, logs := observer.New(zapcore.InfoLevel)
 	payload := map[string]any{
 		"bar": "baz",
 		"foo": "bar",
 	}
+
+	var buf bytes.Buffer
+	opts := slog.HandlerOptions{Level: slog.LevelInfo}
+	logger := slog.New(slog.NewTextHandler(&buf, &opts))
+
 	testSubscribeLogs(t, createDummy(
 		t,
-		WithLogger(zap.New(core)),
+		WithLogger(logger),
 	), payload)
 
-	assert.Equal(t, 0, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len())
+	assert.NotContains(t, buf.String(), "baz")
 }
 
 func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
 	t.Parallel()
 
-	core, logs := observer.New(zapcore.DebugLevel)
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
-	h := createAnonymousDummy(t, WithLogger(zap.New(core)))
+	h := createAnonymousDummy(t, WithLogger(logger))
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/", nil).WithContext(ctx)
@@ -446,7 +451,7 @@ func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
 
 	h.SubscribeHandler(w, req)
 
-	assert.Equal(t, 0, logs.FilterMessage("New subscriber").FilterFieldKey("payload").Len())
+	assert.NotContains(t, buf.String(), "payload")
 }
 
 func TestUnsubscribe(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,7 +16,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/unrolled/secure"
-	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -44,9 +44,7 @@ func (h *Hub) Serve() { //nolint:funlen
 			WriteTimeout:      h.config.GetDuration("write_timeout"),
 		}
 
-		if c := h.logger.Check(zap.InfoLevel, "Mercure metrics started"); c != nil {
-			c.Write(zap.String("addr", addr))
-		}
+		h.logger.InfoContext(h.context, "Mercure metrics started", slog.String("addr", addr))
 
 		go h.metricsServer.ListenAndServe()
 	}
@@ -61,9 +59,8 @@ func (h *Hub) Serve() { //nolint:funlen
 	var err error
 
 	if !acme && certFile == "" && keyFile == "" { //nolint:nestif
-		if c := h.logger.Check(zap.InfoLevel, "Mercure started"); c != nil {
-			c.Write(zap.String("protocol", "http"), zap.String("addr", addr))
-		}
+
+		h.logger.InfoContext(h.context, "Mercure started", slog.String("protocol", "http"), slog.String("addr", addr))
 
 		err = h.server.ListenAndServe()
 	} else {
@@ -85,17 +82,13 @@ func (h *Hub) Serve() { //nolint:funlen
 			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)) //nolint:gosec
 		}
 
-		if c := h.logger.Check(zap.InfoLevel, "Mercure started"); c != nil {
-			c.Write(zap.String("protocol", "https"), zap.String("addr", addr))
-		}
+		h.logger.InfoContext(h.context, "Mercure started", slog.String("protocol", "https"), slog.String("addr", addr))
 
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
 	if !errors.Is(err, http.ErrServerClosed) {
-		if c := h.logger.Check(zap.ErrorLevel, "Unexpected error"); c != nil {
-			c.Write(zap.Error(err))
-		}
+		h.logger.ErrorContext(h.context, "Unexpected error", slog.Any("error", err))
 	}
 
 	<-done
@@ -119,22 +112,16 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 		<-sigint
 
 		if err := h.server.Shutdown(context.Background()); err != nil {
-			if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during server shutdown"); c != nil {
-				c.Write(zap.Error(err))
-			}
+			h.logger.ErrorContext(h.context, "Unexpected error during server shutdown", slog.Any("error", err))
 		}
 
 		if h.metricsServer != nil {
 			if err := h.metricsServer.Shutdown(context.Background()); err != nil {
-				if c := h.logger.Check(zap.ErrorLevel, "Unexpected error during metrics server shutdown"); c != nil {
-					c.Write(zap.Error(err))
-				}
+				h.logger.ErrorContext(h.context, "Unexpected error during metrics server shutdown", slog.Any("error", err))
 			}
 		}
 
-		if c := h.logger.Check(zap.InfoLevel, "My Baby Shot Me Down"); c != nil {
-			c.Write()
-		}
+		h.logger.InfoContext(h.context, "My Baby Shot Me Down")
 
 		select {
 		case <-idleConnsClosed:
@@ -213,14 +200,14 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	secureHandler := secureMiddleware.Handler(useForwardedHeadersHandlers)
 
 	var loggingHandler http.Handler
-	if h.logger != nil && h.logger.Level().Enabled(zap.FatalLevel) {
+	if h.logger.Enabled(h.context, slog.LevelError) {
 		loggingHandler = handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	} else {
 		loggingHandler = secureHandler
 	}
 
 	recoveryHandler := handlers.RecoveryHandler(
-		handlers.RecoveryLogger(zapRecoveryHandlerLogger{h.logger}),
+		handlers.RecoveryLogger(slogRecoveryHandlerLogger{h.logger}),
 		handlers.PrintRecoveryStack(h.debug),
 	)(loggingHandler)
 
@@ -267,10 +254,10 @@ func welcomeHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.
-type zapRecoveryHandlerLogger struct {
-	logger Logger
+type slogRecoveryHandlerLogger struct {
+	logger *slog.Logger
 }
 
-func (z zapRecoveryHandlerLogger) Println(args ...any) {
-	z.logger.Error(fmt.Sprint(args...))
+func (l slogRecoveryHandlerLogger) Println(args ...any) {
+	l.logger.Error(fmt.Sprint(args...))
 }

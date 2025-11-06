@@ -1,13 +1,14 @@
 package mercure
 
 import (
+	"bytes"
+	"log/slog"
 	"strings"
 	"testing"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestAssignUUID(t *testing.T) {
@@ -32,8 +33,8 @@ func TestAssignUUID(t *testing.T) {
 func TestLogUpdate(t *testing.T) {
 	t.Parallel()
 
-	sink, logger := newTestLogger(t)
-	t.Cleanup(sink.Reset)
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	u := &Update{
 		Topics:  []string{"https://example.com/foo"},
@@ -42,10 +43,9 @@ func TestLogUpdate(t *testing.T) {
 		Event:   Event{ID: "a", Retry: 3, Data: "bar", Type: "baz"},
 	}
 
-	f := zap.Object("update", u)
-	logger.Info("test", f)
+	logger.Info("test", slog.Any("update", u))
 
-	log := sink.String()
+	log := buf.String()
 	assert.Contains(t, log, `"id":"a"`)
 	assert.Contains(t, log, `"type":"baz"`)
 	assert.Contains(t, log, `"retry":3`)

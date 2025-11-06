@@ -1,19 +1,21 @@
 package mercure
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 type responseController struct {
 	http.ResponseController
 
-	rw http.ResponseWriter
+	ctx context.Context
+	rw  http.ResponseWriter
+
 	// disconnectionTime is the JWT expiration date minus hub.dispatchTimeout, or time.Now() plus hub.writeTimeout minus hub.dispatchTimeout
 	disconnectionTime time.Time
 	// writeDeadline is the JWT expiration date or time.Now() + hub.writeTimeout
@@ -33,9 +35,7 @@ func (rc *responseController) setDispatchWriteDeadline() bool {
 	}
 
 	if err := rc.SetWriteDeadline(deadline); err != nil {
-		if c := rc.hub.logger.Check(zap.ErrorLevel, "Unable to set dispatch write deadline"); c != nil {
-			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
-		}
+		rc.hub.logger.ErrorContext(rc.ctx, "Unable to set dispatch write deadline", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
 
 		return false
 	}
@@ -49,9 +49,7 @@ func (rc *responseController) setDefaultWriteDeadline() bool {
 			panic(err)
 		}
 
-		if c := rc.hub.logger.Check(zap.InfoLevel, "Error while setting default write deadline"); c != nil {
-			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
-		}
+		rc.hub.logger.InfoContext(rc.ctx, "Error while setting default write deadline", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
 
 		return false
 	}
@@ -65,9 +63,7 @@ func (rc *responseController) flush() bool {
 			panic(err)
 		}
 
-		if c := rc.hub.logger.Check(zap.InfoLevel, "Unable to flush"); c != nil {
-			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
-		}
+		rc.hub.logger.InfoContext(rc.ctx, "Unable to flush", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
 
 		return false
 	}
@@ -78,7 +74,15 @@ func (rc *responseController) flush() bool {
 func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *responseController {
 	wd := h.getWriteDeadline(s)
 
-	return &responseController{*http.NewResponseController(w), w, wd.Add(-h.dispatchTimeout), wd, h, s} // nolint:bodyclose
+	return &responseController{
+		*http.NewResponseController(w), // nolint:bodyclose
+		s.Context,
+		w,
+		wd.Add(-h.dispatchTimeout),
+		wd,
+		h,
+		s,
+	}
 }
 
 func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
@@ -129,9 +133,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-r.Context().Done():
-			if c := h.logger.Check(zap.DebugLevel, "Connection closed by the client"); c != nil {
-				c.Write(zap.Object("subscriber", s))
-			}
+			rc.hub.logger.DebugContext(rc.ctx, "Connection closed by the client", slog.Any("subscriber", s))
 
 			return
 		case <-heartbeatTimerC:
@@ -157,17 +159,15 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				heartbeatTimer.Reset(h.heartbeat)
 			}
 
-			if c := h.logger.Check(zap.DebugLevel, "Update sent"); c != nil {
-				c.Write(zap.Object("subscriber", s), zap.Object("update", update))
-			}
+			rc.hub.logger.DebugContext(rc.ctx, "Update sent", slog.Any("subscriber", s), slog.Any("update", update))
 		}
 	}
 }
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) { //nolint:funlen
-	s := NewLocalSubscriber(retrieveLastEventID(r, h.opt, h.logger), h.logger, h.topicSelectorStore)
-	s.RemoteAddr = r.RemoteAddr
+	s := NewLocalSubscriber(h.retrieveLastEventID(r), h.logger, h.topicSelectorStore)
+	s.Context = r.Context()
 
 	var (
 		privateTopics []string
@@ -186,9 +186,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
-			if c := h.logger.Check(zap.DebugLevel, "Subscriber unauthorized"); c != nil {
-				c.Write(zap.Object("subscriber", s), zap.Error(err))
-			}
+			h.logger.DebugContext(s.Context, "Subscriber unauthorized", slog.Any("subscriber", s), slog.Any("error", err))
 
 			return nil, nil
 		}
@@ -209,9 +207,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(s, false)
 
-		if c := h.logger.Check(zap.ErrorLevel, "Unable to add subscriber"); c != nil {
-			c.Write(zap.Object("subscriber", s), zap.Error(err))
-		}
+		h.logger.ErrorContext(s.Context, "Unable to add subscriber", slog.Any("subscriber", s), slog.Any("error", err))
 
 		return nil, nil
 	}
@@ -220,13 +216,13 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 	rc := h.newResponseController(w, s)
 	rc.flush()
 
-	if c := h.logger.Check(zap.InfoLevel, "New subscriber"); c != nil {
-		fields := []LogField{zap.Object("subscriber", s)}
-		if claims != nil && h.logger.Level() == zap.DebugLevel {
-			fields = append(fields, zap.Reflect("payload", claims.Mercure.Payload))
+	if h.logger.Enabled(s.Context, slog.LevelInfo) {
+		attrs := []any{slog.Any("subscriber", s)}
+		if claims != nil && h.logger.Enabled(s.Context, slog.LevelDebug) {
+			attrs = append(attrs, slog.Any("payload", claims.Mercure.Payload))
 		}
 
-		c.Write(fields...)
+		h.logger.InfoContext(s.Context, "New subscriber", attrs...)
 	}
 
 	h.metrics.SubscriberConnected(s)
@@ -257,14 +253,12 @@ func (h *Hub) sendHeaders(w http.ResponseWriter, s *LocalSubscriber) {
 	// Write a comment in the body
 	// Go currently doesn't provide a better way to flush the headers
 	if _, err := w.Write([]byte{':', '\n'}); err != nil {
-		if c := h.logger.Check(zap.WarnLevel, "Failed to write comment"); c != nil {
-			c.Write(zap.Object("subscriber", s), zap.Error(err))
-		}
+		h.logger.InfoContext(s.Context, "Failed to write comment", slog.Any("subscriber", s), slog.Any("error", err))
 	}
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
-func retrieveLastEventID(r *http.Request, opt *opt, logger Logger) string {
+func (h *Hub) retrieveLastEventID(r *http.Request) string {
 	if id := r.Header.Get("Last-Event-ID"); id != "" {
 		return id
 	}
@@ -275,14 +269,14 @@ func retrieveLastEventID(r *http.Request, opt *opt, logger Logger) string {
 	}
 
 	if legacyEventIDValues, present := query["Last-Event-ID"]; present {
-		if opt.isBackwardCompatiblyEnabledWith(7) {
-			logger.Info("Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'lastEventID' instead.")
+		if h.isBackwardCompatiblyEnabledWith(7) {
+			h.logger.Info("Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'lastEventID' instead.")
 
 			if len(legacyEventIDValues) != 0 {
 				return legacyEventIDValues[0]
 			}
 		} else {
-			logger.Info("Unsupported: the 'Last-Event-ID' query parameter is not supported anymore, use 'lastEventID' instead or enable backward compatibility with version 7 of the protocol.")
+			h.logger.Info(`Unsupported: the "Last-Event-ID"" query parameter is not supported anymore, use "lastEventID"" instead or enable backward compatibility with version 7 of the protocol.`)
 		}
 	}
 
@@ -297,9 +291,7 @@ func (h *Hub) write(rc *responseController, data string) bool {
 	}
 
 	if _, err := rc.rw.Write([]byte(data)); err != nil {
-		if c := h.logger.Check(zap.DebugLevel, "Error writing to client"); c != nil {
-			c.Write(zap.Object("subscriber", rc.subscriber), zap.Error(err))
-		}
+		h.logger.DebugContext(rc.ctx, "Failed to write comment", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
 
 		return false
 	}
@@ -312,17 +304,11 @@ func (h *Hub) shutdown(s *LocalSubscriber) {
 	s.Disconnect()
 
 	if err := h.transport.RemoveSubscriber(s); err != nil {
-		if c := h.logger.Check(zap.WarnLevel, "Failed to remove subscriber on shutdown"); c != nil {
-			c.Write(zap.Object("subscriber", s), zap.Error(err))
-		}
+		h.logger.WarnContext(s.Context, "Failed to remove subscriber on shutdown", slog.Any("subscriber", s), slog.Any("error", err))
 	}
 
 	h.dispatchSubscriptionUpdate(s, false)
-
-	if c := h.logger.Check(zap.InfoLevel, "Subscriber disconnected"); c != nil {
-		c.Write(zap.Object("subscriber", s))
-	}
-
+	h.logger.InfoContext(s.Context, "Subscriber disconnected", slog.Any("subscriber", s))
 	h.metrics.SubscriberDisconnected(s)
 }
 
@@ -344,9 +330,7 @@ func (h *Hub) dispatchSubscriptionUpdate(s *LocalSubscriber, active bool) {
 			Event:   Event{Data: string(j)},
 		}
 		if err := h.transport.Dispatch(u); err != nil {
-			if c := h.logger.Check(zap.WarnLevel, "Failed to dispatch update"); c != nil {
-				c.Write(zap.Object("subscriber", s), zap.Object("update", u), zap.Error(err))
-			}
+			h.logger.WarnContext(s.Context, "Failed to dispatch update", slog.Any("subscriber", subscription), slog.Any("error", err))
 		}
 	}
 }

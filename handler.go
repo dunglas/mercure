@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/unrolled/secure"
-	"go.uber.org/zap"
 )
 
 const (
@@ -83,9 +82,7 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	}
 
 	if _, ok := h.transport.(TransportSubscribers); !ok {
-		if c := h.logger.Check(zap.ErrorLevel, "The current transport doesn't support subscriptions. Subscription API disabled."); c != nil {
-			c.Write()
-		}
+		h.logger.ErrorContext(h.context, "The current transport doesn't support subscriptions. Subscription API disabled.")
 
 		return
 	}

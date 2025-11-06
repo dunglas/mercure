@@ -3,10 +3,12 @@
 package mercure
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,9 +19,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap/zaptest/observer"
 )
 
 const (
@@ -31,8 +30,11 @@ const (
 )
 
 func TestForwardedHeaders(t *testing.T) {
-	core, logs := observer.New(zapcore.DebugLevel)
-	h := createDummy(t, WithLogger(zap.New(core)))
+	var buf bytes.Buffer
+	opts := slog.HandlerOptions{Level: slog.LevelDebug}
+	logger := slog.New(slog.NewTextHandler(&buf, &opts))
+
+	h := createDummy(t, WithLogger(logger))
 	h.config.Set("use_forwarded_headers", true)
 
 	go h.Serve()
@@ -63,8 +65,7 @@ func TestForwardedHeaders(t *testing.T) {
 		require.NoError(t, resp2.Body.Close())
 	})
 
-	assert.Equal(t, 1, logs.FilterField(zap.String("remote_addr", "192.0.2.1")).Len())
-
+	assert.Contains(t, buf.String(), "192.0.2.1")
 	require.NoError(t, h.server.Shutdown(t.Context()))
 }
 
@@ -243,18 +244,17 @@ data: hello
 }
 
 func TestClientClosesThenReconnects(t *testing.T) {
-	l := zap.NewNop()
 	u, err := url.Parse("bolt://test.db")
 	require.NoError(t, err)
 
-	bt, err := NewTransport(u, l)
+	bt, err := NewTransport(u, slog.Default())
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		require.NoError(t, os.Remove("test.db"))
 	})
 
-	h := createAnonymousDummy(t, WithLogger(l), WithTransport(bt))
+	h := createAnonymousDummy(t, WithTransport(bt))
 	go h.Serve()
 
 	// loop until the web server is ready

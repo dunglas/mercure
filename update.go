@@ -1,10 +1,9 @@
 package mercure
 
 import (
-	"fmt"
+	"log/slog"
 
 	"github.com/gofrs/uuid/v5"
-	"go.uber.org/zap/zapcore"
 )
 
 // Update represents an update to send to subscribers.
@@ -23,22 +22,20 @@ type Update struct {
 	Debug bool
 }
 
-func (u *Update) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("id", u.ID)
-	enc.AddString("type", u.Type)
-	enc.AddUint64("retry", u.Retry)
-
-	if err := enc.AddArray("topics", stringArray(u.Topics)); err != nil {
-		return fmt.Errorf("log error: %w", err)
+func (u *Update) LogValue() slog.Value {
+	attrs := []slog.Attr{
+		slog.String("id", u.ID),
+		slog.String("type", u.Type),
+		slog.Uint64("retry", u.Retry),
+		slog.Any("topics", u.Topics),
+		slog.Bool("private", u.Private),
 	}
-
-	enc.AddBool("private", u.Private)
 
 	if u.Debug {
-		enc.AddString("data", u.Data)
+		attrs = append(attrs, slog.String("data", u.Data))
 	}
 
-	return nil
+	return slog.GroupValue(attrs...)
 }
 
 type serializedUpdate struct {

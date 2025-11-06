@@ -2,10 +2,9 @@ package mercure
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
-
-	"go.uber.org/zap"
 )
 
 // Publish broadcasts the given update to all subscribers.
@@ -16,10 +15,7 @@ func (h *Hub) Publish(update *Update) error {
 	}
 
 	h.metrics.UpdatePublished(update)
-
-	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
-		c.Write(zap.Object("update", update))
-	}
+	h.logger.DebugContext(h.context, "Update published", slog.Any("update", update))
 
 	return nil
 }
@@ -89,26 +85,21 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
 
+	ctx := r.Context()
 	// Broadcast the update
 	if err := h.transport.Dispatch(u); err != nil {
-		if c := h.logger.Check(zap.ErrorLevel, "Failed to dispatch the update"); c != nil {
-			c.Write(zap.Object("update", u), zap.Error(err), zap.String("remote_addr", r.RemoteAddr))
-		}
-
 		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		h.logger.ErrorContext(ctx, "Update published", slog.Any("update", u), slog.Any("error", err))
 
 		return
 	}
 
 	if _, err := io.WriteString(w, u.ID); err != nil {
-		if c := h.logger.Check(zap.WarnLevel, "Failed to write publish response"); c != nil {
-			c.Write(zap.Object("update", u), zap.Error(err), zap.String("remote_addr", r.RemoteAddr))
-		}
+		h.logger.WarnContext(ctx, "Failed to write publish response", slog.Any("update", u), slog.Any("error", err))
+
+		return
 	}
 
 	h.metrics.UpdatePublished(u)
-
-	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
-		c.Write(zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
-	}
+	h.logger.DebugContext(ctx, "Update published", slog.Any("update", u), slog.Any("error", err))
 }

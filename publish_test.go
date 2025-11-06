@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,7 +13,6 @@ import (
 	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestPublish(t *testing.T) {
@@ -20,7 +20,7 @@ func TestPublish(t *testing.T) {
 		hub := createDummy(t)
 
 		topics := []string{"https://example.com/books/1"}
-		s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 		s.SetTopics(topics, topics)
 		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
 
@@ -262,7 +262,7 @@ func TestPublishHandlerOK(t *testing.T) {
 	hub := createDummy(t)
 
 	topics := []string{"https://example.com/books/1"}
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.SetTopics(topics, topics)
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
 
@@ -336,7 +336,7 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 
 	h := createDummy(t)
 
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
 
 	require.NoError(t, h.transport.AddSubscriber(s))

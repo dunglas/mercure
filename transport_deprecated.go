@@ -4,6 +4,7 @@ package mercure
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"sync"
@@ -22,10 +23,10 @@ func init() { //nolint:gochecknoinits
 }
 
 // Deprecated: TransportFactory is the factory to initialize a new transport.
-type TransportFactory = func(u *url.URL, l Logger) (Transport, error)
+type TransportFactory = func(u *url.URL, l *slog.Logger) (Transport, error)
 
 // Deprecated: directly instantiate the transport or use transports Caddy modules.
-func NewTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
+func NewTransport(u *url.URL, l *slog.Logger) (Transport, error) { //nolint:ireturn
 	transportFactoriesMu.RLock()
 
 	f, ok := transportFactories[u.Scheme]
@@ -51,7 +52,7 @@ func RegisterTransportFactory(scheme string, factory TransportFactory) {
 // DeprecatedNewBoltTransport creates a new BoltTransport.
 //
 // Deprecated: use NewBoltTransport() instead.
-func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nolint:ireturn
+func DeprecatedNewBoltTransport(u *url.URL, l *slog.Logger) (Transport, error) { //nolint:ireturn
 	var err error
 
 	q := u.Query()
@@ -95,6 +96,6 @@ func DeprecatedNewBoltTransport(u *url.URL, l Logger) (Transport, error) { //nol
 // DeprecatedNewLocalTransport creates a new LocalTransport.
 //
 // Deprecated: use NewLocalTransport() instead.
-func DeprecatedNewLocalTransport(_ *url.URL, _ Logger) (Transport, error) { //nolint:ireturn
+func DeprecatedNewLocalTransport(_ *url.URL, _ *slog.Logger) (Transport, error) { //nolint:ireturn
 	return NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize)), nil
 }

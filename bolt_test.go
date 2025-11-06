@@ -3,6 +3,7 @@ package mercure
 import (
 	"bytes"
 	"encoding/binary"
+	"log/slog"
 	"os"
 	"strconv"
 	"testing"
@@ -11,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
-	"go.uber.org/zap"
 )
 
 func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *BoltTransport {
@@ -22,7 +22,7 @@ func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *B
 	}
 
 	path := "test-" + t.Name() + ".db"
-	transport, err := NewBoltTransport(NewSubscriberList(0), zap.NewNop(), path, defaultBoltBucketName, size, cleanupFrequency)
+	transport, err := NewBoltTransport(NewSubscriberList(0), slog.Default(), path, defaultBoltBucketName, size, cleanupFrequency)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -68,11 +68,10 @@ func TestBoltTransportHistory(t *testing.T) {
 func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 	t.Parallel()
 
-	sink, logger := newTestLogger(t)
-	t.Cleanup(sink.Reset)
-
 	transport := createBoltTransport(t, 0, 0)
-	transport.logger = logger
+
+	var buf bytes.Buffer
+	transport.logger = slog.New(slog.NewJSONHandler(&buf, nil))
 
 	// make sure the db is not empty
 	topics := []string{"https://example.com/foo"}
@@ -81,13 +80,12 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 		Topics: topics,
 	}))
 
-	s := NewLocalSubscriber("711131", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("711131", transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
 
 	require.NoError(t, transport.AddSubscriber(s))
 
-	log := sink.String()
-	assert.Contains(t, log, `"LastEventID":"711131"`)
+	assert.Contains(t, buf.String(), `"last_event_id":"711131"`)
 }
 
 func TestBoltTopicSelectorHistory(t *testing.T) {

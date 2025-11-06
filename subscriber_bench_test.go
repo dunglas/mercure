@@ -3,13 +3,12 @@ package mercure
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
-
-	"go.uber.org/zap"
 )
 
 func subscribeBenchmarkHelper(b *testing.B, subBench func(b *testing.B, topics, concurrency, matchPct int, testName string)) {
@@ -76,7 +75,7 @@ func parseIntsEnvVar(s string) (res []int) {
 func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testName string) {
 	b.Helper()
 
-	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", slog.Default(), &TopicSelectorStore{})
 	ts := make([]string, topics)
 	tsMatch := make([]string, topics)
 

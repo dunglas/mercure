@@ -5,12 +5,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"sync"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
-	"go.uber.org/zap"
 )
 
 const BoltDefaultCleanupFrequency = 0.3
@@ -22,7 +22,7 @@ type BoltTransport struct {
 	sync.RWMutex
 
 	subscribers      *SubscriberList
-	logger           Logger
+	logger           *slog.Logger
 	db               *bolt.DB
 	bucketName       string
 	size             uint64
@@ -36,7 +36,7 @@ type BoltTransport struct {
 // NewBoltTransport creates a new BoltTransport.
 func NewBoltTransport(
 	subscriberList *SubscriberList,
-	logger Logger,
+	logger *slog.Logger,
 	path string,
 	bucketName string,
 	size uint64,
@@ -223,11 +223,10 @@ func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error 
 			if err := json.Unmarshal(v, &update); err != nil {
 				s.HistoryDispatched(responseLastEventID)
 
-				if c := t.logger.Check(zap.ErrorLevel, "Unable to unmarshal update coming from the Bolt DB"); c != nil {
-					c.Write(zap.Error(err))
-				}
+				err := fmt.Errorf("unable to unmarshal update: %w", err)
+				t.logger.ErrorContext(s.Context, "Unable to unmarshal update coming from the Bolt DB", slog.Any("subscriber", s), slog.Any("update", update), slog.Any("error", err))
 
-				return fmt.Errorf("unable to unmarshal update: %w", err)
+				return err
 			}
 
 			if (s.Match(update) && !s.Dispatch(update, true)) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
@@ -240,9 +239,7 @@ func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error 
 		s.HistoryDispatched(responseLastEventID)
 
 		if !afterFromID {
-			if c := t.logger.Check(zap.InfoLevel, "Can't find requested LastEventID"); c != nil {
-				c.Write(zap.String("LastEventID", s.RequestLastEventID))
-			}
+			t.logger.InfoContext(s.Context, "Can't find requested LastEventID", slog.Any("subscriber", s))
 		}
 
 		return nil

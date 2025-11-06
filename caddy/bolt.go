@@ -49,7 +49,7 @@ func (b *Bolt) Provision(ctx caddy.Context) error {
 	destructor, _, err := TransportUsagePool.LoadOrNew(b.transportKey, func() (caddy.Destructor, error) {
 		t, err := mercure.NewBoltTransport(
 			mercure.NewSubscriberList(ctx.Value(SubscriberListCacheSizeContextKey).(int)),
-			ctx.Logger(),
+			ctx.Slogger(),
 			b.Path,
 			b.BucketName,
 			b.Size,

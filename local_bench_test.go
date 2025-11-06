@@ -3,12 +3,12 @@ package mercure
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func BenchmarkLocalTransport(b *testing.B) {
@@ -42,11 +42,10 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	}
 
 	tss := &TopicSelectorStore{}
-	logger := zap.NewNop()
 
 	subscribers := make([]*LocalSubscriber, concurrency)
 	for i := range concurrency {
-		s := NewLocalSubscriber("", logger, tss)
+		s := NewLocalSubscriber("", slog.Default(), tss)
 		if i%100 < matchPct {
 			s.SetTopics(tsMatch, nil)
 		} else {
