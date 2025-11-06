@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"context"
 	"log/slog"
 	"net/url"
 	"regexp"
@@ -9,7 +8,6 @@ import (
 
 // Subscriber represents a client subscribed to a list of topics on a remote or on the current hub.
 type Subscriber struct {
-	Context                context.Context
 	ID                     string
 	EscapedID              string
 	Claims                 *claims

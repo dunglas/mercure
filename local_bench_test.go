@@ -19,9 +19,10 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Helper()
 
 	tr := NewLocalTransport(NewSubscriberList(1_000))
+	ctx := b.Context()
 
 	b.Cleanup(func() {
-		assert.NoError(b, tr.Close())
+		assert.NoError(b, tr.Close(ctx))
 	})
 
 	top := make([]string, topics)
@@ -53,10 +54,10 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		}
 
 		subscribers[i] = s
-		require.NoError(b, tr.AddSubscriber(s))
+		require.NoError(b, tr.AddSubscriber(ctx, s))
 	}
 
-	ctx, done := context.WithCancel(b.Context())
+	ctx, done := context.WithCancel(ctx)
 	b.Cleanup(done)
 
 	for i := range concurrency {
@@ -78,7 +79,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Run(testName, func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
-				require.NoError(b, tr.Dispatch(&Update{Topics: top}))
+				require.NoError(b, tr.Dispatch(ctx, &Update{Topics: top}))
 			}
 		})
 	})

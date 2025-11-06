@@ -233,7 +233,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	opts := []mercure.Option{
-		mercure.WithContext(ctx),
 		mercure.WithLogger(m.logger),
 		mercure.WithTopicSelectorStore(tss),
 		mercure.WithTransport(transport),
@@ -307,7 +306,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithProtocolVersionCompatibility(m.ProtocolVersionCompatibility))
 	}
 
-	h, err := mercure.NewHub(opts...)
+	h, err := mercure.NewHub(ctx, opts...)
 	if err != nil {
 		return err
 	}

@@ -16,7 +16,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "https://example.com/demo/foo.jsonld", nil)
 	w := httptest.NewRecorder()
 
-	h, _ := NewHub()
+	h, _ := NewHub(t.Context())
 	h.Demo(w, req)
 
 	resp := w.Result()
@@ -42,7 +42,7 @@ func TestBodyAndJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "https://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token", nil)
 	w := httptest.NewRecorder()
 
-	h, _ := NewHub()
+	h, _ := NewHub(t.Context())
 	h.Demo(w, req)
 
 	resp := w.Result()

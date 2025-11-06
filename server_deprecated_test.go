@@ -31,6 +31,7 @@ const (
 
 func TestForwardedHeaders(t *testing.T) {
 	var buf bytes.Buffer
+
 	opts := slog.HandlerOptions{Level: slog.LevelDebug}
 	logger := slog.New(slog.NewTextHandler(&buf, &opts))
 

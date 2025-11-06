@@ -85,6 +85,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	t, _ := url.QueryUnescape(vars["topic"])
 
 	ctx := r.Context()
+
 	for _, subscriber := range subscribers {
 		if subscriber.ID != s {
 			continue
@@ -130,7 +131,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 
 	var err error
 
-	lastEventID, subscribers, err = transport.GetSubscribers()
+	lastEventID, subscribers, err = transport.GetSubscribers(r.Context())
 	if err != nil {
 		slog.ErrorContext(r.Context(), "Error retrieving subscribers", slog.Any("error", err))
 

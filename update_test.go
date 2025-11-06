@@ -34,6 +34,7 @@ func TestLogUpdate(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
+
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	u := &Update{

@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,13 +10,13 @@ import (
 
 // Publish broadcasts the given update to all subscribers.
 // The id field of the Update instance can be updated by the underlying Transport.
-func (h *Hub) Publish(update *Update) error {
-	if err := h.transport.Dispatch(update); err != nil {
+func (h *Hub) Publish(ctx context.Context, update *Update) error {
+	if err := h.transport.Dispatch(ctx, update); err != nil {
 		return err //nolint:wrapcheck
 	}
 
 	h.metrics.UpdatePublished(update)
-	h.logger.DebugContext(h.context, "Update published", slog.Any("update", update))
+	h.logger.DebugContext(ctx, "Update published", slog.Any("update", update))
 
 	return nil
 }
@@ -87,7 +88,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	// Broadcast the update
-	if err := h.transport.Dispatch(u); err != nil {
+	if err := h.transport.Dispatch(ctx, u); err != nil {
 		http.Error(w, "500 internal server error", http.StatusInternalServerError)
 		h.logger.ErrorContext(ctx, "Update published", slog.Any("update", u), slog.Any("error", err))
 

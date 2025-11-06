@@ -18,7 +18,7 @@ func TestNewBoltTransport(t *testing.T) {
 	transport, err := DeprecatedNewBoltTransport(u, nil)
 	require.NoError(t, err)
 	require.NotNil(t, transport)
-	require.NoError(t, transport.Close())
+	require.NoError(t, transport.Close(t.Context()))
 	require.NoError(t, os.Remove("test-"+t.Name()+".db"))
 
 	u, _ = url.Parse("bolt://")

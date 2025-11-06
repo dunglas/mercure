@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"context"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -42,7 +43,7 @@ func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicSelectorSt
 // Dispatch an update to the subscriber.
 // Security checks must (topics matching) be done before calling Dispatch,
 // for instance by calling Match.
-func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
+func (s *LocalSubscriber) Dispatch(ctx context.Context, u *Update, fromHistory bool) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -60,14 +61,14 @@ func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 	case s.out <- u:
 		return true
 	default:
-		s.handleFullChan()
+		s.handleFullChan(ctx)
 
 		return false
 	}
 }
 
 // Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
-func (s *LocalSubscriber) Ready() (n int) {
+func (s *LocalSubscriber) Ready(ctx context.Context) (n int) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -81,7 +82,7 @@ func (s *LocalSubscriber) Ready() (n int) {
 			n++
 		default:
 			s.ready.Store(1)
-			s.handleFullChan()
+			s.handleFullChan(ctx)
 			s.liveQueue = nil
 
 			return n
@@ -113,10 +114,10 @@ func (s *LocalSubscriber) Disconnect() {
 }
 
 // handleFullChan disconnects the subscriber when the out channel is full.
-func (s *LocalSubscriber) handleFullChan() {
+func (s *LocalSubscriber) handleFullChan(ctx context.Context) {
 	s.doDisconnect()
 
-	s.logger.ErrorContext(nil, "Subscriber unable to receive updates fast enough", slog.Any("subscriber", s))
+	s.logger.ErrorContext(ctx, "Subscriber unable to receive updates fast enough", slog.Any("subscriber", s))
 }
 
 func (s *LocalSubscriber) doDisconnect() {

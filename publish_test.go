@@ -24,7 +24,7 @@ func TestPublish(t *testing.T) {
 		s.SetTopics(topics, topics)
 		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
 
-		require.NoError(t, hub.transport.AddSubscriber(s))
+		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
 		go func() {
 			u, ok := <-s.Receive()
@@ -37,7 +37,7 @@ func TestPublish(t *testing.T) {
 			assert.True(t, u.Private)
 		}()
 
-		require.NoError(t, hub.Publish(&Update{
+		require.NoError(t, hub.Publish(t.Context(), &Update{
 			Event: Event{
 				ID:   "id",
 				Data: "Hello!",
@@ -266,7 +266,7 @@ func TestPublishHandlerOK(t *testing.T) {
 	s.SetTopics(topics, topics)
 	s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
 
-	require.NoError(t, hub.transport.AddSubscriber(s))
+	require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
 	synctest.Test(t, func(t *testing.T) {
 		go func() {
@@ -339,7 +339,7 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
 
-	require.NoError(t, h.transport.AddSubscriber(s))
+	require.NoError(t, h.transport.AddSubscriber(t.Context(), s))
 
 	synctest.Test(t, func(t *testing.T) {
 		go func() {
@@ -383,7 +383,7 @@ func TestPublishHandlerWithErrorInTransport(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
-	require.NoError(t, hub.transport.Close())
+	require.NoError(t, hub.transport.Close(t.Context()))
 
 	form := url.Values{}
 	form.Add("id", "id")

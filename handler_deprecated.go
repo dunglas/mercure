@@ -44,7 +44,7 @@ func (h *Hub) Serve() { //nolint:funlen
 			WriteTimeout:      h.config.GetDuration("write_timeout"),
 		}
 
-		h.logger.InfoContext(h.context, "Mercure metrics started", slog.String("addr", addr))
+		h.logger.Info("Mercure metrics started", slog.String("addr", addr))
 
 		go h.metricsServer.ListenAndServe()
 	}
@@ -59,8 +59,7 @@ func (h *Hub) Serve() { //nolint:funlen
 	var err error
 
 	if !acme && certFile == "" && keyFile == "" { //nolint:nestif
-
-		h.logger.InfoContext(h.context, "Mercure started", slog.String("protocol", "http"), slog.String("addr", addr))
+		h.logger.Info("Mercure started", slog.String("protocol", "http"), slog.String("addr", addr))
 
 		err = h.server.ListenAndServe()
 	} else {
@@ -82,13 +81,13 @@ func (h *Hub) Serve() { //nolint:funlen
 			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)) //nolint:gosec
 		}
 
-		h.logger.InfoContext(h.context, "Mercure started", slog.String("protocol", "https"), slog.String("addr", addr))
+		h.logger.Info("Mercure started", slog.String("protocol", "https"), slog.String("addr", addr))
 
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
 	if !errors.Is(err, http.ErrServerClosed) {
-		h.logger.ErrorContext(h.context, "Unexpected error", slog.Any("error", err))
+		h.logger.Error("Unexpected error", slog.Any("error", err))
 	}
 
 	<-done
@@ -112,16 +111,16 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 		<-sigint
 
 		if err := h.server.Shutdown(context.Background()); err != nil {
-			h.logger.ErrorContext(h.context, "Unexpected error during server shutdown", slog.Any("error", err))
+			h.logger.Error("Unexpected error during server shutdown", slog.Any("error", err))
 		}
 
 		if h.metricsServer != nil {
 			if err := h.metricsServer.Shutdown(context.Background()); err != nil {
-				h.logger.ErrorContext(h.context, "Unexpected error during metrics server shutdown", slog.Any("error", err))
+				h.logger.Error("Unexpected error during metrics server shutdown", slog.Any("error", err))
 			}
 		}
 
-		h.logger.InfoContext(h.context, "My Baby Shot Me Down")
+		h.logger.Info("My Baby Shot Me Down")
 
 		select {
 		case <-idleConnsClosed:
@@ -138,7 +137,7 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 // Deprecated: use the Caddy server module or the standalone library instead.
 func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	r := mux.NewRouter()
-	h.registerSubscriptionHandlers(r)
+	h.registerSubscriptionHandlers(context.Background(), r)
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
@@ -200,7 +199,8 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	secureHandler := secureMiddleware.Handler(useForwardedHeadersHandlers)
 
 	var loggingHandler http.Handler
-	if h.logger.Enabled(h.context, slog.LevelError) {
+
+	if h.logger.Enabled(context.Background(), slog.LevelError) {
 		loggingHandler = handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	} else {
 		loggingHandler = secureHandler

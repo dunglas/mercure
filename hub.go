@@ -27,14 +27,6 @@ var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports
 // Option instances allow to configure the library.
 type Option func(o *opt) error
 
-func WithContext(ctx context.Context) Option {
-	return func(o *opt) error {
-		o.context = ctx
-
-		return nil
-	}
-}
-
 // WithAnonymous allows subscribers with no valid JWT.
 func WithAnonymous() Option {
 	return func(o *opt) error {
@@ -286,7 +278,6 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 //
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
-	context                      context.Context
 	transport                    Transport
 	topicSelectorStore           *TopicSelectorStore
 	anonymous                    bool
@@ -323,7 +314,7 @@ type Hub struct {
 }
 
 // NewHub creates a new Hub instance.
-func NewHub(options ...Option) (*Hub, error) {
+func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 	opt := &opt{
 		writeTimeout:    DefaultWriteTimeout,
 		dispatchTimeout: DefaultDispatchTimeout,
@@ -366,14 +357,14 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	h := &Hub{opt: opt}
-	h.initHandler()
+	h.initHandler(ctx)
 
 	return h, nil
 }
 
 // Stop stops the hub.
-func (h *Hub) Stop() error {
-	if err := h.transport.Close(); err != nil {
+func (h *Hub) Stop(ctx context.Context) error {
+	if err := h.transport.Close(ctx); err != nil {
 		return fmt.Errorf("transport error: %w", err)
 	}
 

@@ -3,7 +3,6 @@ package mercure
 import (
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -26,8 +25,9 @@ const (
 
 func TestMain(m *testing.M) {
 	flag.Parse()
+
 	if !testing.Verbose() {
-		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+		slog.SetDefault(slog.New(slog.DiscardHandler))
 	}
 
 	os.Exit(m.Run())
@@ -49,6 +49,7 @@ func TestNewHubWithConfig(t *testing.T) {
 	t.Parallel()
 
 	h, err := NewHub(
+		t.Context(),
 		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
 	)
@@ -60,6 +61,7 @@ func TestStop(t *testing.T) {
 	t.Parallel()
 
 	hub := createAnonymousDummy(t)
+	ctx := t.Context()
 
 	synctest.Test(t, func(t *testing.T) {
 		go func() {
@@ -73,12 +75,12 @@ func TestStop(t *testing.T) {
 				s.RUnlock()
 			}
 
-			_ = hub.transport.Dispatch(&Update{
+			_ = hub.transport.Dispatch(ctx, &Update{
 				Topics: []string{"https://example.com/foo"},
 				Event:  Event{Data: "Hello World"},
 			})
 
-			_ = hub.Stop()
+			_ = hub.Stop(ctx)
 		}()
 
 		for range 2 {
@@ -290,7 +292,7 @@ func TestSecurityHeaders(t *testing.T) {
 func TestWithPublishDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(WithAnonymous())
+	h, err := NewHub(t.Context(), WithAnonymous())
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -303,7 +305,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(WithPublisherJWT([]byte(""), "HS256"))
+	h, err := NewHub(t.Context(), WithPublisherJWT([]byte(""), "HS256"))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -328,7 +330,7 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 		options...,
 	)
 
-	h, err := NewHub(options...)
+	h, err := NewHub(tb.Context(), options...)
 	require.NoError(tb, err)
 
 	setDeprecatedOptions(tb, h)

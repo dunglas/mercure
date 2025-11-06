@@ -12,6 +12,7 @@ import (
 func TestDispatch(t *testing.T) {
 	t.Parallel()
 
+	ctx := t.Context()
 	s := NewLocalSubscriber("1", slog.Default(), &TopicSelectorStore{})
 	s.SubscribedTopics = []string{"https://example.com"}
 
@@ -20,13 +21,13 @@ func TestDispatch(t *testing.T) {
 
 	// Dispatch must be non-blocking
 	// Messages coming from the history can be sent after live messages, but must be received first
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "3"}}, false)
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "1"}}, true)
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "4"}}, false)
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "2"}}, true)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "3"}}, false)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "1"}}, true)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "4"}}, false)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "2"}}, true)
 	s.HistoryDispatched("")
 
-	s.Ready()
+	s.Ready(ctx)
 
 	for i := 1; i <= 4; i++ {
 		if u, ok := <-s.Receive(); ok && u != nil {
@@ -43,13 +44,14 @@ func TestDisconnect(t *testing.T) {
 	// can be called two times without crashing
 	s.Disconnect()
 
-	assert.False(t, s.Dispatch(&Update{}, false))
+	assert.False(t, s.Dispatch(t.Context(), &Update{}, false))
 }
 
 func TestLogSubscriber(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
+
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	s := NewLocalSubscriber("123", logger, &TopicSelectorStore{})
@@ -82,11 +84,13 @@ func TestMatchTopic(t *testing.T) {
 func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 	t.Parallel()
 
+	ctx := t.Context()
+
 	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.Ready()
+	s.Ready(ctx)
 
 	for i := 0; i <= outBufferLength; i++ {
-		s.Dispatch(&Update{}, false)
+		s.Dispatch(ctx, &Update{}, false)
 	}
 
 	for range s.Receive() { //nolint:revive

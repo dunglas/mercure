@@ -3,6 +3,7 @@
 package mercure
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -152,6 +153,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 
 	if v.GetBool("debug") {
 		options = append(options, WithDebug())
+
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 
@@ -252,7 +254,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithCORSOrigins(o))
 	}
 
-	h, err := NewHub(options...)
+	h, err := NewHub(context.Background(), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +274,7 @@ func Start() {
 	}
 
 	defer func() {
-		if err := h.transport.Close(); err != nil {
+		if err := h.transport.Close(context.Background()); err != nil {
 			log.Fatalln(err)
 		}
 	}()
