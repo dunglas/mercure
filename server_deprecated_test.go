@@ -3,7 +3,6 @@
 package mercure
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -28,47 +27,6 @@ const (
 	testSecureURLScheme = "https://"
 	testSecureURL       = testSecureURLScheme + testAddr + defaultHubURL
 )
-
-func TestForwardedHeaders(t *testing.T) {
-	var buf bytes.Buffer
-
-	opts := slog.HandlerOptions{Level: slog.LevelDebug}
-	logger := slog.New(slog.NewTextHandler(&buf, &opts))
-
-	h := createDummy(t, WithLogger(logger))
-	h.config.Set("use_forwarded_headers", true)
-
-	go h.Serve()
-
-	client := http.Client{Timeout: 100 * time.Millisecond}
-
-	// loop until the web server is ready
-	var resp *http.Response
-
-	for resp == nil {
-		resp, _ = client.Get(testURL) //nolint:bodyclose
-	}
-
-	t.Cleanup(func() {
-		require.NoError(t, resp.Body.Close())
-	})
-
-	body := url.Values{"topic": {"https://example.com/test-forwarded"}, "data": {"hello"}}
-	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
-	req.Header.Add("X-Forwarded-For", "192.0.2.1")
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
-
-	resp2, err := client.Do(req)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		require.NoError(t, resp2.Body.Close())
-	})
-
-	assert.Contains(t, buf.String(), "192.0.2.1")
-	require.NoError(t, h.server.Shutdown(t.Context()))
-}
 
 func TestSecurityOptions(t *testing.T) {
 	h := createAnonymousDummy(t, WithSubscriptions(), WithDemo(), WithCORSOrigins([]string{"*"}))

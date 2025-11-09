@@ -225,7 +225,7 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 				s.HistoryDispatched(responseLastEventID)
 
 				err := fmt.Errorf("unable to unmarshal update: %w", err)
-				t.logger.ErrorContext(ctx, "Unable to unmarshal update coming from the Bolt DB", slog.Any("subscriber", s), slog.Any("update", update), slog.Any("error", err))
+				t.logger.ErrorContext(ctx, "Unable to unmarshal update coming from the Bolt DB", slog.Any("update", update), slog.Any("error", err))
 
 				return err
 			}
@@ -240,7 +240,7 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 		s.HistoryDispatched(responseLastEventID)
 
 		if !afterFromID {
-			t.logger.InfoContext(ctx, "Can't find requested LastEventID", slog.Any("subscriber", s))
+			t.logger.InfoContext(ctx, "Can't find requested LastEventID")
 		}
 
 		return nil

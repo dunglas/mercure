@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"log/slog"
 	"os"
@@ -68,25 +69,18 @@ func TestBoltTransportHistory(t *testing.T) {
 func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	ctx := t.Context()
-
 	var buf bytes.Buffer
 
-	transport.logger = slog.New(slog.NewJSONHandler(&buf, nil))
+	transport := createBoltTransport(t, 0, 0)
+	transport.logger = slog.New(mercureHandler{slog.NewJSONHandler(&buf, nil)})
 
-	// make sure the db is not empty
 	topics := []string{"https://example.com/foo"}
-	require.NoError(t, transport.Dispatch(ctx, &Update{
-		Event:  Event{ID: "1"},
-		Topics: topics,
-	}))
-
 	s := NewLocalSubscriber("711131", transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
+	ctx := context.WithValue(t.Context(), SubscriberContextKey, &s.Subscriber)
 
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: topics})) // make sure the db is not empty
 	require.NoError(t, transport.AddSubscriber(ctx, s))
-
 	assert.Contains(t, buf.String(), `"last_event_id":"711131"`)
 }
 

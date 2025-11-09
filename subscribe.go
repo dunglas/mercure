@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+type subscriberContextKeyType struct{}
+
+var SubscriberContextKey subscriberContextKeyType
+
 type responseController struct {
 	http.ResponseController
 
@@ -34,7 +38,7 @@ func (rc *responseController) setDispatchWriteDeadline(ctx context.Context) bool
 	}
 
 	if err := rc.SetWriteDeadline(deadline); err != nil {
-		rc.hub.logger.ErrorContext(ctx, "Unable to set dispatch write deadline", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
+		rc.hub.logger.ErrorContext(ctx, "Unable to set dispatch write deadline", slog.Any("error", err))
 
 		return false
 	}
@@ -48,7 +52,7 @@ func (rc *responseController) setDefaultWriteDeadline(ctx context.Context) bool 
 			panic(err)
 		}
 
-		rc.hub.logger.InfoContext(ctx, "Error while setting default write deadline", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
+		rc.hub.logger.InfoContext(ctx, "Error while setting default write deadline", slog.Any("error", err))
 
 		return false
 	}
@@ -62,7 +66,7 @@ func (rc *responseController) flush(ctx context.Context) bool {
 			panic(err)
 		}
 
-		rc.hub.logger.InfoContext(ctx, "Unable to flush", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
+		rc.hub.logger.InfoContext(ctx, "Unable to flush", slog.Any("error", err))
 
 		return false
 	}
@@ -104,9 +108,9 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
-	defer h.shutdown(r.Context(), s)
+	ctx := context.WithValue(r.Context(), SubscriberContextKey, &s.Subscriber)
 
-	ctx := r.Context()
+	defer h.shutdown(ctx, s)
 
 	rc.setDefaultWriteDeadline(ctx)
 
@@ -133,7 +137,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-r.Context().Done():
-			rc.hub.logger.DebugContext(ctx, "Connection closed by the client", slog.Any("subscriber", s))
+			rc.hub.logger.DebugContext(ctx, "Connection closed by the client")
 
 			return
 		case <-heartbeatTimerC:
@@ -159,7 +163,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				heartbeatTimer.Reset(h.heartbeat)
 			}
 
-			rc.hub.logger.DebugContext(ctx, "Update sent", slog.Any("subscriber", s), slog.Any("update", update))
+			rc.hub.logger.DebugContext(ctx, "Update sent", slog.Any("update", update))
 		}
 	}
 }
@@ -186,7 +190,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 		if err != nil || (claims == nil && !h.anonymous) {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
-			h.logger.DebugContext(ctx, "Subscriber unauthorized", slog.Any("subscriber", s), slog.Any("error", err))
+			h.logger.DebugContext(ctx, "Subscriber unauthorized", slog.Any("error", err))
 
 			return nil, nil
 		}
@@ -207,7 +211,7 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(ctx, s, false)
 
-		h.logger.ErrorContext(ctx, "Unable to add subscriber", slog.Any("subscriber", s), slog.Any("error", err))
+		h.logger.ErrorContext(ctx, "Unable to add subscriber", slog.Any("error", err))
 
 		return nil, nil
 	}
@@ -217,12 +221,11 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 	rc.flush(r.Context())
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
-		attrs := []any{slog.Any("subscriber", s)}
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
-			attrs = append(attrs, slog.Any("payload", claims.Mercure.Payload))
+			h.logger.InfoContext(ctx, "New subscriber", slog.Any("payload", claims.Mercure.Payload))
 		}
-
-		h.logger.InfoContext(ctx, "New subscriber", attrs...)
+	} else {
+		h.logger.InfoContext(ctx, "New subscriber")
 	}
 
 	h.metrics.SubscriberConnected(s)
@@ -253,7 +256,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	// Write a comment in the body
 	// Go currently doesn't provide a better way to flush the headers
 	if _, err := w.Write([]byte{':', '\n'}); err != nil {
-		h.logger.InfoContext(ctx, "Failed to write comment", slog.Any("subscriber", s), slog.Any("error", err))
+		h.logger.InfoContext(ctx, "Failed to write comment", slog.Any("error", err))
 	}
 }
 
@@ -291,7 +294,7 @@ func (h *Hub) write(ctx context.Context, rc *responseController, data string) bo
 	}
 
 	if _, err := rc.rw.Write([]byte(data)); err != nil {
-		h.logger.DebugContext(ctx, "Failed to write comment", slog.Any("subscriber", rc.subscriber), slog.Any("error", err))
+		h.logger.DebugContext(ctx, "Failed to write comment", slog.Any("error", err))
 
 		return false
 	}
@@ -304,11 +307,11 @@ func (h *Hub) shutdown(ctx context.Context, s *LocalSubscriber) {
 	s.Disconnect()
 
 	if err := h.transport.RemoveSubscriber(ctx, s); err != nil {
-		h.logger.WarnContext(ctx, "Failed to remove subscriber on shutdown", slog.Any("subscriber", s), slog.Any("error", err))
+		h.logger.WarnContext(ctx, "Failed to remove subscriber on shutdown", slog.Any("error", err))
 	}
 
 	h.dispatchSubscriptionUpdate(ctx, s, false)
-	h.logger.InfoContext(ctx, "Subscriber disconnected", slog.Any("subscriber", s))
+	h.logger.InfoContext(ctx, "Subscriber disconnected")
 	h.metrics.SubscriberDisconnected(s)
 }
 
@@ -329,8 +332,9 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 			Debug:   h.debug,
 			Event:   Event{Data: string(j)},
 		}
+
 		if err := h.transport.Dispatch(ctx, u); err != nil {
-			h.logger.WarnContext(ctx, "Failed to dispatch update", slog.Any("subscriber", subscription), slog.Any("error", err))
+			h.logger.WarnContext(ctx, "Failed to dispatch update", slog.Any("update", u), slog.Any("subscription", subscription.ID), slog.Any("error", err))
 		}
 	}
 }
