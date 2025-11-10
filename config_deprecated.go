@@ -144,18 +144,19 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		log.Panic(err)
 	}
 
-	options := []Option{}
-
 	var (
-		err error
-		k   string
+		err        error
+		k          string
+		options    []Option
+		loggerOpts *slog.HandlerOptions
 	)
 
 	if v.GetBool("debug") {
 		options = append(options, WithDebug())
-
-		slog.SetLogLoggerLevel(slog.LevelDebug)
+		loggerOpts = &slog.HandlerOptions{Level: slog.LevelDebug}
 	}
+
+	options = append(options, WithLogger(slog.New(mercureHandler{slog.NewTextHandler(os.Stderr, loggerOpts)})))
 
 	var tss *TopicSelectorStore
 

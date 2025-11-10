@@ -210,7 +210,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		ctx = ctx.WithValue(SubscriberListCacheSizeContextKey, *m.SubscriberListCacheSize)
 	}
 
-	m.logger = ctx.Slogger()
+	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
 
 	var transport mercure.Transport
 	if transport, err = m.createTransportDeprecated(); err != nil {

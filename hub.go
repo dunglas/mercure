@@ -329,8 +329,6 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 
 	if opt.logger == nil {
 		opt.logger = slog.New(mercureHandler{slog.Default().Handler()})
-	} else {
-		opt.logger = slog.New(mercureHandler{opt.logger.Handler()})
 	}
 
 	if opt.topicSelectorStore == nil {

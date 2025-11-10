@@ -5,6 +5,14 @@ import (
 	"log/slog"
 )
 
+// INTERNAL: NewSlogHandler returns a log/slog.Handler that automatically appends "update" and "subscriber"
+// context, if applicable.
+//
+// This function will be removed when https://github.com/caddyserver/caddy/pull/7346 will be available.
+func NewSlogHandler(handler slog.Handler) slog.Handler {
+	return &mercureHandler{handler}
+}
+
 type mercureHandler struct {
 	innerHandler slog.Handler
 }
