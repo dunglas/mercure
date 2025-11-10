@@ -12,7 +12,7 @@ import (
 
 type subscriberContextKeyType struct{}
 
-var SubscriberContextKey subscriberContextKeyType
+var SubscriberContextKey subscriberContextKeyType //nolint:gochecknoglobals
 
 type responseController struct {
 	http.ResponseController
@@ -108,6 +108,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
+
 	ctx := context.WithValue(r.Context(), SubscriberContextKey, &s.Subscriber)
 
 	defer h.shutdown(ctx, s)

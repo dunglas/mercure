@@ -10,7 +10,7 @@ import (
 
 type updateContextKeyType struct{}
 
-var UpdateContextKey updateContextKeyType
+var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 
 // Publish broadcasts the given update to all subscribers.
 // The id field of the Update instance can be updated by the underlying Transport.
@@ -68,6 +68,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+
 	private := len(r.PostForm["private"]) != 0
 	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) {
 		if private {

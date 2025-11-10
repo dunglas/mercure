@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 )
 
@@ -9,6 +10,8 @@ import (
 // context, if applicable.
 //
 // This function will be removed when https://github.com/caddyserver/caddy/pull/7346 will be available.
+//
+//nolint:godoclint
 func NewSlogHandler(handler slog.Handler) slog.Handler {
 	return &mercureHandler{handler}
 }
@@ -34,7 +37,11 @@ func (m mercureHandler) Handle(ctx context.Context, record slog.Record) error {
 
 	record.AddAttrs(attrs...)
 
-	return m.innerHandler.Handle(ctx, record)
+	if err := m.innerHandler.Handle(ctx, record); err != nil {
+		return fmt.Errorf("error while logging: %w", err)
+	}
+
+	return nil
 }
 
 func (m mercureHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
