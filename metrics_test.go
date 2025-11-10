@@ -1,12 +1,12 @@
 package mercure
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func TestNumberOfRunningSubscribers(t *testing.T) {
@@ -14,8 +14,8 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 
 	m := NewPrometheusMetrics(nil)
 
-	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
+	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"topic1", "topic2"}, nil)
@@ -39,8 +39,8 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 
 	m := NewPrometheusMetrics(nil)
 
-	logger := zap.NewNop()
 	tss := &TopicSelectorStore{}
+	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"topic1", "topic2"}, nil)

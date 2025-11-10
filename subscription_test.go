@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
@@ -95,18 +95,18 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 func TestSubscriptionsHandler(t *testing.T) {
 	t.Parallel()
 
-	logger := zap.NewNop()
-
-	hub := createDummy(t, WithLogger(logger))
+	hub := createDummy(t)
 	tss := &TopicSelectorStore{}
+	logger := slog.Default()
+	ctx := t.Context()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"https://example.com/foo"}, nil)
-	require.NoError(t, hub.transport.AddSubscriber(s1))
+	require.NoError(t, hub.transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"https://example.com/bar"}, nil)
-	require.NoError(t, hub.transport.AddSubscriber(s2))
+	require.NoError(t, hub.transport.AddSubscriber(ctx, s2))
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
@@ -124,7 +124,7 @@ func TestSubscriptionsHandler(t *testing.T) {
 	assert.Equal(t, subscriptionsURL, subscriptions.ID)
 	assert.Equal(t, "Subscriptions", subscriptions.Type)
 
-	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers()
+	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
 	assert.Equal(t, lastEventID, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
@@ -142,17 +142,18 @@ func TestSubscriptionsHandler(t *testing.T) {
 func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	t.Parallel()
 
-	logger := zap.NewNop()
-	hub := createDummy(t, WithLogger(logger))
+	hub := createDummy(t)
 	tss := &TopicSelectorStore{}
+	ctx := t.Context()
+	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
 	s1.SetTopics([]string{"https://example.com/foo"}, nil)
-	require.NoError(t, hub.transport.AddSubscriber(s1))
+	require.NoError(t, hub.transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", logger, tss)
 	s2.SetTopics([]string{"https://example.com/bar"}, nil)
-	require.NoError(t, hub.transport.AddSubscriber(s2))
+	require.NoError(t, hub.transport.AddSubscriber(ctx, s2))
 
 	escapedBarTopic := url.QueryEscape("https://example.com/bar")
 
@@ -177,7 +178,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	assert.Equal(t, defaultHubURL+subscriptionsPath+"/"+escapedBarTopic, subscriptions.ID)
 	assert.Equal(t, "Subscriptions", subscriptions.Type)
 
-	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers()
+	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
 	assert.Equal(t, lastEventID, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
@@ -193,17 +194,18 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 func TestSubscriptionHandler(t *testing.T) {
 	t.Parallel()
 
-	logger := zap.NewNop()
-	hub := createDummy(t, WithLogger(logger))
+	hub := createDummy(t)
 	tss := &TopicSelectorStore{}
+	ctx := t.Context()
+	logger := slog.Default()
 
 	otherS := NewLocalSubscriber("", logger, tss)
 	otherS.SetTopics([]string{"https://example.com/other"}, nil)
-	require.NoError(t, hub.transport.AddSubscriber(otherS))
+	require.NoError(t, hub.transport.AddSubscriber(ctx, otherS))
 
 	s := NewLocalSubscriber("", logger, tss)
 	s.SetTopics([]string{"https://example.com/other", "https://example.com/{foo}"}, nil)
-	require.NoError(t, hub.transport.AddSubscriber(s))
+	require.NoError(t, hub.transport.AddSubscriber(ctx, s))
 
 	router := mux.NewRouter()
 	router.UseEncodedPath()
@@ -223,7 +225,7 @@ func TestSubscriptionHandler(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &subscription))
 
 	expectedSub := s.getSubscriptions(s.SubscribedTopics[1], "https://mercure.rocks/", true)[0]
-	expectedSub.LastEventID, _, _ = hub.transport.(TransportSubscribers).GetSubscribers()
+	expectedSub.LastEventID, _, _ = hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 	assert.Equal(t, expectedSub, subscription)
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/notexist/"+s.EscapedID, nil)

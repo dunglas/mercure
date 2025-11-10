@@ -3,9 +3,11 @@
 package mercure
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
@@ -13,7 +15,6 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 // ErrInvalidConfig is returned when the configuration is invalid.
@@ -143,24 +144,19 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		log.Panic(err)
 	}
 
-	options := []Option{}
-
 	var (
-		logger Logger
-		err    error
-		k      string
+		err        error
+		k          string
+		options    []Option
+		loggerOpts *slog.HandlerOptions
 	)
 
 	if v.GetBool("debug") {
 		options = append(options, WithDebug())
-		logger, err = zap.NewDevelopment()
-	} else {
-		logger, err = zap.NewProduction()
+		loggerOpts = &slog.HandlerOptions{Level: slog.LevelDebug}
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("unable to create logger: %w", err)
-	}
+	options = append(options, WithLogger(slog.New(mercureHandler{slog.NewTextHandler(os.Stderr, loggerOpts)})))
 
 	var tss *TopicSelectorStore
 
@@ -180,7 +176,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 			return nil, fmt.Errorf("invalid transport url: %w", err)
 		}
 
-		t, err := NewTransport(u, logger)
+		t, err := NewTransport(u, slog.Default())
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +188,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithMetrics(NewPrometheusMetrics(nil)))
 	}
 
-	options = append(options, WithLogger(logger), WithTopicSelectorStore(tss))
+	options = append(options, WithTopicSelectorStore(tss))
 	if v.GetBool("allow_anonymous") {
 		options = append(options, WithAnonymous())
 	}
@@ -259,7 +255,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithCORSOrigins(o))
 	}
 
-	h, err := NewHub(options...)
+	h, err := NewHub(context.Background(), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +275,7 @@ func Start() {
 	}
 
 	defer func() {
-		if err := h.transport.Close(); err != nil {
+		if err := h.transport.Close(context.Background()); err != nil {
 			log.Fatalln(err)
 		}
 	}()

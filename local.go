@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"context"
 	"sync"
 )
 
@@ -24,7 +25,7 @@ func NewLocalTransport(sl *SubscriberList) *LocalTransport {
 }
 
 // Dispatch dispatches an update to all subscribers.
-func (t *LocalTransport) Dispatch(update *Update) error {
+func (t *LocalTransport) Dispatch(ctx context.Context, update *Update) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -34,7 +35,7 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 	update.AssignUUID()
 
 	for _, s := range t.subscribers.MatchAny(update) {
-		s.Dispatch(update, false)
+		s.Dispatch(ctx, update, false)
 	}
 
 	t.Lock()
@@ -45,7 +46,7 @@ func (t *LocalTransport) Dispatch(update *Update) error {
 }
 
 // AddSubscriber adds a new subscriber to the transport.
-func (t *LocalTransport) AddSubscriber(s *LocalSubscriber) error {
+func (t *LocalTransport) AddSubscriber(ctx context.Context, s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -61,13 +62,13 @@ func (t *LocalTransport) AddSubscriber(s *LocalSubscriber) error {
 		s.HistoryDispatched(EarliestLastEventID)
 	}
 
-	s.Ready()
+	s.Ready(ctx)
 
 	return nil
 }
 
 // RemoveSubscriber removes a subscriber from the transport.
-func (t *LocalTransport) RemoveSubscriber(s *LocalSubscriber) error {
+func (t *LocalTransport) RemoveSubscriber(_ context.Context, s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -83,7 +84,7 @@ func (t *LocalTransport) RemoveSubscriber(s *LocalSubscriber) error {
 }
 
 // GetSubscribers gets the list of active subscribers.
-func (t *LocalTransport) GetSubscribers() (string, []*Subscriber, error) {
+func (t *LocalTransport) GetSubscribers(_ context.Context) (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
 
@@ -91,7 +92,7 @@ func (t *LocalTransport) GetSubscribers() (string, []*Subscriber, error) {
 }
 
 // Close closes the Transport.
-func (t *LocalTransport) Close() (err error) {
+func (t *LocalTransport) Close(_ context.Context) (err error) {
 	t.closedOnce.Do(func() {
 		t.Lock()
 		defer t.Unlock()

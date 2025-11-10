@@ -3,12 +3,12 @@ package mercure
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func BenchmarkLocalTransport(b *testing.B) {
@@ -19,9 +19,10 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Helper()
 
 	tr := NewLocalTransport(NewSubscriberList(1_000))
+	ctx := b.Context()
 
 	b.Cleanup(func() {
-		assert.NoError(b, tr.Close())
+		assert.NoError(b, tr.Close(ctx))
 	})
 
 	top := make([]string, topics)
@@ -42,11 +43,10 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	}
 
 	tss := &TopicSelectorStore{}
-	logger := zap.NewNop()
 
 	subscribers := make([]*LocalSubscriber, concurrency)
 	for i := range concurrency {
-		s := NewLocalSubscriber("", logger, tss)
+		s := NewLocalSubscriber("", slog.Default(), tss)
 		if i%100 < matchPct {
 			s.SetTopics(tsMatch, nil)
 		} else {
@@ -54,10 +54,10 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		}
 
 		subscribers[i] = s
-		require.NoError(b, tr.AddSubscriber(s))
+		require.NoError(b, tr.AddSubscriber(ctx, s))
 	}
 
-	ctx, done := context.WithCancel(b.Context())
+	ctx, done := context.WithCancel(ctx)
 	b.Cleanup(done)
 
 	for i := range concurrency {
@@ -79,7 +79,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Run(testName, func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
-				require.NoError(b, tr.Dispatch(&Update{Topics: top}))
+				require.NoError(b, tr.Dispatch(ctx, &Update{Topics: top}))
 			}
 		})
 	})

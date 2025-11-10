@@ -3,12 +3,11 @@ package mercure
 import (
 	"embed"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"path/filepath"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 const linkSuffix = `>; rel="mercure"`
@@ -62,8 +61,6 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, cookie)
 
 	if _, err := io.WriteString(w, body); err != nil {
-		if c := h.logger.Check(zap.InfoLevel, "Failed to write demo response"); c != nil {
-			c.Write(zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
-		}
+		h.logger.InfoContext(r.Context(), "Failed to write demo response", slog.Any("error", err))
 	}
 }

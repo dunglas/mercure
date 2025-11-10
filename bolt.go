@@ -2,15 +2,16 @@ package mercure
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"sync"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
-	"go.uber.org/zap"
 )
 
 const BoltDefaultCleanupFrequency = 0.3
@@ -22,7 +23,7 @@ type BoltTransport struct {
 	sync.RWMutex
 
 	subscribers      *SubscriberList
-	logger           Logger
+	logger           *slog.Logger
 	db               *bolt.DB
 	bucketName       string
 	size             uint64
@@ -36,7 +37,7 @@ type BoltTransport struct {
 // NewBoltTransport creates a new BoltTransport.
 func NewBoltTransport(
 	subscriberList *SubscriberList,
-	logger Logger,
+	logger *slog.Logger,
 	path string,
 	bucketName string,
 	size uint64,
@@ -95,7 +96,7 @@ func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
-func (t *BoltTransport) Dispatch(update *Update) error {
+func (t *BoltTransport) Dispatch(ctx context.Context, update *Update) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -118,14 +119,14 @@ func (t *BoltTransport) Dispatch(update *Update) error {
 	}
 
 	for _, s := range t.subscribers.MatchAny(update) {
-		s.Dispatch(update, false)
+		s.Dispatch(ctx, update, false)
 	}
 
 	return nil
 }
 
 // AddSubscriber adds a new subscriber to the transport.
-func (t *BoltTransport) AddSubscriber(s *LocalSubscriber) error {
+func (t *BoltTransport) AddSubscriber(ctx context.Context, s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -138,18 +139,18 @@ func (t *BoltTransport) AddSubscriber(s *LocalSubscriber) error {
 	t.Unlock()
 
 	if s.RequestLastEventID != "" {
-		if err := t.dispatchHistory(s, toSeq); err != nil {
+		if err := t.dispatchHistory(ctx, s, toSeq); err != nil {
 			return err
 		}
 	}
 
-	s.Ready()
+	s.Ready(ctx)
 
 	return nil
 }
 
 // RemoveSubscriber removes a new subscriber from the transport.
-func (t *BoltTransport) RemoveSubscriber(s *LocalSubscriber) error {
+func (t *BoltTransport) RemoveSubscriber(_ context.Context, s *LocalSubscriber) error {
 	select {
 	case <-t.closed:
 		return ErrClosedTransport
@@ -165,7 +166,7 @@ func (t *BoltTransport) RemoveSubscriber(s *LocalSubscriber) error {
 }
 
 // GetSubscribers get the list of active subscribers.
-func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
+func (t *BoltTransport) GetSubscribers(_ context.Context) (string, []*Subscriber, error) {
 	t.RLock()
 	defer t.RUnlock()
 
@@ -173,7 +174,7 @@ func (t *BoltTransport) GetSubscribers() (string, []*Subscriber, error) {
 }
 
 // Close closes the Transport.
-func (t *BoltTransport) Close() (err error) {
+func (t *BoltTransport) Close(_ context.Context) (err error) {
 	t.closedOnce.Do(func() {
 		close(t.closed)
 
@@ -196,7 +197,7 @@ func (t *BoltTransport) Close() (err error) {
 }
 
 //nolint:gocognit
-func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error {
+func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber, toSeq uint64) error {
 	err := t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
@@ -223,14 +224,13 @@ func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error 
 			if err := json.Unmarshal(v, &update); err != nil {
 				s.HistoryDispatched(responseLastEventID)
 
-				if c := t.logger.Check(zap.ErrorLevel, "Unable to unmarshal update coming from the Bolt DB"); c != nil {
-					c.Write(zap.Error(err))
-				}
+				err := fmt.Errorf("unable to unmarshal update: %w", err)
+				t.logger.ErrorContext(ctx, "Unable to unmarshal update coming from the Bolt DB", slog.Any("update", update), slog.Any("error", err))
 
-				return fmt.Errorf("unable to unmarshal update: %w", err)
+				return err
 			}
 
-			if (s.Match(update) && !s.Dispatch(update, true)) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
+			if (s.Match(update) && !s.Dispatch(ctx, update, true)) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
 				s.HistoryDispatched(responseLastEventID)
 
 				return nil
@@ -240,9 +240,7 @@ func (t *BoltTransport) dispatchHistory(s *LocalSubscriber, toSeq uint64) error 
 		s.HistoryDispatched(responseLastEventID)
 
 		if !afterFromID {
-			if c := t.logger.Check(zap.InfoLevel, "Can't find requested LastEventID"); c != nil {
-				c.Write(zap.String("LastEventID", s.RequestLastEventID))
-			}
+			t.logger.InfoContext(ctx, "Can't find requested LastEventID")
 		}
 
 		return nil

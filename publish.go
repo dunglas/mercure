@@ -1,25 +1,28 @@
 package mercure
 
 import (
+	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
-
-	"go.uber.org/zap"
 )
+
+type updateContextKeyType struct{}
+
+var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 
 // Publish broadcasts the given update to all subscribers.
 // The id field of the Update instance can be updated by the underlying Transport.
-func (h *Hub) Publish(update *Update) error {
-	if err := h.transport.Dispatch(update); err != nil {
+func (h *Hub) Publish(ctx context.Context, update *Update) error {
+	ctx = context.WithValue(ctx, UpdateContextKey, update)
+
+	if err := h.transport.Dispatch(ctx, update); err != nil {
 		return err //nolint:wrapcheck
 	}
 
 	h.metrics.UpdatePublished(update)
-
-	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
-		c.Write(zap.Object("update", update))
-	}
+	h.logger.DebugContext(ctx, "Update published")
 
 	return nil
 }
@@ -64,6 +67,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ctx := r.Context()
+
 	private := len(r.PostForm["private"]) != 0
 	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) {
 		if private {
@@ -73,9 +78,9 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.isBackwardCompatiblyEnabledWith(7) {
-			h.logger.Info(`Deprecated: posting public updates to topics not listed in the "mercure.publish" JWT claim is deprecated since the version 7 of the protocol, use '["*"]' as value to allow publishing on all topics.`)
+			h.logger.InfoContext(ctx, `Deprecated: posting public updates to topics not listed in the "mercure.publish" JWT claim is deprecated since the version 7 of the protocol, use '["*"]' as value to allow publishing on all topics.`)
 		} else {
-			h.logger.Info(`Unsupported: posting public updates to topics not listed in the "mercure.publish" JWT claim is not supported anymore, use '["*"]' as value to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
+			h.logger.InfoContext(ctx, `Unsupported: posting public updates to topics not listed in the "mercure.publish" JWT claim is not supported anymore, use '["*"]' as value to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
 			return
@@ -88,27 +93,22 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		Debug:   h.debug,
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
+	ctx = context.WithValue(ctx, UpdateContextKey, u)
 
 	// Broadcast the update
-	if err := h.transport.Dispatch(u); err != nil {
-		if c := h.logger.Check(zap.ErrorLevel, "Failed to dispatch the update"); c != nil {
-			c.Write(zap.Object("update", u), zap.Error(err), zap.String("remote_addr", r.RemoteAddr))
-		}
-
+	if err := h.transport.Dispatch(ctx, u); err != nil {
 		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		h.logger.ErrorContext(ctx, "Update published", slog.Any("error", err))
 
 		return
 	}
 
 	if _, err := io.WriteString(w, u.ID); err != nil {
-		if c := h.logger.Check(zap.WarnLevel, "Failed to write publish response"); c != nil {
-			c.Write(zap.Object("update", u), zap.Error(err), zap.String("remote_addr", r.RemoteAddr))
-		}
+		h.logger.WarnContext(ctx, "Failed to write publish response", slog.Any("error", err))
+
+		return
 	}
 
 	h.metrics.UpdatePublished(u)
-
-	if c := h.logger.Check(zap.DebugLevel, "Update published"); c != nil {
-		c.Write(zap.Object("update", u), zap.String("remote_addr", r.RemoteAddr))
-	}
+	h.logger.DebugContext(ctx, "Update published", slog.Any("error", err))
 }

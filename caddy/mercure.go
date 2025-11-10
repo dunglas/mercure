@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,8 +20,6 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/dunglas/mercure"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 const defaultHubURL = "/.well-known/mercure"
@@ -130,7 +129,7 @@ type Mercure struct {
 	deprecatedTransport
 
 	hub    *mercure.Hub
-	logger *zap.Logger
+	logger *slog.Logger
 }
 
 // CaddyModule returns the Caddy module information.
@@ -211,7 +210,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		ctx = ctx.WithValue(SubscriberListCacheSizeContextKey, *m.SubscriberListCacheSize)
 	}
 
-	m.logger = ctx.Logger()
+	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
 
 	var transport mercure.Transport
 	if transport, err = m.createTransportDeprecated(); err != nil {
@@ -241,7 +240,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithCookieName(m.CookieName),
 	}
 
-	if m.logger.Core().Enabled(zapcore.DebugLevel) {
+	if m.logger.Enabled(ctx, slog.LevelDebug) {
 		opts = append(opts, mercure.WithDebug())
 	}
 
@@ -307,7 +306,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithProtocolVersionCompatibility(m.ProtocolVersionCompatibility))
 	}
 
-	h, err := mercure.NewHub(opts...)
+	h, err := mercure.NewHub(ctx, opts...)
 	if err != nil {
 		return err
 	}

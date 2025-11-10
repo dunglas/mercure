@@ -1,12 +1,13 @@
 package mercure
 
 import (
+	"context"
+	"log/slog"
 	"net/url"
 	"sync"
 	"sync/atomic"
 
 	"github.com/gofrs/uuid/v5"
-	"go.uber.org/zap"
 )
 
 // LocalSubscriber represents a client subscribed to a list of topics on the current hub.
@@ -24,7 +25,7 @@ type LocalSubscriber struct {
 const outBufferLength = 1000
 
 // NewLocalSubscriber creates a new subscriber.
-func NewLocalSubscriber(lastEventID string, logger Logger, topicSelectorStore *TopicSelectorStore) *LocalSubscriber {
+func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *LocalSubscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &LocalSubscriber{
 		Subscriber:          *NewSubscriber(logger, topicSelectorStore),
@@ -42,7 +43,7 @@ func NewLocalSubscriber(lastEventID string, logger Logger, topicSelectorStore *T
 // Dispatch an update to the subscriber.
 // Security checks must (topics matching) be done before calling Dispatch,
 // for instance by calling Match.
-func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
+func (s *LocalSubscriber) Dispatch(ctx context.Context, u *Update, fromHistory bool) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -60,14 +61,14 @@ func (s *LocalSubscriber) Dispatch(u *Update, fromHistory bool) bool {
 	case s.out <- u:
 		return true
 	default:
-		s.handleFullChan()
+		s.handleFullChan(ctx)
 
 		return false
 	}
 }
 
 // Ready flips the ready flag to true and flushes queued live updates returning number of events flushed.
-func (s *LocalSubscriber) Ready() (n int) {
+func (s *LocalSubscriber) Ready(ctx context.Context) (n int) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -81,7 +82,7 @@ func (s *LocalSubscriber) Ready() (n int) {
 			n++
 		default:
 			s.ready.Store(1)
-			s.handleFullChan()
+			s.handleFullChan(ctx)
 			s.liveQueue = nil
 
 			return n
@@ -113,12 +114,10 @@ func (s *LocalSubscriber) Disconnect() {
 }
 
 // handleFullChan disconnects the subscriber when the out channel is full.
-func (s *LocalSubscriber) handleFullChan() {
+func (s *LocalSubscriber) handleFullChan(ctx context.Context) {
 	s.doDisconnect()
 
-	if c := s.logger.Check(zap.ErrorLevel, "subscriber unable to receive updates fast enough"); c != nil {
-		c.Write(zap.Object("subscriber", s))
-	}
+	s.logger.ErrorContext(ctx, "Subscriber unable to receive updates fast enough")
 }
 
 func (s *LocalSubscriber) doDisconnect() {

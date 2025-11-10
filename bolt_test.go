@@ -2,7 +2,9 @@ package mercure
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"log/slog"
 	"os"
 	"strconv"
 	"testing"
@@ -11,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
-	"go.uber.org/zap"
 )
 
 func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *BoltTransport {
@@ -22,12 +23,12 @@ func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *B
 	}
 
 	path := "test-" + t.Name() + ".db"
-	transport, err := NewBoltTransport(NewSubscriberList(0), zap.NewNop(), path, defaultBoltBucketName, size, cleanupFrequency)
+	transport, err := NewBoltTransport(NewSubscriberList(0), slog.Default(), path, defaultBoltBucketName, size, cleanupFrequency)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
 		require.NoError(t, os.Remove(path))
-		require.NoError(t, transport.Close())
+		require.NoError(t, transport.Close(t.Context()))
 	})
 
 	return transport
@@ -40,7 +41,7 @@ func TestBoltTransportHistory(t *testing.T) {
 
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		require.NoError(t, transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: topics,
 		}))
@@ -49,7 +50,7 @@ func TestBoltTransportHistory(t *testing.T) {
 	s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
 
-	require.NoError(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
 
 	var count int
 
@@ -68,42 +69,36 @@ func TestBoltTransportHistory(t *testing.T) {
 func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 	t.Parallel()
 
-	sink, logger := newTestLogger(t)
-	t.Cleanup(sink.Reset)
+	var buf bytes.Buffer
 
 	transport := createBoltTransport(t, 0, 0)
-	transport.logger = logger
+	transport.logger = slog.New(mercureHandler{slog.NewJSONHandler(&buf, nil)})
 
-	// make sure the db is not empty
 	topics := []string{"https://example.com/foo"}
-	require.NoError(t, transport.Dispatch(&Update{
-		Event:  Event{ID: "1"},
-		Topics: topics,
-	}))
-
-	s := NewLocalSubscriber("711131", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("711131", transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
+	ctx := context.WithValue(t.Context(), SubscriberContextKey, &s.Subscriber)
 
-	require.NoError(t, transport.AddSubscriber(s))
-
-	log := sink.String()
-	assert.Contains(t, log, `"LastEventID":"711131"`)
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: topics})) // make sure the db is not empty
+	require.NoError(t, transport.AddSubscriber(ctx, s))
+	assert.Contains(t, buf.String(), `"last_event_id":"711131"`)
 }
 
 func TestBoltTopicSelectorHistory(t *testing.T) {
 	t.Parallel()
 
 	transport := createBoltTransport(t, 0, 0)
+	ctx := t.Context()
 
-	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/subscribed"}, Event: Event{ID: "1"}}))
-	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/not-subscribed"}, Event: Event{ID: "2"}}))
-	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}}))
-	require.NoError(t, transport.Dispatch(&Update{Topics: []string{"https://example.com/subscribed-public-only"}, Event: Event{ID: "4"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed"}, Event: Event{ID: "1"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/not-subscribed"}, Event: Event{ID: "2"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Event: Event{ID: "4"}}))
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}, []string{"https://example.com/subscribed"})
 
-	require.NoError(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	assert.Equal(t, "1", (<-s.Receive()).ID)
 	assert.Equal(t, "4", (<-s.Receive()).ID)
@@ -113,10 +108,11 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	t.Parallel()
 
 	transport := createBoltTransport(t, 0, 0)
+	ctx := t.Context()
 
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		require.NoError(t, transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: topics,
 		}))
@@ -124,7 +120,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
-	require.NoError(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	var count int
 
@@ -146,10 +142,11 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 	t.Parallel()
 
 	transport := createBoltTransport(t, 0, 0)
+	ctx := t.Context()
 
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
-		require.NoError(t, transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: topics,
 			Event:  Event{ID: strconv.Itoa(i)},
 		}))
@@ -157,7 +154,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 
 	s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
 	s.SetTopics(topics, nil)
-	require.NoError(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	synctest.Test(t, func(t *testing.T) {
 		go func() {
@@ -176,7 +173,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 			}
 		}()
 
-		require.NoError(t, transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Event:  Event{ID: "11"},
 			Topics: topics,
 		}))
@@ -191,7 +188,7 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 	transport := createBoltTransport(t, 5, 1)
 
 	for i := range 12 {
-		require.NoError(t, transport.Dispatch(&Update{
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Event:  Event{ID: strconv.Itoa(i)},
 			Topics: []string{"https://example.com/foo"},
 		}))
@@ -213,7 +210,7 @@ func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	assert.Implements(t, (*Transport)(nil), transport)
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	require.NoError(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
 
 	synctest.Test(t, func(t *testing.T) {
 		go func() {
@@ -234,24 +231,26 @@ func TestBoltTransportDispatch(t *testing.T) {
 	transport := createBoltTransport(t, 0, 0)
 	assert.Implements(t, (*Transport)(nil), transport)
 
+	ctx := t.Context()
+
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/foo", "https://example.com/private"}, []string{"https://example.com/private"})
 
-	require.NoError(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	notSubscribed := &Update{Topics: []string{"not-subscribed"}}
-	require.NoError(t, transport.Dispatch(notSubscribed))
+	require.NoError(t, transport.Dispatch(ctx, notSubscribed))
 
 	subscribedNotAuthorized := &Update{Topics: []string{"https://example.com/foo"}, Private: true}
-	require.NoError(t, transport.Dispatch(subscribedNotAuthorized))
+	require.NoError(t, transport.Dispatch(ctx, subscribedNotAuthorized))
 
 	public := &Update{Topics: s.SubscribedTopics}
-	require.NoError(t, transport.Dispatch(public))
+	require.NoError(t, transport.Dispatch(ctx, public))
 
 	assert.Equal(t, public, <-s.Receive())
 
 	private := &Update{Topics: s.AllowedPrivateTopics, Private: true}
-	require.NoError(t, transport.Dispatch(private))
+	require.NoError(t, transport.Dispatch(ctx, private))
 
 	assert.Equal(t, private, <-s.Receive())
 }
@@ -262,14 +261,16 @@ func TestBoltTransportClosed(t *testing.T) {
 	transport := createBoltTransport(t, 0, 0)
 	assert.Implements(t, (*Transport)(nil), transport)
 
+	ctx := t.Context()
+
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/foo"}, nil)
-	require.NoError(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.AddSubscriber(ctx, s))
 
-	require.NoError(t, transport.Close())
-	require.Error(t, transport.AddSubscriber(s))
+	require.NoError(t, transport.Close(ctx))
+	require.Error(t, transport.AddSubscriber(ctx, s))
 
-	assert.Equal(t, transport.Dispatch(&Update{Topics: s.SubscribedTopics}), ErrClosedTransport)
+	assert.Equal(t, transport.Dispatch(ctx, &Update{Topics: s.SubscribedTopics}), ErrClosedTransport)
 
 	_, ok := <-s.Receive()
 	assert.False(t, ok)
@@ -279,23 +280,24 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	t.Parallel()
 
 	transport := createBoltTransport(t, 0, 0)
+	ctx := t.Context()
 
 	s1 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	s1.SetTopics([]string{"foo"}, []string{})
-	require.NoError(t, transport.AddSubscriber(s1))
+	require.NoError(t, transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	s2.SetTopics([]string{"foo"}, []string{})
-	require.NoError(t, transport.AddSubscriber(s2))
+	require.NoError(t, transport.AddSubscriber(ctx, s2))
 
 	assert.Equal(t, 2, transport.subscribers.Len())
 
 	s1.Disconnect()
-	require.NoError(t, transport.RemoveSubscriber(s1))
+	require.NoError(t, transport.RemoveSubscriber(ctx, s1))
 	assert.Equal(t, 1, transport.subscribers.Len())
 
 	s2.Disconnect()
-	require.NoError(t, transport.RemoveSubscriber(s2))
+	require.NoError(t, transport.RemoveSubscriber(ctx, s2))
 	assert.Zero(t, transport.subscribers.Len())
 }
 
@@ -303,14 +305,15 @@ func TestBoltGetSubscribers(t *testing.T) {
 	t.Parallel()
 
 	transport := createBoltTransport(t, 0, 0)
+	ctx := t.Context()
 
 	s1 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	require.NoError(t, transport.AddSubscriber(s1))
+	require.NoError(t, transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	require.NoError(t, transport.AddSubscriber(s2))
+	require.NoError(t, transport.AddSubscriber(ctx, s2))
 
-	lastEventID, subscribers, err := transport.GetSubscribers()
+	lastEventID, subscribers, err := transport.GetSubscribers(ctx)
 	require.NoError(t, err)
 
 	assert.Equal(t, EarliestLastEventID, lastEventID)
@@ -352,6 +355,6 @@ func TestBoltLastEventID(t *testing.T) {
 
 	transport := createBoltTransport(t, 0, 0)
 
-	lastEventID, _, _ := transport.GetSubscribers()
+	lastEventID, _, _ := transport.GetSubscribers(t.Context())
 	assert.Equal(t, "foo", lastEventID)
 }

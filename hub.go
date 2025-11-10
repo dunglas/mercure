@@ -3,15 +3,16 @@
 package mercure
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"go.uber.org/zap"
 )
 
 const (
@@ -24,7 +25,7 @@ const (
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
 
 // Option instances allow to configure the library.
-type Option func(h *opt) error
+type Option func(o *opt) error
 
 // WithAnonymous allows subscribers with no valid JWT.
 func WithAnonymous() Option {
@@ -81,7 +82,7 @@ func WithSubscriptions() Option {
 }
 
 // WithLogger sets the logger to use.
-func WithLogger(logger Logger) Option {
+func WithLogger(logger *slog.Logger) Option {
 	return func(o *opt) error {
 		o.logger = logger
 
@@ -284,7 +285,7 @@ type opt struct {
 	subscriptions                bool
 	ui                           bool
 	demo                         bool
-	logger                       Logger
+	logger                       *slog.Logger
 	writeTimeout                 time.Duration
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
@@ -313,7 +314,7 @@ type Hub struct {
 }
 
 // NewHub creates a new Hub instance.
-func NewHub(options ...Option) (*Hub, error) {
+func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 	opt := &opt{
 		writeTimeout:    DefaultWriteTimeout,
 		dispatchTimeout: DefaultDispatchTimeout,
@@ -327,21 +328,7 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	if opt.logger == nil {
-		var (
-			l   Logger
-			err error
-		)
-		if opt.debug {
-			l, err = zap.NewDevelopment()
-		} else {
-			l, err = zap.NewProduction()
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("error when creating logger: %w", err)
-		}
-
-		opt.logger = l
+		opt.logger = slog.New(mercureHandler{slog.Default().Handler()})
 	}
 
 	if opt.topicSelectorStore == nil {
@@ -370,14 +357,14 @@ func NewHub(options ...Option) (*Hub, error) {
 	}
 
 	h := &Hub{opt: opt}
-	h.initHandler()
+	h.initHandler(ctx)
 
 	return h, nil
 }
 
 // Stop stops the hub.
-func (h *Hub) Stop() error {
-	if err := h.transport.Close(); err != nil {
+func (h *Hub) Stop(ctx context.Context) error {
+	if err := h.transport.Close(ctx); err != nil {
 		return fmt.Errorf("transport error: %w", err)
 	}
 

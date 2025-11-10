@@ -3,13 +3,13 @@ package mercure
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"go.uber.org/zap"
 )
 
 // claims contains Mercure's JWT claims.
@@ -194,7 +194,5 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 func (h *Hub) httpAuthorizationError(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
-	if c := h.logger.Check(zap.DebugLevel, "Topic selectors not matched, not provided or authorization error"); c != nil {
-		c.Write(zap.String("remote_addr", r.RemoteAddr), zap.Error(err))
-	}
+	h.logger.DebugContext(r.Context(), "Topic selectors not matched, not provided or authorization error", slog.Any("error", err))
 }

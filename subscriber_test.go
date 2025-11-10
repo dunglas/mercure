@@ -1,17 +1,19 @@
 package mercure
 
 import (
+	"bytes"
+	"log/slog"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func TestDispatch(t *testing.T) {
 	t.Parallel()
 
-	s := NewLocalSubscriber("1", zap.NewNop(), &TopicSelectorStore{})
+	ctx := t.Context()
+	s := NewLocalSubscriber("1", slog.Default(), &TopicSelectorStore{})
 	s.SubscribedTopics = []string{"https://example.com"}
 
 	s.SubscribedTopics = []string{"https://example.com"}
@@ -19,13 +21,13 @@ func TestDispatch(t *testing.T) {
 
 	// Dispatch must be non-blocking
 	// Messages coming from the history can be sent after live messages, but must be received first
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "3"}}, false)
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "1"}}, true)
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "4"}}, false)
-	s.Dispatch(&Update{Topics: s.SubscribedTopics, Event: Event{ID: "2"}}, true)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "3"}}, false)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "1"}}, true)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "4"}}, false)
+	s.Dispatch(ctx, &Update{Topics: s.SubscribedTopics, Event: Event{ID: "2"}}, true)
 	s.HistoryDispatched("")
 
-	s.Ready()
+	s.Ready(ctx)
 
 	for i := 1; i <= 4; i++ {
 		if u, ok := <-s.Receive(); ok && u != nil {
@@ -37,30 +39,28 @@ func TestDispatch(t *testing.T) {
 func TestDisconnect(t *testing.T) {
 	t.Parallel()
 
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()
 
-	assert.False(t, s.Dispatch(&Update{}, false))
+	assert.False(t, s.Dispatch(t.Context(), &Update{}, false))
 }
 
 func TestLogSubscriber(t *testing.T) {
 	t.Parallel()
 
-	sink, logger := newTestLogger(t)
-	t.Cleanup(sink.Reset)
+	var buf bytes.Buffer
+
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	s := NewLocalSubscriber("123", logger, &TopicSelectorStore{})
-	s.RemoteAddr = "127.0.0.1"
 	s.SetTopics([]string{"https://example.com/bar"}, []string{"https://example.com/foo"})
 
-	f := zap.Object("subscriber", s)
-	logger.Info("test", f)
+	logger.Info("test", slog.Any("subscriber", s))
 
-	log := sink.String()
+	log := buf.String()
 	assert.Contains(t, log, `"last_event_id":"123"`)
-	assert.Contains(t, log, `"remote_addr":"127.0.0.1"`)
 	assert.Contains(t, log, `"topic_selectors":["https://example.com/foo"]`)
 	assert.Contains(t, log, `"topics":["https://example.com/bar"]`)
 }
@@ -68,7 +68,7 @@ func TestLogSubscriber(t *testing.T) {
 func TestMatchTopic(t *testing.T) {
 	t.Parallel()
 
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 	s.SetTopics([]string{"https://example.com/no-match", "https://example.com/books/{id}"}, []string{"https://example.com/users/foo/{?topic}"})
 
 	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}}))
@@ -84,11 +84,13 @@ func TestMatchTopic(t *testing.T) {
 func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 	t.Parallel()
 
-	s := NewLocalSubscriber("", zap.NewNop(), &TopicSelectorStore{})
-	s.Ready()
+	ctx := t.Context()
+
+	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+	s.Ready(ctx)
 
 	for i := 0; i <= outBufferLength; i++ {
-		s.Dispatch(&Update{}, false)
+		s.Dispatch(ctx, &Update{}, false)
 	}
 
 	for range s.Receive() { //nolint:revive

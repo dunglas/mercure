@@ -1,11 +1,9 @@
 package mercure
 
 import (
-	"fmt"
+	"log/slog"
 	"net/url"
 	"regexp"
-
-	"go.uber.org/zap/zapcore"
 )
 
 // Subscriber represents a client subscribed to a list of topics on a remote or on the current hub.
@@ -15,17 +13,16 @@ type Subscriber struct {
 	Claims                 *claims
 	EscapedTopics          []string
 	RequestLastEventID     string
-	RemoteAddr             string
 	SubscribedTopics       []string
 	SubscribedTopicRegexps []*regexp.Regexp
 	AllowedPrivateTopics   []string
 	AllowedPrivateRegexps  []*regexp.Regexp
 
-	logger             Logger
+	logger             *slog.Logger
 	topicSelectorStore *TopicSelectorStore
 }
 
-func NewSubscriber(logger Logger, topicSelectorStore *TopicSelectorStore) *Subscriber {
+func NewSubscriber(logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *Subscriber {
 	return &Subscriber{
 		logger:             logger,
 		topicSelectorStore: topicSelectorStore,
@@ -86,27 +83,21 @@ func (s *Subscriber) Match(u *Update) bool {
 	return s.MatchTopics(u.Topics, u.Private)
 }
 
-func (s *Subscriber) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	enc.AddString("id", s.ID)
-	enc.AddString("last_event_id", s.RequestLastEventID)
-
-	if s.RemoteAddr != "" {
-		enc.AddString("remote_addr", s.RemoteAddr)
+func (s *Subscriber) LogValue() slog.Value {
+	attrs := []slog.Attr{
+		slog.String("id", s.ID),
+		slog.String("last_event_id", s.RequestLastEventID),
 	}
 
 	if s.AllowedPrivateTopics != nil {
-		if err := enc.AddArray("topic_selectors", stringArray(s.AllowedPrivateTopics)); err != nil {
-			return fmt.Errorf("log error: %w", err)
-		}
+		attrs = append(attrs, slog.Any("topic_selectors", s.AllowedPrivateTopics))
 	}
 
 	if s.SubscribedTopics != nil {
-		if err := enc.AddArray("topics", stringArray(s.SubscribedTopics)); err != nil {
-			return fmt.Errorf("log error: %w", err)
-		}
+		attrs = append(attrs, slog.Any("topics", s.SubscribedTopics))
 	}
 
-	return nil
+	return slog.GroupValue(attrs...)
 }
 
 // getSubscriptions return the list of subscriptions associated to this subscriber.

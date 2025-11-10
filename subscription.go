@@ -2,11 +2,11 @@ package mercure
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/url"
 
 	"github.com/gorilla/mux"
-	"go.uber.org/zap"
 )
 
 const jsonldContext = "https://mercure.rocks/"
@@ -68,9 +68,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := w.Write(j); err != nil {
-		if c := h.logger.Check(zap.WarnLevel, "Failed to write subscriptions response"); c != nil {
-			c.Write(zap.Error(err))
-		}
+		h.logger.WarnContext(r.Context(), "Failed to write subscriptions response", slog.Any("error", err))
 	}
 }
 
@@ -85,6 +83,8 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	s, _ := url.QueryUnescape(vars["subscriber"])
 	t, _ := url.QueryUnescape(vars["topic"])
+
+	ctx := r.Context()
 
 	for _, subscriber := range subscribers {
 		if subscriber.ID != s {
@@ -104,9 +104,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if _, err := w.Write(j); err != nil {
-				if c := h.logger.Check(zap.WarnLevel, "Failed to write subscription response"); c != nil {
-					c.Write(zap.Error(err), zap.Object("subscriber", subscriber), zap.String("remote_addr", r.RemoteAddr))
-				}
+				slog.WarnContext(ctx, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
 			}
 
 			return
@@ -133,11 +131,9 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 
 	var err error
 
-	lastEventID, subscribers, err = transport.GetSubscribers()
+	lastEventID, subscribers, err = transport.GetSubscribers(r.Context())
 	if err != nil {
-		if c := h.logger.Check(zap.ErrorLevel, "Error retrieving subscribers"); c != nil {
-			c.Write(zap.Error(err))
-		}
+		slog.ErrorContext(r.Context(), "Error retrieving subscribers", slog.Any("error", err))
 
 		w.WriteHeader(http.StatusInternalServerError)
 

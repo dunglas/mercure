@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -11,22 +12,22 @@ const EarliestLastEventID = "earliest"
 // Transport provides methods to dispatch and persist updates.
 type Transport interface {
 	// Dispatch dispatches an update to all subscribers.
-	Dispatch(update *Update) error
+	Dispatch(ctx context.Context, u *Update) error
 
 	// AddSubscriber adds a new subscriber to the transport.
-	AddSubscriber(s *LocalSubscriber) error
+	AddSubscriber(ctx context.Context, s *LocalSubscriber) error
 
 	// RemoveSubscriber removes a subscriber from the transport.
-	RemoveSubscriber(s *LocalSubscriber) error
+	RemoveSubscriber(ctx context.Context, s *LocalSubscriber) error
 
 	// Close closes the Transport.
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // TransportSubscribers provides a method to retrieve the list of active subscribers.
 type TransportSubscribers interface {
 	// GetSubscribers gets the last event ID and the list of active subscribers at this time.
-	GetSubscribers() (string, []*Subscriber, error)
+	GetSubscribers(ctx context.Context) (string, []*Subscriber, error)
 }
 
 // TransportTopicSelectorStore provides a method to pass the TopicSelectorStore to the transport.

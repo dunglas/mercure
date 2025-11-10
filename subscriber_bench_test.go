@@ -3,13 +3,12 @@ package mercure
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
-
-	"go.uber.org/zap"
 )
 
 func subscribeBenchmarkHelper(b *testing.B, subBench func(b *testing.B, topics, concurrency, matchPct int, testName string)) {
@@ -76,9 +75,10 @@ func parseIntsEnvVar(s string) (res []int) {
 func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testName string) {
 	b.Helper()
 
-	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", zap.NewNop(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", slog.Default(), &TopicSelectorStore{})
 	ts := make([]string, topics)
 	tsMatch := make([]string, topics)
+	ctx := b.Context()
 
 	tsNoMatch := make([]string, topics)
 	for i := range topics {
@@ -96,7 +96,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 	s.SetTopics(ts, nil)
 	b.Cleanup(s.Disconnect)
 
-	ctx, done := context.WithCancel(b.Context())
+	ctx, done := context.WithCancel(ctx)
 	defer done()
 
 	for range 1 {
@@ -116,9 +116,9 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
 				if i%100 < matchPct {
-					s.Dispatch(&Update{Topics: tsMatch}, i%2 == 0 /* half history, half live */)
+					s.Dispatch(ctx, &Update{Topics: tsMatch}, i%2 == 0 /* half history, half live */)
 				} else {
-					s.Dispatch(&Update{Topics: tsNoMatch}, i%2 == 0 /* half history, half live */)
+					s.Dispatch(ctx, &Update{Topics: tsNoMatch}, i%2 == 0 /* half history, half live */)
 				}
 			}
 		})
