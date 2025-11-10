@@ -204,6 +204,8 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
+	ctx = ctx.WithValue(WriteTimeoutContextKey, m.WriteTimeout)
+
 	if m.SubscriberListCacheSize == nil {
 		ctx = ctx.WithValue(SubscriberListCacheSizeContextKey, mercure.DefaultSubscriberListCacheSize)
 	} else {
