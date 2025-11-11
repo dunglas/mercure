@@ -68,7 +68,11 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := w.Write(j); err != nil {
-		h.logger.WarnContext(r.Context(), "Failed to write subscriptions response", slog.Any("error", err))
+		ctx := r.Context()
+
+		if h.logger.Enabled(ctx, slog.LevelWarn) {
+			h.logger.LogAttrs(ctx, slog.LevelWarn, "Failed to write subscriptions response", slog.Any("error", err))
+		}
 	}
 }
 
@@ -103,8 +107,8 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 
-			if _, err := w.Write(j); err != nil {
-				slog.WarnContext(ctx, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
+			if _, err := w.Write(j); err != nil && h.logger.Enabled(ctx, slog.LevelWarn) {
+				h.logger.LogAttrs(ctx, slog.LevelWarn, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
 			}
 
 			return
@@ -133,7 +137,11 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 
 	lastEventID, subscribers, err = transport.GetSubscribers(r.Context())
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Error retrieving subscribers", slog.Any("error", err))
+		ctx := r.Context()
+
+		if h.logger.Enabled(ctx, slog.LevelError) {
+			slog.LogAttrs(ctx, slog.LevelError, "Error retrieving subscribers", slog.Any("error", err))
+		}
 
 		w.WriteHeader(http.StatusInternalServerError)
 

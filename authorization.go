@@ -194,5 +194,8 @@ func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
 func (h *Hub) httpAuthorizationError(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
-	h.logger.DebugContext(r.Context(), "Topic selectors not matched, not provided or authorization error", slog.Any("error", err))
+	ctx := r.Context()
+	if h.logger.Enabled(ctx, slog.LevelDebug) {
+		h.logger.LogAttrs(ctx, slog.LevelDebug, "Topic selectors not matched, not provided or authorization error", slog.Any("error", err))
+	}
 }

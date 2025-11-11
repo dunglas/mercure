@@ -61,6 +61,10 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, cookie)
 
 	if _, err := io.WriteString(w, body); err != nil {
-		h.logger.InfoContext(r.Context(), "Failed to write demo response", slog.Any("error", err))
+		ctx := r.Context()
+
+		if h.logger.Enabled(ctx, slog.LevelWarn) {
+			h.logger.LogAttrs(ctx, slog.LevelWarn, "Failed to write demo response", slog.Any("error", err))
+		}
 	}
 }
