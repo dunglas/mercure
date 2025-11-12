@@ -48,13 +48,7 @@ func (rc *responseController) setDispatchWriteDeadline(ctx context.Context) bool
 
 func (rc *responseController) setDefaultWriteDeadline(ctx context.Context) bool {
 	if err := rc.SetWriteDeadline(rc.writeDeadline); err != nil {
-		if errors.Is(err, http.ErrNotSupported) {
-			panic(err)
-		}
-
-		if rc.hub.logger.Enabled(ctx, slog.LevelInfo) {
-			rc.hub.logger.LogAttrs(ctx, slog.LevelInfo, "Error while setting default write deadline", slog.Any("error", err))
-		}
+		rc.hub.handleWriterError(ctx, err, "Error while setting default write deadline")
 
 		return false
 	}
@@ -64,13 +58,7 @@ func (rc *responseController) setDefaultWriteDeadline(ctx context.Context) bool 
 
 func (rc *responseController) flush(ctx context.Context) bool {
 	if err := rc.Flush(); err != nil {
-		if errors.Is(err, http.ErrNotSupported) {
-			panic(err)
-		}
-
-		if rc.hub.logger.Enabled(ctx, slog.LevelInfo) {
-			rc.hub.logger.LogAttrs(ctx, slog.LevelInfo, "Unable to flush", slog.Any("error", err))
-		}
+		rc.hub.handleWriterError(ctx, err, "Error while flushing response")
 
 		return false
 	}
@@ -388,4 +376,14 @@ func randomizeWriteDeadline(originalValue time.Duration) time.Duration {
 	// rand.Int64n(n) returns a non-negative pseudo-random 64-bit integer in the half-open interval [0, n).
 	// Adding 'min' shifts this result to the desired range [min, max].
 	return time.Duration(rand.Int64N(rangeSize) + minV) //nolint:gosec
+}
+
+func (h *Hub) handleWriterError(ctx context.Context, err error, message string) {
+	if errors.Is(err, http.ErrNotSupported) {
+		panic(err)
+	}
+
+	if h.logger.Enabled(ctx, slog.LevelInfo) {
+		h.logger.LogAttrs(ctx, slog.LevelInfo, message, slog.Any("error", err))
+	}
 }
