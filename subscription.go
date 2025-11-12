@@ -139,7 +139,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 
 	lastEventID, subscribers, err = transport.GetSubscribers(r.Context())
 	if err != nil {
-		http.Error(w, "500 internal server error", http.StatusInternalServerError)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 		ctx := r.Context()
 		if h.logger.Enabled(ctx, slog.LevelError) {
@@ -150,7 +150,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 	}
 
 	if r.Header.Get("If-None-Match") == lastEventID {
-		http.Error(w, "304 not modified", http.StatusNotModified)
+		http.Error(w, http.StatusText(http.StatusNotModified), http.StatusNotModified)
 
 		return "", nil, false
 	}
