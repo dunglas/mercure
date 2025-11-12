@@ -49,8 +49,8 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 		}
 
 		go func() {
-			if err := h.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) { //nolint:gosec
-				h.logger.ErrorContext(ctx, "Mercure metrics server error", slog.Any("error", err))
+			if err := h.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) && h.logger.Enabled(ctx, slog.LevelError) { //nolint:gosec
+				h.logger.LogAttrs(ctx, slog.LevelError, "Mercure metrics server error", slog.Any("error", err))
 			}
 		}()
 	}
@@ -88,8 +88,8 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 			// Mandatory for Let's Encrypt http-01 challenge
 			go func() {
 				//nolint:gosec
-				if err := http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					h.logger.ErrorContext(ctx, "Error running HTTP endpoint", slog.Any("error", err))
+				if err := http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)); err != nil && !errors.Is(err, http.ErrServerClosed) && h.logger.Enabled(ctx, slog.LevelError) {
+					h.logger.LogAttrs(ctx, slog.LevelError, "Error running HTTP endpoint", slog.Any("error", err))
 				}
 			}()
 		}
@@ -101,8 +101,8 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
-	if !errors.Is(err, http.ErrServerClosed) {
-		h.logger.ErrorContext(ctx, "Unexpected error", slog.Any("error", err))
+	if !errors.Is(err, http.ErrServerClosed) && h.logger.Enabled(ctx, slog.LevelError) {
+		h.logger.LogAttrs(ctx, slog.LevelError, "Unexpected error", slog.Any("error", err))
 	}
 
 	<-done
@@ -125,13 +125,13 @@ func (h *Hub) listenShutdown(ctx context.Context) <-chan struct{} {
 		signal.Notify(sigint, os.Interrupt)
 		<-sigint
 
-		if err := h.server.Shutdown(ctx); err != nil {
-			h.logger.ErrorContext(ctx, "Unexpected error during server shutdown", slog.Any("error", err))
+		if err := h.server.Shutdown(ctx); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "Unexpected error during server shutdown", slog.Any("error", err))
 		}
 
 		if h.metricsServer != nil {
-			if err := h.metricsServer.Shutdown(ctx); err != nil {
-				h.logger.ErrorContext(ctx, "Unexpected error during metrics server shutdown", slog.Any("error", err))
+			if err := h.metricsServer.Shutdown(ctx); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
+				h.logger.LogAttrs(ctx, slog.LevelError, "Unexpected error during metrics server shutdown", slog.Any("error", err))
 			}
 		}
 
