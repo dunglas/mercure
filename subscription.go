@@ -17,7 +17,7 @@ const (
 	subscriptionsURL         = defaultHubURL + subscriptionsPath
 )
 
-var jsonldContentType = []string{"application/ld+json"}
+var jsonldContentType = []string{"application/ld+json"} // nolint:gochecknoglobals
 
 type subscription struct {
 	Context     string `json:"@context,omitempty"`

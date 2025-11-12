@@ -287,7 +287,7 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
 		return id
 	}
 
-	if legacyEventIDValues, present := query["Last-Event-ID"]; present {
+	if legacyEventIDValues, present := query["Last-Event-ID"]; present { //nolint:nestif
 		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)
 		if h.isBackwardCompatiblyEnabledWith(7) {
 			if infoLevel {

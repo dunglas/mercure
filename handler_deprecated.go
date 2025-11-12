@@ -49,7 +49,7 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 		}
 
 		go func() {
-			if err := h.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			if err := h.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) { //nolint:gosec
 				h.logger.ErrorContext(ctx, "Mercure metrics server error", slog.Any("error", err))
 			}
 		}()
@@ -65,7 +65,9 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 	var err error
 
 	if !acme && certFile == "" && keyFile == "" { //nolint:nestif
-		h.logger.Info("Mercure started", slog.String("protocol", "http"), slog.String("addr", addr))
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Mercure started", slog.String("protocol", "http"), slog.String("addr", addr))
+		}
 
 		err = h.server.ListenAndServe()
 	} else {
@@ -85,6 +87,7 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 
 			// Mandatory for Let's Encrypt http-01 challenge
 			go func() {
+				//nolint:gosec
 				if err := http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)); err != nil && !errors.Is(err, http.ErrServerClosed) {
 					h.logger.ErrorContext(ctx, "Error running HTTP endpoint", slog.Any("error", err))
 				}

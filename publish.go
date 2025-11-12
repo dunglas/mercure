@@ -40,6 +40,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	if h.publisherJWTKeyFunc != nil {
 		var err error
+
 		claims, err = h.authorize(r, true)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			h.httpAuthorizationError(w, r, err)
@@ -62,6 +63,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var retry uint64
+
 	if retryString := r.PostForm.Get("retry"); retryString != "" {
 		var err error
 		if retry, err = strconv.ParseUint(retryString, 10, 64); err != nil {
