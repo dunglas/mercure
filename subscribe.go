@@ -263,7 +263,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 
 	if s.RequestLastEventID != "" {
-		header["Last-Event-ID"] = []string{<-s.responseLastEventID}
+		header["Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
 	// Write a comment in the body
