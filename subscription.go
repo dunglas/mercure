@@ -150,7 +150,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 	}
 
 	if r.Header.Get("If-None-Match") == lastEventID {
-		http.Error(w, http.StatusText(http.StatusNotModified), http.StatusNotModified)
+		w.WriteHeader(http.StatusNotModified)
 
 		return "", nil, false
 	}
