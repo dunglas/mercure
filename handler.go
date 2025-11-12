@@ -3,6 +3,7 @@ package mercure
 import (
 	"context"
 	"io/fs"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -83,7 +84,9 @@ func (h *Hub) registerSubscriptionHandlers(ctx context.Context, r *mux.Router) {
 	}
 
 	if _, ok := h.transport.(TransportSubscribers); !ok {
-		h.logger.ErrorContext(ctx, "The current transport doesn't support subscriptions. Subscription API disabled.")
+		if h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "The current transport doesn't support subscriptions. Subscription API disabled.")
+		}
 
 		return
 	}

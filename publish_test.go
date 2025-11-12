@@ -407,7 +407,7 @@ func TestPublishHandlerWithErrorInTransport(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-	assert.Equal(t, "500 internal server error\n", string(body))
+	assert.Equal(t, "Internal Server Error\n", string(body))
 }
 
 func FuzzPublish(f *testing.F) {

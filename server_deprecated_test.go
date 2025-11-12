@@ -34,7 +34,7 @@ func TestSecurityOptions(t *testing.T) {
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
 
-	go h.Serve()
+	go h.Serve(t.Context())
 
 	// This is a self-signed certificate
 	transport := &http.Transport{
@@ -83,7 +83,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
 
-	go h.Serve()
+	go h.Serve(t.Context())
 
 	// This is a self-signed certificate
 	transport := &http.Transport{
@@ -127,7 +127,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 func TestServe(t *testing.T) {
 	h := createAnonymousDummy(t)
 
-	go h.Serve()
+	go h.Serve(t.Context())
 
 	// loop until the web server is ready
 	var resp *http.Response
@@ -214,7 +214,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 	})
 
 	h := createAnonymousDummy(t, WithTransport(bt))
-	go h.Serve()
+	go h.Serve(t.Context())
 
 	// loop until the web server is ready
 	var resp *http.Response
@@ -320,7 +320,7 @@ func TestServeAcme(t *testing.T) {
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_cert_dir", t.TempDir())
 
-	go h.Serve()
+	go h.Serve(t.Context())
 
 	client := &http.Client{
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
@@ -412,7 +412,7 @@ func newTestServer(t *testing.T) testServer {
 	m := NewPrometheusMetrics(nil)
 	h := createAnonymousDummy(t, WithMetrics(m))
 
-	go h.Serve()
+	go h.Serve(t.Context())
 
 	// loop until the web server is ready
 	var resp *http.Response

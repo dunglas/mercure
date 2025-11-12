@@ -22,12 +22,12 @@ import (
 // Serve starts the HTTP server.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) Serve() { //nolint:funlen
+func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 	addr := h.config.GetString("addr")
 
 	h.server = &http.Server{
 		Addr:              addr,
-		Handler:           h.baseHandler(),
+		Handler:           h.baseHandler(ctx),
 		ReadTimeout:       h.config.GetDuration("read_timeout"),
 		ReadHeaderTimeout: h.config.GetDuration("read_header_timeout"),
 		WriteTimeout:      h.config.GetDuration("write_timeout"),
@@ -44,9 +44,15 @@ func (h *Hub) Serve() { //nolint:funlen
 			WriteTimeout:      h.config.GetDuration("write_timeout"),
 		}
 
-		h.logger.Info("Mercure metrics started", slog.String("addr", addr))
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Mercure metrics started", slog.String("addr", addr))
+		}
 
-		go h.metricsServer.ListenAndServe()
+		go func() {
+			if err := h.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) && h.logger.Enabled(ctx, slog.LevelError) { //nolint:gosec
+				h.logger.LogAttrs(ctx, slog.LevelError, "Mercure metrics server error", slog.Any("error", err))
+			}
+		}()
 	}
 
 	acme := len(h.allowedHosts) > 0
@@ -54,12 +60,14 @@ func (h *Hub) Serve() { //nolint:funlen
 	certFile := h.config.GetString("cert_file")
 	keyFile := h.config.GetString("key_file")
 
-	done := h.listenShutdown()
+	done := h.listenShutdown(ctx)
 
 	var err error
 
 	if !acme && certFile == "" && keyFile == "" { //nolint:nestif
-		h.logger.Info("Mercure started", slog.String("protocol", "http"), slog.String("addr", addr))
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Mercure started", slog.String("protocol", "http"), slog.String("addr", addr))
+		}
 
 		err = h.server.ListenAndServe()
 	} else {
@@ -78,23 +86,30 @@ func (h *Hub) Serve() { //nolint:funlen
 			h.server.TLSConfig = certManager.TLSConfig()
 
 			// Mandatory for Let's Encrypt http-01 challenge
-			go http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)) //nolint:gosec
+			go func() {
+				//nolint:gosec
+				if err := http.ListenAndServe(h.config.GetString("acme_http01_addr"), certManager.HTTPHandler(nil)); err != nil && !errors.Is(err, http.ErrServerClosed) && h.logger.Enabled(ctx, slog.LevelError) {
+					h.logger.LogAttrs(ctx, slog.LevelError, "Error running HTTP endpoint", slog.Any("error", err))
+				}
+			}()
 		}
 
-		h.logger.Info("Mercure started", slog.String("protocol", "https"), slog.String("addr", addr))
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Mercure started", slog.String("protocol", "https"), slog.String("addr", addr))
+		}
 
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
 
-	if !errors.Is(err, http.ErrServerClosed) {
-		h.logger.Error("Unexpected error", slog.Any("error", err))
+	if !errors.Is(err, http.ErrServerClosed) && h.logger.Enabled(ctx, slog.LevelError) {
+		h.logger.LogAttrs(ctx, slog.LevelError, "Unexpected error", slog.Any("error", err))
 	}
 
 	<-done
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) listenShutdown() <-chan struct{} {
+func (h *Hub) listenShutdown(ctx context.Context) <-chan struct{} {
 	idleConnsClosed := make(chan struct{})
 
 	h.server.RegisterOnShutdown(func() {
@@ -110,17 +125,19 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 		signal.Notify(sigint, os.Interrupt)
 		<-sigint
 
-		if err := h.server.Shutdown(context.Background()); err != nil {
-			h.logger.Error("Unexpected error during server shutdown", slog.Any("error", err))
+		if err := h.server.Shutdown(ctx); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "Unexpected error during server shutdown", slog.Any("error", err))
 		}
 
 		if h.metricsServer != nil {
-			if err := h.metricsServer.Shutdown(context.Background()); err != nil {
-				h.logger.Error("Unexpected error during metrics server shutdown", slog.Any("error", err))
+			if err := h.metricsServer.Shutdown(ctx); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
+				h.logger.LogAttrs(ctx, slog.LevelError, "Unexpected error during metrics server shutdown", slog.Any("error", err))
 			}
 		}
 
-		h.logger.Info("My Baby Shot Me Down")
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "My Baby Shot Me Down")
+		}
 
 		select {
 		case <-idleConnsClosed:
@@ -135,9 +152,9 @@ func (h *Hub) listenShutdown() <-chan struct{} {
 // chainHandlers configures and chains handlers.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
+func (h *Hub) chainHandlers(ctx context.Context) http.Handler { //nolint:funlen
 	r := mux.NewRouter()
-	h.registerSubscriptionHandlers(context.Background(), r)
+	h.registerSubscriptionHandlers(ctx, r)
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
@@ -200,7 +217,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 
 	var loggingHandler http.Handler
 
-	if h.logger.Enabled(context.Background(), slog.LevelError) {
+	if h.logger.Enabled(ctx, slog.LevelError) {
 		loggingHandler = handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	} else {
 		loggingHandler = secureHandler
@@ -215,7 +232,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) baseHandler() http.Handler {
+func (h *Hub) baseHandler(ctx context.Context) http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.UseEncodedPath()
 	mainRouter.SkipClean(true)
@@ -223,7 +240,7 @@ func (h *Hub) baseHandler() http.Handler {
 	// Register /healthz (if enabled, in a way that doesn't pollute the HTTP logs).
 	registerHealthz(mainRouter)
 
-	handler := h.chainHandlers()
+	handler := h.chainHandlers(ctx)
 	mainRouter.PathPrefix("/").Handler(handler)
 
 	return mainRouter

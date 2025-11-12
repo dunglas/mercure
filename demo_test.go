@@ -21,7 +21,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 
 	resp := w.Result()
 	assert.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
-	assert.Equal(t, []string{"<" + defaultHubURL + linkSuffix, "<https://example.com/demo/foo.jsonld>; rel=\"self\""}, resp.Header["Link"])
+	assert.Equal(t, []string{hubLink, `<https://example.com/demo/foo.jsonld>; rel="self"`}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
 	assert.Equal(t, "mercureAuthorization", cookie.Name)
@@ -47,7 +47,7 @@ func TestBodyAndJWT(t *testing.T) {
 
 	resp := w.Result()
 	assert.Contains(t, resp.Header.Get("Content-Type"), "xml") // Before Go 1.17, the charset wasn't set
-	assert.Equal(t, []string{"<" + defaultHubURL + linkSuffix, "<https://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token>; rel=\"self\""}, resp.Header["Link"])
+	assert.Equal(t, []string{hubLink, `<https://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token>; rel="self"`}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
 	assert.Equal(t, "mercureAuthorization", cookie.Name)

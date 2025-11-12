@@ -274,11 +274,13 @@ func Start() {
 		log.Fatalln(err)
 	}
 
+	ctx := context.Background()
+
 	defer func() {
-		if err := h.transport.Close(context.Background()); err != nil {
+		if err := h.transport.Close(ctx); err != nil {
 			log.Fatalln(err)
 		}
 	}()
 
-	h.Serve()
+	h.Serve(ctx)
 }

@@ -9,7 +9,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const jsonldContext = "https://mercure.rocks/"
+const (
+	jsonldContext            = "https://mercure.rocks/"
+	subscriptionsPath        = "/subscriptions"
+	subscriptionURL          = defaultHubURL + subscriptionsPath + "/{topic}/{subscriber}"
+	subscriptionsForTopicURL = defaultHubURL + subscriptionsPath + "/{topic}"
+	subscriptionsURL         = defaultHubURL + subscriptionsPath
+)
+
+var jsonldContentType = []string{"application/ld+json"} // nolint:gochecknoglobals
 
 type subscription struct {
 	Context     string `json:"@context,omitempty"`
@@ -29,13 +37,6 @@ type subscriptionCollection struct {
 	LastEventID   string         `json:"lastEventID"`
 	Subscriptions []subscription `json:"subscriptions"`
 }
-
-const (
-	subscriptionsPath        = "/subscriptions"
-	subscriptionURL          = defaultHubURL + subscriptionsPath + "/{topic}/{subscriber}"
-	subscriptionsForTopicURL = defaultHubURL + subscriptionsPath + "/{topic}"
-	subscriptionsURL         = defaultHubURL + subscriptionsPath
-)
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	currentURL := r.URL.RequestURI()
@@ -64,11 +65,16 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 
 	j, err := json.MarshalIndent(subscriptionCollection, "", "  ")
 	if err != nil {
+		// Can't happen
 		panic(err)
 	}
 
 	if _, err := w.Write(j); err != nil {
-		h.logger.WarnContext(r.Context(), "Failed to write subscriptions response", slog.Any("error", err))
+		ctx := r.Context()
+
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write subscriptions response", slog.Any("error", err))
+		}
 	}
 }
 
@@ -103,15 +109,15 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 
-			if _, err := w.Write(j); err != nil {
-				slog.WarnContext(ctx, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
+			if _, err := w.Write(j); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
+				h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
 			}
 
 			return
 		}
 	}
 
-	w.WriteHeader(http.StatusNotFound)
+	http.NotFound(w, r)
 }
 
 func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http.Request) (lastEventID string, subscribers []*Subscriber, ok bool) {
@@ -133,9 +139,12 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 
 	lastEventID, subscribers, err = transport.GetSubscribers(r.Context())
 	if err != nil {
-		slog.ErrorContext(r.Context(), "Error retrieving subscribers", slog.Any("error", err))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
-		w.WriteHeader(http.StatusInternalServerError)
+		ctx := r.Context()
+		if h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "Error retrieving subscribers", slog.Any("error", err))
+		}
 
 		return lastEventID, subscribers, ok
 	}
@@ -146,8 +155,9 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 		return "", nil, false
 	}
 
-	w.Header().Add("Content-Type", "application/ld+json")
-	w.Header().Add("ETag", lastEventID)
+	header := w.Header()
+	header["Content-Type"] = jsonldContentType
+	header["ETag"] = []string{lastEventID}
 
 	return lastEventID, subscribers, true
 }
