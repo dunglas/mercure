@@ -234,24 +234,36 @@ func (h *Hub) registerSubscriber(w http.ResponseWriter, r *http.Request) (*Local
 	return s, rc
 }
 
+//nolint:gochecknoglobals
+var (
+	headerConnection   = []string{"keep-alive"}
+	headerContentType  = []string{"text/event-stream"}
+	headerCacheControl = []string{"private, no-cache, no-store, must-revalidate, max-age=0"}
+	headerPragma       = []string{"no-cache"}
+	headerExpire       = []string{"0"}
+
+	headerXAccelBuffering = []string{"no"}
+)
+
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
 func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber) {
-	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
-	w.Header().Set("Connection", "keep-alive")
+	header := w.Header()
 
-	// Server-sent events https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#Sending_events_from_the_server
-	w.Header().Set("Content-Type", "text/event-stream")
+	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
+	header["Connection"] = headerConnection
+
+	header["Content-Type"] = headerContentType
 
 	// Disable cache, even for old browsers and proxies
-	w.Header().Set("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expire", "0")
+	header["Cache-Control"] = headerCacheControl
+	header["Pragma"] = headerPragma
+	header["Expire"] = headerExpire
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
-	w.Header().Set("X-Accel-Buffering", "no")
+	header["X-Accel-Buffering"] = headerXAccelBuffering
 
 	if s.RequestLastEventID != "" {
-		w.Header().Set("Last-Event-ID", <-s.responseLastEventID)
+		header["Last-Event-ID"] = []string{<-s.responseLastEventID}
 	}
 
 	// Write a comment in the body
