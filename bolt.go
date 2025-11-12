@@ -243,8 +243,8 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 		s.HistoryDispatched(responseLastEventID)
 
 		if !afterFromID {
-			if t.logger.Enabled(ctx, slog.LevelWarn) {
-				t.logger.LogAttrs(ctx, slog.LevelWarn, "Can't find requested LastEventID")
+			if t.logger.Enabled(ctx, slog.LevelInfo) {
+				t.logger.LogAttrs(ctx, slog.LevelInfo, "Can't find requested LastEventID")
 			}
 		}
 

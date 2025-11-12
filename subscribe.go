@@ -37,8 +37,8 @@ func (rc *responseController) setDispatchWriteDeadline(ctx context.Context) bool
 		return true
 	}
 
-	if err := rc.SetWriteDeadline(deadline); err != nil && rc.hub.logger.Enabled(ctx, slog.LevelWarn) {
-		rc.hub.logger.LogAttrs(ctx, slog.LevelWarn, "Unable to set dispatch write deadline", slog.Any("error", err))
+	if err := rc.SetWriteDeadline(deadline); err != nil && rc.hub.logger.Enabled(ctx, slog.LevelInfo) {
+		rc.hub.logger.LogAttrs(ctx, slog.LevelInfo, "Unable to set dispatch write deadline", slog.Any("error", err))
 
 		return false
 	}
@@ -68,8 +68,8 @@ func (rc *responseController) flush(ctx context.Context) bool {
 			panic(err)
 		}
 
-		if rc.hub.logger.Enabled(ctx, slog.LevelWarn) {
-			rc.hub.logger.LogAttrs(ctx, slog.LevelWarn, "Unable to flush", slog.Any("error", err))
+		if rc.hub.logger.Enabled(ctx, slog.LevelInfo) {
+			rc.hub.logger.LogAttrs(ctx, slog.LevelInfo, "Unable to flush", slog.Any("error", err))
 		}
 
 		return false
@@ -225,8 +225,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		h.dispatchSubscriptionUpdate(ctx, s, false)
 
-		if h.logger.Enabled(ctx, slog.LevelDebug) {
-			h.logger.LogAttrs(ctx, slog.LevelDebug, "Unable to add subscriber", slog.Any("error", err))
+		if h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "Unable to add subscriber", slog.Any("error", err))
 		}
 
 		return nil, nil
@@ -239,9 +239,9 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("payload", claims.Mercure.Payload))
+		} else {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber")
 		}
-	} else {
-		h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber")
 	}
 
 	h.metrics.SubscriberConnected(s)

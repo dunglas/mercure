@@ -36,12 +36,10 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 //
 //nolint:funlen
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
-	var (
-		claims *claims
-		err    error
-	)
+	var claims *claims
 
 	if h.publisherJWTKeyFunc != nil {
+		var err error
 		claims, err = h.authorize(r, true)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			h.httpAuthorizationError(w, r, err)
@@ -65,6 +63,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	var retry uint64
 	if retryString := r.PostForm.Get("retry"); retryString != "" {
+		var err error
 		if retry, err = strconv.ParseUint(retryString, 10, 64); err != nil {
 			http.Error(w, `Invalid "retry" parameter`, http.StatusBadRequest)
 
@@ -118,8 +117,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := io.WriteString(w, u.ID); err != nil {
-		if h.logger.Enabled(ctx, slog.LevelWarn) {
-			h.logger.LogAttrs(ctx, slog.LevelWarn, "Failed to write publish response", slog.Any("error", err))
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write publish response", slog.Any("error", err))
 		}
 
 		return
@@ -128,6 +127,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	h.metrics.UpdatePublished(u)
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
-		h.logger.LogAttrs(ctx, slog.LevelInfo, "Update published", slog.Any("error", err))
+		h.logger.LogAttrs(ctx, slog.LevelInfo, "Update published")
 	}
 }

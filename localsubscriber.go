@@ -117,8 +117,8 @@ func (s *LocalSubscriber) Disconnect() {
 func (s *LocalSubscriber) handleFullChan(ctx context.Context) {
 	s.doDisconnect()
 
-	if s.logger.Enabled(ctx, slog.LevelWarn) {
-		s.logger.LogAttrs(ctx, slog.LevelWarn, "Subscriber unable to receive updates fast enough")
+	if s.logger.Enabled(ctx, slog.LevelInfo) {
+		s.logger.LogAttrs(ctx, slog.LevelInfo, "Subscriber unable to receive updates fast enough")
 	}
 }
 
