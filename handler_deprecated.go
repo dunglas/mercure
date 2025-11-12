@@ -44,10 +44,12 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 			WriteTimeout:      h.config.GetDuration("write_timeout"),
 		}
 
-		h.logger.InfoContext(ctx, "Mercure metrics started", slog.String("addr", addr))
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Mercure metrics started", slog.String("addr", addr))
+		}
 
 		go func() {
-			if err := h.metricsServer.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
+			if err := h.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				h.logger.ErrorContext(ctx, "Mercure metrics server error", slog.Any("error", err))
 			}
 		}()
@@ -89,7 +91,9 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 			}()
 		}
 
-		h.logger.InfoContext(ctx, "Mercure started", slog.String("protocol", "https"), slog.String("addr", addr))
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Mercure started", slog.String("protocol", "https"), slog.String("addr", addr))
+		}
 
 		err = h.server.ListenAndServeTLS(certFile, keyFile)
 	}
@@ -128,7 +132,9 @@ func (h *Hub) listenShutdown(ctx context.Context) <-chan struct{} {
 			}
 		}
 
-		h.logger.InfoContext(ctx, "My Baby Shot Me Down")
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "My Baby Shot Me Down")
+		}
 
 		select {
 		case <-idleConnsClosed:

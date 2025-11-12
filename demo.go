@@ -17,17 +17,13 @@ const hubLink = "<" + defaultHubURL + `>; rel="mercure"`
 //go:embed public
 var uiContent embed.FS
 
-//nolint:gochecknoinits
-func init() {
-	// JSON-LD is the preferred format
-	_ = mime.AddExtensionType(".jsonld", "application/ld+json")
-}
-
 // Demo exposes INSECURE Demo endpoints to test discovery and authorization mechanisms.
 // Add a query parameter named "body" to define the content to return in the response's body.
 // Add a query parameter named "jwt" set a "mercureAuthorization" cookie containing this token.
 // The Content-Type header will automatically be set according to the URL's extension.
 func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
+	// JSON-LD is the preferred format
+	_ = mime.AddExtensionType(".jsonld", "application/ld+json")
 	url := r.URL.String()
 	mimeType := mime.TypeByExtension(filepath.Ext(r.URL.Path))
 
