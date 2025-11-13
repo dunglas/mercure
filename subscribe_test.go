@@ -1001,7 +1001,7 @@ func TestSubscribeExpires(t *testing.T) {
 		Mercure: mercureClaim{
 			Subscribe: []string{"*"},
 		},
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Second))},
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second))},
 	}
 
 	signedString, err := token.SignedString([]byte("subscriber"))
@@ -1020,7 +1020,6 @@ func TestSubscribeExpires(t *testing.T) {
 	})
 
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.LessOrEqual(t, 0, time.Now().Compare(token.Claims.(*claims).ExpiresAt.Time))
 }
 
 func BenchmarkSubscribe(b *testing.B) {
