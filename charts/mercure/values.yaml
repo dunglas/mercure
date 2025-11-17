@@ -90,6 +90,8 @@ fullnameOverride: ""
 serviceAccount:
   # -- Specifies whether a service account should be created.
   create: true
+  # -- Automatically mount a ServiceAccount's API credentials?
+  automount: true
   # -- Annotations to add to the service account.
   annotations: {}
   # -- The name of the service account to use.
@@ -98,6 +100,10 @@ serviceAccount:
 
 # -- Annotations to be added to pods.
 podAnnotations: {}
+
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
 
 # -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details.
@@ -147,6 +153,44 @@ ingress:
   #  - secretName: mercure-example-tls
   #    hosts:
   #      - mercure-example.local
+
+# -- Expose the service via gateway-api HTTPRoute
+# Requires Gateway API resources and suitable controller installed within the cluster
+# (see: https://gateway-api.sigs.k8s.io/guides/)
+httpRoute:
+  # -- HTTPRoute enabled.
+  enabled: false
+  # -- HTTPRoute annotations.
+  annotations: {}
+  # -- Which Gateways this Route is attached to.
+  parentRefs:
+    - name: gateway
+      sectionName: http
+      # namespace: default
+  # -- Hostnames matching HTTP header.
+  hostnames:
+    - mercure-example.local
+  # -- List of rules and filters applied.
+  #rules:
+  #  - matches:
+  #      - path:
+  #          type: PathPrefix
+  #          value: /headers
+  #   filters:
+  #   - type: RequestHeaderModifier
+  #     requestHeaderModifier:
+  #       set:
+  #       - name: My-Overwrite-Header
+  #         value: this-is-the-only-value
+  #       remove:
+  #       - User-Agent
+  # - matches:
+  #   - path:
+  #       type: PathPrefix
+  #       value: /echo
+  #     headers:
+  #     - name: version
+  #       value: v2
 
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
