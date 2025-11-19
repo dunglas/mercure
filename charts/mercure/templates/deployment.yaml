@@ -8,6 +8,8 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
+  strategy:
+      type: {{ .Values.updateStrategy.type }}
   selector:
     matchLabels:
       {{- include "mercure.selectorLabels" . | nindent 6 }}
