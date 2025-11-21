@@ -72,6 +72,11 @@ metrics:
 # -- The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).
 replicaCount: 1
 
+# -- [Deployment strategy type](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy).
+# Useful to set it to 'Recreate' when using BoltDB transport with persistence.
+updateStrategy:
+  type: RollingUpdate
+
 image:
   # -- Name of the image repository to pull the container image from.
   repository: dunglas/mercure
