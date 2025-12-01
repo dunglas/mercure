@@ -128,6 +128,17 @@ MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
 
 ## Bolt Adapter
 
+```Caddyfile
+localhost {
+	mercure {
+		transport bolt {
+			path /data/mercure.db
+		}
+		...
+	}
+}
+```
+
 | Option              | Description                                                                                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `path`              | path of the database file (default: `mercure.db`)                                                                                                                  |
