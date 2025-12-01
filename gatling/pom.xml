@@ -13,7 +13,7 @@
     <gatling.version>${project.version}</gatling.version>
     <gatling-maven-plugin.version>4.20.8</gatling-maven-plugin.version>
     <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
-    <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
+    <maven-resources-plugin.version>3.4.0</maven-resources-plugin.version>
     <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
     <scala-maven-plugin.version>4.9.7</scala-maven-plugin.version>
   </properties>
