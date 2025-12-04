@@ -2,9 +2,7 @@ package caddy
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -76,9 +74,7 @@ example.com:9080 {
 			var connected, received sync.WaitGroup
 
 			connected.Add(1)
-			received.Add(1)
-
-			go func() {
+			received.Go(func() {
 				cx, cancel := context.WithCancel(t.Context())
 				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 				req = req.WithContext(cx)
@@ -91,9 +87,7 @@ example.com:9080 {
 				buf := make([]byte, 1024)
 				for {
 					_, err := resp.Body.Read(buf)
-					if errors.Is(err, io.EOF) {
-						panic("EOF")
-					}
+					require.NoError(t, err)
 
 					receivedBody.Write(buf)
 
@@ -105,8 +99,7 @@ example.com:9080 {
 				}
 
 				assert.NoError(t, resp.Body.Close())
-				received.Done()
-			}()
+			})
 
 			connected.Wait()
 
@@ -161,9 +154,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	var connected, received sync.WaitGroup
 
 	connected.Add(1)
-	received.Add(1)
-
-	go func() {
+	received.Go(func() {
 		cx, cancel := context.WithCancel(t.Context())
 		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
@@ -176,9 +167,7 @@ func TestJWTPlaceholders(t *testing.T) {
 		buf := make([]byte, 1024)
 		for {
 			_, err := resp.Body.Read(buf)
-			if errors.Is(err, io.EOF) {
-				panic("EOF")
-			}
+			require.NoError(t, err)
 
 			receivedBody.Write(buf)
 
@@ -190,8 +179,7 @@ func TestJWTPlaceholders(t *testing.T) {
 		}
 
 		assert.NoError(t, resp.Body.Close())
-		received.Done()
-	}()
+	})
 
 	connected.Wait()
 
@@ -261,9 +249,7 @@ func TestCookieName(t *testing.T) {
 	var connected, received sync.WaitGroup
 
 	connected.Add(1)
-	received.Add(1)
-
-	go func() {
+	received.Go(func() {
 		cx, cancel := context.WithCancel(t.Context())
 		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req.Header.Add("Origin", "http://localhost:9080")
@@ -278,9 +264,7 @@ func TestCookieName(t *testing.T) {
 		buf := make([]byte, 1024)
 		for {
 			_, err := resp.Body.Read(buf)
-			if errors.Is(err, io.EOF) {
-				panic("EOF")
-			}
+			require.NoError(t, err)
 
 			receivedBody.Write(buf)
 
@@ -292,8 +276,7 @@ func TestCookieName(t *testing.T) {
 		}
 
 		assert.NoError(t, resp.Body.Close())
-		received.Done()
-	}()
+	})
 
 	connected.Wait()
 
