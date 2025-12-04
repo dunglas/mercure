@@ -347,12 +347,9 @@ func subscribe(tb testing.TB, numberOfSubscribers int) {
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(numberOfSubscribers)
 
 	for range numberOfSubscribers {
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			ctx, cancel := context.WithCancel(tb.Context())
 			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1&topic=string&topic=https://example.com/reviews/{id}&topic=https://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
 
@@ -363,7 +360,7 @@ func subscribe(tb testing.TB, numberOfSubscribers int) {
 				cancel:             cancel,
 			}
 			hub.SubscribeHandler(w, req)
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -555,11 +552,9 @@ func TestSubscriptionEvents(t *testing.T) {
 	ctx2, cancel2 := context.WithCancel(t.Context())
 
 	var wg sync.WaitGroup
-	wg.Add(3)
 
-	go func() {
+	wg.Go(func() {
 		// Authorized to receive connection events
-		defer wg.Done()
 
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topic}/{subscriber}", nil).WithContext(ctx1)
 		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriber}"})})
@@ -587,11 +582,10 @@ func TestSubscriptionEvents(t *testing.T) {
 		assert.Contains(t, bodyContent, `data:   "active": false,`)
 		assert.Contains(t, bodyContent, `data:   "payload": {`)
 		assert.Contains(t, bodyContent, `data:     "foo": "bar"`)
-	}()
+	})
 
-	go func() {
+	wg.Go(func() {
 		// Not authorized to receive connection events
-		defer wg.Done()
 
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topicSelector}/{subscriber}", nil).WithContext(ctx2)
 		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
@@ -609,11 +603,9 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Empty(t, string(body))
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
-
+	wg.Go(func() {
 		ctx := t.Context()
 
 		for {
@@ -623,7 +615,7 @@ func TestSubscriptionEvents(t *testing.T) {
 			}
 		}
 
-		ctx, cancelRequest2 := context.WithCancel(t.Context())
+		ctx, cancelRequest2 := context.WithCancel(ctx)
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com", nil).WithContext(ctx)
 		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
 
@@ -637,7 +629,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		time.Sleep(1 * time.Second) // TODO: find a better way to wait for the disconnection update to be dispatched
 		cancel2()
 		cancel1()
-	}()
+	})
 
 	wg.Wait()
 }

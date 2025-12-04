@@ -151,13 +151,10 @@ func TestServe(t *testing.T) {
 
 	var wgConnected, wgTested sync.WaitGroup
 	wgConnected.Add(2)
-	wgTested.Add(2)
 
-	go func() {
-		defer wgTested.Done()
-
+	wgTested.Go(func() {
 		resp, err := client.Get(testURL + "?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		wgConnected.Done()
 
 		body, _ := io.ReadAll(resp.Body)
@@ -167,25 +164,23 @@ id: first
 data: hello
 
 `), body)
-		assert.NoError(t, resp.Body.Close())
-	}()
+		require.NoError(t, resp.Body.Close())
+	})
 
-	go func() {
-		defer wgTested.Done()
-
+	wgTested.Go(func() {
 		resp, err := client.Get(testURL + "?topic=https%3A%2F%2Fexample.com%2Falt%2F1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		wgConnected.Done()
 
 		body, _ := io.ReadAll(resp.Body)
-		assert.NoError(t, resp.Body.Close())
+		require.NoError(t, resp.Body.Close())
 
 		assert.Equal(t, []byte(`:
 id: first
 data: hello
 
 `), body)
-	}()
+	})
 
 	wgConnected.Wait()
 
