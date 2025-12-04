@@ -42,8 +42,8 @@ builds:
     ldflags:
       - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .ShortCommit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
     tags:
-        - deprecated_transport
-        - deprecated_server
+      - deprecated_transport
+      - deprecated_server
     goos:
       - linux
       - darwin
