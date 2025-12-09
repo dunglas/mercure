@@ -60,10 +60,10 @@ func TestNewHubWithConfig(t *testing.T) {
 func TestStop(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t)
-	ctx := t.Context()
-
 	synctest.Test(t, func(t *testing.T) {
+		hub := createAnonymousDummy(t)
+		ctx := t.Context()
+
 		go func() {
 			s := hub.transport.(*LocalTransport)
 

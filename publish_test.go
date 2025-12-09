@@ -16,6 +16,8 @@ import (
 )
 
 func TestPublish(t *testing.T) {
+	t.Parallel()
+
 	synctest.Test(t, func(t *testing.T) {
 		hub := createDummy(t)
 
@@ -259,16 +261,16 @@ func TestPublishHandlerLegacyAuthorization(t *testing.T) {
 func TestPublishHandlerOK(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t)
-
-	topics := []string{"https://example.com/books/1"}
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.SetTopics(topics, topics)
-	s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
-
-	require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
-
 	synctest.Test(t, func(t *testing.T) {
+		hub := createDummy(t)
+
+		topics := []string{"https://example.com/books/1"}
+		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+		s.SetTopics(topics, topics)
+		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
+
+		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
+
 		go func() {
 			u, ok := <-s.Receive()
 			assert.True(t, ok)
@@ -334,14 +336,14 @@ func TestPublishHandlerNoData(t *testing.T) {
 func TestPublishHandlerGenerateUUID(t *testing.T) {
 	t.Parallel()
 
-	h := createDummy(t)
-
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
-
-	require.NoError(t, h.transport.AddSubscriber(t.Context(), s))
-
 	synctest.Test(t, func(t *testing.T) {
+		h := createDummy(t)
+
+		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+		s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
+
+		require.NoError(t, h.transport.AddSubscriber(t.Context(), s))
+
 		go func() {
 			u := <-s.Receive()
 			assert.NotNil(t, u)
