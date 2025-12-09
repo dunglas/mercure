@@ -207,9 +207,9 @@ func WithPublishOrigins(origins []string) Option {
 				o.publishWOrigins = nil
 
 				break
-			} else if i := strings.IndexByte(origin, '*'); i >= 0 {
+			} else if prefix, suffix, found := strings.Cut(origin, "*"); found {
 				// Split the origin in two: start and end string without the *
-				w := wildcard{origin[0:i], origin[i+1:]}
+				w := wildcard{prefix, suffix}
 				o.publishWOrigins = append(o.publishWOrigins, w)
 			} else {
 				o.publishOrigins = append(o.publishOrigins, origin)

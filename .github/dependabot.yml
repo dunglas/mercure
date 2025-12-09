@@ -6,9 +6,13 @@ updates:
       interval: weekly
     commit-message:
       prefix: ci
+    cooldown:
+      default-days: 7
   - package-ecosystem: maven
     directory: /gatling
     schedule:
       interval: weekly
     commit-message:
       prefix: ci
+    cooldown:
+      default-days: 7
