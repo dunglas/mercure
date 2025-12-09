@@ -1,5 +1,19 @@
 # Upgrade
 
+## 0.21
+
+When Mercure is compiled manually or used as a Go library, deprecated features are no longer included by default.
+
+To re-enable deprecated transports, pass the `deprecated_transports` build tag when compiling Mercure:
+
+```console
+go build -tags deprecated_transport
+```
+
+To re-enable the legacy HTTP server, pass the `deprecated_server` build tag.
+
+Official binaries and Docker images still include deprecated features.
+
 ## 0.17
 
 The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive have been deprecated.
@@ -27,7 +41,13 @@ transport bolt {
 }
 ```
 
-To configure the transport using an environment variable, append the `transport directive` to the `MERCURE_EXTRA_DIRECTIVES` environment variable.
+To configure the transport using an environment variable, append the `transport` directive to the `MERCURE_EXTRA_DIRECTIVES` environment variable:
+
+```console
+MERCURE_EXTRA_DIRECTIVES="transport bolt {
+  path mercure.db
+}"
+```
 
 To prevent security issues, be sure to not pass credentials such as API tokens or password in `MERCURE_EXTRA_DIRECTIVES` (ex: when using transports [provided by the paid version](hub/cluster.md) such as Redis).
 
