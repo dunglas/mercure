@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"context"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -17,7 +16,7 @@ const (
 	defaultDemoURL = defaultUIURL + "demo/"
 )
 
-func (h *Hub) initHandler(ctx context.Context) {
+func (h *Hub) initHandler() {
 	router := mux.NewRouter()
 	router.UseEncodedPath()
 	router.SkipClean(true)
@@ -39,7 +38,7 @@ func (h *Hub) initHandler(ctx context.Context) {
 		csp += " mercure.rocks cdn.jsdelivr.net"
 	}
 
-	h.registerSubscriptionHandlers(ctx, router)
+	h.registerSubscriptionHandlers(router)
 
 	if h.subscriberJWTKeyFunc != nil || h.anonymous {
 		router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
@@ -78,14 +77,14 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handler.ServeHTTP(w, r)
 }
 
-func (h *Hub) registerSubscriptionHandlers(ctx context.Context, r *mux.Router) {
+func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	if !h.subscriptions {
 		return
 	}
 
 	if _, ok := h.transport.(TransportSubscribers); !ok {
-		if h.logger.Enabled(ctx, slog.LevelError) {
-			h.logger.LogAttrs(ctx, slog.LevelError, "The current transport doesn't support subscriptions. Subscription API disabled.")
+		if h.logger.Enabled(h.ctx, slog.LevelError) {
+			h.logger.LogAttrs(h.ctx, slog.LevelError, "The current transport doesn't support subscriptions. Subscription API disabled.")
 		}
 
 		return

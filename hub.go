@@ -311,6 +311,7 @@ type Hub struct {
 	*opt
 
 	handler http.Handler
+	ctx     context.Context //nolint:containedctx
 }
 
 // NewHub creates a new Hub instance.
@@ -356,8 +357,8 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.cookieName = defaultCookieName
 	}
 
-	h := &Hub{opt: opt}
-	h.initHandler(ctx)
+	h := &Hub{opt: opt, ctx: ctx}
+	h.initHandler()
 
 	return h, nil
 }
