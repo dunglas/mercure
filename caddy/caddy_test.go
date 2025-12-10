@@ -120,17 +120,13 @@ example.com:9080 {
 			received.Wait()
 
 			if d.name != "bolt" {
-				assert.NoFileExists(t, "bolt.db")
+				assert.NoFileExists(t, boltPath)
 			}
 		})
 	}
 }
 
 func TestJWTPlaceholders(t *testing.T) {
-	t.Cleanup(func() {
-		require.NoError(t, os.Remove("bolt.db"))
-	})
-
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	t.Setenv("TEST_JWT_KEY", string(k))
 	t.Setenv("TEST_JWT_ALG", "RS256")
@@ -149,6 +145,7 @@ func TestJWTPlaceholders(t *testing.T) {
 			mercure {
 				anonymous
 				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+				transport local
 			}
 	
 			respond 404
