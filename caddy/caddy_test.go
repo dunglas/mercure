@@ -24,7 +24,7 @@ const (
 )
 
 func TestMercure(t *testing.T) {
-	boltPath := filepath.Join(os.TempDir(), "bolt.db")
+	boltPath := filepath.Join(t.TempDir(), "bolt.db")
 
 	data := []struct {
 		name            string
