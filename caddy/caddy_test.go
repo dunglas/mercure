@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -23,11 +24,15 @@ const (
 )
 
 func TestMercure(t *testing.T) {
+	boltPath := filepath.Join(os.TempDir(), "bolt.db")
+
 	data := []struct {
 		name            string
 		transportConfig string
 	}{
-		{"bolt", ""},
+		{"bolt", `transport bolt {
+			path ` + boltPath + `
+		}`},
 		{"local", "transport local\n"},
 	}
 
@@ -35,7 +40,7 @@ func TestMercure(t *testing.T) {
 		t.Run(d.name, func(t *testing.T) {
 			if d.name == "bolt" {
 				t.Cleanup(func() {
-					require.NoError(t, os.Remove("bolt.db"))
+					require.NoError(t, os.Remove(boltPath))
 				})
 			}
 

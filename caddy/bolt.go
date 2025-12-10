@@ -41,13 +41,13 @@ func (b *Bolt) GetTransport() mercure.Transport { //nolint:ireturn
 //
 //nolint:wrapcheck
 func (b *Bolt) Provision(ctx caddy.Context) error {
+	if b.Path == "" {
+		b.Path = filepath.Join(caddy.AppDataDir(), "bolt.db")
+	}
+
 	var key bytes.Buffer
 	if err := gob.NewEncoder(&key).Encode(b); err != nil {
 		return err
-	}
-
-	if b.Path == "" {
-		b.Path = filepath.Join(caddy.AppDataDir(), "bolt.db")
 	}
 
 	b.transportKey = key.String()
