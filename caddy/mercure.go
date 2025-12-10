@@ -132,6 +132,7 @@ type Mercure struct {
 
 	hub    *mercure.Hub
 	logger *slog.Logger
+	cancel context.CancelFunc
 }
 
 // CaddyModule returns the Caddy module information.
@@ -323,8 +324,9 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		return err
 	}
 
-	c, cancel := context.WithCancel(ctx)
-	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(cancel)); err != nil {
+	var c context.Context
+	c, m.cancel = context.WithCancel(ctx)
+	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(m.cancel)); err != nil {
 		return err
 	}
 
@@ -357,6 +359,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 }
 
 func (m *Mercure) Cleanup() error {
+	if m.cancel != nil {
+		m.cancel()
+	}
+
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
 
