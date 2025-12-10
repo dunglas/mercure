@@ -76,12 +76,12 @@ func TestStop(t *testing.T) {
 				s.RUnlock()
 			}
 
-			require.NoError(t, hub.transport.Dispatch(ctx, &Update{
+			assert.NoError(t, hub.transport.Dispatch(ctx, &Update{
 				Topics: []string{"https://example.com/foo"},
 				Event:  Event{Data: "Hello World"},
 			}))
 
-			require.NoError(t, hub.Stop(ctx))
+			assert.NoError(t, hub.Stop(ctx))
 		}()
 
 		for range 2 {
@@ -92,7 +92,7 @@ func TestStop(t *testing.T) {
 				hub.SubscribeHandler(w, req)
 
 				r := w.Result()
-				require.NoError(t, r.Body.Close())
+				assert.NoError(t, r.Body.Close())
 				assert.Equal(t, 200, r.StatusCode)
 			}()
 		}
