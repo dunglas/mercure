@@ -141,22 +141,22 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 func TestBoltTransportHistoryAndLive(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	ctx := t.Context()
-
-	topics := []string{"https://example.com/foo"}
-	for i := 1; i <= 10; i++ {
-		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: topics,
-			Event:  Event{ID: strconv.Itoa(i)},
-		}))
-	}
-
-	s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
-	s.SetTopics(topics, nil)
-	require.NoError(t, transport.AddSubscriber(ctx, s))
-
 	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		ctx := t.Context()
+
+		topics := []string{"https://example.com/foo"}
+		for i := 1; i <= 10; i++ {
+			require.NoError(t, transport.Dispatch(ctx, &Update{
+				Topics: topics,
+				Event:  Event{ID: strconv.Itoa(i)},
+			}))
+		}
+
+		s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
+		s.SetTopics(topics, nil)
+		require.NoError(t, transport.AddSubscriber(ctx, s))
+
 		go func() {
 			var count int
 
@@ -206,13 +206,13 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 func TestBoltTransportDoNotDispatchUntilListen(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	assert.Implements(t, (*Transport)(nil), transport)
-
-	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	require.NoError(t, transport.AddSubscriber(t.Context(), s))
-
 	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		assert.Implements(t, (*Transport)(nil), transport)
+
+		s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
+		require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
 		go func() {
 			for range s.Receive() {
 				t.Fail()

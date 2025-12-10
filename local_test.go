@@ -12,24 +12,24 @@ import (
 func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 	t.Parallel()
 
-	transport := NewLocalTransport(NewSubscriberList(0))
-	ctx := t.Context()
-
-	t.Cleanup(func() {
-		assert.NoError(t, transport.Close(ctx))
-	})
-
-	assert.Implements(t, (*Transport)(nil), transport)
-
-	u := &Update{Topics: []string{"https://example.com/books/1"}}
-	err := transport.Dispatch(ctx, u)
-	require.NoError(t, err)
-
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.SetTopics(u.Topics, nil)
-	require.NoError(t, transport.AddSubscriber(ctx, s))
-
 	synctest.Test(t, func(t *testing.T) {
+		transport := NewLocalTransport(NewSubscriberList(0))
+		ctx := t.Context()
+
+		t.Cleanup(func() {
+			assert.NoError(t, transport.Close(ctx))
+		})
+
+		assert.Implements(t, (*Transport)(nil), transport)
+
+		u := &Update{Topics: []string{"https://example.com/books/1"}}
+		err := transport.Dispatch(ctx, u)
+		require.NoError(t, err)
+
+		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+		s.SetTopics(u.Topics, nil)
+		require.NoError(t, transport.AddSubscriber(ctx, s))
+
 		go func() {
 			for range s.Receive() {
 				t.Fail()

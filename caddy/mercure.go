@@ -3,6 +3,7 @@
 package caddy
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
+	"github.com/caddyserver/caddy/v2/modules/caddyevents"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/dunglas/mercure"
 )
@@ -130,6 +132,7 @@ type Mercure struct {
 
 	hub    *mercure.Hub
 	logger *slog.Logger
+	cancel context.CancelFunc
 }
 
 // CaddyModule returns the Caddy module information.
@@ -170,6 +173,14 @@ func (m *Mercure) populateJWTConfig() error {
 			m.SubscriberJWT.Alg = "HS256"
 		}
 	}
+
+	return nil
+}
+
+type stoppingHandlerFunc func()
+
+func (s stoppingHandlerFunc) Handle(_ context.Context, _ caddy.Event) error {
+	s()
 
 	return nil
 }
@@ -308,7 +319,18 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithProtocolVersionCompatibility(m.ProtocolVersionCompatibility))
 	}
 
-	h, err := mercure.NewHub(ctx, opts...)
+	eventApp, err := ctx.App("events")
+	if err != nil {
+		return err
+	}
+
+	var c context.Context
+	c, m.cancel = context.WithCancel(ctx)
+	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(m.cancel)); err != nil {
+		return err
+	}
+
+	h, err := mercure.NewHub(c, opts...)
 	if err != nil {
 		return err
 	}
@@ -337,6 +359,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 }
 
 func (m *Mercure) Cleanup() error {
+	if m.cancel != nil {
+		m.cancel()
+	}
+
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
 

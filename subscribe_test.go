@@ -458,13 +458,13 @@ func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
 func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t)
-
-	s, _ := hub.transport.(*LocalTransport)
-	assert.Equal(t, 0, s.subscribers.Len())
-	ctx, cancel := context.WithCancel(t.Context())
-
 	synctest.Test(t, func(t *testing.T) {
+		hub := createAnonymousDummy(t)
+
+		s, _ := hub.transport.(*LocalTransport)
+		assert.Equal(t, 0, s.subscribers.Len())
+		ctx, cancel := context.WithCancel(t.Context())
+
 		go func() {
 			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1", nil).WithContext(ctx)
 			hub.SubscribeHandler(newSubscribeRecorder(), req)
@@ -681,27 +681,27 @@ func TestSubscribeAll(t *testing.T) {
 func TestSendMissedEvents(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	ctx := t.Context()
-
-	hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
-
-	require.NoError(t, transport.Dispatch(ctx, &Update{
-		Topics: []string{"https://example.com/foos/a"},
-		Event: Event{
-			ID:   "a",
-			Data: "d1",
-		},
-	}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{
-		Topics: []string{"https://example.com/foos/b"},
-		Event: Event{
-			ID:   "b",
-			Data: "d2",
-		},
-	}))
-
 	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		ctx := t.Context()
+
+		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
+
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/a"},
+			Event: Event{
+				ID:   "a",
+				Data: "d1",
+			},
+		}))
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/b"},
+			Event: Event{
+				ID:   "b",
+				Data: "d2",
+			},
+		}))
+
 		// Using deprecated 'Last-Event-ID' query parameter
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
@@ -753,26 +753,26 @@ func TestSendMissedEvents(t *testing.T) {
 func TestSendAllEvents(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	hub := createAnonymousDummy(t, WithTransport(transport))
-	ctx := t.Context()
-
-	require.NoError(t, transport.Dispatch(ctx, &Update{
-		Topics: []string{"https://example.com/foos/a"},
-		Event: Event{
-			ID:   "a",
-			Data: "d1",
-		},
-	}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{
-		Topics: []string{"https://example.com/foos/b"},
-		Event: Event{
-			ID:   "b",
-			Data: "d2",
-		},
-	}))
-
 	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		hub := createAnonymousDummy(t, WithTransport(transport))
+		ctx := t.Context()
+
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/a"},
+			Event: Event{
+				ID:   "a",
+				Data: "d1",
+			},
+		}))
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/b"},
+			Event: Event{
+				ID:   "b",
+				Data: "d2",
+			},
+		}))
+
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
 			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID="+EarliestLastEventID, nil).WithContext(ctx)
@@ -811,18 +811,18 @@ func TestSendAllEvents(t *testing.T) {
 func TestUnknownLastEventID(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport))
-
-	require.NoError(t, transport.Dispatch(t.Context(), &Update{
-		Topics: []string{"https://example.com/foos/a"},
-		Event: Event{
-			ID:   "a",
-			Data: "d1",
-		},
-	}))
-
 	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport))
+
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			Topics: []string{"https://example.com/foos/a"},
+			Event: Event{
+				ID:   "a",
+				Data: "d1",
+			},
+		}))
+
 		ctx := t.Context()
 
 		go func(ctx context.Context) {
@@ -883,10 +883,10 @@ func TestUnknownLastEventID(t *testing.T) {
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	hub := createAnonymousDummy(t, WithTransport(transport))
-
 	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		hub := createAnonymousDummy(t, WithTransport(transport))
+
 		ctx := t.Context()
 
 		go func() {

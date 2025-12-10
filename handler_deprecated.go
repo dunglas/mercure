@@ -27,7 +27,7 @@ func (h *Hub) Serve(ctx context.Context) { //nolint:funlen
 
 	h.server = &http.Server{
 		Addr:              addr,
-		Handler:           h.baseHandler(ctx),
+		Handler:           h.baseHandler(),
 		ReadTimeout:       h.config.GetDuration("read_timeout"),
 		ReadHeaderTimeout: h.config.GetDuration("read_header_timeout"),
 		WriteTimeout:      h.config.GetDuration("write_timeout"),
@@ -152,9 +152,9 @@ func (h *Hub) listenShutdown(ctx context.Context) <-chan struct{} {
 // chainHandlers configures and chains handlers.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) chainHandlers(ctx context.Context) http.Handler { //nolint:funlen
+func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	r := mux.NewRouter()
-	h.registerSubscriptionHandlers(ctx, r)
+	h.registerSubscriptionHandlers(r)
 
 	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
@@ -217,7 +217,7 @@ func (h *Hub) chainHandlers(ctx context.Context) http.Handler { //nolint:funlen
 
 	var loggingHandler http.Handler
 
-	if h.logger.Enabled(ctx, slog.LevelError) {
+	if h.logger.Enabled(h.ctx, slog.LevelError) {
 		loggingHandler = handlers.CombinedLoggingHandler(os.Stderr, secureHandler)
 	} else {
 		loggingHandler = secureHandler
@@ -232,7 +232,7 @@ func (h *Hub) chainHandlers(ctx context.Context) http.Handler { //nolint:funlen
 }
 
 // Deprecated: use the Caddy server module or the standalone library instead.
-func (h *Hub) baseHandler(ctx context.Context) http.Handler {
+func (h *Hub) baseHandler() http.Handler {
 	mainRouter := mux.NewRouter()
 	mainRouter.UseEncodedPath()
 	mainRouter.SkipClean(true)
@@ -240,7 +240,7 @@ func (h *Hub) baseHandler(ctx context.Context) http.Handler {
 	// Register /healthz (if enabled, in a way that doesn't pollute the HTTP logs).
 	registerHealthz(mainRouter)
 
-	handler := h.chainHandlers(ctx)
+	handler := h.chainHandlers()
 	mainRouter.PathPrefix("/").Handler(handler)
 
 	return mainRouter

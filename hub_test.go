@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -60,10 +61,10 @@ func TestNewHubWithConfig(t *testing.T) {
 func TestStop(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t)
-	ctx := t.Context()
-
 	synctest.Test(t, func(t *testing.T) {
+		hub := createAnonymousDummy(t)
+		ctx := t.Context()
+
 		go func() {
 			s := hub.transport.(*LocalTransport)
 
@@ -75,12 +76,55 @@ func TestStop(t *testing.T) {
 				s.RUnlock()
 			}
 
-			_ = hub.transport.Dispatch(ctx, &Update{
+			assert.NoError(t, hub.transport.Dispatch(ctx, &Update{
 				Topics: []string{"https://example.com/foo"},
 				Event:  Event{Data: "Hello World"},
-			})
+			}))
 
-			_ = hub.Stop(ctx)
+			assert.NoError(t, hub.Stop(ctx))
+		}()
+
+		for range 2 {
+			go func() {
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+
+				w := newSubscribeRecorder()
+				hub.SubscribeHandler(w, req)
+
+				r := w.Result()
+				assert.NoError(t, r.Body.Close())
+				assert.Equal(t, 200, r.StatusCode)
+			}()
+		}
+
+		synctest.Wait()
+	})
+}
+
+func TestContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		hub, err := NewHub(ctx, WithAnonymous())
+		require.NoError(t, err)
+
+		t.Cleanup(func() {
+			require.NoError(t, hub.Stop(ctx))
+		})
+
+		go func() {
+			s := hub.transport.(*LocalTransport)
+
+			var ready bool
+
+			for !ready {
+				s.RLock()
+				ready = s.subscribers.Len() == 2
+				s.RUnlock()
+			}
+
+			cancel()
 		}()
 
 		for range 2 {
