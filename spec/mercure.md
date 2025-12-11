@@ -1,7 +1,7 @@
 %%%
 title = "The Mercure Protocol"
-area = "Internet"
-workgroup = "Network Working Group"
+area = "Applications and Real-Time"
+workgroup = "HTTP"
 submissiontype = "IETF"
 
 [seriesInfo]
@@ -30,7 +30,8 @@ organization = "Les-Tilleuls.coop"
 Mercure provides a common publish-subscribe mechanism for public and private web resources.
 Mercure enables the pushing of any web content to web browsers and other clients in
 a fast, reliable and battery-efficient way. It is especially useful for publishing real-time updates
-of resources served through sites and web APIs to web and mobile apps.
+of resources served through sites and web APIs to web and mobile apps and can also be used
+as a simple publish-subscribe system.
 
 Subscription requests are relayed through hubs, which validate and verify the request.
 When new or updated content becomes available, hubs check if subscribers are authorized to receive it
@@ -44,164 +45,25 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be
 interpreted as described in [@!RFC2119].
 
-*   Topic: The unit to which one can subscribe to changes. The topic **SHOULD** be identified
-    by an IRI [@!RFC3987]. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI [@!RFC3986] is
-    **RECOMMENDED**.
+*   Topic: The unit to which one can subscribe to changes. The topic is identified by a string
+    that **MAY** be an IRI [@!RFC3987].
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private, consequently, it must be dispatched only to subscribers allowed to receive it.
-*   Topic selector: An expression matching one or several topics.
+*   Topic matcher: An expression intended to be matched by one or several topics,
+    depending on the matcher type.
+*   Topic matcher type: The type of matching expression,
+    such as exact matching, regular expressions or URL patterns.
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
     systems might call the publisher the "source". Typically, a site or a web API, but can also be
     a web browser.
 *   Subscriber: A client application that subscribes to real-time updates of topics using topic
-    selectors. Typically, a web or a mobile application, but can also be a server.
-*   Subscription: A topic selector used by a subscriber to receive updates. A single subscriber can
-    have several subscriptions, when it provides several topic selectors.
+    matchers. Typically, a web or a mobile application, but can also be a server.
+*   Subscription: A topic matcher used by a subscriber to receive updates. A single subscriber can
+    have several subscriptions, when it provides several topic matchers.
 *   Hub: A server that handles subscription requests and distributes the content to subscribers when
     the corresponding topics have been updated. Any hub **MAY** implement its own policies on who
     can use it.
-
-# Discovery
-
-The discovery mechanism aims at identifying at least 2 URLs.
-
-1.  The URL of one or more hubs designated by the publisher.
-2.  The canonical URL for the topic to which subscribers are expected to use for subscriptions.
-
-The URL of the hub **MUST** be the "well-known" [@!RFC5785] fixed path `/.well-known/mercure`.
-
-If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber,
-allowing it to receive live updates when topics are updated. If more than one hub URL is specified,
-the publisher **MUST** notify each hub, so the subscriber **MAY** subscribe to one or more of
-them.
-
-Note: Publishers may wish to advertise and publish to more than one hub for fault tolerance and
-redundancy. If one hub fails to propagate an update to the document, then using multiple independent
-hub is a way to increase the likelihood of delivery to subscribers. As such, subscribers may
-subscribe to one or more of the advertised hubs.
-
-The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link
-header). The target URL of these links **MUST** be a hub implementing the Mercure protocol.
-
-The publisher **MAY** provide the following target attributes in the Link Headers:
-
-*   `last-event-id`: the identifier of the last event dispatched by the publisher at the time of
-    the generation of this resource. If provided, it **MUST** be passed to the hub through a query
-    parameter called `lastEventID` and will be used to ensure that possible updates having been
-    made between the resource generation by the server and the connection to the hub are not lost.
-    See (#reconciliation).
-*   `content-type`: the content type of the updates that will be pushed by the hub. If omitted,
-    the subscriber **MUST** assume that the content type will be the same as that of the original
-    resource. Setting the `content-type` attribute is especially useful to hint that partial updates
-    will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
-*   `key-set`: the URL of the key set to use to decrypt updates, encoded in the JWK set format
-    (JSON Web Key Set) [@!RFC7517]. See (#encryption). As this key set will contain a secret
-    key, the publisher must ensure that only the subscriber can access to this URL. To do so, the
-    authorization mechanism (see (#authorization)) can be reused.
-
-All these attributes are optional.
-
-The publisher **MAY** also include one Link Header [@!RFC5988] with `rel=self` (the self link
-header). It **SHOULD** contain the canonical URL for the topic to which subscribers are expected
-to use for subscriptions. If the Link with `rel=self` is omitted, the current URL of the resource
-**MUST** be used as a fallback.
-
-Minimal example:
-
-~~~ http
-GET /books/foo HTTP/1.1
-Host: example.com
-
-HTTP/1.1 200 OK
-Content-type: application/ld+json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
-
-{"@id": "/books/foo", "foo": "bar"}
-~~~
-
-Links embedded in HTML or XML documents as defined in the WebSub recommendation
-[@W3C.REC-websub-20180123] **MAY** also be supported by subscribers. If both a header and an
-embedded link are provided, the header **MUST** be preferred.
-
-## Content Negotiation
-
-For practical purposes, it is important that the `rel=self` URL only offers a single representation.
-As the hub has no way of knowing what Media Type ([@RFC6838]) or language may have been requested
-by the subscriber upon discovery, it would not be able to deliver the content using the appropriate
-representation of the document.
-
-It is, however, possible to perform content negotiation by returning an appropriate `rel=self`
-URL according to the HTTP headers used in the initial discovery request. For example, a request
-to `/books/foo` with an `Accept` header containing `application/ld+json` could return a `rel=self`
-value of `/books/foo.jsonld`.
-
-The example below illustrates how a topic URL can return different `Link` headers depending on the
-`Accept` header that was sent.
-
-~~~ http
-GET /books/foo HTTP/1.1
-Host: example.com
-Accept: application/ld+json
-
-HTTP/1.1 200 OK
-Content-type: application/ld+json
-Link: </books/foo.jsonld>; rel="self"
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
-
-{"@id": "/books/foo", "foo": "bar"}
-~~~
-
-~~~ http
-GET /books/foo HTTP/1.1
-Host: example.com
-Accept: text/html
-
-HTTP/1.1 200 OK
-Content-type: text/html
-Link: </books/foo.html>; rel="self"
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
-
-<!doctype html>
-<title>foo: bar</title>
-~~~
-
-Similarly, the technique can also be used to return a different `rel=self` URL depending on the
-language requested by the `Accept-Language` header.
-
-~~~ http
-GET /books/foo HTTP/1.1
-Host: example.com
-Accept-Language: fr-FR
-
-HTTP/1.1 200 OK
-Content-type: application/ld+json
-Content-Language: fr-FR
-Link: </books/foo-fr-FR.jsonld>; rel="self"
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
-
-{"@id": "/books/foo", "foo": "bar", "@context": {"@language": "fr-FR"}}
-~~~
-
-# Topic Selectors
-
-A topic selector is an expression intended to be matched by one or several topics. A topic selector
-can also be used to match other topic selectors for authorization purposes. See (#authorization).
-
-A topic selector can be any string including URI Templates [@!RFC6570] and the reserved string `*`
-that matches all topics. It is **RECOMMENDED** to use URI Templates or the reserved string `*` as
-topic selectors.
-
-Note: URLs and IRIs are valid URI templates.
-
-To determine if a string matches a selector, the following steps must be followed:
-
-1.  If the topic selector is `*` then the string matches the selector.
-2.  If the topic selector and the string are exactly the same, the string matches the selector. This
-    characteristic allows to compare a URI Template with another one.
-3.  If the topic selector is a valid URI Template, and that the string matches this URI Template,
-    the string matches the selector.
-4.  Otherwise, the string does not match the selector.
 
 # Subscription
 
@@ -213,20 +75,34 @@ superior to leverage multiplexing and other performance-oriented related feature
 versions.
 
 The subscriber specifies the list of topics to get updates from by using one or several query
-parameters named `topic`. The `topic` query parameters **MUST** contain topic selectors. See
-(#topic-selectors).
+parameters named `match`. The subscriber only receives updates for the topics exactly matching
+one of the `match` query parameters.
 
-The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub
-**MAY** apply an arbitrary limit. A subscription is created for every provided `topic` parameter.
-See (#subscription-events).
+In addition to `match` query parameters, the subscriber can pass other topic matchers by passing
+query parameters starting with the string `match` and followed by the topic matcher type.
 
-[The EventSource JavaScript
-interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface)
-**MAY** be used to establish the connection. Any other appropriate mechanism
+The `matchExact` query parameter **MUST** be considered the same as `match`.
+
+The hub **MUST** ignore the case of query parameters starting with `match`.
+For instance, `matchExact`, `matchEXACT`, `matchexact` and `MaTCheXaCt` must be considered
+the same query parameter.
+
+If the type of one or more matchers is not supported by the hub, it **MUST** respond with a
+501 "Not Implemented" HTTP status code.
+
+The subscriber receives updates for all topics matching at least a topic matcher according to
+the matcher type rules.
+
+The protocol doesn't specify the maximum number of query parameters that can be sent, but the hub
+**MAY** apply an arbitrary limit. A subscription is created for every provided parameter starting
+with the string `match`. See (#subscription-events).
+
+The `EventSource` JavaScript interface [@!eventsource-interface] **MAY** be used to establish the connection.
+Any other appropriate mechanism
 including, but not limited to, readable streams [@W3C.NOTE-streams-api-20161129] and
-[XMLHttpRequest](https://xhr.spec.whatwg.org/) (used by popular polyfills) **MAY** also be used.
+XMLHttpRequest [@!xhr] (used by popular polyfills) **MAY** also be used.
 
-The hub sends to the subscriber updates for topics matching the provided topic selectors.
+The hub sends the subscriber updates for topics matching the provided topic matchers.
 
 If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscribers not authorized
 to receive it. See (#authorization).
@@ -234,18 +110,18 @@ to receive it. See (#authorization).
 The hub **MUST** send these updates as `text/event-stream` compliant events
 [!@W3C.REC-eventsource-20150203].
 
-The `data` property **MUST** contain the new version of the topic. It can be the full resource, or a
+The `data` property **MUST** contain the topic's new version. It can be the full resource or a
 partial update by using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 
 All other properties defined in the Server-Sent Events specification **MAY** be used and **MUST** be
 supported by hubs.
 
-The resource **SHOULD** be represented in a format with hypermedia capabilities such as
+The resource **MAY** be represented in a format with hypermedia capabilities such as
 JSON-LD [@W3C.REC-json-ld-20140116], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
 [@W3C.REC-html52-20171214].
 
-Web Linking [@!RFC5988] **SHOULD** be used to indicate the IRI of the resource sent in the event.
-When using Atom, XML or HTML as the serialization format for the resource, the document **SHOULD**
+Web Linking [@!RFC5988] **MAY** be used to indicate the IRI of the resource sent in the event.
+When using Atom, XML, or HTML as the serialization format for the resource, the document **SHOULD**
 contain a `link` element with a `self` relation containing the IRI of the resource. When using
 JSON-LD, the document **SHOULD** contain an `@id` property containing the IRI of the resource.
 
@@ -254,11 +130,11 @@ Example:
 ~~~ javascript
 // The subscriber subscribes to updates
 // for the https://example.com/foo topic, the bar topic,
-// and to any topic matching https://example.com/books/{name}
+// and to any topic matching the https://example.com/bar/:id URL Pattern
 const url = new URL('https://example.com/.well-known/mercure');
-url.searchParams.append('topic', 'https://example.com/foo');
-url.searchParams.append('topic', 'bar');
-url.searchParams.append('topic', 'https://example.com/bar/{id}');
+url.searchParams.append('match', 'https://example.com/foo');
+url.searchParams.append('match', 'bar');
+url.searchParams.append('matchURLPattern', 'https://example.com/bar/:id');
 
 const eventSource = new EventSource(url);
 
@@ -271,6 +147,61 @@ eventSource.onmessage = function ({data}) {
 The hub **MAY** require subscribers and publishers to be authenticated, and **MAY** apply extra
 authorization rules not defined in this specification.
 
+# Matcher Types
+
+## Exact Matching
+
+The hub **MUST** support exact matching.
+With this type of matchers, an exact case-sensitive comparison must be made between the topic and the matcher.
+
+The matcher type name is `Exact`.
+The corresponding query parameters are `match` and `matchExact`.
+
+## URL Pattern
+
+The hub **SHOULD** support using URL patterns [@!urlpattern] as matchers.
+URL patterns **SHOULD** be preferred to regular expressions when topics to match are URLs.
+
+The base URL **MUST** be set to the URL of the Mercure hub.
+
+The matcher type name is `URLPattern`.
+The corresponding query parameter is `matchURLPattern`.
+
+## Regular Expression
+
+The hub **SHOULD** support using I-Regexp regular expressions [@!RFC9485] as matchers.
+
+The matcher type name is `Regexp`.
+The corresponding query parameter is `matchRegexp`.
+
+## Common Expression Language (CEL)
+
+The hub **MAY** support using CEL expressions [@cel] as matchers.
+
+A variable named `topics` containing an array of string **MUST** be passed
+to the expression. This variable **MUST** contain the canonical topic followed by the alternate topics of the update to match.
+
+The hub **MAY** pass other implementation-specific variables and expose implementation-specific functions.
+
+The expression **MUST** return a boolean value: true if the topic matches, false otherwise.
+
+If parsing or checking of a CEL expression fails or if the expression does not return a boolean value, the hub **MUST** return a 400 "Bad Request" HTTP status code.
+
+The matcher type name is `CEL`.
+The corresponding query parameter is `matchCEL`.
+
+## URI Template
+
+The hub **MAY** support using URI templates [@!RFC6570] as matchers.
+Whenever possible, using URL patterns **SHOULD** be preferred.
+
+The matcher type name is `URITemplate`.
+The corresponding query parameter is `matchURITemplate`.
+
+## Other Matcher Types
+
+In addition, the hub **MAY** implement any matcher types, including implementation-specific matcher types.
+
 # Publication
 
 The publisher sends updates by issuing `POST` HTTPS requests on the hub URL. When it receives an
@@ -280,14 +211,14 @@ The hub **MAY** also dispatch this update using other protocols such as WebSub
 [@W3C.REC-websub-20180123] or ActivityPub [@W3C.REC-activitypub-20180123].
 
 An application **CAN** send events directly to subscribers without using an external hub server, if
-it is able to do so. In this case, it **MAY NOT** implement the endpoint to publish updates.
+it can do so. In this case, it **MAY NOT** implement the endpoint to publish updates.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
 [@W3C.REC-html52-20171214] and contains the following name-value tuples:
 
 *   `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an IRI as
     identifier. If this name is present several times, the first occurrence is considered to be the
-    canonical IRI of the topic, and other ones are considered to be alternate IRIs. The hub **MUST**
+    canonical IRI of the topic and other ones are considered to be alternate IRIs. The hub **MUST**
     dispatch this update to subscribers that are subscribed to both canonical or alternate IRIs.
 *   `data` (optional): the content of the new version of this topic.
 *   `private` (optional): if this name is set, the update **MUST NOT** be dispatched to subscribers
@@ -304,20 +235,20 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 *   `retry` (optional): the SSE's `retry` property (the reconnection time).
 
 In the event of success, the HTTP response's body **MUST** be the `id` associated to this update
-generated by the hub and a success HTTP status code **MUST** be returned. The publisher **MUST** be
+generated by the hub, and a successful HTTP status code **MUST** be returned. The publisher **MUST** be
 authorized to publish updates. See (#authorization).
 
 Example:
 
 ~~~ http
-POST /.well-known/mercure HTTP/1.1
+POST /.well-known/mercure
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
 Authorization: Bearer [snip]
 
 topic=https://example.com/foo&data=the%20content
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: text/plain
 
 urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
@@ -340,10 +271,10 @@ When using any authorization mechanism, the connection **MUST** use an encryptio
 HTTPS.
 
 If an `Authorization` HTTP header is presented by the client, the JWS it contains **MUST** be used.
-The content of the `authorization` query parameter and of the cookie **MUST** be ignored.
+The content of the `authorization` query parameter and the cookie **MUST** be ignored.
 
 If an `authorization` query parameter is set by the client and no `Authorization` HTTP header is
-presented, the content of the query parameter **MUST** be used, the content of the cookie must be
+presented, the content of the query parameter **MUST** be used, and the content of the cookie must be
 ignored.
 
 If the client tries to execute an operation it is not allowed to, a 403 HTTP status code **SHOULD**
@@ -371,25 +302,25 @@ a different name to prevent conflicts when using multiple hubs on the same domai
 
 The cookie **SHOULD** be set during discovery (see (#discovery)) to improve the overall security.
 Consequently, if the cookie is set during discovery, both the publisher and the hub have to share
-the same second level domain. The `Domain` attribute **MAY** be used to allow the publisher and the
+the same second-level domain. The `Domain` attribute **MAY** be used to allow the publisher and the
 hub to use different subdomains. See (#discovery).
 
-The cookie **SHOULD** have the `Secure`, `HttpOnly` and `SameSite` attributes set. The cookie's
+The cookie **SHOULD** have the `Secure`, `HttpOnly`, and `SameSite` attributes set. The cookie's
 `Path` attribute **SHOULD** also be set to the hub's URL. See (#security-considerations).
 
 ## URI Query Parameter
 
-If it's not possible for the client to use an `Authorization` HTTP header nor a cookie, the JWS can
+If the client can't use an `Authorization` HTTP header or a cookie, the JWS can
 be passed as a request URI query component as defined by "Uniform Resource Identifier (URI): Generic
 Syntax" [@!RFC3986], using the `authorization` parameter.
 
-The `authorization` query parameter **MUST** be properly separated from the `topic` parameter and
-from other request-specific parameters using `&` character(s) (ASCII code 38).
+The `authorization` query parameter **MUST** be properly separated from the topic matcher parameters
+and from other request-specific parameters using `&` character(s) (ASCII code 38).
 
 For example, the client makes the following HTTP request using transport-layer security:
 
 ~~~ http
-GET /.well-known/mercure?topic=https://example.com/books/foo&authorization=<JWS> HTTP/1.1
+GET /.well-known/mercure?match=https://example.com/books/foo&authorization=<JWS>
 Host: hub.example.com
 ~~~
 
@@ -400,7 +331,7 @@ contain a `Cache-Control` header with the `private` option.
 Because of the security weaknesses associated with the URI method (see (#security-considerations)),
 including the high likelihood that the URL containing the access token will be logged, it **SHOULD
 NOT** be used unless it is impossible to transport the access token in the `Authorization` request
-header field or in a secure cookie. Hubs **MAY** support this method.
+header field or a secure cookie. Hubs **MAY** support this method.
 
 This method is not recommended due to its security deficiencies.
 
@@ -409,14 +340,14 @@ This method is not recommended due to its security deficiencies.
 Publishers **MUST** be authorized to dispatch updates to the hub, and **MUST** prove that they are
 authorized to send updates for the specified topics.
 
-To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim
+To be allowed to publish an update (#subscription), the JWS presented by the publisher **MUST** contain a claim
 called `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
-array of topic selectors. See (#topic-selectors).
+array of topic matchers as defined in #topic-matcher-list.
 
 If `mercure.publish` is not defined, or contains an empty array, then the publisher **MUST NOT**
 be authorized to dispatch any update.
 Otherwise, the hub **MUST** check that every topic of the update to dispatch matches at least one
-of the topic selectors contained in `mercure.publish`.
+of the topic matchers contained in `mercure.publish`.
 
 If the publisher is not authorized for all the topics of an update, the hub **MUST NOT** dispatch
 the update (even if some topics in the list are allowed) and **MUST** return a 403 HTTP status code.
@@ -431,32 +362,31 @@ If the presented JWS contains an expiration time in the standard `exp` claim def
 the connection **MUST** be closed by the hub at that time.
 
 To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a
-claim named `mercure` with a key named `subscribe` that contains an array of topic selectors. See
-(#topic-selectors).
+claim named `mercure` with a key named `subscribe` that contains an array of topic matchers as described in #topic-matcher-list.
 
 The hub **MUST** check that at least one topic of the update to dispatch (*canonical* or
-*alternate*) matches at least one topic selector provided in `mercure.subscribe`.
+*alternate*) matches at least one topic matcher provided in `mercure.subscribe`.
 
-This behavior makes it possible to subscribe to several topics using URI templates while
+This behavior makes it possible to subscribe to several topics using topic matchers while
 guaranteeing that only authorized subscribers will receive updates marked as private (even if their
-canonical topics are matched by these templates).
+canonical topics are matched by these matchers).
 
 Let's say that a subscriber wants to receive updates concerning all *book* resources it has access
-to. The subscriber can use the topic selector `https://example.com/books/{id}` as value of the
-`topic` query parameter. Adding this same URI template to the `mercure.subscribe` claim of the JWS
+to. The subscriber can use the URL Pattern topic matcher `https://example.com/books/:id` as the value of the
+`matchURLPattern` query parameter. Adding this same URL Pattern to the `mercure.subscribe` claim of the JWS
 presented by the subscriber to the hub would allow this subscriber to receive all updates for all
 book resources. It is not what we want here: this subscriber is only authorized to access **some**
 of these resources.
 
-To solve this problem, the `mercure.subscribe` claim could contain a topic selector such as:
-`https://example.com/users/foo/{?topic}`.
+To solve this problem, the `mercure.subscribe` claim could contain a URL Pattern topic matcher such as:
+`https://example.com/users/foo/?match=:topic`.
 
 The publisher could then take advantage of the previously described behavior by
-publishing a private update having `https://example.com/books/1` as canonical topic and
-`https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1` as alternate topic:
+publishing a private update having `https://example.com/books/1` as the canonical topic and
+`https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1` as an alternate topic:
 
 ~~~ http
-POST /.well-known/mercure HTTP/1.1
+POST /.well-known/mercure
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
 Authorization: Bearer [snip]
@@ -464,13 +394,27 @@ Authorization: Bearer [snip]
 topic=https://example.com/books/1&topic=https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1&private=on
 ~~~
 
-The subscriber is subscribed to `https://example.com/books/{id}` that is matched by the
-canonical topic of the update. This canonical topic isn't matched by the topic selector
+The subscriber is subscribed to `https://example.com/books/:id` which is a URL Pattern matched by the
+canonical topic of the update. This canonical topic isn't matched by the topic matcher
 provided in its JWS claim `mercure.subscribe`. However, an alternate topic of the update,
 `https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fa-random-topic`, is matched by it.
 Consequently, this private update will be received by this subscriber, while other updates having
-a canonical topic matched by the selector provided in a `topic` query parameter but not matched by
-selectors in the `mercure.subscribe` claim will not.
+a canonical topic matched by the matcher provided in a `topic` query parameter but not matched by
+matchers in the `mercure.subscribe` claim will not.
+
+## Topic Matcher List
+
+Topic matchers present in the `mercure.subscribe` or `mercure.publish` **MUST** either be strings or objects.
+
+If it is represented as a string, the matcher type **MUST** be considered as `Exact`.
+
+If it is an object, it **MUST** have a `match` property containing the topic matcher itself,
+and it can have an **OPTIONAL** `matchType` property containing the topic matcher type.
+The value of the `matchType` key **MUST** be considered case-insensitive.
+If no `matchType` key is present, the hub **MUST** cosider that the `Exact` matcher type is used.
+
+If the type of one or more matchers present in the array is not supported by the hub, it **MUST** respond with a
+501 "Not Implemented" HTTP status code and no update should be sent.
 
 ## Payload
 
@@ -478,25 +422,60 @@ The `mercure` claim of the JWS **CAN** also contain user-defined values under th
 This JSON document will be attached to the subscription and made available in subscription events.
 See (#subscription-events).
 
-For instance, `mercure.payload` can contain the user ID of the subscriber, a list of groups it
-belongs to, or its IP address. Storing data in `mercure.payload` is a convenient way to share data
-related to one subscriber to other subscribers.
+Each entry in the `mercure.subscribe` claim of the JWS **CAN** contain a JSON object under the `payload` key.
 
-# Reconnection, State Reconciliation and Event Sourcing {#reconciliation}
+The value associated with the first topic matcher matching the topic of the subscription
+**MUST** be included under the `payload` key in the JSON object describing a subscription in
+the subscription API and in subscription events.
 
-The protocol allows to reconciliate states after a reconnection. It can also be used to implement an
+Example JWT document containing payloads:
+
+~~~ json
+{
+    "subscribe": [
+        {
+            "match": "https://example.com/foo",
+            "payload": {
+                "custom1": "data only available for subscriptions to this topic"
+            }
+        },
+        {
+            "match": "https://example.com/bar/:id",
+            "matchType": "URLPattern",
+            "payload": {
+                "custom2": "data only available for subscriptions matching this matcher"
+            }
+        },
+        {
+            "match": ".*",
+            "matchType": "Regexp",
+            "payload": {
+                "custom3": "data available for all other subscriptions"
+            }
+        }
+    ]
+}
+~~~
+
+For instance, payloads can contain the user ID of the subscriber, its username, a list of groups it
+belongs to, or its IP address. Storing data in payloads is a convenient way to share data
+related to one subscriber with other subscribers.
+
+# Reconnection, State Reconciliation, and Event Sourcing {#reconciliation}
+
+The protocol allows the reconciliation of states after a reconnection. It can also be used to implement an
 [Event store](https://en.wikipedia.org/wiki/Event_store).
 
-To allow re-establishment in case of connection lost, events dispatched by the hub **MUST** include
+To allow re-establishment in case of connection loss, events dispatched by the hub **MUST** include
 an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987].
-A UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
+A  UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 According to the server-sent events specification, in case of connection
 lost the subscriber will try to automatically re-connect. During the
 re-connection, the subscriber **MUST** send the last received event ID in a
 [Last-Event-ID](https://html.spec.whatwg.org/multipage/iana.html#last-event-id) HTTP header.
 
-In order to fetch any update dispatched between the initial resource generation by the publisher and
+To fetch any update dispatched between the initial resource generation by the publisher and
 the connection to the hub, the subscriber **MUST** send the event ID provided during the discovery
 as a `Last-Event-ID` header or a `lastEventID` query parameter. See (#discovery).
 
@@ -514,38 +493,38 @@ the hub **SHOULD** send all events published following the one bearing this iden
 to the subscriber.
 
 The reserved value `earliest` can be used to hint the hub to send all updates it has for the
-subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
+subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfill this request.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `lastEventID` query parameter the hub **MUST** set
 a `Last-Event-ID` header on the HTTP response.
 The value of the `Last-Event-ID` response header **MUST** be the ID of the event
 preceding the first one sent to the subscriber, or the reserved value `earliest` if there is no
-preceding event (it happens when the hub history is empty, when the subscriber requests the earliest
+preceding event (it happens when the hub history is empty when the subscriber requests the earliest
 event or when the subscriber requests an event that doesn't exist).
 
-The subscriber **SHOULD NOT** assume that no events will be lost (it may happen, for example if the
+The subscriber **SHOULD NOT** assume that no events will be lost (it may happen, for example, if the
 hub stores only a limited number of events in its history). In some cases (for instance when sending
 partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an event store),
 updates lost can cause data lost.
 
-To detect if a data lost occurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
-response HTTP header with the last event ID it requested. In case of data lost, the subscriber
+To detect if a data loss occurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
+response HTTP header with the last event ID it requested. In case of data loss, the subscriber
 **SHOULD** re-fetch the original topic.
 
 Note: Native `EventSource` implementations don't give access to headers associated with the HTTP
-response, however polyfills and server-sent events clients in most programming languages allow it.
+response, however, polyfills and server-sent events clients in most programming languages allow it.
 
 The hub **CAN** also specify the reconnection time using the `retry` key, as specified in the
 server-sent events format.
 
 # Active Subscriptions
 
-Mercure provides a mechanism to track active subscriptions. If the hub support this optional set
+Mercure provides a mechanism to track active subscriptions. If the hub supports this optional set
 of features, updates will be published when a subscription is created, or terminated, and a web API
 exposes the list of active subscriptions.
 
-Variables are templated and expanded in accordance with [@!RFC6570].
+Variables are templated and expanded following [@!RFC6570].
 
 ## Subscription Events
 
@@ -553,15 +532,20 @@ If the hub supports the active subscriptions feature, it **MUST** publish an upd
 subscription is created or terminated.
 
 The topic of these updates **MUST** be an expansion of
-`/.well-known/mercure/subscriptions/{topic}/{subscriber}`. `{topic}` is the topic selector used for
-this subscription and `{subscriber}` is a unique identifier for the subscriber.
+`/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` with the following variables:
 
-Note: Because it is recommended to use URI Templates and IRIs for the `{topic}` and `{subscriber}`
-variables, values will usually contain the `:`, `/`, `{` and `}` characters. Per [@!RFC6570], these
-characters are reserved. They **MUST** be percent encoded during the expansion process.
+*   `{matchType}`: the topic matcher type used for this subscription
+*   `{match}`: the topic matcher used for this subscription
+*   `{subscriber}`: a unique identifier for the subscriber
 
-If a subscriber has several subscriptions, it **SHOULD** be identified by the same
-identifier. `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC4122] or a
+Note: Because strings containing reserved characters (e.g. URIs, URL Patterns, and URI Templates)
+can be used for the `{match}` and `{subscriber}` variables, per [@!RFC6570],
+the values of all variables **MUST** be percent-encoded during the expansion process.
+
+If a subscriber has several subscriptions, it **SHOULD** be identified by a
+`{subscriber}` variable having the same value.
+
+`{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC4122] or a
 [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
@@ -572,24 +556,26 @@ least the following properties:
 *   `id`: the identifier of this update, it **MUST** be the same value as the subscription update's
     topic
 *   `type`: the fixed value `Subscription`
-*   `topic`: the topic selector used of this subscription
+*   `matchType`: the topic matcher type used for this subscription, it **MUST** be considered case-insensitive
+*   `match`: the topic matcher used for this subscription
 *   `subscriber`: the topic identifier of the subscriber. It **SHOULD** be an IRI.
 *   `active`: `true` when the subscription is active, and `false` when it is terminated
-*   `payload` (optional): the content of `mercure.payload` in the subscriber's JWS (see
-    (#authorization))
+*   `payload` (optional): the content of the `payload` field related to this subscription
+     present in the subscriber's JWS (see (#payloads))
 
 The JSON-LD document **MAY** contain other properties.
 
-In order to only allow authorized subscribers to receive subscription events, the subscription
+To only allow authorized subscribers to receive subscription events, the subscription
 update **MUST** be marked as `private`.
 
 Example:
 
 ~~~ json
 {
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
-   "topic": "https://example.com/{selector}",
+   "matchType": "URLPattern",
+   "matcher": "https://example.com/:selector",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"}
@@ -608,19 +594,19 @@ date.
 The web API **MUST** expose endpoints following these patterns:
 
 *   `/.well-known/mercure/subscriptions`: the collection of subscriptions
-*   `/.well-known/mercure/subscriptions/{topic}`: the collection of subscriptions for the given
-    topic selector
-*   `/.well-known/mercure/subscriptions/{topic}/{subscriber}`: a specific subscription
+*   `/.well-known/mercure/subscriptions/{matchType}/{match}`: the collection of subscriptions for the given
+    topic matcher
+*   `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`: a specific subscription
 
-To access to the URLs exposed by the web API, clients **MUST** be authorized according to the rules
-defined in (#authorization). The requested URL **MUST** match at least one of the topic selectors
+To access the URLs exposed by the web API, clients **MUST** be authorized according to the rules
+defined in (#authorization). The requested URL **MUST** match at least one of the topic matchers
 provided in the `mercure.subscribe` key of the JWS.
 
 The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
 
 URLs returning a single subscription (following the pattern
-`/.well-known/mercure/subscriptions/{topic}/{subscriber}`) **MUST** expose the same JSON-LD document
-as described in (#subscription-events). If the requested subscription does not exist, a `404` status
+`/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`) **MUST** expose the same JSON-LD document
+as described in (#subscription-events). If the requested subscription does not exist, a `404` HTTP status
 code **MUST** be returned.
 
 If the requested subscription isn't active anymore, the hub can either return the JSON-LD document
@@ -650,10 +636,10 @@ from cache is still valid before using it.
 Examples:
 
 ~~~ http
-GET /.well-known/mercure/subscriptions HTTP/1.1
+GET /.well-known/mercure/subscriptions
 Host: example.com
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
@@ -666,25 +652,28 @@ Cache-control: must-revalidate
    "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "matcherType": "URLPattern",
+         "match": "https://example.com/:selector",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
+         "id": "/.well-known/mercure/subscriptions/Exact/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "type": "Subscription",
-         "topic": "https://example.com/a-topic",
+         "match": "https://example.com/a-topic",
+         "matchType": "Exact",
          "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "active": true,
          "payload": {"baz": "bat"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "matcherType": "URLPattern",
+         "match": "https://example.com/:selector}",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -694,10 +683,10 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D HTTP/1.1
+GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector
 Host: example.com
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
@@ -705,22 +694,24 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D",
+   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector",
    "type": "Subscriptions",
    "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "match": "https://example.com/:selector",
+         "matchType": "URLPattern",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "topic": "https://example.com/{selector}",
+         "match": "https://example.com/:selector",
+         "matchType": "URLPattern",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -730,10 +721,10 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
+GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6
 Host: example.com
 
-HTTP/1.1 200 OK
+200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
@@ -741,9 +732,10 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d66",
    "type": "Subscription",
-   "topic": "https://example.com/{selector}",
+   "match": "https://example.com/:selector",
+   "matchType:" URLPattern",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"},
@@ -765,12 +757,141 @@ The JSON-LD context available at `https://mercure.rocks` is the following:
    "Subscription": "mercure:Subscription",
    "Subscriptions": "mercure:Subscriptions",
    "subscriptions": "mercure:subscriptions",
-   "topic": "mercure:topic",
+   "matchType": "mercure:matchType",
+   "match": "mercure:match",
    "subscriber": "mercure:subscriber",
    "active": "mercure:active",
    "payload": "mercure:payload",
    "lastEventID": "mercure:lastEventID"
 }
+~~~
+
+# Discovery
+
+## Hub Discovery
+
+The discovery mechanism aims at identifying the URL of one or more hubs designated by the publisher.
+
+The URL of the hub **MUST** be the "well-known" [@!RFC5785] fixed path `/.well-known/mercure`.
+
+If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the subscriber,
+allowing it to receive live updates when topics are updated. If more than one hub URL is specified,
+the publisher **MUST** notify each hub, so the subscriber **MAY** subscribe to one or more of
+them.
+
+Note: Publishers may wish to advertise and publish to more than one hub for fault tolerance and
+redundancy. If one hub fails to propagate an update to the document, then using multiple independent
+hubs is a way to increase the likelihood of delivery to subscribers. As such, subscribers may
+subscribe to one or more of the advertised hubs.
+
+The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub link
+header). The target URL of these links **MUST** be a hub implementing the Mercure protocol.
+
+The publisher **MAY** provide the following target attributes in the Link Headers:
+
+*   `last-event-id`: the identifier of the last event dispatched by the publisher at the time of
+    the generation of this resource. If provided, it **MUST** be passed to the hub through a query
+    parameter called `lastEventID` and will be used to ensure that possible updates
+    made between the resource generation by the server and the connection to the hub are not lost.
+    See (#reconciliation).
+*   `content-type`: the content type of the updates that will be pushed by the hub. If omitted,
+    the subscriber **MUST** assume that the content type will be the same as that of the original
+    resource. Setting the `content-type` attribute is especially useful to hint that partial updates
+    will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
+*   `key-set`: the URL of the key set to use to decrypt updates, encoded in the JWK set format
+    (JSON Web Key Set) [@!RFC7517]. See (#encryption). As this key set will contain a secret
+    key, the publisher must ensure that only the subscriber can access to this URL. To do so, the
+    authorization mechanism (see (#authorization)) can be reused.
+
+All these attributes are optional.
+
+Minimal example:
+
+~~~ http
+GET /books/foo
+Host: example.com
+
+200 OK
+Content-type: application/ld+json
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+
+{"@id": "/books/foo", "foo": "bar"}
+~~~
+
+## Topic Discovery
+
+The discovery mechanism **MAY** also be used to identify the canonical URL for the topic to which
+subscribers are expected to use for subscriptions.
+
+The publisher **MAY** include one Link Header [@!RFC5988] with `rel=self` (the self link
+header). It **SHOULD** contain the canonical URL for the topic to which subscribers are expected
+to use for subscriptions. If the Link with `rel=self` is omitted, the current URL of the resource
+**MAY** be used as a fallback.
+
+Links embedded in HTML or XML documents as defined in the WebSub recommendation
+[@W3C.REC-websub-20180123] **MAY** also be supported by subscribers. If both a header and an
+embedded link are provided, the header **MUST** be preferred.
+
+### Content Negotiation
+
+For practical purposes, it is important that the `rel=self` URL only offers a single representation.
+As the hub has no way of knowing what Media Type ([@RFC6838]) or language may have been requested
+by the subscriber upon discovery, it would not be able to deliver the content using the appropriate
+representation of the document.
+
+It is, however, possible to perform content negotiation by returning an appropriate `rel=self`
+URL according to the HTTP headers used in the initial discovery request. For example, a request
+to `/books/foo` with an `Accept` header containing `application/ld+json` could return a `rel=self`
+value of `/books/foo.jsonld`.
+
+The example below illustrates how a topic URL can return different `Link` headers depending on the
+`Accept` header that was sent.
+
+~~~ http
+GET /books/foo
+Host: example.com
+Accept: application/ld+json
+
+200 OK
+Content-type: application/ld+json
+Link: </books/foo.jsonld>; rel="self"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+
+{"@id": "/books/foo", "foo": "bar"}
+~~~
+
+~~~ http
+GET /books/foo
+Host: example.com
+Accept: text/html
+
+200 OK
+Content-type: text/html
+Link: </books/foo.html>; rel="self"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+
+<!doctype html>
+<link rel="self" href="/books/foo.html">
+<link rel="mercure" href="https://example.com/.well-known/mercure">
+<title>foo: bar</title>
+~~~
+
+Similarly, the technique can also be used to return a different `rel=self` URL depending on the
+language requested by the `Accept-Language` header.
+
+~~~ http
+GET /books/foo
+Host: example.com
+Accept: application/ld+json
+Accept-Language: fr-FR
+
+200 OK
+Content-type: application/ld+json
+Content-Language: fr-FR
+Link: </books/foo-fr-FR.jsonld>; rel="self"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"
+
+{"@id": "/books/foo", "foo": "bar", "@context": {"@language": "fr-FR"}}
 ~~~
 
 # Encryption
@@ -781,7 +902,7 @@ the hub.
 
 To make sure that the message content can not be read by the hub, the publisher **MAY** encrypt the
 message before sending it to the hub. The publisher **SHOULD** use JSON Web Encryption [@!RFC7516]
-to encrypt the update content. The publisher **MAY** provide the URL pointing to the relevant
+to encrypt the content of the update. The publisher **MAY** provide the URL pointing to the relevant
 encryption key(s) in the `key-set` attribute of the `Link` HTTP header during the discovery. See
 (#discovery). The `key-set` attribute **MUST** link to a key encoded using the JSON Web Key Set
 [@!RFC7517] format. Any other out-of-band mechanism **MAY** be used instead to share the key between
@@ -824,7 +945,7 @@ Web Token (JWT)" with the following entry:
 
 The confidentiality of the secret key(s) used to generate the JWSs is a primary concern. The
 secret key(s) **MUST** be stored securely. They **MUST** be revoked immediately in the event of
-compromission.
+a breach.
 
 Possessing valid JWSs allows any client to subscribe, or to publish to the hub. Their
 confidentiality **MUST** therefore be ensured. To do so, JWSs **MUST** only be transmitted over
@@ -836,22 +957,22 @@ attacks](https://owasp.org/www-community/attacks/xss/). It's the main reason why
 is a web browser, using `HttpOnly` cookies as the authorization mechanism **SHOULD** always be
 preferred.
 
-In the event of compromission, revoking JWSs before their expiration is often difficult. To that
+In the event of a breach, revoking JWSs before their expiration is often difficult. To that
 end, using short-lived tokens is strongly **RECOMMENDED**.
 
-The publish endpoint of the hub may be targeted by [Cross-Site Request Forgery (CSRF)
+The publishing endpoint of the hub may be targeted by [Cross-Site Request Forgery (CSRF)
 attacks](https://owasp.org/www-community/attacks/csrf) when the cookie-based authorization mechanism
 is used. Therefore, implementations supporting this mechanism **MUST** mitigate such attacks.
 
 The first prevention method to implement is to set the `mercureAuthorization`
-cookie's `SameSite` attribute. However, [some web browsers still not support this
+cookie's `SameSite` attribute. However, [some web browsers still do not support this
 attribute](https://caniuse.com/#feat=same-site-cookie-attribute) and will remain vulnerable.
 Additionally, hub implementations **SHOULD** use the `Origin` and `Referer` HTTP headers set by web
 browsers to verify that the source origin matches the target origin. If none of these headers are
 available, the hub **SHOULD** discard the request.
 
 CSRF prevention techniques, including those previously mentioned, are described
-in depth in [OWASP's Cross-Site Request Forgery (CSRF) Prevention Cheat
+in-depth in [OWASP's Cross-Site Request Forgery (CSRF) Prevention Cheat
 Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
 
 JWSs **SHOULD NOT** be passed in page URLs (for example, using the `authorization` query string
@@ -880,7 +1001,7 @@ information as they see fit."
 
 Organization responsible for the implementation:
 
-Dunglas Services SAS Les-Tilleuls.coop
+Dunglas Services SAS
 
 Implementation Name and Details:
 
@@ -1322,5 +1443,45 @@ Other implementations can be found on GitHub: <https://github.com/topics/mercure
 Parts of this specification, especially (#discovery) have been adapted from the WebSub
 recommendation [@W3C.REC-websub-20180123]. The editor wish to thank all the authors of this
 specification.
+
+<reference anchor="urlpattern" target="https://urlpattern.spec.whatwg.org">
+    <front>
+        <title>URL Pattern Living Standard</title>
+        <author>
+            <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
+        </author>
+        <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="eventsource-interface" target="https://html.spec.whatwg.org/#the-eventsource-interface">
+    <front>
+        <title>HTML Living Standard</title>
+        <author>
+            <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
+        </author>
+        <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="xhr" target="https://xhr.spec.whatwg.org/">
+    <front>
+        <title>XMLHttpRequest Living Standard</title>
+        <author>
+            <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
+        </author>
+        <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="cel" target="https://cel.dev/">
+    <front>
+        <title>Common Expression Language</title>
+        <author>
+            <organization>Google</organization>
+        </author>
+        <date year="2024"/>
+    </front>
+</reference>
 
 {backmatter}
