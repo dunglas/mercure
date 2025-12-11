@@ -42,7 +42,7 @@ func (b *Bolt) GetTransport() mercure.Transport { //nolint:ireturn
 //nolint:wrapcheck
 func (b *Bolt) Provision(ctx caddy.Context) error {
 	if b.Path == "" {
-		b.Path = filepath.Join(caddy.AppDataDir(), "bolt.db")
+		b.Path = filepath.Join(caddy.AppDataDir(), "mercure.db")
 	}
 
 	var key bytes.Buffer
