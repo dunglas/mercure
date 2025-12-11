@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -23,11 +24,15 @@ const (
 )
 
 func TestMercure(t *testing.T) {
+	boltPath := filepath.Join(t.TempDir(), "bolt.db")
+
 	data := []struct {
 		name            string
 		transportConfig string
 	}{
-		{"bolt", ""},
+		{"bolt", `transport bolt {
+			path ` + boltPath + `
+		}`},
 		{"local", "transport local\n"},
 	}
 
@@ -35,7 +40,7 @@ func TestMercure(t *testing.T) {
 		t.Run(d.name, func(t *testing.T) {
 			if d.name == "bolt" {
 				t.Cleanup(func() {
-					require.NoError(t, os.Remove("bolt.db"))
+					require.NoError(t, os.Remove(boltPath))
 				})
 			}
 
@@ -115,17 +120,13 @@ example.com:9080 {
 			received.Wait()
 
 			if d.name != "bolt" {
-				assert.NoFileExists(t, "bolt.db")
+				assert.NoFileExists(t, boltPath)
 			}
 		})
 	}
 }
 
 func TestJWTPlaceholders(t *testing.T) {
-	t.Cleanup(func() {
-		require.NoError(t, os.Remove("bolt.db"))
-	})
-
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	t.Setenv("TEST_JWT_KEY", string(k))
 	t.Setenv("TEST_JWT_ALG", "RS256")
@@ -144,6 +145,7 @@ func TestJWTPlaceholders(t *testing.T) {
 			mercure {
 				anonymous
 				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+				transport local
 			}
 	
 			respond 404

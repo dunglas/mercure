@@ -3,6 +3,7 @@ package caddy
 import (
 	"bytes"
 	"encoding/gob"
+	"path/filepath"
 	"strconv"
 
 	"github.com/caddyserver/caddy/v2"
@@ -40,10 +41,15 @@ func (b *Bolt) GetTransport() mercure.Transport { //nolint:ireturn
 //
 //nolint:wrapcheck
 func (b *Bolt) Provision(ctx caddy.Context) error {
+	if b.Path == "" {
+		b.Path = filepath.Join(caddy.AppDataDir(), "mercure.db")
+	}
+
 	var key bytes.Buffer
 	if err := gob.NewEncoder(&key).Encode(b); err != nil {
 		return err
 	}
+
 	b.transportKey = key.String()
 
 	destructor, _, err := TransportUsagePool.LoadOrNew(b.transportKey, func() (caddy.Destructor, error) {
@@ -105,7 +111,7 @@ func (b *Bolt) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 				f, e := strconv.ParseFloat(d.Val(), 64)
 				if e != nil {
-					return e
+					return d.WrapErr(e)
 				}
 
 				b.CleanupFrequency = f
@@ -117,7 +123,7 @@ func (b *Bolt) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 				s, e := strconv.ParseUint(d.Val(), 10, 64)
 				if e != nil {
-					return e
+					return d.WrapErr(e)
 				}
 
 				b.Size = s
