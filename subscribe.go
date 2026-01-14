@@ -213,11 +213,12 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	s.SetTopics(topics, privateTopics)
 
-	h.dispatchSubscriptionUpdate(ctx, s, true)
+	addCtx := context.WithoutCancel(ctx)
+	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
-	if err := h.transport.AddSubscriber(ctx, s); err != nil {
+	if err := h.transport.AddSubscriber(addCtx, s); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
-		h.dispatchSubscriptionUpdate(ctx, s, false)
+		h.dispatchSubscriptionUpdate(addCtx, s, false)
 
 		if h.logger.Enabled(ctx, slog.LevelError) {
 			h.logger.LogAttrs(ctx, slog.LevelError, "Unable to add subscriber", slog.Any("error", err))
@@ -330,6 +331,8 @@ func (h *Hub) write(ctx context.Context, rc *responseController, data string) bo
 func (h *Hub) shutdown(ctx context.Context, s *LocalSubscriber) {
 	// Notify that the client is closing the connection
 	s.Disconnect()
+
+	ctx = context.WithoutCancel(ctx)
 
 	if err := h.transport.RemoveSubscriber(ctx, s); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
 		h.logger.LogAttrs(ctx, slog.LevelError, "Failed to remove subscriber on shutdown", slog.Any("error", err))

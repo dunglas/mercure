@@ -105,7 +105,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		Debug:   h.debug,
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
-	ctx = context.WithValue(ctx, UpdateContextKey, u)
+	ctx = context.WithValue(context.WithoutCancel(ctx), UpdateContextKey, u)
 
 	// Broadcast the update
 	if err := h.transport.Dispatch(ctx, u); err != nil {
