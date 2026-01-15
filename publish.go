@@ -106,7 +106,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
 
-
 	ctx = context.WithValue(ctx, UpdateContextKey, u)
 	dispatchCtx := context.WithoutCancel(ctx)
 
