@@ -26,8 +26,15 @@ func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
 	}
 
 	var k string
+
 	if tss.cache != nil {
-		k = "m_" + topicSelector + "_" + topic
+		var b strings.Builder
+		b.Grow(3 + len(topicSelector) + len(topic))
+		b.WriteString("m_")
+		b.WriteString(topicSelector)
+		b.WriteByte('_')
+		b.WriteString(topic)
+		k = b.String()
 
 		value, found := tss.cache.Get(k)
 		if found {

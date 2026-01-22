@@ -59,6 +59,10 @@ func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
 				if s.topicSelectorStore.match(topic, ts) {
 					subscribed = true
 
+					if canAccess {
+						return true
+					}
+
 					break
 				}
 			}
@@ -68,6 +72,10 @@ func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
 			for _, ts := range s.AllowedPrivateTopics {
 				if s.topicSelectorStore.match(topic, ts) {
 					canAccess = true
+
+					if subscribed {
+						return true
+					}
 
 					break
 				}
