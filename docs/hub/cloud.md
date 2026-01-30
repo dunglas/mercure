@@ -5,7 +5,7 @@ Our SRE team constantly monitors hubs. Updates are automatically applied.
 
 Unlike the free and open-source hubs, Cloud hubs use [clustering](cluster.md) and are deployed in a high-availability infrastructure.
 
-The Cloud service is built on top of the free and open-source hub and helps fund its development.
+The Cloud service is built on top of the community hub and helps fund its development.
 
 ## Subscribing
 
@@ -15,7 +15,7 @@ After purchase, your hub will be instantly provisioned and available under a `me
 
 You'll have access to an administration interface allowing you to:
 
-- configure your hub (the same [configuration settings](config.md) as for the free and open-source hub are available)
+- configure your hub (the same [configuration settings](config.md) as for Mercure.rocks Community are available)
 - access to the logs of your hub
 - [set a custom domain name](#custom-domain)
 - [switch to another plan](#switching-between-plans)
