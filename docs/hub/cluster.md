@@ -3,7 +3,7 @@
 The community version of Mercure.rocks is shipped with transports (BoltDB and local) that can only run on a single node.
 
 On the other hand, [the Cloud and the Enterprise versions](https://mercure.rocks/pricing) of Mercure.rocks Hub have been
-designed from the ground up to support clusters. Theses natively run on multiple nodes,
+designed from the ground up to support clusters. These natively run on multiple nodes,
 are designed for fault tolerance and can support very high loads.
 
 Both versions work by providing extra transports supporting synchronization of several nodes.
@@ -23,7 +23,7 @@ To use it, just configure your custom domain name (if any) and your secret JWT k
 
 ## Self-Hosted Enterprise
 
-Mercure.rocks Enterprise provides a drop-in replacement for the community Hub, which allows you to spread the load across as many servers as you want.
+Mercure.rocks Enterprise provides a drop-in replacement for the community Hub, allowing you to spread the load across as many servers as you want.
 It is designed to run on your own servers and is fault-tolerant by default.
 
 The Enterprise version is shipped with transports having node synchronization capabilities.
@@ -39,7 +39,7 @@ Mercure.rocks Enterprise also provides:
 - advanced rate limiting
 - drop-in replacements builds for [FrankenPHP](https://frankenphp.dev) including High Availability transports
 
-We can help you to decide which synchronization mechanism will be the best suited for your needs, and help you to install and configure it on your infrastructure.
+We can help you decide which synchronization mechanism is best suited for your needs, and assist you in installing and configuring it on your infrastructure.
 
 The Mercure.rocks Enterprise Hub is provided as binaries and as a Docker image. We also maintain a Helm chart that allows for
 installation on any Kubernetes cluster.
@@ -48,7 +48,7 @@ For more details (and a benchmark), [read the case studies section](../spec/use-
 
 ### Purchasing
 
-To purchase Mercure.rocks Enterprise, drop us a mail: [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=I%27m%20interested%20in%20Mercure%20Enterprise)
+To purchase Mercure.rocks Enterprise, send us an email: [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=I%27m%20interested%20in%20Mercure%20Enterprise)
 
 ### Setting the License
 

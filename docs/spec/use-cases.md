@@ -1,6 +1,6 @@
 # Case Studies and Use Cases
 
-From building a chat room to expose a fully-featured event store, Mercure covers a broad spectrum of use cases related to realtime and async APIs.
+From building a chat room to exposing a fully-featured event store, Mercure covers a broad spectrum of use cases related to real-time and async APIs.
 
 ## Case Studies
 
