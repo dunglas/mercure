@@ -67,7 +67,7 @@ See also [the list of built-in Caddyfile directives](https://caddyserver.com/doc
 The provided `Caddyfile` and Docker image offer convenient environment variables:
 
 | Environment variable            | Description                                                                                                                                                                                                          | Default value |
-| ------------------------------- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ------------- |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | `GLOBAL_OPTIONS`                | the [global options block](https://caddyserver.com/docs/caddyfile/options#global-options) to inject in the `Caddyfile`, one per line                                                                                 |               |
 | `CADDY_EXTRA_CONFIG`            | the [snippet](https://caddyserver.com/docs/caddyfile/concepts#snippets) or the [named-routes](https://caddyserver.com/docs/caddyfile/concepts#named-routes) options block to inject in the `Caddyfile`, one per line |               |
 | `CADDY_SERVER_EXTRA_DIRECTIVES` | [`Caddyfile` directives](https://caddyserver.com/docs/caddyfile/concepts#directives)                                                                                                                                 |               |

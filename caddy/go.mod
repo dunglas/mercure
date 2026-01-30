@@ -4,7 +4,7 @@ go 1.25.0
 
 retract (
 	v0.14.7 // CI problem
-	v0.14.6 // Overwriten tag
+	v0.14.6 // Overwritten tag
 )
 
 replace github.com/dunglas/mercure => ../

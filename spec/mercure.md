@@ -31,7 +31,7 @@ Mercure provides a common publish-subscribe mechanism for public and private web
 It enables the pushing of any web content to browsers and other clients in
 a fast, reliable, and battery-efficient way.
 Mercure is especially useful for publishing real-time updates of resources
-served through websites and web APIs to web and mobile applications.
+served through sites and web APIs to web and mobile applications.
 
 Subscription requests are relayed through hubs, which validate and verify each request.
 When new or updated content becomes available, hubs check if subscribers are authorized to receive it,
