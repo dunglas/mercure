@@ -4,11 +4,10 @@
 
 ## Starting the Hub
 
-The easiest way to get started is to [install the official Mercure.rocks
-Hub](hub/install.md). When it's done, go directly to the next step.
-There are other unofficial [libraries implementing Mercure](ecosystem/awesome.md#hubs-and-server-libraries). In the rest of this tutorial, we'll assume that the hub is running on `https://localhost` and that the `JWT_KEY` is `!ChangeThisMercureHubJWTSecretKey!`.
+The easiest way to get started is to [install the official Mercure.rocks Hub](hub/install.md). Once installed, proceed to the next step.
+There are also unofficial [libraries implementing Mercure](ecosystem/awesome.md#hubs-and-server-libraries). In the rest of this tutorial, we'll assume the hub is running on `https://localhost` and that the `JWT_KEY` is `!ChangeThisMercureHubJWTSecretKey!`.
 
-Please note that the hub is entirely optional when using the Mercure protocol. Your app can also implement the Mercure protocol directly.
+Note: The hub is entirely optional when using the Mercure protocol. Your app can also implement the Mercure protocol directly.
 
 ## Subscribing
 
@@ -34,9 +33,9 @@ Although the native `EventSource` class is generally quite good, we recommend [M
 
 ## Closing Connection
 
-It is important to close this connection between the client and the hub if it is no longer needed.
-Opened connections have a continuous buffer that will drain your application resources.
-This is especially true when using Single Page Applications (based on e.g. React): the connection is maintained even if the component that created it is unmounted.
+It is important to close the connection between the client and the hub if it is no longer needed.
+Open connections maintain a continuous buffer that can drain your application resources.
+This is especially true when using Single Page Applications (e.g., React): the connection is maintained even if the component that created it is unmounted.
 
 To close the connection, call `eventSource.close()`.
 
@@ -48,14 +47,14 @@ Optionally, [the authorization mechanism](../spec/mercure.md#authorization) can 
 
 ## Discovering the Mercure Hub
 
-Also, optionally, the hub URL can be automatically discovered:
+Optionally, the hub URL can be automatically discovered:
 
 ![Discovery Schema](../spec/discovery.png)
 
-Here is a snippet to extract the URL of the hub from the `Link` HTTP header.
+Here is a snippet to extract the URL of the hub from the `Link` HTTP header:
 
 ```javascript
-fetch("https://example.com/books/1") // Has this header `Link: <https://localhost/.well-known/mercure>; rel="mercure"`
+fetch("https://example.com/books/1") // Has this header: `Link: <https://localhost/.well-known/mercure>; rel="mercure"`
   .then((response) => {
     // Extract the hub URL from the Link header
     const hubUrl = response.headers

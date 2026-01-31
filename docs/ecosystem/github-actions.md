@@ -1,6 +1,6 @@
 # Using a Mercure Service in GitHub Actions
 
-Adding a Mercure hub in your Continuous Integration system powered by GitHub Actions is straightforward:
+Adding a Mercure hub to your Continuous Integration system powered by GitHub Actions is straightforward:
 create a [service container](https://docs.github.com/en/free-pro-team@latest/actions/guides/about-service-containers) and map its port on the host:
 
 ```yaml

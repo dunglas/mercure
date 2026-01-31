@@ -3,18 +3,18 @@
 ## Demos
 
 - [Demo hub and debug UI](https://demo.mercure.rocks) ([source code](https://github.com/dunglas/mercure/tree/master/public)): a managed demo hub and the official debugging tools (written in JavaScript)
-- [Chat](https://demo-chat.mercure.rocks/) ([source code](https://github.com/dunglas/mercure/tree/master/examples/chat)): a chat, including the list of currently connected users (written in JavaScript and Python)
+- [Chat](https://demo-chat.mercure.rocks/) ([source code](https://github.com/dunglas/mercure/tree/master/examples/chat)): a chat app, including the list of currently connected users (written in JavaScript and Python)
 
 ## Examples
 
-- [JavaScript (publish, subscribe and presence API)](https://github.com/dunglas/mercure/blob/master/public/app.js)
+- [JavaScript (publish, subscribe, and presence API)](https://github.com/dunglas/mercure/blob/master/public/app.js)
 - [JavaScript (subscribe and presence API)](https://github.com/dunglas/mercure/blob/master/examples/chat/static/chat.js)
 - [Node.js (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/node.js)
 - [PHP (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/php.php)
 - [Ruby (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
 - [Python (subscribe)](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
 - [Python (cookie authorization)](https://github.com/dunglas/mercure/blob/master/examples/chat/chat.py)
-- [API Platform (publish and subscribe)](https://github.com/api-platform/demo): a book catalog updated in real-time using Mercure
+- [API Platform (publish and subscribe)](https://github.com/api-platform/demo): a book catalog updated in real time using Mercure
 
 ## Documentation and Code Generation
 

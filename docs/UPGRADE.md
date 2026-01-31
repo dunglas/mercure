@@ -69,11 +69,11 @@ The `mercure_subscribers` field of the Prometheus endpoint has been renamed `mer
 
 ## 0.14.1
 
-The default dev key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecretKey!` to respect the specification (they key must longer than 256 bits).
+The default dev key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecretKey!` to respect the specification (the key must be longer than 256 bits).
 
 ## 0.14
 
-The query parameter allowing to fetch past events has been renamed `lastEventID`: in your clients, replace all occurrences of the `Last-Event-ID` query parameter by `lastEventID`.
+The query parameter allowing you to fetch past events has been renamed `lastEventID`: in your clients, replace all occurrences of the `Last-Event-ID` query parameter with `lastEventID`.
 
 Publishing public updates in topics not explicitly listed in the `mercure.publish` JWT claim isn't supported anymore.
 To let your publishers publish (public and private updates) in all topics, use the special `*` topic selector:
@@ -121,7 +121,7 @@ This version is in sync with the latest version of the specification, which chan
 
 ## 0.8
 
-- According to the new version of the spec, the URL of the Hub changed moved from `/hub` to `/.well-known/mercure`
+- According to the new version of the spec, the URL of the Hub has changed from `/hub` to `/.well-known/mercure`.
 - `HISTORY_CLEANUP_FREQUENCY`, `HISTORY_SIZE` and `DB_PATH` environment variables have been replaced by the new `TRANSPORT_URL` environment variable
 - Lists in `ACME_HOSTS`, `CORS_ALLOWED_ORIGINS`, `PUBLISH_ALLOWED_ORIGINS` must now be space separated
 - The public API of the Go library has been totally revamped
