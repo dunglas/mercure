@@ -120,6 +120,7 @@ securityContext: {}
   # runAsUser: 1000
 
 deployment:
+  # -- Annotations to be added to the deployment.
   annotations: {}
 
 service:
