@@ -28,13 +28,14 @@ organization = "Les-Tilleuls.coop"
 .# Abstract
 
 Mercure provides a common publish-subscribe mechanism for public and private web resources.
-Mercure enables the pushing of any web content to web browsers and other clients in
-a fast, reliable and battery-efficient way. It is especially useful for publishing real-time updates
-of resources served through sites and web APIs to web and mobile apps.
+It enables the pushing of any web content to browsers and other clients in
+a fast, reliable, and battery-efficient way.
+Mercure is especially useful for publishing real-time updates of resources
+served through sites and web APIs to web and mobile applications.
 
-Subscription requests are relayed through hubs, which validate and verify the request.
-When new or updated content becomes available, hubs check if subscribers are authorized to receive it
-then distribute it.
+Subscription requests are relayed through hubs, which validate and verify each request.
+When new or updated content becomes available, hubs check if subscribers are authorized to receive it,
+then distribute it accordingly.
 
 {mainmatter}
 
@@ -44,20 +45,20 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be
 interpreted as described in [@!RFC2119].
 
-*   Topic: The unit to which one can subscribe to changes. The topic **SHOULD** be identified
+*   Topic: The unit to which one can subscribe for changes. The topic **SHOULD** be identified
     by an IRI [@!RFC3987]. Using an HTTPS [@!RFC7230] or HTTP [@!RFC7230] URI [@!RFC3986] is
     **RECOMMENDED**.
 *   Update: The message containing the updated version of the topic. An update can be marked as
-    private, consequently, it must be dispatched only to subscribers allowed to receive it.
-*   Topic selector: An expression matching one or several topics.
-*   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
-    almost all pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
-    systems might call the publisher the "source". Typically, a site or a web API, but can also be
+    private; in this case, it must be dispatched only to authorized subscribers.
+*   Topic selector: An expression matching one or more topics.
+*   Publisher: The owner of a topic. Notifies the hub when the topic feed has been updated. As in
+    most pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
+    systems might call the publisher the "source". Typically, a site or web API, but can also be
     a web browser.
 *   Subscriber: A client application that subscribes to real-time updates of topics using topic
-    selectors. Typically, a web or a mobile application, but can also be a server.
+    selectors. Typically, a web or mobile application, but can also be a server.
 *   Subscription: A topic selector used by a subscriber to receive updates. A single subscriber can
-    have several subscriptions, when it provides several topic selectors.
+    have several subscriptions by providing multiple topic selectors.
 *   Hub: A server that handles subscription requests and distributes the content to subscribers when
     the corresponding topics have been updated. Any hub **MAY** implement its own policies on who
     can use it.
@@ -185,48 +186,47 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
 # Topic Selectors
 
-A topic selector is an expression intended to be matched by one or several topics. A topic selector
+A topic selector is an expression intended to match one or more topics. Topic selectors
 can also be used to match other topic selectors for authorization purposes. See (#authorization).
 
-A topic selector can be any string including URI Templates [@!RFC6570] and the reserved string `*`
-that matches all topics. It is **RECOMMENDED** to use URI Templates or the reserved string `*` as
+A topic selector can be any string, including URI Templates [@!RFC6570], and the reserved string `*`
+which matches all topics. It is **RECOMMENDED** to use URI Templates or the reserved string `*` as
 topic selectors.
 
 Note: URLs and IRIs are valid URI templates.
 
-To determine if a string matches a selector, the following steps must be followed:
+To determine if a string matches a selector, follow these steps:
 
-1.  If the topic selector is `*` then the string matches the selector.
+1.  If the topic selector is `*`, then the string matches the selector.
 2.  If the topic selector and the string are exactly the same, the string matches the selector. This
-    characteristic allows to compare a URI Template with another one.
-3.  If the topic selector is a valid URI Template, and that the string matches this URI Template,
+    allows comparison of a URI Template with another one.
+3.  If the topic selector is a valid URI Template, and the string matches this URI Template,
     the string matches the selector.
 4.  Otherwise, the string does not match the selector.
 
 # Subscription
 
-The subscriber subscribes to a URL exposed by a hub to receive updates from one or many topics.
-To subscribe to updates, the client opens an HTTPS connection following the Server-Sent Events
+A subscriber connects to a URL exposed by a hub to receive updates from one or more topics.
+To subscribe, the client opens an HTTPS connection following the Server-Sent Events
 specification [@!W3C.REC-eventsource-20150203] to the hub's subscription URL advertised by the
 publisher. The `GET` HTTP method must be used. The connection **SHOULD** use HTTP version 2 or
-superior to leverage multiplexing and other performance-oriented related features provided by these
-versions.
+higher to leverage multiplexing and other performance features.
 
-The subscriber specifies the list of topics to get updates from by using one or several query
+The subscriber specifies the list of topics to receive updates from by using one or more query
 parameters named `topic`. The `topic` query parameters **MUST** contain topic selectors. See
 (#topic-selectors).
 
-The protocol doesn't specify the maximum number of `topic` parameters that can be sent, but the hub
-**MAY** apply an arbitrary limit. A subscription is created for every provided `topic` parameter.
+The protocol does not specify a maximum number of `topic` parameters that can be sent, but the hub
+**MAY** apply an arbitrary limit. A subscription is created for each provided `topic` parameter.
 See (#subscription-events).
 
 [The EventSource JavaScript
 interface](https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface)
-**MAY** be used to establish the connection. Any other appropriate mechanism
-including, but not limited to, readable streams [@W3C.NOTE-streams-api-20161129] and
-[XMLHttpRequest](https://xhr.spec.whatwg.org/) (used by popular polyfills) **MAY** also be used.
+**MAY** be used to establish the connection. Any other appropriate mechanism,
+including but not limited to readable streams [@W3C.NOTE-streams-api-20161129] and
+[XMLHttpRequest](https://xhr.spec.whatwg.org/) (used by popular polyfills), **MAY** also be used.
 
-The hub sends to the subscriber updates for topics matching the provided topic selectors.
+The hub sends updates to the subscriber for topics matching the provided topic selectors.
 
 If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscribers not authorized
 to receive it. See (#authorization).
@@ -234,18 +234,18 @@ to receive it. See (#authorization).
 The hub **MUST** send these updates as `text/event-stream` compliant events
 [!@W3C.REC-eventsource-20150203].
 
-The `data` property **MUST** contain the new version of the topic. It can be the full resource, or a
-partial update by using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
+The `data` property **MUST** contain the new version of the topic. It can be the full resource or a
+partial update using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 
 All other properties defined in the Server-Sent Events specification **MAY** be used and **MUST** be
 supported by hubs.
 
 The resource **SHOULD** be represented in a format with hypermedia capabilities such as
-JSON-LD [@W3C.REC-json-ld-20140116], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
+JSON-LD [@W3C.REC-json-ld-20140116], Atom [@RFC4287], XML [@W3C.REC-xml-20081126], or HTML
 [@W3C.REC-html52-20171214].
 
 Web Linking [@!RFC5988] **SHOULD** be used to indicate the IRI of the resource sent in the event.
-When using Atom, XML or HTML as the serialization format for the resource, the document **SHOULD**
+When using Atom, XML, or HTML as the serialization format for the resource, the document **SHOULD**
 contain a `link` element with a `self` relation containing the IRI of the resource. When using
 JSON-LD, the document **SHOULD** contain an `@id` property containing the IRI of the resource.
 
@@ -273,8 +273,8 @@ authorization rules not defined in this specification.
 
 # Publication
 
-The publisher sends updates by issuing `POST` HTTPS requests on the hub URL. When it receives an
-update, the hub dispatches it to subscribers using the established server-sent events connections.
+The publisher sends updates by issuing `POST` HTTPS requests to the hub URL. When it receives an
+update, the hub dispatches it to subscribers using established server-sent events connections.
 
 The hub **MAY** also dispatch this update using other protocols such as WebSub
 [@W3C.REC-websub-20180123] or ActivityPub [@W3C.REC-activitypub-20180123].
@@ -283,28 +283,28 @@ An application **CAN** send events directly to subscribers without using an exte
 it is able to do so. In this case, it **MAY NOT** implement the endpoint to publish updates.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
-[@W3C.REC-html52-20171214] and contains the following name-value tuples:
+[@W3C.REC-html52-20171214] and **CAN** contain the following name-value pairs:
 
 *   `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an IRI as
-    identifier. If this name is present several times, the first occurrence is considered to be the
-    canonical IRI of the topic, and other ones are considered to be alternate IRIs. The hub **MUST**
-    dispatch this update to subscribers that are subscribed to both canonical or alternate IRIs.
-*   `data` (optional): the content of the new version of this topic.
-*   `private` (optional): if this name is set, the update **MUST NOT** be dispatched to subscribers
-    not authorized to receive it. See (#authorization). It is recommended to set the value to `on`
-    but it **CAN** contain any value including an empty string.
-*   `id` (optional): the topic's revision identifier: it will be used as the SSE's `id` property.
+     the identifier. If this name is present several times, the first occurrence is considered
+     the canonical IRI of the topic, and others are considered alternate IRIs. The hub **MUST**
+     dispatch this update to subscribers subscribed to either canonical or alternate IRIs.
+*   `data` (optional): The content of the new version of this topic.
+*   `private` (optional): If this name is set, the update **MUST NOT** be dispatched to subscribers
+     not authorized to receive it. See (#authorization). It is recommended to set the value to `on`,
+     but it **CAN** contain any value, including an empty string.
+*   `id` (optional): The topic's revision identifier, which will be used as the SSE's `id` property.
     The provided ID **MUST NOT** start with the `#` character. The provided ID **SHOULD** be a valid
     IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC4122] or a
-    [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively the hub **MAY** generate a
+    [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively, the hub **MAY** generate a
     relative URI composed of a fragment (starting with `#`). This is convenient to return an offset
     or a sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the ID
     provided by the client and generate its own ID.
-*   `type` (optional): the SSE's `event` property (a specific event type).
-*   `retry` (optional): the SSE's `retry` property (the reconnection time).
+*   `type` (optional): The SSE's `event` property (a specific event type).
+*   `retry` (optional): The SSE's `retry` property (the reconnection time).
 
-In the event of success, the HTTP response's body **MUST** be the `id` associated to this update
-generated by the hub and a success HTTP status code **MUST** be returned. The publisher **MUST** be
+On success, the HTTP response body **MUST** be the `id` associated with this update
+generated by the hub, and a success HTTP status code **MUST** be returned. The publisher **MUST** be
 authorized to publish updates. See (#authorization).
 
 Example:
@@ -325,25 +325,25 @@ urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 
 # Authorization
 
-To ensure that they are authorized, both publishers and subscribers must present a valid JWS
+To ensure authorization, both publishers and subscribers must present a valid JWS
 [@!RFC7515] in compact serialization to the hub. This JWS **SHOULD** be short-lived, especially
-if the subscriber is a web browser. A different key **MAY** be used to sign subscribers' and
-publishers' tokens.
+if the subscriber is a web browser. Different keys **MAY** be used to sign subscriber and
+publisher tokens.
 
 Three mechanisms are defined to present the JWS to the hub:
 
-*   using an `Authorization` HTTP header
-*   using a cookie
-*   using an `authorization` URI query parameter
+*   Using an `Authorization` HTTP header
+*   Using a cookie
+*   Using an `authorization` URI query parameter
 
 When using any authorization mechanism, the connection **MUST** use an encryption layer such as
 HTTPS.
 
 If an `Authorization` HTTP header is presented by the client, the JWS it contains **MUST** be used.
-The content of the `authorization` query parameter and of the cookie **MUST** be ignored.
+The content of the `authorization` query parameter and the cookie **MUST** be ignored.
 
 If an `authorization` query parameter is set by the client and no `Authorization` HTTP header is
-presented, the content of the query parameter **MUST** be used, the content of the cookie must be
+presented, the content of the query parameter **MUST** be used; the content of the cookie must be
 ignored.
 
 If the client tries to execute an operation it is not allowed to, a 403 HTTP status code **SHOULD**
@@ -484,57 +484,55 @@ related to one subscriber to other subscribers.
 
 # Reconnection, State Reconciliation and Event Sourcing {#reconciliation}
 
-The protocol allows to reconciliate states after a reconnection. It can also be used to implement an
+The protocol allows state reconciliation after a reconnection. It can also be used to implement an
 [Event store](https://en.wikipedia.org/wiki/Event_store).
 
-To allow re-establishment in case of connection lost, events dispatched by the hub **MUST** include
-an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987].
+To allow re-establishment in case of lost connection, events dispatched by the hub **MUST** include
+an `id` property. The value of this `id` property **SHOULD** be an IRI [@!RFC3987].
 A UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
-According to the server-sent events specification, in case of connection
-lost the subscriber will try to automatically re-connect. During the
-re-connection, the subscriber **MUST** send the last received event ID in a
+According to the server-sent events specification, if the connection is lost,
+the subscriber will try to automatically reconnect. During reconnection,
+the subscriber **MUST** send the last received event ID in a
 [Last-Event-ID](https://html.spec.whatwg.org/multipage/iana.html#last-event-id) HTTP header.
 
-In order to fetch any update dispatched between the initial resource generation by the publisher and
-the connection to the hub, the subscriber **MUST** send the event ID provided during the discovery
+To fetch any update dispatched between the initial resource generation by the publisher and
+the connection to the hub, the subscriber **MUST** send the event ID provided during discovery
 as a `Last-Event-ID` header or a `lastEventID` query parameter. See (#discovery).
 
-`EventSource` implementations may not allow to set HTTP headers during the first connection (before
-a reconnection) and implementations in web browsers don't allow to set it.
+`EventSource` implementations may not allow setting HTTP headers during the first connection (before
+a reconnection), and web browser implementations do not allow it.
 
-To work around this problem, the hub **MUST** also allow to pass the last event ID in a query
+To work around this, the hub **MUST** also allow passing the last event ID in a query
 parameter named `lastEventID`.
 
 If both the `Last-Event-ID` HTTP header and the `lastEventID` query parameter are present,
 the HTTP header **MUST** take precedence.
 
 If the `Last-Event-ID` HTTP header or the `lastEventID` query parameter exists,
-the hub **SHOULD** send all events published following the one bearing this identifier
+the hub **SHOULD** send all events published after the one with this identifier
 to the subscriber.
 
 The reserved value `earliest` can be used to hint the hub to send all updates it has for the
-subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfil this request.
+subscribed topics. According to its own policy, the hub **MAY** or **MAY NOT** fulfill this request.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
-`Last-Event-ID` HTTP header or a `lastEventID` query parameter the hub **MUST** set
+`Last-Event-ID` HTTP header or a `lastEventID` query parameter, the hub **MUST** set
 a `Last-Event-ID` header on the HTTP response.
 The value of the `Last-Event-ID` response header **MUST** be the ID of the event
 preceding the first one sent to the subscriber, or the reserved value `earliest` if there is no
-preceding event (it happens when the hub history is empty, when the subscriber requests the earliest
-event or when the subscriber requests an event that doesn't exist).
+preceding event (e.g., when the hub history is empty, when the subscriber requests the earliest
+event, or when the subscriber requests an event that doesn't exist).
 
-The subscriber **SHOULD NOT** assume that no events will be lost (it may happen, for example if the
-hub stores only a limited number of events in its history). In some cases (for instance when sending
-partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an event store),
-updates lost can cause data lost.
+The subscriber **SHOULD NOT** assume that no events will be lost (for example, if the
+hub stores only a limited number of events in its history). In some cases (for instance, when sending partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an event store), lost updates can cause data loss.
 
-To detect if a data lost occurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
-response HTTP header with the last event ID it requested. In case of data lost, the subscriber
+To detect if data loss occurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
+response HTTP header with the last event ID it requested. In case of data loss, the subscriber
 **SHOULD** re-fetch the original topic.
 
-Note: Native `EventSource` implementations don't give access to headers associated with the HTTP
-response, however polyfills and server-sent events clients in most programming languages allow it.
+Note: Native `EventSource` implementations do not provide access to headers associated with the HTTP
+response; however, polyfills and server-sent events clients in most programming languages do allow it.
 
 The hub **CAN** also specify the reconnection time using the `retry` key, as specified in the
 server-sent events format.
@@ -779,10 +777,10 @@ Using HTTPS does not prevent the hub from accessing the update's content. Depend
 privacy of information contained in the update, it **MAY** be necessary to prevent eavesdropping by
 the hub.
 
-To make sure that the message content can not be read by the hub, the publisher **MAY** encrypt the
+To ensure that the message content cannot be read by the hub, the publisher **MAY** encrypt the
 message before sending it to the hub. The publisher **SHOULD** use JSON Web Encryption [@!RFC7516]
 to encrypt the update content. The publisher **MAY** provide the URL pointing to the relevant
-encryption key(s) in the `key-set` attribute of the `Link` HTTP header during the discovery. See
+encryption key(s) in the `key-set` attribute of the `Link` HTTP header during discovery. See
 (#discovery). The `key-set` attribute **MUST** link to a key encoded using the JSON Web Key Set
 [@!RFC7517] format. Any other out-of-band mechanism **MAY** be used instead to share the key between
 the publisher and the subscriber.
@@ -1320,7 +1318,7 @@ Other implementations can be found on GitHub: <https://github.com/topics/mercure
 # Acknowledgements
 
 Parts of this specification, especially (#discovery) have been adapted from the WebSub
-recommendation [@W3C.REC-websub-20180123]. The editor wish to thank all the authors of this
+recommendation [@W3C.REC-websub-20180123]. The editor wishes to thank all the authors of this
 specification.
 
 {backmatter}
