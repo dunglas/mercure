@@ -13,6 +13,7 @@ release:
   draft: true
 env:
   - CGO_ENABLED=0
+
 builds:
   - id: caddy
     dir: caddy/mercure
@@ -36,7 +37,10 @@ builds:
       - "5"
       - "6"
       - "7"
-  # Legacy build
+    ignore:
+      - goos: windows
+        goarch: arm
+
   - id: legacy
     dir: cmd/mercure
     ldflags:
@@ -53,10 +57,15 @@ builds:
       - amd64
       - arm
       - arm64
+    ignore:
+      - goos: windows
+        goarch: arm
+
 upx:
   - enabled: true
     goos: [linux]
     compress: best
+
 archives:
   - ids:
       - caddy
@@ -93,62 +102,40 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-dockers:
-  - ids:
+
+dockers_v2:
+  - id: caddy
+    ids:
       - caddy
-    goos: linux
-    goarch: amd64
-    image_templates:
-      - "dunglas/mercure:{{ .Tag }}-amd64"
-      - "dunglas/mercure:v{{ .Major }}-amd64"
-      - "dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "dunglas/mercure:latest-amd64"
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
+    images:
+      - "dunglas/mercure"
+    tags:
+      - "{{ .Tag }}"
+      - "v{{ .Major }}"
+      - "v{{ .Major }}.{{ .Minor }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64/v8
     extra_files:
       - Caddyfile
       - dev.Caddyfile
-  - ids:
-      - caddy
-    goos: linux
-    goarch: arm64
-    image_templates:
-      - "dunglas/mercure:{{ .Tag }}-arm64v8"
-      - "dunglas/mercure:v{{ .Major }}-arm64v8"
-      - "dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8"
-      - "dunglas/mercure:latest-arm64v8"
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-    extra_files:
-      - Caddyfile
-      - dev.Caddyfile
-  - ids:
+
+  - id: legacy
+    ids:
       - legacy
     dockerfile: Dockerfile.legacy
-    image_templates:
-      - "dunglas/mercure:legacy-{{ .Tag }}"
-      - "dunglas/mercure:legacy-v{{ .Major }}"
-      - "dunglas/mercure:legacy-v{{ .Major }}.{{ .Minor }}"
-      - "dunglas/mercure:legacy-latest"
-docker_manifests:
-  - name_template: dunglas/mercure:{{ .Tag }}
-    image_templates:
-      - dunglas/mercure:{{ .Tag }}-amd64
-      - dunglas/mercure:{{ .Tag }}-arm64v8
-  - name_template: dunglas/mercure:v{{ .Major }}
-    image_templates:
-      - dunglas/mercure:v{{ .Major }}-amd64
-      - dunglas/mercure:v{{ .Major }}-arm64v8
-  - name_template: dunglas/mercure:v{{ .Major }}.{{ .Minor }}
-    image_templates:
-      - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64
-      - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8
-  - name_template: dunglas/mercure:latest
-    image_templates:
-      - dunglas/mercure:latest-amd64
-      - dunglas/mercure:latest-arm64v8
+    images:
+      - "dunglas/mercure"
+    tags:
+      - "legacy-{{ .Tag }}"
+      - "legacy-v{{ .Major }}"
+      - "legacy-v{{ .Major }}.{{ .Minor }}"
+      - "legacy-latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64/v8
+
 nfpms:
   - id: linux_packages
     package_name: mercure
@@ -165,6 +152,7 @@ nfpms:
     vendor: "Dunglas Services SAS"
     homepage: "https://mercure.rocks"
     bindir: /usr/bin
+
 signs:
   - artifacts: checksum
     args:
