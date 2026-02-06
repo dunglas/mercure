@@ -33,6 +33,7 @@ jobs:
           VALIDATE_GO: false
           VALIDATE_GO_MODULES: false
           VALIDATE_GO_RELEASER: false
+          VALIDATE_SPELL_CODESPELL: false
           VALIDATE_PHP_PHPCS: false
           VALIDATE_KUBERNETES_KUBECONFORM: false
           VALIDATE_JAVASCRIPT_STANDARD: false

@@ -43,7 +43,7 @@
       return;
     }
 
-    alert("An error occured, details have been logged.");
+    alert("An error occurred, details have been logged.");
   };
 
   const getHubUrl = (resp) => {
