@@ -86,12 +86,16 @@ Most Cloud Computing platforms also provide managed versions of Redis or Valkey.
 
 Here is a basic example of a Redis transport configuration using environment variables:
 
+<!-- markdownlint-disable MD010 -->
+
 ```env
 MERCURE_EXTRA_DIRECTIVES="transport redis {
 	url rediss://default:p@ssw0rd123@redis.example.com:6379
 	stream mercure
 }"
 ```
+
+<!-- markdownlint-enable MD010 -->
 
 ##### Redis Configuration
 
