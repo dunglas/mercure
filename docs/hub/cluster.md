@@ -84,18 +84,29 @@ Most Cloud Computing platforms also provide managed versions of Redis or Valkey.
 | Presence API    | ✅        |
 | Custom event ID | ✅        |
 
+Here is a basic example of a Redis transport configuration using environment variables:
+
+```env
+MERCURE_EXTRA_DIRECTIVES="transport redis {
+	url rediss://default:p@ssw0rd123@redis.example.com:6379
+	stream mercure
+}"
+```
+
 ##### Redis Configuration
 
 The following options can be passed to the `transport` directive:
 
-| Option                   | Description                                                                                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `address` or `addresses` | the address(es) of the Redis server(s), you can pass several addresses to use several Redis servers (e.g., `addresses host1:6379 host2:6379`, required) |
-| `stream`                 | the name of the Redis stream to use (required)                                                                                                          |
-| `password`               | the Redis password                                                                                                                                      |
-| `tls`                    | enable TLS support                                                                                                                                      |
-| `max_length`             | the approximate maximum number of messages to store in the history, set to `0` to store all messages                                                    |
-| `gob`                    | use the Go `gob` encoding instead of JSON (faster but not compatible with third-party systems querying the Redis instance directly)                     |
+| Option                   | Description                                                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `url`                    | The [Redis URI](https://github.com/redis/redis-specifications/blob/master/uri/redis.txt) to use to connect to Redis. If set, `address`, `addresses`, `username`, `password`, and `tls` options are ignored. |
+| `stream`                 | the name of the Redis stream to use (default to `mercure`)                                                                                                                                                  |
+| `max_length`             | the approximate maximum number of messages to store in the history, set to `0` to store all messages                                                                                                        |
+| `gob`                    | use the Go `gob` encoding instead of JSON (faster but not compatible with third-party systems querying the Redis instance directly)                                                                         |
+| `address` or `addresses` | the address(es) of the Redis server(s), you can pass several addresses to use several Redis servers (e.g., `addresses host1:6379 host2:6379`). Prefer using `url` except if you use Redis Cluster.          |
+| `username`               | the Redis username                                                                                                                                                                                          |
+| `password`               | the Redis password                                                                                                                                                                                          |
+| `tls`                    | enable TLS support                                                                                                                                                                                          |
 
 All [the configuration parameters and formats](https://mercure.rocks/docs/hub/config) supported by the free Mercure.rocks Hub are also available.
 
