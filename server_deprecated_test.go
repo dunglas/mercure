@@ -59,7 +59,7 @@ func TestSecurityOptions(t *testing.T) {
 	req.Header.Add("Origin", "https://example.com")
 	req.Header.Add("Access-Control-Request-Headers", "authorization,cache-control,last-event-id")
 	req.Header.Add("Access-Control-Request-Method", http.MethodGet)
-	resp2, _ := client.Do(req)
+	resp2, _ := client.Do(req) //nolint:gosec
 	require.NotNil(t, resp2)
 
 	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
@@ -69,7 +69,7 @@ func TestSecurityOptions(t *testing.T) {
 
 	// Subscriptions
 	req, _ = http.NewRequest(http.MethodGet, testSecureURL+subscriptionsPath, nil)
-	resp3, _ := client.Do(req)
+	resp3, _ := client.Do(req) //nolint:gosec
 	require.NotNil(t, resp3)
 	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
 	require.NoError(t, resp3.Body.Close())
@@ -113,7 +113,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 	req.Header.Add("Pragma", "no-cache")
 	req.Header.Add("Access-Control-Request-Headers", "authorization,cache-control,last-event-id")
 	req.Header.Add("Access-Control-Request-Method", http.MethodGet)
-	resp2, _ := client.Do(req)
+	resp2, _ := client.Do(req) //nolint:gosec
 	require.NotNil(t, resp2)
 
 	assert.Equal(t, "true", resp2.Header.Get("Access-Control-Allow-Credentials"))
@@ -189,7 +189,7 @@ data: hello
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
-	resp2, err := client.Do(req)
+	resp2, err := client.Do(req) //nolint:gosec
 	require.NoError(t, err)
 	require.NoError(t, resp2.Body.Close())
 
@@ -227,7 +227,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		cx, cancel := context.WithCancel(t.Context())
 		req, _ := http.NewRequest(http.MethodGet, testURL+"?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req) //nolint:gosec
 		require.NoError(t, err)
 
 		subscribingWG.Done()
@@ -263,7 +263,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
-		resp, err := client.Do(req)
+		resp, err := client.Do(req) //nolint:gosec
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, resp.Body.Close())
@@ -471,7 +471,7 @@ func (s *testServer) publish(body url.Values) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
-	resp, err := s.client.Do(req)
+	resp, err := s.client.Do(req) //nolint:gosec
 	require.NoError(s.t, err)
 	require.NoError(s.t, resp.Body.Close())
 }

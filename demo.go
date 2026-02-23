@@ -58,7 +58,7 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, cookie)
 
-	if _, err := io.WriteString(w, body); err != nil {
+	if _, err := io.WriteString(w, body); err != nil { //nolint:gosec
 		ctx := r.Context()
 
 		if h.logger.Enabled(ctx, slog.LevelInfo) {

@@ -269,6 +269,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		if err != nil {
 			return fmt.Errorf("error when generating Bolt DB sequence: %w", err)
 		}
+
 		prefix := make([]byte, 8)
 		binary.BigEndian.PutUint64(prefix, seq)
 
@@ -280,6 +281,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 
 		t.lastSeq = seq
 		t.lastEventID = updateID
+
 		if err := bucket.Put(key, updateJSON); err != nil {
 			return fmt.Errorf("unable to put value in Bolt DB: %w", err)
 		}

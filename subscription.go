@@ -109,7 +109,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 
-			if _, err := w.Write(j); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
+			if _, err := w.Write(j); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) { //nolint:gosec
 				h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
 			}
 
