@@ -1,6 +1,6 @@
 module github.com/dunglas/mercure/caddy
 
-go 1.25.0
+go 1.26
 
 retract (
 	v0.14.7 // CI problem
