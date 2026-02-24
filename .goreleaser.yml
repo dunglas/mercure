@@ -17,6 +17,7 @@ builds:
   - id: caddy
     dir: caddy/mercure
     ldflags:
+      - -X 'github.com/caddyserver/caddy/v2/modules/caddyhttp.ServerHeader=Mercure.rocks Caddy'
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
     tags:
       - deprecated_transport
