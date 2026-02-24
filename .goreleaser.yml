@@ -36,6 +36,9 @@ builds:
       - "5"
       - "6"
       - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
   # Legacy build
   - id: legacy
     dir: cmd/mercure
@@ -53,6 +56,9 @@ builds:
       - amd64
       - arm
       - arm64
+    ignore:
+      - goos: windows
+        goarch: arm
 upx:
   - enabled: true
     goos: [linux]
