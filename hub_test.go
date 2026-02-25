@@ -300,7 +300,7 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, "default-src 'self' mercure.rocks cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "default-src 'self' mercure.rocks cdn.jsdelivr.net cdnjs.cloudflare.com fonts.googleapis.com; script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com fonts.googleapis.com; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com data:; connect-src 'self' cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
@@ -331,6 +331,16 @@ func TestSecurityHeaders(t *testing.T) {
 	require.NotNil(t, resp3)
 	assert.Equal(t, http.StatusUnauthorized, resp3.StatusCode)
 	require.NoError(t, resp3.Body.Close())
+
+	// Cross-origin GET should expose Link header in demo mode
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, defaultDemoURL+"test.jsonld", nil)
+	req.Header.Add("Origin", "https://example.com")
+	hub.ServeHTTP(w, req)
+	resp4 := w.Result()
+
+	assert.Equal(t, "Link", resp4.Header.Get("Access-Control-Expose-Headers"))
+	require.NoError(t, resp4.Body.Close())
 }
 
 func TestWithPublishDisabled(t *testing.T) {

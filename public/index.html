@@ -1,325 +1,539 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Mercure</title>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mercure Hub</title>
     <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bulma@0.9/css/bulma.min.css"
-      crossorigin="anonymous"
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css"
+        integrity="sha384-DCY3M8xLkMu6c9IKcKbe+jHKMjelnwC0p+SBaxfHxoBYZWdJF2X400UdBCgATtAB"
+        crossorigin="anonymous"
     />
-    <link rel="stylesheet" href="app.css" />
-    <link rel="icon" href="favicon.ico" />
-  </head>
+    <link rel="stylesheet" href="app.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@creativebulma/bulma-tooltip@1.2.0/dist/bulma-tooltip.min.css"/>
+    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="icon" href="./favicon-32x32.png"/>
+</head>
 
-  <body>
-    <div class="hero is-light is-small">
-      <div class="hero-body has-text-centered">
-        <div class="container">
-          <div class="column is-three-fifths is-offset-one-fifth">
-            <h1 class="title">
-              <a href="https://mercure.rocks"
-                ><img src="https://mercure.rocks/static/logo.svg" alt="Mercure"
-              /></a>
-            </h1>
-            <h2 class="subtitle">Debugging Tools</h2>
-          </div>
-        </div>
-      </div>
-    </div>
+<body>
+<div id="loading-screen" class="loading-screen">
+    <span class="loader"></span>
+</div>
 
+<nav class="navbar" role="navigation" aria-label="main navigation">
     <div class="container">
-      <div class="columns">
+        <div class="navbar-brand">
+            <a class="navbar-item" href="./">
+                <img src="./mercure.svg" alt="Mercure" style="height: 28px;"/>
+            </a>
+            <span class="navbar-item navbar-context-label has-tooltip-bottom has-tooltip-arrow" data-tooltip="Mercure Hub">Debugging Tools</span>
+        </div>
+        <div class="navbar-end">
+            <div class="navbar-item">
+                <button type="button" id="theme-toggle" class="button is-small has-tooltip-bottom has-tooltip-arrow" aria-label="Toggle theme" data-tooltip="Theme: Auto">
+                    <span id="theme-icon" aria-hidden="true">◐</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="container p-5">
+    <h1 class="is-sr-only">Mercure Hub Debugging Tools</h1>
+    <p class="help has-text-right mb-3">Fields marked with <span class="required-indicator">*</span> are required.</p>
+    <div class="columns is-align-items-stretch">
         <div class="column is-half">
-          <section>
-            <h2 class="title">Subscribe</h2>
-            <form name="subscribe">
-              <div class="field">
-                <label class="label" for="subscribeTopics"
-                  >Topics to get updates for*</label
-                >
-                <div class="control">
-                  <textarea
-                    class="textarea"
-                    name="topics"
-                    id="subscribeTopics"
-                    required
-                  >
-https://example.com/my-private-topic</textarea
-                  >
+            <section class="box">
+                <h2 class="title is-4 icon-text">
+                    <span class="icon"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i></span>
+                    <span>Subscribe</span>
+                </h2>
+                <form name="subscribe" novalidate>
+                    <div class="field">
+                        <label class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="subscribeTopics" data-tooltip="Topic Selectors (RFC 6570 URI Templates)&#10;&#10;• One selector per line&#10;• Use * to match all topics&#10;• {var} matches one path segment (no slashes)&#10;• {+var} matches multiple segments (allows /)&#10;• Variable names: alphanumeric and underscore&#10;• Private updates require matching mercure.subscribe JWT claim&#10;&#10;Passed as ?topic= query params to hub">Topics<span class="required-indicator">*</span></label>
+                        <div class="control">
+                            <textarea class="textarea" name="topics" id="subscribeTopics" required placeholder="*"></textarea>
+                        </div>
+                        <details class="mt-2">
+                            <summary>Syntax help &amp; examples</summary>
+                            <div class="help syntax-help">
+                                <ul class="syntax-tips">
+                                    <li>One <a href="https://tools.ietf.org/html/rfc6570" target="_blank" rel="noopener noreferrer">URI template</a> or string per line</li>
+                                    <li>Use <code>*</code> to subscribe to all topics</li>
+                                    <li><a href="https://uri-template-tester.mercure.rocks/" target="_blank" rel="noopener noreferrer">Try the URI template tester</a></li>
+                                </ul>
+                                <pre class="syntax-examples"><code id="subscribeTopicsExamples"></code></pre>
+                            </div>
+                        </details>
+                    </div>
+
+                    <details class="mb-4">
+                        <summary>Advanced Options</summary>
+                        <div class="field">
+                            <label class="checkbox has-tooltip-right has-tooltip-arrow has-tooltip-multiline" data-tooltip="Anonymous Subscription Mode&#10;&#10;• No JWT sent with request&#10;• Hub must have 'anonymous' config enabled&#10;• Won't receive private updates&#10;• Can only receive public updates&#10;&#10;Useful for public feeds without auth">
+                                <input type="checkbox" name="anonymous" id="subscribeAnonymous"/>
+                                <b>Anonymous</b>
+                            </label>
+                            <p class="help has-text-warning">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                No JWT sent. Won't receive updates marked as private. Requires hub to have <code>anonymous</code> enabled.
+                            </p>
+                        </div>
+                        <div class="field">
+                            <label class="label is-small has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="lastEventId" data-tooltip="Event Stream Resumption (Optional)&#10;&#10;• Omit to receive only new live events (no replay)&#10;• Last-Event-ID header (precedence)&#10;• Or ?lastEventID= query param (fallback)&#10;• Hub replays events after ID if found in history&#10;• If ID not found (purged/invalid): no replay&#10;• 'local' transport: no history, no replay&#10;&#10;Reserved: 'earliest' = replay all stored history">Last Event ID</label>
+                            <div class="control">
+                                <input class="input is-small" name="lastEventId" id="lastEventId"/>
+                            </div>
+                            <p class="help">Resume from a specific event ID.</p>
+                        </div>
+                        <div class="field">
+                            <label class="checkbox has-tooltip-right has-tooltip-arrow has-tooltip-multiline" data-tooltip="Page Visibility Behavior&#10;&#10;• Checked: SSE stays open when tab is hidden&#10;• Unchecked: SSE closes on tab hide, reconnects on visible&#10;• Reconnection uses Last-Event-ID for catch-up&#10;• Uncheck to demo reconnection behavior">
+                                <input type="checkbox" name="openWhenHidden" id="openWhenHidden" checked/>
+                                <b>Open When Hidden</b>
+                            </label>
+                            <p class="help">Keep SSE connection alive when the tab is hidden.</p>
+                        </div>
+                    </details>
+
+                    <div class="field is-grouped">
+                        <div class="control">
+                            <button type="submit" class="button is-primary" name="subscribe">
+                                <span class="icon"><i class="fa-solid fa-play" aria-hidden="true"></i></span>
+                                <span>Subscribe</span>
+                            </button>
+                        </div>
+                        <div class="control">
+                            <button type="button" class="button is-warning" name="unsubscribe" disabled>
+                                <span class="icon"><i class="fa-solid fa-stop" aria-hidden="true"></i></span>
+                                <span>Unsubscribe</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="live-updates-section">
+                    <div class="live-updates-header">
+                        <span class="live-updates-label">
+                            <span class="live-indicator" id="live-indicator"></span>
+                            Live Updates
+                        </span>
+                        <div class="live-updates-meta">
+                            <span class="retry-indicator has-tooltip-bottom has-tooltip-arrow" id="retry-indicator" data-tooltip="SSE Reconnection Delay (milliseconds)&#10;&#10;• Server sets via retry: field in SSE stream&#10;• This UI strategy:&#10;  1st retry: server value (if sent)&#10;  2nd+: exponential backoff (1s, 2s, 4s, 8s…)&#10;• Max delay: 30000ms&#10;• Resets after 60s stable connection">
+                                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                <span id="retry-value"></span>
+                            </span>
+                            <span class="event-count" id="event-count">0 events</span>
+                        </div>
+                    </div>
+                    <div class="live-updates-panel" id="updates" tabindex="0" role="log" aria-live="polite" aria-label="Live event updates">
+                        <div class="empty-state" id="updates-empty">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                            <p>Not subscribed</p>
+                            <span>Click Subscribe to start receiving events</span>
+                        </div>
+                        <ol id="updates-list" reversed></ol>
+                    </div>
                 </div>
 
-                <div class="help">
-                  <p>
-                    One
-                    <a href="https://tools.ietf.org/html/rfc6570"
-                      >URI template</a
-                    >
-                    or string per line (<a
-                      href="https://uri-template-tester.mercure.rocks/"
-                      >try the tester</a
-                    >).
-                  </p>
-                  <p>Use <code>*</code> to subscribe to all topics.</p>
-                  <p>Examples:</p>
-                  <pre><code id="subscribeTopicsExamples"></code></pre>
-                </div>
-              </div>
-
-              <div class="field">
-                <label class="label" for="lastEventId">Last Event ID</label>
-                <div class="control">
-                  <input
-                    class="input is-small"
-                    name="lastEventId"
-                    id="lastEventId"
-                  />
-                </div>
-              </div>
-
-              <button class="button is-primary" name="subscribe">
-                Subscribe
-              </button>
-              <button class="button is-warning" name="unsubscribe" disabled>
-                Unsubscribe
-              </button>
-            </form>
-
-            <div id="updates">Not subscribed.</div>
-
-            <template id="update">
-              <li>
-                <article>
-                  <h2></h2>
-                  <pre></pre>
-                </article>
-              </li>
-            </template>
-          </section>
+                <template id="update">
+                    <li class="event-item" tabindex="0">
+                        <article>
+                            <div class="event-header">
+                                <span class="tag event-type"></span>
+                                <span class="event-id"></span>
+                            </div>
+                            <pre class="event-data"><code></code></pre>
+                        </article>
+                    </li>
+                </template>
+            </section>
         </div>
 
-        <section class="column is-half">
-          <h2 class="title">Publish</h2>
+        <div class="column is-half">
+            <section class="box">
+                <h2 class="title is-4 icon-text">
+                    <span class="icon"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></span>
+                    <span>Publish</span>
+                </h2>
+                <form name="publish" novalidate>
+                    <div class="field">
+                        <label class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="publishTopics" data-tooltip="Update Topic IRIs&#10;&#10;• First line: canonical IRI (resource URL)&#10;• Additional lines: alternate IRIs&#10;• Subscribers matching ANY topic receive it&#10;• Requires JWT with ALL topics in mercure.publish claim&#10;• No max limit (hub may impose one)&#10;&#10;POST param: topic (multiple allowed)">Topics<span class="required-indicator">*</span></label>
+                        <div class="control">
+                            <textarea class="textarea" name="topics" id="publishTopics" required placeholder="*"></textarea>
+                        </div>
+                        <p class="help">
+                            First line: canonical <a href="https://tools.ietf.org/html/rfc3987" target="_blank" rel="noopener noreferrer">IRI</a> or string. Next lines: alternates.
+                        </p>
+                    </div>
 
-          <form name="publish">
-            <div class="field">
-              <label class="label" for="publishTopics">Topics*</label>
-              <div class="control">
-                <textarea
-                  class="textarea"
-                  name="topics"
-                  id="publishTopics"
-                  required
-                >
-https://example.com/my-private-topic</textarea
-                >
-              </div>
+                    <div class="field">
+                        <label class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="data" data-tooltip="Update Payload (Optional)&#10;&#10;• Any text format: JSON, XML, HTML, plain text&#10;• Binary must be base64 encoded (SSE is text-based)&#10;• Sent as SSE data: field&#10;• No size limit (hub may impose one)&#10;• Empty = signal-only update (ID/type still shown)&#10;&#10;POST param: data">Data</label>
+                        <div class="control">
+                            <textarea class="textarea" name="data" id="data"></textarea>
+                        </div>
+                    </div>
 
-              <p class="help">
-                First line: canonical
-                <a href="https://tools.ietf.org/html/rfc4622">IRI</a> or
-                string.<br />
-                Next lines: alternate IRIs or strings.
-              </p>
-            </div>
+                    <details class="mb-4">
+                        <summary>Advanced Options</summary>
+                        <div>
+                            <div class="field">
+                                <label class="checkbox has-tooltip-right has-tooltip-arrow has-tooltip-multiline" data-tooltip="Private Update Flag&#10;&#10;• Only authenticated subscribers receive it&#10;• Anonymous subscribers won't receive it&#10;• Requires matching topic in subscriber's mercure.subscribe claim&#10;• Publisher must have ALL topics in mercure.publish claim&#10;&#10;POST param: private (any value, presence makes it private)">
+                                    <input type="checkbox" name="priv" id="priv"/>
+                                    <b>Private</b>
+                                </label>
+                                <p class="help">Only deliver to subscribers with matching JWT claims.</p>
+                            </div>
 
-            <div class="field">
-              <label class="checkbox">
-                <input type="checkbox" name="priv" id="priv" />
-                <b>Private</b>
-              </label>
-            </div>
+                            <div class="columns is-mobile is-variable is-2">
+                            <div class="column">
+                                <div class="field">
+                                    <label class="label is-small has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="eventId" data-tooltip="SSE Event ID (id: field)&#10;&#10;• Optional - auto-generated UUIDv7 if empty&#10;• Format: urn:uuid:&lt;uuid&gt;&#10;• Enables subscriber resumption via Last-Event-ID&#10;• Stored in history (bolt transport, based on size limit)&#10;• 'local' transport: no history, no replay possible&#10;&#10;POST param: id">Event ID</label>
+                                    <div class="control">
+                                        <input class="input is-small" name="id" id="eventId" placeholder="Auto"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="column">
+                                <div class="field">
+                                    <label class="label is-small has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="eventType" data-tooltip="SSE Event Type (event: field)&#10;&#10;• Optional - no event: field sent if empty&#10;• Custom types: 'update', 'delete', etc.&#10;• Native EventSource: routes to addEventListener(type)&#10;• fetch-event-source: all events to onmessage, check event.event&#10;&#10;POST param: type">Type</label>
+                                    <div class="control">
+                                        <input class="input is-small" name="type" id="eventType"/>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="column is-narrow">
+                                <div class="field">
+                                    <label class="label is-small has-tooltip-left has-tooltip-arrow has-tooltip-multiline" for="eventRetry" data-tooltip="SSE Retry Directive (retry: field)&#10;&#10;• Optional - only sent if value &gt; 0&#10;• Sets subscriber reconnect delay (ms)&#10;• Empty clears previous server retry (resets to default)&#10;• This UI: 1st retry uses server value, then exponential backoff&#10;• Range: 1000-30000ms (UI enforced)&#10;&#10;POST param: retry (uint64)">Retry (ms)</label>
+                                    <div class="field has-addons">
+                                        <div class="control">
+                                            <button type="button" class="button is-small" id="retryDecrement" aria-label="Decrease retry">
+                                                <span class="icon"><i class="fa-solid fa-minus" aria-hidden="true"></i></span>
+                                            </button>
+                                        </div>
+                                        <div class="control">
+                                            <input type="text" inputmode="numeric" pattern="[0-9]*" class="input is-small has-text-centered" name="retry" id="eventRetry" style="width: 4.5rem;"/>
+                                        </div>
+                                        <div class="control">
+                                            <button type="button" class="button is-small" id="retryIncrement" aria-label="Increase retry">
+                                                <span class="icon"><i class="fa-solid fa-plus" aria-hidden="true"></i></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </details>
 
-            <div class="field">
-              <label class="label" for="data">Data</label>
-              <div class="control">
-                <textarea class="textarea" name="data" id="data"></textarea>
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="eventId">Event ID</label>
-              <div class="control">
-                <input class="input is-small" name="id" id="eventId" />
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="eventType">Event Type</label>
-              <div class="control">
-                <input class="input is-small" name="type" id="eventType" />
-              </div>
-            </div>
-
-            <div class="field">
-              <label class="label" for="eventRetry">Event Retry</label>
-              <div class="control">
-                <input class="input is-small" name="retry" id="eventRetry" />
-              </div>
-            </div>
-
-            <button class="button is-primary">Publish</button>
-          </form>
-        </section>
-      </div>
-      <hr />
-      <div class="columns">
-        <section class="column is-half">
-          <h2 class="title">Settings</h2>
-
-          <form name="settings">
-            <div class="field">
-              <label class="label" for="hubUrl">Hub URL*</label>
-              <input
-                class="input"
-                type="url"
-                name="hubUrl"
-                id="hubUrl"
-                required
-              />
-
-              <p class="help">
-                Will be filled automatically if you
-                <a href="#discover">discover</a> a resource.
-              </p>
-            </div>
-
-            <div class="field">
-              <label class="label">Authorization type</label>
-
-              <div class="control">
-                <label class="radio">
-                  <input type="radio" name="authorization" value="cookie" />
-                  Authorization cookie
-                </label>
-                <label class="radio">
-                  <input
-                    type="radio"
-                    name="authorization"
-                    value="header"
-                    checked
-                  />
-                  <code>Authorization</code> HTTP Header
-                </label>
-              </div>
-
-              <p class="help">
-                The authorization cookie will be set automatically by the server
-                only if you
-                <a href="#discover">discover</a> a <b>demo</b> endpoint.
-              </p>
-            </div>
-
-            <div class="field">
-              <label class="label" for="jwt">JWT</label>
-              <input class="input" type="text" name="jwt" id="jwt" required />
-
-              <div class="help">
-                <p>
-                  Required to publish, or to subscribe to private updates.<br />
-                  Claim structure to use:
-                </p>
-                <pre><code>{
-  "mercure": {
-    "subscribe": ["list of topic selectors, * for all, omit for public only"],
-    "publish": ["list of topic selectors, * for all, omit to not allow to publish"]
-  }
-}</code></pre>
-                <br />
-                <a
-                  href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="button is-link is-small"
-                  >Create a token</a
-                >
-                (demo key: <code>!ChangeThisMercureHubJWTSecretKey!</code>)
-              </div>
-            </div>
-          </form>
-        </section>
-
-        <section id="discover" class="column is-half">
-          <h2 class="title">Discover</h2>
-
-          <form name="discover">
-            <div class="field">
-              <label class="label" for="topic">Topic*</label>
-              <div class="control">
-                <input
-                  class="input"
-                  type="url"
-                  name="topic"
-                  id="topic"
-                  required
-                />
-              </div>
-
-              <p class="help">
-                URL returning a <code>Link rel="mercure"</code> HTTP header to
-                init the discovery.<br />
-                Demo endpoints: any subpath of <code>/demo</code>.
-              </p>
-            </div>
-
-            <div class="field">
-              <label class="label" for="body">Demo body</label>
-              <div class="control">
-                <textarea class="textarea" name="body" id="body"> </textarea>
-              </div>
-
-              <p class="help">
-                Data to return. Supported only by <b>demo</b> endpoints.
-              </p>
-            </div>
-
-            <button class="button is-primary" name="discover">Discover</button>
-          </form>
-        </section>
-      </div>
-      <hr />
-      <div class="columns">
-        <div class="column is-full">
-          <h2 class="title">Active subscriptions</h2>
-          <form name="subscriptions">
-            <button class="button is-primary" name="subscribe">
-              Subscribe
-            </button>
-            <button class="button is-warning" name="unsubscribe" disabled>
-              Unsubscribe
-            </button>
-          </form>
+                    <div class="field">
+                        <div class="control">
+                            <button type="submit" class="button is-primary" name="publish">
+                                <span class="icon"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></span>
+                                <span>Publish</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
         </div>
-      </div>
-      <div class="columns is-multiline" id="subscriptions">
-        <template id="subscription">
-          <div class="column is-two-fifths">
-            <div class="card">
-              <header class="card-header">
-                <p class="card-header-title"></p>
-              </header>
-              <div class="card-content">
-                <div class="content">
-                  <dl>
-                    <dt>Topic</dt>
-                    <dd class="topic"></dd>
-                    <dt>Subscriber</dt>
-                    <dd class="subscriber"></dd>
-                    <dt>payload</dt>
-                    <dd>
-                      <pre><code></code></pre>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
     </div>
 
-    <!-- Only necessary to use the Authorization header with EventSource (discouraged in a browser) -->
-    <script src="https://cdn.jsdelivr.net/npm/event-source-polyfill@1"></script>
-    <script src="app.js"></script>
-  </body>
+    <div class="columns is-align-items-stretch">
+        <div class="column is-half">
+            <section class="box">
+                <h2 class="title is-4 icon-text">
+                    <span class="icon"><i class="fa-solid fa-gear" aria-hidden="true"></i></span>
+                    <span>Settings</span>
+                </h2>
+                <form name="settings" novalidate>
+                    <div class="field">
+                        <label class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="hubUrl" data-tooltip="Mercure Hub Endpoint&#10;&#10;• Subscribe: GET with ?topic= params&#10;• Publish: POST with form data&#10;• Default path: /.well-known/mercure&#10;• Discoverable via Link header (rel=&quot;mercure&quot;)&#10;&#10;Caddy config: mercure directive">Hub URL<span class="required-indicator">*</span></label>
+                        <div class="control">
+                            <input class="input" type="url" name="hubUrl" id="hubUrl" required autocomplete="off"/>
+                        </div>
+                        <p class="help">
+                            The URL of the Mercure Hub. Use the <a href="#discover">discover</a>
+                            feature to auto-populate this from a topic URL.
+                        </p>
+                    </div>
+
+                    <fieldset class="field">
+                        <legend class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" data-tooltip="JWT Delivery Method&#10;&#10;• Hub precedence: Header → Query → Cookie&#10;• Header: Authorization: Bearer &lt;JWT&gt;&#10;• Query: ?authorization=&lt;JWT&gt; (fallback)&#10;• Cookie: Required for native EventSource&#10;&#10;This UI sends one method per request">Authorization Type</legend>
+                        <div class="control">
+                            <div class="is-flex is-align-items-center mb-2">
+                                <label class="radio has-tooltip-right has-tooltip-arrow has-tooltip-multiline" data-tooltip="Authorization: Bearer &lt;JWT&gt;&#10;&#10;• Standard OAuth2 Bearer token&#10;• This UI: uses fetch-event-source (supports headers)&#10;• Native EventSource: cannot set custom headers&#10;• Best for: API clients, server-to-server&#10;&#10;Hub precedence: Header → Query → Cookie">
+                                    <input type="radio" name="authorization" value="header" id="authHeader" checked/>
+                                    <b>Header</b>
+                                </label>
+                                <code class="is-size-7 ml-2">Authorization</code>
+                            </div>
+                            <div class="is-flex is-align-items-center">
+                                <label class="radio has-tooltip-right has-tooltip-arrow has-tooltip-multiline" data-tooltip="Cookie: mercureAuthorization=&lt;JWT&gt;&#10;&#10;• Required for native EventSource API&#10;• Set via Set-Cookie from server (use Discover)&#10;• Same-origin only (SameSite=Strict)&#10;• Cross-origin: hub needs explicit cors_origins (not *)&#10;• For cross-origin: prefer Bearer token&#10;&#10;Hub precedence: Header → Query → Cookie">
+                                    <input type="radio" name="authorization" value="cookie" id="authCookie"/>
+                                    <b>Cookie</b>
+                                </label>
+                                <code class="is-size-7 ml-2">mercureAuthorization</code>
+                                <button type="button" id="clearCookie" class="button is-ghost is-small has-text-danger ml-2 has-tooltip-top has-tooltip-arrow has-tooltip-multiline" data-tooltip="Clear mercureAuthorization cookie&#10;(triggers Discover without JWT)" aria-label="Clear authorization cookie" disabled>
+                                    <span class="icon is-small"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></span>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="help">
+                            The authorization cookie is set automatically by the server during discovery.
+                            <br/>
+                            Note: The SSE connection uses the auth type selected at the moment of subscription.
+                            Changing this setting will not affect active connections until you resubscribe.
+                        </p>
+                    </fieldset>
+
+                    <fieldset class="field">
+                        <legend class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" data-tooltip="JWT Signing Algorithm&#10;&#10;Supported families:&#10;• HMAC: HS256, HS384, HS512 (symmetric)&#10;• RSA: RS256, RS384, RS512 (asymmetric)&#10;• ECDSA: ES256, ES384, ES512&#10;• EdDSA: Ed25519&#10;&#10;Hub config determines which to accept">JWT Algorithm</legend>
+                        <div class="control">
+                            <label class="radio has-tooltip-top has-tooltip-arrow has-tooltip-multiline" data-tooltip="HMAC-SHA256 (Symmetric)&#10;&#10;• Hub config: publisher_jwt / subscriber_jwt&#10;• Key: Same secret signs and verifies&#10;• Best for: Development, simple setups&#10;• Simpler config (no JWKS endpoint needed)&#10;&#10;HMAC family: HS256, HS384, HS512&#10;Also supported: ECDSA (ES*), EdDSA">
+                                <input type="radio" name="jwtAlgorithm" value="hs256" id="algHS256" checked/>
+                                <b>HS256</b>
+                            </label>
+                            <label class="radio has-tooltip-top has-tooltip-arrow has-tooltip-multiline" data-tooltip="RSA-SHA256 (Asymmetric)&#10;&#10;• Hub config (option A): publisher_jwt / subscriber_jwt with PEM key + alg=RS256&#10;• Hub config (option B): publisher_jwks_url / subscriber_jwks_url&#10;• Key: Public key for verification, private key signs&#10;• Best for: Production, microservices, key rotation&#10;• Security: Private key never shared with hub&#10;&#10;Note: JWKS URL takes precedence over inline key if both are set&#10;&#10;RSA family: RS256, RS384, RS512">
+                                <input type="radio" name="jwtAlgorithm" value="rs256" id="algRS256"/>
+                                <b>RS256</b>
+                            </label>
+                        </div>
+                        <p class="help">HS256: Symmetric shared secret. RS256: Asymmetric RSA keys (PEM or JWKS).</p>
+                        <p class="help has-text-warning" id="algorithm-warning">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <strong>Hub config required:</strong> The hub accepts only one key type at a time.
+                            To use HS256, ensure <code>publisher_jwt</code>/<code>subscriber_jwt</code> uses a symmetric secret (not a PEM key or JWKS URL).
+                        </p>
+                    </fieldset>
+
+                    <div class="field">
+                        <label class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="jwt" data-tooltip="JSON Web Token (RFC 7519)&#10;&#10;Required: valid signature + action-specific claim&#10;• mercure.publish: required for publishing&#10;• mercure.subscribe: required for subscribing&#10;• mercure.payload: custom data (optional)&#10;&#10;Values: [&quot;*&quot;] (all topics) or [&quot;topic1&quot;, &quot;topic2&quot;]&#10;Standard claims (exp, iat, iss, sub) optional">JWT</label>
+                        <div class="field has-addons mb-0">
+                            <div class="control is-expanded">
+                                <input class="input" type="text" name="jwt" id="jwt" required autocomplete="off"/>
+                            </div>
+                            <div class="control">
+                                <button type="button" id="copy-jwt" class="button is-accent" title="Copy token" aria-label="Copy token">
+                                    <span class="icon"><i class="fa-regular fa-copy" aria-hidden="true"></i></span>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="help">Required to publish or to subscribe to private updates.</p>
+                        <details class="mt-3">
+                            <summary>Debug Token</summary>
+                            <div class="jwt-debug-panel">
+                                <p class="jwt-debug-label">Header</p>
+                                <pre class="jwt-debug-code"><code id="jwt-header"></code></pre>
+                                <p class="jwt-debug-label">Payload</p>
+                                <pre class="jwt-debug-code"><code id="jwt-payload"></code></pre>
+                                <!-- RS256 verification (hidden by default) -->
+                                <div id="debug-token-rs256" style="display: none;">
+                                    <ol class="is-size-7 mb-2 ml-4">
+                                        <li>Click below to copy the public JWK and open jwt.io</li>
+                                        <li>Scroll to <b>JWT SIGNATURE VERIFICATION</b></li>
+                                        <li>Set <b>Public Key Format</b> to <b>JWK</b></li>
+                                        <li>Paste the key in the <b>PUBLIC KEY</b> field</li>
+                                    </ol>
+                                    <p class="is-size-7 mb-2">Result: <b>Valid JWT</b> and <b>Signature Verified</b></p>
+                                    <button type="button" id="copy-public-jwk" class="button is-small is-link is-light">
+                                        <span class="icon is-small"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></span>
+                                        <span>Copy Public JWK & Open jwt.io</span>
+                                    </button>
+                                </div>
+                                <!-- HS256 verification (shown by default) -->
+                                <div id="debug-token-hs256">
+                                    <ol class="is-size-7 mb-2 ml-4">
+                                        <li>Click below to copy the secret and open jwt.io</li>
+                                        <li>Scroll to <b>JWT SIGNATURE VERIFICATION</b></li>
+                                        <li>Paste the secret in the <b>SECRET</b> field</li>
+                                    </ol>
+                                    <p class="is-size-7 mb-2">Result: <b>Valid JWT</b> and <b>Signature Verified</b></p>
+                                    <button type="button" id="copy-hs256-secret-verify" class="button is-small is-link is-light">
+                                        <span class="icon is-small"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></span>
+                                        <span>Copy Secret & Open jwt.io</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </details>
+                        <details class="mt-3">
+                            <summary>Create New Token</summary>
+                            <!-- RS256 instructions (hidden by default) -->
+                            <div id="create-token-rs256" style="display: none;">
+                                <ol class="is-size-7 mt-2 mb-2 ml-4">
+                                    <li>Click below to copy the private JWK and open jwt.io</li>
+                                    <li>Click <b>JWT Encoder</b> tab</li>
+                                    <li>Click <b>Generate example</b>, then select <b>RS256</b></li>
+                                    <li>Set <b>Private Key Format</b> to <b>JWK</b></li>
+                                    <li>Paste the key in <b>SIGN JWT: PRIVATE KEY</b></li>
+                                    <li>Edit the <b>HEADER</b> and <b>PAYLOAD</b> as needed</li>
+                                </ol>
+                                <p class="is-size-7 mb-2">Result: <b>Valid header</b>, <b>Valid payload</b>, <b>Valid private key</b> — copy the token from <b>JSON WEB TOKEN</b></p>
+                                <button type="button" id="copy-private-jwk" class="button is-small is-link is-light">
+                                    <span class="icon is-small"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></span>
+                                    <span>Copy Private JWK & Open jwt.io</span>
+                                </button>
+                            </div>
+                            <!-- HS256 instructions (shown by default) -->
+                            <div id="create-token-hs256">
+                                <ol class="is-size-7 mt-2 mb-2 ml-4">
+                                    <li>Click below to copy the secret and open jwt.io</li>
+                                    <li>Click <b>JWT Encoder</b> tab</li>
+                                    <li>Click <b>Generate example</b>, then select <b>HS256</b></li>
+                                    <li>Paste the secret in <b>SIGN JWT: SECRET</b></li>
+                                    <li>Edit the <b>HEADER</b> and <b>PAYLOAD</b> as needed</li>
+                                </ol>
+                                <p class="is-size-7 mb-2">Result: <b>Valid header</b>, <b>Valid payload</b>, <b>Valid secret</b> — copy the token from <b>JSON WEB TOKEN</b></p>
+                                <button type="button" id="copy-hs256-secret" class="button is-small is-link is-light">
+                                    <span class="icon is-small"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></span>
+                                    <span>Copy Secret & Open jwt.io</span>
+                                </button>
+                            </div>
+                        </details>
+                        <details class="mt-3">
+                            <summary>Mercure Hub Config</summary>
+                            <!-- RS256 config (hidden by default) -->
+                            <div id="hub-config-rs256" style="display: none;">
+                                <p class="is-size-7 mt-2">Use the JWKS with <code>publisher_jwks_url</code>/<code>subscriber_jwks_url</code>, or the PEM public key with <code>publisher_jwt</code>/<code>subscriber_jwt</code> + <code>RS256</code>:</p>
+                                <div class="buttons mt-2">
+                                    <button type="button" id="copy-jwks" class="button is-small is-link is-light">
+                                        <span class="icon is-small"><i class="fa-solid fa-copy" aria-hidden="true"></i></span>
+                                        <span>Copy JWKS</span>
+                                    </button>
+                                    <button type="button" id="copy-public-pem" class="button is-small is-link is-light">
+                                        <span class="icon is-small"><i class="fa-solid fa-copy" aria-hidden="true"></i></span>
+                                        <span>Copy Public Key (PEM)</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- HS256 config (shown by default) -->
+                            <div id="hub-config-hs256">
+                                <p class="is-size-7 mt-2">Copy the secret to configure <code>subscriber_jwt</code> and <code>publisher_jwt</code>:</p>
+                                <pre class="is-size-7 mt-1 p-2" style="background: var(--bulma-scheme-main-bis); border-radius: 4px;"><code id="hs256-config-preview">Loading...</code></pre>
+                                <button type="button" id="copy-hs256-config" class="button is-small is-link is-light mt-2">
+                                    <span class="icon is-small"><i class="fa-solid fa-copy" aria-hidden="true"></i></span>
+                                    <span>Copy Secret</span>
+                                </button>
+                            </div>
+                        </details>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <div id="discover" class="column is-half" tabindex="-1">
+            <section class="box">
+                <h2 class="title is-4 icon-text">
+                    <span class="icon"><i class="fa-solid fa-compass" aria-hidden="true"></i></span>
+                    <span>Discover</span>
+                </h2>
+                <form name="discover" novalidate>
+                    <div class="field">
+                        <label class="label has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="topic" data-tooltip="Hub Discovery (Mercure spec / RFC 8288)&#10;&#10;• Fetches URL and reads Link headers&#10;• Looks for: rel=&quot;mercure&quot;&#10;• Sets cookie if JWT present, clears if not&#10;• Pre-populates Hub URL and Subscribe topics&#10;&#10;Header: Link: &lt;hub&gt;; rel=&quot;mercure&quot;">Topic URL<span class="required-indicator">*</span></label>
+                        <div class="control">
+                            <input class="input" type="url" name="topic" id="topic" required placeholder="https://example.com/resource" autocomplete="off"/>
+                        </div>
+                        <p class="help">
+                            Enter a topic URL to auto-discover its Hub via <code>Link</code> headers.
+                        </p>
+                        <p class="help mt-3">
+                            <i class="fa-solid fa-circle-info"></i>
+                            Requires HTTPS (cookie is <code>Secure</code>). Hub and topic must be on the same host (cookie has no <code>Domain</code>, so it's host-only). Cookie is <code>HttpOnly</code> and <code>SameSite=Strict</code>.
+                        </p>
+                    </div>
+
+                    <details class="mb-4">
+                        <summary>Demo Endpoint Options</summary>
+                        <div class="field">
+                            <label class="label is-small has-tooltip-right has-tooltip-arrow has-tooltip-multiline" for="body" data-tooltip="Demo Endpoint Mock Response&#10;&#10;• Simulates your API's response body&#10;• Tests client discovery implementation&#10;• Response includes Link: rel=&quot;mercure&quot; header&#10;• Content-Type auto-set by URL extension&#10;&#10;Example: JSON-LD resource representation">Response Body</label>
+                            <div class="control">
+                                <textarea class="textarea is-small" name="body" id="body" rows="3"></textarea>
+                            </div>
+                            <p class="help">
+                                Simulates your API response. Use to test how your client handles hub discovery. Also sets <code>mercureAuthorization</code> cookie from JWT.
+                            </p>
+                        </div>
+                    </details>
+
+                    <div class="field">
+                        <div class="control">
+                            <button type="submit" class="button is-primary" name="discover">
+                                <span class="icon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+                                <span>Discover</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+        </div>
+    </div>
+
+    <section class="box subscriptions-section">
+        <h2 class="title is-4 icon-text">
+            <span class="icon"><i class="fa-solid fa-users" aria-hidden="true"></i></span>
+            <span>Active Subscriptions</span>
+            <span class="subscription-counts">
+                <span class="subscription-count is-total" id="subscription-count-total">0 total</span>
+                <span class="subscription-count is-client" id="subscription-count-client" data-count="0">0 clients</span>
+                <span class="subscription-count is-monitor" id="subscription-count-monitor" data-count="0">0 monitors</span>
+            </span>
+        </h2>
+        <form name="subscriptions" class="mb-4">
+            <div class="field is-grouped">
+                <div class="control">
+                    <button type="submit" class="button is-primary" name="subscribe">
+                        <span class="icon"><i class="fa-solid fa-play" aria-hidden="true"></i></span>
+                        <span>Subscribe</span>
+                    </button>
+                </div>
+                <div class="control">
+                    <button type="button" class="button is-warning" name="unsubscribe" disabled>
+                        <span class="icon"><i class="fa-solid fa-stop" aria-hidden="true"></i></span>
+                        <span>Unsubscribe</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+        <div id="subscriptions">
+            <div class="subscriptions-empty" id="subscriptions-empty">
+                <i class="fa-solid fa-users-slash"></i>
+                <p>No active subscriptions</p>
+                <span>Subscribe to the Subscription API to monitor connections</span>
+            </div>
+            <div class="subscriptions-grid" id="subscriptions-grid"></div>
+        </div>
+        <template id="subscription">
+            <article class="subscription-card">
+                <header class="subscription-header">
+                    <span class="subscription-topic-wrapper has-tooltip-bottom has-tooltip-arrow has-tooltip-multiline">
+                        <code class="subscription-topic clickable-copy"></code>
+                    </span>
+                    <span class="subscription-badge"></span>
+                </header>
+                <div class="subscription-body">
+                    <div class="subscription-meta">
+                        <i class="fa-solid fa-fingerprint subscription-meta-icon" aria-hidden="true"></i>
+                        <code class="subscription-subscriber clickable-copy has-tooltip-top has-tooltip-arrow has-tooltip-multiline"></code>
+                    </div>
+                    <details class="subscription-payload-details">
+                        <summary>Payload</summary>
+                        <pre class="subscription-payload"><code></code></pre>
+                    </details>
+                </div>
+            </article>
+        </template>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="container has-text-centered">
+        <p id="app-version"></p>
+    </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script type="module" src="app.js"></script>
+<script src="fallback.js"></script>
+</body>
 </html>

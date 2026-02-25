@@ -45,12 +45,29 @@ To run the test suite:
 
     go test -v -timeout 30s github.com/dunglas/mercure
 
-To test the Caddy module:
+### HS256 (default)
+
+The simplest setup — uses a shared secret:
 
     cd caddy/mercure
-    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run -tags deprecated_transport,nobadger,nomysql,nopgx main.go run --config ../../dev.Caddyfile
+    MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    go run -tags deprecated_transport,nobadger,nomysql,nopgx main.go run --config ../../dev.Caddyfile
 
 Go to `https://localhost` and enjoy!
+
+### RS256 with PEM key
+
+Uses asymmetric RSA keys from `fixtures/jwt/`:
+
+    cd caddy/mercure
+    MERCURE_PUBLISHER_JWT_KEY="$(cat ../../fixtures/jwt/RS256.key.pub)" \
+    MERCURE_PUBLISHER_JWT_ALG=RS256 \
+    MERCURE_SUBSCRIBER_JWT_KEY="$(cat ../../fixtures/jwt/RS256.key.pub)" \
+    MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
+    go run -tags deprecated_transport,nobadger,nomysql,nopgx main.go run --config ../../dev.Caddyfile
+
+Switch the UI's algorithm toggle to RS256 to use the embedded RS256 demo token.
 
 To test the legacy server:
 

@@ -35,7 +35,7 @@ func (h *Hub) initHandler() {
 
 		router.PathPrefix(defaultUIURL).Handler(http.StripPrefix(defaultUIURL, http.FileServer(http.FS(public))))
 
-		csp += " mercure.rocks cdn.jsdelivr.net"
+		csp += " mercure.rocks cdn.jsdelivr.net cdnjs.cloudflare.com fonts.googleapis.com; script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com fonts.googleapis.com; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com data:; connect-src 'self' cdn.jsdelivr.net"
 	}
 
 	h.registerSubscriptionHandlers(router)
@@ -63,13 +63,21 @@ func (h *Hub) initHandler() {
 		return
 	}
 
+	corsOptions := cors.Options{
+		AllowedOrigins:   h.corsOrigins,
+		AllowCredentials: true,
+		AllowedHeaders:   []string{"authorization", "cache-control", "last-event-id"},
+		Debug:            h.debug,
+	}
+
+	if h.demo {
+		// Expose Link header so cross-origin JS can read it for Mercure discovery.
+		// Needed when UI runs on a separate origin (e.g., GoLand dev server with hot reload).
+		corsOptions.ExposedHeaders = []string{"link"}
+	}
+
 	h.handler = secureMiddleware.Handler(
-		cors.New(cors.Options{
-			AllowedOrigins:   h.corsOrigins,
-			AllowCredentials: true,
-			AllowedHeaders:   []string{"authorization", "cache-control", "last-event-id"},
-			Debug:            h.debug,
-		}).Handler(router),
+		cors.New(corsOptions).Handler(router),
 	)
 }
 

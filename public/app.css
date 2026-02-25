@@ -1,16 +1,1200 @@
-.hero {
-  margin-bottom: 15px;
+/* ==========================================================================
+   Mercure Hub - Custom Styles
+   Brand colors: Light #1A8BA8, Dark #76C8DD (derived from logo cyan #2AB3D7)
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+/* --------------------------------------------------------------------------
+   Theme Transition - smooth cross-fade via View Transitions API
+   -------------------------------------------------------------------------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.25s;
 }
 
-.hero img {
-  width: 40%;
+/* --------------------------------------------------------------------------
+   Brand Colors - Override Bulma's default scheme
+   Light mode uses darker cyan for WCAG AA contrast compliance
+   -------------------------------------------------------------------------- */
+:root {
+  /* Mercure brand cyan - darker shade for light mode accessibility */
+  --mercure-primary: #1a8ba8;
+  --mercure-primary-light: #2ab3d7;
+  --mercure-primary-dark: #0d7d99;
+
+  /* Focus ring - consistent across all interactive elements */
+  --mercure-focus-ring: 0 0 0 3px color-mix(in srgb, var(--mercure-primary) 40%, transparent);
+
+  /* Override Bulma's primary/link colors to match brand */
+  --bulma-primary: #1a8ba8;
+  --bulma-primary-h: 192;
+  --bulma-primary-s: 73%;
+  --bulma-primary-l: 38%;
+  --bulma-link: #1a8ba8;
+  --bulma-link-h: 192;
+  --bulma-link-s: 73%;
+  --bulma-link-l: 38%;
 }
 
-#updates {
-  height: 250px;
-  overflow: scroll;
+/* Dark mode - forced via toggle */
+[data-theme="dark"] {
+  --mercure-primary: #76c8dd;
+  --mercure-primary-light: #9dd8e8;
+  --mercure-primary-dark: #2ab3d7;
+
+  --bulma-primary: #76c8dd;
+  --bulma-primary-l: 67%;
+  --bulma-link: #76c8dd;
+  --bulma-link-l: 67%;
 }
 
-#subscriptions .card-header-title {
-  overflow-wrap: anywhere;
+/* Dark mode - auto (system preference) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --mercure-primary: #76c8dd;
+    --mercure-primary-light: #9dd8e8;
+    --mercure-primary-dark: #2ab3d7;
+
+    --bulma-primary: #76c8dd;
+    --bulma-primary-l: 67%;
+    --bulma-link: #76c8dd;
+    --bulma-link-l: 67%;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Loading Screen - Shown during initialization
+   -------------------------------------------------------------------------- */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bulma-scheme-main);
+}
+
+.loading-screen.is-hidden {
+  display: none;
+}
+
+.loading-screen .loader {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid var(--bulma-border);
+  border-top-color: var(--mercure-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Navbar - Professional Developer Tool Header
+   -------------------------------------------------------------------------- */
+.navbar {
+  border-bottom: 1px solid var(--bulma-border);
+  box-shadow: none;
+  background-color: var(--bulma-scheme-main);
+}
+
+/* Logo sizing */
+.navbar-brand .navbar-item img {
+  max-height: 1.75rem;
+}
+
+/* Navbar context label — subdued pill identifying the tool */
+.navbar-context-label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--mercure-primary);
+  background-color: color-mix(in srgb, var(--mercure-primary) 10%, transparent);
+  padding: 0.1875rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-left: 0.5rem;
+  height: auto;
+  align-self: center;
+  line-height: 1;
+  cursor: default;
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip underline */
+  border-bottom: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Typography - Monospace font for code areas
+   -------------------------------------------------------------------------- */
+code,
+pre,
+.is-family-code,
+#updates,
+textarea,
+input[type="text"],
+input[type="url"],
+input[type="number"] {
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma's system font stack */
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+}
+
+/* --------------------------------------------------------------------------
+   Layout - Equal height boxes
+   -------------------------------------------------------------------------- */
+.columns.is-align-items-stretch .column .box {
+  height: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Section Headers - Icon styling
+   -------------------------------------------------------------------------- */
+.box > .title.is-4 {
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--bulma-border);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.box > .title.is-4 .icon {
+  color: var(--mercure-primary);
+  width: 2rem;
+  height: 2rem;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--mercure-primary) 12%, transparent);
+  border-radius: 0.375rem;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Form Controls - Use brand color for focus and accent
+   -------------------------------------------------------------------------- */
+
+/* Required field indicator */
+.required-indicator {
+  color: var(--mercure-primary);
+  font-weight: 600;
+  margin-left: 0.125em;
+}
+
+/* Native form control accent color (checkboxes, radios, range, progress) */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+progress {
+  accent-color: var(--mercure-primary);
+}
+
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: var(--mercure-focus-ring);
+}
+
+/* --------------------------------------------------------------------------
+   Focus Styles - Consistent across all interactive elements
+   Uses :focus-visible for keyboard-only focus (better UX)
+   -------------------------------------------------------------------------- */
+.input:focus-visible,
+.textarea:focus-visible,
+.select select:focus-visible {
+  border-color: var(--mercure-primary);
+  box-shadow: var(--mercure-focus-ring);
+  outline: none;
+}
+
+/* Custom validation states */
+.input.is-danger,
+.textarea.is-danger {
+  border-color: var(--bulma-danger);
+}
+
+.input.is-danger:focus-visible,
+.textarea.is-danger:focus-visible {
+  border-color: var(--bulma-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bulma-danger) 40%, transparent);
+  outline: none;
+}
+
+/* Red placeholder for validation errors */
+.input.is-danger::placeholder,
+.textarea.is-danger::placeholder {
+  color: var(--bulma-danger);
+  opacity: 0.7;
+}
+
+/* Validation error message below input */
+.help.is-danger {
+  color: var(--bulma-danger);
+}
+
+/* Fix validation border in has-addons groups - lift invalid input above siblings */
+.field.has-addons .input.is-danger {
+  position: relative;
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons - Brand colors
+   -------------------------------------------------------------------------- */
+.button.is-primary {
+  background-color: var(--mercure-primary);
+  border-color: transparent;
+}
+
+.button.is-primary:hover:not(:disabled) {
+  background-color: var(--mercure-primary-dark);
+}
+
+.button.is-link.is-small {
+  background: transparent;
+  border: 1px solid var(--mercure-primary);
+  color: var(--mercure-primary);
+}
+
+.button.is-link.is-small:hover {
+  background: color-mix(in srgb, var(--mercure-primary) 10%, transparent);
+  color: var(--mercure-primary);
+}
+
+/* Button focus - keyboard navigation only */
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--mercure-focus-ring);
+}
+
+/* Clear cookie ghost button - subtle when disabled */
+#clearCookie:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Accent button - only icon color changes on hover */
+.button.is-accent:hover:not(:disabled) {
+  color: var(--mercure-primary);
+}
+
+.button.is-accent:focus-visible {
+  box-shadow: var(--mercure-focus-ring);
+}
+
+/* --------------------------------------------------------------------------
+   Theme Toggle - Consistent icon box size
+   -------------------------------------------------------------------------- */
+#theme-toggle {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   Links - Brand color
+   -------------------------------------------------------------------------- */
+a:not(.button):not(.navbar-item) {
+  color: var(--mercure-primary);
+  border-radius: 2px;
+}
+
+a:not(.button):not(.navbar-item):hover {
+  color: var(--mercure-primary-dark);
+}
+
+a:not(.button):not(.navbar-item):focus-visible {
+  outline: none;
+  box-shadow: var(--mercure-focus-ring);
+}
+
+[data-theme="dark"] a:not(.button):not(.navbar-item):hover {
+  color: var(--mercure-primary-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) a:not(.button):not(.navbar-item):hover {
+    color: var(--mercure-primary-light);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Code highlighting - Brand color
+   -------------------------------------------------------------------------- */
+/* Rounded corners for code blocks */
+pre {
+  border-radius: var(--bulma-radius);
+}
+
+.help code {
+  color: var(--mercure-primary-dark);
+}
+
+[data-theme="dark"] .help code {
+  color: var(--mercure-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .help code {
+    color: var(--mercure-primary);
+  }
+}
+
+/* Warning text - adapts to theme like accent colors */
+.help.has-text-warning {
+  color: var(--bulma-warning-dark);
+}
+
+.help.has-text-warning strong {
+  color: inherit;
+}
+
+[data-theme="dark"] .help.has-text-warning {
+  color: var(--bulma-warning);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .help.has-text-warning {
+    color: var(--bulma-warning);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Textareas - Consistent height across the UI
+   -------------------------------------------------------------------------- */
+textarea.textarea {
+  height: 140px;
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Elegant resize handle — shared by textareas and the live-updates panel */
+textarea::-webkit-resizer,
+.live-updates-panel::-webkit-resizer {
+  background:
+    linear-gradient(
+      135deg,
+      transparent 60%,
+      var(--bulma-border) 60%,
+      var(--bulma-border) 65%,
+      transparent 65%
+    ),
+    linear-gradient(
+      135deg,
+      transparent 72%,
+      var(--bulma-border) 72%,
+      var(--bulma-border) 77%,
+      transparent 77%
+    ),
+    linear-gradient(
+      135deg,
+      transparent 84%,
+      var(--bulma-border) 84%,
+      var(--bulma-border) 89%,
+      transparent 89%
+    );
+  border-bottom-right-radius: var(--bulma-radius);
+}
+
+/* --------------------------------------------------------------------------
+   Live Updates Section - Event stream display
+   -------------------------------------------------------------------------- */
+.live-updates-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--bulma-border);
+  padding-top: 1rem;
+}
+
+.live-updates-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.live-updates-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.live-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--bulma-grey-light);
+  transition: background-color 0.3s ease;
+}
+
+.live-indicator.is-active {
+  background-color: var(--bulma-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bulma-success) 25%, transparent);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Meta grouping in header */
+.live-updates-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.event-count {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: color-mix(in srgb, var(--mercure-primary) 15%, transparent);
+  color: var(--mercure-primary);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+/* Retry indicator - accent colored */
+.retry-indicator {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--mercure-primary);
+}
+
+.retry-indicator[class*="has-tooltip"] {
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip underline */
+  border-bottom: none !important;
+}
+
+.retry-indicator i {
+  font-size: 0.6875rem;
+  position: relative;
+  top: 0.05em;
+}
+
+.live-updates-panel {
+  height: 200px;
+  min-height: 120px;
+  max-height: 400px;
+  overflow: auto;
+  resize: vertical;
+  border: 1px solid var(--bulma-border);
+  border-radius: var(--bulma-radius);
+  background-color: var(--bulma-scheme-main-bis);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.live-updates-panel:focus-visible {
+  outline: none;
+  border-color: var(--mercure-primary);
+  box-shadow: var(--mercure-focus-ring);
+}
+
+/* Empty state */
+.live-updates-panel .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--bulma-text-weak);
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.live-updates-panel .empty-state i {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.4;
+}
+
+.live-updates-panel .empty-state p {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.live-updates-panel .empty-state span {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* Event list */
+#updates-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Individual event row */
+.event-item {
+  padding: 0.625rem 0.875rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid color-mix(in srgb, var(--bulma-border) 50%, transparent);
+  transition:
+    background-color 0.12s ease,
+    border-left-color 0.12s ease;
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+/* Zebra striping for easier scanning */
+.event-item:nth-child(even) {
+  background-color: color-mix(in srgb, var(--bulma-scheme-main-bis) 40%, transparent);
+}
+
+/* Hover state */
+.event-item:hover {
+  background-color: color-mix(in srgb, var(--mercure-primary) 6%, transparent);
+  border-left-color: var(--mercure-primary);
+}
+
+/* Focus state for keyboard navigation */
+.event-item:focus-visible {
+  outline: none;
+  background-color: color-mix(in srgb, var(--mercure-primary) 10%, transparent);
+  border-left-color: var(--mercure-primary);
+  box-shadow: inset var(--mercure-focus-ring);
+}
+
+/* New event flash animation */
+@keyframes event-flash {
+  0% {
+    background-color: color-mix(in srgb, var(--mercure-primary) 25%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.event-item.is-new {
+  animation: event-flash 0.6s ease-out;
+}
+
+/* Event header - horizontal layout */
+.event-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+/* Event type badge - FIRST in visual order */
+.event-type {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.1875rem;
+  background-color: color-mix(in srgb, var(--mercure-primary) 15%, transparent);
+  color: var(--mercure-primary);
+  border: none;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+
+/* Event ID with click-to-copy */
+.event-id {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--mercure-primary);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity 0.15s;
+  word-break: break-all;
+}
+
+.event-id:hover {
+  opacity: 1;
+}
+
+/* Data block */
+.event-data {
+  margin: 0;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.75rem;
+  background: var(--bulma-scheme-main);
+  border: 1px solid var(--bulma-border);
+  border-radius: 0.25rem;
+  overflow-x: auto;
+  transition: border-color 0.15s;
+}
+
+.event-data:hover {
+  border-color: var(--mercure-primary);
+}
+
+.event-data code {
+  display: block;
+  background: transparent;
+  padding: 0;
+  white-space: pre;
+}
+
+.event-data code.is-empty-data {
+  color: var(--bulma-text-weak);
+  font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   Active Subscriptions Section
+   -------------------------------------------------------------------------- */
+.subscriptions-section .title.is-4 {
+  gap: 0.5rem;
+}
+
+/* Subscription count badges container */
+.subscription-counts {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.subscription-count {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+/* Total count - prominent primary color */
+.subscription-count.is-total {
+  background-color: color-mix(in srgb, var(--mercure-primary) 15%, transparent);
+  color: var(--mercure-primary);
+}
+
+/* Client count - subtle primary tint */
+.subscription-count.is-client {
+  background-color: color-mix(in srgb, var(--mercure-primary) 10%, transparent);
+  color: var(--mercure-primary);
+  font-size: 0.6875rem;
+}
+
+/* Monitor count - info/blue tint with accessible contrast */
+.subscription-count.is-monitor {
+  background-color: color-mix(in srgb, var(--bulma-info) 15%, transparent);
+  color: #1a6d9e; /* Darker blue for light mode accessibility */
+  font-size: 0.6875rem;
+}
+
+/* Dark mode: use standard info color for monitor elements */
+[data-theme="dark"] .subscription-count.is-monitor,
+[data-theme="dark"] .subscription-badge.is-monitor {
+  color: var(--bulma-info);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .subscription-count.is-monitor,
+  :root:not([data-theme]) .subscription-badge.is-monitor {
+    color: var(--bulma-info);
+  }
+}
+
+/* Hide client/monitor counts when zero */
+.subscription-count.is-client[data-count="0"],
+.subscription-count.is-monitor[data-count="0"] {
+  display: none;
+}
+
+/* Empty state */
+.subscriptions-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  color: var(--bulma-text-weak);
+  text-align: center;
+  border: 2px dashed var(--bulma-border);
+  border-radius: var(--bulma-radius);
+  background-color: var(--bulma-scheme-main-bis);
+}
+
+.subscriptions-empty i {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+.subscriptions-empty p {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.subscriptions-empty span {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+/* Subscriptions grid */
+.subscriptions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+/* Subscription card */
+.subscription-card {
+  border: 1px solid var(--bulma-border);
+  border-radius: var(--bulma-radius);
+  background-color: var(--bulma-scheme-main);
+  overflow: visible;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.subscription-card:hover {
+  border-color: var(--mercure-primary);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--mercure-primary) 10%, transparent);
+}
+
+.subscription-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bulma-scheme-main-bis);
+  border-bottom: 1px solid var(--bulma-border);
+  border-radius: var(--bulma-radius) var(--bulma-radius) 0 0;
+  min-width: 0;
+}
+
+/* Subscription type badge */
+.subscription-badge {
+  display: none;
+  flex-shrink: 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-left: auto;
+}
+
+.subscription-badge.is-monitor {
+  display: inline-block;
+  background-color: color-mix(in srgb, var(--bulma-info) 20%, transparent);
+  color: #1a6d9e; /* Darker blue for light mode accessibility */
+}
+
+.subscription-badge.is-client {
+  display: inline-block;
+  background-color: color-mix(in srgb, var(--mercure-primary) 15%, transparent);
+  color: var(--mercure-primary);
+}
+
+/* Wrapper: handles flex sizing and carries tooltip (overflow: visible for tooltip) */
+.subscription-topic-wrapper {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  position: relative;
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip underline */
+  border-bottom: none !important;
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip underline */
+  text-decoration: none !important;
+}
+
+/* Inner element: handles text truncation (overflow: hidden for ellipsis) */
+.subscription-topic {
+  display: block;
+  width: 100%;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mercure-primary);
+  background: none;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Clickable-to-copy elements */
+.clickable-copy {
+  cursor: pointer;
+  transition: color 0.15s;
+  border-radius: 2px;
+}
+
+/* Use higher specificity instead of !important */
+.subscription-card .clickable-copy:hover,
+.clickable-copy:hover {
+  color: var(--mercure-primary);
+}
+
+.clickable-copy:focus-visible {
+  outline: none;
+  box-shadow: var(--mercure-focus-ring);
+}
+
+.subscription-body {
+  padding: 0.75rem 1rem;
+}
+
+.subscription-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  background-color: color-mix(in srgb, var(--bulma-scheme-main-bis) 50%, transparent);
+  border-radius: var(--bulma-radius-small, 0.25rem);
+  min-width: 0;
+}
+
+.subscription-meta-icon {
+  flex-shrink: 0;
+  color: var(--bulma-text-weak);
+  font-size: 0.75rem;
+}
+
+.subscription-subscriber {
+  display: block;
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--bulma-text);
+  background: none;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subscription-payload-details {
+  margin-top: 0.75rem;
+}
+
+.subscription-payload-details summary {
+  font-size: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.subscription-payload {
+  margin: 0.5rem 0 0 0;
+  padding: 0;
+  font-size: 0.7rem;
+  background: var(--bulma-scheme-main);
+  border: 1px solid var(--bulma-border);
+  border-radius: 0.25rem;
+  max-height: 150px;
+  overflow: auto;
+}
+
+.subscription-payload code {
+  white-space: pre;
+  display: block;
+  padding: 0.5rem 0.625rem;
+}
+
+/* --------------------------------------------------------------------------
+   JWT Debug Panel - Side-by-side header/payload display
+   -------------------------------------------------------------------------- */
+.jwt-debug-panel {
+  margin-top: 0.5rem;
+}
+
+.jwt-debug-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bulma-text-weak);
+  margin-bottom: 0.375rem;
+}
+
+.jwt-debug-code {
+  max-height: 160px;
+  overflow: auto;
+  font-size: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--bulma-radius);
+}
+
+.jwt-debug-code code.hljs {
+  white-space: pre;
+  display: block;
+  padding: 1rem;
+  border-radius: var(--bulma-radius);
+}
+
+#jwt-header,
+#jwt-payload {
+  background: none;
+  padding: 0;
+}
+
+#jwt-header.has-text-danger,
+#jwt-payload.has-text-danger {
+  white-space: normal;
+}
+
+/* --------------------------------------------------------------------------
+   Scrollbars
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bulma-grey-light) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bulma-grey-light);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bulma-grey);
+}
+
+/* --------------------------------------------------------------------------
+   Collapsible Sections - Modern CSS-only animation
+   -------------------------------------------------------------------------- */
+
+details summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+  color: var(--mercure-primary);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0; /* Margin lives on ::details-content to avoid animation jumps */
+}
+
+details summary:focus-visible {
+  outline: none;
+  box-shadow: var(--mercure-focus-ring);
+}
+
+/* Hide native markers */
+details summary::-webkit-details-marker,
+details summary::marker {
+  display: none;
+  content: "";
+}
+
+details summary::before {
+  content: "\f078"; /* fa-chevron-down */
+  font-family: "Font Awesome 6 Free", sans-serif;
+  font-weight: 900;
+  font-size: 0.625rem;
+  width: 0.75rem;
+  text-align: center;
+  transition: transform 0.3s ease;
+  transform: rotate(-90deg);
+  flex-shrink: 0;
+}
+
+details[open] summary::before {
+  transform: rotate(0deg);
+}
+
+/* Smooth open/close animation */
+@media (prefers-reduced-motion: no-preference) {
+  details {
+    interpolate-size: allow-keywords;
+  }
+}
+
+details::details-content {
+  opacity: 0;
+  block-size: 0;
+  padding-top: 0;
+  overflow-y: clip;
+  /* Prevent margin collapse inside the animated container */
+  display: flex;
+  flex-direction: column;
+  transition:
+    content-visibility 0.3s allow-discrete,
+    opacity 0.3s ease,
+    block-size 0.3s ease,
+    padding-top 0.3s ease;
+}
+
+details[open]::details-content {
+  opacity: 1;
+  block-size: auto;
+  padding-top: 0.75rem;
+  overflow: visible;
+}
+
+/* Fallback for browsers without interpolate-size */
+@supports not (interpolate-size: allow-keywords) {
+  details[open]::details-content {
+    block-size: 500px;
+    max-block-size: fit-content;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Syntax Help Section
+   -------------------------------------------------------------------------- */
+.syntax-help {
+  font-size: 0.85rem;
+}
+
+.syntax-tips {
+  margin: 0 0 0.75rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syntax-tips li {
+  margin-bottom: 0.25rem;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.syntax-tips li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--mercure-primary);
+}
+
+.syntax-tips li:last-child {
+  margin-bottom: 0;
+}
+
+.syntax-examples {
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Tooltips - Make labels shrink to fit text so tooltip appears next to text
+   -------------------------------------------------------------------------- */
+label.label[data-tooltip],
+legend.label[data-tooltip],
+label.radio[data-tooltip],
+label.checkbox[data-tooltip] {
+  width: fit-content;
+}
+
+/* Allow tooltips to overflow containers */
+.box,
+.box > form,
+.box > form > .field {
+  overflow: visible;
+}
+
+/* Details content needs clip during animation, visible after */
+details:not([open]) > div,
+details:not([open]) > .field {
+  overflow: clip;
+}
+
+details[open] > div,
+details[open] > .field {
+  overflow: visible;
+}
+
+/* Neutralize Bulma's negative margins on columns inside details to prevent animation snap */
+details .columns {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+details .columns:last-child {
+  margin-bottom: 0;
+}
+
+/* Ensure tooltips appear above other elements */
+[data-tooltip]::before,
+[data-tooltip]::after {
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip z-index */
+  z-index: 50 !important;
+}
+
+/* All multiline tooltips - proper line breaks with no clipping */
+[data-tooltip].has-tooltip-multiline::before {
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip defaults */
+  white-space: pre !important;
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip defaults */
+  text-align: left !important;
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip defaults */
+  max-width: none !important;
+  /* biome-ignore lint/complexity/noImportantStyles: Override Bulma tooltip defaults */
+  width: max-content !important;
+}
+
+/* --------------------------------------------------------------------------
+   Toast Notifications
+   -------------------------------------------------------------------------- */
+.app-notification {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 100;
+  opacity: 0;
+  transition: all 0.2s ease-out;
+  pointer-events: none;
+  max-width: min(90%, 400px);
+}
+
+.app-notification.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Footer - Minimal version display
+   -------------------------------------------------------------------------- */
+.footer {
+  background-color: var(--bulma-scheme-main);
+  border-top: 1px solid color-mix(in srgb, var(--mercure-primary) 15%, transparent);
+  padding: 0.75rem 1.5rem;
+}
+
+.footer #app-version {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--mercure-primary) 50%, var(--bulma-text));
 }
