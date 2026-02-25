@@ -3,6 +3,7 @@ package mercure
 import (
 	"errors"
 
+	"github.com/dunglas/mercure/common"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -72,6 +73,11 @@ func NewPrometheusMetrics(registry prometheus.Registerer) *PrometheusMetrics {
 	}
 
 	if err := m.registry.Register(m.updatesTotal); err != nil &&
+		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+		panic(err)
+	}
+
+	if err := m.registry.Register(common.AppVersion.NewMetricsCollector()); err != nil &&
 		!errors.As(err, &prometheus.AlreadyRegisteredError{}) {
 		panic(err)
 	}

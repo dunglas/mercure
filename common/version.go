@@ -9,25 +9,31 @@ import (
 )
 
 type AppVersionInfo struct {
-	Version      string
-	BuildDate    string
-	Commit       string
-	GoVersion    string
-	OS           string
-	Architecture string
+	Version         string
+	UpstreamVersion string
+	BuildDate       string
+	Commit          string
+	GoVersion       string
+	OS              string
+	Architecture    string
 }
 
 var AppVersion AppVersionInfo //nolint:gochecknoglobals
 
 // these variables are dynamically set at build.
 var (
-	version   = "dev"
-	buildDate = "" //nolint:gochecknoglobals
-	commit    = "" //nolint:gochecknoglobals
+	version         = "dev"             //nolint:gochecknoglobals
+	upstreamVersion = ""                //nolint:gochecknoglobals
+	buildDate       = ""                //nolint:gochecknoglobals
+	commit          = ""                //nolint:gochecknoglobals
 )
 
 func (v *AppVersionInfo) Shortline() string {
 	shortline := v.Version
+
+	if v.UpstreamVersion != "" {
+		shortline += " (upstream " + v.UpstreamVersion + ")"
+	}
 
 	if v.Commit != "" {
 		shortline += ", commit " + v.Commit
@@ -52,12 +58,13 @@ func (v *AppVersionInfo) ChangelogURL() string {
 
 func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {
 	labels := map[string]string{
-		"version":      v.Version,
-		"built_at":     v.BuildDate,
-		"commit":       v.Commit,
-		"go_version":   v.GoVersion,
-		"os":           v.OS,
-		"architecture": v.Architecture,
+		"version":          v.Version,
+		"upstream_version": v.UpstreamVersion,
+		"built_at":         v.BuildDate,
+		"commit":           v.Commit,
+		"go_version":       v.GoVersion,
+		"os":               v.OS,
+		"architecture":     v.Architecture,
 	}
 
 	labelNames := make([]string, 0, len(labels))
@@ -86,13 +93,15 @@ func init() { //nolint:gochecknoinits
 	}
 
 	version = strings.TrimPrefix(version, "v")
+	upstreamVersion = strings.TrimPrefix(upstreamVersion, "v")
 
 	AppVersion = AppVersionInfo{
-		Version:      version,
-		BuildDate:    buildDate,
-		Commit:       commit,
-		GoVersion:    runtime.Version(),
-		OS:           runtime.GOOS,
-		Architecture: runtime.GOARCH,
+		Version:         version,
+		UpstreamVersion: upstreamVersion,
+		BuildDate:       buildDate,
+		Commit:          commit,
+		GoVersion:       runtime.Version(),
+		OS:              runtime.GOOS,
+		Architecture:    runtime.GOARCH,
 	}
 }
