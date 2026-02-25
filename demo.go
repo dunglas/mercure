@@ -44,11 +44,18 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 		header["Content-Type"] = []string{mimeType}
 	}
 
+	// Determine if connection is secure (direct TLS or behind TLS-terminating proxy like ALB).
+	// Trusts X-Forwarded-Proto unconditionally. This is safe because:
+	//   - Local config: r.TLS is always non-nil (direct TLS), so this branch is not reached.
+	//   - ALB config: the server runs inside a VPC; external clients cannot inject this header.
+	isSecure := r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+
 	cookie := &http.Cookie{
 		Name:     h.cookieName,
 		Path:     defaultHubURL,
 		Value:    jwt,
-		HttpOnly: r.TLS != nil,
+		HttpOnly: true,     // Always: JS doesn't need cookie access, prevents XSS token theft
+		Secure:   isSecure, // Only send over HTTPS (works with direct TLS and reverse proxies)
 		SameSite: http.SameSiteStrictMode,
 	}
 	if jwt == "" {
