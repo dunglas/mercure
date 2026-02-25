@@ -387,7 +387,7 @@ func TestMetricsVersionIsAccessible(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
 
-	pattern := `mercure_version_info{architecture=".+",built_at=".*",commit=".*",go_version=".+",os=".+",version="dev"} 1`
+	pattern := `mercure_version_info{architecture=".+",built_at=".*",commit=".*",go_version=".+",os=".+",upstream_version=".*",version="dev"} 1`
 	assert.Regexp(t, pattern, string(b))
 	server.assertMetric("mercure_version_info")
 }

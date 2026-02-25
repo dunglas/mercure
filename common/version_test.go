@@ -63,27 +63,39 @@ func TestVersionInfoWithBuildDateAndCommit(t *testing.T) {
 	assert.Equal(t, "https://github.com/dunglas/mercure/releases/tag/v1.0.0", v.ChangelogURL())
 }
 
+func TestVersionInfoWithUpstreamVersion(t *testing.T) {
+	v := AppVersionInfo{
+		Version:         "0.0.1",
+		UpstreamVersion: "0.21.7",
+		Commit:          "abc123",
+	}
+
+	assert.Equal(t, "0.0.1 (upstream 0.21.7), commit abc123", v.Shortline())
+}
+
 func TestVersionMetricsCollectorInitialization(t *testing.T) {
 	var metricOut dto.Metric
 
 	v := AppVersionInfo{
-		Version:      "1.0.0",
-		BuildDate:    "2020-05-03T18:42:44Z",
-		Commit:       "96ee2b9",
-		GoVersion:    "go1.14.2",
-		OS:           "linux",
-		Architecture: "amd64",
+		Version:         "1.0.0",
+		UpstreamVersion: "0.21.7",
+		BuildDate:       "2020-05-03T18:42:44Z",
+		Commit:          "96ee2b9",
+		GoVersion:       "go1.14.2",
+		OS:              "linux",
+		Architecture:    "amd64",
 	}
 
 	c := v.NewMetricsCollector()
 
 	labelValues := map[string]string{
-		"version":      v.Version,
-		"built_at":     v.BuildDate,
-		"commit":       v.Commit,
-		"go_version":   v.GoVersion,
-		"os":           v.OS,
-		"architecture": v.Architecture,
+		"version":          v.Version,
+		"upstream_version": v.UpstreamVersion,
+		"built_at":         v.BuildDate,
+		"commit":           v.Commit,
+		"go_version":       v.GoVersion,
+		"os":               v.OS,
+		"architecture":     v.Architecture,
 	}
 
 	m, err := c.GetMetricWith(labelValues)
