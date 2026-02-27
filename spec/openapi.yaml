@@ -1,7 +1,12 @@
-openapi: 3.0.2
+openapi: 3.0.3
 info:
   title: The Mercure protocol
-  description: "[Mercure](https://mercure.rocks) is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way."
+  description: |
+    [Mercure](https://mercure.rocks) is a protocol allowing to push data
+    updates to web browsers and other HTTP clients in a convenient, fast,
+    reliable and battery-efficient way. It is especially useful for publishing
+    real-time updates of resources served through web APIs to web and mobile
+    apps.
   version: 0.3.2
   contact:
     name: Kévin Dunglas
@@ -11,64 +16,154 @@ info:
     name: GNU Affero General Public License v3.0 or later
     url: https://github.com/dunglas/mercure/blob/master/LICENSE
     x-spdx: AGPL-3.0-or-later
+servers:
+  - url: https://localhost
+  - url: "{scheme}://{host}"
+    variables:
+      scheme:
+        default: https
+        enum:
+          - https
+      host:
+        default: localhost
+tags:
+  - name: Subscribe
+    description: Subscribe to real-time updates using Server-Sent Events.
+    externalDocs:
+      description: Subscription specification
+      url: https://mercure.rocks/spec#subscription
+  - name: Publish
+    description: Publish updates to subscribers via the hub.
+    externalDocs:
+      description: Publication specification
+      url: https://mercure.rocks/spec#publication
+  - name: Subscriptions
+    description: Query active subscriptions through the Subscription API.
+    externalDocs:
+      description: Subscription API
+      url: https://mercure.rocks/spec#subscription-api
 paths:
   "/.well-known/mercure":
     get:
+      operationId: subscribe
+      tags:
+        - Subscribe
       summary: Subscribe to updates
+      description: |
+        Opens a Server-Sent Events connection to receive real-time updates
+        for the specified topics. The connection SHOULD use HTTP/2 or higher
+        to leverage multiplexing.
       externalDocs:
         description: Subscription specification
         url: https://mercure.rocks/spec#subscription
       parameters:
         - name: topic
           in: query
-          description: The topic to get updates from, can be a URI template (RFC6570).
+          description: |
+            The topic selectors to subscribe to. Can be an exact IRI, a URI
+            Template (RFC 6570), or `*` to match all topics. Pass multiple
+            values to subscribe to several topics.
           required: true
+          style: form
+          explode: true
           schema:
             type: array
+            minItems: 1
             items:
               type: string
-        - name: Last-Event-ID
+          examples:
+            singleTopic:
+              summary: Subscribe to a single topic
+              value: ["https://example.com/books/1"]
+            uriTemplate:
+              summary: Subscribe using a URI template
+              value: ["https://example.com/books/{id}"]
+            wildcard:
+              summary: Subscribe to all topics
+              value: ["*"]
+        - name: lastEventID
           in: query
-          description: The last received event id, to retrieve missed events.
+          description: |
+            The last received event ID, to retrieve missed events. If both
+            this parameter and the `Last-Event-ID` header are present, the
+            header takes precedence. The reserved value `earliest` hints the
+            hub to send all available events.
           schema:
             type: string
+          example: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
         - name: Last-Event-ID
           in: header
-          description: The last received event id, to retrieve missed events, takes precedence over the query parameter.
+          description: |
+            The last received event ID. Takes precedence over the
+            `lastEventID` query parameter. Automatically sent by
+            `EventSource` on reconnection.
           schema:
             type: string
       responses:
         "200":
           description: Event stream opened.
+          headers:
+            Last-Event-ID:
+              description: |
+                The ID of the event preceding the first event sent to the
+                subscriber, or `earliest` if there is no preceding event.
+              schema:
+                type: string
           content:
             "text/event-stream": {}
+        "400":
+          $ref: "#/components/responses/400"
         "401":
           $ref: "#/components/responses/401"
-        "400":
-          description: Missing topic parameter or invalid URI template.
+      security:
+        - Bearer: []
+        - Cookie: []
+        - QueryParameter: []
+        - {}
     post:
+      operationId: publish
+      tags:
+        - Publish
       summary: Publish an update
+      description: |
+        Publishes an update to the hub, which dispatches it to subscribers
+        whose topic selectors match the update's topics.
       externalDocs:
         description: Publishing specification
         url: https://mercure.rocks/spec#publication
       requestBody:
+        required: true
         content:
           "application/x-www-form-urlencoded":
             schema:
+              type: object
               properties:
                 topic:
-                  description: IRIs of the updated topic. If this key is present several times, the first occurrence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs.
+                  description: |
+                    The identifiers of the updated topic. It is recommended to
+                    use an IRI. If present several times, the first occurrence
+                    is the canonical IRI and others are alternate IRIs. The hub
+                    dispatches the update to subscribers of any of these IRIs.
                   type: array
+                  minItems: 1
                   items:
                     type: string
                 data:
                   description: The content of the new version of this topic.
                   type: string
                 private:
-                  description: To mark an update as private. If not provided, this update will be public.
-                  type: boolean
+                  description: |
+                    If this name is set, the update MUST NOT be dispatched to
+                    subscribers not authorized to receive it. It is recommended
+                    to set the value to `on`, but it can contain any value
+                    including an empty string.
+                  type: string
                 id:
-                  description: "The topic's revision identifier: it will be used as the SSE's `id` property."
+                  description: |
+                    The topic's revision identifier, used as the SSE's `id`
+                    property. MUST NOT start with `#`. SHOULD be a valid IRI.
+                    If omitted, the hub generates one. The hub MAY ignore the
+                    provided ID and generate its own.
                   type: string
                 type:
                   description: The SSE's `event` property (a specific event type).
@@ -78,79 +173,176 @@ paths:
                   type: integer
               required:
                 - topic
-                - data
+            encoding:
+              topic:
+                style: form
+                explode: true
+            examples:
+              publicUpdate:
+                summary: A public update
+                value:
+                  topic:
+                    - "https://example.com/books/1"
+                  data: '{"@id": "/books/1", "title": "Updated Title"}'
+              privateUpdate:
+                summary: A private update
+                value:
+                  topic:
+                    - "https://example.com/books/1"
+                  data: '{"@id": "/books/1", "title": "Confidential"}'
+                  private: "on"
       responses:
         "200":
-          description: The id of this update
+          description: The id of this update.
           content:
-            "text/plain": {}
+            "text/plain":
+              schema:
+                type: string
+              example: "urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022"
+        "400":
+          $ref: "#/components/responses/400"
         "401":
           $ref: "#/components/responses/401"
-        "400":
-          description: Invalid request
+      security:
+        - Bearer: []
+        - Cookie: []
+        - QueryParameter: []
   "/.well-known/mercure/subscriptions":
     get:
+      operationId: listSubscriptions
+      tags:
+        - Subscriptions
       summary: Active subscriptions
+      description: The collection of active subscriptions.
       externalDocs:
         description: Subscription API
         url: https://mercure.rocks/spec#subscription-api
       responses:
         "200":
-          description: The list of active subscriptions
+          description: The list of active subscriptions.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             "application/ld+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
+              example:
+                "@context": "https://mercure.rocks/"
+                id: "/.well-known/mercure/subscriptions"
+                type: "Subscriptions"
+                lastEventID: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+                subscriptions:
+                  - id: "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6"
+                    type: "Subscription"
+                    topic: "https://example.com/{selector}"
+                    subscriber: "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6"
+                    active: true
+                    payload:
+                      foo: "bar"
         "401":
           $ref: "#/components/responses/401"
+      security:
+        - Bearer: []
+        - Cookie: []
+        - QueryParameter: []
   "/.well-known/mercure/subscriptions/{topic}":
     get:
-      summary: Active subscriptions for the given topic
+      operationId: listSubscriptionsForTopic
+      tags:
+        - Subscriptions
+      summary: Active subscriptions for a topic
+      description: The collection of active subscriptions for the given topic selector.
       externalDocs:
         description: Subscription API
         url: https://mercure.rocks/spec#subscription-api
       parameters:
-        - in: path
-          name: topic
-          schema:
-            type: string
-          required: true
+        - $ref: "#/components/parameters/TopicPath"
       responses:
         "200":
-          description: The list of active subscriptions
+          description: The list of active subscriptions for the given topic.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             "application/ld+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
+      security:
+        - Bearer: []
+        - Cookie: []
+        - QueryParameter: []
   "/.well-known/mercure/subscriptions/{topic}/{subscriber}":
     get:
-      summary: Active subscription for the given topic and subscriber
+      operationId: getSubscription
+      tags:
+        - Subscriptions
+      summary: A specific subscription
+      description: |
+        A specific subscription identified by the topic selector and
+        subscriber.
       externalDocs:
-        description: Subscription API
+        description: Active subscriptions
         url: https://mercure.rocks/spec#active-subscriptions
       parameters:
-        - in: path
-          name: topic
-          schema:
-            type: string
-          required: true
-        - in: path
-          name: subscriber
-          schema:
-            type: string
-          required: true
+        - $ref: "#/components/parameters/TopicPath"
+        - $ref: "#/components/parameters/SubscriberPath"
       responses:
         "200":
-          description: The list of active subscriptions
+          description: The requested subscription.
+          headers:
+            ETag:
+              $ref: "#/components/headers/ETag"
           content:
             "application/ld+json":
               schema:
-                $ref: "#/components/schemas/Subscriptions"
+                $ref: "#/components/schemas/Subscription"
+              example:
+                "@context": "https://mercure.rocks/"
+                id: "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6"
+                type: "Subscription"
+                topic: "https://example.com/{selector}"
+                subscriber: "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6"
+                active: true
+                payload:
+                  foo: "bar"
+                lastEventID: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
         "401":
           $ref: "#/components/responses/401"
+        "404":
+          description: The requested subscription does not exist.
+      security:
+        - Bearer: []
+        - Cookie: []
+        - QueryParameter: []
 components:
+  parameters:
+    TopicPath:
+      name: topic
+      in: path
+      required: true
+      description: The topic selector, percent-encoded in the URL path.
+      schema:
+        type: string
+      example: "https://example.com/{selector}"
+    SubscriberPath:
+      name: subscriber
+      in: path
+      required: true
+      description: The unique identifier of the subscriber, percent-encoded in the URL path.
+      schema:
+        type: string
+      example: "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6"
+  headers:
+    ETag:
+      description: |
+        The `lastEventID` of the hub at the time of the response. Use this
+        value in the `If-None-Match` header on subsequent requests.
+      schema:
+        type: string
+      example: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
   schemas:
     Subscriptions:
       type: object
@@ -158,19 +350,26 @@ components:
       properties:
         "@context":
           type: string
-          format: iri
-          example: https://mercure.rocks/
+          format: uri
+          description: Fixed value `https://mercure.rocks/`.
+          example: "https://mercure.rocks/"
         id:
           type: string
-          format: iri-reference
-          example: /.well-known/mercure/subscriptions
+          format: uri-reference
+          description: The URL used to retrieve this collection.
+          example: "/.well-known/mercure/subscriptions"
         type:
           type: string
-          format: iri-reference
-          example: Subscriptions
+          enum:
+            - Subscriptions
+          example: "Subscriptions"
         lastEventID:
           type: string
-          example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+          description: |
+            The identifier of the last event dispatched by the hub at the
+            time of this request. The value is `earliest` if no events have
+            been dispatched yet.
+          example: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
         subscriptions:
           type: array
           items:
@@ -181,46 +380,78 @@ components:
       properties:
         "@context":
           type: string
-          format: iri
-          example: https://mercure.rocks/
+          format: uri
+          description: |
+            Fixed value `https://mercure.rocks/`. Can be omitted when
+            embedded in a Subscriptions collection.
+          example: "https://mercure.rocks/"
         id:
           type: string
-          format: iri-reference
-          example: /.well-known/mercure/subscriptions
+          format: uri-reference
+          description: |
+            The identifier of this subscription, following the pattern
+            `/.well-known/mercure/subscriptions/{topic}/{subscriber}`.
+          example: "/.well-known/mercure/subscriptions/https%3A%2F%2Fexample.com%2F%7Bselector%7D/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6"
         type:
           type: string
-          format: iri-reference
-          example: Subscription
+          enum:
+            - Subscription
+          example: "Subscription"
         topic:
           type: string
-          example: https://example.com/{selector}
+          description: The topic selector used for this subscription.
+          example: "https://example.com/{selector}"
         subscriber:
           type: string
-          example: urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6
+          description: |
+            The unique identifier of the subscriber. SHOULD be an IRI. A
+            UUID or DID MAY be used.
+          example: "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6"
         active:
           type: boolean
+          description: |
+            `true` when the subscription is active, `false` when it is
+            terminated.
         payload:
           type: object
+          additionalProperties: true
+          description: |
+            The content of `mercure.payload` in the subscriber's JWS.
         lastEventID:
           type: string
-          example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+          description: |
+            The identifier of the last event dispatched by the hub at the
+            time of the request.
+          example: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
   responses:
+    "400":
+      description: Missing or invalid required parameters.
     "401":
-      description: Not authorized (missing or invalid JWT).
+      description: Not authorized (missing or invalid JWS).
   securitySchemes:
     Bearer:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Preferred for server to server
+      description: Preferred for non-browser clients.
     Cookie:
       type: apiKey
       in: cookie
       name: mercureAuthorization
-      description: Preferred for web browsers (the cookie name may change depending on the configuration)
+      description: |
+        Preferred for web browsers. The cookie name may differ depending
+        on the hub configuration.
+    QueryParameter:
+      type: apiKey
+      in: query
+      name: authorization
+      description: |
+        Fallback when neither the Authorization header nor cookies can be
+        used. Not recommended due to security weaknesses.
 security:
   - Bearer: []
   - Cookie: []
+  - QueryParameter: []
 externalDocs:
   description: The Mercure protocol specification
   url: https://mercure.rocks/spec
