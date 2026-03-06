@@ -12,7 +12,7 @@ replace github.com/dunglas/mercure => ../
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/caddyserver/caddy/v2 v2.11.2
-	github.com/dunglas/mercure v0.21.10
+	github.com/dunglas/mercure v0.21.11
 	github.com/stretchr/testify v1.11.1
 )
 
