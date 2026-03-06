@@ -60,10 +60,6 @@ builds:
     ignore:
       - goos: windows
         goarch: arm
-upx:
-  - enabled: true
-    goos: [linux]
-    compress: best
 archives:
   - ids:
       - caddy
