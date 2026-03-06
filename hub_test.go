@@ -106,6 +106,8 @@ func TestContextCancellation(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
+		t.Cleanup(cancel)
+
 		hub, err := NewHub(ctx, WithAnonymous())
 		require.NoError(t, err)
 

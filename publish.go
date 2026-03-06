@@ -49,7 +49,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if r.ParseForm() != nil {
+	if r.ParseForm() != nil { //nolint:gosec // body size can be limited using Caddy's request_body directive
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 
 		return

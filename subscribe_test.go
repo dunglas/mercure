@@ -549,7 +549,10 @@ func TestSubscriptionEvents(t *testing.T) {
 	hub := createDummy(t, WithSubscriptions())
 
 	ctx1, cancel1 := context.WithCancel(t.Context())
+	t.Cleanup(cancel1)
+
 	ctx2, cancel2 := context.WithCancel(t.Context())
+	t.Cleanup(cancel2)
 
 	var wg sync.WaitGroup
 
