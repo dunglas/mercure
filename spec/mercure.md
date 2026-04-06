@@ -225,7 +225,8 @@ An application **MAY** send events directly to subscribers without using an exte
 it can do so. In this case, it is not required to implement the endpoint to publish updates.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
-[@W3C.REC-html52-20171214] and **MUST** contain the following name-value tuples:
+[@W3C.REC-html52-20171214] and **MUST** contain at least one `topic` field. It **MAY** also contain
+the following name-value tuples:
 
 *   `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an IRI as
     identifier. If this name is present several times, the first occurrence is considered to be the
@@ -390,7 +391,7 @@ book resources. It is not what we want here: this subscriber is only authorized 
 of these resources.
 
 To solve this problem, the `mercure.subscribe` claim could contain a URL Pattern topic matcher such as:
-`https://example.com/users/foo/?match=:topic`.
+`https://example.com/users/foo/?topic=:topic`.
 
 The publisher could then take advantage of the previously described behavior by
 publishing a private update having `https://example.com/books/1` as the canonical topic and
@@ -424,8 +425,13 @@ and it can have an **OPTIONAL** `matchType` property containing the topic matche
 The value of the `matchType` key **MUST** be considered case-insensitive.
 If no `matchType` key is present, the hub **MUST** consider that the `Exact` matcher type is used.
 
-If the type of one or more matchers present in the array is not supported by the hub, it **MUST** respond with a
-501 "Not Implemented" HTTP status code and **MUST NOT** send any update.
+If the type of one or more matchers present in the `mercure.subscribe` claim is not supported by the hub,
+the hub **MUST** reject the subscription request with a 501 "Not Implemented" HTTP status code
+and the subscription **MUST NOT** be established.
+
+If the type of one or more matchers present in the `mercure.publish` claim is not supported by the hub,
+the hub **MUST** reject the publication request with a 501 "Not Implemented" HTTP status code
+and **MUST NOT** dispatch the update.
 
 ## Payloads
 
@@ -434,9 +440,11 @@ and in subscription events.
 
 See (#subscription-events).
 
-Each entry in the `mercure.subscribe` claim of the JWS **MAY** contain a JSON object under the `payload` key.
+Each entry in the `mercure.subscribe` claim of the JWS that is represented as an object
+**MAY** contain a JSON object under the `payload` key.
 
-The value associated with the first topic matcher matching the topic of the subscription
+The `payload` value associated with the first topic matcher in the `mercure.subscribe` claim
+that matches the subscription's own matcher (as determined by the `match` and `matchType` query parameters)
 **MUST** be included under the `payload` key in the JSON object describing a subscription in
 the subscription API and in subscription events.
 
