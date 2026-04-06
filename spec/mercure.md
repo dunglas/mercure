@@ -45,10 +45,10 @@ The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **S
 NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be
 interpreted as described in [@!RFC2119].
 
-*   Topic: The unit to which one can subscribe to changes. The topic is identified by a string
+*   Topic: The unit to which one can subscribe for changes. The topic is identified by a string
     that **MAY** be an IRI [@!RFC3987].
 *   Update: The message containing the updated version of the topic. An update can be marked as
-    private, consequently, it must be dispatched only to subscribers allowed to receive it.
+    private, consequently, it **MUST** be dispatched only to subscribers allowed to receive it.
 *   Topic matcher: An expression intended to be matched by one or several topics,
     depending on the matcher type.
 *   Topic matcher type: The type of a matching expression,
@@ -70,8 +70,8 @@ interpreted as described in [@!RFC2119].
 The subscriber subscribes to a URL exposed by a hub to receive updates from one or many topics.
 To subscribe to updates, the client opens an HTTPS connection following the Server-Sent Events
 specification [@!W3C.REC-eventsource-20150203] to the hub's subscription URL advertised by the
-publisher. The `GET` HTTP method must be used. The connection **SHOULD** use HTTP version 2 or
-superior to leverage multiplexing and other performance-oriented related features provided by these
+publisher. The `GET` HTTP method **MUST** be used. The connection **SHOULD** use HTTP version 2 or
+superior to leverage multiplexing and other performance-related features provided by these
 versions.
 
 The subscriber specifies the list of topics to get updates from by using one or several query
@@ -79,18 +79,19 @@ parameters named `match`. The subscriber only receives updates for the topics ex
 one of the `match` query parameters.
 
 In addition to `match` query parameters, the subscriber can pass other topic matchers by passing
-query parameters starting with the string `match` and followed by the topic matcher type.
+query parameters whose name is the string `match` concatenated with the matcher type name
+(e.g., `matchRegexp`, `matchURLPattern`).
 
 The `matchExact` query parameter **MUST** be considered the same as `match`.
 
 The hub **MUST** ignore the case of query parameters starting with `match`.
-For instance, `matchExact`, `matchEXACT`, `matchexact` and `MaTCheXaCt` must be considered
+For instance, `matchExact`, `matchEXACT`, `matchexact` and `MaTCheXaCt` **MUST** be considered
 the same query parameter.
 
 If the type of one or more matchers is not supported by the hub, it **MUST** respond with a
 501 "Not Implemented" HTTP status code.
 
-The subscriber receives updates for all topics matching at least a topic matcher according to
+The subscriber receives updates for all topics matching at least one topic matcher according to
 the matcher type rules.
 
 The protocol doesn't specify the maximum number of query parameters that can be sent, but the hub
@@ -108,7 +109,7 @@ If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscri
 to receive it. See (#authorization).
 
 The hub **MUST** send these updates as `text/event-stream` compliant events
-[!@W3C.REC-eventsource-20150203].
+[@!W3C.REC-eventsource-20150203].
 
 The `data` property **MUST** contain the topic's new version. It can be the full resource or a
 partial update by using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
@@ -152,7 +153,7 @@ authorization rules not defined in this specification.
 ## Exact Matching
 
 The hub **MUST** support exact matching.
-With this type of matchers, an exact case-sensitive comparison must be made between the topic and the matcher.
+With this type of matcher, an exact case-sensitive comparison **MUST** be made between the topic and the matcher.
 
 The matcher type name is `Exact`.
 The corresponding query parameters are `match` and `matchExact`.
@@ -178,7 +179,7 @@ The corresponding query parameter is `matchRegexp`.
 
 The hub **MAY** support using CEL expressions [@cel] as matchers.
 
-A variable named `topics` containing an array of string **MUST** be passed
+A variable named `topics` containing an array of strings **MUST** be passed
 to the expression. This variable **MUST** contain the canonical topic followed by the alternate topics of the update to match.
 
 The hub **MAY** pass other implementation-specific variables and expose implementation-specific functions.
@@ -198,6 +199,16 @@ Whenever possible, using URL patterns **SHOULD** be preferred.
 The matcher type name is `URITemplate`.
 The corresponding query parameter is `matchURITemplate`.
 
+## Summary of Matcher Types
+
+| Matcher Type   | Query Parameter      | Requirement  |
+|----------------|----------------------|--------------|
+| `Exact`        | `match` / `matchExact` | **MUST**   |
+| `URLPattern`   | `matchURLPattern`    | **SHOULD**   |
+| `Regexp`       | `matchRegexp`        | **SHOULD**   |
+| `CEL`          | `matchCEL`           | **MAY**      |
+| `URITemplate`  | `matchURITemplate`   | **MAY**      |
+
 ## Other Matcher Types
 
 In addition, the hub **MAY** implement any matcher types, including implementation-specific matcher types.
@@ -210,11 +221,11 @@ update, the hub dispatches it to subscribers using the established server-sent e
 The hub **MAY** also dispatch this update using other protocols such as WebSub
 [@W3C.REC-websub-20180123] or ActivityPub [@W3C.REC-activitypub-20180123].
 
-An application **CAN** send events directly to subscribers without using an external hub server, if
-it can do so. In this case, it **MAY NOT** implement the endpoint to publish updates.
+An application **MAY** send events directly to subscribers without using an external hub server, if
+it can do so. In this case, it is not required to implement the endpoint to publish updates.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
-[@W3C.REC-html52-20171214] and contains the following name-value tuples:
+[@W3C.REC-html52-20171214] and **MUST** contain the following name-value tuples:
 
 *   `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an IRI as
     identifier. If this name is present several times, the first occurrence is considered to be the
@@ -223,7 +234,7 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 *   `data` (optional): the content of the new version of this topic.
 *   `private` (optional): if this name is set, the update **MUST NOT** be dispatched to subscribers
     not authorized to receive it. See (#authorization). It is recommended to set the value to `on`
-    but it **CAN** contain any value including an empty string.
+    but it **MAY** contain any value including an empty string.
 *   `id` (optional): the topic's revision identifier: will be used as the SSE's `id` property.
     The provided ID **MUST NOT** start with the `#` character. The provided ID **MAY** be a valid
     IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC4122] or a
@@ -234,7 +245,7 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 *   `type` (optional): the SSE's `event` property (a specific event type).
 *   `retry` (optional): the SSE's `retry` property (the reconnection time).
 
-In the event of success, the HTTP response's body **MUST** be the `id` associated to this update
+In the event of success, the HTTP response's body **MUST** be the `id` associated with this update
 generated by the hub, and a successful HTTP status code **MUST** be returned. The publisher **MUST** be
 authorized to publish updates. See (#authorization).
 
@@ -256,7 +267,7 @@ urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 
 # Authorization
 
-To ensure that they are authorized, both publishers and subscribers must present a valid JWS
+To ensure that they are authorized, both publishers and subscribers **MUST** present a valid JWS
 [@!RFC7515] in compact serialization to the hub. This JWS **SHOULD** be short-lived, especially
 if the subscriber is a web browser. A different key **MAY** be used to sign subscribers' and
 publishers' tokens.
@@ -274,7 +285,7 @@ If an `Authorization` HTTP header is presented by the client, the JWS it contain
 The content of the `authorization` query parameter and the cookie **MUST** be ignored.
 
 If an `authorization` query parameter is set by the client and no `Authorization` HTTP header is
-presented, the content of the query parameter **MUST** be used, and the content of the cookie must be
+presented, the content of the query parameter **MUST** be used, and the content of the cookie **MUST** be
 ignored.
 
 If the client tries to execute an operation it is not allowed to, a 403 HTTP status code **SHOULD**
@@ -325,7 +336,7 @@ Host: hub.example.com
 ~~~
 
 Clients using the URI Query Parameter method **SHOULD** also send a `Cache-Control` header
-containing the `no-store` option. Server success (2XX status) responses to these requests SHOULD
+containing the `no-store` option. Server success (2XX status) responses to these requests **SHOULD**
 contain a `Cache-Control` header with the `private` option.
 
 Because of the security weaknesses associated with the URI method (see (#security-considerations)),
@@ -342,7 +353,7 @@ authorized to send updates for the specified topics.
 
 To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim
 called `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
-array of topic matchers as defined in #topic-matcher-list.
+array of topic matchers as defined in (#topic-matcher-list).
 
 If `mercure.publish` is not defined, or contains an empty array, then the publisher **MUST NOT**
 be authorized to dispatch any update.
@@ -362,7 +373,7 @@ If the presented JWS contains an expiration time in the standard `exp` claim def
 the connection **MUST** be closed by the hub at that time.
 
 To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a
-claim named `mercure` with a key named `subscribe` that contains an array of topic matchers as described in #topic-matcher-list.
+claim named `mercure` with a key named `subscribe` that contains an array of topic matchers as described in (#topic-matcher-list).
 
 The hub **MUST** check that at least one topic of the update to dispatch (*canonical* or
 *alternate*) matches at least one topic matcher provided in `mercure.subscribe`.
@@ -397,14 +408,14 @@ topic=https://example.com/books/1&topic=https://example.com/users/foo/?topic=htt
 The subscriber is subscribed to `https://example.com/books/:id` which is a URL Pattern matched by the
 canonical topic of the update. This canonical topic isn't matched by the topic matcher
 provided in its JWS claim `mercure.subscribe`. However, an alternate topic of the update,
-`https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fa-random-topic`, is matched by it.
+`https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1`, is matched by it.
 Consequently, this private update will be received by this subscriber, while other updates having
-a canonical topic matched by the matcher provided in a `topic` query parameter but not matched by
+a canonical topic matched by the matcher provided in a `matchURLPattern` query parameter but not matched by
 matchers in the `mercure.subscribe` claim will not.
 
 ## Topic Matcher List
 
-Topic matchers present in the `mercure.subscribe` or `mercure.publish` **MUST** either be strings or objects.
+Topic matchers present in the `mercure.subscribe` or `mercure.publish` claim **MUST** either be strings or objects.
 
 If it is represented as a string, the matcher type **MUST** be considered as `Exact`.
 
@@ -414,7 +425,7 @@ The value of the `matchType` key **MUST** be considered case-insensitive.
 If no `matchType` key is present, the hub **MUST** consider that the `Exact` matcher type is used.
 
 If the type of one or more matchers present in the array is not supported by the hub, it **MUST** respond with a
-501 "Not Implemented" HTTP status code and no update should be sent.
+501 "Not Implemented" HTTP status code and **MUST NOT** send any update.
 
 ## Payloads
 
@@ -423,7 +434,7 @@ and in subscription events.
 
 See (#subscription-events).
 
-Each entry in the `mercure.subscribe` claim of the JWS **CAN** contain a JSON object under the `payload` key.
+Each entry in the `mercure.subscribe` claim of the JWS **MAY** contain a JSON object under the `payload` key.
 
 The value associated with the first topic matcher matching the topic of the subscription
 **MUST** be included under the `payload` key in the JSON object describing a subscription in
@@ -468,11 +479,11 @@ The protocol allows the reconciliation of states after a reconnection. It can al
 [Event store](https://en.wikipedia.org/wiki/Event_store).
 
 To allow re-establishment in case of connection loss, events dispatched by the hub **MUST** include
-an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987]. An
+an `id` property. The value contained in this `id` property **SHOULD** be an IRI [@!RFC3987]. A
 UUID [@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
 
 According to the server-sent events specification, in case of connection
-lost the subscriber will try to automatically re-connect. During the
+loss the subscriber will try to automatically re-connect. During the
 re-connection, the subscriber **MUST** send the last received event ID in a
 [Last-Event-ID](https://html.spec.whatwg.org/multipage/iana.html#last-event-id) HTTP header.
 
@@ -480,10 +491,10 @@ To fetch any update dispatched between the initial resource generation by the pu
 the connection to the hub, the subscriber **MUST** send the event ID provided during the discovery
 as a `Last-Event-ID` header or a `lastEventID` query parameter. See (#discovery).
 
-`EventSource` implementations may not allow to set HTTP headers during the first connection (before
-a reconnection) and implementations in web browsers don't allow to set it.
+`EventSource` implementations may not allow setting HTTP headers during the first connection (before
+a reconnection) and implementations in web browsers don't allow setting them.
 
-To work around this problem, the hub **MUST** also allow to pass the last event ID in a query
+To work around this problem, the hub **MUST** also allow passing the last event ID in a query
 parameter named `lastEventID`.
 
 If both the `Last-Event-ID` HTTP header and the `lastEventID` query parameter are present,
@@ -509,14 +520,14 @@ hub stores only a limited number of events in its history). In some cases (for i
 partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an event store),
 lost updates can cause data loss.
 
-To detect if a data loss occurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
+To detect if a data loss occurred, the subscriber **MAY** compare the value of the `Last-Event-ID`
 response HTTP header with the last event ID it requested. In case of data loss, the subscriber
 **SHOULD** re-fetch the original topic.
 
 Note: Native `EventSource` implementations don't give access to headers associated with the HTTP
 response, however, polyfills and server-sent events clients in most programming languages allow it.
 
-The hub **CAN** also specify the reconnection time using the `retry` key, as specified in the
+The hub **MAY** also specify the reconnection time using the `retry` key, as specified in the
 server-sent events format.
 
 # Active Subscriptions
@@ -612,7 +623,7 @@ code **MUST** be returned.
 
 If the requested subscription isn't active anymore, the hub can either return the JSON-LD document
 with the `active` property set to `false` or return a `404` status code. Accordingly, collection
-endpoints **CAN** return terminated connections with the `active` property set to `false` or omit
+endpoints **MAY** return terminated connections with the `active` property set to `false` or omit
 them.
 
 Collection endpoints **MUST** return JSON-LD documents containing at least the following properties:
@@ -765,6 +776,7 @@ The JSON-LD context available at `https://mercure.rocks` is the following:
    "payload": "mercure:payload",
    "lastEventID": "mercure:lastEventID"
 }
+}
 ~~~
 
 # Discovery
@@ -801,7 +813,7 @@ The publisher **MAY** provide the following target attributes in the Link Header
     will be pushed, using formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
 *   `key-set`: the URL of the key set to use to decrypt updates, encoded in the JWK set format
     (JSON Web Key Set) [@!RFC7517]. See (#encryption). As this key set will contain a secret
-    key, the publisher must ensure that only the subscriber can access to this URL. To do so, the
+    key, the publisher **MUST** ensure that only the subscriber can access this URL. To do so, the
     authorization mechanism (see (#authorization)) can be reused.
 
 All these attributes are optional.
@@ -821,11 +833,11 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
 ## Topic Discovery
 
-The discovery mechanism **MAY** also be used to identify the canonical URL for the topic to which
+The discovery mechanism **MAY** also be used to identify the canonical URL for the topic that
 subscribers are expected to use for subscriptions.
 
 The publisher **MAY** include one Link Header [@!RFC5988] with `rel=self` (the self link
-header). It **SHOULD** contain the canonical URL for the topic to which subscribers are expected
+header). It **SHOULD** contain the canonical URL for the topic that subscribers are expected
 to use for subscriptions. If the Link with `rel=self` is omitted, the current URL of the resource
 **MAY** be used as a fallback.
 
