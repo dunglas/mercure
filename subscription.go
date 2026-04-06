@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -9,12 +10,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// errSubscriptionForbidden is passed to httpAuthorizationError when a
+// subscriber's JWT topic selectors don't cover the subscription URL.
+var errSubscriptionForbidden = errors.New("subscription URL not covered by token topic selectors")
+
 const (
 	jsonldContext            = "https://mercure.rocks/"
 	subscriptionsPath        = "/subscriptions"
 	subscriptionURL          = defaultHubURL + subscriptionsPath + "/{topic}/{subscriber}"
 	subscriptionsForTopicURL = defaultHubURL + subscriptionsPath + "/{topic}"
 	subscriptionsURL         = defaultHubURL + subscriptionsPath
+
+	// New URL patterns with matchType.
+	subscriptionMatchURL     = defaultHubURL + subscriptionsPath + "/{matchType}/{match}/{subscriber}"
+	subscriptionsForMatchURL = defaultHubURL + subscriptionsPath + "/{matchType}/{match}"
 )
 
 var jsonldContentType = []string{"application/ld+json"} // nolint:gochecknoglobals
@@ -24,7 +33,9 @@ type subscription struct {
 	ID          string `json:"id"`
 	Type        string `json:"type"`
 	Subscriber  string `json:"subscriber"`
-	Topic       string `json:"topic"`
+	Topic       string `json:"topic,omitempty"`
+	Match       string `json:"match,omitempty"`
+	MatchType   string `json:"matchType,omitempty"`
 	Active      bool   `json:"active"`
 	LastEventID string `json:"lastEventID,omitempty"`
 	Payload     any    `json:"payload,omitempty"`
@@ -36,6 +47,31 @@ type subscriptionCollection struct {
 	Type          string         `json:"type"`
 	LastEventID   string         `json:"lastEventID"`
 	Subscriptions []subscription `json:"subscriptions"`
+}
+
+// subscriptionFilter describes the filter to apply on a subscription listing,
+// based on the URL path variables of the subscription API request.
+//
+// Either topic is set (legacy URL /subscriptions/{topic}[/{subscriber}])
+// or matchType+match are set (new URL /subscriptions/{matchType}/{match}[/{subscriber}]).
+type subscriptionFilter struct {
+	topic     string
+	matchType string
+	match     string
+	useMatch  bool // true when matchType+match were provided
+}
+
+func filterFromVars(vars map[string]string) subscriptionFilter {
+	topic, _ := url.QueryUnescape(vars["topic"])
+	match, _ := url.QueryUnescape(vars["match"])
+	matchType, _ := url.QueryUnescape(vars["matchType"])
+
+	return subscriptionFilter{
+		topic:     topic,
+		matchType: matchType,
+		match:     match,
+		useMatch:  match != "" || matchType != "",
+	}
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -56,11 +92,9 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		Subscriptions: make([]subscription, 0),
 	}
 
-	vars := mux.Vars(r)
-
-	t, _ := url.QueryUnescape(vars["topic"])
+	filter := filterFromVars(mux.Vars(r))
 	for _, subscriber := range subscribers {
-		subscriptionCollection.Subscriptions = append(subscriptionCollection.Subscriptions, subscriber.getSubscriptions(t, "", true)...)
+		subscriptionCollection.Subscriptions = append(subscriptionCollection.Subscriptions, subscriber.getSubscriptions(filter, "", true)...)
 	}
 
 	j, err := json.MarshalIndent(subscriptionCollection, "", "  ")
@@ -88,7 +122,8 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	s, _ := url.QueryUnescape(vars["subscriber"])
-	t, _ := url.QueryUnescape(vars["topic"])
+
+	filter := filterFromVars(vars)
 
 	ctx := r.Context()
 
@@ -97,11 +132,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		for _, subscription := range subscriber.getSubscriptions(t, jsonldContext, true) {
-			if subscription.Topic != t {
-				continue
-			}
-
+		for _, subscription := range subscriber.getSubscriptions(filter, jsonldContext, true) {
 			subscription.LastEventID = lastEventID
 
 			j, err := json.MarshalIndent(subscription, "", "  ")
@@ -123,21 +154,32 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http.Request) (lastEventID string, subscribers []*Subscriber, ok bool) {
 	if h.subscriberJWTKeyFunc != nil {
 		claims, err := h.authorize(r, false)
-		if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
+		if err != nil || claims == nil || claims.Mercure.Subscribe == nil {
 			h.httpAuthorizationError(w, r, err)
+
+			return "", nil, false
+		}
+
+		legacy := h.isBackwardCompatiblyEnabledWith(8)
+		if resolveErr := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Subscribe, legacy); resolveErr != nil {
+			h.httpAuthorizationError(w, r, resolveErr)
+
+			return "", nil, false
+		}
+
+		if !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
+			h.httpAuthorizationError(w, r, errSubscriptionForbidden)
 
 			return "", nil, false
 		}
 	}
 
-	transport, ok := h.transport.(TransportSubscribers)
-	if !ok {
+	transport, isSubTransport := h.transport.(TransportSubscribers)
+	if !isSubTransport {
 		panic("The transport isn't an instance of hub.TransportSubscribers")
 	}
 
-	var err error
-
-	lastEventID, subscribers, err = transport.GetSubscribers(r.Context())
+	lastEventID, subscribers, err := transport.GetSubscribers(r.Context())
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
@@ -146,7 +188,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 			h.logger.LogAttrs(ctx, slog.LevelError, "Error retrieving subscribers", slog.Any("error", err))
 		}
 
-		return lastEventID, subscribers, ok
+		return "", nil, false
 	}
 
 	if r.Header.Get("If-None-Match") == lastEventID {

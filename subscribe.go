@@ -197,8 +197,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r), h.logger, h.topicSelectorStore)
 
 	var (
-		privateTopics []string
-		claims        *claims
+		privateMatchers []matcherClaim
+		claims          *claims
 	)
 
 	if h.subscriberJWTKeyFunc != nil {
@@ -207,7 +207,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		claims, err = h.authorize(r, false)
 		if claims != nil {
 			s.Claims = claims
-			privateTopics = claims.Mercure.Subscribe
+			privateMatchers = claims.Mercure.Subscribe
 		}
 
 		if err != nil || (claims == nil && !h.anonymous) {
@@ -221,14 +221,31 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	topics := r.URL.Query()["topic"]
-	if len(topics) == 0 {
-		http.Error(w, `Missing "topic" parameter.`, http.StatusBadRequest)
+	legacy := h.isBackwardCompatiblyEnabledWith(8)
+
+	matchers, err := h.parseMatchers(r.URL.Query(), legacy)
+	if err != nil {
+		if errors.Is(err, ErrUnsupportedMatcherType) {
+			http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
 
 		return nil, nil
 	}
 
-	s.SetTopics(topics, privateTopics)
+	// Resolve private matchers from JWT claims
+	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, legacy); err != nil {
+		if errors.Is(err, ErrUnsupportedMatcherType) {
+			http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		} else {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		}
+
+		return nil, nil
+	}
+
+	s.setMatchers(matchers, matcherClaimsToMatchers(privateMatchers))
 
 	addCtx := context.WithoutCancel(ctx)
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
@@ -369,7 +386,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		return
 	}
 
-	for _, subscription := range s.getSubscriptions("", jsonldContext, active) {
+	for _, subscription := range s.getSubscriptions(subscriptionFilter{}, jsonldContext, active) {
 		j, err := json.MarshalIndent(subscription, "", "  ")
 		if err != nil {
 			panic(err)

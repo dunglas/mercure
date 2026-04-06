@@ -27,7 +27,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 		require.NoError(t, err)
 
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.SetTopics(u.Topics, nil)
+		s.setMatchers(stringsToLegacyMatchers(u.Topics), stringsToLegacyMatchers(nil))
 		require.NoError(t, transport.AddSubscriber(ctx, s))
 
 		go func() {
@@ -53,11 +53,13 @@ func TestLocalTransportDispatch(t *testing.T) {
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
+	topics := []string{"https://example.com/foo"}
+
 	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.SetTopics([]string{"https://example.com/foo"}, nil)
+	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
-	u := &Update{Topics: s.SubscribedTopics}
+	u := &Update{Topics: topics}
 	require.NoError(t, transport.Dispatch(ctx, u))
 	assert.Equal(t, u, <-s.Receive())
 }
@@ -129,11 +131,13 @@ func TestLiveReading(t *testing.T) {
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
+	topics := []string{"https://example.com"}
+
 	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.SetTopics([]string{"https://example.com"}, nil)
+	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
-	u := &Update{Topics: s.SubscribedTopics}
+	u := &Update{Topics: topics}
 	require.NoError(t, transport.Dispatch(ctx, u))
 
 	receivedUpdate := <-s.Receive()

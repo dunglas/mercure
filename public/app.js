@@ -7,8 +7,23 @@
   const origin = window.location.origin;
   const defaultTopic = document.URL + "demo/books/1.jsonld";
   const placeholderTopic = "https://example.com/my-private-topic";
+
+  // Object-form JWT (v9+ of the protocol). Signed with
+  // `!ChangeThisMercureHubJWTSecretKey!`.
+  //
+  // {
+  //   "mercure": {
+  //     "publish":  [{ "match": "*" }],
+  //     "subscribe": [
+  //       { "match": "https://example.com/my-private-topic" },
+  //       { "match": "https://example.com/demo/books/:id.jsonld", "matchType": "URLPattern" },
+  //       { "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", "matchType": "URLPattern" }
+  //     ],
+  //     "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
+  //   }
+  // }
   const defaultJwt =
-    "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifSx7Im1hdGNoIjoiLy53ZWxsLWtub3duL21lcmN1cmUvc3Vic2NyaXB0aW9ucy86bWF0Y2hUeXBlLzptYXRjaC86c3Vic2NyaWJlciIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.-I_LuyEjpjZKSfFI-4BstvrLzdCNslsSjHfR5RX0PcM";
 
   const $updates = document.getElementById("updates");
   const $subscriptions = document.getElementById("subscriptions");
@@ -56,6 +71,29 @@
     if (match && match[1]) return match[1];
   };
 
+  // parseMatcher splits a subscriber line into a query parameter name and
+  // pattern. A bare line maps to `match` (Exact); a `type:pattern` prefix (for
+  // example `urlpattern:https://example.com/:id`) maps to `match<Type>`.
+  const parseMatcher = (line) => {
+    const sep = line.indexOf(":");
+    if (
+      sep > 0 &&
+      !line.startsWith("http://") &&
+      !line.startsWith("https://") &&
+      !line.startsWith("/")
+    ) {
+      const type = line.slice(0, sep);
+      const pattern = line.slice(sep + 1).trim();
+      if (/^[A-Za-z][A-Za-z0-9]*$/.test(type)) {
+        return {
+          name: "match" + type[0].toUpperCase() + type.slice(1),
+          value: pattern,
+        };
+      }
+    }
+    return { name: "match", value: line };
+  };
+
   // Set default values
   document.addEventListener("DOMContentLoaded", () => {
     $settingsForm.hubUrl.value = origin + "/.well-known/mercure";
@@ -80,8 +118,8 @@
     );
 
     document.getElementById("subscribeTopicsExamples").textContent =
-      `${document.URL}demo/novels/{id}.jsonld
-${defaultTopic}
+      `${defaultTopic}
+urlpattern:${document.URL}demo/novels/:id.jsonld
 foo`;
   });
 
@@ -135,9 +173,15 @@ foo`;
       elements: { topics, lastEventId },
     } = this;
 
-    const topicList = topics.value.split("\n");
     const u = new URL($settingsForm.hubUrl.value);
-    topicList.forEach((topic) => u.searchParams.append("topic", topic));
+    topics.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .forEach((line) => {
+        const { name, value } = parseMatcher(line);
+        u.searchParams.append(name, value);
+      });
     if (lastEventId.value) {
       u.searchParams.append("lastEventID", lastEventId.value);
     }
@@ -217,7 +261,9 @@ foo`;
     );
     subscription.querySelector("div").setAttribute("id", s.id);
     subscription.querySelector(".card-header-title").textContent = s.id;
-    subscription.querySelector(".topic").textContent = s.topic;
+    // v9+ subscriptions expose match/matchType; legacy ones expose topic.
+    subscription.querySelector(".match").textContent =
+      s.match !== undefined ? `${s.matchType || "Exact"} ${s.match}` : s.topic;
     subscription.querySelector(".subscriber").textContent = s.subscriber;
     subscription.querySelector("code").textContent = JSON.stringify(
       s.payload,
@@ -247,10 +293,12 @@ foo`;
 
       json.subscriptions.forEach(addSubscription);
 
+      // Subscribe to subscription events using a URL-pattern matcher that
+      // covers every {matchType}/{match}/{subscriber} triple.
       const u = new URL($settingsForm.hubUrl.value);
       u.searchParams.append(
-        "topic",
-        "/.well-known/mercure/subscriptions{/topic}{/subscriber}",
+        "matchURLPattern",
+        "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
       );
       u.searchParams.append("lastEventID", json.lastEventID);
 

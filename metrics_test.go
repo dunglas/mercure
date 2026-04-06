@@ -18,12 +18,12 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
-	s1.SetTopics([]string{"topic1", "topic2"}, nil)
+	s1.setMatchers(stringsToLegacyMatchers([]string{"topic1", "topic2"}), stringsToLegacyMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertGaugeValue(t, 1.0, m.subscribers)
 
 	s2 := NewLocalSubscriber("", logger, tss)
-	s2.SetTopics([]string{"topic2"}, nil)
+	s2.setMatchers(stringsToLegacyMatchers([]string{"topic2"}), stringsToLegacyMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertGaugeValue(t, 2.0, m.subscribers)
 
@@ -43,12 +43,12 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
-	s1.SetTopics([]string{"topic1", "topic2"}, nil)
+	s1.setMatchers(stringsToLegacyMatchers([]string{"topic1", "topic2"}), stringsToLegacyMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal)
 
 	s2 := NewLocalSubscriber("", logger, tss)
-	s2.SetTopics([]string{"topic2"}, nil)
+	s2.setMatchers(stringsToLegacyMatchers([]string{"topic2"}), stringsToLegacyMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertCounterValue(t, 2.0, m.subscribersTotal)
 

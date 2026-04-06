@@ -93,7 +93,7 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 		}
 	}
 
-	s.SetTopics(ts, nil)
+	s.setMatchers(stringsToLegacyMatchers(ts), stringsToLegacyMatchers(nil))
 	b.Cleanup(s.Disconnect)
 
 	ctx, done := context.WithCancel(ctx)

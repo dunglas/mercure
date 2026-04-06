@@ -108,7 +108,7 @@ func TestContextCancellation(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		t.Cleanup(cancel)
 
-		hub, err := NewHub(ctx, WithAnonymous())
+		hub, err := NewHub(ctx, WithAnonymous(), WithProtocolVersionCompatibility(8))
 		require.NoError(t, err)
 
 		t.Cleanup(func() {
@@ -173,7 +173,8 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 		{5, false},
 		{6, false},
 		{7, true},
-		{8, false},
+		{8, true},
+		{9, false},
 	}
 
 	for _, tc := range testCases {
@@ -401,6 +402,7 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 			WithTopicSelectorStore(tss),
+			WithProtocolVersionCompatibility(8),
 		},
 		options...,
 	)
@@ -437,13 +439,13 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) s
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, RegisteredClaims: jwt.RegisteredClaims{}}
+		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToLegacyClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
 		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
 			Mercure: mercureClaim{
-				Subscribe: topics,
+				Subscribe: stringsToLegacyClaims(topics),
 				Payload:   payload,
 			},
 			RegisteredClaims: jwt.RegisteredClaims{},

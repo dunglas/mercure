@@ -23,8 +23,8 @@ func TestPublish(t *testing.T) {
 
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.SetTopics(topics, topics)
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
+		s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(topics))
+		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToLegacyClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -34,7 +34,7 @@ func TestPublish(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, topics, u.Topics)
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -44,7 +44,7 @@ func TestPublish(t *testing.T) {
 				ID:   "id",
 				Data: "Hello!",
 			},
-			Topics:  s.SubscribedTopics,
+			Topics:  topics,
 			Private: true,
 		}))
 
@@ -266,8 +266,8 @@ func TestPublishHandlerOK(t *testing.T) {
 
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.SetTopics(topics, topics)
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
+		s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(topics))
+		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToLegacyClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -276,7 +276,7 @@ func TestPublishHandlerOK(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, topics, u.Topics)
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -289,7 +289,7 @@ func TestPublishHandlerOK(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, s.SubscribedTopics))
+		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, topics))
 
 		w := httptest.NewRecorder()
 		hub.PublishHandler(w, req)
@@ -339,8 +339,10 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		h := createDummy(t)
 
+		topics := []string{"https://example.com/books/1"}
+
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
+		s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(topics))
 
 		require.NoError(t, h.transport.AddSubscriber(t.Context(), s))
 

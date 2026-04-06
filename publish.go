@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -34,7 +35,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 //
-//nolint:funlen
+//nolint:funlen,gocognit
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
 
@@ -76,6 +77,21 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	private := len(r.PostForm["private"]) != 0
+
+	// Resolve publisher claims
+	if claims != nil {
+		legacy := h.isBackwardCompatiblyEnabledWith(8)
+		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, legacy); err != nil {
+			if errors.Is(err, ErrUnsupportedMatcherType) {
+				http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+			} else {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			}
+
+			return
+		}
+	}
+
 	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) { //nolint:nestif
 		if private {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

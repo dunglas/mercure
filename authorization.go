@@ -22,9 +22,9 @@ type claims struct {
 }
 
 type mercureClaim struct {
-	Publish   []string `json:"publish"`
-	Subscribe []string `json:"subscribe"`
-	Payload   any      `json:"payload"`
+	Publish   []matcherClaim `json:"publish"`
+	Subscribe []matcherClaim `json:"subscribe"`
+	Payload   any            `json:"payload"`
 }
 
 type role int
@@ -155,28 +155,26 @@ func validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
 	return nil, ErrInvalidJWT
 }
 
-func canReceive(s *TopicSelectorStore, topics, topicSelectors []string) bool {
-	for _, topic := range topics {
-		for _, topicSelector := range topicSelectors {
-			if s.match(topic, topicSelector) {
-				return true
-			}
+func canReceive(s *TopicSelectorStore, topics []string, matchers []matcherClaim) bool {
+	for _, mc := range matchers {
+		if s.matchMatcher(topics, mc.topicMatcher) {
+			return true
 		}
 	}
 
 	return false
 }
 
-func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
+func canDispatch(s *TopicSelectorStore, topics []string, matchers []matcherClaim) bool {
+	singleTopic := make([]string, 1)
+
 	for _, topic := range topics {
+		singleTopic[0] = topic
+
 		var matched bool
 
-		for _, topicSelector := range topicSelectors {
-			if topicSelector == "*" {
-				return true
-			}
-
-			if s.match(topic, topicSelector) {
+		for _, mc := range matchers {
+			if mc.Pattern == "*" || s.matchMatcher(singleTopic, mc.topicMatcher) {
 				matched = true
 
 				break

@@ -260,7 +260,7 @@ func TestSubscribeNoTopic(t *testing.T) {
 	})
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
+	assert.Equal(t, "missing \"topic\" or \"match\" parameter\n", w.Body.String())
 }
 
 var errFailedToAddSubscriber = errors.New("failed to add a subscriber")
@@ -992,7 +992,7 @@ func TestSubscribeExpires(t *testing.T) {
 
 	token.Claims = &claims{
 		Mercure: mercureClaim{
-			Subscribe: []string{"*"},
+			Subscribe: stringsToLegacyClaims([]string{"*"}),
 		},
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second))},
 	}

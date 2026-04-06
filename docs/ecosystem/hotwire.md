@@ -10,9 +10,10 @@ Using Mercure to power a Turbo Stream is straightforward and doesn't require any
 ```javascript
 import { connectStreamSource } from "@hotwired/turbo";
 
-// The "topic" parameter can be any string or URI
+// The "match" parameter performs an exact comparison on the topic identifier.
+// Use matchURLPattern / matchRegexp / matchURITemplate / matchCEL for pattern matching.
 const es = new EventSource(
-  "https://example.com/.well-known/mercure?topic=my-stream",
+  "https://example.com/.well-known/mercure?match=my-stream",
 );
 connectStreamSource(es);
 ```
@@ -79,7 +80,7 @@ export default class extends Controller {
 ```html
 <div
   data-controller="turbo-stream"
-  data-turbo-stream-url-value="https://example.com/.well-known/mercure?topic=my-stream"
+  data-turbo-stream-url-value="https://example.com/.well-known/mercure?match=my-stream"
 >
   <!-- ... -->
 </div>

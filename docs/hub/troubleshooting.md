@@ -7,10 +7,10 @@
 - Check the logs written by the hub on `stderr`, they contain the exact reason why the token has been rejected
 - Be sure to set a **secret key** (not a JWT) in `JWT_KEY` (or in `SUBSCRIBER_JWT_KEY` and `PUBLISHER_JWT_KEY`)
 - If the secret key contains special characters, be sure to escape them properly, especially if you set the environment variable in a shell, or in a YAML file (Kubernetes...)
-- The publisher always needs a valid JWT, even if the `anonymous` directive is present in the `Caddyfile`. This JWT **must** have a property named `publish`. To dispatch private updates, the `publish` property must contain the list of topic selectors this publisher can use ([example](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM))
-- The subscriber needs a valid JWT only if the `anonymous` directive isn't present in the `Caddyfile`, or to subscribe to private updates. In this case, the JWT **must** have a property named `subscribe` containing an array of topic selectors ([example](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM))
+- The publisher always needs a valid JWT, even if the `anonymous` directive is present in the `Caddyfile`. This JWT **must** have a property named `publish`. To dispatch private updates, the `publish` property must contain the list of topic matcher objects this publisher can use ([example](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifSx7Im1hdGNoIjoiLy53ZWxsLWtub3duL21lcmN1cmUvc3Vic2NyaXB0aW9ucy86bWF0Y2hUeXBlLzptYXRjaC86c3Vic2NyaWJlciIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.-I_LuyEjpjZKSfFI-4BstvrLzdCNslsSjHfR5RX0PcM))
+- The subscriber needs a valid JWT only if the `anonymous` directive isn't present in the `Caddyfile`, or to subscribe to private updates. In this case, the JWT **must** have a property named `subscribe` containing an array of topic matcher objects ([example](https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifSx7Im1hdGNoIjoiLy53ZWxsLWtub3duL21lcmN1cmUvc3Vic2NyaXB0aW9ucy86bWF0Y2hUeXBlLzptYXRjaC86c3Vic2NyaWJlciIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.-I_LuyEjpjZKSfFI-4BstvrLzdCNslsSjHfR5RX0PcM))
 
-For the `publish` property, the array can be empty to allow publishing only public updates. For both `publish` and `subscribe`, you can use `["*"]` to match all topics.
+For the `publish` property, the array can be empty to allow publishing only public updates. For both `publish` and `subscribe`, you can use `[{"match": "*"}]` to match all topics.
 
 ## CORS Issues
 
@@ -18,8 +18,8 @@ If the app connecting to the Mercure hub and the hub itself are not served from 
 
 The usual symptoms of a CORS misconfiguration are errors about missing CORS HTTP headers in the browser console:
 
-- Chrome: `Refused to connect to 'https://hub.example.com/.well-known/mercure?topic=foo' because it violates the following Content Security Policy directive`
-- Firefox: `Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at https://hub.example.com/.well-known/mercure?topic=foo. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing)`
+- Chrome: `Refused to connect to 'https://hub.example.com/.well-known/mercure?match=foo' because it violates the following Content Security Policy directive`
+- Firefox: `Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at https://hub.example.com/.well-known/mercure?match=foo. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing)`
 
 To fix these errors, set the list of domains allowed to connect to the hub as the value of `cors_origins` in the `Caddyfile`. Example: `cors_origins https://example.com https://example.net`. Don't forget the `https://` prefix before the domain name!
 
@@ -27,9 +27,9 @@ If you use an authorization mechanism (cookie or `Authorization` header), [you *
 
 If you don't use an authorization mechanism (anonymous mode), you can set the value of `cors_origins` to `*` to allow all applications to connect to the hub (be sure to understand the security implications of this setting).
 
-## URI Templates and Topics
+## Matchers and Topics
 
-Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to ensure that the template matches the topic.
+Try [our URI template tester](https://uri-template-tester.mercure.rocks/) to verify `matchURITemplate` expressions. Check `matchURLPattern` expressions directly with the [URL Pattern API](https://urlpattern.spec.whatwg.org/) in your browser console.
 
 ## Disconnection With the Inability To Reconnect After Some Time
 

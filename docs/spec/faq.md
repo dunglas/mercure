@@ -19,7 +19,7 @@ In most cases, Mercure can be used as a modern and easier-to-use replacement for
 
 Mercure has been heavily inspired by WebSub, and the protocol was designed to be as close as possible to WebSub.
 
-Mercure uses Server-Sent Events to dispatch updates, while WebSub uses `POST` requests. Mercure also has an advanced authorization mechanism and allows subscribing to several topics with a single connection using URI templates.
+Mercure uses Server-Sent Events to dispatch updates, while WebSub uses `POST` requests. Mercure also has an advanced authorization mechanism and allows subscribing to several topics with a single connection using URL patterns, regular expressions, URI templates or CEL expressions.
 
 ## What's the Difference Between Mercure and Web Push?
 
@@ -35,7 +35,7 @@ In summary: use the Push API to send notifications to offline users (which will 
 When using HTTP/2+ ([the default for almost all users](https://caniuse.com/#feat=http2)), the maximum number of simultaneous HTTP **streams** is negotiated between the server and the client (default is 100).
 When using HTTP/1.1, this limit is 6.
 
-By using template selectors and passing several `topic` parameters, it's possible to subscribe to an unlimited number of topics using a single HTTP connection.
+By using pattern matchers (`matchURLPattern`, `matchRegexp`, `matchURITemplate`, `matchCEL`) and passing several `match*` parameters, it's possible to subscribe to an unlimited number of topics using a single HTTP connection.
 
 ## How to Use Mercure with GraphQL?
 
@@ -44,7 +44,7 @@ Because Mercure is delivery agnostic, it works particularly well with [GraphQL s
 For example, [the API Platform framework has native support for GraphQL subscriptions thanks to Mercure](https://api-platform.com/docs/master/core/graphql/#subscriptions).
 
 In response to a subscription query, the GraphQL server may return a corresponding topic URL.
-The client can then subscribe to Mercure's event stream for this subscription by creating a new `EventSource` with a URL like `https://example.com/.well-known/mercure?topic=https://example.com/subscriptions/<subscription-id>`.
+The client can then subscribe to Mercure's event stream for this subscription by creating a new `EventSource` with a URL like `https://example.com/.well-known/mercure?match=https://example.com/subscriptions/<subscription-id>`.
 
 Updates for the given subscription can then be sent from the GraphQL server to the clients through the Mercure hub (in the `data` property of the server-sent event).
 
@@ -58,7 +58,7 @@ Cookies are automatically sent by the browser when opening an `EventSource` conn
 
 ```javascript
 const eventSource = new EventSource(
-  "https://example.com/.well-known/mercure?topic=foo",
+  "https://example.com/.well-known/mercure?match=foo",
   {
     withCredentials: true,
   },
