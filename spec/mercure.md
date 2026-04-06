@@ -219,14 +219,14 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 *   `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an IRI as
     identifier. If this name is present several times, the first occurrence is considered to be the
     canonical IRI of the topic and other ones are considered to be alternate IRIs. The hub **MUST**
-    dispatch this update to subscribers that are subscribed to both canonical or alternate IRIs.
+    dispatch this update to subscribers that are subscribed to either the canonical IRI or any of its alternate IRIs.
 *   `data` (optional): the content of the new version of this topic.
 *   `private` (optional): if this name is set, the update **MUST NOT** be dispatched to subscribers
     not authorized to receive it. See (#authorization). It is recommended to set the value to `on`
     but it **CAN** contain any value including an empty string.
 *   `id` (optional): the topic's revision identifier: will be used as the SSE's `id` property.
     The provided ID **MUST NOT** start with the `#` character. The provided ID **MAY** be a valid
-    IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. An UUID [@RFC4122] or a
+    IRI. If omitted, the hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC4122] or a
     [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively the hub **MAY** generate a
     relative URI composed of a fragment (starting with `#`). This is convenient to return an offset
     or a sequence that is unique for this hub. Even if provided, the hub **MAY** ignore the ID
@@ -340,7 +340,7 @@ This method is not recommended due to its security deficiencies.
 Publishers **MUST** be authorized to dispatch updates to the hub, and **MUST** prove that they are
 authorized to send updates for the specified topics.
 
-To be allowed to publish an update (#subscription), the JWS presented by the publisher **MUST** contain a claim
+To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim
 called `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
 array of topic matchers as defined in #topic-matcher-list.
 
@@ -411,7 +411,7 @@ If it is represented as a string, the matcher type **MUST** be considered as `Ex
 If it is an object, it **MUST** have a `match` property containing the topic matcher itself,
 and it can have an **OPTIONAL** `matchType` property containing the topic matcher type.
 The value of the `matchType` key **MUST** be considered case-insensitive.
-If no `matchType` key is present, the hub **MUST** cosider that the `Exact` matcher type is used.
+If no `matchType` key is present, the hub **MUST** consider that the `Exact` matcher type is used.
 
 If the type of one or more matchers present in the array is not supported by the hub, it **MUST** respond with a
 501 "Not Implemented" HTTP status code and no update should be sent.
@@ -507,7 +507,7 @@ event or when the subscriber requests an event that doesn't exist).
 The subscriber **SHOULD NOT** assume that no events will be lost (it may happen, for example, if the
 hub stores only a limited number of events in its history). In some cases (for instance when sending
 partial updates in the JSON Patch [@RFC6902] format, or when using the hub as an event store),
-updates lost can cause data lost.
+lost updates can cause data loss.
 
 To detect if a data loss occurred, the subscriber **CAN** compare the value of the `Last-Event-ID`
 response HTTP header with the last event ID it requested. In case of data loss, the subscriber
@@ -546,7 +546,7 @@ the values of all variables **MUST** be percent-encoded during the expansion pro
 If a subscriber has several subscriptions, it **SHOULD** be identified by a
 `{subscriber}` variable having the same value.
 
-`{subscriber}` **SHOULD** be an IRI [@!RFC3987]. An UUID [@RFC4122] or a
+`{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC4122] or a
 [DID](https://www.w3.org/TR/did-core/) **MAY** also be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing at
@@ -576,7 +576,7 @@ Example:
    "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
    "matchType": "URLPattern",
-   "matcher": "https://example.com/:selector",
+   "match": "https://example.com/:selector",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"}
@@ -655,7 +655,7 @@ Cache-control: must-revalidate
       {
          "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
-         "matcherType": "URLPattern",
+         "matchType": "URLPattern",
          "match": "https://example.com/:selector",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
@@ -673,8 +673,8 @@ Cache-control: must-revalidate
       {
          "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "matcherType": "URLPattern",
-         "match": "https://example.com/:selector}",
+         "matchType": "URLPattern",
+         "match": "https://example.com/:selector",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -733,10 +733,10 @@ Cache-control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d66",
+   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
    "match": "https://example.com/:selector",
-   "matchType:" URLPattern",
+   "matchType": "URLPattern",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"},
@@ -1442,7 +1442,7 @@ Other implementations can be found on GitHub: <https://github.com/topics/mercure
 # Acknowledgements
 
 Parts of this specification, especially (#discovery) have been adapted from the WebSub
-recommendation [@W3C.REC-websub-20180123]. The editor wish to thanks all the authors of this
+recommendation [@W3C.REC-websub-20180123]. The editor wishes to thank all the authors of this
 specification.
 
 <reference anchor="urlpattern" target="https://urlpattern.spec.whatwg.org">
