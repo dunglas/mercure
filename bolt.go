@@ -196,6 +196,11 @@ func (t *BoltTransport) Close(_ context.Context) (err error) {
 	return fmt.Errorf("unable to close Bolt DB: %w", err)
 }
 
+// pastSeqBound reports whether the BoltDB key k is at or past the sequence bound toSeq.
+func pastSeqBound(k []byte, toSeq uint64) bool {
+	return toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq
+}
+
 //nolint:gocognit
 func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber, toSeq uint64) error {
 	err := t.db.View(func(tx *bolt.Tx) error {
@@ -217,6 +222,10 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 					afterFromID = true
 				}
 
+				if pastSeqBound(k, toSeq) {
+					break
+				}
+
 				continue
 			}
 
@@ -233,7 +242,7 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 				return err
 			}
 
-			if (s.Match(update) && !s.Dispatch(ctx, update, true)) || (toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq) {
+			if (s.Match(update) && !s.Dispatch(ctx, update, true)) || pastSeqBound(k, toSeq) {
 				s.HistoryDispatched(responseLastEventID)
 
 				return nil
