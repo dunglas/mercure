@@ -92,18 +92,20 @@ The Mercure.rocks Hub provides transport-aware health check endpoints through th
 
 For transports that do not support health checking (e.g. Bolt, Local), the endpoints always return `200`.
 
-These endpoints are exposed on the admin API port, not the main HTTP port. In Kubernetes, configure probes to hit the admin port:
+These endpoints are exposed on the admin API port, not the main HTTP port. The Caddy admin API binds to `localhost:2019` by default for security, so Kubernetes probes should run from inside the container using `exec`:
 
 ```yaml
 readinessProbe:
-  httpGet:
-    path: /mercure/health/ready
-    port: 2019
+  exec:
+    command:
+      ["curl", "-fsS", "http://localhost:2019/mercure/health/ready"]
 livenessProbe:
-  httpGet:
-    path: /mercure/health/live
-    port: 2019
+  exec:
+    command:
+      ["curl", "-fsS", "http://localhost:2019/mercure/health/live"]
 ```
+
+Alternatively, you can bind the admin API to all interfaces by adding `admin 0.0.0.0:2019` to the Caddyfile's global options, and then use `httpGet` probes — but that exposes the admin API (including `/stop` and `/load`) on the pod network.
 
 Here is an example of how to use the health check in a Docker Compose file:
 
