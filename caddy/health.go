@@ -19,6 +19,7 @@ const (
 var (
 	errMethodNotAllowed  = errors.New("method not allowed")
 	errUnknownHealthPath = errors.New("unknown health endpoint")
+	errHubNotFound       = errors.New("hub not found")
 )
 
 func init() { //nolint:gochecknoinits
@@ -69,12 +70,27 @@ func (h Health) handleHealth(w http.ResponseWriter, r *http.Request) error {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := h.checkTransports(r, checkType, hubName); err != nil {
+	err = h.checkTransports(r, checkType, hubName)
+	if errors.Is(err, errHubNotFound) {
+		return caddy.APIError{
+			HTTPStatus: http.StatusNotFound,
+			Err:        err,
+		}
+	}
+
+	if err != nil {
+		// Log the detailed error server-side; return a generic message to
+		// avoid exposing internal connection details if the admin API is
+		// reachable beyond localhost.
+		caddy.Log().Named("admin.api.mercure_health").Error(
+			fmt.Sprintf("transport health check failed for check_type=%q hub=%q: %v", checkType, hubName, err),
+		)
+
 		w.WriteHeader(http.StatusServiceUnavailable)
 
 		return json.NewEncoder(w).Encode(healthResponse{ //nolint:wrapcheck
 			Status: "error",
-			Error:  err.Error(),
+			Error:  "transport health check failed",
 		})
 	}
 
@@ -102,10 +118,14 @@ func parseHealthPath(urlPath string) (checkType, hubName string, err error) {
 func (h Health) checkTransports(r *http.Request, checkType, hubName string) error {
 	infos := h.snapshotHubs()
 
+	var matched bool
+
 	for _, info := range infos {
 		if hubName != "" && info.name != hubName {
 			continue
 		}
+
+		matched = true
 
 		checker, ok := info.transport.(mercure.TransportHealthChecker)
 		if !ok {
@@ -122,6 +142,10 @@ func (h Health) checkTransports(r *http.Request, checkType, hubName string) erro
 		if err != nil {
 			return fmt.Errorf("transport %q: %w", info.name, err)
 		}
+	}
+
+	if hubName != "" && !matched {
+		return fmt.Errorf("%w: %q", errHubNotFound, hubName)
 	}
 
 	return nil

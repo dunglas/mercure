@@ -144,7 +144,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["curl", "-XPOST", "http://localhost:2019/stop"]
+                command: ["curl", "-XPOST", "http://localhost:{{ .Values.adminPort | default .Values.metrics.port }}/stop"]
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

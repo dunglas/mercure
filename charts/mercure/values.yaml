@@ -46,7 +46,7 @@ existingSecret: ""
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
 license: ""
 
-## -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
+# -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
 adminPort: 2019
 
 # -- Transport-aware health checks exposed via the Caddy admin API.

@@ -186,7 +186,8 @@ localhost:9080 {
 		hubsMu.Unlock()
 	})
 
-	// Ready should return 503
+	// Ready should return 503 with a generic error message
+	// (detailed errors are logged server-side, not exposed in the response).
 	req, err := http.NewRequest(http.MethodGet, "http://localhost:2999/mercure/health/ready", nil)
 	require.NoError(t, err)
 
@@ -195,9 +196,10 @@ localhost:9080 {
 	require.NoError(t, resp.Body.Close())
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"status":"error"`)
-	assert.Contains(t, string(body), "connection refused")
+	assert.Contains(t, string(body), "transport health check failed")
+	assert.NotContains(t, string(body), "connection refused") // internal detail must not leak
 
-	// Live should return 503
+	// Live should return 503 with a generic error message
 	req, err = http.NewRequest(http.MethodGet, "http://localhost:2999/mercure/health/live", nil)
 	require.NoError(t, err)
 
@@ -206,5 +208,35 @@ localhost:9080 {
 	require.NoError(t, resp.Body.Close())
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"status":"error"`)
-	assert.Contains(t, string(body), "unhealthy for 30s")
+	assert.Contains(t, string(body), "transport health check failed")
+	assert.NotContains(t, string(body), "unhealthy for 30s") // internal detail must not leak
+}
+
+func TestHealthEndpointUnknownHub(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`{
+	skip_install_trust
+	admin localhost:2999
+	http_port     9080
+	https_port    9443
+}
+
+localhost:9080 {
+	route {
+		mercure {
+			anonymous
+			publisher_jwt !ChangeMe!
+			transport local
+		}
+
+		respond 404
+	}
+}`, "caddyfile")
+
+	// Querying a hub name that doesn't exist should return 404, not 200.
+	req, err := http.NewRequest(http.MethodGet, "http://localhost:2999/mercure/health/nonexistent/ready", nil)
+	require.NoError(t, err)
+
+	resp := tester.AssertResponseCode(req, http.StatusNotFound)
+	require.NoError(t, resp.Body.Close())
 }
