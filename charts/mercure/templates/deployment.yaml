@@ -113,17 +113,18 @@ spec:
               protocol: TCP
           {{- if .Values.healthCheck.enabled }}
           # The Caddy admin API binds to localhost by default, so probes run from
-          # inside the container via curl rather than using httpGet (which would hit the pod IP).
+          # inside the container via wget rather than using httpGet (which would hit the pod IP).
+          # wget is used because curl is not shipped in the caddy:2-alpine base image.
           readinessProbe:
             exec:
-              command: ["curl", "-fsS", "http://localhost:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/ready"]
+              command: ["wget", "-q", "--spider", "http://localhost:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/ready"]
             initialDelaySeconds: {{ .Values.healthCheck.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthCheck.readiness.periodSeconds }}
             timeoutSeconds: {{ .Values.healthCheck.readiness.timeoutSeconds }}
             failureThreshold: {{ .Values.healthCheck.readiness.failureThreshold }}
           livenessProbe:
             exec:
-              command: ["curl", "-fsS", "http://localhost:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/live"]
+              command: ["wget", "-q", "--spider", "http://localhost:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/live"]
             initialDelaySeconds: {{ .Values.healthCheck.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthCheck.liveness.periodSeconds }}
             timeoutSeconds: {{ .Values.healthCheck.liveness.timeoutSeconds }}
@@ -144,7 +145,8 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["curl", "-XPOST", "http://localhost:{{ .Values.adminPort | default .Values.metrics.port }}/stop"]
+                # wget is used because curl is not shipped in the caddy:2-alpine base image.
+                command: ["wget", "-q", "-O", "-", "--post-data=", "http://localhost:{{ .Values.adminPort | default .Values.metrics.port }}/stop"]
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

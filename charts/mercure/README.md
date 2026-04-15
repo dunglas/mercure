@@ -18,6 +18,7 @@ To install the chart with the release name `my-release`, run the following comma
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| adminPort | int | `2019` | Port used for the Caddy admin API (health checks, metrics, graceful shutdown). |
 | affinity | object | `{}` | [Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
 | autoscaling | object | Disabled by default. | Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details). |
 | caddyExtraConfig | string | `""` | Inject snippet or named-routes options in the Caddyfile |
@@ -28,6 +29,16 @@ To install the chart with the release name `my-release`, run the following comma
 | extraEnvs | list | `[]` | Additional environment variables to set |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
 | globalOptions | string | `""` | Inject global options in the Caddyfile. |
+| healthCheck | object | Enabled by default. | Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port instead of /healthz on the HTTP port. |
+| healthCheck.enabled | bool | `true` | Enable transport-aware health checks. |
+| healthCheck.liveness.failureThreshold | int | `3` |  |
+| healthCheck.liveness.initialDelaySeconds | int | `15` |  |
+| healthCheck.liveness.periodSeconds | int | `10` |  |
+| healthCheck.liveness.timeoutSeconds | int | `5` |  |
+| healthCheck.readiness.failureThreshold | int | `2` |  |
+| healthCheck.readiness.initialDelaySeconds | int | `5` |  |
+| healthCheck.readiness.periodSeconds | int | `5` |  |
+| healthCheck.readiness.timeoutSeconds | int | `3` |  |
 | image.pullPolicy | string | `"IfNotPresent"` | [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node. |
 | image.repository | string | `"dunglas/mercure"` | Name of the image repository to pull the container image from. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
@@ -39,7 +50,7 @@ To install the chart with the release name `my-release`, run the following comma
 | ingress.tls | list | See [values.yaml](values.yaml). | Ingress TLS configuration. |
 | license | string | `""` | The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version). |
 | metrics.enabled | bool | `false` | Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value. servers {     metrics } |
-| metrics.port | int | `2019` | The port to use for exposing the metrics. |
+| metrics.port | int | `2019` | Deprecated: The port to use for exposing the metrics (use adminPort instead). |
 | metrics.serviceMonitor.enabled | bool | `false` | Whether to create a ServiceMonitor for Prometheus Operator. |
 | metrics.serviceMonitor.honorLabels | bool | `false` | Specify honorLabels parameter to add the scrape endpoint |
 | metrics.serviceMonitor.interval | string | `"15s"` | The interval to use for the ServiceMonitor to scrape the metrics. |
