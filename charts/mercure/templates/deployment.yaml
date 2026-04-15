@@ -108,11 +108,28 @@ spec:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
-            {{- if .Values.metrics.enabled }}
-            - name: metrics
-              containerPort: {{ .Values.metrics.port }}
+            - name: admin
+              containerPort: {{ .Values.adminPort | default .Values.metrics.port }}
               protocol: TCP
-            {{- end }}
+          {{- if .Values.healthCheck.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /mercure/health/ready
+              port: admin
+            initialDelaySeconds: {{ .Values.healthCheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthCheck.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthCheck.readiness.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /mercure/health/live
+              port: admin
+            initialDelaySeconds: {{ .Values.healthCheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthCheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthCheck.liveness.failureThreshold }}
+          {{- else }}
+          # Deprecated: use healthCheck.enabled=true for transport-aware health checks
           livenessProbe:
             httpGet:
               path: /healthz
@@ -121,6 +138,7 @@ spec:
             httpGet:
               path: /healthz
               port: http
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           lifecycle:

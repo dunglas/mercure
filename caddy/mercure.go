@@ -36,9 +36,15 @@ var (
 	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
-	hubs   = make(map[caddy.Module]*mercure.Hub) //nolint:gochecknoglobals
+	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
 	hubsMu sync.Mutex
 )
+
+type hubInfo struct {
+	hub       *mercure.Hub
+	transport mercure.Transport
+	name      string
+}
 
 func init() { //nolint:gochecknoinits
 	caddy.RegisterModule(Mercure{})
@@ -52,12 +58,16 @@ func FindHub(modules []caddy.Module) *mercure.Hub {
 	defer hubsMu.Unlock()
 
 	for _, m := range modules {
-		if h, ok := hubs[m]; ok {
-			return h
+		if info, ok := hubs[m]; ok {
+			return info.hub
 		}
 	}
 
-	return hubs[nil]
+	if info := hubs[nil]; info != nil {
+		return info.hub
+	}
+
+	return nil
 }
 
 type JWTConfig struct {
@@ -76,6 +86,9 @@ type TopicSelectorCacheConfig struct {
 
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 type Mercure struct {
+	// Human-readable name for this hub, used in health check endpoints and metrics.
+	Name string `json:"name,omitempty"`
+
 	// Allow subscribers with no valid JWT.
 	Anonymous bool `json:"anonymous,omitempty"`
 
@@ -344,6 +357,17 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	m.hub = h
 
+	name := m.Name
+	if name == "" {
+		name = "default"
+	}
+
+	info := &hubInfo{
+		hub:       h,
+		transport: transport,
+		name:      name,
+	}
+
 	var found bool
 
 	hubsMu.Lock()
@@ -351,7 +375,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	for _, m := range ctx.Modules() {
 		if _, ok := m.(*caddyhttp.Subroute); ok {
-			hubs[m] = h
+			hubs[m] = info
 			found = true
 
 			break
@@ -359,7 +383,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	if !found {
-		hubs[nil] = h
+		hubs[nil] = info
 	}
 
 	return nil
@@ -373,8 +397,8 @@ func (m *Mercure) Cleanup() error {
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
 
-	for k, h := range hubs {
-		if h == m.hub {
+	for k, info := range hubs {
+		if info.hub == m.hub {
 			delete(hubs, k)
 		}
 	}
@@ -399,6 +423,13 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {
+			case "name":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.Name = d.Val()
+
 			case "anonymous":
 				m.Anonymous = true
 

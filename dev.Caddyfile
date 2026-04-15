@@ -37,8 +37,9 @@
 
 	redir / /.well-known/mercure/ui/
 
-	respond /healthz 200
 	respond /robots.txt `User-agent: *
 	Disallow: /`
+	# Deprecated: use the /mercure/health/ready and /mercure/health/live admin API endpoints for transport-aware health checks
+	respond /healthz 200
 	respond "Not Found" 404
 }

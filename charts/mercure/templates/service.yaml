@@ -39,7 +39,7 @@ spec:
   type: ClusterIP
   ports:
     - port: {{ .Values.metrics.port }}
-      targetPort: metrics
+      targetPort: admin
       protocol: TCP
       name: metrics
   selector:

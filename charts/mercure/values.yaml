@@ -46,13 +46,33 @@ existingSecret: ""
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
 license: ""
 
+## -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
+adminPort: 2019
+
+# -- Transport-aware health checks exposed via the Caddy admin API.
+# When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live
+# on the admin port instead of /healthz on the HTTP port.
+healthCheck:
+  # -- Enable transport-aware health checks.
+  enabled: true
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2
+  liveness:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
 metrics:
   # -- Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value.
   # servers {
   #     metrics
   # }
   enabled: false
-  # -- The port to use for exposing the metrics.
+  # -- Deprecated: The port to use for exposing the metrics (use adminPort instead).
   port: 2019
 
   serviceMonitor:

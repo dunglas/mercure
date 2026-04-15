@@ -35,6 +35,21 @@ type TransportTopicSelectorStore interface {
 	SetTopicSelectorStore(store *TopicSelectorStore)
 }
 
+// TransportHealthChecker may be implemented by transports that support health checking.
+// Transports that do not implement this interface are assumed to always be healthy.
+type TransportHealthChecker interface {
+	// Ready reports whether the transport can currently serve traffic.
+	// Returns nil if healthy, or an error describing the problem.
+	// This is typically used for readiness probes (e.g. Kubernetes).
+	Ready(ctx context.Context) error
+
+	// Live reports whether the transport is fundamentally operational.
+	// Returns nil if alive, or an error if the transport has been unhealthy
+	// for an extended period and should be restarted.
+	// This is typically used for liveness probes (e.g. Kubernetes).
+	Live(ctx context.Context) error
+}
+
 // ErrClosedTransport is returned by the Transport's Dispatch and AddSubscriber methods after a call to Close.
 var ErrClosedTransport = errors.New("hub: read/write on closed Transport")
 

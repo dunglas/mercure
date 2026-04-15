@@ -44,6 +44,7 @@
 	Read the documentation on <a href="https://mercure.rocks">Mercure.rocks, real-time apps made easy</a>.`
 	respond /robots.txt `User-agent: *
 	Disallow: /`
+	# Deprecated: use the /mercure/health/ready and /mercure/health/live admin API endpoints for transport-aware health checks
 	respond /healthz 200
 	respond "Not Found" 404
 }
