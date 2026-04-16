@@ -1,3 +1,5 @@
+//go:build deprecated_server
+
 package main
 
 import "github.com/dunglas/mercure/cmd"
