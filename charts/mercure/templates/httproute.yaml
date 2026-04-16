@@ -12,10 +12,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- with .Values.httpRoute.parentRefs }}
   parentRefs:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- with .Values.httpRoute.parentRefs }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- with .Values.httpRoute.hostnames }}
   hostnames:
     {{- toYaml . | nindent 4 }}
