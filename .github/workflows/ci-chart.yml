@@ -54,6 +54,10 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         uses: helm/kind-action@v1
 
+      - name: Install Gateway API CRDs
+        if: steps.list-changed.outputs.changed == 'true'
+        run: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
+
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
         run: ct install --target-branch "$DEFAULT_BRANCH"
