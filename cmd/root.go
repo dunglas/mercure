@@ -1,4 +1,4 @@
-//go:build deprecated_server
+//go:build deprecated_server && deprecated_transport
 
 package cmd
 
