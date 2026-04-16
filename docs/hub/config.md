@@ -98,11 +98,11 @@ These endpoints are exposed on the admin API port, not the main HTTP port. The C
 readinessProbe:
   exec:
     command:
-      ["curl", "-fsS", "http://localhost:2019/mercure/health/ready"]
+      ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
 livenessProbe:
   exec:
     command:
-      ["curl", "-fsS", "http://localhost:2019/mercure/health/live"]
+      ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/live"]
 ```
 
 Alternatively, you can bind the admin API to all interfaces by adding `admin 0.0.0.0:2019` to the Caddyfile's global options, and then use `httpGet` probes — but that exposes the admin API (including `/stop` and `/load`) on the pod network.
