@@ -12,25 +12,32 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- with .Values.httpRoute.parentRefs }}
   parentRefs:
-    {{- with .Values.httpRoute.parentRefs }}
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- with .Values.httpRoute.hostnames }}
   hostnames:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
+    {{- if .Values.httpRoute.rules }}
     {{- range .Values.httpRoute.rules }}
-    {{- with .matches }}
-    - matches:
-      {{- toYaml . | nindent 8 }}
-    {{- end }}
-    {{- with .filters }}
+    - backendRefs:
+        - name: {{ $fullName }}
+          port: {{ $svcPort }}
+          weight: 1
+      {{- with .matches }}
+      matches:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .filters }}
       filters:
-      {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     {{- end }}
-      backendRefs:
+    {{- else }}
+    - backendRefs:
         - name: {{ $fullName }}
           port: {{ $svcPort }}
           weight: 1

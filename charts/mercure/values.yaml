@@ -126,8 +126,7 @@ serviceAccount:
 # -- Annotations to be added to pods.
 podAnnotations: {}
 
-# This is for setting Kubernetes Labels to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+# -- Extra labels to be added to pods.
 podLabels: {}
 
 # -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
@@ -195,27 +194,29 @@ httpRoute:
   # -- Hostnames matching HTTP header.
   hostnames:
     - mercure-example.local
-  # -- List of rules and filters applied.
-  #rules:
-  #  - matches:
-  #      - path:
-  #          type: PathPrefix
-  #          value: /headers
-  #   filters:
-  #   - type: RequestHeaderModifier
-  #     requestHeaderModifier:
-  #       set:
-  #       - name: My-Overwrite-Header
-  #         value: this-is-the-only-value
-  #       remove:
-  #       - User-Agent
-  # - matches:
-  #   - path:
-  #       type: PathPrefix
-  #       value: /echo
-  #     headers:
-  #     - name: version
-  #       value: v2
+  # -- List of rules and filters applied. When empty, a default rule routing all traffic to the service is created.
+  # @default -- See [values.yaml](values.yaml).
+  rules: []
+  # rules:
+  #   - matches:
+  #       - path:
+  #           type: PathPrefix
+  #           value: /headers
+  #     filters:
+  #       - type: RequestHeaderModifier
+  #         requestHeaderModifier:
+  #           set:
+  #             - name: My-Overwrite-Header
+  #               value: this-is-the-only-value
+  #           remove:
+  #             - User-Agent
+  #   - matches:
+  #       - path:
+  #           type: PathPrefix
+  #           value: /echo
+  #         headers:
+  #           - name: version
+  #             value: v2
 
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
