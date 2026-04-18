@@ -22,8 +22,8 @@ spec:
       scrapeTimeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout }}
       {{- end }}
       honorLabels: {{ .Values.metrics.serviceMonitor.honorLabels }}
-      {{- if .Values.metrics.serviceMonitor.relabelings }}
-      metricRelabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 8 }}
+      {{- if .Values.metrics.serviceMonitor.metricRelabelings }}
+      metricRelabelings: {{- toYaml .Values.metrics.serviceMonitor.metricRelabelings | nindent 8 }}
       {{- end }}
       {{- if .Values.metrics.serviceMonitor.relabelings }}
       relabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 8 }}

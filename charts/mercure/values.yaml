@@ -84,7 +84,9 @@ metrics:
     scrapeTimeout: ""
     # -- Additional labels that can be used so ServiceMonitor will be discovered by Prometheus
     selector: {}
-    # -- RelabelConfigs to apply to samples before scraping
+    # -- RelabelConfigs to apply to samples before ingestion (sample relabeling).
+    metricRelabelings: []
+    # -- RelabelConfigs to apply to samples before scraping (target relabeling).
     relabelings: []
     # -- Specify honorLabels parameter to add the scrape endpoint
     honorLabels: false
