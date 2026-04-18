@@ -95,8 +95,10 @@ The subscriber receives updates for all topics matching at least one topic match
 the matcher type rules.
 
 The protocol doesn't specify the maximum number of query parameters that can be sent, but the hub
-**MAY** apply an arbitrary limit. A subscription is created for every provided parameter starting
-with the string `match`. See (#subscription-events).
+**MAY** apply an arbitrary limit. The hub **MAY** also enforce an implementation-defined maximum
+length for the pattern of each topic matcher. Requests exceeding any such limit **MUST** be rejected
+with a 400 "Bad Request" HTTP status code. A subscription is created for every provided parameter
+starting with the string `match`. See (#subscription-events).
 
 The `EventSource` JavaScript interface [@!eventsource-interface] **MAY** be used to establish the connection.
 Any other appropriate mechanism
@@ -163,7 +165,12 @@ The corresponding query parameters are `match` and `matchExact`.
 The hub **SHOULD** support using URL patterns [@!urlpattern] as matchers.
 URL patterns **SHOULD** be preferred to regular expressions when topics to match are URLs.
 
-The base URL **MUST** be set to the URL of the Mercure hub.
+URL patterns **SHOULD** be absolute (for example `https://example.com/books/:id`) so that
+matching is deterministic regardless of the hub's location. If the pattern is relative
+(for example `/books/:id`), the hub **MUST** resolve it against a base URL of its choosing;
+the `URL()` base URL of the hub itself (the absolute form of the subscription endpoint) is
+**RECOMMENDED**. Subscribers and publishers **SHOULD NOT** rely on relative URL patterns
+because the base URL resolution is implementation-defined.
 
 The matcher type name is `URLPattern`.
 The corresponding query parameter is `matchURLPattern`.
@@ -187,6 +194,11 @@ The hub **MAY** pass other implementation-specific variables and expose implemen
 The expression **MUST** return a boolean value: true if the topic matches, false otherwise.
 
 If parsing or checking of a CEL expression fails or if the expression does not return a boolean value, the hub **MUST** return a 400 "Bad Request" HTTP status code.
+
+To mitigate denial-of-service attacks by clients submitting pathological expressions,
+hubs implementing CEL **SHOULD** enforce an implementation-defined evaluation cost limit.
+When the limit is reached during evaluation, the expression **MUST** be treated as returning
+`false` and the evaluation **MUST** be aborted. Hubs **MAY** additionally log the event.
 
 The matcher type name is `CEL`.
 The corresponding query parameter is `matchCEL`.
@@ -447,6 +459,19 @@ The `payload` value associated with the first topic matcher in the `mercure.subs
 that matches the subscription's own matcher (as determined by the `match` and `matchType` query parameters)
 **MUST** be included under the `payload` key in the JSON object describing a subscription in
 the subscription API and in subscription events.
+
+A claim matcher is considered to match a subscription matcher when any of the following holds:
+
+1.  The claim matcher's pattern is the reserved string `*`.
+2.  The claim matcher's type is the same as the subscription matcher's type (case-insensitive)
+    and both patterns are identical.
+3.  The claim matcher, evaluated against the subscription matcher's `match` value as if it
+    were a topic, returns true. For instance, a claim with `matchType=URLPattern` and
+    `match=https://example.com/:id` matches a subscription with `matchType=Exact` and
+    `match=https://example.com/42`, because the URL pattern accepts that URL as a topic.
+
+If no claim matches the subscription, the hub **MUST** fall back to the top-level
+`mercure.payload` value, if any.
 
 Example JWT document containing payloads:
 
