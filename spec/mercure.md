@@ -428,14 +428,20 @@ matchers in the `mercure.subscribe` claim will not.
 
 ## Topic Matcher List
 
-Topic matchers present in the `mercure.subscribe` or `mercure.publish` claim **MUST** either be strings or objects.
+Topic matchers present in the `mercure.subscribe` or `mercure.publish` claim **MUST** be objects.
 
-If it is represented as a string, the matcher type **MUST** be considered as `Exact`.
-
-If it is an object, it **MUST** have a `match` property containing the topic matcher itself,
+Each object **MUST** have a `match` property containing the topic matcher itself,
 and it can have an **OPTIONAL** `matchType` property containing the topic matcher type.
 The value of the `matchType` key **MUST** be considered case-insensitive.
 If no `matchType` key is present, the hub **MUST** consider that the `Exact` matcher type is used.
+
+For backward compatibility, a matcher **MAY** also be represented as a bare string
+when the hub is explicitly operating in a deprecated-protocol compatibility mode
+(see the hub's configuration). In that mode the string **MUST** be interpreted
+using the version 8 rules ("exact OR URI Template").
+Outside of compatibility mode, bare strings **MUST** be rejected
+with a 401 "Unauthorized" HTTP status code — silently reinterpreting them as
+`Exact` could change the semantics of tokens minted for earlier protocol versions.
 
 If the type of one or more matchers present in the `mercure.subscribe` claim is not supported by the hub,
 the hub **MUST** reject the subscription request with a 501 "Not Implemented" HTTP status code
