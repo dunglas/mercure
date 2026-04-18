@@ -3,6 +3,7 @@ name: mercure
 description: A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 home: https://mercure.rocks
 icon: https://mercure.rocks/static/logo.svg
+kubeVersion: ">=1.19.0-0"
 sources:
 - https://github.com/dunglas/mercure
 keywords:

@@ -6,6 +6,9 @@ metadata:
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
     app.kubernetes.io/component: metrics
+    {{- with .Values.metrics.serviceMonitor.selector }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   selector:
     matchLabels:
@@ -23,6 +26,6 @@ spec:
       metricRelabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 8 }}
       {{- end }}
       {{- if .Values.metrics.serviceMonitor.relabelings }}
-      relabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 6 }}
+      relabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 8 }}
       {{- end }}
 {{- end }}
