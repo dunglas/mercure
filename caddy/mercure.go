@@ -151,10 +151,13 @@ type Mercure struct {
 	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
-	// MatcherTypes lists which built-in matcher types to enable.
-	// Defaults to ["exact", "urlpattern"]; in protocol-version-compatibility
-	// mode "uritemplate" is added automatically so v8 clients keep working.
-	// "exact" is always enabled implicitly because the protocol mandates it.
+	// MatcherTypes lists which built-in matcher types to enable. Accepted
+	// values (case-insensitive) are "exact", "urlpattern", "regexp",
+	// "uritemplate" and "cel". Unknown values cause provisioning to fail.
+	// When omitted, defaults are selected based on the protocol compatibility
+	// mode: ["exact", "urlpattern"] for modern mode and
+	// ["exact", "urlpattern", "uritemplate"] under protocol_version_compatibility.
+	// "exact" is always registered because the protocol mandates it.
 	MatcherTypes []string `json:"matcher_types,omitempty"`
 
 	// The transport configuration.
@@ -269,7 +272,12 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithCookieName(m.CookieName),
 	}
 
-	opts = append(opts, m.matcherTypeOptions()...)
+	matcherOpts, err := m.matcherTypeOptions()
+	if err != nil {
+		return err
+	}
+
+	opts = append(opts, matcherOpts...)
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
 		opts = append(opts, mercure.WithDebug())
@@ -590,31 +598,46 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	return nil
 }
 
-// builtinMatcherTypes maps lowercase names to built-in matcher type implementations.
-var builtinMatcherTypes = map[string]mercure.Matcher{ //nolint:gochecknoglobals
-	"exact":       mercure.ExactMatcher,
-	"uritemplate": mercure.URITemplateMatcher,
-	"urlpattern":  mercure.URLPatternMatcher,
-	"regexp":      mercure.RegexpMatcher,
-	"cel":         mercure.CELMatcher,
+// builtinMatcherType pairs a canonical wire-format name with its built-in
+// matcher implementation. Canonical casing is preserved so subscription
+// events and subscription API payloads always emit e.g. "URLPattern" even
+// when the operator configured "urlpattern" in the Caddyfile.
+type builtinMatcherType struct {
+	canonicalName string
+	matcher       mercure.Matcher
 }
 
-func (m *Mercure) matcherTypeOptions() []mercure.Option {
+// builtinMatcherTypes maps lowercase names to built-in matcher types.
+var builtinMatcherTypes = map[string]builtinMatcherType{ //nolint:gochecknoglobals
+	"exact":       {"Exact", mercure.ExactMatcher},
+	"uritemplate": {"URITemplate", mercure.URITemplateMatcher},
+	"urlpattern":  {"URLPattern", mercure.URLPatternMatcher},
+	"regexp":      {"Regexp", mercure.RegexpMatcher},
+	"cel":         {"CEL", mercure.CELMatcher},
+}
+
+// matcherTypeOptions resolves the configured matcher_types into registration
+// options. Unknown types are rejected rather than silently ignored so typos
+// surface at provision time instead of at subscription time.
+func (m *Mercure) matcherTypeOptions() ([]mercure.Option, error) {
 	// When no matcher_types are configured, NewHub picks the spec-recommended
 	// defaults (Exact + URLPattern, or Exact + URITemplate under compat mode).
 	if len(m.MatcherTypes) == 0 {
-		return nil
+		return nil, nil //nolint:nilnil
 	}
 
-	var opts []mercure.Option
+	opts := make([]mercure.Option, 0, len(m.MatcherTypes))
 
 	for _, name := range m.MatcherTypes {
-		if mt, ok := builtinMatcherTypes[strings.ToLower(name)]; ok {
-			opts = append(opts, mercure.WithMatcherType(name, mt))
+		b, ok := builtinMatcherTypes[strings.ToLower(name)]
+		if !ok {
+			return nil, fmt.Errorf("unknown matcher type %q", name) //nolint:err113
 		}
+
+		opts = append(opts, mercure.WithMatcherType(b.canonicalName, b.matcher))
 	}
 
-	return opts
+	return opts, nil
 }
 
 // parseCaddyfile unmarshals tokens from h into a new Middleware.

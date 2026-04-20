@@ -2,11 +2,11 @@ package mercure
 
 import (
 	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type updateContextKeyType struct{}
@@ -63,6 +63,17 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Topics must be valid IRIs; NUL bytes are illegal there and also
+	// happen to be the TopicSelectorStore cache-key separator, so rejecting
+	// them here avoids cache-key collisions downstream.
+	for _, t := range topics {
+		if strings.ContainsRune(t, topicsKeySeparatorRune) {
+			http.Error(w, `Invalid "topic" parameter: NUL byte not allowed`, http.StatusBadRequest)
+
+			return
+		}
+	}
+
 	var retry uint64
 
 	if retryString := r.PostForm.Get("retry"); retryString != "" {
@@ -82,11 +93,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	if claims != nil {
 		legacy := h.isBackwardCompatiblyEnabledWith(8)
 		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, legacy); err != nil {
-			if errors.Is(err, ErrUnsupportedMatcherType) {
-				http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
-			} else {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			}
+			writeMatcherClaimError(w, err)
 
 			return
 		}

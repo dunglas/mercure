@@ -3,6 +3,7 @@ package mercure
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -61,21 +62,43 @@ type subscriptionFilter struct {
 	useMatch  bool // true when matchType+match were provided
 }
 
-func filterFromVars(vars map[string]string) subscriptionFilter {
-	topic, _ := url.QueryUnescape(vars["topic"])
-	match, _ := url.QueryUnescape(vars["match"])
-	matchType, _ := url.QueryUnescape(vars["matchType"])
+// filterFromVars builds a subscriptionFilter from mux path variables. Returns
+// an error if any of the URL-encoded segments contains invalid escape
+// sequences — the caller should then answer 400 rather than silently serving
+// an unfiltered listing.
+func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
+	topic, err := url.QueryUnescape(vars["topic"])
+	if err != nil {
+		return subscriptionFilter{}, fmt.Errorf("invalid topic segment: %w", err)
+	}
+
+	match, err := url.QueryUnescape(vars["match"])
+	if err != nil {
+		return subscriptionFilter{}, fmt.Errorf("invalid match segment: %w", err)
+	}
+
+	matchType, err := url.QueryUnescape(vars["matchType"])
+	if err != nil {
+		return subscriptionFilter{}, fmt.Errorf("invalid matchType segment: %w", err)
+	}
 
 	return subscriptionFilter{
 		topic:     topic,
 		matchType: matchType,
 		match:     match,
 		useMatch:  match != "" || matchType != "",
-	}
+	}, nil
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	currentURL := r.URL.RequestURI()
+
+	filter, err := filterFromVars(mux.Vars(r))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
 
 	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
 	if !ok {
@@ -92,7 +115,6 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		Subscriptions: make([]subscription, 0),
 	}
 
-	filter := filterFromVars(mux.Vars(r))
 	for _, subscriber := range subscribers {
 		subscriptionCollection.Subscriptions = append(subscriptionCollection.Subscriptions, subscriber.getSubscriptions(filter, "", true)...)
 	}
@@ -115,15 +137,26 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	currentURL := r.URL.RequestURI()
 
+	vars := mux.Vars(r)
+
+	s, err := url.QueryUnescape(vars["subscriber"])
+	if err != nil {
+		http.Error(w, "invalid subscriber segment: "+err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	filter, err := filterFromVars(vars)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
 	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
 	if !ok {
 		return
 	}
-
-	vars := mux.Vars(r)
-	s, _ := url.QueryUnescape(vars["subscriber"])
-
-	filter := filterFromVars(vars)
 
 	ctx := r.Context()
 

@@ -71,24 +71,31 @@
     if (match && match[1]) return match[1];
   };
 
+  // knownMatcherTypes restricts the `type:pattern` shorthand to matcher types
+  // the hub actually knows about, so topics that happen to contain a colon
+  // (URNs, UUIDs, schemes we haven't enumerated, …) still work as plain
+  // Exact matches instead of being silently rewritten into a matchFoo query.
+  const knownMatcherTypes = {
+    exact: "matchExact",
+    urlpattern: "matchURLPattern",
+    regexp: "matchRegexp",
+    uritemplate: "matchURITemplate",
+    cel: "matchCEL",
+  };
+
   // parseMatcher splits a subscriber line into a query parameter name and
-  // pattern. A bare line maps to `match` (Exact); a `type:pattern` prefix (for
-  // example `urlpattern:https://example.com/:id`) maps to `match<Type>`.
+  // pattern. A bare line maps to `match` (Exact); a `<type>:<pattern>` prefix
+  // (for example `urlpattern:https://example.com/:id`) maps to the
+  // corresponding `match<Type>` parameter. Unknown prefixes are treated as
+  // part of the topic value to avoid breaking URNs and other colon-bearing
+  // exact topics.
   const parseMatcher = (line) => {
     const sep = line.indexOf(":");
-    if (
-      sep > 0 &&
-      !line.startsWith("http://") &&
-      !line.startsWith("https://") &&
-      !line.startsWith("/")
-    ) {
-      const type = line.slice(0, sep);
-      const pattern = line.slice(sep + 1).trim();
-      if (/^[A-Za-z][A-Za-z0-9]*$/.test(type)) {
-        return {
-          name: "match" + type[0].toUpperCase() + type.slice(1),
-          value: pattern,
-        };
+    if (sep > 0) {
+      const prefix = line.slice(0, sep).toLowerCase();
+      const paramName = knownMatcherTypes[prefix];
+      if (paramName) {
+        return { name: paramName, value: line.slice(sep + 1).trim() };
       }
     }
     return { name: "match", value: line };

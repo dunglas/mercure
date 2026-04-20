@@ -14,9 +14,14 @@ import (
 const DefaultTopicSelectorStoreCacheSize = 100_000
 
 // topicsKeySeparator joins the topics of an update into a single cache-key
-// field. It is a NUL byte, which can never appear in an IRI nor in a topic
-// identifier defined by the Mercure protocol, so no escaping is required.
+// field. It is a NUL byte, which is illegal in IRIs so the Publish handler
+// rejects topics containing one before they can reach the cache; no escaping
+// is required here.
 const topicsKeySeparator = "\x00"
+
+// topicsKeySeparatorRune mirrors topicsKeySeparator for strings.ContainsRune
+// validation on the Publish path. Keep in sync.
+const topicsKeySeparatorRune = '\x00'
 
 // matchCacheKey is the comparable struct used as the match-cache key. The
 // Topics field holds the update's topics joined with a NUL byte; for the

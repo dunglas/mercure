@@ -236,11 +236,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	// Resolve private matchers from JWT claims
 	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, legacy); err != nil {
-		if errors.Is(err, ErrUnsupportedMatcherType) {
-			http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
-		} else {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		}
+		writeMatcherClaimError(w, err)
 
 		return nil, nil
 	}

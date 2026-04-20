@@ -132,9 +132,11 @@ func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string,
 				continue
 			}
 		case filter.topic != "":
-			// Legacy URL scheme against a matcher-based subscription:
-			// only an exact-pattern match can be addressed this way.
-			if filter.topic != m.Pattern {
+			// Legacy URL scheme is addressable only by v8 string-selector
+			// subscriptions (those carry a legacyMatcher). Modern match*-based
+			// subscriptions are exposed only through the /subscriptions/{matchType}/{match}
+			// route so the two wire formats don't leak into each other.
+			if m.Type != legacyMatcherTypeName || filter.topic != m.Pattern {
 				continue
 			}
 		}
