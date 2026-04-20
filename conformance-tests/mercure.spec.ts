@@ -117,8 +117,15 @@ test.describe("Publish update", () => {
           );
 
           const url = new window.URL("/.well-known/mercure", window.origin);
+          // The v9 protocol replaced the single `topic` query parameter with
+          // a family of `match*` parameters. Selectors containing a `{`
+          // placeholder are URI templates (matchURITemplate); everything
+          // else is an exact string selector (match).
           data.topicSelectors.forEach((topicSelector) =>
-            url.searchParams.append("topic", topicSelector),
+            url.searchParams.append(
+              topicSelector.includes("{") ? "matchURITemplate" : "match",
+              topicSelector,
+            ),
           );
 
           const event = new window.URLSearchParams();
