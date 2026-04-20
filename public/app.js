@@ -127,6 +127,9 @@
     document.getElementById("subscribeTopicsExamples").textContent =
       `${defaultTopic}
 urlpattern:${document.URL}demo/novels/:id.jsonld
+uritemplate:${document.URL}demo/books/{id}.jsonld
+regexp:^https://example\\.com/chapters/[0-9]+$
+cel:topics.all(t, t.startsWith("https://example.com/"))
 foo`;
   });
 

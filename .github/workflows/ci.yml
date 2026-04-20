@@ -79,7 +79,7 @@ jobs:
 
       - name: Start Mercure
         working-directory: caddy/mercure/
-        run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go start --config ../../dev.Caddyfile
+        run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' go run main.go start --config ../../conformance-tests/Caddyfile
 
       - uses: actions/setup-node@v6.4.0
         with:
