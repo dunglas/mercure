@@ -45,10 +45,10 @@ test.describe("Publish update", () => {
       topicSelectors: [`https://example.net/foo/${randomStrings[3]}`],
     },
     {
-      name: "URI template",
+      name: "URL pattern",
       mustBeReceived: true,
       updateTopics: [`https://example.net/foo/${randomStrings[4]}`],
-      topicSelectors: ["https://example.net/foo/{random}"],
+      topicSelectors: ["https://example.net/foo/:random"],
     },
     {
       name: "nonmatching raw string",
@@ -63,10 +63,10 @@ test.describe("Publish update", () => {
       topicSelectors: ["https://example.net/foo/another-name"],
     },
     {
-      name: "nonmatching URI template",
+      name: "nonmatching URL pattern",
       mustBeReceived: false,
-      updateTopics: [`https://example.net/foo/will-not-match}`],
-      topicSelectors: ["https://example.net/bar/{var}"],
+      updateTopics: [`https://example.net/foo/will-not-match`],
+      topicSelectors: ["https://example.net/bar/:var"],
     },
     {
       name: "private raw string",
@@ -83,11 +83,11 @@ test.describe("Publish update", () => {
       topicSelectors: [`https://example.net/foo/${randomStrings[3]}`],
     },
     {
-      name: "private URI template",
+      name: "private URL pattern",
       mustBeReceived: false,
       private: true,
       updateTopics: [`https://example.net/foo/${randomStrings[4]}`],
-      topicSelectors: ["https://example.net/foo/{random}"],
+      topicSelectors: ["https://example.net/foo/:random"],
     },
   ];
 
@@ -118,12 +118,12 @@ test.describe("Publish update", () => {
 
           const url = new window.URL("/.well-known/mercure", window.origin);
           // The v9 protocol replaced the single `topic` query parameter with
-          // a family of `match*` parameters. Selectors containing a `{`
-          // placeholder are URI templates (matchURITemplate); everything
-          // else is an exact string selector (match).
+          // a family of `match*` parameters. Selectors containing a `:param`
+          // placeholder use the URL Pattern matcher; everything else is an
+          // exact string selector.
           data.topicSelectors.forEach((topicSelector) =>
             url.searchParams.append(
-              topicSelector.includes("{") ? "matchURITemplate" : "match",
+              /\/:[A-Za-z_]/.test(topicSelector) ? "matchURLPattern" : "match",
               topicSelector,
             ),
           );
@@ -170,8 +170,11 @@ test.describe("Publish update", () => {
           const resp = await fetch(`/.well-known/mercure`, {
             method: "POST",
             headers: {
+              // mercure.{publish,subscribe}: [{match: "*"}] — the v9 object
+              // form of the legacy ["*"] wildcard. The legacy form is only
+              // accepted under WithProtocolVersionCompatibility.
               Authorization:
-                "Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiKiJdfX0.bVXdlWXwfw9ySx7-iV5OpUSHo34RkjUdVzDLBcc6l_g",
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6IioifV19fQ.0E7cOjh6kGKAPLC5mKzIvVIsV5j4hCNt9Ee0VY4kjqk",
             },
             body: event,
           });
