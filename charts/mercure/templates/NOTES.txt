@@ -8,7 +8,7 @@
     NOTE: HTTPRoute is enabled, but neither httpRoute.hostnames nor httpRoute.parentRefs is configured.
     Set httpRoute.hostnames or provide at least one entry in httpRoute.parentRefs to determine the application hostname.
 {{- end }}
-{{- if and .Values.httpRoute.rules (first .Values.httpRoute.rules).matches (first (first .Values.httpRoute.rules).matches).path.value }}
+{{- if and (or .Values.httpRoute.hostnames .Values.httpRoute.parentRefs) .Values.httpRoute.rules (first .Values.httpRoute.rules).matches (first (first .Values.httpRoute.rules).matches).path.value }}
     echo "Visit http://$APP_HOSTNAME{{ (first (first .Values.httpRoute.rules).matches).path.value }} to use your application"
 
     NOTE: Your HTTPRoute depends on the listener configuration of your gateway and your HTTPRoute rules.
