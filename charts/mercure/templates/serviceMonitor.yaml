@@ -3,12 +3,9 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "mercure.fullname" . }}-metrics
-  labels:
-    {{- include "mercure.labels" . | nindent 4 }}
-    app.kubernetes.io/component: metrics
-    {{- with .Values.metrics.serviceMonitor.selector }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+  {{- $labels := merge (dict "app.kubernetes.io/component" "metrics") (include "mercure.labels" . | fromYaml) }}
+  {{- $labels = merge $labels (.Values.metrics.serviceMonitor.selector | default dict) }}
+  labels: {{- toYaml $labels | nindent 4 }}
 spec:
   selector:
     matchLabels:
