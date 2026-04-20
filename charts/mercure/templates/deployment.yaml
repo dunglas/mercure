@@ -123,12 +123,9 @@ spec:
               containerPort: {{ .Values.adminPort | default .Values.metrics.port }}
               protocol: TCP
           {{- if .Values.healthCheck.enabled }}
-          # The Caddy admin API binds to 127.0.0.1 by default, so probes run from
-          # inside the container via wget rather than using httpGet (which would hit the pod IP).
-          # 127.0.0.1 is used instead of `localhost` because BusyBox wget in the caddy:2-alpine
-          # base image resolves `localhost` to ::1 first, which Caddy's IPv4-only admin listener
-          # refuses (causing "Connection refused" and probe failure loops).
-          # wget is used because curl is not shipped in the caddy:2-alpine base image.
+          # Probes run inside the container via wget (curl isn't in caddy:2-alpine).
+          # 127.0.0.1 (not localhost) because BusyBox wget prefers ::1, which Caddy's
+          # IPv4-only admin listener refuses.
           readinessProbe:
             exec:
               command: ["wget", "-q", "--spider", "http://127.0.0.1:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/ready"]
