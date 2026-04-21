@@ -35,8 +35,9 @@ jobs:
       - name: Upload Helm chart to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" .cr-release-packages/*.tgz --clobber
+          gh release upload "$RELEASE_TAG" .cr-release-packages/*.tgz --clobber
 
       - name: Update Helm chart repo index
         uses: helm/chart-releaser-action@v1.7.0
