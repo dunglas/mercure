@@ -40,7 +40,7 @@ type subscriptionCollection struct {
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
-	r, span, currentURL, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, currentURL, lastEventID, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -70,19 +70,24 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if _, err := w.Write(j); err != nil && h.logger.Enabled(r.Context(), slog.LevelInfo) { //nolint:contextcheck
-		h.logger.LogAttrs(r.Context(), slog.LevelInfo, "Failed to write subscriptions response", slog.Any("error", err)) //nolint:contextcheck
+	if _, err := w.Write(j); err != nil {
+		ctx := r.Context()
+
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write subscriptions response", slog.Any("error", err))
+		}
 	}
 }
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
-	r, span, _, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, _, lastEventID, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
 		return
 	}
 
+	ctx := r.Context()
 	vars := mux.Vars(r)
 	s, _ := url.QueryUnescape(vars["subscriber"])
 	t, _ := url.QueryUnescape(vars["topic"])
@@ -104,8 +109,8 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 
-			if _, err := w.Write(j); err != nil && h.logger.Enabled(r.Context(), slog.LevelInfo) { //nolint:gosec,contextcheck
-				h.logger.LogAttrs(r.Context(), slog.LevelInfo, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err)) //nolint:contextcheck
+			if _, err := w.Write(j); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) { //nolint:gosec
+				h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
 			}
 
 			return
@@ -116,9 +121,8 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //nolint:ireturn // trace.Span is an interface by design; the caller defers span.End.
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (_ *http.Request, span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
-	r = r.WithContext(ctx)
 	currentURL = r.URL.RequestURI()
 
 	if h.subscriberJWTKeyFunc != nil {
@@ -130,7 +134,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (_ *http.
 				recordSpanError(span, err)
 			}
 
-			return r, span, "", "", nil, false
+			return span, "", "", nil, false
 		}
 	}
 
@@ -151,18 +155,18 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (_ *http.
 
 		recordSpanError(span, err)
 
-		return r, span, currentURL, lastEventID, subscribers, false
+		return span, currentURL, lastEventID, subscribers, false
 	}
 
 	if r.Header.Get("If-None-Match") == lastEventID {
 		w.WriteHeader(http.StatusNotModified)
 
-		return r, span, "", "", nil, false
+		return span, "", "", nil, false
 	}
 
 	header := w.Header()
 	header["Content-Type"] = jsonldContentType
 	header["ETag"] = []string{lastEventID}
 
-	return r, span, currentURL, lastEventID, subscribers, true
+	return span, currentURL, lastEventID, subscribers, true
 }
