@@ -153,6 +153,10 @@ const (
 	// exactMatcherTypeName is the name of the built-in exact matcher type.
 	exactMatcherTypeName = "exact"
 
-	// deprecatedMatcherTypeName is used internally for backward-compatible string claims.
-	deprecatedMatcherTypeName = "_legacy"
+	// deprecatedMatcherTypeName tags topic matchers created from the v8
+	// `topic=` query parameter or bare-string JWT claims. The underscore
+	// prefix keeps the name out of the public registry namespace (operators
+	// can't register it via WithMatcherType). The string leaks into debug
+	// log attributes, so pick something that reads usefully there.
+	deprecatedMatcherTypeName = "_deprecated_topic"
 )

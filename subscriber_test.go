@@ -61,8 +61,8 @@ func TestLogSubscriber(t *testing.T) {
 
 	log := buf.String()
 	assert.Contains(t, log, `"last_event_id":"123"`)
-	assert.Contains(t, log, `"allowed_private_matchers":["_legacy:https://example.com/foo"]`)
-	assert.Contains(t, log, `"subscribed_matchers":["_legacy:https://example.com/bar"]`)
+	assert.Contains(t, log, `"allowed_private_matchers":["_deprecated_topic:https://example.com/foo"]`)
+	assert.Contains(t, log, `"subscribed_matchers":["_deprecated_topic:https://example.com/bar"]`)
 }
 
 func TestMatchTopic(t *testing.T) {
