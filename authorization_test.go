@@ -860,22 +860,22 @@ func TestCanReceive(t *testing.T) {
 	t.Parallel()
 
 	tss := &TopicSelectorStore{}
-	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"foo", "bar"})))
-	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"bar"})))
-	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"*"})))
-	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{})))
-	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"baz"})))
-	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"baz", "bat"})))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"foo", "bar"})))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"bar"})))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"*"})))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{})))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz"})))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz", "bat"})))
 }
 
 func TestCanDispatch(t *testing.T) {
 	t.Parallel()
 
 	tss := &TopicSelectorStore{}
-	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"foo", "bar"})))
-	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"*"})))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{})))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"foo"})))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"baz"})))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToDeprecatedClaims([]string{"baz", "bat"})))
+	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"foo", "bar"})))
+	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"*"})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"foo"})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz"})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz", "bat"})))
 }

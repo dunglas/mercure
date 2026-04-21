@@ -14,8 +14,12 @@ const (
 
 var (
 	errMissingTopicOrMatch = errors.New(`missing "topic" or "match" parameter`)
-	errTooManyMatchers     = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
-	errPatternTooLong      = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
+	// errTopicParamNotSupported is returned when the deprecated "topic"
+	// query parameter is used without WithProtocolVersionCompatibility, or
+	// when the hub was compiled without the deprecated_topic build tag.
+	errTopicParamNotSupported = errors.New(`the "topic" query parameter is not supported anymore, use "match" instead`)
+	errTooManyMatchers        = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
+	errPatternTooLong         = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
 )
 
 // parseMatchers extracts topic matchers from query parameters:

@@ -1,3 +1,5 @@
+//go:build deprecated_topic
+
 package mercure
 
 import (
@@ -9,7 +11,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -83,54 +84,10 @@ func (rt *responseTester) SetWriteDeadline(_ time.Time) error {
 	return nil
 }
 
-type subscribeRecorder struct {
-	*httptest.ResponseRecorder
-
-	writeDeadline time.Time
-}
-
-func newSubscribeRecorder() *subscribeRecorder {
-	return &subscribeRecorder{ResponseRecorder: httptest.NewRecorder()}
-}
-
-func (r *subscribeRecorder) SetWriteDeadline(deadline time.Time) error {
-	if deadline.After(r.writeDeadline) {
-		r.writeDeadline = deadline
-	}
-
-	return nil
-}
-
-func (r *subscribeRecorder) Write(buf []byte) (int, error) {
-	if time.Now().After(r.writeDeadline) {
-		return 0, os.ErrDeadlineExceeded
-	}
-
-	return r.ResponseRecorder.Write(buf)
-}
-
-func (r *subscribeRecorder) WriteString(str string) (int, error) {
-	if time.Now().After(r.writeDeadline) {
-		return 0, os.ErrDeadlineExceeded
-	}
-
-	return r.WriteString(str)
-}
-
-func (r *subscribeRecorder) FlushError() error {
-	if time.Now().After(r.writeDeadline) {
-		return os.ErrDeadlineExceeded
-	}
-
-	r.Flush()
-
-	return nil
-}
-
 func TestSubscribeNotAFlusher(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t)
+	hub := createDeprecatedDummy(t, WithAnonymous())
 
 	go func() {
 		s := hub.transport.(*LocalTransport)
@@ -160,7 +117,7 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 func TestSubscribeNoCookie(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t)
+	hub := createDeprecatedDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
@@ -180,7 +137,7 @@ func TestSubscribeNoCookie(t *testing.T) {
 func TestSubscribeInvalidJWT(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t)
+	hub := createDeprecatedDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
@@ -202,7 +159,7 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 func TestSubscribeUnauthorizedJWT(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t)
+	hub := createDeprecatedDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
@@ -225,7 +182,7 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 func TestSubscribeInvalidAlgJWT(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t)
+	hub := createDeprecatedDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
@@ -247,7 +204,7 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 func TestSubscribeNoTopic(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t)
+	hub := createDeprecatedDummy(t, WithAnonymous())
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
@@ -290,7 +247,7 @@ func (*addSubscriberErrorTransport) Close(_ context.Context) error {
 func TestSubscribeAddSubscriberError(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t, WithTransport(&addSubscriberErrorTransport{}))
+	hub := createDeprecatedDummy(t, WithAnonymous(), WithTransport(&addSubscriberErrorTransport{}))
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)
 	w := httptest.NewRecorder()
@@ -310,7 +267,7 @@ func TestSubscribeAddSubscriberError(t *testing.T) {
 func subscribe(tb testing.TB, numberOfSubscribers int) {
 	tb.Helper()
 
-	hub := createAnonymousDummy(tb)
+	hub := createDeprecatedDummy(tb, WithAnonymous())
 	ctx := tb.Context()
 
 	go func() {
@@ -377,7 +334,7 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(roleSubscriber, []string{"https://example.com/reviews/22"}, payload)})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22"}, payload)})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -402,7 +359,7 @@ func TestSubscribeWithLogLevelDebug(t *testing.T) {
 	opts := slog.HandlerOptions{Level: slog.LevelDebug}
 	logger := slog.New(slog.NewTextHandler(&buf, &opts))
 
-	testSubscribeLogs(t, createDummy(
+	testSubscribeLogs(t, createDeprecatedDummy(
 		t,
 		WithLogger(logger),
 	), payload)
@@ -423,7 +380,7 @@ func TestSubscribeLogLevelInfo(t *testing.T) {
 	opts := slog.HandlerOptions{Level: slog.LevelInfo}
 	logger := slog.New(slog.NewTextHandler(&buf, &opts))
 
-	testSubscribeLogs(t, createDummy(
+	testSubscribeLogs(t, createDeprecatedDummy(
 		t,
 		WithLogger(logger),
 	), payload)
@@ -438,7 +395,7 @@ func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
 
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
-	h := createAnonymousDummy(t, WithLogger(logger))
+	h := createDeprecatedDummy(t, WithAnonymous(), WithLogger(logger))
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/", nil).WithContext(ctx)
@@ -459,7 +416,7 @@ func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		hub := createAnonymousDummy(t)
+		hub := createDeprecatedDummy(t, WithAnonymous())
 
 		s, _ := hub.transport.(*LocalTransport)
 		assert.Equal(t, 0, s.subscribers.Len())
@@ -495,7 +452,7 @@ func TestUnsubscribe(t *testing.T) {
 func TestSubscribePrivate(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t)
+	hub := createDeprecatedDummy(t)
 	s, _ := hub.transport.(*LocalTransport)
 	ctx := t.Context()
 
@@ -531,7 +488,7 @@ func TestSubscribePrivate(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22", "https://example.com/reviews/23"})})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22", "https://example.com/reviews/23"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -546,7 +503,7 @@ func TestSubscribePrivate(t *testing.T) {
 func TestSubscriptionEvents(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t, WithSubscriptions())
+	hub := createDeprecatedDummy(t, WithSubscriptions())
 
 	ctx1, cancel1 := context.WithCancel(t.Context())
 	t.Cleanup(cancel1)
@@ -559,7 +516,7 @@ func TestSubscriptionEvents(t *testing.T) {
 	wg.Go(func() {
 		// Authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topic}/{subscriber}", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriber}"})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriber}"})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -589,7 +546,7 @@ func TestSubscriptionEvents(t *testing.T) {
 	wg.Go(func() {
 		// Not authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topicSelector}/{subscriber}", nil).WithContext(ctx2)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -618,7 +575,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		ctx, cancelRequest2 := context.WithCancel(ctx)
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{})})
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
@@ -638,7 +595,7 @@ func TestSubscriptionEvents(t *testing.T) {
 func TestSubscribeAll(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t)
+	hub := createDeprecatedDummy(t)
 	s, _ := hub.transport.(*LocalTransport)
 	ctx := t.Context()
 
@@ -669,7 +626,7 @@ func TestSubscribeAll(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/reviews/{id}", nil).WithContext(ctx)
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"random", "*"}))
+	req.Header.Add("Authorization", bearerPrefix+createDeprecatedAuthorizedJWT(roleSubscriber, []string{"random", "*"}))
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -688,7 +645,7 @@ func TestSendMissedEvents(t *testing.T) {
 		transport := createBoltTransport(t, 0, 0)
 		ctx := t.Context()
 
-		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
+		hub := createDeprecatedDummy(t, WithAnonymous(), WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/a"},
@@ -758,7 +715,7 @@ func TestSendAllEvents(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		transport := createBoltTransport(t, 0, 0)
-		hub := createAnonymousDummy(t, WithTransport(transport))
+		hub := createDeprecatedDummy(t, WithAnonymous(), WithTransport(transport))
 		ctx := t.Context()
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
@@ -816,7 +773,7 @@ func TestUnknownLastEventID(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		transport := createBoltTransport(t, 0, 0)
-		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport))
+		hub := createDeprecatedDummy(t, WithAnonymous(), WithLogger(transport.logger), WithTransport(transport))
 
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/foos/a"},
@@ -888,7 +845,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		transport := createBoltTransport(t, 0, 0)
-		hub := createAnonymousDummy(t, WithTransport(transport))
+		hub := createDeprecatedDummy(t, WithAnonymous(), WithTransport(transport))
 
 		ctx := t.Context()
 
@@ -948,7 +905,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 }
 
 func TestSubscribeHeartbeat(t *testing.T) {
-	hub := createAnonymousDummy(t, WithHeartbeat(5*time.Millisecond))
+	hub := createDeprecatedDummy(t, WithAnonymous(), WithHeartbeat(5*time.Millisecond))
 	s, _ := hub.transport.(*LocalTransport)
 	ctx := t.Context()
 
@@ -987,12 +944,12 @@ func TestSubscribeHeartbeat(t *testing.T) {
 func TestSubscribeExpires(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t, WithWriteTimeout(0), WithDispatchTimeout(0), WithHeartbeat(500*time.Millisecond))
+	hub := createDeprecatedDummy(t, WithAnonymous(), WithWriteTimeout(0), WithDispatchTimeout(0), WithHeartbeat(500*time.Millisecond))
 	token := jwt.New(jwt.SigningMethodHS256)
 
 	token.Claims = &claims{
 		Mercure: mercureClaim{
-			Subscribe: stringsToDeprecatedClaims([]string{"*"}),
+			Subscribe: stringsToExactClaims([]string{"*"}),
 		},
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second))},
 	}

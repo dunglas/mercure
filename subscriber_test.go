@@ -15,7 +15,7 @@ func TestDispatch(t *testing.T) {
 	ctx := t.Context()
 	topics := []string{"https://example.com"}
 	s := NewLocalSubscriber("1", slog.Default(), &TopicSelectorStore{})
-	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 
 	defer s.Disconnect()
 
@@ -55,30 +55,14 @@ func TestLogSubscriber(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	s := NewLocalSubscriber("123", logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/bar"}), stringsToDeprecatedMatchers([]string{"https://example.com/foo"}))
+	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/bar"}), stringsToExactMatchers([]string{"https://example.com/foo"}))
 
 	logger.Info("test", slog.Any("subscriber", s))
 
 	log := buf.String()
 	assert.Contains(t, log, `"last_event_id":"123"`)
-	assert.Contains(t, log, `"allowed_private_matchers":["_deprecated_topic:https://example.com/foo"]`)
-	assert.Contains(t, log, `"subscribed_matchers":["_deprecated_topic:https://example.com/bar"]`)
-}
-
-func TestMatchTopic(t *testing.T) {
-	t.Parallel()
-
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/no-match", "https://example.com/books/{id}"}), stringsToDeprecatedMatchers([]string{"https://example.com/users/foo/{?topic}"}))
-
-	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}}))
-	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}, Private: true}))
-	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/no-match"}, Private: true}))
-	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/books/1"}, Private: true}))
-	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/books/1", "https://example.com/users/bar/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1"}, Private: true}))
-
-	assert.True(t, s.Match(&Update{Topics: []string{"https://example.com/books/1"}}))
-	assert.True(t, s.Match(&Update{Topics: []string{"https://example.com/books/1", "https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1"}, Private: true}))
+	assert.Contains(t, log, `"allowed_private_matchers":["Exact:https://example.com/foo"]`)
+	assert.Contains(t, log, `"subscribed_matchers":["Exact:https://example.com/bar"]`)
 }
 
 func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {

@@ -129,8 +129,9 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 				return errStringClaimRequiresCompat
 			}
 
-			claims[i].Type = deprecatedMatcherTypeName
-			claims[i].matcher = deprecatedMatcher
+			if err := resolveDeprecatedStringClaim(&claims[i]); err != nil {
+				return err
+			}
 
 			continue
 		}

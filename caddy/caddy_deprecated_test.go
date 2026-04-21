@@ -1,8 +1,10 @@
+//go:build deprecated_topic
+
 // Tests in this file cover the v8-compatibility surface:
-// protocol_version_compatibility, the legacy `topic=` query parameter,
+// protocol_version_compatibility, the deprecated `topic=` query parameter,
 // bare-string JWT matcher claims and the {topic}[/{subscriber}] subscription
 // routes. Equivalents exercising the modern match* protocol live in
-// caddy_test.go.
+// caddy_test.go. The whole file is gated by the deprecated_topic build tag.
 
 package caddy
 

@@ -67,21 +67,7 @@ func TestParseMatchersCaseInsensitive(t *testing.T) {
 	assert.True(t, types["URITemplate"])
 }
 
-func TestParseMatchersLegacyTopic(t *testing.T) {
-	t.Parallel()
-
-	h := createDummy(t, withAllMatcherTypes()...)
-
-	query := url.Values{"topic": {"https://example.com/foo", "https://example.com/{id}"}}
-	matchers, err := h.parseMatchers(query, true)
-	require.NoError(t, err)
-
-	assert.Len(t, matchers, 2)
-	assert.Equal(t, deprecatedMatcherTypeName, matchers[0].Type)
-	assert.Equal(t, "https://example.com/foo", matchers[0].Pattern)
-}
-
-func TestParseMatchersTopicRejectedWhenNotLegacy(t *testing.T) {
+func TestParseMatchersTopicRejectedWhenNotDeprecated(t *testing.T) {
 	t.Parallel()
 
 	h := createDummy(t, withAllMatcherTypes()...)
@@ -90,19 +76,6 @@ func TestParseMatchersTopicRejectedWhenNotLegacy(t *testing.T) {
 	_, err := h.parseMatchers(query, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not supported anymore")
-}
-
-func TestParseMatchersCaseInsensitiveTopic(t *testing.T) {
-	t.Parallel()
-
-	h := createDummy(t, withAllMatcherTypes()...)
-
-	// "TOPIC", "Topic" etc. should all be treated as the legacy topic param
-	query := url.Values{"TOPIC": {"foo"}}
-	matchers, err := h.parseMatchers(query, true)
-	require.NoError(t, err)
-
-	assert.Len(t, matchers, 1)
 }
 
 func TestParseMatchersUnsupportedType(t *testing.T) {

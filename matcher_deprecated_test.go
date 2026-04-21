@@ -1,8 +1,10 @@
+//go:build deprecated_topic
+
 package mercure
 
 // Test helpers that wrap v8-style string topic selectors into deprecatedMatcher-
-// backed topicMatchers and matcherClaims. Kept in a _test.go file because
-// they are only exercised by tests that pin the deprecated compatibility path.
+// backed topicMatchers and matcherClaims. Compiled only with the
+// deprecated_topic build tag because deprecatedMatcher itself is gated.
 
 func stringsToDeprecatedMatchers(patterns []string) []topicMatcher {
 	if patterns == nil {

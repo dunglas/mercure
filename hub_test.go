@@ -86,7 +86,7 @@ func TestStop(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)
@@ -108,7 +108,7 @@ func TestContextCancellation(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		t.Cleanup(cancel)
 
-		hub, err := NewHub(ctx, WithAnonymous(), WithProtocolVersionCompatibility(8))
+		hub, err := NewHub(ctx, WithAnonymous())
 		require.NoError(t, err)
 
 		t.Cleanup(func() {
@@ -131,7 +131,7 @@ func TestContextCancellation(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)
@@ -402,7 +402,6 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 			WithTopicSelectorStore(tss),
-			WithProtocolVersionCompatibility(8),
 		},
 		options...,
 	)
@@ -439,13 +438,13 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) s
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToDeprecatedClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
+		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToExactClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
 		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
 			Mercure: mercureClaim{
-				Subscribe: stringsToDeprecatedClaims(topics),
+				Subscribe: stringsToExactClaims(topics),
 				Payload:   payload,
 			},
 			RegisteredClaims: jwt.RegisteredClaims{},

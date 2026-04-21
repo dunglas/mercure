@@ -18,12 +18,12 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
-	s1.setMatchers(stringsToDeprecatedMatchers([]string{"topic1", "topic2"}), stringsToDeprecatedMatchers(nil))
+	s1.setMatchers(stringsToExactMatchers([]string{"topic1", "topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertGaugeValue(t, 1.0, m.subscribers)
 
 	s2 := NewLocalSubscriber("", logger, tss)
-	s2.setMatchers(stringsToDeprecatedMatchers([]string{"topic2"}), stringsToDeprecatedMatchers(nil))
+	s2.setMatchers(stringsToExactMatchers([]string{"topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertGaugeValue(t, 2.0, m.subscribers)
 
@@ -43,12 +43,12 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
-	s1.setMatchers(stringsToDeprecatedMatchers([]string{"topic1", "topic2"}), stringsToDeprecatedMatchers(nil))
+	s1.setMatchers(stringsToExactMatchers([]string{"topic1", "topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal)
 
 	s2 := NewLocalSubscriber("", logger, tss)
-	s2.setMatchers(stringsToDeprecatedMatchers([]string{"topic2"}), stringsToDeprecatedMatchers(nil))
+	s2.setMatchers(stringsToExactMatchers([]string{"topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertCounterValue(t, 2.0, m.subscribersTotal)
 

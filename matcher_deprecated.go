@@ -1,3 +1,5 @@
+//go:build deprecated_topic
+
 package mercure
 
 import (
@@ -5,14 +7,10 @@ import (
 	"strings"
 )
 
-// deprecatedMatcher implements the v8 matching rules: first an exact case-sensitive
-// comparison, then a URI Template fallback. It is used internally for:
-//
-//   - Deprecated `topic` query parameter (v8 subscribe path, behind
-//     WithProtocolVersionCompatibility).
-//   - Plain string entries in the `mercure.subscribe` / `mercure.publish` JWT
-//     claims in deprecated mode — the modern spec interprets bare strings as
-//     Exact, but v8 treats them as "exact OR URI Template".
+// deprecatedMatcher implements the v8 matching rules: first an exact
+// case-sensitive comparison, then a URI Template fallback. It powers both the
+// v8 `topic=` query parameter and bare-string JWT claims when the hub is
+// compiled with the deprecated_topic build tag.
 //
 // It is never registered in the public matcher registry: query parameters
 // can't reach it by name, and the deprecated paths plug it in directly.
@@ -32,4 +30,14 @@ func (deprecatedMatcherType) Match(topics []string, pattern string) bool {
 	}
 
 	return URITemplateMatcher.Match(topics, pattern)
+}
+
+// resolveDeprecatedStringClaim binds a bare-string claim to the
+// deprecatedMatcher. Called by resolveMatcherClaims when the hub operates in
+// backward-compatibility mode.
+func resolveDeprecatedStringClaim(c *matcherClaim) error {
+	c.Type = deprecatedMatcherTypeName
+	c.matcher = deprecatedMatcher
+
+	return nil
 }
