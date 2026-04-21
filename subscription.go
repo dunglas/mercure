@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -39,6 +40,11 @@ type subscriptionCollection struct {
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindServer))
+	defer span.End()
+
+	r = r.WithContext(ctx)
+
 	currentURL := r.URL.RequestURI()
 
 	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
@@ -79,6 +85,11 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindServer))
+	defer span.End()
+
+	r = r.WithContext(ctx)
+
 	currentURL := r.URL.RequestURI()
 
 	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
@@ -89,8 +100,6 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	s, _ := url.QueryUnescape(vars["subscriber"])
 	t, _ := url.QueryUnescape(vars["topic"])
-
-	ctx := r.Context()
 
 	for _, subscriber := range subscribers {
 		if subscriber.ID != s {

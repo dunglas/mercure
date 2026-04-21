@@ -21,6 +21,8 @@
 - [Running Behind Traefik Proxy](hub/traefik.md)
 - [Troubleshooting](hub/troubleshooting.md)
 - [Debugging the Mercure.rocks Hub](hub/debug.md)
+- [Metrics](hub/metrics.md)
+- [Tracing](hub/tracing.md)
 - [Upgrading to New Versions](UPGRADE.md)
 - [Load Testing](hub/load-test.md)
 

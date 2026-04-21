@@ -12,6 +12,8 @@ import (
 	"time"
 
 	bolt "go.etcd.io/bbolt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const BoltDefaultCleanupFrequency = 0.3
@@ -203,6 +205,14 @@ func pastSeqBound(k []byte, toSeq uint64) bool {
 
 //nolint:gocognit
 func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber, toSeq uint64) error {
+	ctx, span := startSpan(ctx, "mercure.transport.history",
+		trace.WithAttributes(
+			attribute.String("mercure.transport", "bolt"),
+			attribute.String("mercure.subscriber.id", s.ID),
+			attribute.String("mercure.last_event_id.requested", s.RequestLastEventID),
+		))
+	defer span.End()
+
 	err := t.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(t.bucketName))
 		if b == nil {
@@ -260,7 +270,10 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("unable to retrieve history from BoltDB: %w", err)
+		err = fmt.Errorf("unable to retrieve history from BoltDB: %w", err)
+		recordSpanError(span, err)
+
+		return err
 	}
 
 	return nil

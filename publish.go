@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 type updateContextKeyType struct{}
@@ -15,10 +17,21 @@ var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 // Publish broadcasts the given update to all subscribers.
 // The id field of the Update instance can be updated by the underlying Transport.
 func (h *Hub) Publish(ctx context.Context, update *Update) error {
+	ctx, span := startSpan(ctx, "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))
+	// Deferred so the ID assigned by the transport via AssignUUID lands on the span.
+	defer func() {
+		span.SetAttributes(update.SpanAttributes()...)
+		span.End()
+	}()
+
 	ctx = context.WithValue(ctx, UpdateContextKey, update)
 
-	if err := h.transport.Dispatch(ctx, update); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
-		h.logger.LogAttrs(ctx, slog.LevelError, "Failed to dispatch update", slog.Any("error", err))
+	if err := h.transport.Dispatch(ctx, update); err != nil {
+		if h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "Failed to dispatch update", slog.Any("error", err))
+		}
+
+		recordSpanError(span, err)
 
 		return err //nolint:wrapcheck
 	}
@@ -36,6 +49,20 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 //
 //nolint:funlen
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := startSpan(r.Context(), "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))
+
+	var u *Update
+	// Deferred so the ID assigned by the transport via AssignUUID lands on the span.
+	defer func() {
+		if u != nil {
+			span.SetAttributes(u.SpanAttributes()...)
+		}
+
+		span.End()
+	}()
+
+	r = r.WithContext(ctx)
+
 	var claims *claims
 
 	if h.publisherJWTKeyFunc != nil {
@@ -44,6 +71,10 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		claims, err = h.authorize(r, true)
 		if err != nil || claims == nil || claims.Mercure.Publish == nil {
 			h.httpAuthorizationError(w, r, err)
+
+			if err != nil {
+				recordSpanError(span, err)
+			}
 
 			return
 		}
@@ -73,8 +104,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx := r.Context()
-
 	private := len(r.PostForm["private"]) != 0
 	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) { //nolint:nestif
 		if private {
@@ -99,7 +128,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	u := &Update{
+	u = &Update{
 		Topics:  topics,
 		Private: private,
 		Debug:   h.debug,
@@ -116,6 +145,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		if h.logger.Enabled(ctx, slog.LevelError) {
 			h.logger.LogAttrs(ctx, slog.LevelError, "Failed to dispatch update", slog.Any("error", err))
 		}
+
+		recordSpanError(span, err)
 
 		return
 	}
