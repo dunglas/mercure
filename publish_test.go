@@ -234,7 +234,7 @@ func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestPublishHandlerLegacyAuthorization(t *testing.T) {
+func TestPublishHandlerDeprecatedAuthorization(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t, WithProtocolVersionCompatibility(7))

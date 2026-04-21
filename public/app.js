@@ -294,7 +294,7 @@ foo`;
     );
     subscription.querySelector("div").setAttribute("id", s.id);
     subscription.querySelector(".card-header-title").textContent = s.id;
-    // v9+ subscriptions expose match/matchType; legacy ones expose topic.
+    // v9+ subscriptions expose match/matchType; deprecated ones expose topic.
     subscription.querySelector(".match").textContent =
       s.match !== undefined ? `${s.matchType || "Exact"} ${s.match}` : s.topic;
     subscription.querySelector(".subscriber").textContent = s.subscriber;

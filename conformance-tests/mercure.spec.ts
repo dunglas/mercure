@@ -193,8 +193,8 @@ test.describe("Publish update", () => {
             method: "POST",
             headers: {
               // mercure.{publish,subscribe}: [{match: "*"}] — the v9 object
-              // form of the legacy ["*"] wildcard. The legacy form is only
-              // accepted under WithProtocolVersionCompatibility.
+              // form of the deprecated ["*"] wildcard. The string form is
+              // accepted only under WithProtocolVersionCompatibility.
               Authorization:
                 "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6IioifV19fQ.0E7cOjh6kGKAPLC5mKzIvVIsV5j4hCNt9Ee0VY4kjqk",
             },

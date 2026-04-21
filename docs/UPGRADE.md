@@ -7,7 +7,7 @@ spec draft `draft-dunglas-mercure-08`.
 
 ### Query parameters
 
-The legacy `topic=` query parameter is replaced by typed matcher parameters
+The deprecated `topic=` query parameter is replaced by typed matcher parameters
 (case-insensitive):
 
 - `match` / `matchExact` — exact case-sensitive comparison (replaces plain
@@ -49,7 +49,7 @@ silently change meaning.
 ### Subscription API
 
 The subscription URL is now `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`
-(URL-pattern shape). The legacy `{topic}/{subscriber}` and `{topic}` routes
+(URL-pattern shape). The deprecated `{topic}/{subscriber}` and `{topic}` routes
 are registered only under `protocol_version_compatibility`.
 
 JSON-LD subscription documents now expose `match` and `matchType` instead of
@@ -70,7 +70,7 @@ JSON-LD subscription documents now expose `match` and `matchType` instead of
 Set `protocol_version_compatibility 8` in your `Caddyfile` (or
 `--protocol-version-compatibility=8` with the legacy server) to keep the
 v8 surface available during migration: `topic=` queries, bare-string JWT
-claims, the URI Template matcher by default, and the legacy subscription
+claims, the URI Template matcher by default, and the deprecated subscription
 routes all come back.
 
 ### Go API
