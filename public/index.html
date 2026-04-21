@@ -35,6 +35,27 @@
             <h2 class="title">Subscribe</h2>
             <form name="subscribe">
               <div class="field">
+                <label class="label" for="matcherType">Matcher type</label>
+                <div class="control">
+                  <div class="select">
+                    <select name="matcherType" id="matcherType">
+                      <option value="match">Exact</option>
+                      <option value="matchURLPattern">URL Pattern</option>
+                      <option value="matchRegexp">Regexp</option>
+                      <option value="matchURITemplate">URI Template</option>
+                      <option value="matchCEL">CEL</option>
+                    </select>
+                  </div>
+                </div>
+
+                <p class="help">
+                  The hub must have the selected matcher type registered (see
+                  <code>matcher_types</code> in the Caddyfile). Unknown types
+                  make the subscription return <code>501 Not Implemented</code>.
+                </p>
+              </div>
+
+              <div class="field">
                 <label class="label" for="subscribeTopics"
                   >Topics to get updates for*</label
                 >
@@ -51,14 +72,11 @@ https://example.com/my-private-topic</textarea
 
                 <div class="help">
                   <p>
-                    One matcher per line. A bare line is an
-                    <a href="https://mercure.rocks/spec">Exact</a> match; prefix
-                    with <code>urlpattern:</code>, <code>regexp:</code>,
-                    <code>uritemplate:</code> or <code>cel:</code> to select a
-                    different
-                    <a href="https://mercure.rocks/spec">matcher type</a>.
+                    One topic per line. Each line is interpreted with the
+                    <a href="https://mercure.rocks/spec">matcher type</a>
+                    picked above. Use <code>*</code> to subscribe to every
+                    topic.
                   </p>
-                  <p>Use <code>*</code> to subscribe to every topic.</p>
                   <p>Examples:</p>
                   <pre><code id="subscribeTopicsExamples"></code></pre>
                 </div>

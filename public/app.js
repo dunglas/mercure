@@ -71,34 +71,29 @@
     if (match && match[1]) return match[1];
   };
 
-  // knownMatcherTypes restricts the `type:pattern` shorthand to matcher types
-  // the hub actually knows about, so topics that happen to contain a colon
-  // (URNs, UUIDs, schemes we haven't enumerated, …) still work as plain
-  // Exact matches instead of being silently rewritten into a matchFoo query.
-  const knownMatcherTypes = {
-    exact: "matchExact",
-    urlpattern: "matchURLPattern",
-    regexp: "matchRegexp",
-    uritemplate: "matchURITemplate",
-    cel: "matchCEL",
+  // matcherTypeLabel maps a match* query parameter name to the human-readable
+  // name used in 501-unsupported alerts.
+  const matcherTypeLabel = {
+    match: "Exact",
+    matchURLPattern: "URLPattern",
+    matchRegexp: "Regexp",
+    matchURITemplate: "URITemplate",
+    matchCEL: "CEL",
   };
 
-  // parseMatcher splits a subscriber line into a query parameter name and
-  // pattern. A bare line maps to `match` (Exact); a `<type>:<pattern>` prefix
-  // (for example `urlpattern:https://example.com/:id`) maps to the
-  // corresponding `match<Type>` parameter. Unknown prefixes are treated as
-  // part of the topic value to avoid breaking URNs and other colon-bearing
-  // exact topics.
-  const parseMatcher = (line) => {
-    const sep = line.indexOf(":");
-    if (sep > 0) {
-      const prefix = line.slice(0, sep).toLowerCase();
-      const paramName = knownMatcherTypes[prefix];
-      if (paramName) {
-        return { name: paramName, value: line.slice(sep + 1).trim() };
-      }
-    }
-    return { name: "match", value: line };
+  // unsupportedMatcherAlert tells the operator how to enable a matcher type
+  // when the hub answered 501 Not Implemented to a subscribe or subscription
+  // request.
+  const unsupportedMatcherAlert = (paramName) => {
+    const label = matcherTypeLabel[paramName] ?? paramName;
+    alert(
+      `The hub does not support the "${label}" matcher type (501 Not Implemented).\n\n` +
+        "Enable it in your hub configuration. Example Caddyfile directive:\n\n" +
+        "    mercure {\n" +
+        "        matcher_types exact urlpattern regexp uritemplate cel\n" +
+        "    }\n\n" +
+        'For the JSON config, set "matcher_types" on the module.',
+    );
   };
 
   // Set default values
@@ -126,10 +121,10 @@
 
     document.getElementById("subscribeTopicsExamples").textContent =
       `${defaultTopic}
-urlpattern:${document.URL}demo/novels/:id.jsonld
-uritemplate:${document.URL}demo/books/{id}.jsonld
-regexp:^https://example\\.com/chapters/[0-9]+$
-cel:topics.all(t, t.startsWith("https://example.com/"))
+${document.URL}demo/novels/:id.jsonld   (URL Pattern)
+${document.URL}demo/books/{id}.jsonld   (URI Template)
+^https://example\\.com/chapters/[0-9]+$ (Regexp)
+topics.all(t, t.startsWith("https://example.com/")) (CEL)
 foo`;
   });
 
@@ -170,40 +165,73 @@ foo`;
     }
   };
 
+  // preflightSubscribe does a throw-away GET against the subscribe URL so we
+  // can inspect the HTTP status before opening an EventSource. EventSource
+  // itself doesn't expose the status code; probing beforehand is the only
+  // way to detect a 501 "Not Implemented" for an unregistered matcher type.
+  const preflightSubscribe = async (url, authHeaders) => {
+    const controller = new AbortController();
+    const resp = await fetch(url, {
+      headers: authHeaders,
+      credentials: "same-origin",
+      signal: controller.signal,
+    });
+    // Status + headers are available as soon as the promise resolves; abort
+    // the body stream immediately to let the server close the connection.
+    controller.abort();
+    return resp.status;
+  };
+
   // Subscribe
   const $updateTemplate = document.getElementById("update");
   let updateEventSource;
-  $subscribeForm.onsubmit = function (e) {
+  $subscribeForm.onsubmit = async function (e) {
     e.preventDefault();
 
     updateEventSource && updateEventSource.close();
     $updates.textContent = "No updates pushed yet.";
 
     const {
-      elements: { topics, lastEventId },
+      elements: { topics, matcherType, lastEventId },
     } = this;
 
+    const paramName = matcherType.value;
     const u = new URL($settingsForm.hubUrl.value);
     topics.value
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
-      .forEach((line) => {
-        const { name, value } = parseMatcher(line);
-        u.searchParams.append(name, value);
-      });
+      .forEach((pattern) => u.searchParams.append(paramName, pattern));
     if (lastEventId.value) {
       u.searchParams.append("lastEventID", lastEventId.value);
     }
 
+    const useHeader = $settingsForm.authorization.value === "header";
+    const authHeaders = useHeader
+      ? { Authorization: `Bearer ${$settingsForm.jwt.value}` }
+      : undefined;
+
+    try {
+      const status = await preflightSubscribe(u, authHeaders);
+      if (status === 501) {
+        unsupportedMatcherAlert(paramName);
+        return;
+      }
+      if (status !== 200) {
+        alert(`Subscribe failed: HTTP ${status}`);
+        return;
+      }
+    } catch (err) {
+      error(err);
+      return;
+    }
+
     let ol = null;
-    if ($settingsForm.authorization.value === "header") {
-      updateEventSource = new EventSourcePolyfill(u, {
-        headers: {
-          Authorization: `Bearer ${$settingsForm.jwt.value}`,
-        },
-      });
-    } else updateEventSource = new EventSource(u);
+    if (useHeader) {
+      updateEventSource = new EventSourcePolyfill(u, { headers: authHeaders });
+    } else {
+      updateEventSource = new EventSource(u);
+    }
 
     updateEventSource.onmessage = function (e) {
       if (!ol) {
@@ -311,6 +339,16 @@ foo`;
         "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
       );
       u.searchParams.append("lastEventID", json.lastEventID);
+
+      const status = await preflightSubscribe(u, opt && opt.headers);
+      if (status === 501) {
+        unsupportedMatcherAlert("matchURLPattern");
+        return;
+      }
+      if (status !== 200) {
+        alert(`Subscribe to subscriptions failed: HTTP ${status}`);
+        return;
+      }
 
       if (opt) subscriptionEventSource = new EventSourcePolyfill(u, opt);
       else subscriptionEventSource = new EventSource(u);
