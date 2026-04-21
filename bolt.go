@@ -203,7 +203,7 @@ func pastSeqBound(k []byte, toSeq uint64) bool {
 	return toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq
 }
 
-//nolint:gocognit
+//nolint:gocognit,funlen
 func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber, toSeq uint64) error {
 	ctx, span := startSpan(ctx, "mercure.transport.history",
 		trace.WithAttributes(

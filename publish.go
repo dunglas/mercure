@@ -20,7 +20,10 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 	ctx, span := startSpan(ctx, "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))
 	// Deferred so the ID assigned by the transport via AssignUUID lands on the span.
 	defer func() {
-		span.SetAttributes(update.SpanAttributes()...)
+		if span.IsRecording() {
+			span.SetAttributes(update.SpanAttributes()...)
+		}
+
 		span.End()
 	}()
 
@@ -47,14 +50,14 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 //
-//nolint:funlen
+//nolint:funlen,gocognit
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, span := startSpan(r.Context(), "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))
 
 	var u *Update
 	// Deferred so the ID assigned by the transport via AssignUUID lands on the span.
 	defer func() {
-		if u != nil {
+		if u != nil && span.IsRecording() {
 			span.SetAttributes(u.SpanAttributes()...)
 		}
 

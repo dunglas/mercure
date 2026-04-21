@@ -40,14 +40,9 @@ type subscriptionCollection struct {
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindServer))
+	r, span, currentURL, lastEventID, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
-	r = r.WithContext(ctx)
-
-	currentURL := r.URL.RequestURI()
-
-	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
 	if !ok {
 		return
 	}
@@ -75,24 +70,15 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	if _, err := w.Write(j); err != nil {
-		ctx := r.Context()
-
-		if h.logger.Enabled(ctx, slog.LevelInfo) {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write subscriptions response", slog.Any("error", err))
-		}
+	if _, err := w.Write(j); err != nil && h.logger.Enabled(r.Context(), slog.LevelInfo) { //nolint:contextcheck
+		h.logger.LogAttrs(r.Context(), slog.LevelInfo, "Failed to write subscriptions response", slog.Any("error", err)) //nolint:contextcheck
 	}
 }
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindServer))
+	r, span, _, lastEventID, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
-	r = r.WithContext(ctx)
-
-	currentURL := r.URL.RequestURI()
-
-	lastEventID, subscribers, ok := h.initSubscription(currentURL, w, r)
 	if !ok {
 		return
 	}
@@ -118,8 +104,8 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 				panic(err)
 			}
 
-			if _, err := w.Write(j); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) { //nolint:gosec
-				h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err))
+			if _, err := w.Write(j); err != nil && h.logger.Enabled(r.Context(), slog.LevelInfo) { //nolint:gosec,contextcheck
+				h.logger.LogAttrs(r.Context(), slog.LevelInfo, "Failed to write subscription response", slog.Any("subscriber", subscriber), slog.Any("error", err)) //nolint:contextcheck
 			}
 
 			return
@@ -129,13 +115,22 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http.Request) (lastEventID string, subscribers []*Subscriber, ok bool) {
+//nolint:ireturn // trace.Span is an interface by design; the caller defers span.End.
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (_ *http.Request, span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
+	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
+	r = r.WithContext(ctx)
+	currentURL = r.URL.RequestURI()
+
 	if h.subscriberJWTKeyFunc != nil {
 		claims, err := h.authorize(r, false)
 		if err != nil || claims == nil || claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
 			h.httpAuthorizationError(w, r, err)
 
-			return "", nil, false
+			if err != nil {
+				recordSpanError(span, err)
+			}
+
+			return r, span, "", "", nil, false
 		}
 	}
 
@@ -146,27 +141,28 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 
 	var err error
 
-	lastEventID, subscribers, err = transport.GetSubscribers(r.Context())
+	lastEventID, subscribers, err = transport.GetSubscribers(ctx)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
-		ctx := r.Context()
 		if h.logger.Enabled(ctx, slog.LevelError) {
 			h.logger.LogAttrs(ctx, slog.LevelError, "Error retrieving subscribers", slog.Any("error", err))
 		}
 
-		return lastEventID, subscribers, ok
+		recordSpanError(span, err)
+
+		return r, span, currentURL, lastEventID, subscribers, false
 	}
 
 	if r.Header.Get("If-None-Match") == lastEventID {
 		w.WriteHeader(http.StatusNotModified)
 
-		return "", nil, false
+		return r, span, "", "", nil, false
 	}
 
 	header := w.Header()
 	header["Content-Type"] = jsonldContentType
 	header["ETag"] = []string{lastEventID}
 
-	return lastEventID, subscribers, true
+	return r, span, currentURL, lastEventID, subscribers, true
 }

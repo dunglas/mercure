@@ -2,12 +2,12 @@
 
 The Mercure.rocks Hub emits [OpenTelemetry](https://opentelemetry.io/) spans for its main internal operations:
 
-| Span name                   | Kind     | Description                                                                           |
-| --------------------------- | -------- | ------------------------------------------------------------------------------------- |
+| Span name                   | Kind     | Description                                                                          |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------ |
 | `mercure.publish`           | Producer | Covers the publish flow: authorization, validation, and dispatch to the transport    |
 | `mercure.subscribe`         | Consumer | Covers subscription setup: authorization, history replay, and transport registration |
-| `mercure.subscriptions`     | Server   | Covers requests to the subscription API (`/.well-known/mercure/subscriptions/...`)   |
-| `mercure.transport.history` | Internal | Covers history replay from the storage transport (Bolt, Redis...)                     |
+| `mercure.subscriptions`     | Internal | Covers requests to the subscription API (`/.well-known/mercure/subscriptions/...`)   |
+| `mercure.transport.history` | Internal | Covers history replay from the storage transport (Bolt, Redis...)                    |
 
 Mercure's spans nest under the HTTP request span produced by Caddy's [`tracing`](https://caddyserver.com/docs/caddyfile/directives/tracing) directive, so enable it to start collecting traces:
 

@@ -190,7 +190,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		claims        *claims
 	)
 
-	if h.subscriberJWTKeyFunc != nil {
+	if h.subscriberJWTKeyFunc != nil { //nolint:nestif
 		var err error
 
 		claims, err = h.authorize(r, false)
@@ -222,10 +222,13 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	s.SetTopics(topics, privateTopics)
-	span.SetAttributes(
-		attribute.String("mercure.subscriber.id", s.ID),
-		attribute.StringSlice("mercure.topics", topics),
-	)
+
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("mercure.subscriber.id", s.ID),
+			attribute.StringSlice("mercure.topics", topics),
+		)
+	}
 
 	addCtx := context.WithoutCancel(ctx)
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
