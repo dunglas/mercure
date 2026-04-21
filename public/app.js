@@ -165,27 +165,38 @@ foo`;
     }
   };
 
-  // preflightSubscribe does a throw-away GET against the subscribe URL so we
-  // can inspect the HTTP status before opening an EventSource. EventSource
-  // itself doesn't expose the status code; probing beforehand is the only
-  // way to detect a 501 "Not Implemented" for an unregistered matcher type.
-  const preflightSubscribe = async (url, authHeaders) => {
-    const controller = new AbortController();
-    const resp = await fetch(url, {
-      headers: authHeaders,
-      credentials: "same-origin",
-      signal: controller.signal,
-    });
-    // Status + headers are available as soon as the promise resolves; abort
-    // the body stream immediately to let the server close the connection.
-    controller.abort();
-    return resp.status;
+  // openEventSource builds an EventSource-like object using the polyfill,
+  // which — unlike the native EventSource — exposes the HTTP status on
+  // error events so we can spot 501 Not Implemented for unregistered
+  // matcher types. Cookie auth goes through withCredentials; header auth
+  // goes through the Authorization header (unsupported by native EventSource
+  // in browsers).
+  const openEventSource = (url) => {
+    if ($settingsForm.authorization.value === "header") {
+      return new EventSourcePolyfill(url, {
+        headers: { Authorization: `Bearer ${$settingsForm.jwt.value}` },
+      });
+    }
+    return new EventSourcePolyfill(url, { withCredentials: true });
+  };
+
+  // matcherErrorHandler returns an onerror handler that intercepts the 501
+  // "Not Implemented" case with a dedicated alert, then delegates to the
+  // generic error reporter for everything else.
+  const matcherErrorHandler = (eventSource, paramName, cleanup) => (e) => {
+    if (e.status === 501) {
+      eventSource.close();
+      unsupportedMatcherAlert(paramName);
+      cleanup && cleanup();
+      return;
+    }
+    error(e);
   };
 
   // Subscribe
   const $updateTemplate = document.getElementById("update");
   let updateEventSource;
-  $subscribeForm.onsubmit = async function (e) {
+  $subscribeForm.onsubmit = function (e) {
     e.preventDefault();
 
     updateEventSource && updateEventSource.close();
@@ -206,32 +217,8 @@ foo`;
       u.searchParams.append("lastEventID", lastEventId.value);
     }
 
-    const useHeader = $settingsForm.authorization.value === "header";
-    const authHeaders = useHeader
-      ? { Authorization: `Bearer ${$settingsForm.jwt.value}` }
-      : undefined;
-
-    try {
-      const status = await preflightSubscribe(u, authHeaders);
-      if (status === 501) {
-        unsupportedMatcherAlert(paramName);
-        return;
-      }
-      if (status !== 200) {
-        alert(`Subscribe failed: HTTP ${status}`);
-        return;
-      }
-    } catch (err) {
-      error(err);
-      return;
-    }
-
     let ol = null;
-    if (useHeader) {
-      updateEventSource = new EventSourcePolyfill(u, { headers: authHeaders });
-    } else {
-      updateEventSource = new EventSource(u);
-    }
+    updateEventSource = openEventSource(u);
 
     updateEventSource.onmessage = function (e) {
       if (!ol) {
@@ -247,8 +234,16 @@ foo`;
       li.querySelector("pre").textContent = e.data;
       ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
     };
-    updateEventSource.onerror = error;
-    this.elements.unsubscribe.disabled = false;
+    const unsubscribeBtn = this.elements.unsubscribe;
+    updateEventSource.onerror = matcherErrorHandler(
+      updateEventSource,
+      paramName,
+      () => {
+        unsubscribeBtn.disabled = true;
+        $updates.textContent = "Not subscribed.";
+      },
+    );
+    unsubscribeBtn.disabled = false;
   };
   $subscribeForm.elements.unsubscribe.onclick = function (e) {
     e.preventDefault();
@@ -340,18 +335,7 @@ foo`;
       );
       u.searchParams.append("lastEventID", json.lastEventID);
 
-      const status = await preflightSubscribe(u, opt && opt.headers);
-      if (status === 501) {
-        unsupportedMatcherAlert("matchURLPattern");
-        return;
-      }
-      if (status !== 200) {
-        alert(`Subscribe to subscriptions failed: HTTP ${status}`);
-        return;
-      }
-
-      if (opt) subscriptionEventSource = new EventSourcePolyfill(u, opt);
-      else subscriptionEventSource = new EventSource(u);
+      subscriptionEventSource = openEventSource(u);
 
       subscriptionEventSource.onmessage = function (e) {
         const s = JSON.parse(e.data);
@@ -363,9 +347,16 @@ foo`;
 
         document.getElementById(s.id).remove();
       };
-      subscriptionEventSource.onerror = error;
-
-      $subscriptionsForm.elements.unsubscribe.disabled = false;
+      const unsubscribeBtn = $subscriptionsForm.elements.unsubscribe;
+      subscriptionEventSource.onerror = matcherErrorHandler(
+        subscriptionEventSource,
+        "matchURLPattern",
+        () => {
+          unsubscribeBtn.disabled = true;
+          $subscriptions.textContent = "";
+        },
+      );
+      unsubscribeBtn.disabled = false;
     } catch (e) {
       error(e);
     }
