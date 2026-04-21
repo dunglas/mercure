@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -107,6 +108,19 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// writeMatcherClaimError translates a resolveMatcherClaims error into an
+// HTTP response: 501 for unknown matcher types, 401 for everything else
+// (string claim in modern mode, malformed claim, …).
+func writeMatcherClaimError(w http.ResponseWriter, err error) {
+	if errors.Is(err, ErrUnsupportedMatcherType) {
+		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+
+		return
+	}
+
+	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
 // resolveMatcherClaims resolves the matcher implementation for each claim.

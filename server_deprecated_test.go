@@ -1,4 +1,4 @@
-//go:build deprecated_server
+//go:build deprecated_server && deprecated_topic
 
 package mercure
 
@@ -29,7 +29,7 @@ const (
 )
 
 func TestSecurityOptions(t *testing.T) {
-	h := createAnonymousDummy(t, WithSubscriptions(), WithDemo(), WithCORSOrigins([]string{"*"}))
+	h := createDeprecatedDummy(t, WithAnonymous(), WithSubscriptions(), WithDemo(), WithCORSOrigins([]string{"*"}))
 	h.config.Set("cert_file", "fixtures/tls/server.crt")
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
@@ -78,7 +78,7 @@ func TestSecurityOptions(t *testing.T) {
 }
 
 func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
-	h := createDummy(t, WithSubscriptions(), WithCORSOrigins([]string{"https://subscriber.com"}))
+	h := createDeprecatedDummy(t, WithSubscriptions(), WithCORSOrigins([]string{"https://subscriber.com"}))
 	h.config.Set("cert_file", "fixtures/tls/server.crt")
 	h.config.Set("key_file", "fixtures/tls/server.key")
 	h.config.Set("compress", true)
@@ -125,7 +125,7 @@ func TestSecurityOptionsWithCorsOrigin(t *testing.T) {
 }
 
 func TestServe(t *testing.T) {
-	h := createAnonymousDummy(t)
+	h := createDeprecatedDummy(t, WithAnonymous())
 
 	go h.Serve(t.Context())
 
@@ -208,7 +208,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 		require.NoError(t, os.Remove("test.db"))
 	})
 
-	h := createAnonymousDummy(t, WithTransport(bt))
+	h := createDeprecatedDummy(t, WithAnonymous(), WithTransport(bt))
 	go h.Serve(t.Context())
 
 	// loop until the web server is ready
@@ -310,7 +310,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 }
 
 func TestServeAcme(t *testing.T) {
-	h := createAnonymousDummy(t, WithAllowedHosts([]string{"example.com"}))
+	h := createDeprecatedDummy(t, WithAnonymous(), WithAllowedHosts([]string{"example.com"}))
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_http01_addr", ":8080")
 	h.config.Set("acme_cert_dir", t.TempDir())
@@ -405,7 +405,7 @@ func newTestServer(t *testing.T) testServer {
 	t.Helper()
 
 	m := NewPrometheusMetrics(nil)
-	h := createAnonymousDummy(t, WithMetrics(m))
+	h := createDeprecatedDummy(t, WithAnonymous(), WithMetrics(m))
 
 	go h.Serve(t.Context())
 

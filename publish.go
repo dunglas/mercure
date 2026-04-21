@@ -2,7 +2,6 @@ package mercure
 
 import (
 	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -94,11 +93,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	if claims != nil {
 		deprecated := h.isBackwardCompatiblyEnabledWith(8)
 		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, deprecated); err != nil {
-			if errors.Is(err, ErrUnsupportedMatcherType) {
-				http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
-			} else {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			}
+			writeMatcherClaimError(w, err)
 
 			return
 		}
