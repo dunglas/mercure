@@ -120,7 +120,6 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-//nolint:ireturn // trace.Span is an interface by design; the caller defers span.End.
 func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
 	currentURL = r.URL.RequestURI()

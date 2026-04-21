@@ -14,7 +14,7 @@ const tracerName = "github.com/dunglas/mercure"
 // enabled), this falls back to the OpenTelemetry no-op tracer: no exporters,
 // no globals touched.
 //
-//nolint:ireturn,spancheck // trace.Span is an interface by design; the caller defers span.End.
+//nolint:spancheck // the caller is responsible for calling span.End.
 func startSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	tracer := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName)
 

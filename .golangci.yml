@@ -9,6 +9,15 @@ run:
     - nopgx
 linters:
   default: all
+  settings:
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+        - generic
+        - go.opentelemetry.io/otel/trace.Span
   disable:
     - canonicalheader
     - cyclop
