@@ -13,8 +13,6 @@ const tracerName = "github.com/dunglas/mercure"
 // in ctx. When no tracer is active (e.g. Caddy's `tracing` directive is not
 // enabled), this falls back to the OpenTelemetry no-op tracer: no exporters,
 // no globals touched.
-//
-//nolint:spancheck // the caller is responsible for calling span.End.
 func startSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	tracer := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName)
 
