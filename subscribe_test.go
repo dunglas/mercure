@@ -992,7 +992,7 @@ func TestSubscribeExpires(t *testing.T) {
 
 	token.Claims = &claims{
 		Mercure: mercureClaim{
-			Subscribe: stringsToLegacyClaims([]string{"*"}),
+			Subscribe: stringsToDeprecatedClaims([]string{"*"}),
 		},
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second))},
 	}

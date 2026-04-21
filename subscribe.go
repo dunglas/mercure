@@ -221,9 +221,9 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	legacy := h.isBackwardCompatiblyEnabledWith(8)
+	deprecated := h.isBackwardCompatiblyEnabledWith(8)
 
-	matchers, err := h.parseMatchers(r.URL.Query(), legacy)
+	matchers, err := h.parseMatchers(r.URL.Query(), deprecated)
 	if err != nil {
 		if errors.Is(err, ErrUnsupportedMatcherType) {
 			http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
@@ -235,13 +235,22 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	// Resolve private matchers from JWT claims
-	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, legacy); err != nil {
-		writeMatcherClaimError(w, err)
+	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, deprecated); err != nil {
+		if errors.Is(err, ErrUnsupportedMatcherType) {
+			http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+		} else {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		}
 
 		return nil, nil
 	}
 
-	s.setMatchers(matchers, matcherClaimsToMatchers(privateMatchers))
+	privateTopicMatchers := make([]topicMatcher, len(privateMatchers))
+	for i, c := range privateMatchers {
+		privateTopicMatchers[i] = c.topicMatcher
+	}
+
+	s.setMatchers(matchers, privateTopicMatchers)
 
 	addCtx := context.WithoutCancel(ctx)
 	h.dispatchSubscriptionUpdate(addCtx, s, true)

@@ -15,7 +15,7 @@ func TestDispatch(t *testing.T) {
 	ctx := t.Context()
 	topics := []string{"https://example.com"}
 	s := NewLocalSubscriber("1", slog.Default(), &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 
 	defer s.Disconnect()
 
@@ -55,7 +55,7 @@ func TestLogSubscriber(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	s := NewLocalSubscriber("123", logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/bar"}), stringsToLegacyMatchers([]string{"https://example.com/foo"}))
+	s.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/bar"}), stringsToDeprecatedMatchers([]string{"https://example.com/foo"}))
 
 	logger.Info("test", slog.Any("subscriber", s))
 
@@ -69,7 +69,7 @@ func TestMatchTopic(t *testing.T) {
 	t.Parallel()
 
 	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/no-match", "https://example.com/books/{id}"}), stringsToLegacyMatchers([]string{"https://example.com/users/foo/{?topic}"}))
+	s.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/no-match", "https://example.com/books/{id}"}), stringsToDeprecatedMatchers([]string{"https://example.com/users/foo/{?topic}"}))
 
 	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}}))
 	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}, Private: true}))

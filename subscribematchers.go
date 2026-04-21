@@ -13,27 +13,17 @@ const (
 )
 
 var (
-	// errMissingTopicOrMatch is returned when no topic or match parameters are found.
 	errMissingTopicOrMatch = errors.New(`missing "topic" or "match" parameter`)
-
-	// errTopicParamNotSupported is returned when the legacy "topic" query parameter is used without backward compat.
-	errTopicParamNotSupported = errors.New(`the "topic" query parameter is not supported anymore, use "match" instead`)
-
-	// errTooManyMatchers is returned when the number of matchers exceeds the limit.
-	errTooManyMatchers = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
-
-	// errPatternTooLong is returned when a pattern exceeds the maximum length.
-	errPatternTooLong = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
+	errTooManyMatchers     = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
+	errPatternTooLong      = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
 )
 
-// parseMatchers extracts topic matchers from query parameters.
-// It handles:
-//   - The legacy `topic` parameter (case-insensitive, only when legacy=true)
+// parseMatchers extracts topic matchers from query parameters:
 //   - `match` / `matchExact` → Exact matching
 //   - `match{Type}` → the specified matcher type (case-insensitive)
-//
-// Returns ErrUnsupportedMatcherType for unknown matcher types (→ 501).
-func (h *Hub) parseMatchers(query url.Values, legacy bool) ([]topicMatcher, error) {
+//   - deprecated `topic` (only under WithProtocolVersionCompatibility), see
+//     appendDeprecatedTopicMatchers in subscribematchers_deprecated.go.
+func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]topicMatcher, error) {
 	var matchers []topicMatcher
 
 	for key, values := range query {
@@ -41,11 +31,11 @@ func (h *Hub) parseMatchers(query url.Values, legacy bool) ([]topicMatcher, erro
 
 		switch {
 		case keyLower == "topic":
-			if !legacy {
+			if !deprecated {
 				return nil, errTopicParamNotSupported
 			}
 
-			m, err := h.appendLegacyTopicMatchers(matchers, values)
+			m, err := h.appendDeprecatedTopicMatchers(matchers, values)
 			if err != nil {
 				return nil, err
 			}
@@ -69,51 +59,29 @@ func (h *Hub) parseMatchers(query url.Values, legacy bool) ([]topicMatcher, erro
 	return matchers, nil
 }
 
-func (h *Hub) appendLegacyTopicMatchers(matchers []topicMatcher, values []string) ([]topicMatcher, error) {
+// appendMatchers resolves one `match*` query parameter to a registered
+// matcher and appends one topicMatcher per value.
+func (h *Hub) appendMatchers(matchers []topicMatcher, suffix, originalKey string, values []string) ([]topicMatcher, error) {
+	typeName := suffix
+	if typeName == "" {
+		typeName = exactMatcherTypeName
+	}
+
+	rm, ok := h.topicSelectorStore.matchers[typeName]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedMatcherType, originalKey)
+	}
+
 	for _, v := range values {
 		if len(v) > maxPatternLength {
 			return nil, errPatternTooLong
 		}
 
 		matchers = append(matchers, topicMatcher{
-			Type:    legacyMatcherTypeName,
+			Type:    rm.canonicalName,
 			Pattern: v,
-			matcher: legacyMatcher,
+			matcher: rm.matcher,
 		})
-
-		if len(matchers) > maxMatcherCount {
-			return nil, errTooManyMatchers
-		}
-	}
-
-	return matchers, nil
-}
-
-func (h *Hub) appendMatchers(matchers []topicMatcher, suffix, originalKey string, values []string) ([]topicMatcher, error) {
-	var typeName string
-
-	switch suffix {
-	case "", "exact":
-		typeName = exactMatcherTypeName
-	default:
-		if _, ok := h.topicSelectorStore.ResolveMatcherType(suffix); !ok {
-			return nil, fmt.Errorf("%w: %s", ErrUnsupportedMatcherType, originalKey)
-		}
-
-		typeName = suffix // already lowercase
-	}
-
-	for _, v := range values {
-		if len(v) > maxPatternLength {
-			return nil, errPatternTooLong
-		}
-
-		m, err := h.topicSelectorStore.newTopicMatcher(typeName, v)
-		if err != nil {
-			return nil, err
-		}
-
-		matchers = append(matchers, m)
 
 		if len(matchers) > maxMatcherCount {
 			return nil, errTooManyMatchers

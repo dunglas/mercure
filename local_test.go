@@ -27,7 +27,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 		require.NoError(t, err)
 
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.setMatchers(stringsToLegacyMatchers(u.Topics), stringsToLegacyMatchers(nil))
+		s.setMatchers(stringsToDeprecatedMatchers(u.Topics), stringsToDeprecatedMatchers(nil))
 		require.NoError(t, transport.AddSubscriber(ctx, s))
 
 		go func() {
@@ -56,7 +56,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 	topics := []string{"https://example.com/foo"}
 
 	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	u := &Update{Topics: topics}
@@ -134,7 +134,7 @@ func TestLiveReading(t *testing.T) {
 	topics := []string{"https://example.com"}
 
 	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	u := &Update{Topics: topics}

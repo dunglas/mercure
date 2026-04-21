@@ -77,7 +77,7 @@ func TestParseMatchersLegacyTopic(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, matchers, 2)
-	assert.Equal(t, legacyMatcherTypeName, matchers[0].Type)
+	assert.Equal(t, deprecatedMatcherTypeName, matchers[0].Type)
 	assert.Equal(t, "https://example.com/foo", matchers[0].Pattern)
 }
 

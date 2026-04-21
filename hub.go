@@ -299,24 +299,19 @@ type opt struct {
 	corsOrigins                  []string
 	cookieName                   string
 	protocolVersionCompatibility int
-	hasMatcherTypes              bool // true if any WithMatcherType option was used
 }
 
 func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 	return o.protocolVersionCompatibility != 0 && version >= o.protocolVersionCompatibility
 }
 
-// WithMatcherType registers a topic matcher type (built-in or custom).
-// The name is case-insensitive and is used in match* query parameters and JWT claims.
-//
-// If at least one WithMatcherType option is provided, only explicitly
-// registered types are available; otherwise NewHub registers a default pair
-// based on the configured protocol compatibility mode (see (#NewHub)). Exact
-// is always implicitly registered because the protocol mandates it.
+// WithMatcherType registers a topic matcher type (built-in or custom). The
+// name is case-insensitive and is used in match* query parameters and JWT
+// claims. When at least one WithMatcherType is supplied, only the registered
+// types are available; otherwise NewHub installs the spec-recommended
+// defaults. Exact is always registered because the protocol mandates it.
 func WithMatcherType(name string, mt Matcher) Option {
 	return func(o *opt) error {
-		o.hasMatcherTypes = true
-
 		if o.topicSelectorStore == nil {
 			tss, err := NewTopicSelectorStore(DefaultTopicSelectorStoreCacheSize)
 			if err != nil {
@@ -368,19 +363,18 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.topicSelectorStore = tss
 	}
 
-	// Exact is mandated by the protocol — register it unconditionally, then
-	// overlay the spec-recommended defaults when no WithMatcherType option was
-	// provided (URLPattern in modern mode, plus URITemplate under v8 compat).
-	if _, ok := opt.topicSelectorStore.ResolveMatcherType("exact"); !ok {
+	if len(opt.topicSelectorStore.matchers) == 0 {
+		// No WithMatcherType — install the spec-recommended defaults.
 		opt.topicSelectorStore.RegisterMatcherType("Exact", ExactMatcher)
-	}
-
-	if !opt.hasMatcherTypes {
 		opt.topicSelectorStore.RegisterMatcherType("URLPattern", URLPatternMatcher)
 
 		if opt.isBackwardCompatiblyEnabledWith(8) {
 			opt.topicSelectorStore.RegisterMatcherType("URITemplate", URITemplateMatcher)
 		}
+	} else if _, ok := opt.topicSelectorStore.matchers[exactMatcherTypeName]; !ok {
+		// The operator supplied custom types — Exact is mandated by the
+		// protocol, so make sure it is always registered.
+		opt.topicSelectorStore.RegisterMatcherType("Exact", ExactMatcher)
 	}
 
 	if opt.transport == nil {

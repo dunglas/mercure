@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -67,7 +68,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// happen to be the TopicSelectorStore cache-key separator, so rejecting
 	// them here avoids cache-key collisions downstream.
 	for _, t := range topics {
-		if strings.ContainsRune(t, topicsKeySeparatorRune) {
+		if strings.Contains(t, topicsKeySeparator) {
 			http.Error(w, `Invalid "topic" parameter: NUL byte not allowed`, http.StatusBadRequest)
 
 			return
@@ -91,9 +92,13 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Resolve publisher claims
 	if claims != nil {
-		legacy := h.isBackwardCompatiblyEnabledWith(8)
-		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, legacy); err != nil {
-			writeMatcherClaimError(w, err)
+		deprecated := h.isBackwardCompatiblyEnabledWith(8)
+		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, deprecated); err != nil {
+			if errors.Is(err, ErrUnsupportedMatcherType) {
+				http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+			} else {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			}
 
 			return
 		}

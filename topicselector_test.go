@@ -12,24 +12,16 @@ func TestTopicSelectorStoreRegistry(t *testing.T) {
 
 	tss := &TopicSelectorStore{}
 
-	// Initially empty
 	_, ok := tss.ResolveMatcherType("exact")
-	assert.False(t, ok)
+	assert.False(t, ok, "unregistered matcher must be absent")
 
-	// Register and resolve
 	tss.RegisterMatcherType("Exact", ExactMatcher)
-	mt, ok := tss.ResolveMatcherType("exact")
-	assert.True(t, ok)
-	assert.Equal(t, ExactMatcher, mt)
 
-	// Case-insensitive
-	mt, ok = tss.ResolveMatcherType("EXACT")
-	assert.True(t, ok)
-	assert.Equal(t, ExactMatcher, mt)
-
-	mt, ok = tss.ResolveMatcherType("Exact")
-	assert.True(t, ok)
-	assert.Equal(t, ExactMatcher, mt)
+	for _, name := range []string{"exact", "EXACT", "Exact"} {
+		mt, ok := tss.ResolveMatcherType(name)
+		assert.True(t, ok, name)
+		assert.Equal(t, ExactMatcher, mt, name)
+	}
 }
 
 func TestNewTopicMatcher(t *testing.T) {

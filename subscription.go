@@ -3,17 +3,12 @@ package mercure
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 
 	"github.com/gorilla/mux"
 )
-
-// errSubscriptionForbidden is passed to httpAuthorizationError when a
-// subscriber's JWT topic selectors don't cover the subscription URL.
-var errSubscriptionForbidden = errors.New("subscription URL not covered by token topic selectors")
 
 const (
 	jsonldContext            = "https://mercure.rocks/"
@@ -53,41 +48,34 @@ type subscriptionCollection struct {
 // subscriptionFilter describes the filter to apply on a subscription listing,
 // based on the URL path variables of the subscription API request.
 //
-// Either topic is set (legacy URL /subscriptions/{topic}[/{subscriber}])
+// Either topic is set (deprecated URL /subscriptions/{topic}[/{subscriber}])
 // or matchType+match are set (new URL /subscriptions/{matchType}/{match}[/{subscriber}]).
 type subscriptionFilter struct {
 	topic     string
 	matchType string
 	match     string
-	useMatch  bool // true when matchType+match were provided
 }
 
 // filterFromVars builds a subscriptionFilter from mux path variables. Returns
 // an error if any of the URL-encoded segments contains invalid escape
-// sequences — the caller should then answer 400 rather than silently serving
-// an unfiltered listing.
+// sequences — the caller should answer 400 rather than silently serving an
+// unfiltered listing.
 func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
-	topic, err := url.QueryUnescape(vars["topic"])
-	if err != nil {
-		return subscriptionFilter{}, fmt.Errorf("invalid topic segment: %w", err)
+	var f subscriptionFilter
+
+	for _, seg := range []struct {
+		name string
+		dst  *string
+	}{{"topic", &f.topic}, {"match", &f.match}, {"matchType", &f.matchType}} {
+		v, err := url.QueryUnescape(vars[seg.name])
+		if err != nil {
+			return subscriptionFilter{}, errors.New("invalid " + seg.name + " segment: " + err.Error()) //nolint:err113
+		}
+
+		*seg.dst = v
 	}
 
-	match, err := url.QueryUnescape(vars["match"])
-	if err != nil {
-		return subscriptionFilter{}, fmt.Errorf("invalid match segment: %w", err)
-	}
-
-	matchType, err := url.QueryUnescape(vars["matchType"])
-	if err != nil {
-		return subscriptionFilter{}, fmt.Errorf("invalid matchType segment: %w", err)
-	}
-
-	return subscriptionFilter{
-		topic:     topic,
-		matchType: matchType,
-		match:     match,
-		useMatch:  match != "" || matchType != "",
-	}, nil
+	return f, nil
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
@@ -193,15 +181,15 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 			return "", nil, false
 		}
 
-		legacy := h.isBackwardCompatiblyEnabledWith(8)
-		if resolveErr := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Subscribe, legacy); resolveErr != nil {
+		deprecated := h.isBackwardCompatiblyEnabledWith(8)
+		if resolveErr := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Subscribe, deprecated); resolveErr != nil {
 			h.httpAuthorizationError(w, r, resolveErr)
 
 			return "", nil, false
 		}
 
 		if !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
-			h.httpAuthorizationError(w, r, errSubscriptionForbidden)
+			h.httpAuthorizationError(w, r, errors.New("subscription URL not covered by token topic selectors")) //nolint:err113
 
 			return "", nil, false
 		}

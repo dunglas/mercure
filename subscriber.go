@@ -14,21 +14,17 @@ type Subscriber struct {
 	RequestLastEventID string
 
 	// SubscribedMatchers are the topic matchers from match* query parameters
-	// (or from the legacy `topic` query parameter, which resolves to a
-	// legacyMatcher-backed topicMatcher).
+	// (or from the deprecated `topic` query parameter, which resolves to a
+	// deprecatedMatcher-backed topicMatcher).
 	SubscribedMatchers []topicMatcher
 	// AllowedPrivateMatchers are the topic matchers from the JWT claims.
 	AllowedPrivateMatchers []topicMatcher
-	// EscapedMatchers are precomputed URL-safe representations for subscription URLs.
-	EscapedMatchers []escapedMatcher
+	// EscapedMatchers are precomputed "escapedType/escapedPattern" slugs for
+	// subscription URLs.
+	EscapedMatchers []string
 
 	logger             *slog.Logger
 	topicSelectorStore *TopicSelectorStore
-}
-
-type escapedMatcher struct {
-	EscapedType    string
-	EscapedPattern string
 }
 
 func NewSubscriber(logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *Subscriber {
@@ -83,18 +79,17 @@ func (s *Subscriber) LogValue() slog.Value {
 	}
 
 	if len(s.AllowedPrivateMatchers) != 0 {
-		attrs = append(attrs, slog.Any("allowed_private_matchers", matcherPatternsLog(s.AllowedPrivateMatchers)))
+		attrs = append(attrs, slog.Any("allowed_private_matchers", logMatcherPatterns(s.AllowedPrivateMatchers)))
 	}
 
 	if len(s.SubscribedMatchers) != 0 {
-		attrs = append(attrs, slog.Any("subscribed_matchers", matcherPatternsLog(s.SubscribedMatchers)))
+		attrs = append(attrs, slog.Any("subscribed_matchers", logMatcherPatterns(s.SubscribedMatchers)))
 	}
 
 	return slog.GroupValue(attrs...)
 }
 
-// matcherPatternsLog renders a matcher slice as a list of "type:pattern" strings for logs.
-func matcherPatternsLog(matchers []topicMatcher) []string {
+func logMatcherPatterns(matchers []topicMatcher) []string {
 	out := make([]string, len(matchers))
 	for i, m := range matchers {
 		out[i] = m.Type + ":" + m.Pattern
@@ -108,42 +103,39 @@ func (s *Subscriber) setMatchers(subscribed []topicMatcher, allowedPrivate []top
 	s.SubscribedMatchers = subscribed
 	s.AllowedPrivateMatchers = allowedPrivate
 
-	s.EscapedMatchers = make([]escapedMatcher, len(subscribed))
+	s.EscapedMatchers = make([]string, len(subscribed))
 	for i, m := range subscribed {
-		s.EscapedMatchers[i] = escapedMatcher{
-			EscapedType:    url.QueryEscape(m.Type),
-			EscapedPattern: url.QueryEscape(m.Pattern),
-		}
+		s.EscapedMatchers[i] = url.QueryEscape(m.Type) + "/" + url.QueryEscape(m.Pattern)
 	}
 }
 
-// getSubscriptions returns the subscriptions associated to this subscriber, optionally filtered.
-// An empty filter returns all subscriptions. When filter.useMatch is true, subscriptions are
-// filtered by matcher type+pattern (new URL scheme). Otherwise, filter.topic filters by exact
-// legacy topic selector.
+// getSubscriptions returns the subscriptions associated to this subscriber,
+// optionally filtered by path variables from the subscription API. A filter
+// with neither topic nor match set is treated as "no filter".
 func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string, active bool) []subscription {
+	useMatch := filter.match != "" || filter.matchType != ""
+
 	var subscriptions []subscription //nolint:prealloc
 
 	for k, m := range s.SubscribedMatchers {
 		switch {
-		case filter.useMatch:
-			// New URL scheme: filter by exact matchType+match pair.
+		case useMatch:
 			if filter.match != m.Pattern || !strings.EqualFold(filter.matchType, m.Type) {
 				continue
 			}
 		case filter.topic != "":
-			// Legacy URL scheme is addressable only by v8 string-selector
-			// subscriptions (those carry a legacyMatcher). Modern match*-based
-			// subscriptions are exposed only through the /subscriptions/{matchType}/{match}
-			// route so the two wire formats don't leak into each other.
-			if m.Type != legacyMatcherTypeName || filter.topic != m.Pattern {
+			// The deprecated /subscriptions/{topic}[/{subscriber}] route
+			// is addressable only by v8 string-selector subscriptions;
+			// modern match*-based subscriptions live exclusively under
+			// /subscriptions/{matchType}/{match}.
+			if m.Type != deprecatedMatcherTypeName || filter.topic != m.Pattern {
 				continue
 			}
 		}
 
 		sub := subscription{
 			Context:    context,
-			ID:         "/.well-known/mercure/subscriptions/" + s.EscapedMatchers[k].EscapedType + "/" + s.EscapedMatchers[k].EscapedPattern + "/" + s.EscapedID,
+			ID:         "/.well-known/mercure/subscriptions/" + s.EscapedMatchers[k] + "/" + s.EscapedID,
 			Type:       "Subscription",
 			Subscriber: s.ID,
 			Match:      m.Pattern,
@@ -151,10 +143,10 @@ func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string,
 			Active:     active,
 		}
 
-		// Legacy subscriptions keep emitting the `topic` field (and no
-		// match/matchType) for wire compatibility with protocol v8 consumers.
-		if m.Type == legacyMatcherTypeName {
-			sub.ID = "/.well-known/mercure/subscriptions/" + s.EscapedMatchers[k].EscapedPattern + "/" + s.EscapedID
+		// Deprecated v8 subscriptions keep emitting the `topic` field (and
+		// no match/matchType) for wire compatibility with v8 consumers.
+		if m.Type == deprecatedMatcherTypeName {
+			sub.ID = "/.well-known/mercure/subscriptions/" + url.QueryEscape(m.Pattern) + "/" + s.EscapedID
 			sub.Topic = m.Pattern
 			sub.Match = ""
 			sub.MatchType = ""
@@ -172,16 +164,15 @@ func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string,
 // claim that matches the subscription's own matcher."
 //
 // A claim "matches" the subscription when its matcher accepts the subscription's
-// pattern as a topic, when the wildcard `*` is used, or when both pattern and
-// type are identical. When no claim matches, the top-level mercure.payload
-// fallback is applied.
+// pattern as a topic or when the wildcard `*` is used. When no claim matches,
+// the top-level mercure.payload fallback is applied.
 func (s *Subscriber) setSubscriptionPayload(sub *subscription, m topicMatcher) {
 	if s.Claims == nil {
 		return
 	}
 
 	for _, mc := range s.Claims.Mercure.Subscribe {
-		if !claimMatchesMatcher(s.topicSelectorStore, mc, m) {
+		if mc.Pattern != "*" && !s.topicSelectorStore.matchMatcher([]string{m.Pattern}, mc.topicMatcher) {
 			continue
 		}
 
@@ -198,24 +189,4 @@ func (s *Subscriber) setSubscriptionPayload(sub *subscription, m topicMatcher) {
 	if s.Claims.Mercure.Payload != nil {
 		sub.Payload = s.Claims.Mercure.Payload
 	}
-}
-
-// claimMatchesMatcher reports whether a JWT subscribe-claim entry "matches" a subscription matcher.
-func claimMatchesMatcher(tss *TopicSelectorStore, mc matcherClaim, m topicMatcher) bool {
-	// Wildcard always matches.
-	if mc.Pattern == "*" {
-		return true
-	}
-
-	// Same matcher type and same pattern: a trivial match.
-	if strings.EqualFold(mc.Type, m.Type) && mc.Pattern == m.Pattern {
-		return true
-	}
-
-	// Otherwise, apply the claim's matcher against the subscription's pattern string.
-	if mc.matcher == nil {
-		return false
-	}
-
-	return tss.matchMatcher([]string{m.Pattern}, mc.topicMatcher)
 }

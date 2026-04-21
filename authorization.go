@@ -174,7 +174,7 @@ func canDispatch(s *TopicSelectorStore, topics []string, matchers []matcherClaim
 		var matched bool
 
 		for _, mc := range matchers {
-			if mc.Pattern == "*" || s.matchMatcher(singleTopic, mc.topicMatcher) {
+			if s.matchMatcher(singleTopic, mc.topicMatcher) {
 				matched = true
 
 				break

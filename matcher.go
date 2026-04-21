@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -12,12 +11,11 @@ import (
 // The HTTP handler maps this to a 501 "Not Implemented" status code.
 var ErrUnsupportedMatcherType = errors.New("unsupported topic matcher type")
 
-// ErrStringClaimRequiresCompat is returned when a JWT mercure.publish /
-// mercure.subscribe claim uses the legacy string form in modern mode. The
-// v9+ protocol requires the object form {match, matchType, payload}; the
-// string form is accepted only under WithProtocolVersionCompatibility.
-// The HTTP handler maps this to a 401 "Unauthorized" status code.
-var ErrStringClaimRequiresCompat = errors.New("string-form matcher claims require backward-compatibility mode")
+// errStringClaimRequiresCompat is returned when a JWT mercure.publish /
+// mercure.subscribe claim uses the deprecated string form in modern mode. The
+// v9+ protocol requires the object form; the string form is accepted only
+// under WithProtocolVersionCompatibility. Mapped to 401 on the wire.
+var errStringClaimRequiresCompat = errors.New("string-form matcher claims require backward-compatibility mode")
 
 // Matcher defines how a topic pattern is matched.
 // Implement this interface to add custom matcher types.
@@ -40,20 +38,20 @@ type topicMatcher struct {
 	matcher Matcher // Resolved implementation, set at parse time
 }
 
-// matcherClaim represents a single entry in the mercure.publish or mercure.subscribe JWT claim.
-// It supports both the legacy string format and the new object format.
+// matcherClaim represents a single entry in the mercure.publish or
+// mercure.subscribe JWT claim. It supports both the deprecated string format and
+// the new object format.
 type matcherClaim struct {
 	topicMatcher
 
 	Payload any // Per-subscription payload, nil if not set
 }
 
-// MarshalJSON serializes a matcherClaim back to JSON.
-// String claims (legacy or simple patterns) are serialized as plain strings.
-// Object claims are serialized as {"match": ..., "matchType": ..., "payload": ...}.
+// MarshalJSON serialises a claim back to the wire format: a plain string for
+// deprecated/unresolved entries, an object otherwise. Used when a hub signs
+// its own JWTs in tests.
 func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
-	// Legacy string claims and unresolved claims → plain string
-	if mc.Type == "" || mc.Type == legacyMatcherTypeName {
+	if mc.Type == "" || mc.Type == deprecatedMatcherTypeName {
 		b, err := json.Marshal(mc.Pattern)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal matcher claim pattern: %w", err)
@@ -66,11 +64,7 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 		Match     string `json:"match"`
 		MatchType string `json:"matchType,omitempty"`
 		Payload   any    `json:"payload,omitempty"`
-	}{
-		Match:     mc.Pattern,
-		MatchType: mc.Type,
-		Payload:   mc.Payload,
-	}
+	}{mc.Pattern, mc.Type, mc.Payload}
 
 	b, err := json.Marshal(obj)
 	if err != nil {
@@ -81,21 +75,18 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON handles both string and object formats in JWT claims.
-// String: treated according to protocol version (Exact for v9+, legacy for v8-).
+// String: treated according to protocol version (Exact for v9+, deprecated for v8-).
 // Object: {"match": "pattern", "matchType": "Exact", "payload": {...}}.
 func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
-	// Try string first (most common for backward compat)
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
+		// Empty Type signals "unresolved string claim"; resolveMatcherClaims
+		// decides what it means based on the protocol version.
 		mc.Pattern = s
-		// Type and matcher are resolved later based on protocol version
-		// Empty Type signals "unresolved string claim"
-		mc.Type = ""
 
 		return nil
 	}
 
-	// Try object format
 	var obj struct {
 		Match     string `json:"match"`
 		MatchType string `json:"matchType"`
@@ -118,58 +109,30 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// writeMatcherClaimError writes the appropriate HTTP status for an error
-// returned by resolveMatcherClaims: 501 for unknown matcher types, 401 for
-// everything else (malformed string claim, compat violation, …).
-func writeMatcherClaimError(w http.ResponseWriter, err error) {
-	if errors.Is(err, ErrUnsupportedMatcherType) {
-		http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
-
-		return
-	}
-
-	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-}
-
-// resolveMatcherClaims resolves the matcher implementation for each claim entry.
+// resolveMatcherClaims resolves the matcher implementation for each claim.
 //
-// String-form entries (Type == "") are only permitted under legacy mode,
-// where they map to the v8 "exact OR URI Template" rule. In modern mode
-// the v9+ protocol requires the object form, so string entries are
-// rejected with ErrStringClaimRequiresCompat — silently reinterpreting
-// them as Exact would change the meaning of tokens minted for v8.
-// Object-form entries look their type up in the registry.
+// String-form entries (Type == "") are only permitted under deprecated mode,
+// where they map to the v8 "exact OR URI Template" rule. In modern mode the
+// v9+ protocol requires the object form; silently reinterpreting bare
+// strings as Exact would change the meaning of tokens minted for v8.
 //
-// The function is idempotent: claims whose matcher is already resolved are
-// skipped, so callers may run it repeatedly without re-validating.
-func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, legacy bool) error {
+// The function is idempotent: already-resolved claims are skipped, so
+// callers may run it repeatedly without re-validating.
+func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprecated bool) error {
 	for i := range claims {
 		if claims[i].matcher != nil {
-			continue // already resolved
+			continue
 		}
 
 		if claims[i].Type == "" {
-			if !legacy {
-				return ErrStringClaimRequiresCompat
+			if !deprecated {
+				return errStringClaimRequiresCompat
 			}
 
-			claims[i].Type = legacyMatcherTypeName
-			claims[i].matcher = legacyMatcher
+			claims[i].Type = deprecatedMatcherTypeName
+			claims[i].matcher = deprecatedMatcher
 
 			continue
-		}
-
-		if claims[i].Type == legacyMatcherTypeName {
-			// Already typed as legacy (e.g. by stringsToLegacyMatchers); plug
-			// the matcher in without a registry lookup since "_legacy" is
-			// intentionally not publicly registered.
-			claims[i].matcher = legacyMatcher
-
-			continue
-		}
-
-		if tss.matchers == nil {
-			return ErrUnsupportedMatcherType
 		}
 
 		rm, ok := tss.matchers[strings.ToLower(claims[i].Type)]
@@ -177,8 +140,8 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, legacy
 			return ErrUnsupportedMatcherType
 		}
 
-		// Canonicalise the claim's type so it matches the casing the hub
-		// uses everywhere else (subscription events, subscription API, …).
+		// Canonicalise the type so it matches the casing the hub uses
+		// everywhere else (subscription events, subscription API, …).
 		claims[i].Type = rm.canonicalName
 		claims[i].matcher = rm.matcher
 	}
@@ -190,51 +153,6 @@ const (
 	// exactMatcherTypeName is the name of the built-in exact matcher type.
 	exactMatcherTypeName = "exact"
 
-	// legacyMatcherTypeName is used internally for backward-compatible string claims.
-	legacyMatcherTypeName = "_legacy"
+	// deprecatedMatcherTypeName is used internally for backward-compatible string claims.
+	deprecatedMatcherTypeName = "_legacy"
 )
-
-// matcherClaimsToMatchers extracts the topicMatchers from a slice of matcherClaims.
-func matcherClaimsToMatchers(claims []matcherClaim) []topicMatcher {
-	if claims == nil {
-		return nil
-	}
-
-	matchers := make([]topicMatcher, len(claims))
-	for i, c := range claims {
-		matchers[i] = c.topicMatcher
-	}
-
-	return matchers
-}
-
-// stringsToLegacyMatchers wraps a slice of v8-style string topic selectors
-// into legacyMatcher-backed topicMatchers. It is the single shared builder
-// used by the legacy `topic` query parameter and the tests that exercise
-// v8 behaviour.
-func stringsToLegacyMatchers(patterns []string) []topicMatcher {
-	if patterns == nil {
-		return nil
-	}
-
-	out := make([]topicMatcher, len(patterns))
-	for i, p := range patterns {
-		out[i] = topicMatcher{Type: legacyMatcherTypeName, Pattern: p, matcher: legacyMatcher}
-	}
-
-	return out
-}
-
-// stringsToLegacyClaims wraps a slice of v8-style string topic selectors into
-// matcherClaim entries ready to be stored in JWT mercure.{publish,subscribe}
-// claims. Shares the underlying conversion with stringsToLegacyMatchers.
-func stringsToLegacyClaims(patterns []string) []matcherClaim {
-	matchers := stringsToLegacyMatchers(patterns)
-
-	claims := make([]matcherClaim, len(matchers))
-	for i, m := range matchers {
-		claims[i] = matcherClaim{topicMatcher: m}
-	}
-
-	return claims
-}

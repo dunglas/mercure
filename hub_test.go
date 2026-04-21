@@ -439,13 +439,13 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) s
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToLegacyClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
+		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToDeprecatedClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
 		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
 			Mercure: mercureClaim{
-				Subscribe: stringsToLegacyClaims(topics),
+				Subscribe: stringsToDeprecatedClaims(topics),
 				Payload:   payload,
 			},
 			RegisteredClaims: jwt.RegisteredClaims{},

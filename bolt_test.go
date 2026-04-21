@@ -48,7 +48,7 @@ func TestBoltTransportHistory(t *testing.T) {
 	}
 
 	s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 
 	require.NoError(t, transport.AddSubscriber(t.Context(), s))
 
@@ -76,7 +76,7 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 
 	topics := []string{"https://example.com/foo"}
 	s := NewLocalSubscriber("711131", transport.logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 	ctx := context.WithValue(t.Context(), SubscriberContextKey, &s.Subscriber)
 
 	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: topics})) // make sure the db is not empty
@@ -96,7 +96,7 @@ func TestBoltTopicSelectorHistory(t *testing.T) {
 	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Event: Event{ID: "4"}}))
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}), stringsToLegacyMatchers([]string{"https://example.com/subscribed"}))
+	s.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}), stringsToDeprecatedMatchers([]string{"https://example.com/subscribed"}))
 
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
@@ -119,7 +119,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	}
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	var count int
@@ -154,7 +154,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		}
 
 		s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
-		s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+		s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 		require.NoError(t, transport.AddSubscriber(ctx, s))
 
 		go func() {
@@ -237,7 +237,7 @@ func TestBoltTransportDispatch(t *testing.T) {
 	privateTopics := []string{"https://example.com/private"}
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(subscribedTopics), stringsToLegacyMatchers(privateTopics))
+	s.setMatchers(stringsToDeprecatedMatchers(subscribedTopics), stringsToDeprecatedMatchers(privateTopics))
 
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
@@ -269,7 +269,7 @@ func TestBoltTransportClosed(t *testing.T) {
 	topics := []string{"https://example.com/foo"}
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	require.NoError(t, transport.Close(ctx))
@@ -288,11 +288,11 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	ctx := t.Context()
 
 	s1 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s1.setMatchers(stringsToLegacyMatchers([]string{"foo"}), stringsToLegacyMatchers([]string{}))
+	s1.setMatchers(stringsToDeprecatedMatchers([]string{"foo"}), stringsToDeprecatedMatchers([]string{}))
 	require.NoError(t, transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s2.setMatchers(stringsToLegacyMatchers([]string{"foo"}), stringsToLegacyMatchers([]string{}))
+	s2.setMatchers(stringsToDeprecatedMatchers([]string{"foo"}), stringsToDeprecatedMatchers([]string{}))
 	require.NoError(t, transport.AddSubscriber(ctx, s2))
 
 	assert.Equal(t, 2, transport.subscribers.Len())

@@ -95,27 +95,29 @@ func TestMatcherClaimUnmarshalInvalid(t *testing.T) {
 	require.Error(t, json.Unmarshal([]byte(`true`), &mc))
 }
 
-func TestResolveMatcherClaimsLegacy(t *testing.T) {
-	t.Parallel()
+func newExactStore(t *testing.T) *TopicSelectorStore {
+	t.Helper()
 
-	tss := &TopicSelectorStore{
-		matchers: map[string]registeredMatcher{
-			"exact": {canonicalName: "Exact", matcher: ExactMatcher},
-		},
-	}
+	tss, err := NewTopicSelectorStore(0)
+	require.NoError(t, err)
+	tss.RegisterMatcherType("Exact", ExactMatcher)
+
+	return tss
+}
+
+func TestResolveMatcherClaimsDeprecated(t *testing.T) {
+	t.Parallel()
 
 	claims := []matcherClaim{
 		{topicMatcher: topicMatcher{Pattern: "foo"}},                // Unresolved string
 		{topicMatcher: topicMatcher{Pattern: "bar", Type: "exact"}}, // Explicit Exact
 	}
 
-	require.NoError(t, resolveMatcherClaims(tss, claims, true))
+	require.NoError(t, resolveMatcherClaims(newExactStore(t), claims, true))
 
-	// String claim in legacy mode → _legacy type bound to the built-in legacyMatcher.
-	assert.Equal(t, legacyMatcherTypeName, claims[0].Type)
-	assert.Equal(t, legacyMatcher, claims[0].matcher)
+	assert.Equal(t, deprecatedMatcherTypeName, claims[0].Type)
+	assert.Equal(t, deprecatedMatcher, claims[0].matcher)
 
-	// Explicit Exact claim → resolved with canonical casing
 	assert.Equal(t, "Exact", claims[1].Type)
 	assert.Equal(t, ExactMatcher, claims[1].matcher)
 }
@@ -123,37 +125,18 @@ func TestResolveMatcherClaimsLegacy(t *testing.T) {
 func TestResolveMatcherClaimsModernRejectsStringForm(t *testing.T) {
 	t.Parallel()
 
-	tss := &TopicSelectorStore{
-		matchers: map[string]registeredMatcher{
-			"exact": {canonicalName: "Exact", matcher: ExactMatcher},
-		},
-	}
+	claims := []matcherClaim{{topicMatcher: topicMatcher{Pattern: "foo"}}}
 
-	claims := []matcherClaim{
-		{topicMatcher: topicMatcher{Pattern: "foo"}}, // Unresolved string
-	}
-
-	// String-form claims are v8-era shorthand whose meaning (exact OR URI
-	// Template) does not round-trip to the modern spec. Reject them rather
-	// than silently reinterpreting as Exact.
-	err := resolveMatcherClaims(tss, claims, false)
-	assert.ErrorIs(t, err, ErrStringClaimRequiresCompat)
+	err := resolveMatcherClaims(newExactStore(t), claims, false)
+	assert.ErrorIs(t, err, errStringClaimRequiresCompat)
 }
 
 func TestResolveMatcherClaimsModernAcceptsObjectForm(t *testing.T) {
 	t.Parallel()
 
-	tss := &TopicSelectorStore{
-		matchers: map[string]registeredMatcher{
-			"exact": {canonicalName: "Exact", matcher: ExactMatcher},
-		},
-	}
+	claims := []matcherClaim{{topicMatcher: topicMatcher{Pattern: "foo", Type: "exact"}}}
 
-	claims := []matcherClaim{
-		{topicMatcher: topicMatcher{Pattern: "foo", Type: "exact"}},
-	}
-
-	require.NoError(t, resolveMatcherClaims(tss, claims, false))
+	require.NoError(t, resolveMatcherClaims(newExactStore(t), claims, false))
 	assert.Equal(t, "Exact", claims[0].Type)
 	assert.Equal(t, ExactMatcher, claims[0].matcher)
 }
@@ -161,16 +144,8 @@ func TestResolveMatcherClaimsModernAcceptsObjectForm(t *testing.T) {
 func TestResolveMatcherClaimsUnsupportedType(t *testing.T) {
 	t.Parallel()
 
-	tss := &TopicSelectorStore{
-		matchers: map[string]registeredMatcher{
-			"exact": {canonicalName: "Exact", matcher: ExactMatcher},
-		},
-	}
+	claims := []matcherClaim{{topicMatcher: topicMatcher{Pattern: "foo", Type: "UnknownType"}}}
 
-	claims := []matcherClaim{
-		{topicMatcher: topicMatcher{Pattern: "foo", Type: "UnknownType"}},
-	}
-
-	err := resolveMatcherClaims(tss, claims, false)
+	err := resolveMatcherClaims(newExactStore(t), claims, false)
 	assert.ErrorIs(t, err, ErrUnsupportedMatcherType)
 }

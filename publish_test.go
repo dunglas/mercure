@@ -23,8 +23,8 @@ func TestPublish(t *testing.T) {
 
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(topics))
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToLegacyClaims(topics)}}
+		s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(topics))
+		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToDeprecatedClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -266,8 +266,8 @@ func TestPublishHandlerOK(t *testing.T) {
 
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(topics))
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToLegacyClaims(topics)}}
+		s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(topics))
+		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToDeprecatedClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -342,7 +342,7 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 		topics := []string{"https://example.com/books/1"}
 
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.setMatchers(stringsToLegacyMatchers(topics), stringsToLegacyMatchers(topics))
+		s.setMatchers(stringsToDeprecatedMatchers(topics), stringsToDeprecatedMatchers(topics))
 
 		require.NoError(t, h.transport.AddSubscriber(t.Context(), s))
 

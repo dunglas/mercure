@@ -64,13 +64,13 @@ func TestDefaultMatcherTypesModern(t *testing.T) {
 	assert.True(t, ok)
 
 	_, ok = h.topicSelectorStore.ResolveMatcherType("uritemplate")
-	assert.False(t, ok, "URITemplate must not be registered by default outside legacy mode")
+	assert.False(t, ok, "URITemplate must not be registered by default outside deprecated mode")
 }
 
-func TestDefaultMatcherTypesLegacy(t *testing.T) {
+func TestDefaultMatcherTypesDeprecated(t *testing.T) {
 	t.Parallel()
 
-	// In legacy (v8) mode, defaults are Exact + URLPattern + URITemplate:
+	// In deprecated (v8) mode, defaults are Exact + URLPattern + URITemplate:
 	// clients on either side of the migration keep working.
 	h, err := NewHub(t.Context(), WithProtocolVersionCompatibility(8))
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestDefaultMatcherTypesLegacy(t *testing.T) {
 
 	for _, name := range []string{"exact", "urlpattern", "uritemplate"} {
 		_, ok := h.topicSelectorStore.ResolveMatcherType(name)
-		assert.True(t, ok, "expected %s to be registered in legacy mode", name)
+		assert.True(t, ok, "expected %s to be registered in deprecated mode", name)
 	}
 }
 
@@ -115,12 +115,12 @@ func TestWithProtocolVersionCompatibility8(t *testing.T) {
 	assert.False(t, h.isBackwardCompatiblyEnabledWith(7))
 }
 
-// TestLegacySubscriptionRoutesGatedOnCompat verifies the v8-style
+// TestDeprecatedSubscriptionRoutesGatedOnCompat verifies the v8-style
 // /subscriptions/{topic} collection route is only exposed when protocol
 // compatibility is enabled, and 404s otherwise. The 2-segment single route
 // cannot be tested this way because its shape collides with the modern
 // /subscriptions/{matchType}/{match} collection route.
-func TestLegacySubscriptionRoutesGatedOnCompat(t *testing.T) {
+func TestDeprecatedSubscriptionRoutesGatedOnCompat(t *testing.T) {
 	t.Parallel()
 
 	// Modern hub — no WithProtocolVersionCompatibility, legacy 1-segment route
@@ -139,16 +139,16 @@ func TestLegacySubscriptionRoutesGatedOnCompat(t *testing.T) {
 	w := httptest.NewRecorder()
 	modern.ServeHTTP(w, req)
 	res := w.Result()
-	assert.Equal(t, http.StatusNotFound, res.StatusCode, "legacy 1-segment route must 404 without compat mode")
+	assert.Equal(t, http.StatusNotFound, res.StatusCode, "deprecated 1-segment route must 404 without compat mode")
 	require.NoError(t, res.Body.Close())
 
-	// Legacy-compat hub — route registered; without a valid JWT we reach the
+	// Deprecated-compat hub — route registered; without a valid JWT we reach the
 	// handler and get its 401 (not a mux 404), proving the route exists.
-	legacy := createDummy(t, WithSubscriptions(), WithAnonymous())
+	deprecated := createDummy(t, WithSubscriptions(), WithAnonymous())
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/topic-A", nil)
 	w = httptest.NewRecorder()
-	legacy.ServeHTTP(w, req)
+	deprecated.ServeHTTP(w, req)
 	res = w.Result()
-	assert.Equal(t, http.StatusUnauthorized, res.StatusCode, "legacy 1-segment route must exist under compat mode")
+	assert.Equal(t, http.StatusUnauthorized, res.StatusCode, "deprecated 1-segment route must exist under compat mode")
 	require.NoError(t, res.Body.Close())
 }

@@ -33,8 +33,6 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
-	ErrCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
-
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
 	hubsMu sync.Mutex
@@ -587,7 +585,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				case 7, 8:
 					m.ProtocolVersionCompatibility = v
 				default:
-					return d.WrapErr(ErrCompatibility)
+					return d.WrapErr(mercure.ErrUnsupportedProtocolVersion)
 				}
 			}
 		}

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// legacyMatcher implements the v8 matching rules: first an exact case-sensitive
+// deprecatedMatcher implements the v8 matching rules: first an exact case-sensitive
 // comparison, then a URI Template fallback. It is used internally for:
 //
 //   - Legacy `topic` query parameter (v8 subscribe path, behind
@@ -16,11 +16,11 @@ import (
 //
 // It is never registered in the public matcher registry: query parameters
 // can't reach it by name, and the legacy paths plug it in directly.
-var legacyMatcher Matcher = legacyMatcherType{} //nolint:gochecknoglobals
+var deprecatedMatcher Matcher = deprecatedMatcherType{} //nolint:gochecknoglobals
 
-type legacyMatcherType struct{}
+type deprecatedMatcherType struct{}
 
-func (legacyMatcherType) Match(topics []string, pattern string) bool {
+func (deprecatedMatcherType) Match(topics []string, pattern string) bool {
 	if slices.Contains(topics, pattern) {
 		return true
 	}

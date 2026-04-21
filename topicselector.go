@@ -19,10 +19,6 @@ const DefaultTopicSelectorStoreCacheSize = 100_000
 // is required here.
 const topicsKeySeparator = "\x00"
 
-// topicsKeySeparatorRune mirrors topicsKeySeparator for strings.ContainsRune
-// validation on the Publish path. Keep in sync.
-const topicsKeySeparatorRune = '\x00'
-
 // matchCacheKey is the comparable struct used as the match-cache key. The
 // Topics field holds the update's topics joined with a NUL byte; for the
 // common single-topic case, strings.Join returns the single element without
@@ -120,13 +116,6 @@ func (tss *TopicSelectorStore) matchMatcher(topics []string, m topicMatcher) boo
 	// Wildcard always matches.
 	if m.Pattern == "*" {
 		return true
-	}
-
-	// Defensive: unresolved matchers never match. Normal flow (newTopicMatcher
-	// / resolveMatcherClaims) guarantees matcher is non-nil, but callers that
-	// pass hand-built topicMatcher values may reach this point without one.
-	if m.matcher == nil {
-		return false
 	}
 
 	// Exact matching is so fast it doesn't need caching.

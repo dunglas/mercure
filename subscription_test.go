@@ -101,11 +101,11 @@ func TestSubscriptionsHandler(t *testing.T) {
 	ctx := t.Context()
 
 	s1 := NewLocalSubscriber("", logger, tss)
-	s1.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/foo"}), stringsToLegacyMatchers(nil))
+	s1.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/foo"}), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", logger, tss)
-	s2.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/bar"}), stringsToLegacyMatchers(nil))
+	s2.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/bar"}), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s2))
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
@@ -148,21 +148,19 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	logger := slog.Default()
 
 	s1 := NewLocalSubscriber("", logger, tss)
-	s1.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/foo"}), stringsToLegacyMatchers(nil))
+	s1.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/foo"}), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", logger, tss)
-	s2.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/bar"}), stringsToLegacyMatchers(nil))
+	s2.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/bar"}), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s2))
-
-	escapedBarTopic := url.QueryEscape("https://example.com/bar")
 
 	router := mux.NewRouter()
 	router.UseEncodedPath()
 	router.SkipClean(true)
 	router.HandleFunc(subscriptionsForTopicURL, hub.SubscriptionsHandler)
 
-	s2EscapedTopic := s2.EscapedMatchers[0].EscapedPattern
+	s2EscapedTopic := url.QueryEscape(s2.SubscribedMatchers[0].Pattern)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/"+s2EscapedTopic, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/" + s2EscapedTopic})})
@@ -177,7 +175,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &subscriptions))
 
 	assert.Equal(t, "https://mercure.rocks/", subscriptions.Context)
-	assert.Equal(t, defaultHubURL+subscriptionsPath+"/"+escapedBarTopic, subscriptions.ID)
+	assert.Equal(t, defaultHubURL+subscriptionsPath+"/"+s2EscapedTopic, subscriptions.ID)
 	assert.Equal(t, "Subscriptions", subscriptions.Type)
 
 	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
@@ -202,12 +200,12 @@ func TestSubscriptionHandler(t *testing.T) {
 	logger := slog.Default()
 
 	otherS := NewLocalSubscriber("", logger, tss)
-	otherS.setMatchers(stringsToLegacyMatchers([]string{"https://example.com/other"}), stringsToLegacyMatchers(nil))
+	otherS.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/other"}), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, hub.transport.AddSubscriber(ctx, otherS))
 
 	sTopics := []string{"https://example.com/other", "https://example.com/{foo}"}
 	s := NewLocalSubscriber("", logger, tss)
-	s.setMatchers(stringsToLegacyMatchers(sTopics), stringsToLegacyMatchers(nil))
+	s.setMatchers(stringsToDeprecatedMatchers(sTopics), stringsToDeprecatedMatchers(nil))
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s))
 
 	router := mux.NewRouter()
@@ -215,7 +213,7 @@ func TestSubscriptionHandler(t *testing.T) {
 	router.SkipClean(true)
 	router.HandleFunc(subscriptionURL, hub.SubscriptionHandler)
 
-	sEscapedTemplate := s.EscapedMatchers[1].EscapedPattern
+	sEscapedTemplate := url.QueryEscape(s.SubscribedMatchers[1].Pattern)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/"+sEscapedTemplate+"/"+s.EscapedID, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})
@@ -343,8 +341,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	router.HandleFunc(subscriptionMatchURL, hub.SubscriptionHandler)
 
 	// Use the escaped matcher directly from the subscriber to avoid encoding drift.
-	em := sub.EscapedMatchers[0]
-	authURL := "/.well-known/mercure/subscriptions/" + em.EscapedType + "/" + em.EscapedPattern + "/" + sub.EscapedID
+	authURL := "/.well-known/mercure/subscriptions/" + sub.EscapedMatchers[0] + "/" + sub.EscapedID
 	reqURL := authURL
 
 	req := httptest.NewRequest(http.MethodGet, reqURL, nil)
@@ -361,5 +358,5 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 
 	assert.Equal(t, "https://example.com/:id", got.Match)
 	assert.Equal(t, "URLPattern", got.MatchType)
-	assert.Empty(t, got.Topic, "new-style subscription must not emit the legacy `topic` field")
+	assert.Empty(t, got.Topic, "new-style subscription must not emit the deprecated `topic` field")
 }
