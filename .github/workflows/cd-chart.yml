@@ -1,15 +1,15 @@
 name: Release Chart
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
 
 permissions:
   contents: write
 
 jobs:
   release:
+    if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,6 +17,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Configure Git
         run: |
@@ -26,10 +27,22 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v5
 
-      - name: Run chart-releaser
-        uses: dunglas/chart-releaser-action@feat/match-tags
+      - name: Package Helm chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm package charts/mercure -d .cr-release-packages
+
+      - name: Upload Helm chart to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" .cr-release-packages/*.tgz --clobber
+
+      - name: Update Helm chart repo index
+        uses: helm/chart-releaser-action@v1.7.0
         with:
-          match_tags: helm-chart-*
+          skip_packaging: true
+          skip_existing: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_RELEASE_NAME_TEMPLATE: "helm-chart-{{ .Version }}"
+          CR_RELEASE_NAME_TEMPLATE: "v{{ .Version }}"
