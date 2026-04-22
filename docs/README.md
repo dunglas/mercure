@@ -19,6 +19,7 @@
 - [Cookbooks](hub/cookbooks.md)
 - [Running Behind NGINX](hub/nginx.md)
 - [Running Behind Traefik Proxy](hub/traefik.md)
+- [Rolling Updates and Graceful Shutdown](hub/rolling-updates.md)
 - [Troubleshooting](hub/troubleshooting.md)
 - [Debugging the Mercure.rocks Hub](hub/debug.md)
 - [Upgrading to New Versions](UPGRADE.md)
