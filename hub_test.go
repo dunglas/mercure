@@ -361,6 +361,35 @@ func TestWithSubscribeDisabled(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
 
+// waitSubscribers waits until the LocalTransport reports exactly n live
+// subscribers. Used to synchronize tests that need subscribers registered
+// before a Dispatch or context cancel runs. Sleeps between checks to avoid
+// busy-spinning, and fails the test via tb.Fatalf after 5s so a genuinely
+// stuck expectation surfaces as a clear error instead of a hung suite.
+func waitSubscribers(tb testing.TB, transport *LocalTransport, n int) {
+	tb.Helper()
+
+	const timeout = 5 * time.Second
+
+	deadline := time.Now().Add(timeout)
+
+	for {
+		transport.RLock()
+		got := transport.subscribers.Len()
+		transport.RUnlock()
+
+		if got == n {
+			return
+		}
+
+		if !time.Now().Before(deadline) {
+			tb.Fatalf("waited %s for %d subscribers, have %d", timeout, n, got)
+		}
+
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func createDummy(tb testing.TB, options ...Option) *Hub {
 	tb.Helper()
 

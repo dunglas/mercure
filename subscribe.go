@@ -131,9 +131,26 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 	debugLevel := rc.hub.logger.Enabled(ctx, slog.LevelDebug)
 
+	// On hub shutdown (Caddy "stopping" event, pod SIGTERM, …) we prefer to
+	// let each subscriber drain on its own per-connection write deadline
+	// (derived from writeTimeout, and optionally shortened by JWT expiry)
+	// rather than closing everything at once — that spreads the reconnect
+	// load at the same pace clients already experience in steady state,
+	// instead of producing a synchronized storm on the ingress and the
+	// transport. The orchestrator's grace period (k8s
+	// terminationGracePeriodSeconds, etc.) remains the hard deadline.
+	//
+	// When writeTimeout is disabled (0) there is no disconnectionTimerC, so
+	// the only way out on shutdown is still h.ctx.Done() — otherwise
+	// http.Server.Shutdown would hang indefinitely on active handlers.
+	var hubCtxDoneC <-chan struct{}
+	if h.writeTimeout == 0 {
+		hubCtxDoneC = h.ctx.Done()
+	}
+
 	for {
 		select {
-		case <-h.ctx.Done():
+		case <-hubCtxDoneC:
 			if debugLevel {
 				rc.hub.logger.LogAttrs(ctx, slog.LevelDebug, "Hub is shutting down, closing connection")
 			}
