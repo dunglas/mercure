@@ -196,9 +196,14 @@ func (t *BoltTransport) Close(_ context.Context) (err error) {
 	return fmt.Errorf("unable to close Bolt DB: %w", err)
 }
 
-// pastSeqBound reports whether the BoltDB key k is at or past the sequence bound toSeq.
+// pastSeqBound reports whether the BoltDB key k was written strictly after
+// the sequence snapshot toSeq, and therefore falls outside the subscriber's
+// history window. Events whose seq equals toSeq are the most recent ones
+// observed at subscription time and are still considered part of history.
+// toSeq == 0 means the bucket was empty at subscription time, so any key
+// (all with seq >= 1) is "past the bound".
 func pastSeqBound(k []byte, toSeq uint64) bool {
-	return toSeq > 0 && binary.BigEndian.Uint64(k[:8]) >= toSeq
+	return binary.BigEndian.Uint64(k[:8]) > toSeq
 }
 
 //nolint:gocognit
@@ -213,17 +218,21 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 
 		c := b.Cursor()
 		responseLastEventID := EarliestLastEventID
-
 		afterFromID := s.RequestLastEventID == EarliestLastEventID
+
 		for k, v := c.First(); k != nil; k, v = c.Next() {
+			// Keys written after the subscribe snapshot (concurrent Dispatch
+			// between subscriber registration and this read transaction)
+			// must not leak into the response header or be re-delivered
+			// alongside the live dispatch queue — check the bound first.
+			if pastSeqBound(k, toSeq) {
+				break
+			}
+
 			if !afterFromID {
 				responseLastEventID = string(k[8:])
 				if responseLastEventID == s.RequestLastEventID {
 					afterFromID = true
-				}
-
-				if pastSeqBound(k, toSeq) {
-					break
 				}
 
 				continue
@@ -242,7 +251,7 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 				return err
 			}
 
-			if (s.Match(update) && !s.Dispatch(ctx, update, true)) || pastSeqBound(k, toSeq) {
+			if s.Match(update) && !s.Dispatch(ctx, update, true) {
 				s.HistoryDispatched(responseLastEventID)
 
 				return nil
