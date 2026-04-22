@@ -13,7 +13,7 @@ When the Hub receives a shutdown signal — the Caddy admin `/stop` endpoint, `S
 
 Because `write_timeout` already closes each SSE connection every few minutes in steady state and relies on the client to reconnect, letting shutdown ride the same timer spreads reconnects naturally over the drain window rather than triggering them all at once. No client-visible error, no storm — just the usual SSE retry cadence browsers and SDKs are already handling.
 
-When `write_timeout` is set to `0`, there is no per-connection timer; in that case the Hub does exit all subscribers immediately on shutdown, since the alternative would be to hang forever on active handlers.
+When `write_timeout` is set to `0s`, there is no per-connection timer; in that case the Hub does exit all subscribers immediately on shutdown, since the alternative would be to hang forever on active handlers.
 
 ## Kubernetes
 
