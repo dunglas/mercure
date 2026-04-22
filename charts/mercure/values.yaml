@@ -99,6 +99,27 @@ replicaCount: 1
 updateStrategy:
   type: RollingUpdate
 
+# -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout` plus a
+# margin so the hub's graceful SSE drain (subscribers close at their own
+# write deadline) finishes before k8s SIGKILLs the pod. Default matches
+# Mercure's DefaultWriteTimeout (600s) plus a 60s margin. Only applied
+# when `updateStrategy.type` is `RollingUpdate` — with `Recreate` we
+# intentionally leave k8s to use its default (30s) to minimize the
+# downtime window between old-pod-gone and new-pod-ready.
+terminationGracePeriodSeconds: 660
+
+# -- Deployment `spec.progressDeadlineSeconds`. A rolling update of a hub
+# with live SSE subscribers can legitimately spend up to
+# `terminationGracePeriodSeconds` on each pod while the old replica
+# drains — well above the k8s default of 600s. Too-low values make
+# `helm upgrade --wait` (and similar CI gates) fail with
+# `ProgressDeadlineExceeded` even though the rollout is healthy. Default
+# covers a 2-pod rolling update with the defaults above; for larger
+# `replicaCount`, scale up accordingly (roughly `replicaCount ×
+# (terminationGracePeriodSeconds + minReadySeconds)` plus a safety
+# margin). Only applied when `updateStrategy.type` is `RollingUpdate`.
+progressDeadlineSeconds: 1800
+
 image:
   # -- Name of the image repository to pull the container image from.
   repository: dunglas/mercure

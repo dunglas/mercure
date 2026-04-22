@@ -13,7 +13,29 @@ spec:
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   strategy:
-      type: {{ .Values.updateStrategy.type }}
+    type: {{ .Values.updateStrategy.type }}
+    {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
+    # Rotate one pod at a time without dropping capacity. Each pod
+    # termination closes its in-flight SSE subscribers; keeping the pace
+    # slow lets the ingress and the transport absorb each batch of
+    # reconnects separately instead of as a single storm.
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    {{- end }}
+  {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
+  # Delay marking a newly-Ready pod as Available by 30s, which paces the
+  # rolling update (combined with maxSurge=1, maxUnavailable=0 the next
+  # pod only rotates out after the current one has been Available for
+  # this long). Gives the transport backend loops (BoltDB warm-up, or
+  # the Enterprise transport loops) time to reach steady state before
+  # the Deployment hands more of the rollout to them.
+  minReadySeconds: 30
+  # Raise the default k8s progress deadline (600s) so `helm upgrade --wait`
+  # doesn't flag ProgressDeadlineExceeded while a pod is draining SSE
+  # connections within its terminationGracePeriodSeconds window.
+  progressDeadlineSeconds: {{ .Values.progressDeadlineSeconds }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "mercure.selectorLabels" . | nindent 6 }}
@@ -31,6 +53,16 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
+      # Driven by .Values.terminationGracePeriodSeconds so the hub can
+      # gracefully drain SSE subscribers at their own writeTimeout pace
+      # before k8s SIGKILLs the pod. Only set when RollingUpdate is in
+      # effect; with Recreate (used e.g. for BoltDB+persistence single-pod
+      # deployments) a long grace period would extend the downtime window
+      # because the replacement Pod isn't created until the old one fully
+      # terminates.
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
