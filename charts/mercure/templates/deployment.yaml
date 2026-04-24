@@ -11,6 +11,12 @@ metadata:
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- else if .Release.IsInstall }}
+  # Seed the Deployment at minReplicas on fresh install so the HPA
+  # doesn't have to scale up from Kubernetes' default of 1. On
+  # subsequent upgrades, the field is omitted so the HPA keeps full
+  # ownership of the replica count.
+  replicas: {{ .Values.autoscaling.minReplicas }}
   {{- end }}
   strategy:
     type: {{ .Values.updateStrategy.type }}
