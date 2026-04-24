@@ -13,7 +13,7 @@ When the Hub receives a shutdown signal — the Caddy admin `/stop` endpoint, `S
 
 Because `write_timeout` already closes each SSE connection every few minutes in steady state and relies on the client to reconnect, letting shutdown ride the same timer spreads reconnects naturally over the drain window rather than triggering them all at once. No client-visible error, no storm — just the usual SSE retry cadence browsers and SDKs are already handling.
 
-When `write_timeout` is set to `0s`, there is no per-connection timer; in that case the Hub does exit all subscribers immediately on shutdown, since the alternative would be to hang forever on active handlers.
+When `write_timeout` is set to `0s`, there is no per-connection timer; in that case, the Hub does exit all subscribers immediately on shutdown, since the alternative would be to hang forever on active handlers.
 
 ## Kubernetes
 
@@ -21,9 +21,9 @@ For the drain to actually happen, Kubernetes must give the Hub enough time betwe
 
 The Helm chart ships with SSE-appropriate defaults out of the box:
 
-- `terminationGracePeriodSeconds: 660` — matches the 600 s `write_timeout` default plus a 60 s margin.
+- `terminationGracePeriodSeconds: 660` — matches the 600s `write_timeout` default plus a 60s margin.
 - `strategy.rollingUpdate.maxSurge: 1`, `maxUnavailable: 0` — one pod rotates at a time, without dropping capacity.
-- `minReadySeconds: 30` — a newly-Ready pod gets 30 s to reach transport steady state before the next rotation begins.
+- `minReadySeconds: 30` — a newly-Ready pod gets 30s to reach transport steady state before the next rotation begins.
 
 Together, they turn a rolling update of a four-pod Hub into a reconnect stream paced by `write_timeout`, spread over tens of minutes, rather than a four-wave storm hitting the ingress in a few seconds.
 
@@ -31,7 +31,7 @@ If you override `write_timeout` (via the `write_timeout` Caddyfile directive), b
 
 ### Why `minReadySeconds`?
 
-Once Kubernetes marks a new pod as Ready, the transport backend inside it still needs a moment to reach steady state: warming the BoltDB cursor, opening the Redis `XREAD` loop, joining a Kafka consumer group, etc. Without `minReadySeconds`, Kubernetes would rotate the next pod as soon as the readiness probe passes — which fires before the backend has caught up. With 30 s of quiet time, each pod has a chance to stabilize before taking its share of load.
+Once Kubernetes marks a new pod as Ready, the transport backend inside it still needs a moment to reach steady state: warming the BoltDB cursor, opening the Redis `XREAD` loop, joining a Kafka consumer group, etc. Without `minReadySeconds`, Kubernetes would rotate the next pod as soon as the readiness probe passes — which fires before the backend has caught up. With 30s of quiet time, each pod has a chance to stabilize before taking its share of load.
 
 ## Non-Kubernetes Deployments
 
