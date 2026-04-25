@@ -62,6 +62,9 @@ cd -
 sed -i '' -e "s/^version: .*$/version: $1/" -e "s/^appVersion: .*$/appVersion: \"v$1\"/" charts/mercure/Chart.yaml
 helm-docs
 
+./generate-pgo-profile.sh
+git add caddy/mercure/default.pgo default.pgo
+
 git commit -S -a -m "chore: prepare release $1"
 
 git tag -s -m "Version $1" "v$1"

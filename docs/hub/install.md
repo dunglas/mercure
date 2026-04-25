@@ -166,6 +166,8 @@ xcaddy build \
   --with github.com/dunglas/mercure/caddy
 ```
 
+See [Using Mercure as a Go Library](go-library.md) to also benefit from the [Profile-Guided Optimization](https://go.dev/doc/pgo) profile that ships with the Mercure module.
+
 ## Integrations in Popular Frameworks
 
 Mercure.rocks is shipped by [several popular services and frameworks](../ecosystem/awesome.md#frameworks-and-services-integrations), including Symfony and API Platform.
