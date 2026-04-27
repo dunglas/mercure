@@ -128,11 +128,6 @@ services:
       MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
     # Uncomment the following line to enable the development mode
     #command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "https://localhost/healthz"]
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     ports:
       - "80:80"
       - "443:443"
@@ -144,6 +139,34 @@ volumes:
   mercure_data:
   mercure_config:
 ```
+
+The image ships a `HEALTHCHECK` that queries the [transport-aware](config.md#health-check) `/mercure/health/ready` endpoint on the Caddy admin API.
+
+### Rootless deployment
+
+The image runs as `root` by default to keep prior deployments backward-compatible with volumes created by older versions. The `mercure` binary has the `cap_net_bind_service` capability set, so it can bind to ports `80` and `443` when run as an unprivileged user. To run rootless, pass `--user`:
+
+```console
+docker run \
+    --user 1000:1000 \
+    --read-only \
+    --tmpfs /tmp \
+    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -p 80:80 \
+    -p 443:443 \
+    -v mercure_data:/data \
+    -v mercure_config:/config \
+    dunglas/mercure
+```
+
+The `/data` and `/config` volumes must be writable by the chosen UID. For a fresh named volume, pre-set ownership once:
+
+```console
+docker run --rm -v mercure_data:/data -v mercure_config:/config alpine chown 1000:1000 /data /config
+```
+
+For bind mounts, run `chown 1000:1000` on the host directory.
 
 Alternatively, you may want to [run the Mercure.rocks hub behind Traefik Proxy](traefik.md).
 
