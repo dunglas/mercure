@@ -244,6 +244,9 @@ httpRoute:
   #         headers:
   #           - name: version
   #             value: v2
+  #   - timeouts:
+  #       request: 30s
+  #       backendRequest: 10s
 
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
