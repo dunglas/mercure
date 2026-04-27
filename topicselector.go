@@ -8,8 +8,11 @@ import (
 	"github.com/yosida95/uritemplate/v3"
 )
 
-// DefaultTopicSelectorStoreCacheSize is the default maximum number of entries in the cache.
-const DefaultTopicSelectorStoreCacheSize = 2_560_000
+// DefaultTopicSelectorStoreCacheSize bounds the (topic_selector, topic) -> bool
+// match cache. At ~100 B/entry, 100_000 keeps the cache under ~10 MB. Raise it
+// via the `topic_selector_cache <N>` Caddyfile directive for hubs handling a
+// much larger topic / selector universe.
+const DefaultTopicSelectorStoreCacheSize = 100_000
 
 type matchCacheKey struct {
 	topicSelector string
