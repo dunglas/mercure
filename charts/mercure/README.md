@@ -75,7 +75,7 @@ Kubernetes: `>=1.23.0-0`
 | publisherJwtKey | string | `""` | The JWT key to use for publishers, a random key will be generated if empty. |
 | replicaCount | int | `1` | The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster). |
 | resources | object | No requests or limits. | Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details. |
-| securityContext | object | `{}` | Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details. |
+| securityContext | object | `{}` | Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details. The official image ships with `cap_net_bind_service` set on the binary, so rootless deployments on port 80/443 work as long as `NET_BIND_SERVICE` stays in the bounding set (re-added below when dropping ALL). |
 | service.annotations | object | `{}` |  |
 | service.nodePort | string | `nil` | Set this, to pin the external nodePort in case `service.type` is `NodePort`. |
 | service.port | int | `80` | Service port. |
