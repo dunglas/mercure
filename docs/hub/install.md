@@ -142,26 +142,37 @@ volumes:
 
 The image ships a `HEALTHCHECK` that queries the [transport-aware](config.md#health-check) `/mercure/health/ready` endpoint on the Caddy admin API.
 
-### Rootless deployment
+### Rootless Deployment
 
 The image runs as `root` by default, but the `mercure` binary has the `cap_net_bind_service` capability set, so it can bind to ports `80` and `443` when run as an unprivileged user.
-To run rootless, pass `--user`:
+To run rootless, set the `user` key:
 
-```console
-docker run \
-    --user 1000:1000 \
-    --read-only \
-    --tmpfs /tmp \
-    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    -p 80:80 \
-    -p 443:443 \
-    -v mercure_data:/data \
-    -v mercure_config:/config \
-    dunglas/mercure
+```yaml
+# compose.yaml
+services:
+  mercure:
+    image: dunglas/mercure
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    environment:
+      MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - mercure_data:/data
+      - mercure_config:/config
+
+volumes:
+  mercure_data:
+  mercure_config:
 ```
 
-The `/data` and `/config` volumes must be writable by the chosen UID. For a fresh-named volume, pre-set ownership once:
+The `/data` and `/config` volumes must be writable by the chosen UID. For fresh named volumes, pre-set ownership once:
 
 ```console
 docker run --rm -v mercure_data:/data -v mercure_config:/config alpine chown 1000:1000 /data /config
