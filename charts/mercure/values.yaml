@@ -244,9 +244,16 @@ httpRoute:
   #         headers:
   #           - name: version
   #             value: v2
-  #   - timeouts:
-  #       request: 30s
-  #       backendRequest: 10s
+  #   - matches:
+  #       - path:
+  #           type: PathPrefix
+  #           value: /.well-known/mercure
+  #     # Mercure subscriptions are long-lived SSE streams. The hub's
+  #     # own `write_timeout` (default 600s) drives subscriber rotation.
+  #     # Set `request: 0s` to disable the gateway-level timeout — most
+  #     # controllers cut at their own default otherwise (Envoy: 15s).
+  #     timeouts:
+  #       request: 0s
 
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.

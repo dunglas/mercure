@@ -11,3 +11,7 @@ httpRoute:
         - path:
             type: PathPrefix
             value: /.well-known/mercure
+      # Exercise the rules[].timeouts rendering path so `ct install`
+      # catches Gateway API schema or template indentation regressions.
+      timeouts:
+        request: 0s
