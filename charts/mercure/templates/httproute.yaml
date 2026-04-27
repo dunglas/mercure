@@ -45,5 +45,7 @@ spec:
         - name: {{ $fullName }}
           port: {{ $svcPort }}
           weight: 1
+      timeouts:
+        request: 0s
     {{- end }}
 {{- end }}

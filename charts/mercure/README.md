@@ -25,6 +25,8 @@ Kubernetes: `>=1.23.0-0`
 | adminPort | int | `2019` | Port used for the Caddy admin API (health checks, metrics, graceful shutdown). |
 | affinity | object | `{}` | [Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
 | autoscaling | object | Disabled by default. | Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details). |
+| autoscaling.behavior | object | `{}` | [Scaling policies](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#configurable-scaling-behavior) passed to the HPA `spec.behavior`. |
+| autoscaling.customMetrics | list | `[]` | Additional metrics appended to the HPA `spec.metrics` list (Pods, Object, External metric types). |
 | caddyExtraConfig | string | `""` | Inject snippet or named-routes options in the Caddyfile |
 | caddyExtraDirectives | string | `""` | Inject extra Caddy directives in the Caddyfile. |
 | deployment.annotations | object | `{}` | Annotations to be added to the deployment. |
@@ -41,7 +43,7 @@ Kubernetes: `>=1.23.0-0`
 | httpRoute.enabled | bool | `false` | HTTPRoute enabled. |
 | httpRoute.hostnames | list | `["mercure-example.local"]` | Hostnames matching HTTP header. |
 | httpRoute.parentRefs | list | `[{"name":"gateway","sectionName":"http"}]` | Which Gateways this Route is attached to. |
-| httpRoute.rules | list | See [values.yaml](values.yaml). | List of rules and filters applied. When empty, a default rule routing all traffic to the service is created. |
+| httpRoute.rules | list | See [values.yaml](values.yaml). | List of rules and filters applied. When empty, a default rule routing all traffic to the service is created with `timeouts.request: 0s` so long-lived SSE subscriptions aren't cut by the gateway (most controllers default to a finite timeout, e.g. Envoy: 15s). Mercure's own `write_timeout` (default 600s) drives subscriber rotation. |
 | image.pullPolicy | string | `"IfNotPresent"` | [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node. |
 | image.repository | string | `"dunglas/mercure"` | Name of the image repository to pull the container image from. |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |

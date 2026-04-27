@@ -221,7 +221,12 @@ httpRoute:
   # -- Hostnames matching HTTP header.
   hostnames:
     - mercure-example.local
-  # -- List of rules and filters applied. When empty, a default rule routing all traffic to the service is created.
+  # -- List of rules and filters applied. When empty, a default rule
+  # routing all traffic to the service is created with
+  # `timeouts.request: 0s` so long-lived SSE subscriptions aren't cut
+  # by the gateway (most controllers default to a finite timeout, e.g.
+  # Envoy: 15s). Mercure's own `write_timeout` (default 600s) drives
+  # subscriber rotation.
   # @default -- See [values.yaml](values.yaml).
   rules: []
   # rules:
@@ -248,12 +253,14 @@ httpRoute:
   #       - path:
   #           type: PathPrefix
   #           value: /.well-known/mercure
-  #     # Mercure subscriptions are long-lived SSE streams. The hub's
-  #     # own `write_timeout` (default 600s) drives subscriber rotation.
-  #     # Set `request: 0s` to disable the gateway-level timeout — most
-  #     # controllers cut at their own default otherwise (Envoy: 15s).
+  #         method: POST
+  #     # Supplying `rules` opts out of the auto-default. Use
+  #     # `timeouts` to bound a specific path: for instance, cap
+  #     # publish POSTs so a slow publisher can't hold a gateway
+  #     # connection open. SSE-serving rules should keep
+  #     # `request: 0s` to avoid premature stream cutoffs.
   #     timeouts:
-  #       request: 0s
+  #       request: 30s
 
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
