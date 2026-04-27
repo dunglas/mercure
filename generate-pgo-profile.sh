@@ -14,7 +14,7 @@ set -o errtrace
 set -o pipefail
 set -o xtrace
 
-for cmd in git go yq curl grep java openssl; do
+for cmd in git go yq curl java openssl; do
 	if ! type "$cmd" >/dev/null; then
 		echo "The \"$cmd\" command must be installed." >&2
 		exit 1

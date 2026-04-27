@@ -23,11 +23,19 @@ The Mercure hub can also be embedded directly in a Go program:
 ```go
 package main
 
-import "github.com/dunglas/mercure"
+import (
+    "context"
+    "log"
+
+    "github.com/dunglas/mercure"
+)
 
 func main() {
-    hub, err := mercure.NewHub( /* options */ )
-    // ...
+    hub, err := mercure.NewHub(context.Background() /*, options... */)
+    if err != nil {
+        log.Fatal(err)
+    }
+
     _ = hub
 }
 ```
