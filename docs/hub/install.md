@@ -144,7 +144,8 @@ The image ships a `HEALTHCHECK` that queries the [transport-aware](config.md#hea
 
 ### Rootless deployment
 
-The image runs as `root` by default to keep prior deployments backward-compatible with volumes created by older versions. The `mercure` binary has the `cap_net_bind_service` capability set, so it can bind to ports `80` and `443` when run as an unprivileged user. To run rootless, pass `--user`:
+The image runs as `root` by default, but the `mercure` binary has the `cap_net_bind_service` capability set, so it can bind to ports `80` and `443` when run as an unprivileged user.
+To run rootless, pass `--user`:
 
 ```console
 docker run \
@@ -160,7 +161,7 @@ docker run \
     dunglas/mercure
 ```
 
-The `/data` and `/config` volumes must be writable by the chosen UID. For a fresh named volume, pre-set ownership once:
+The `/data` and `/config` volumes must be writable by the chosen UID. For a fresh-named volume, pre-set ownership once:
 
 ```console
 docker run --rm -v mercure_data:/data -v mercure_config:/config alpine chown 1000:1000 /data /config
