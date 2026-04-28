@@ -113,7 +113,7 @@ See [the list of available values](https://github.com/dunglas/mercure/blob/main/
 
 ### Rootless Deployment (Kubernetes)
 
-Set the chart's `podSecurityContext` and `securityContext` values to run the hub as a non-root user. `allowPrivilegeEscalation: false` (`no_new_privs`) makes the kernel ignore the binary's file capabilities on `exec`, so binding to 80/443 relies on adding `NET_BIND_SERVICE` back after dropping all capabilities. The chart mounts `/config` and `/tmp` as writable volumes so `readOnlyRootFilesystem: true` works out of the box; with the default BoltDB transport, also enable persistence so `/data` is a writable PVC:
+Run the hub as a non-root user with every capability dropped, and bind the container on an unprivileged port (the Service still exposes `:80` to the cluster). `allowPrivilegeEscalation: false` enables `no_new_privs`, which makes the kernel ignore the binary's file capabilities on `exec`. K8s does not propagate `capabilities.add` to Ambient either, so binding to 80/443 from this hardened context fails with `bind: permission denied` regardless of the cap. Listening on `8080` sidesteps that. The chart mounts `/config` and `/tmp` as writable volumes so `readOnlyRootFilesystem: true` works out of the box; with the default BoltDB transport, also enable persistence so `/data` is a writable PVC:
 
 ```yaml
 # values.yaml
@@ -128,10 +128,11 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop: [ALL]
-    add: [NET_BIND_SERVICE]
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
+service:
+  targetPort: 8080
 ```
 
 When persistence is enabled, `fsGroup` ensures the volume is writable by the chosen UID.

@@ -159,22 +159,18 @@ podSecurityContext: {}
 
 # -- Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details.
-# To run rootless on ports 80/443, add `NET_BIND_SERVICE` to the container
-# capabilities (see the example below). The image's binary also carries
-# `cap_net_bind_service` as a file capability, but
-# `allowPrivilegeEscalation: false` enables `no_new_privs`, which tells the
-# kernel to ignore file capabilities on `exec`, so the explicit `add` is
-# what makes the bind work under that hardening. The chart mounts
-# `/config` and `/tmp` as writable volumes so `readOnlyRootFilesystem: true`
-# works out of the box; with the default BoltDB transport, also enable
-# persistence so `/data` is a writable PVC.
+# For rootless setups, set `service.targetPort` to an unprivileged port
+# (e.g. `8080`): binding 80/443 fails under `allowPrivilegeEscalation: false`
+# because K8s does not propagate `capabilities.add` to Ambient and
+# no_new_privs makes the binary's file capability moot on exec. The chart
+# mounts `/config` and `/tmp` as writable volumes so
+# `readOnlyRootFilesystem: true` works out of the box; with the default
+# BoltDB transport, also enable persistence so `/data` is a writable PVC.
 securityContext: {}
   # allowPrivilegeEscalation: false
   # capabilities:
   #   drop:
   #   - ALL
-  #   add:
-  #   - NET_BIND_SERVICE
   # readOnlyRootFilesystem: true
   # runAsNonRoot: true
   # runAsUser: 1000
