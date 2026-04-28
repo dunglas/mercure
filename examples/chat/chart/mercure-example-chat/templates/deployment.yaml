@@ -5,6 +5,8 @@ metadata:
   labels:
     {{- include "mercure-example-chat.labels" . | nindent 4 }}
 spec:
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 300
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -28,6 +30,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "mercure-example-chat.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -42,7 +45,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.containerPort }}
               protocol: TCP
           env:
           - name: HUB_URL
@@ -65,6 +68,10 @@ spec:
               configMapKeyRef:
                 name: {{ include "mercure-example-chat.fullname" . }}
                 key: messageUriTemplate
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
