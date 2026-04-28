@@ -138,8 +138,11 @@ fullnameOverride: ""
 serviceAccount:
   # -- Specifies whether a service account should be created.
   create: true
-  # -- Automatically mount a ServiceAccount's API credentials?
-  automount: true
+  # -- Automatically mount a ServiceAccount's API credentials in hub pods.
+  # Defaults to false: Mercure does not call the Kubernetes API, so the
+  # projected token is unused attack surface. Set to true if a custom
+  # Caddy module, sidecar, or init container relies on the in-pod token.
+  automount: false
   # -- Annotations to add to the service account.
   annotations: {}
   # -- The name of the service account to use.

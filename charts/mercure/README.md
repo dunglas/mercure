@@ -95,7 +95,7 @@ Kubernetes: `>=1.23.0-0`
 | service.targetPort | int | `80` | Service target port. |
 | service.type | string | `"ClusterIP"` | Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types). |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
-| serviceAccount.automount | bool | `true` | Automatically mount a ServiceAccount's API credentials? |
+| serviceAccount.automount | bool | `false` | Automatically mount a ServiceAccount's API credentials in hub pods. Defaults to false: Mercure does not call the Kubernetes API, so the projected token is unused attack surface. Set to true if a custom Caddy module, sidecar, or init container relies on the in-pod token. |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
 | serviceAccount.name | string | `""` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template. |
 | subscriberJwtAlg | string | `"HS256"` | The JWT algorithm to use for subscribers. |
