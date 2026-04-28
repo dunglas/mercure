@@ -111,6 +111,30 @@ helm install my-release mercure/mercure
 
 See [the list of available values](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md) for this chart.
 
+### Rootless Deployment
+
+Set the chart's `podSecurityContext` and `securityContext` values to run the hub as a non-root user. `allowPrivilegeEscalation: false` (`no_new_privs`) makes the kernel ignore the binary's file capabilities on `exec`, so binding to 80/443 relies on adding `NET_BIND_SERVICE` back after dropping all capabilities:
+
+```yaml
+# values.yaml
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+    add: [NET_BIND_SERVICE]
+  runAsNonRoot: true
+  runAsUser: 1000
+```
+
+When persistence is enabled, `fsGroup` ensures the volume is writable by the chosen UID.
+
 ## Docker Compose
 
 If you prefer to use `docker compose` to run the Mercure.rocks Hub, here's a sample service definition:
