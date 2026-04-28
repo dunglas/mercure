@@ -37,7 +37,6 @@ Kubernetes: `>=1.23.0-0`
 | ciliumNetworkPolicy.ingressDeny | list | `[]` | Explicit inbound deny rules. Pass-through to `spec.ingressDeny`. |
 | deployment.annotations | object | `{}` | Annotations to be added to the deployment. |
 | dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
-| enableServiceLinks | bool | `false` | Inject `*_SERVICE_HOST` / `*_SERVICE_PORT` environment variables for every Service in the namespace. Defaults to false: Mercure does not read them, and on shared namespaces this exposes neighbour Services to every pod. Set to true if a sidecar or downstream tool relies on the env-based service discovery. |
 | existingSecret | string | `""` | Allows to pass an existing secret name, the above values will be used if empty. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
 | extraEnvs | list | `[]` | Additional environment variables to set |

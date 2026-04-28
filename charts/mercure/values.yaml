@@ -155,13 +155,6 @@ podAnnotations: {}
 # -- Extra labels to be added to pods.
 podLabels: {}
 
-# -- Inject `*_SERVICE_HOST` / `*_SERVICE_PORT` environment variables for
-# every Service in the namespace. Defaults to false: Mercure does not read
-# them, and on shared namespaces this exposes neighbour Services to every
-# pod. Set to true if a sidecar or downstream tool relies on the env-based
-# service discovery.
-enableServiceLinks: false
-
 # -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details.
 # `seccompProfile.type: RuntimeDefault` is set by default: it engages the
