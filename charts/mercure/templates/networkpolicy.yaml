@@ -1,0 +1,35 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "mercure.fullname" . }}
+  labels:
+    {{- include "mercure.labels" . | nindent 4 }}
+spec:
+  # Selects only the Deployment pods. The helm test pod inherits
+  # `mercure.selectorLabels` via `mercure.labels` but does not carry
+  # `app.kubernetes.io/component: server`, so it stays unscoped.
+  podSelector:
+    matchLabels:
+      {{- include "mercure.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  {{- with .Values.networkPolicy.policyTypes }}
+  policyTypes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  # Both fields are always rendered (defaulting to empty lists) so that
+  # Kubernetes infers `policyTypes: [Ingress, Egress]` and the policy is
+  # truly default-deny when enabled with no rules.
+  {{- if .Values.networkPolicy.ingress }}
+  ingress:
+    {{- toYaml .Values.networkPolicy.ingress | nindent 4 }}
+  {{- else }}
+  ingress: []
+  {{- end }}
+  {{- if .Values.networkPolicy.egress }}
+  egress:
+    {{- toYaml .Values.networkPolicy.egress | nindent 4 }}
+  {{- else }}
+  egress: []
+  {{- end }}
+{{- end }}

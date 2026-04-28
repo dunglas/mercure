@@ -64,6 +64,11 @@ Kubernetes: `>=1.23.0-0`
 | metrics.serviceMonitor.scrapeTimeout | string | `""` | Timeout after which the scrape is ended |
 | metrics.serviceMonitor.selector | object | `{}` | Additional labels that can be used so ServiceMonitor will be discovered by Prometheus |
 | nameOverride | string | `""` | A name in place of the chart name for `app:` labels. |
+| networkPolicy | object | Disabled by default. | [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) for the hub pods. When enabled with no ingress/egress rules, all traffic to/from the hub pods is denied. Supply rules to allow what you need. |
+| networkPolicy.egress | list | `[]` | Egress rules (allowed outbound traffic). Pass-through to NetworkPolicy `spec.egress`. Allow at least DNS (UDP/TCP 53 to kube-system) plus the transport backend port. |
+| networkPolicy.enabled | bool | `false` | Enable the NetworkPolicy. |
+| networkPolicy.ingress | list | `[]` | Ingress rules (allowed inbound traffic). Pass-through to NetworkPolicy `spec.ingress`. With `policyTypes: [Ingress]` and `ingress: []`, all inbound traffic is denied. |
+| networkPolicy.policyTypes | list | `[]` | `policyTypes` for the NetworkPolicy. The chart always renders both `ingress` and `egress` (defaulting to empty lists), so Kubernetes infers `policyTypes: [Ingress, Egress]`. Override (e.g. to `[Ingress]`) to opt out of egress restrictions. |
 | nodeSelector | object | `{}` | [Node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) configuration. |
 | persistence | object | `{"accessMode":"ReadWriteOnce","enabled":false,"existingClaim":"","size":"1Gi","storageClass":""}` | Enable persistence using [Persistent Volume Claims](http://kubernetes.io/docs/user-guide/persistent-volumes/), only useful if you the BoltDB transport. |
 | persistence.accessMode | string | `"ReadWriteOnce"` | A manually managed Persistent Volume and Claim. Requires `persistence.enabled: true` If defined, PVC must be created manually before volume will be bound. |

@@ -55,6 +55,10 @@ spec:
       {{- end }}
       labels:
         {{- include "mercure.labels" . | nindent 8 }}
+        # Lets the NetworkPolicy podSelector target the Deployment pods only,
+        # without making the Deployment's immutable spec.selector fail to
+        # roll forward on existing installs.
+        app.kubernetes.io/component: server
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

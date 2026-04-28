@@ -274,6 +274,48 @@ httpRoute:
   #     timeouts:
   #       request: 30s
 
+# -- [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) for the hub pods.
+# When enabled with no ingress/egress rules, all traffic to/from the
+# hub pods is denied. Supply rules to allow what you need.
+# @default -- Disabled by default.
+networkPolicy:
+  # -- Enable the NetworkPolicy.
+  enabled: false
+  # -- `policyTypes` for the NetworkPolicy. The chart always renders both
+  # `ingress` and `egress` (defaulting to empty lists), so Kubernetes infers
+  # `policyTypes: [Ingress, Egress]`. Override (e.g. to `[Ingress]`) to opt
+  # out of egress restrictions.
+  policyTypes: []
+  # policyTypes:
+  #   - Ingress
+  #   - Egress
+  # -- Ingress rules (allowed inbound traffic). Pass-through to NetworkPolicy
+  # `spec.ingress`. With `policyTypes: [Ingress]` and `ingress: []`, all
+  # inbound traffic is denied.
+  ingress: []
+  # ingress:
+  #   - from:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: ingress-nginx
+  #     ports:
+  #     - protocol: TCP
+  #       port: 80
+  # -- Egress rules (allowed outbound traffic). Pass-through to NetworkPolicy
+  # `spec.egress`. Allow at least DNS (UDP/TCP 53 to kube-system) plus the
+  # transport backend port.
+  egress: []
+  # egress:
+  #   - to:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: kube-system
+  #     ports:
+  #     - protocol: UDP
+  #       port: 53
+  #     - protocol: TCP
+  #       port: 53
+
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
 # @default -- No requests or limits.
