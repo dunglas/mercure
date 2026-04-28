@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -49,6 +51,13 @@ func NewBoltTransport(
 
 	if bucketName == "" {
 		bucketName = defaultBoltBucketName
+	}
+
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		// Path comes from operator config (Caddyfile or env), not HTTP input.
+		if err := os.MkdirAll(dir, 0o700); err != nil { //nolint:gosec
+			return nil, &TransportError{err: fmt.Errorf("creating bolt data directory %q: %w", dir, err)}
+		}
 	}
 
 	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 1 * time.Second})
