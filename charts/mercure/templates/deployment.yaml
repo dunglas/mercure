@@ -77,6 +77,11 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "mercure.serviceAccountName" . }}
+      # Mercure does not read service-discovery env vars, and on
+      # crowded namespaces (multi-tenant SaaS, shared dev clusters)
+      # the default exposes every neighbouring Service's host/port to
+      # the pod. Keep it off.
+      enableServiceLinks: false
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
