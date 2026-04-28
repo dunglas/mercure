@@ -316,6 +316,54 @@ networkPolicy:
   #     - protocol: TCP
   #       port: 53
 
+# -- [CiliumNetworkPolicy](https://docs.cilium.io/en/stable/security/policy/) for
+# the hub pods. Use this on Cilium-enabled clusters when you need features that
+# the standard NetworkPolicy spec does not support (FQDN-based egress, L7 rules,
+# explicit deny rules, etc.). Independent of `networkPolicy.enabled` — enable
+# whichever your CNI supports.
+# @default -- Disabled by default.
+ciliumNetworkPolicy:
+  # -- Enable the CiliumNetworkPolicy. Requires the `cilium.io/v2` CRDs to be
+  # installed in the cluster.
+  enabled: false
+  # -- Allowed inbound traffic. Pass-through to `spec.ingress`.
+  ingress: []
+  # ingress:
+  #   - fromEndpoints:
+  #       - matchLabels:
+  #           k8s:io.kubernetes.pod.namespace: ingress-nginx
+  #           app.kubernetes.io/name: ingress-nginx
+  #     toPorts:
+  #       - ports:
+  #           - port: "80"
+  #             protocol: TCP
+  # -- Explicit inbound deny rules. Pass-through to `spec.ingressDeny`.
+  ingressDeny: []
+  # -- Allowed outbound traffic. Pass-through to `spec.egress`. The DNS rule
+  # below is required when using `toFQDNs`: Cilium learns IPs by inspecting
+  # responses, so DNS visibility on `kube-dns` must be allowed first.
+  egress: []
+  # egress:
+  #   - toEndpoints:
+  #       - matchLabels:
+  #           k8s:io.kubernetes.pod.namespace: kube-system
+  #           k8s:k8s-app: kube-dns
+  #     toPorts:
+  #       - ports:
+  #           - port: "53"
+  #             protocol: ANY
+  #         rules:
+  #           dns:
+  #             - matchPattern: "*"
+  #   - toFQDNs:
+  #       - matchName: redis.example.com
+  #     toPorts:
+  #       - ports:
+  #           - port: "6379"
+  #             protocol: TCP
+  # -- Explicit outbound deny rules. Pass-through to `spec.egressDeny`.
+  egressDeny: []
+
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
 # @default -- No requests or limits.

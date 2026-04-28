@@ -29,6 +29,12 @@ Kubernetes: `>=1.23.0-0`
 | autoscaling.customMetrics | list | `[]` | Additional metrics appended to the HPA `spec.metrics` list (Pods, Object, External metric types). |
 | caddyExtraConfig | string | `""` | Inject snippet or named-routes options in the Caddyfile |
 | caddyExtraDirectives | string | `""` | Inject extra Caddy directives in the Caddyfile. |
+| ciliumNetworkPolicy | object | Disabled by default. | [CiliumNetworkPolicy](https://docs.cilium.io/en/stable/security/policy/) for the hub pods. Use this on Cilium-enabled clusters when you need features that the standard NetworkPolicy spec does not support (FQDN-based egress, L7 rules, explicit deny rules, etc.). Independent of `networkPolicy.enabled` — enable whichever your CNI supports. |
+| ciliumNetworkPolicy.egress | list | `[]` | Allowed outbound traffic. Pass-through to `spec.egress`. The DNS rule below is required when using `toFQDNs`: Cilium learns IPs by inspecting responses, so DNS visibility on `kube-dns` must be allowed first. |
+| ciliumNetworkPolicy.egressDeny | list | `[]` | Explicit outbound deny rules. Pass-through to `spec.egressDeny`. |
+| ciliumNetworkPolicy.enabled | bool | `false` | Enable the CiliumNetworkPolicy. Requires the `cilium.io/v2` CRDs to be installed in the cluster. |
+| ciliumNetworkPolicy.ingress | list | `[]` | Allowed inbound traffic. Pass-through to `spec.ingress`. |
+| ciliumNetworkPolicy.ingressDeny | list | `[]` | Explicit inbound deny rules. Pass-through to `spec.ingressDeny`. |
 | deployment.annotations | object | `{}` | Annotations to be added to the deployment. |
 | dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
 | existingSecret | string | `""` | Allows to pass an existing secret name, the above values will be used if empty. |

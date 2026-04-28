@@ -1,0 +1,32 @@
+{{- if .Values.ciliumNetworkPolicy.enabled }}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "mercure.fullname" . }}
+  labels:
+    {{- include "mercure.labels" . | nindent 4 }}
+spec:
+  # Selects only the Deployment pods. The helm test pod inherits
+  # `mercure.selectorLabels` via `mercure.labels` but does not carry
+  # `app.kubernetes.io/component: server`, so it stays unscoped.
+  endpointSelector:
+    matchLabels:
+      {{- include "mercure.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  {{- with .Values.ciliumNetworkPolicy.ingress }}
+  ingress:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.ciliumNetworkPolicy.ingressDeny }}
+  ingressDeny:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.ciliumNetworkPolicy.egress }}
+  egress:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.ciliumNetworkPolicy.egressDeny }}
+  egressDeny:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
