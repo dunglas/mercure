@@ -30,9 +30,7 @@ spec:
         paths:
           {{- range .paths }}
           - path: {{ .path }}
-            {{- with .pathType }}
-            pathType: {{ . }}
-            {{- end }}
+            pathType: {{ .pathType | default "Prefix" }}
             backend:
               service:
                 name: {{ include "mercure-example-chat.fullname" $ }}

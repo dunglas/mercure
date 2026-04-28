@@ -13,10 +13,14 @@ spec:
     - Ingress
     - Egress
   ingress:
+    # Allow traffic from the configured ingress controller namespace and
+    # from the release namespace itself (so `helm test`, sidecars, and
+    # other in-namespace callers keep working).
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace | quote }}
+        - podSelector: {}
       ports:
         - protocol: TCP
           port: {{ .Values.containerPort }}

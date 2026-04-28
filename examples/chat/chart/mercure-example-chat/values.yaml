@@ -110,9 +110,12 @@ readinessProbe:
   timeoutSeconds: 5
   failureThreshold: 4
 
-# NetworkPolicy locking ingress to the configured ingress controller and
-# egress to DNS plus everything outside the cluster CIDR (the app calls the
-# Mercure hub over the public network).
+# NetworkPolicy: ingress is allowed from the configured ingress controller
+# namespace and from the release namespace itself (so `helm test` and other
+# in-namespace callers keep working); egress is allowed to DNS plus
+# everything outside the cluster CIDR (the demo calls the public Mercure
+# hub). Namespaces are matched via the kubernetes.io/metadata.name
+# auto-label (always present on K8s 1.22+).
 networkPolicy:
   enabled: true
   ingressNamespace: ingress-nginx
