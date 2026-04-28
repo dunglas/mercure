@@ -432,7 +432,11 @@ affinity: {}
 #      matchLabels:
 #        {{- include "mercure.selectorLabels" . | nindent 8 }}
 
-# -- Enable persistence using [Persistent Volume Claims](http://kubernetes.io/docs/user-guide/persistent-volumes/), only useful if you the BoltDB transport.
+# -- Switch /data from an emptyDir to a [Persistent Volume Claim](http://kubernetes.io/docs/user-guide/persistent-volumes/).
+# The chart always mounts /data so any module that writes under
+# `caddy.AppDataDir()` (e.g. `rate_limit`) works under
+# `readOnlyRootFilesystem: true`. Enable persistence when you need /data
+# to survive pod restarts, typically with the default BoltDB transport.
 persistence:
   enabled: false
   # -- Mercure Data Persistent Volume Storage Class.
