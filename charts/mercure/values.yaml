@@ -157,7 +157,13 @@ podLabels: {}
 
 # -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details.
-podSecurityContext: {}
+# `seccompProfile.type: RuntimeDefault` is set by default: it engages the
+# container runtime's seccomp profile (blocks rare/unsafe syscalls) without
+# affecting Mercure, and is a prerequisite for the restricted PodSecurity
+# Standard. Override with `{}` if your cluster forbids seccompProfile on pods.
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
   # fsGroup: 2000
 
 # -- Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container).
