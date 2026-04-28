@@ -113,7 +113,7 @@ See [the list of available values](https://github.com/dunglas/mercure/blob/main/
 
 ### Rootless Deployment (Kubernetes)
 
-Run the hub as a non-root user with every capability dropped, and bind the container on an unprivileged port (the Service still exposes `:80` to the cluster). `allowPrivilegeEscalation: false` enables `no_new_privs`, which makes the kernel ignore the binary's file capabilities on `exec`. K8s does not propagate `capabilities.add` to Ambient either, so binding to 80/443 from this hardened context fails with `bind: permission denied` regardless of the cap. Listening on `8080` sidesteps that. The chart mounts `/config` and `/tmp` as writable volumes so `readOnlyRootFilesystem: true` works out of the box; with the default BoltDB transport, also enable persistence so `/data` is a writable PVC:
+Run the hub as a non-root user with every capability dropped. Modern container runtimes (containerd 1.5+, cri-o) set `net.ipv4.ip_unprivileged_port_start=0` inside the container, so an unprivileged process can bind any port directly, including 80 and 443. The chart mounts `/data`, `/config`, and `/tmp` as writable volumes so `readOnlyRootFilesystem: true` works out of the box:
 
 ```yaml
 # values.yaml
@@ -131,9 +131,9 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
-service:
-  targetPort: 8080
 ```
+
+If your runtime is older (or you've explicitly raised `ip_unprivileged_port_start` above 80), set `service.targetPort` to an unprivileged port (e.g. `8080`); the Service still exposes `:80` to the cluster.
 
 When persistence is enabled, `fsGroup` ensures the volume is writable by the chosen UID.
 
@@ -170,7 +170,7 @@ The image ships a `HEALTHCHECK` that queries the [transport-aware](config.md#hea
 
 ### Rootless Deployment
 
-The image runs as `root` by default, but the `mercure` binary has the `cap_net_bind_service` capability set, so it can bind to ports `80` and `443` when run as an unprivileged user.
+The image runs as `root` by default, but Docker (since 20.10) sets `net.ipv4.ip_unprivileged_port_start=0` inside the container, so an unprivileged process can bind any port directly, including `80` and `443`.
 To run rootless, set the `user` key:
 
 ```yaml

@@ -168,13 +168,15 @@ podSecurityContext:
 
 # -- Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details.
-# For rootless setups, set `service.targetPort` to an unprivileged port
-# (e.g. `8080`): binding 80/443 fails under `allowPrivilegeEscalation: false`
-# because K8s does not propagate `capabilities.add` to Ambient and
-# no_new_privs makes the binary's file capability moot on exec. The chart
-# mounts `/config` and `/tmp` as writable volumes so
-# `readOnlyRootFilesystem: true` works out of the box; with the default
-# BoltDB transport, also enable persistence so `/data` is a writable PVC.
+# Rootless setups can drop ALL capabilities and bind directly on ports 80/443:
+# the binary no longer carries `cap_net_bind_service` as a file capability,
+# and modern container runtimes (containerd 1.5+, cri-o) set
+# `net.ipv4.ip_unprivileged_port_start=0` inside the container, so any
+# unprivileged process can bind any port. On older runtimes, set
+# `service.targetPort` to an unprivileged port (e.g. `8080`); the Service
+# still exposes `:80` to the cluster. The chart mounts `/data`, `/config`,
+# and `/tmp` as writable volumes so `readOnlyRootFilesystem: true` works
+# out of the box.
 securityContext: {}
   # allowPrivilegeEscalation: false
   # capabilities:
