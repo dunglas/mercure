@@ -13,20 +13,42 @@ spec:
     matchLabels:
       {{- include "mercure.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: server
-  {{- with .Values.ciliumNetworkPolicy.ingress }}
+  {{- /*
+    `hasKey` (not `with`) so an explicit empty list passes through. Cilium
+    treats `ingress: []` and a missing `ingress` key differently from each
+    other for some rule combinations, so the chart should not silently
+    collapse one into the other.
+  */}}
+  {{- if hasKey .Values.ciliumNetworkPolicy "ingress" }}
+  {{- if .Values.ciliumNetworkPolicy.ingress }}
   ingress:
-    {{- toYaml . | nindent 4 }}
+    {{- toYaml .Values.ciliumNetworkPolicy.ingress | nindent 4 }}
+  {{- else }}
+  ingress: []
   {{- end }}
-  {{- with .Values.ciliumNetworkPolicy.ingressDeny }}
+  {{- end }}
+  {{- if hasKey .Values.ciliumNetworkPolicy "ingressDeny" }}
+  {{- if .Values.ciliumNetworkPolicy.ingressDeny }}
   ingressDeny:
-    {{- toYaml . | nindent 4 }}
+    {{- toYaml .Values.ciliumNetworkPolicy.ingressDeny | nindent 4 }}
+  {{- else }}
+  ingressDeny: []
   {{- end }}
-  {{- with .Values.ciliumNetworkPolicy.egress }}
+  {{- end }}
+  {{- if hasKey .Values.ciliumNetworkPolicy "egress" }}
+  {{- if .Values.ciliumNetworkPolicy.egress }}
   egress:
-    {{- toYaml . | nindent 4 }}
+    {{- toYaml .Values.ciliumNetworkPolicy.egress | nindent 4 }}
+  {{- else }}
+  egress: []
   {{- end }}
-  {{- with .Values.ciliumNetworkPolicy.egressDeny }}
+  {{- end }}
+  {{- if hasKey .Values.ciliumNetworkPolicy "egressDeny" }}
+  {{- if .Values.ciliumNetworkPolicy.egressDeny }}
   egressDeny:
-    {{- toYaml . | nindent 4 }}
+    {{- toYaml .Values.ciliumNetworkPolicy.egressDeny | nindent 4 }}
+  {{- else }}
+  egressDeny: []
+  {{- end }}
   {{- end }}
 {{- end }}

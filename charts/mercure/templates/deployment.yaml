@@ -58,7 +58,8 @@ spec:
         # Merge so the chart's component label always wins over user podLabels:
         # the NetworkPolicy podSelector relies on it. Safe to add post-install
         # because the Deployment's immutable spec.selector doesn't reference it.
-        {{- $podLabels := merge (dict "app.kubernetes.io/component" "server") .Values.podLabels }}
+        # `default dict` keeps the merge null-safe when podLabels is null/unset.
+        {{- $podLabels := merge (dict "app.kubernetes.io/component" "server") (.Values.podLabels | default dict) }}
         {{- toYaml $podLabels | nindent 8 }}
     spec:
       {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
