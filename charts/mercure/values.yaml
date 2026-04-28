@@ -164,7 +164,10 @@ podSecurityContext: {}
 # `cap_net_bind_service` as a file capability, but
 # `allowPrivilegeEscalation: false` enables `no_new_privs`, which tells the
 # kernel to ignore file capabilities on `exec`, so the explicit `add` is
-# what makes the bind work under that hardening.
+# what makes the bind work under that hardening. The chart mounts
+# `/config` and `/tmp` as writable volumes so `readOnlyRootFilesystem: true`
+# works out of the box; with the default BoltDB transport, also enable
+# persistence so `/data` is a writable PVC.
 securityContext: {}
   # allowPrivilegeEscalation: false
   # capabilities:

@@ -148,11 +148,21 @@ spec:
           {{- if .Values.extraEnvs }}
             {{- toYaml .Values.extraEnvs | nindent 12 }}
           {{- end }}
-          {{- if .Values.persistence.enabled }}
+          # /config and /tmp are mounted unconditionally so the chart works
+          # under `readOnlyRootFilesystem: true` even without persistence.
+          # Caddy writes its autosave config under XDG_CONFIG_HOME=/config.
+          # /data is only mounted when persistence is enabled; under
+          # `readOnlyRootFilesystem: true` with the default BoltDB transport,
+          # enable persistence so /data is a writable PVC.
           volumeMounts:
+            {{- if .Values.persistence.enabled }}
             - mountPath: /data
               name: mercure-data
-          {{- end }}
+            {{- end }}
+            - mountPath: /config
+              name: mercure-config
+            - mountPath: /tmp
+              name: mercure-tmp
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
@@ -212,9 +222,13 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.persistence.enabled }}
       volumes:
+        {{- if .Values.persistence.enabled }}
         - name: mercure-data
           persistentVolumeClaim:
             claimName: {{ .Values.persistence.existingClaim | default (include "mercure.fullname" .) }}
-      {{- end }}
+        {{- end }}
+        - name: mercure-config
+          emptyDir: {}
+        - name: mercure-tmp
+          emptyDir: {}

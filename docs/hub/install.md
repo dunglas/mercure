@@ -113,7 +113,7 @@ See [the list of available values](https://github.com/dunglas/mercure/blob/main/
 
 ### Rootless Deployment (Kubernetes)
 
-Set the chart's `podSecurityContext` and `securityContext` values to run the hub as a non-root user. `allowPrivilegeEscalation: false` (`no_new_privs`) makes the kernel ignore the binary's file capabilities on `exec`, so binding to 80/443 relies on adding `NET_BIND_SERVICE` back after dropping all capabilities:
+Set the chart's `podSecurityContext` and `securityContext` values to run the hub as a non-root user. `allowPrivilegeEscalation: false` (`no_new_privs`) makes the kernel ignore the binary's file capabilities on `exec`, so binding to 80/443 relies on adding `NET_BIND_SERVICE` back after dropping all capabilities. The chart mounts `/config` and `/tmp` as writable volumes so `readOnlyRootFilesystem: true` works out of the box; with the default BoltDB transport, also enable persistence so `/data` is a writable PVC:
 
 ```yaml
 # values.yaml
@@ -129,6 +129,7 @@ securityContext:
   capabilities:
     drop: [ALL]
     add: [NET_BIND_SERVICE]
+  readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsUser: 1000
 ```
