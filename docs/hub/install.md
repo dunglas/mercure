@@ -111,7 +111,7 @@ helm install my-release mercure/mercure
 
 See [the list of available values](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md) for this chart.
 
-### Rootless Deployment
+### Rootless Deployment (Kubernetes)
 
 Set the chart's `podSecurityContext` and `securityContext` values to run the hub as a non-root user. `allowPrivilegeEscalation: false` (`no_new_privs`) makes the kernel ignore the binary's file capabilities on `exec`, so binding to 80/443 relies on adding `NET_BIND_SERVICE` back after dropping all capabilities:
 
