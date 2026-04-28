@@ -55,13 +55,11 @@ spec:
       {{- end }}
       labels:
         {{- include "mercure.labels" . | nindent 8 }}
-        # Lets the NetworkPolicy podSelector target the Deployment pods only,
-        # without making the Deployment's immutable spec.selector fail to
-        # roll forward on existing installs.
-        app.kubernetes.io/component: server
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        # Merge so the chart's component label always wins over user podLabels:
+        # the NetworkPolicy podSelector relies on it. Safe to add post-install
+        # because the Deployment's immutable spec.selector doesn't reference it.
+        {{- $podLabels := merge (dict "app.kubernetes.io/component" "server") .Values.podLabels }}
+        {{- toYaml $podLabels | nindent 8 }}
     spec:
       {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
       # Driven by .Values.terminationGracePeriodSeconds so the hub can
