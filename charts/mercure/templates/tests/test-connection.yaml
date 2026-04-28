@@ -28,5 +28,5 @@ spec:
             - ALL
         readOnlyRootFilesystem: true
       command: ['wget']
-      args: ['{{ include "mercure.fullname" . }}:{{ .Values.service.port }}/']
+      args: ['-q', '--spider', 'http://{{ include "mercure.fullname" . }}:{{ .Values.service.port }}/']
   restartPolicy: Never
