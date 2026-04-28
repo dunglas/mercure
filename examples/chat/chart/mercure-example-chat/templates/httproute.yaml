@@ -2,6 +2,9 @@
 {{- if not (.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1/HTTPRoute") -}}
 {{- fail "httpRoute.enabled is true but the cluster does not have gateway.networking.k8s.io/v1 installed. Install the Gateway API CRDs first or set httpRoute.enabled=false." -}}
 {{- end -}}
+{{- if not .Values.httpRoute.parentRefs -}}
+{{- fail "httpRoute.enabled is true but httpRoute.parentRefs is empty. Set at least one parent Gateway/Listener to attach this route to." -}}
+{{- end -}}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:

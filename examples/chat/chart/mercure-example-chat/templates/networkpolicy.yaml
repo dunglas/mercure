@@ -34,13 +34,20 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Same-namespace egress so `helm test` and any sidecars can reach the
+    # service backends through their pod IPs.
+    - to:
+        - podSelector: {}
     # The Mercure hub used by the demo lives at a public URL, so allow
     # egress to anywhere outside the cluster CIDR. Tighten as needed.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
+            {{- $clusterCIDRs := .Values.networkPolicy.clusterCIDRs | default list }}
+            {{- if gt (len $clusterCIDRs) 0 }}
             except:
-              {{- range .Values.networkPolicy.clusterCIDRs }}
+              {{- range $clusterCIDRs }}
               - {{ . | quote }}
               {{- end }}
+            {{- end }}
 {{- end }}
