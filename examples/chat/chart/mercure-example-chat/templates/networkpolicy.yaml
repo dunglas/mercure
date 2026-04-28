@@ -6,9 +6,13 @@ metadata:
   labels:
     {{- include "mercure-example-chat.labels" . | nindent 4 }}
 spec:
+  # Selects only the Deployment pods (component=server). The Helm test
+  # pod inherits selectorLabels via `<chart>.labels` but does not get
+  # the component label, so it isn't subject to this policy.
   podSelector:
     matchLabels:
       {{- include "mercure-example-chat.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
   policyTypes:
     - Ingress
     - Egress
@@ -34,10 +38,6 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Same-namespace egress so `helm test` and any sidecars can reach the
-    # service backends through their pod IPs.
-    - to:
-        - podSelector: {}
     # The Mercure hub used by the demo lives at a public URL, so allow
     # egress to anywhere outside the cluster CIDR. Tighten as needed.
     - to:

@@ -13,6 +13,7 @@ spec:
   selector:
     matchLabels:
       {{- include "mercure-example-chat.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -21,6 +22,7 @@ spec:
       {{- end }}
       labels:
         {{- include "mercure-example-chat.labels" . | nindent 8 }}
+        app.kubernetes.io/component: server
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
