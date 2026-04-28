@@ -14,41 +14,32 @@ spec:
       {{- include "mercure.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: server
   {{- /*
-    `hasKey` (not `with`) so an explicit empty list passes through. Cilium
-    treats `ingress: []` and a missing `ingress` key differently from each
-    other for some rule combinations, so the chart should not silently
-    collapse one into the other.
+    All four list fields render unconditionally so an explicit empty list
+    surfaces in the manifest. With `values.yaml` defaulting each to `[]`,
+    enabling the policy without rules yields default-deny on every side.
   */}}
-  {{- if hasKey .Values.ciliumNetworkPolicy "ingress" }}
   {{- if .Values.ciliumNetworkPolicy.ingress }}
   ingress:
     {{- toYaml .Values.ciliumNetworkPolicy.ingress | nindent 4 }}
   {{- else }}
   ingress: []
   {{- end }}
-  {{- end }}
-  {{- if hasKey .Values.ciliumNetworkPolicy "ingressDeny" }}
   {{- if .Values.ciliumNetworkPolicy.ingressDeny }}
   ingressDeny:
     {{- toYaml .Values.ciliumNetworkPolicy.ingressDeny | nindent 4 }}
   {{- else }}
   ingressDeny: []
   {{- end }}
-  {{- end }}
-  {{- if hasKey .Values.ciliumNetworkPolicy "egress" }}
   {{- if .Values.ciliumNetworkPolicy.egress }}
   egress:
     {{- toYaml .Values.ciliumNetworkPolicy.egress | nindent 4 }}
   {{- else }}
   egress: []
   {{- end }}
-  {{- end }}
-  {{- if hasKey .Values.ciliumNetworkPolicy "egressDeny" }}
   {{- if .Values.ciliumNetworkPolicy.egressDeny }}
   egressDeny:
     {{- toYaml .Values.ciliumNetworkPolicy.egressDeny | nindent 4 }}
   {{- else }}
   egressDeny: []
-  {{- end }}
   {{- end }}
 {{- end }}
