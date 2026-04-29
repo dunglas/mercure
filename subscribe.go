@@ -406,32 +406,20 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 	}
 }
 
-// randomizeWriteDeadline generates a random duration between 80% and 100% of the original value.
-// This is useful to avoid all subscribers disconnecting at the same time, which can lead to a thundering herd problem.
+// randomizeWriteDeadline returns a duration in [80%, 100%] of originalValue.
+// Spreading reconnects this way avoids a thundering herd when many
+// subscribers were connected at the same instant.
 func randomizeWriteDeadline(originalValue time.Duration) time.Duration {
 	minV := int64(float64(originalValue) * 0.80)
 	maxV := int64(originalValue)
 
-	// Ensure min is not greater than max. This handles cases where originalValue is very small (e.g., 1, 2, 3, 4).
-	// For originalValue = 1, min becomes 0. For originalValue = 4, min becomes 3.
-	// This shouldn't happen in practice, but it's a good safeguard.
+	// For tiny values (≤ 4ns), the floor in the float multiplication can
+	// push minV above maxV.
 	if minV > maxV {
 		minV = maxV
 	}
 
-	// Calculate the range size. Add 1 because Int64N is exclusive of the upper bound.
-	rangeSize := maxV - minV + 1
-
-	// If rangeSize is 0 or less (e.g., if originalValue was 0), just return min (which would be 0).
-	// rand.Int64N requires a positive argument.
-	if rangeSize <= 0 {
-		return time.Duration(minV)
-	}
-
-	// Generate a random number in the range [min, max]
-	// rand.Int64n(n) returns a non-negative pseudo-random 64-bit integer in the half-open interval [0, n).
-	// Adding 'min' shifts this result to the desired range [min, max].
-	return time.Duration(rand.Int64N(rangeSize) + minV) //nolint:gosec
+	return time.Duration(rand.Int64N(maxV-minV+1) + minV) //nolint:gosec
 }
 
 func (h *Hub) handleWriterError(ctx context.Context, err error, message string) {
