@@ -62,19 +62,6 @@ jobs:
           echo "GORELEASER_CURRENT_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
           echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
 
-      # Required for goreleaser to build the linux/arm64 Docker image on the
-      # amd64 runner: any non-COPY instruction (e.g. `RUN setcap`) needs the
-      # arm64 binfmt handler registered, otherwise buildx fails with
-      # "exec format error" the moment it tries to execute /bin/sh in the
-      # cross-built image.
-      - name: Set up QEMU
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/setup-qemu-action@v4
-
-      - name: Set up Docker Buildx
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/setup-buildx-action@v4
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7.1.0
         with:
