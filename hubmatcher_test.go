@@ -84,6 +84,29 @@ func TestWithCustomMatcherType(t *testing.T) {
 	assert.True(t, ok)
 }
 
+// TestWithMatcherTypeBeforeWithTopicSelectorStore ensures that registering
+// matcher types and supplying a custom TopicSelectorStore work regardless of
+// option order — registration is deferred to NewHub, so a custom store given
+// later does not silently drop earlier WithMatcherType registrations.
+func TestWithMatcherTypeBeforeWithTopicSelectorStore(t *testing.T) {
+	t.Parallel()
+
+	tss, err := NewTopicSelectorStore(0)
+	require.NoError(t, err)
+
+	h, err := NewHub(t.Context(),
+		WithMatcherType("Prefix", prefixMatcher{}),
+		WithTopicSelectorStore(tss),
+	)
+	require.NoError(t, err)
+
+	defer h.Stop(t.Context()) //nolint:errcheck
+
+	_, ok := h.topicSelectorStore.ResolveMatcherType("prefix")
+	assert.True(t, ok, "Prefix must be registered on the supplied TopicSelectorStore")
+	assert.Same(t, tss, h.topicSelectorStore, "supplied TopicSelectorStore must be used")
+}
+
 func TestWithProtocolVersionCompatibility8(t *testing.T) {
 	t.Parallel()
 

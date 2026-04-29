@@ -280,6 +280,7 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 type opt struct {
 	transport                    Transport
 	topicSelectorStore           *TopicSelectorStore
+	matcherTypes                 []registeredMatcher
 	anonymous                    bool
 	debug                        bool
 	subscriptions                bool
@@ -310,18 +311,13 @@ func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 // claims. When at least one WithMatcherType is supplied, only the registered
 // types are available; otherwise NewHub installs the spec-recommended
 // defaults. Exact is always registered because the protocol mandates it.
+//
+// Registration is deferred to NewHub, so order with WithTopicSelectorStore
+// does not matter: the matchers are applied to whichever store ends up on
+// the final hub.
 func WithMatcherType(name string, mt Matcher) Option {
 	return func(o *opt) error {
-		if o.topicSelectorStore == nil {
-			tss, err := NewTopicSelectorStore(DefaultTopicSelectorStoreCacheSize)
-			if err != nil {
-				return err
-			}
-
-			o.topicSelectorStore = tss
-		}
-
-		o.topicSelectorStore.RegisterMatcherType(name, mt)
+		o.matcherTypes = append(o.matcherTypes, registeredMatcher{canonicalName: name, matcher: mt})
 
 		return nil
 	}
@@ -363,8 +359,17 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.topicSelectorStore = tss
 	}
 
+	// Apply WithMatcherType options after the final TopicSelectorStore is
+	// known, so the matchers always land on the store the hub will actually
+	// use — regardless of the order WithMatcherType / WithTopicSelectorStore
+	// were passed in.
+	for _, mt := range opt.matcherTypes {
+		opt.topicSelectorStore.RegisterMatcherType(mt.canonicalName, mt.matcher)
+	}
+
 	if len(opt.topicSelectorStore.matchers) == 0 {
-		// No WithMatcherType — install the spec-recommended defaults.
+		// No WithMatcherType (and no pre-registered store) — install the
+		// spec-recommended defaults.
 		opt.topicSelectorStore.RegisterMatcherType("Exact", ExactMatcher)
 		opt.topicSelectorStore.RegisterMatcherType("URLPattern", URLPatternMatcher)
 
