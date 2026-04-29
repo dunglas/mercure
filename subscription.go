@@ -183,7 +183,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 
 		deprecated := h.isBackwardCompatiblyEnabledWith(8)
 		if resolveErr := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Subscribe, deprecated); resolveErr != nil {
-			h.httpAuthorizationError(w, r, resolveErr)
+			writeMatcherClaimError(r.Context(), h.logger, w, resolveErr)
 
 			return "", nil, false
 		}

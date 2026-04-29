@@ -93,7 +93,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	if claims != nil {
 		deprecated := h.isBackwardCompatiblyEnabledWith(8)
 		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, deprecated); err != nil {
-			writeMatcherClaimError(w, err)
+			writeMatcherClaimError(ctx, h.logger, w, err)
 
 			return
 		}
