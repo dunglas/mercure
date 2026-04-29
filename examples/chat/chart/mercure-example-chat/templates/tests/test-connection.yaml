@@ -7,9 +7,26 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
+  # The test pod calls a single HTTP endpoint, so no Kubernetes API
+  # access, no service-link env, and no privileged execution is needed.
+  # Stays compatible with the restricted PodSecurity Standard.
+  automountServiceAccountToken: false
+  enableServiceLinks: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
   containers:
     - name: wget
-      image: busybox
+      image: busybox:1.37
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
       command: ['wget']
-      args: ['{{ include "mercure-example-chat.fullname" . }}:{{ .Values.service.port }}']
+      args: ['-q', '--spider', 'http://{{ include "mercure-example-chat.fullname" . }}:{{ .Values.service.port }}']
   restartPolicy: Never

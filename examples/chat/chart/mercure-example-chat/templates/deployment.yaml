@@ -33,6 +33,10 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "mercure-example-chat.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      # Don't expose every neighbour Service's host/port via env vars; the
+      # chat app does its own service discovery (the Mercure hub URL is a
+      # config value, not derived from K8s env).
+      enableServiceLinks: false
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
