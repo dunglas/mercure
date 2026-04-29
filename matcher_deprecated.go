@@ -41,3 +41,12 @@ func resolveDeprecatedStringClaim(c *matcherClaim) error {
 
 	return nil
 }
+
+// bindDeprecatedMatcher resolves a topicMatcher tagged with the deprecated
+// sentinel back to deprecatedMatcher. Called by Subscriber.BindMatchers
+// when restoring serialized subscriber state.
+func bindDeprecatedMatcher(m *topicMatcher) error {
+	m.matcher = deprecatedMatcher
+
+	return nil
+}

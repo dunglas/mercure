@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -85,22 +86,79 @@ func logMatcherPatterns(matchers []topicMatcher) []string {
 }
 
 // setMatchers sets the subscribed and allowed private topic matchers.
-//
-// EscapedMatchers receives the URL slug used in subscription IDs:
-// "{escapedType}/{escapedPattern}" for modern matchers, just "{escapedPattern}"
-// for deprecated v8 string-selector matchers, which keep the v8 wire shape.
 func (s *Subscriber) setMatchers(subscribed []topicMatcher, allowedPrivate []topicMatcher) {
 	s.SubscribedMatchers = subscribed
 	s.AllowedPrivateMatchers = allowedPrivate
+	s.recomputeEscapedMatchers()
+}
 
-	s.EscapedMatchers = make([]string, len(subscribed))
-	for i, m := range subscribed {
+// recomputeEscapedMatchers builds the URL slug used in subscription IDs for
+// each entry of SubscribedMatchers: "{escapedType}/{escapedPattern}" for
+// modern matchers, just "{escapedPattern}" for deprecated v8 string-selector
+// matchers — which keep the v8 wire shape for backward compatibility.
+func (s *Subscriber) recomputeEscapedMatchers() {
+	s.EscapedMatchers = make([]string, len(s.SubscribedMatchers))
+	for i, m := range s.SubscribedMatchers {
 		if m.Type == deprecatedMatcherTypeName {
 			s.EscapedMatchers[i] = url.QueryEscape(m.Pattern)
 		} else {
 			s.EscapedMatchers[i] = url.QueryEscape(m.Type) + "/" + url.QueryEscape(m.Pattern)
 		}
 	}
+}
+
+// BindMatchers resolves the matcher implementation for each entry of
+// SubscribedMatchers and AllowedPrivateMatchers against the Subscriber's
+// TopicSelectorStore, and rebuilds EscapedMatchers from the result.
+//
+// Call this after deserializing a Subscriber — for example, when a
+// distributed transport restores subscriber state from a persistence
+// layer. JSON and gob round-trips drop the unexported matcher binding on
+// each topic matcher; without re-binding, subsequent Match and
+// subscription-rendering calls would dispatch through a nil interface.
+//
+// Returns ErrUnsupportedMatcherType if any matcher's Type is not
+// registered in the TopicSelectorStore. Already-bound matchers are
+// skipped, so the call is idempotent.
+func (s *Subscriber) BindMatchers() error {
+	for i := range s.SubscribedMatchers {
+		if err := s.bindMatcher(&s.SubscribedMatchers[i]); err != nil {
+			return err
+		}
+	}
+
+	for i := range s.AllowedPrivateMatchers {
+		if err := s.bindMatcher(&s.AllowedPrivateMatchers[i]); err != nil {
+			return err
+		}
+	}
+
+	s.recomputeEscapedMatchers()
+
+	return nil
+}
+
+func (s *Subscriber) bindMatcher(m *topicMatcher) error {
+	if m.matcher != nil {
+		return nil
+	}
+
+	if m.Type == deprecatedMatcherTypeName {
+		return bindDeprecatedMatcher(m)
+	}
+
+	if s.topicSelectorStore == nil {
+		return fmt.Errorf("%w: %s (subscriber has no TopicSelectorStore)", ErrUnsupportedMatcherType, m.Type)
+	}
+
+	rm, ok := s.topicSelectorStore.matchers[strings.ToLower(m.Type)]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrUnsupportedMatcherType, m.Type)
+	}
+
+	m.matcher = rm.matcher
+
+	return nil
 }
 
 // getSubscriptions returns the subscriptions associated to this subscriber,
