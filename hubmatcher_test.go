@@ -15,7 +15,7 @@ func withAllMatcherTypes() []Option {
 		WithMatcherType("URITemplate", URITemplateMatcher),
 		WithMatcherType("URLPattern", URLPatternMatcher),
 		WithMatcherType("Regexp", RegexpMatcher),
-		WithMatcherType("CEL", CELMatcher),
+		WithMatcherType("CEL", NewCELMatcher(nil)),
 	}
 }
 

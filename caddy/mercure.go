@@ -596,22 +596,27 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	return nil
 }
 
-// builtinMatcherType pairs a canonical wire-format name with its built-in
-// matcher implementation. Canonical casing is preserved so subscription
+// resolveBuiltinMatcher returns the canonical name and an implementation for
+// a built-in matcher type. CEL is constructed with the module's logger so
+// pattern-compilation warnings flow through the configured logger; the other
+// types are stateless globals. Canonical casing is preserved so subscription
 // events and subscription API payloads always emit e.g. "URLPattern" even
 // when the operator configured "urlpattern" in the Caddyfile.
-type builtinMatcherType struct {
-	canonicalName string
-	matcher       mercure.Matcher
-}
+func (m *Mercure) resolveBuiltinMatcher(name string) (canonicalName string, matcher mercure.Matcher, ok bool) { //nolint:nonamedreturns
+	switch strings.ToLower(name) {
+	case "exact":
+		return "Exact", mercure.ExactMatcher, true
+	case "uritemplate":
+		return "URITemplate", mercure.URITemplateMatcher, true
+	case "urlpattern":
+		return "URLPattern", mercure.URLPatternMatcher, true
+	case "regexp":
+		return "Regexp", mercure.RegexpMatcher, true
+	case "cel":
+		return "CEL", mercure.NewCELMatcher(m.logger), true
+	}
 
-// builtinMatcherTypes maps lowercase names to built-in matcher types.
-var builtinMatcherTypes = map[string]builtinMatcherType{ //nolint:gochecknoglobals
-	"exact":       {"Exact", mercure.ExactMatcher},
-	"uritemplate": {"URITemplate", mercure.URITemplateMatcher},
-	"urlpattern":  {"URLPattern", mercure.URLPatternMatcher},
-	"regexp":      {"Regexp", mercure.RegexpMatcher},
-	"cel":         {"CEL", mercure.CELMatcher},
+	return "", nil, false
 }
 
 // matcherTypeOptions resolves the configured matcher_types into registration
@@ -627,12 +632,12 @@ func (m *Mercure) matcherTypeOptions() ([]mercure.Option, error) {
 	opts := make([]mercure.Option, 0, len(m.MatcherTypes))
 
 	for _, name := range m.MatcherTypes {
-		b, ok := builtinMatcherTypes[strings.ToLower(name)]
+		canonical, matcher, ok := m.resolveBuiltinMatcher(name)
 		if !ok {
 			return nil, fmt.Errorf("unknown matcher type %q", name) //nolint:err113
 		}
 
-		opts = append(opts, mercure.WithMatcherType(b.canonicalName, b.matcher))
+		opts = append(opts, mercure.WithMatcherType(canonical, matcher))
 	}
 
 	return opts, nil

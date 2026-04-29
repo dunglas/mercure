@@ -10,7 +10,7 @@ import (
 func TestCELMatcherMatch(t *testing.T) {
 	t.Parallel()
 
-	m := newCELMatcherType()
+	m := newCELMatcherType(nil)
 
 	// Simple topic check using topics.exists()
 	assert.True(t, m.Match(
@@ -60,7 +60,7 @@ func TestCELMatcherMatch(t *testing.T) {
 func TestCELMatcherInvalidExpression(t *testing.T) {
 	t.Parallel()
 
-	m := newCELMatcherType()
+	m := newCELMatcherType(nil)
 
 	// Syntax error
 	assert.False(t, m.Match([]string{"foo"}, "invalid!!!"))
@@ -81,7 +81,7 @@ func TestCELMatcherInvalidExpression(t *testing.T) {
 func TestCELMatcherCostLimit(t *testing.T) {
 	t.Parallel()
 
-	m := newCELMatcherType()
+	m := newCELMatcherType(nil)
 
 	// Build a long topic list so nested comprehensions blow past the cost limit.
 	topics := make([]string, 500)
@@ -98,7 +98,7 @@ func TestCELMatcherCostLimit(t *testing.T) {
 func TestCELMatcherSeesAggregateTopics(t *testing.T) {
 	t.Parallel()
 
-	m := newCELMatcherType()
+	m := newCELMatcherType(nil)
 
 	assert.True(t, m.Match([]string{"a", "b", "c"}, `topics.size() == 3`))
 	assert.False(t, m.Match([]string{"a"}, `topics.size() == 3`))
