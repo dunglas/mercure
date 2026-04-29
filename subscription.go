@@ -189,7 +189,7 @@ func (h *Hub) initSubscription(currentURL string, w http.ResponseWriter, r *http
 		}
 
 		if !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
-			h.httpAuthorizationError(w, r, errors.New("subscription URL not covered by token topic selectors")) //nolint:err113
+			h.httpAuthorizationError(w, r, errors.New("subscription URL not covered by token topic matchers")) //nolint:err113
 
 			return "", nil, false
 		}

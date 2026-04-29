@@ -43,8 +43,8 @@ type PatternValidator interface {
 }
 
 // validatePattern runs Validate on the matcher if it implements
-// PatternValidator. Matchers that don't implement it are assumed to accept any
-// non-empty pattern.
+// PatternValidator. Matchers that don't implement the interface accept any
+// pattern at parse time and report mismatches by returning false from Match.
 func validatePattern(m Matcher, pattern string) error {
 	v, ok := m.(PatternValidator)
 	if !ok {
@@ -100,7 +100,14 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON handles both string and object formats in JWT claims.
 // String: treated according to protocol version (Exact for v9+, deprecated for v8-).
 // Object: {"match": "pattern", "matchType": "Exact", "payload": {...}}.
+//
+// Always resets every field of the receiver before populating it, so
+// reusing a matcherClaim across decode calls does not leak the previous
+// Type/Payload/matcher (which would, in particular, make
+// resolveMatcherClaims skip resolution entirely on a stale matcher).
 func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
+	*mc = matcherClaim{}
+
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
 		// Empty Type signals "unresolved string claim"; resolveMatcherClaims
