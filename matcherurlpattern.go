@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	urlpattern "github.com/dunglas/go-urlpattern"
@@ -20,13 +21,7 @@ func (u *urlPatternMatcherType) Match(topics []string, pattern string) bool {
 		return false
 	}
 
-	for _, topic := range topics {
-		if p.Test(topic, "") {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(topics, func(t string) bool { return p.Test(t, "") })
 }
 
 // Validate compiles the pattern up front. It rejects relative URL patterns

@@ -122,7 +122,7 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 // including the trailing slash before the {matchType} segment, used to
 // disambiguate the modern 2-segment collection route from the deprecated
 // {topic}/{subscriber} route in isRegisteredMatcherType.
-var subscriptionsForMatchPrefixLen = len(defaultHubURL + subscriptionsPath + "/") //nolint:gochecknoglobals
+const subscriptionsForMatchPrefixLen = len(defaultHubURL + subscriptionsPath + "/")
 
 // isRegisteredMatcherType is a mux.MatcherFunc that accepts requests whose
 // {matchType} path segment corresponds to a registered matcher type. Used

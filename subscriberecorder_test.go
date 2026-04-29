@@ -35,14 +35,6 @@ func (r *subscribeRecorder) Write(buf []byte) (int, error) {
 	return r.ResponseRecorder.Write(buf)
 }
 
-func (r *subscribeRecorder) WriteString(str string) (int, error) {
-	if time.Now().After(r.writeDeadline) {
-		return 0, os.ErrDeadlineExceeded
-	}
-
-	return r.WriteString(str)
-}
-
 func (r *subscribeRecorder) FlushError() error {
 	if time.Now().After(r.writeDeadline) {
 		return os.ErrDeadlineExceeded

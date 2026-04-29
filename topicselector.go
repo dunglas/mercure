@@ -123,20 +123,17 @@ func (tss *TopicSelectorStore) matchMatcher(topics []string, m topicMatcher) boo
 		return slices.Contains(topics, m.Pattern)
 	}
 
-	var k matchCacheKey
+	if tss.matchCache == nil {
+		return m.matcher.Match(topics, m.Pattern)
+	}
 
-	if tss.matchCache != nil {
-		k = matchCacheKey{Type: m.Type, Pattern: m.Pattern, Topics: strings.Join(topics, topicsKeySeparator)}
-		if v, ok := tss.matchCache.GetIfPresent(k); ok {
-			return v
-		}
+	k := matchCacheKey{Type: m.Type, Pattern: m.Pattern, Topics: strings.Join(topics, topicsKeySeparator)}
+	if v, ok := tss.matchCache.GetIfPresent(k); ok {
+		return v
 	}
 
 	r := m.matcher.Match(topics, m.Pattern)
-
-	if tss.matchCache != nil {
-		tss.matchCache.Set(k, r)
-	}
+	tss.matchCache.Set(k, r)
 
 	return r
 }

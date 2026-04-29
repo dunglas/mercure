@@ -36,35 +36,21 @@ func NewSubscriber(logger *slog.Logger, topicSelectorStore *TopicSelectorStore) 
 
 // MatchTopics checks if the current subscriber can access to at least one of the given topics.
 func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
-	var subscribed bool
+	if !s.matchesAny(topics, s.SubscribedMatchers) {
+		return false
+	}
 
-	canAccess := !private
+	return !private || s.matchesAny(topics, s.AllowedPrivateMatchers)
+}
 
-	for _, m := range s.SubscribedMatchers {
-		if !subscribed && s.topicSelectorStore.matchMatcher(topics, m) {
-			subscribed = true
-
-			if canAccess {
-				return true
-			}
+func (s *Subscriber) matchesAny(topics []string, matchers []topicMatcher) bool {
+	for _, m := range matchers {
+		if s.topicSelectorStore.matchMatcher(topics, m) {
+			return true
 		}
 	}
 
-	if !canAccess {
-		for _, m := range s.AllowedPrivateMatchers {
-			if s.topicSelectorStore.matchMatcher(topics, m) {
-				canAccess = true
-
-				if subscribed {
-					return true
-				}
-
-				break
-			}
-		}
-	}
-
-	return subscribed && canAccess
+	return false
 }
 
 // Match checks if the current subscriber can receive the given update.
@@ -99,13 +85,21 @@ func logMatcherPatterns(matchers []topicMatcher) []string {
 }
 
 // setMatchers sets the subscribed and allowed private topic matchers.
+//
+// EscapedMatchers receives the URL slug used in subscription IDs:
+// "{escapedType}/{escapedPattern}" for modern matchers, just "{escapedPattern}"
+// for deprecated v8 string-selector matchers, which keep the v8 wire shape.
 func (s *Subscriber) setMatchers(subscribed []topicMatcher, allowedPrivate []topicMatcher) {
 	s.SubscribedMatchers = subscribed
 	s.AllowedPrivateMatchers = allowedPrivate
 
 	s.EscapedMatchers = make([]string, len(subscribed))
 	for i, m := range subscribed {
-		s.EscapedMatchers[i] = url.QueryEscape(m.Type) + "/" + url.QueryEscape(m.Pattern)
+		if m.Type == deprecatedMatcherTypeName {
+			s.EscapedMatchers[i] = url.QueryEscape(m.Pattern)
+		} else {
+			s.EscapedMatchers[i] = url.QueryEscape(m.Type) + "/" + url.QueryEscape(m.Pattern)
+		}
 	}
 }
 
@@ -138,18 +132,16 @@ func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string,
 			ID:         "/.well-known/mercure/subscriptions/" + s.EscapedMatchers[k] + "/" + s.EscapedID,
 			Type:       "Subscription",
 			Subscriber: s.ID,
-			Match:      m.Pattern,
-			MatchType:  m.Type,
 			Active:     active,
 		}
 
 		// Deprecated v8 subscriptions keep emitting the `topic` field (and
 		// no match/matchType) for wire compatibility with v8 consumers.
 		if m.Type == deprecatedMatcherTypeName {
-			sub.ID = "/.well-known/mercure/subscriptions/" + url.QueryEscape(m.Pattern) + "/" + s.EscapedID
 			sub.Topic = m.Pattern
-			sub.Match = ""
-			sub.MatchType = ""
+		} else {
+			sub.Match = m.Pattern
+			sub.MatchType = m.Type
 		}
 
 		s.setSubscriptionPayload(&sub, m)
