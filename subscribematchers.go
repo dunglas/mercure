@@ -81,6 +81,10 @@ func (h *Hub) appendMatchers(matchers []topicMatcher, suffix, originalKey string
 			return nil, errPatternTooLong
 		}
 
+		if err := validatePattern(rm.matcher, v); err != nil {
+			return nil, fmt.Errorf("invalid %s pattern: %w", rm.canonicalName, err)
+		}
+
 		matchers = append(matchers, topicMatcher{
 			Type:    rm.canonicalName,
 			Pattern: v,

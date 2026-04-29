@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestURLPatternMatcher(t *testing.T) {
@@ -32,4 +33,23 @@ func TestURLPatternMatcher(t *testing.T) {
 
 	// Multiple topics — at least one matches
 	assert.True(t, m.Match([]string{"https://example.com/authors/123", "https://example.com/books/123"}, "https://example.com/books/:id"))
+}
+
+func TestURLPatternMatcherValidate(t *testing.T) {
+	t.Parallel()
+
+	m := urlPatternMatcherType{}
+
+	assert.NoError(t, m.Validate("https://example.com/books/:id"))
+	assert.NoError(t, m.Validate("*://example.com/books/:id"))
+
+	// Relative patterns must be rejected: topics are absolute IRIs and the
+	// protocol exposes no base URL to resolve against.
+	err := m.Validate("/books/:id")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "relative URL")
+
+	err = m.Validate("books/:id")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "relative URL")
 }

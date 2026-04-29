@@ -32,6 +32,26 @@ type Matcher interface {
 	Match(topics []string, pattern string) bool
 }
 
+// PatternValidator is an optional interface that Matcher implementations can
+// implement to validate a pattern up front. When implemented, the hub calls
+// Validate at subscription parse time (and during JWT claim resolution) so
+// invalid patterns surface as a 400 / 401 instead of silently matching nothing.
+type PatternValidator interface {
+	Validate(pattern string) error
+}
+
+// validatePattern runs Validate on the matcher if it implements
+// PatternValidator. Matchers that don't implement it are assumed to accept any
+// non-empty pattern.
+func validatePattern(m Matcher, pattern string) error {
+	v, ok := m.(PatternValidator)
+	if !ok {
+		return nil
+	}
+
+	return v.Validate(pattern)
+}
+
 // topicMatcher pairs a resolved matcher implementation with a pattern string.
 type topicMatcher struct {
 	Type    string  // Matcher type name ("Exact", "URLPattern", etc.)
@@ -153,6 +173,10 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 		rm, ok := tss.matchers[strings.ToLower(claims[i].Type)]
 		if !ok {
 			return ErrUnsupportedMatcherType
+		}
+
+		if err := validatePattern(rm.matcher, claims[i].Pattern); err != nil {
+			return fmt.Errorf("invalid %s pattern in JWT claim: %w", rm.canonicalName, err)
 		}
 
 		// Canonicalise the type so it matches the casing the hub uses

@@ -101,6 +101,18 @@ func TestParseMatchersNotImplementedWhenTypeDisabled(t *testing.T) {
 	assert.ErrorIs(t, err, ErrUnsupportedMatcherType)
 }
 
+func TestParseMatchersURLPatternRejectsRelative(t *testing.T) {
+	t.Parallel()
+
+	h := createDummy(t, withAllMatcherTypes()...)
+
+	query := url.Values{"matchURLPattern": {"/books/:id"}}
+	_, err := h.parseMatchers(query, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "URLPattern")
+	assert.Contains(t, err.Error(), "relative URL")
+}
+
 func TestParseMatchersMissing(t *testing.T) {
 	t.Parallel()
 

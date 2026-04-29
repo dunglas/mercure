@@ -29,6 +29,16 @@ func (u *urlPatternMatcherType) Match(topics []string, pattern string) bool {
 	return false
 }
 
+// Validate compiles the pattern up front. It rejects relative URL patterns
+// (the protocol requires absolute IRIs as topics, so a relative pattern would
+// have no base URL to resolve against) and any other parse error the URL
+// Pattern library reports.
+func (u *urlPatternMatcherType) Validate(pattern string) error {
+	_, err := u.getOrCompile(pattern)
+
+	return err
+}
+
 func (u *urlPatternMatcherType) getOrCompile(pattern string) (*urlpattern.URLPattern, error) {
 	if cached, ok := u.patterns.Load(pattern); ok {
 		return cached.(*urlpattern.URLPattern), nil
