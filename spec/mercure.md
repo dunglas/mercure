@@ -431,12 +431,10 @@ have an OPTIONAL `matchType` property containing the topic matcher type. The val
 `matchType` key **MUST** be considered case-insensitive. If no `matchType` key is present, the
 hub **MUST** assume the `Exact` matcher type.
 
-For backward compatibility, a matcher **MAY** also be represented as a bare string when the hub
-is explicitly operating in a deprecated-protocol compatibility mode (see the hub's
-configuration). In that mode, the string **MUST** be interpreted using the version 8 rules
-("exact OR URI Template"). Outside of compatibility mode, bare strings **MUST** be rejected with
-a 401 "Unauthorized" HTTP status code. Silently reinterpreting them as `Exact` could change the
-semantics of tokens minted for earlier protocol versions.
+Bare strings **MUST** be rejected with a 401 "Unauthorized" HTTP status code. Earlier drafts of
+this protocol allowed matchers to be expressed as bare strings; silently reinterpreting them
+under the rules defined here could change the semantics of tokens minted for those earlier
+versions.
 
 If the type of one or more matchers in `mercure.subscribe` is not supported by the hub, the hub
 **MUST** reject the subscription request with a 501 "Not Implemented" HTTP status code and
