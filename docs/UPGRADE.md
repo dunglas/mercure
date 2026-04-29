@@ -76,11 +76,28 @@ routes all come back.
 ### Go API
 
 - `Matcher` is a single interface: `Match(topics []string, pattern string) bool`.
-- `WithDefaultMatcherTypes` / `WithAllMatcherTypes` / `TopicSelectorStoreCache`
-  / the sharded cache and the `Subscriber.SubscribedTopics`,
-  `Subscriber.AllowedPrivateTopics`, `Subscriber.EscapedTopics` and
-  `Subscriber.SetTopics` symbols are gone. Use `WithMatcherType`,
-  `NewTopicSelectorStore(size)` and `Subscriber.SetMatchers` instead.
+  Built-in implementations: `ExactMatcher`, `URITemplateMatcher`,
+  `URLPatternMatcher`, `RegexpMatcher`. CEL is constructed per hub via
+  `NewCELMatcher(logger)` so compilation warnings flow through your
+  configured `*slog.Logger`.
+- Register matcher types with `WithMatcherType(name, matcher)`, or pass a
+  pre-populated `*TopicSelectorStore` to `WithTopicSelectorStore`. When
+  neither is supplied, `NewHub` installs the spec-recommended defaults
+  (`Exact` + `URLPattern`, plus `URITemplate` under
+  `WithProtocolVersionCompatibility(8)`). `Exact` is always registered.
+- `Subscriber.SubscribedTopics`, `Subscriber.AllowedPrivateTopics`,
+  `Subscriber.EscapedTopics` and `Subscriber.SetTopics` are gone. The
+  replacement state lives on `Subscriber.SubscribedMatchers`,
+  `Subscriber.AllowedPrivateMatchers` and `Subscriber.EscapedMatchers`.
+  These fields are populated from the parsed request inside the hub;
+  library users no longer drive subscriber state from outside.
+- **Transport authors** that persist subscribers (Redis, Postgres, …)
+  must call `(*Subscriber).BindMatchers()` after deserializing each
+  subscriber. The matcher implementation lives in an unexported field
+  that does not survive a JSON or gob round-trip; `BindMatchers`
+  re-resolves it against the subscriber's `*TopicSelectorStore`. The
+  call is idempotent and returns `ErrUnsupportedMatcherType` if the
+  persisted matcher type is not registered on the receiving hub.
 - The Caddy module's `matcher_types` directive replaces the previous
   implicit URI-template default: set `matcher_types exact urlpattern cel`
   to opt into additional types.
