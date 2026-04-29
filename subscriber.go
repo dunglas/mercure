@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -23,6 +22,13 @@ type Subscriber struct {
 	// EscapedMatchers are precomputed "escapedType/escapedPattern" slugs for
 	// subscription URLs.
 	EscapedMatchers []string
+	// SubscriptionPayloads holds the JSON-LD `payload` resolved per
+	// subscribed matcher at registration time, indexed parallel to
+	// SubscribedMatchers. Precomputing lets the subscription API render
+	// payloads for subscribers a transport reconstructed from its
+	// persistence layer (Redis, …) without doing live matcher dispatch
+	// on the deserialized object.
+	SubscriptionPayloads []any
 
 	logger             *slog.Logger
 	topicSelectorStore *TopicSelectorStore
@@ -85,11 +91,15 @@ func logMatcherPatterns(matchers []topicMatcher) []string {
 	return out
 }
 
-// setMatchers sets the subscribed and allowed private topic matchers.
+// setMatchers sets the subscribed and allowed private topic matchers, and
+// precomputes the per-matcher subscription payload so the subscription
+// API can render it from a serialized Subscriber without re-running the
+// matcher dispatch.
 func (s *Subscriber) setMatchers(subscribed []topicMatcher, allowedPrivate []topicMatcher) {
 	s.SubscribedMatchers = subscribed
 	s.AllowedPrivateMatchers = allowedPrivate
 	s.recomputeEscapedMatchers()
+	s.resolveSubscriptionPayloads()
 }
 
 // recomputeEscapedMatchers builds the URL slug used in subscription IDs for
@@ -107,58 +117,43 @@ func (s *Subscriber) recomputeEscapedMatchers() {
 	}
 }
 
-// BindMatchers resolves the matcher implementation for each entry of
-// SubscribedMatchers and AllowedPrivateMatchers against the Subscriber's
-// TopicSelectorStore, and rebuilds EscapedMatchers from the result.
-//
-// Call this after deserializing a Subscriber — for example, when a
-// distributed transport restores subscriber state from a persistence
-// layer. JSON and gob round-trips drop the unexported matcher binding on
-// each topic matcher; without re-binding, subsequent Match and
-// subscription-rendering calls would dispatch through a nil interface.
-//
-// Returns ErrUnsupportedMatcherType if any matcher's Type is not
-// registered in the TopicSelectorStore. Already-bound matchers are
-// skipped, so the call is idempotent.
-func (s *Subscriber) BindMatchers() error {
-	for i := range s.SubscribedMatchers {
-		if err := s.bindMatcher(&s.SubscribedMatchers[i]); err != nil {
-			return err
-		}
+// resolveSubscriptionPayloads fills SubscriptionPayloads following the
+// spec rule: "the payload value of the first topic matcher in the
+// mercure.subscribe claim that matches the subscription's own matcher,
+// falling back to mercure.payload". A claim "matches" when its matcher
+// accepts the subscription's pattern as a topic, or when the claim is the
+// wildcard `*`.
+func (s *Subscriber) resolveSubscriptionPayloads() {
+	if len(s.SubscribedMatchers) == 0 {
+		s.SubscriptionPayloads = nil
+
+		return
 	}
 
-	for i := range s.AllowedPrivateMatchers {
-		if err := s.bindMatcher(&s.AllowedPrivateMatchers[i]); err != nil {
-			return err
-		}
+	s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
+	for i, m := range s.SubscribedMatchers {
+		s.SubscriptionPayloads[i] = s.resolveSubscriptionPayload(m)
 	}
-
-	s.recomputeEscapedMatchers()
-
-	return nil
 }
 
-func (s *Subscriber) bindMatcher(m *topicMatcher) error {
-	if m.matcher != nil {
+func (s *Subscriber) resolveSubscriptionPayload(m topicMatcher) any {
+	if s.Claims == nil {
 		return nil
 	}
 
-	if m.Type == deprecatedMatcherTypeName {
-		return bindDeprecatedMatcher(m)
+	for _, mc := range s.Claims.Mercure.Subscribe {
+		if mc.Pattern != "*" && !s.topicSelectorStore.matchMatcher([]string{m.Pattern}, mc.topicMatcher) {
+			continue
+		}
+
+		if mc.Payload != nil {
+			return mc.Payload
+		}
+
+		break // first matching claim wins, even if it has no per-claim payload
 	}
 
-	if s.topicSelectorStore == nil {
-		return fmt.Errorf("%w: %s (subscriber has no TopicSelectorStore)", ErrUnsupportedMatcherType, m.Type)
-	}
-
-	rm, ok := s.topicSelectorStore.matchers[strings.ToLower(m.Type)]
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrUnsupportedMatcherType, m.Type)
-	}
-
-	m.matcher = rm.matcher
-
-	return nil
+	return s.Claims.Mercure.Payload
 }
 
 // getSubscriptions returns the subscriptions associated to this subscriber,
@@ -202,41 +197,12 @@ func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string,
 			sub.MatchType = m.Type
 		}
 
-		s.setSubscriptionPayload(&sub, m)
+		if k < len(s.SubscriptionPayloads) {
+			sub.Payload = s.SubscriptionPayloads[k]
+		}
+
 		subscriptions = append(subscriptions, sub)
 	}
 
 	return subscriptions
-}
-
-// setSubscriptionPayload attaches the subscription payload following the spec rule:
-// "The payload value associated with the first topic matcher in the mercure.subscribe
-// claim that matches the subscription's own matcher."
-//
-// A claim "matches" the subscription when its matcher accepts the subscription's
-// pattern as a topic or when the wildcard `*` is used. When no claim matches,
-// the top-level mercure.payload fallback is applied.
-func (s *Subscriber) setSubscriptionPayload(sub *subscription, m topicMatcher) {
-	if s.Claims == nil {
-		return
-	}
-
-	for _, mc := range s.Claims.Mercure.Subscribe {
-		if mc.Pattern != "*" && !s.topicSelectorStore.matchMatcher([]string{m.Pattern}, mc.topicMatcher) {
-			continue
-		}
-
-		if mc.Payload != nil {
-			sub.Payload = mc.Payload
-
-			return
-		}
-
-		break // first matching claim wins, even if it has no per-claim payload
-	}
-
-	// Global payload fallback
-	if s.Claims.Mercure.Payload != nil {
-		sub.Payload = s.Claims.Mercure.Payload
-	}
 }

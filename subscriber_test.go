@@ -67,22 +67,38 @@ func TestLogSubscriber(t *testing.T) {
 	assert.Contains(t, log, `"subscribed_matchers":["Exact:https://example.com/bar"]`)
 }
 
-// TestBindMatchersRestoresMatcherAfterJSONRoundTrip simulates the path used
-// by distributed transports that persist subscribers (the saas Redis
-// transport, for instance): a Subscriber is encoded to JSON, decoded back,
-// and the receiving end calls BindMatchers to re-resolve the matcher
-// implementation that was lost across the unexported field.
-func TestBindMatchersRestoresMatcherAfterJSONRoundTrip(t *testing.T) {
+// TestSubscriptionPayloadsSurviveJSONRoundTrip simulates the path used by
+// distributed transports that persist subscribers (the saas Redis
+// transport, for instance): a Subscriber is encoded to JSON and decoded
+// back, and the subscription API still renders per-matcher payloads
+// without doing any matcher dispatch on the deserialized object.
+func TestSubscriptionPayloadsSurviveJSONRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	tss := newExactStore(t)
 	tss.RegisterMatcherType("URITemplate", URITemplateMatcher)
 
 	src := NewSubscriber(slog.Default(), tss)
+	src.Claims = &claims{
+		Mercure: mercureClaim{
+			Subscribe: []matcherClaim{{
+				topicMatcher: topicMatcher{Type: "URITemplate", Pattern: "https://example.com/{id}", matcher: URITemplateMatcher},
+				Payload:      map[string]any{"tag": "uritemplate"},
+			}},
+			Payload: map[string]any{"global": true},
+		},
+	}
 	src.setMatchers(
-		[]topicMatcher{{Type: "URITemplate", Pattern: "https://example.com/{id}", matcher: URITemplateMatcher}},
-		[]topicMatcher{{Type: "Exact", Pattern: "https://example.com/admin", matcher: ExactMatcher}},
+		[]topicMatcher{
+			{Type: "Exact", Pattern: "https://example.com/123", matcher: ExactMatcher},
+			{Type: "Exact", Pattern: "https://other.example.com/x", matcher: ExactMatcher},
+		},
+		nil,
 	)
+
+	require.Len(t, src.SubscriptionPayloads, 2)
+	assert.Equal(t, map[string]any{"tag": "uritemplate"}, src.SubscriptionPayloads[0], "URITemplate claim accepts /123 → its payload wins")
+	assert.Equal(t, map[string]any{"global": true}, src.SubscriptionPayloads[1], "no claim matches /x → fall back to mercure.payload")
 
 	encoded, err := json.Marshal(src)
 	require.NoError(t, err)
@@ -90,50 +106,15 @@ func TestBindMatchersRestoresMatcherAfterJSONRoundTrip(t *testing.T) {
 	dst := NewSubscriber(slog.Default(), tss)
 	require.NoError(t, json.Unmarshal(encoded, dst))
 
-	// JSON round-trip drops the unexported matcher binding.
-	assert.Nil(t, dst.SubscribedMatchers[0].matcher, "matcher must be lost across JSON round-trip")
-	assert.Nil(t, dst.AllowedPrivateMatchers[0].matcher)
+	// The matcher implementation is lost across JSON, but the precomputed
+	// payloads come back and the subscription API uses them as-is.
+	assert.Nil(t, dst.SubscribedMatchers[0].matcher, "matcher field is unexported and cannot survive JSON")
+	require.Len(t, dst.SubscriptionPayloads, 2)
 
-	require.NoError(t, dst.BindMatchers())
-
-	assert.Equal(t, URITemplateMatcher, dst.SubscribedMatchers[0].matcher)
-	assert.Equal(t, ExactMatcher, dst.AllowedPrivateMatchers[0].matcher)
-
-	// Matching now works again.
-	assert.True(t, dst.MatchTopics([]string{"https://example.com/123"}, false))
-	assert.True(t, dst.MatchTopics([]string{"https://example.com/admin"}, true))
-}
-
-// TestBindMatchersIdempotent verifies that calling BindMatchers a second
-// time is a no-op: already-bound matchers keep their existing
-// implementation.
-func TestBindMatchersIdempotent(t *testing.T) {
-	t.Parallel()
-
-	s := NewSubscriber(slog.Default(), newExactStore(t))
-	s.setMatchers(
-		[]topicMatcher{{Type: "Exact", Pattern: "foo", matcher: ExactMatcher}},
-		nil,
-	)
-
-	require.NoError(t, s.BindMatchers())
-	require.NoError(t, s.BindMatchers())
-
-	assert.Equal(t, ExactMatcher, s.SubscribedMatchers[0].matcher)
-}
-
-// TestBindMatchersUnknownType verifies that BindMatchers fails fast when a
-// deserialized subscriber references a matcher type that the receiving hub
-// does not know about.
-func TestBindMatchersUnknownType(t *testing.T) {
-	t.Parallel()
-
-	s := NewSubscriber(slog.Default(), newExactStore(t))
-	s.SubscribedMatchers = []topicMatcher{{Type: "Bogus", Pattern: "foo"}}
-
-	err := s.BindMatchers()
-	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrUnsupportedMatcherType)
+	subs := dst.getSubscriptions(subscriptionFilter{}, "", true)
+	require.Len(t, subs, 2)
+	assert.Equal(t, map[string]any{"tag": "uritemplate"}, subs[0].Payload)
+	assert.Equal(t, map[string]any{"global": true}, subs[1].Payload)
 }
 
 func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
