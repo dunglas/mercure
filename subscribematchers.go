@@ -77,6 +77,10 @@ func (h *Hub) appendMatchers(matchers []topicMatcher, suffix, originalKey string
 	}
 
 	for _, v := range values {
+		if len(matchers) >= maxMatcherCount {
+			return nil, errTooManyMatchers
+		}
+
 		if len(v) > maxPatternLength {
 			return nil, errPatternTooLong
 		}
@@ -90,10 +94,6 @@ func (h *Hub) appendMatchers(matchers []topicMatcher, suffix, originalKey string
 			Pattern: v,
 			matcher: rm.matcher,
 		})
-
-		if len(matchers) > maxMatcherCount {
-			return nil, errTooManyMatchers
-		}
 	}
 
 	return matchers, nil

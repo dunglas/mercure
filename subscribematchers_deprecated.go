@@ -8,6 +8,10 @@ package mercure
 // AND the hub was compiled with the deprecated_topic build tag.
 func (h *Hub) appendDeprecatedTopicMatchers(matchers []topicMatcher, values []string) ([]topicMatcher, error) {
 	for _, v := range values {
+		if len(matchers) >= maxMatcherCount {
+			return nil, errTooManyMatchers
+		}
+
 		if len(v) > maxPatternLength {
 			return nil, errPatternTooLong
 		}
@@ -17,10 +21,6 @@ func (h *Hub) appendDeprecatedTopicMatchers(matchers []topicMatcher, values []st
 			Pattern: v,
 			matcher: deprecatedMatcher,
 		})
-
-		if len(matchers) > maxMatcherCount {
-			return nil, errTooManyMatchers
-		}
 	}
 
 	return matchers, nil
