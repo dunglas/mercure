@@ -165,12 +165,12 @@ The corresponding query parameters are `match` and `matchExact`.
 The hub **SHOULD** support using URL patterns [@!urlpattern] as matchers.
 URL patterns **SHOULD** be preferred to regular expressions when topics to match are URLs.
 
-URL patterns **SHOULD** be absolute (for example `https://example.com/books/:id`) so that
-matching is deterministic regardless of the hub's location. If the pattern is relative
-(for example `/books/:id`), the hub **MUST** resolve it against a base URL of its choosing;
-the `URL()` base URL of the hub itself (the absolute form of the subscription endpoint) is
-**RECOMMENDED**. Subscribers and publishers **SHOULD NOT** rely on relative URL patterns
-because the base URL resolution is implementation-defined.
+URL patterns **MUST** be absolute (for example `https://example.com/books/:id`).
+Topics are absolute IRIs [@!RFC3987], so matching against an absolute pattern is unambiguous
+and the resulting subscription means the same thing on every hub. The hub **MUST** reject
+relative patterns: there is no base URL in the protocol against which a subscriber could
+expect them to resolve, and tying resolution to the hub's location would make subscriptions
+non-portable.
 
 The matcher type name is `URLPattern`.
 The corresponding query parameter is `matchURLPattern`.
