@@ -163,9 +163,11 @@ The corresponding query parameters are `match` and `matchExact`.
 The hub **SHOULD** support using URL patterns [@!urlpattern] as matchers.
 URL patterns **SHOULD** be preferred to regular expressions when matching URLs.
 
-URL patterns **MUST** be absolute (e.g., `https://example.com/books/:id`).
-Because topics are absolute IRIs [@!RFC3987] and the protocol defines no base URL,
-relative patterns have no portable resolution. The hub **MUST** reject them.
+URL patterns **MAY** be absolute (e.g., `https://example.com/books/:id`) or relative
+(e.g., `/.well-known/mercure/subscriptions/Exact/:topic/:subscriber`). When evaluating
+a relative pattern or a relative topic, the hub **MUST** use the hub's URL as the
+base URL. This allows subscribers to match relative topics published by the hub
+itself, such as subscription events (see (#subscription-events)).
 
 The matcher type name is `URLPattern`.
 The corresponding query parameter is `matchURLPattern`.
