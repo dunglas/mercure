@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestURLPatternMatcher(t *testing.T) {
@@ -35,21 +34,44 @@ func TestURLPatternMatcher(t *testing.T) {
 	assert.True(t, m.Match([]string{"https://example.com/authors/123", "https://example.com/books/123"}, "https://example.com/books/:id"))
 }
 
+// TestURLPatternMatcherRelative covers the spec case where both pattern and
+// topic are relative — the shape the hub uses when it dispatches subscription
+// events on `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`
+// topics. Relative ↔ relative must match; relative ↔ absolute must not.
+func TestURLPatternMatcherRelative(t *testing.T) {
+	t.Parallel()
+
+	m := urlPatternMatcherType{}
+
+	// Relative pattern matches relative topic resolved against the same base.
+	assert.True(t, m.Match(
+		[]string{"/.well-known/mercure/subscriptions/Exact/foo/bar"},
+		"/.well-known/mercure/subscriptions/Exact/:topic/:subscriber",
+	))
+	assert.True(t, m.Match([]string{"/books/123"}, "/books/:id"))
+	assert.False(t, m.Match([]string{"/authors/123"}, "/books/:id"))
+
+	// A relative pattern is anchored at the hub origin: an absolute topic on
+	// a different origin must not match.
+	assert.False(t, m.Match([]string{"https://example.com/books/123"}, "/books/:id"))
+
+	// Symmetric: an absolute pattern does not match a relative topic that
+	// resolves to a different origin.
+	assert.False(t, m.Match([]string{"/books/123"}, "https://example.com/books/:id"))
+}
+
 func TestURLPatternMatcherValidate(t *testing.T) {
 	t.Parallel()
 
 	m := urlPatternMatcherType{}
 
+	// Both absolute and relative patterns are accepted (relative ones are
+	// anchored at the hub URL per the spec).
 	assert.NoError(t, m.Validate("https://example.com/books/:id"))
 	assert.NoError(t, m.Validate("*://example.com/books/:id"))
+	assert.NoError(t, m.Validate("/books/:id"))
+	assert.NoError(t, m.Validate("/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"))
 
-	// Relative patterns must be rejected: topics are absolute IRIs and the
-	// protocol exposes no base URL to resolve against.
-	err := m.Validate("/books/:id")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "relative URL")
-
-	err = m.Validate("books/:id")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "relative URL")
+	// Genuinely malformed patterns still fail.
+	assert.Error(t, m.Validate("{unclosed"))
 }

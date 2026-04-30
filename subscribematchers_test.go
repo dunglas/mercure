@@ -101,16 +101,19 @@ func TestParseMatchersNotImplementedWhenTypeDisabled(t *testing.T) {
 	assert.ErrorIs(t, err, ErrUnsupportedMatcherType)
 }
 
-func TestParseMatchersURLPatternRejectsRelative(t *testing.T) {
+// TestParseMatchersURLPatternRelativeAccepted exercises the spec rule that
+// allows relative URL patterns (anchored at the hub URL). This shape is also
+// used by the hub's own subscription-events stream.
+func TestParseMatchersURLPatternRelativeAccepted(t *testing.T) {
 	t.Parallel()
 
 	h := createDummy(t, withAllMatcherTypes()...)
 
-	query := url.Values{"matchURLPattern": {"/books/:id"}}
-	_, err := h.parseMatchers(query, false)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "URLPattern")
-	assert.Contains(t, err.Error(), "relative URL")
+	query := url.Values{"matchURLPattern": {"/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"}}
+	matchers, err := h.parseMatchers(query, false)
+	require.NoError(t, err)
+	require.Len(t, matchers, 1)
+	assert.Equal(t, "URLPattern", matchers[0].Type)
 }
 
 func TestParseMatchersMissing(t *testing.T) {
