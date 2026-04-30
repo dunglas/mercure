@@ -146,6 +146,13 @@ type Mercure struct {
 	// The name of the authorization cookie. Defaults to "mercureAuthorization".
 	CookieName string `json:"cookie_name,omitempty"`
 
+	// PublicURL is the hub's public-facing URL (e.g. https://hub.example.com).
+	// Used as the base URL when the URL Pattern matcher resolves relative
+	// patterns or relative topics. When empty, only relative ↔ relative
+	// matches (such as the hub's own subscription events) work; cross-mode
+	// matching against absolute topics on the hub URL requires this value.
+	PublicURL string `json:"public_url,omitempty"`
+
 	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
@@ -268,6 +275,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
+		mercure.WithPublicURL(m.PublicURL),
 	}
 
 	matcherOpts, err := m.matcherTypeOptions()
@@ -565,6 +573,13 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.CookieName = d.Val()
 
+			case "public_url":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.PublicURL = d.Val()
+
 			case "matcher_types":
 				m.MatcherTypes = d.RemainingArgs()
 				if len(m.MatcherTypes) == 0 {
@@ -609,7 +624,7 @@ func (m *Mercure) resolveBuiltinMatcher(name string) (canonicalName string, matc
 	case "uritemplate":
 		return "URITemplate", mercure.URITemplateMatcher, true
 	case "urlpattern":
-		return "URLPattern", mercure.URLPatternMatcher, true
+		return "URLPattern", mercure.NewURLPatternMatcher(m.PublicURL), true
 	case "regexp":
 		return "Regexp", mercure.RegexpMatcher, true
 	case "cel":

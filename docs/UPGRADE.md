@@ -77,9 +77,16 @@ routes all come back.
 
 - `Matcher` is a single interface: `Match(topics []string, pattern string) bool`.
   Built-in implementations: `ExactMatcher`, `URITemplateMatcher`,
-  `URLPatternMatcher`, `RegexpMatcher`. CEL is constructed per hub via
-  `NewCELMatcher(logger)` so compilation warnings flow through your
-  configured `*slog.Logger`.
+  `RegexpMatcher`. URL Pattern is constructed per hub via
+  `NewURLPatternMatcher(baseURL)` and CEL via `NewCELMatcher(logger)` —
+  both carry per-instance state (the URL Pattern base URL, the CEL
+  compile cache and logger) that should not be shared across hubs.
+- Set `WithPublicURL("https://hub.example.com")` (Caddyfile:
+  `public_url`) to make the URL Pattern matcher resolve relative
+  patterns and relative topics against the hub's URL, per the
+  protocol's "the hub MUST use the hub's URL as the base URL" rule.
+  When unset, only relative ↔ relative and absolute ↔ absolute matches
+  work.
 - Register matcher types with `WithMatcherType(name, matcher)`, or pass a
   pre-populated `*TopicSelectorStore` to `WithTopicSelectorStore`. When
   neither is supplied, `NewHub` installs the spec-recommended defaults

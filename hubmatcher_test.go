@@ -13,7 +13,7 @@ func withAllMatcherTypes() []Option {
 	return []Option{
 		WithMatcherType("Exact", ExactMatcher),
 		WithMatcherType("URITemplate", URITemplateMatcher),
-		WithMatcherType("URLPattern", URLPatternMatcher),
+		WithMatcherType("URLPattern", NewURLPatternMatcher("")),
 		WithMatcherType("Regexp", RegexpMatcher),
 		WithMatcherType("CEL", NewCELMatcher(nil)),
 	}
@@ -24,7 +24,7 @@ func TestWithMatcherType(t *testing.T) {
 
 	h, err := NewHub(t.Context(),
 		WithMatcherType("Exact", ExactMatcher),
-		WithMatcherType("URLPattern", URLPatternMatcher),
+		WithMatcherType("URLPattern", NewURLPatternMatcher("")),
 	)
 	require.NoError(t, err)
 

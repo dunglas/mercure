@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestURLPatternMatcher(t *testing.T) {
 	t.Parallel()
 
-	m := urlPatternMatcherType{}
+	m := NewURLPatternMatcher("")
 
 	// Named group matching
 	assert.True(t, m.Match([]string{"https://example.com/books/123"}, "https://example.com/books/:id"))
@@ -41,7 +42,7 @@ func TestURLPatternMatcher(t *testing.T) {
 func TestURLPatternMatcherRelative(t *testing.T) {
 	t.Parallel()
 
-	m := urlPatternMatcherType{}
+	m := NewURLPatternMatcher("")
 
 	// Relative pattern matches relative topic resolved against the same base.
 	assert.True(t, m.Match(
@@ -60,18 +61,38 @@ func TestURLPatternMatcherRelative(t *testing.T) {
 	assert.False(t, m.Match([]string{"/books/123"}, "https://example.com/books/:id"))
 }
 
+// TestURLPatternMatcherConfiguredBase exercises the case the synthetic
+// fallback cannot handle: a relative pattern matches an absolute topic on
+// the hub URL (and vice-versa) when the matcher is built with the real
+// hub URL as base.
+func TestURLPatternMatcherConfiguredBase(t *testing.T) {
+	t.Parallel()
+
+	m := NewURLPatternMatcher("https://hub.example.com")
+
+	// Relative pattern + absolute topic on the hub URL → match.
+	assert.True(t, m.Match([]string{"https://hub.example.com/books/123"}, "/books/:id"))
+
+	// Absolute pattern on the hub URL + relative topic → match.
+	assert.True(t, m.Match([]string{"/books/123"}, "https://hub.example.com/books/:id"))
+
+	// Different origin still does not match.
+	assert.False(t, m.Match([]string{"https://other.example.com/books/123"}, "/books/:id"))
+}
+
 func TestURLPatternMatcherValidate(t *testing.T) {
 	t.Parallel()
 
-	m := urlPatternMatcherType{}
+	v, ok := NewURLPatternMatcher("").(PatternValidator)
+	require.True(t, ok)
 
 	// Both absolute and relative patterns are accepted (relative ones are
 	// anchored at the hub URL per the spec).
-	assert.NoError(t, m.Validate("https://example.com/books/:id"))
-	assert.NoError(t, m.Validate("*://example.com/books/:id"))
-	assert.NoError(t, m.Validate("/books/:id"))
-	assert.NoError(t, m.Validate("/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"))
+	assert.NoError(t, v.Validate("https://example.com/books/:id"))
+	assert.NoError(t, v.Validate("*://example.com/books/:id"))
+	assert.NoError(t, v.Validate("/books/:id"))
+	assert.NoError(t, v.Validate("/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"))
 
 	// Genuinely malformed patterns still fail.
-	assert.Error(t, m.Validate("{unclosed"))
+	assert.Error(t, v.Validate("{unclosed"))
 }

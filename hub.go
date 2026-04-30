@@ -260,6 +260,20 @@ func WithCookieName(cookieName string) Option {
 	}
 }
 
+// WithPublicURL sets the hub's public-facing URL — used as the base URL
+// when the URL Pattern matcher resolves relative patterns or relative
+// topics, per the protocol's "the hub MUST use the hub's URL as the base
+// URL" rule. The value is forwarded to the auto-registered
+// URLPatternMatcher; library users that build their own matcher with
+// NewURLPatternMatcher can pass the same string directly.
+func WithPublicURL(publicURL string) Option {
+	return func(o *opt) error {
+		o.publicURL = publicURL
+
+		return nil
+	}
+}
+
 // WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported).
 func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	return func(o *opt) error {
@@ -299,6 +313,7 @@ type opt struct {
 	publishWOrigins              []wildcard
 	corsOrigins                  []string
 	cookieName                   string
+	publicURL                    string
 	protocolVersionCompatibility int
 }
 
@@ -371,7 +386,7 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		// No WithMatcherType (and no pre-registered store) — install the
 		// spec-recommended defaults.
 		opt.topicSelectorStore.RegisterMatcherType("Exact", ExactMatcher)
-		opt.topicSelectorStore.RegisterMatcherType("URLPattern", URLPatternMatcher)
+		opt.topicSelectorStore.RegisterMatcherType("URLPattern", NewURLPatternMatcher(opt.publicURL))
 
 		if opt.isBackwardCompatiblyEnabledWith(8) {
 			opt.topicSelectorStore.RegisterMatcherType("URITemplate", URITemplateMatcher)
