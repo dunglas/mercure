@@ -2,6 +2,8 @@ package mercure
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,9 +15,29 @@ type updateContextKeyType struct{}
 
 var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 
+// ErrInvalidTopic is returned when an Update carries a topic with a NUL
+// byte. NUL is the TopicSelectorStore cache-key separator, so accepting
+// NUL-bearing topics would let two different inputs collide on the same
+// cache key.
+var ErrInvalidTopic = errors.New("invalid topic: NUL byte not allowed")
+
+func validateTopics(topics []string) error {
+	for _, t := range topics {
+		if strings.Contains(t, topicsKeySeparator) {
+			return fmt.Errorf("%w: %q", ErrInvalidTopic, t)
+		}
+	}
+
+	return nil
+}
+
 // Publish broadcasts the given update to all subscribers.
 // The id field of the Update instance can be updated by the underlying Transport.
 func (h *Hub) Publish(ctx context.Context, update *Update) error {
+	if err := validateTopics(update.Topics); err != nil {
+		return err
+	}
+
 	ctx = context.WithValue(ctx, UpdateContextKey, update)
 
 	if err := h.transport.Dispatch(ctx, update); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
@@ -66,12 +88,10 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// Topics must be valid IRIs; NUL bytes are illegal there and also
 	// happen to be the TopicSelectorStore cache-key separator, so rejecting
 	// them here avoids cache-key collisions downstream.
-	for _, t := range topics {
-		if strings.Contains(t, topicsKeySeparator) {
-			http.Error(w, `Invalid "topic" parameter: NUL byte not allowed`, http.StatusBadRequest)
+	if err := validateTopics(topics); err != nil {
+		http.Error(w, `Invalid "topic" parameter: NUL byte not allowed`, http.StatusBadRequest)
 
-			return
-		}
+		return
 	}
 
 	var retry uint64

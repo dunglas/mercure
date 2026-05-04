@@ -52,6 +52,20 @@ func TestPublish(t *testing.T) {
 	})
 }
 
+// TestPublishRejectsNULTopic guarantees the cache-key invariant against
+// programmatic publishers — Hub.Publish bypasses the HTTP handler so the
+// NUL check has to live on the Go API too.
+func TestPublishRejectsNULTopic(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+	err := hub.Publish(t.Context(), &Update{
+		Topics: []string{"https://example.com/foo\x00bar"},
+		Event:  Event{Data: "x"},
+	})
+	require.ErrorIs(t, err, ErrInvalidTopic)
+}
+
 func TestPublishHandlerNoAuthorizationHeader(t *testing.T) {
 	t.Parallel()
 
