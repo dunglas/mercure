@@ -70,7 +70,19 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 // RegisterMatcherType must be called during hub setup, before the hub starts
 // serving requests. The matcher registry is not protected by a mutex for
 // performance; concurrent registration and lookup would race.
+//
+// Panics on an empty name or a nil implementation — both would silently
+// produce a registry that no request can ever route to, and the call site
+// is always operator code running at startup.
 func (tss *TopicSelectorStore) RegisterMatcherType(name string, mt Matcher) {
+	if name == "" {
+		panic("mercure: RegisterMatcherType: empty matcher type name")
+	}
+
+	if mt == nil {
+		panic("mercure: RegisterMatcherType: nil matcher implementation for " + name)
+	}
+
 	if tss.matchers == nil {
 		tss.matchers = make(map[string]registeredMatcher)
 	}
