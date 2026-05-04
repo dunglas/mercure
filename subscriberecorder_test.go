@@ -19,16 +19,18 @@ func newSubscribeRecorder() *subscribeRecorder {
 	return &subscribeRecorder{ResponseRecorder: httptest.NewRecorder()}
 }
 
+// SetWriteDeadline mirrors net.Conn semantics: the latest call replaces the
+// stored deadline, including a zero value which net.Conn documents as "no
+// deadline". The earlier "only extend" version dropped the per-dispatch
+// deadline that SubscribeHandler installs.
 func (r *subscribeRecorder) SetWriteDeadline(deadline time.Time) error {
-	if deadline.After(r.writeDeadline) {
-		r.writeDeadline = deadline
-	}
+	r.writeDeadline = deadline
 
 	return nil
 }
 
 func (r *subscribeRecorder) Write(buf []byte) (int, error) {
-	if time.Now().After(r.writeDeadline) {
+	if r.deadlineExceeded() {
 		return 0, os.ErrDeadlineExceeded
 	}
 
@@ -36,13 +38,21 @@ func (r *subscribeRecorder) Write(buf []byte) (int, error) {
 }
 
 func (r *subscribeRecorder) FlushError() error {
-	if time.Now().After(r.writeDeadline) {
+	if r.deadlineExceeded() {
 		return os.ErrDeadlineExceeded
 	}
 
 	r.Flush()
 
 	return nil
+}
+
+// deadlineExceeded reports whether the configured write deadline has
+// passed. A zero deadline means "no deadline" (matching net.Conn) — under
+// the previous logic time.Now().After(time.Time{}) was always true and any
+// test that ran without setting a deadline would fail every Write.
+func (r *subscribeRecorder) deadlineExceeded() bool {
+	return !r.writeDeadline.IsZero() && time.Now().After(r.writeDeadline)
 }
 
 func (*subscribeRecorder) Flush() {}

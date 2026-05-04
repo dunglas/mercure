@@ -118,6 +118,17 @@ func (tss *TopicSelectorStore) matchMatcher(topics []string, m topicMatcher) boo
 		return true
 	}
 
+	// A topicMatcher recovered from JSON or gob has its (unexported)
+	// matcher field set to nil. The local hub never reaches this path on
+	// a deserialized Subscriber — the subscription API renders payloads
+	// from the precomputed slice and dispatch happens on the live
+	// LocalSubscriber — but a defensive nil-return keeps the code safe
+	// for transports that might extend the use of Subscriber beyond the
+	// rendering path.
+	if m.matcher == nil {
+		return false
+	}
+
 	// Exact matching is so fast it doesn't need caching.
 	if _, ok := m.matcher.(exactMatcherType); ok {
 		return slices.Contains(topics, m.Pattern)

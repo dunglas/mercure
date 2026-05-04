@@ -638,8 +638,9 @@ func (m *Mercure) resolveBuiltinMatcher(name string) (canonicalName string, matc
 // options. Unknown types are rejected rather than silently ignored so typos
 // surface at provision time instead of at subscription time.
 func (m *Mercure) matcherTypeOptions() ([]mercure.Option, error) {
-	// When no matcher_types are configured, NewHub picks the spec-recommended
-	// defaults (Exact + URLPattern, or Exact + URITemplate under compat mode).
+	// When no matcher_types are configured, NewHub keeps its built-in defaults:
+	// Exact + URLPattern, with URITemplate additionally registered when
+	// protocol_version_compatibility is enabled.
 	if len(m.MatcherTypes) == 0 {
 		return nil, nil //nolint:nilnil
 	}

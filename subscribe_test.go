@@ -560,7 +560,10 @@ func TestSubscriptionEvents(t *testing.T) {
 		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Empty(t, string(body))
+		// Only the SSE preamble is written — no subscription events reach
+		// this subscriber because the JWT's subscribe claim is empty (no
+		// AllowedPrivate matchers cover the dispatched private updates).
+		assert.Equal(t, ":\n", string(body))
 	})
 
 	wg.Go(func() {
