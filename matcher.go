@@ -180,10 +180,23 @@ func writeMatcherClaimError(ctx context.Context, logger *slog.Logger, w http.Res
 //
 // The function is idempotent: already-resolved claims are skipped, so
 // callers may run it repeatedly without re-validating.
+//
+// JWT claims are untrusted input, so the same maxMatcherCount and
+// maxPatternLength caps the query parser enforces also apply here —
+// otherwise a token can drive resolution into multi-megabyte
+// allocations or pathological matcher compilations.
 func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprecated bool) error {
+	if len(claims) > maxMatcherCount {
+		return errTooManyMatchers
+	}
+
 	for i := range claims {
 		if claims[i].matcher != nil {
 			continue
+		}
+
+		if len(claims[i].Pattern) > maxPatternLength {
+			return errPatternTooLong
 		}
 
 		if claims[i].Type == "" {

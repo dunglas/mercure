@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -131,4 +132,25 @@ func TestResolveMatcherClaimsUnsupportedType(t *testing.T) {
 
 	err := resolveMatcherClaims(newExactStore(t), claims, false)
 	assert.ErrorIs(t, err, ErrUnsupportedMatcherType)
+}
+
+func TestResolveMatcherClaimsTooManyClaims(t *testing.T) {
+	t.Parallel()
+
+	claims := make([]matcherClaim, maxMatcherCount+1)
+	for i := range claims {
+		claims[i] = matcherClaim{topicMatcher: topicMatcher{Pattern: "foo", Type: "exact"}}
+	}
+
+	err := resolveMatcherClaims(newExactStore(t), claims, false)
+	assert.ErrorIs(t, err, errTooManyMatchers)
+}
+
+func TestResolveMatcherClaimsPatternTooLong(t *testing.T) {
+	t.Parallel()
+
+	claims := []matcherClaim{{topicMatcher: topicMatcher{Pattern: strings.Repeat("a", maxPatternLength+1), Type: "exact"}}}
+
+	err := resolveMatcherClaims(newExactStore(t), claims, false)
+	assert.ErrorIs(t, err, errPatternTooLong)
 }
