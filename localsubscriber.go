@@ -3,7 +3,6 @@ package mercure
 import (
 	"context"
 	"log/slog"
-	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -34,7 +33,7 @@ func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicSelectorSt
 	}
 
 	s.ID = id
-	s.EscapedID = url.QueryEscape(id)
+	s.EscapedID = escapeSubscriptionSegment(id)
 	s.RequestLastEventID = lastEventID
 
 	return s

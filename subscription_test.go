@@ -258,3 +258,46 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	assert.Equal(t, "URLPattern", got.MatchType)
 	assert.Empty(t, got.Topic, "new-style subscription must not emit the deprecated `topic` field")
 }
+
+// TestEscapeSubscriptionSegmentRoundTrip verifies the segment encoder
+// produces only RFC 3986 unreserved characters and %XX sequences (a
+// requirement for v8 URI-template subscription auth) AND that the
+// resulting slug round-trips through url.PathUnescape — the decoder used
+// by filterFromVars and isRegisteredMatcherType. Literal '+' from a
+// hand-built client URL must also decode to literal '+'.
+func TestEscapeSubscriptionSegmentRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		in       string
+		wantBack string // what PathUnescape recovers
+	}{
+		{"https://example.com/foo", "https://example.com/foo"},
+		{"foo+bar", "foo+bar"},          // server-encoded literal '+'
+		{"foo bar", "foo bar"},          // space round-trips through %20
+		{"a:b", "a:b"},                  // ':' percent-encoded by encoder
+		{"x?y&z=1", "x?y&z=1"},          // query-style chars
+		{"https://example.com/{id}", "https://example.com/{id}"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.in, func(t *testing.T) {
+			t.Parallel()
+
+			escaped := escapeSubscriptionSegment(tc.in)
+			// Output must contain only unreserved + %XX so URI Template
+			// `{var}` matching keeps working.
+			assert.NotContains(t, escaped, "+", "encoder must use %20, not '+', for spaces")
+
+			got, err := url.PathUnescape(escaped)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantBack, got)
+		})
+	}
+
+	// Literal '+' in a client-constructed URL decodes as literal '+',
+	// not as a space (Copilot's concern about path-encoded clients).
+	got, err := url.PathUnescape("foo+bar")
+	require.NoError(t, err)
+	assert.Equal(t, "foo+bar", got)
+}

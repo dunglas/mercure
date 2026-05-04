@@ -143,7 +143,7 @@ func (h *Hub) isRegisteredMatcherType(r *http.Request, _ *mux.RouteMatch) bool {
 		return false
 	}
 
-	mt, err := url.QueryUnescape(segment)
+	mt, err := url.PathUnescape(segment)
 	if err != nil || mt == "" {
 		return false
 	}

@@ -110,11 +110,26 @@ func (s *Subscriber) recomputeEscapedMatchers() {
 	s.EscapedMatchers = make([]string, len(s.SubscribedMatchers))
 	for i, m := range s.SubscribedMatchers {
 		if m.Type == deprecatedMatcherTypeName {
-			s.EscapedMatchers[i] = url.QueryEscape(m.Pattern)
+			s.EscapedMatchers[i] = escapeSubscriptionSegment(m.Pattern)
 		} else {
-			s.EscapedMatchers[i] = url.QueryEscape(m.Type) + "/" + url.QueryEscape(m.Pattern)
+			s.EscapedMatchers[i] = escapeSubscriptionSegment(m.Type) + "/" + escapeSubscriptionSegment(m.Pattern)
 		}
 	}
+}
+
+// escapeSubscriptionSegment encodes one path segment of a subscription URL.
+// The output contains only RFC 3986 unreserved characters and %XX sequences,
+// which (a) is valid in any URL path segment, (b) round-trips through
+// url.PathUnescape — used on the receiving side because it tolerates the
+// literal '+' that a client may emit when constructing a subscription URL
+// per RFC 3986 path rules — and (c) matches a URI Template `{var}`
+// expression, keeping the v8 subscription-events URI-template path working.
+//
+// url.QueryEscape encodes every reserved char except space (which it turns
+// into '+'). Replacing the resulting '+' with %20 closes that gap without
+// pulling in a hand-rolled escaper.
+func escapeSubscriptionSegment(s string) string {
+	return strings.ReplaceAll(url.QueryEscape(s), "+", "%20")
 }
 
 // resolveSubscriptionPayloads fills SubscriptionPayloads following the

@@ -67,7 +67,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 		name string
 		dst  *string
 	}{{"topic", &f.topic}, {"match", &f.match}, {"matchType", &f.matchType}} {
-		v, err := url.QueryUnescape(vars[seg.name])
+		v, err := url.PathUnescape(vars[seg.name])
 		if err != nil {
 			return subscriptionFilter{}, errors.New("invalid " + seg.name + " segment: " + err.Error()) //nolint:err113
 		}
@@ -127,7 +127,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	s, err := url.QueryUnescape(vars["subscriber"])
+	s, err := url.PathUnescape(vars["subscriber"])
 	if err != nil {
 		http.Error(w, "invalid subscriber segment: "+err.Error(), http.StatusBadRequest)
 
