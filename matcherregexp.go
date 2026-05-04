@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strings"
 	"sync"
 	"unicode/utf8"
 )
@@ -65,24 +64,46 @@ func compileIRegexp(pattern string) (*regexp.Regexp, error) {
 }
 
 // validateIRegexp validates that a pattern conforms to I-Regexp (RFC 9485).
+//
+// I-Regexp omits anchors (^ and $) entirely from its grammar, so they must
+// be rejected wherever they appear unescaped — not just at the boundaries.
+// Go's regex engine would silently honour an unescaped mid-pattern ^ or $
+// and either fail to match anything or change the pattern's intent.
+//
+// The walk also rejects backreferences (\1 … \9) and any pattern that is
+// not valid UTF-8.
 func validateIRegexp(pattern string) error {
-	if strings.HasPrefix(pattern, "^") || strings.HasSuffix(pattern, "$") {
-		return fmt.Errorf("%w: %q", errIRegexpAnchors, pattern)
+	if !utf8.ValidString(pattern) {
+		return fmt.Errorf("%w: %q", errIRegexpInvalidUTF8, pattern)
 	}
 
-	for i := 0; i < len(pattern)-1; i++ {
-		if pattern[i] == '\\' {
+	inClass := false
+
+	for i := 0; i < len(pattern); i++ {
+		c := pattern[i]
+
+		switch {
+		case c == '\\':
+			if i+1 >= len(pattern) {
+				continue
+			}
+
 			next := pattern[i+1]
 			if next >= '1' && next <= '9' {
 				return fmt.Errorf("%w: %q", errIRegexpBackreferences, pattern)
 			}
 
-			i++
-		}
-	}
+			i++ // skip the escaped character
 
-	if !utf8.ValidString(pattern) {
-		return fmt.Errorf("%w: %q", errIRegexpInvalidUTF8, pattern)
+		case c == '[' && !inClass:
+			inClass = true
+
+		case c == ']' && inClass:
+			inClass = false
+
+		case (c == '^' || c == '$') && !inClass:
+			return fmt.Errorf("%w: %q", errIRegexpAnchors, pattern)
+		}
 	}
 
 	return nil

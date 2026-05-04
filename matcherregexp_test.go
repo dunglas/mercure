@@ -57,10 +57,20 @@ func TestValidateIRegexp(t *testing.T) {
 	assert.NoError(t, validateIRegexp("foo|bar"))
 	assert.NoError(t, validateIRegexp("https://example\\.com/.*"))
 	assert.NoError(t, validateIRegexp("\\d+"))
+	// Escaped anchors are literals.
+	assert.NoError(t, validateIRegexp("\\^foo\\$"))
+	// `^` inside a character class is the negation, not an anchor.
+	assert.NoError(t, validateIRegexp("[^abc]+"))
+	// Literal `$` is allowed inside a character class.
+	assert.NoError(t, validateIRegexp("[$]"))
 
-	// Invalid: anchors
+	// Invalid: anchors at the boundaries
 	require.Error(t, validateIRegexp("^foo"))
 	require.Error(t, validateIRegexp("foo$"))
+	// Invalid: anchors mid-pattern (Go's regex would silently honour these
+	// and the user's intent — a literal '$' or '^' — would be lost).
+	require.Error(t, validateIRegexp("foo$bar"))
+	require.Error(t, validateIRegexp("(foo|^bar)"))
 
 	// Invalid: backreferences
 	assert.Error(t, validateIRegexp("(foo)\\1"))
