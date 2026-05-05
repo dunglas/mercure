@@ -478,3 +478,26 @@ func TestJWKSURLFile(t *testing.T) {
 	resp := tester.AssertResponseCode(req, http.StatusOK)
 	require.NoError(t, resp.Body.Close())
 }
+
+func TestNewJWKSetKeyfunc(t *testing.T) {
+	jwksPath, err := filepath.Abs("testdata/RS256.jwks.json")
+	require.NoError(t, err)
+
+	t.Run("file URL with empty host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with localhost host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://localhost"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with rejected host", func(t *testing.T) {
+		_, err := newJWKSetKeyfunc(t.Context(), "file://example.com"+jwksPath)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"example.com"`)
+	})
+}
