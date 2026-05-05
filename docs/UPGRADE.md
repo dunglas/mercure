@@ -1,6 +1,137 @@
-# Upgrade
+# Upgrade Guide
 
-## 0.21
+## 1.0 (from 0.x)
+
+The 1.0 release is the first version aligned with the IETF specification's typed-matcher model. It is a **breaking change** for both subscribers and JWT issuers. Publishers are unaffected.
+
+If you only run the hub and don't author subscribers or mint JWTs yourself, the upgrade is a config change. If you do, plan a synchronized cutover of the hub and the clients that talk to it.
+
+### What changed at a glance
+
+| Area | 0.x | 1.0 |
+| --- | --- | --- |
+| Subscribe query parameter | `topic=<pattern>` (URI Template or string) | `match=<exact>`, `matchURLPattern=<pattern>`, `matchRegexp=<pattern>`, ... |
+| Default templating language | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org)) |
+| `mercure.subscribe` / `mercure.publish` claim | Array of strings | Array of objects `{match, matchType, payload}` |
+| Wildcard | `"*"` (string) | `{"match": "*"}` (object) |
+| Subscription event topic | `/.well-known/mercure/subscriptions/{topic}/{subscriber}` | `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` |
+| Subscription JSON-LD | `topic` | `match` + `matchType` |
+| Backward-compat mode | `protocol_version_compatibility 7` | Removed |
+
+### Migrate your subscribers
+
+The single change is the query parameter name.
+
+**Before (0.x):**
+
+```javascript
+const url = new URL("https://hub.example.com/.well-known/mercure");
+url.searchParams.append("topic", "https://example.com/books/1");
+url.searchParams.append("topic", "https://example.com/books/{id}");
+new EventSource(url);
+```
+
+**After (1.0):**
+
+```javascript
+const url = new URL("https://hub.example.com/.well-known/mercure");
+url.searchParams.append("match", "https://example.com/books/1");
+url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
+new EventSource(url);
+```
+
+Two things to notice:
+
+1. The exact-match parameter is now `match` (alias: `matchExact`). The hub treats query parameter names case-insensitively for any name starting with `match`.
+2. The templated parameter is `matchURLPattern`, and the syntax is [URL Patterns](https://urlpattern.spec.whatwg.org) (`/:id`, not `/{id}`).
+
+If your existing patterns are URI Templates and you'd rather not rewrite them, the hub still supports them via `matchURITemplate`. New code should use URL Patterns — they're better-defined for URLs and the only matcher type natively supported by browsers.
+
+### Migrate your JWTs
+
+The `mercure.publish` and `mercure.subscribe` claims must now contain **objects**, not bare strings. The hub rejects bare strings with a `401 Unauthorized` and refuses to mint a session.
+
+**Before (0.x):**
+
+```json
+{
+  "mercure": {
+    "publish": ["*"],
+    "subscribe": [
+      "https://example.com/users/42",
+      "https://example.com/books/{id}"
+    ]
+  }
+}
+```
+
+**After (1.0):**
+
+```json
+{
+  "mercure": {
+    "publish": [
+      { "match": "*" }
+    ],
+    "subscribe": [
+      { "match": "https://example.com/users/42" },
+      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
+    ]
+  }
+}
+```
+
+Rules:
+
+- `matchType` defaults to `"Exact"` if omitted, so any plain URL or string can stay as `{ "match": "<value>" }`.
+- The reserved value `{ "match": "*" }` matches every topic. It's the equivalent of the old `"*"` string.
+- `matchType` is case-insensitive: `"URLPattern"`, `"urlpattern"`, and `"UrlPattern"` are equivalent.
+- The `payload` field is per-claim-entry, with [explicit fallback rules](concepts/authorization.md#payloads) when several entries match.
+
+### Migrate the subscription API and events
+
+The route pattern and the JSON-LD shape changed.
+
+| Before | After |
+| --- | --- |
+| `/.well-known/mercure/subscriptions/<topic>/<subscriber>` | `/.well-known/mercure/subscriptions/<matchType>/<match>/<subscriber>` |
+| `"topic": "https://..."` in the JSON-LD | `"match": "https://..."` and `"matchType": "URLPattern"` |
+
+`<matchType>`, `<match>`, and `<subscriber>` must be percent-encoded. See [Active subscriptions](concepts/active-subscriptions.md) for the new layout.
+
+### Compatibility mode is gone
+
+In 0.14, the `protocol_version_compatibility 7` directive let the hub speak the old protocol while you migrated. 1.0 removes it. The reasoning is that the JWT claim form changed from string to object, and silently re-interpreting old tokens under the new rules would change their meaning — that's a security risk, not a convenience. Mint new tokens.
+
+### Find-and-replace checklist
+
+Search your codebase for these patterns:
+
+- `?topic=` and `&topic=` in subscriber URLs → `match=` (or `matchURLPattern=` if templated)
+- `searchParams.append("topic"` / `appendParam("topic"` → `"match"`
+- URI Template syntax in subscribe URLs (`{id}`, `{+host}`) → URL Pattern syntax (`:id`, `:host`)
+- `"publish": ["*"]` in JWT issuer code → `"publish": [{"match": "*"}]`
+- `"subscribe": ["..."]` in JWT issuer code → `"subscribe": [{"match": "..."}]`
+- Hardcoded `subscriptions/{topic}/{subscriber}` paths → add the `{matchType}` segment
+
+Once your services emit and parse the new shapes, switch the hub to 1.0.
+
+### Hub configuration
+
+Two directives that no longer exist:
+
+- `protocol_version_compatibility` — removed.
+- `transport_url` — removed (deprecated since 0.17). Use `transport <name> { ... }`.
+
+The legacy non-Caddy server (deprecated since 0.11) is also removed. If you're still on it, see [Installation](getting-started/installation.md) for the current builds.
+
+---
+
+## Historical changes (0.x)
+
+The entries below describe earlier upgrades. They are kept for users migrating across multiple major versions.
+
+### 0.21
 
 When Mercure is compiled manually or used as a Go library, deprecated features are no longer included by default.
 
@@ -14,17 +145,9 @@ To re-enable the legacy HTTP server, pass the `deprecated_server` build tag.
 
 Official binaries and Docker images still include deprecated features.
 
-## 0.17
+### 0.17
 
-The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive have been deprecated.
-Use the new `transport` directive instead.
-
-The `MERCURE_TRANSPORT_URL` environment variable has been removed from the default `Caddyfile`s,
-but a backward compatibility layer is provided.
-
-If both the `transport` and the deprecated `transport_url` are not explicitly set
-and the `MERCURE_TRANSPORT_URL` environment variable is set, the `transport_url` will be automatically populated.
-To disable this behavior, unset `MERCURE_TRANSPORT_URL` or set it to an empty string.
+The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive were deprecated in favor of the `transport` directive.
 
 Before:
 
@@ -41,87 +164,56 @@ transport bolt {
 }
 ```
 
-To configure the transport using an environment variable, append the `transport` directive to the `MERCURE_EXTRA_DIRECTIVES` environment variable:
+To configure the transport via an environment variable, append the directive to `MERCURE_EXTRA_DIRECTIVES`. Avoid putting credentials there; use `{env.MY_VAR}` placeholders in a custom Caddyfile instead.
 
-```console
-MERCURE_EXTRA_DIRECTIVES="transport bolt {
-  path mercure.db
-}"
-```
+### 0.16.2
 
-To prevent security issues, be sure to not pass credentials such as API tokens or password in `MERCURE_EXTRA_DIRECTIVES` (ex: when using transports [provided by the paid version](hub/cluster.md) such as Redis).
+`Caddyfile.dev` was renamed to `dev.Caddyfile` to match Caddy best practices.
 
-To pass credentials security, create a custom `Caddyfile` and use the `{env.MY_ENV_VAR}` syntax, which is interpreted at runtime.
+### 0.14.4
 
-## 0.16.2
+This release moved to Caddy 2.6, which removed single-hyphen long-form flags. Use `--config` instead of `-config`.
 
-The `Caddyfile.dev` file has been renamed `dev.Caddyfile` to match new Caddy best practices
-and prevent "ambiguous adapter" issues.
+### 0.14.3
 
-## 0.14.4
+The Prometheus metric `mercure_subscribers` was renamed `mercure_subscribers_connected` for better interoperability with Datadog and others.
 
-This release is built on top of [Caddy 2.6](https://github.com/caddyserver/caddy/releases/tag/v2.6.0).
-Caddy 2.6 removed support for single-hyphen long-form flags (such as `-config`), use the double-hyphen syntax instead (`--config`).
+### 0.14.1
 
-## 0.14.3
+The default development key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecretKey!` to satisfy the spec's 256-bit minimum.
 
-The `mercure_subscribers` field of the Prometheus endpoint has been renamed `mercure_subscribers_connected` for better interoperability (including with Datadog).
+### 0.14
 
-## 0.14.1
+The `Last-Event-ID` query parameter was renamed `lastEventID`. Update your clients.
 
-The default dev key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecretKey!` to respect the specification (the key must be longer than 256 bits).
+Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 
-## 0.14
+A `protocol_version_compatibility 7` directive was added to ease the transition. It has since been removed in 1.0.
 
-The query parameter allowing you to fetch past events has been renamed `lastEventID`: in your clients, replace all occurrences of the `Last-Event-ID` query parameter with `lastEventID`.
+### 0.13
 
-Publishing public updates in topics not explicitly listed in the `mercure.publish` JWT claim isn't supported anymore.
-To let your publishers publish (public and private updates) in all topics, use the special `*` topic selector:
+The `DEBUG` environment variable was removed. Set `GLOBAL_OPTIONS=debug` instead.
 
-```patch
- {
-   "mercure": {
--    "publish": []
-+    "publish": ["*"]
- }
-```
+### 0.11
 
-Backward compatibility with the old version of the protocol (version 7) can be enabled by setting the `protocol_version_compatibility` directive to `7` in your `Caddyfile`.
+The hub became a Caddy module. Standalone binaries are now custom Caddy builds. The legacy server stayed available with a `legacy` build prefix until 1.0.
 
-## 0.13
+Before switching, [migrate your configuration](deployment/configuration.md).
 
-The `DEBUG` environment variable has gone. Set the `GLOBAL_OPTIONS` environment variable to `debug` instead.
+### 0.10
 
-## 0.11
+The protocol changed substantially. Highlights:
 
-The Mercure.rocks Hub is now available as a module for the [Caddy web server](https://caddyserver.com/).
-It is also easier to use as [a standalone Go library](https://pkg.go.dev/github.com/dunglas/mercure).
-We still provide standalone binaries, but it's now a custom build of Caddy including the Mercure module.
+- Targets are gone, replaced by topic selectors. Mark updates `private` and check the `mercure.publish` / `mercure.subscribe` claims.
+- Subscription JSON-LD: `"@type": "https://mercure.rocks/Subscription"` → `"type": "Subscription"`.
+- `dispatch_subscriptions` → `subscriptions`.
+- `subscriptions_include_ip` removed; use `mercure.payload`.
+- IDs are now URNs (`urn:uuid:...`).
+- `*` as a topic became reserved.
 
-Builds of the legacy server are also available to ease the transition, but starting with version 0.12 only the Caddy-based builds will be provided (they have the `legacy` prefix).
+### 0.8
 
-Relying on Caddy allows to use the Mercure.rocks Hub as a [reverse proxy](https://caddyserver.com/docs/quick-starts/reverse-proxy) for your site or API that also adds the Mercure well-known URL (`/.well-known/mercure`). Thanks to this new feature, the well-known URL can be on the same domain as your site or API, so you don't need to deal with [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS).
-
-All features provided by Caddy are also supported by this custom build: [HTTP/3 and h2c support](https://caddyserver.com/docs/json/apps/http/servers/#experimental_http3), [compression](https://caddyserver.com/docs/caddyfile/directives/encode), [Prometheus metrics](https://caddyserver.com/docs/metrics) (with additional Mercure-specific metrics), profiler (`/debug/pprof/`)...
-
-Before switching to the Caddy build, be sure to [migrate your configuration](hub/config.md).
-
-## 0.10
-
-This version is in sync with the latest version of the specification, which changed a lot. Upgrading to 0.10 **requires to change your code**. Carefully read this guide before upgrading the hub.
-
-- Private updates are now handled differently. _Targets_ don't exist anymore. They have been superseded by the concept of _topic selectors_.
-  To send a private update, the publisher must now set the new `private` field to `on` when sending the `POST` request. The topics of the update must also match at least one selector (a URI Template, a raw string or `*` to match all topics) provided in the `mercure.publish` claim of the JWT.
-  To receive a private update, at least one topic of this update must match at least one selector provided in the `mercure.subscribe` claim of the JWT.
-- The structure of the JSON-LD document included in subscription events changed. Especially, `"@type": "https://mercure.rocks/Subscription"` is now `"type": "Subscription"` and `"@id": "/.well-known/mercure/subscriptions/foo/bar"` is now `"id": "/.well-known/mercure/subscriptions/foo/bar"`.
-- The `dispatch_subscriptions` config option has been renamed `subscriptions`.
-- The `subscriptions_include_ip` config option doesn't exist anymore. To include the subscriber IP (or any other value) in subscription events, use the new `mercure.payload` property of the JWT.
-- All IDs generated by the hub (updates ID, subscriptions IDs...) are now URN following the template `urn:uuid:{the-uuid}` (it was `{the-uuid}` before). You may need to update your code if you deal with these IDs.
-- The topic `*` is now reserved and allows to subscribe to all topics.
-
-## 0.8
-
-- According to the new version of the spec, the URL of the Hub has changed from `/hub` to `/.well-known/mercure`.
-- `HISTORY_CLEANUP_FREQUENCY`, `HISTORY_SIZE` and `DB_PATH` environment variables have been replaced by the new `TRANSPORT_URL` environment variable
-- Lists in `ACME_HOSTS`, `CORS_ALLOWED_ORIGINS`, `PUBLISH_ALLOWED_ORIGINS` must now be space separated
-- The public API of the Go library has been totally revamped
+- Hub URL changed from `/hub` to `/.well-known/mercure`.
+- `HISTORY_CLEANUP_FREQUENCY`, `HISTORY_SIZE`, `DB_PATH` collapsed into `TRANSPORT_URL`.
+- `ACME_HOSTS`, `CORS_ALLOWED_ORIGINS`, `PUBLISH_ALLOWED_ORIGINS` switched to space-separated values.
+- The Go library's public API was rewritten.

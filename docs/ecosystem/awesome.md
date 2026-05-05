@@ -1,92 +1,101 @@
 # Awesome Mercure
 
+A curated list of libraries, integrations, and learning resources around Mercure. Add yours via PR.
+
 ## Demos
 
-- [Demo hub and debug UI](https://demo.mercure.rocks) ([source code](https://github.com/dunglas/mercure/tree/master/public)): a managed demo hub and the official debugging tools (written in JavaScript)
-- [Chat](https://demo-chat.mercure.rocks/) ([source code](https://github.com/dunglas/mercure/tree/master/examples/chat)): a chat app, including the list of currently connected users (written in JavaScript and Python)
+- [Demo hub and debug UI](https://demo.mercure.rocks) ([source](https://github.com/dunglas/mercure/tree/master/public)) — managed demo hub with the official debug tools.
+- [Chat](https://demo-chat.mercure.rocks/) ([source](https://github.com/dunglas/mercure/tree/master/examples/chat)) — chat app with presence (JavaScript + Python).
 
 ## Examples
 
-- [JavaScript (publish, subscribe, and presence API)](https://github.com/dunglas/mercure/blob/master/public/app.js)
-- [JavaScript (subscribe and presence API)](https://github.com/dunglas/mercure/blob/master/examples/chat/static/chat.js)
-- [Node.js (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/node.js)
-- [PHP (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/php.php)
-- [Ruby (publish)](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
-- [Python (subscribe)](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
-- [Python (cookie authorization)](https://github.com/dunglas/mercure/blob/master/examples/chat/chat.py)
-- [API Platform (publish and subscribe)](https://github.com/api-platform/demo): a book catalog updated in real time using Mercure
+- [JavaScript: publish, subscribe, presence API](https://github.com/dunglas/mercure/blob/master/public/app.js)
+- [JavaScript: subscribe + presence](https://github.com/dunglas/mercure/blob/master/examples/chat/static/chat.js)
+- [Node.js: publish](https://github.com/dunglas/mercure/tree/master/examples/publish/node.js)
+- [PHP: publish](https://github.com/dunglas/mercure/tree/master/examples/publish/php.php)
+- [Ruby: publish](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
+- [Python: subscribe](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
+- [Python: cookie-based authorization](https://github.com/dunglas/mercure/blob/master/examples/chat/chat.py)
+- [API Platform: publish + subscribe](https://github.com/api-platform/demo) — book catalog updated in real time.
 
-## Documentation and Code Generation
+## Hubs and server libraries
 
-- The Mercure protocol is natively supported by [the AsyncAPI ecosystem](https://www.asyncapi.com/)
+- [Mercure.rocks Hub (Go)](https://mercure.rocks) — the reference implementation.
+- [Freddie (PHP)](https://github.com/bpolaszek/freddie)
+- [Ilshidur/node-mercure (Node.js)](https://github.com/Ilshidur/node-mercure)
 
-## Hubs and Server Libraries
+## Client libraries
 
-- [Go Hub and Server library](https://mercure.rocks)
-- [Node.js Hub and Server library](https://github.com/Ilshidur/node-mercure)
+- [`@microsoft/fetch-event-source` (JavaScript)](https://github.com/Azure/fetch-event-source) — better SSE client for browsers and Node.
+- [`symfony/mercure` (PHP, publisher)](https://github.com/symfony/mercure)
+- [`python-mercure` (Python, publish + subscribe)](https://github.com/vitorluis/python-mercure)
+- [`dart_mercure` (Dart / Flutter, publish + subscribe)](https://github.com/wallforfry/dart_mercure)
+- [`amp-mercure-publisher` (PHP / Amphp)](https://github.com/eislambey/amp-mercure-publisher)
+- [`java-mercure` (Java, publisher)](https://github.com/vitorluis/java-mercure)
+- [`mercure-rs` (Rust, publisher)](https://github.com/teohhanhui/mercure-rs)
 
-## Client Libraries
+## Framework integrations
 
-- [PHP (publish)](https://github.com/symfony/mercure)
-- [Python (publish and subscribe)](https://github.com/vitorluis/python-mercure)
-- [Dart (publish and subscribe)](https://github.com/wallforfry/dart_mercure)
-- [Amphp (publish)](https://github.com/eislambey/amp-mercure-publisher)
-- [Java (publish)](https://github.com/vitorluis/java-mercure)
-- [Rust (publish)](https://github.com/teohhanhui/mercure-rs)
-
-## Frameworks and Services Integrations
-
-- [Official Mercure support for the Symfony framework](https://symfony.com/doc/current/mercure.html)
-- [Official Mercure support for the API Platform framework](https://api-platform.com/docs/core/mercure/)
-- [Using Mercure and Hotwire to stream page changes](hotwire.md)
+- [Symfony](https://symfony.com/doc/current/mercure.html) — official component, full publisher support.
+- [API Platform](https://api-platform.com/docs/core/mercure/) — full publisher + subscriber + GraphQL subscriptions.
 - [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 - [Yii Mercure Behavior](https://github.com/bizley/mercure-behavior)
 - [CakePHP Mercure plugin](https://github.com/josbeir/cakephp-mercure)
-- [Add a Mercure service in GitHub Actions](github-actions.md)
-- [Send a Mercure publish event from GitHub Actions](https://github.com/Ilshidur/action-mercure)
+- [Hotwire / Turbo Streams](../use-cases/hotwire.md)
+- [GitHub Action: publish on workflow events](https://github.com/Ilshidur/action-mercure)
 
-## Useful Related Libraries
+## Documentation, tooling, and code generation
 
-- [Microsoft's Fetch Event Source, a better JavaScript API for making Event Source requests](https://github.com/Azure/fetch-event-source)
-- [`EventSource` polyfill for Edge/IE and old browsers](https://github.com/Yaffle/EventSource)
+- [AsyncAPI](https://www.asyncapi.com/) — natively supports the Mercure protocol.
+- [URI Template tester](https://uri-template-tester.mercure.rocks/) — for hubs running 0.x-style URI Template subscriptions.
+
+## Useful related libraries
+
+- [`EventSource` polyfill (Edge / IE / old browsers)](https://github.com/Yaffle/EventSource)
 - [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)
-- [`EventSource` implementation for Node](https://github.com/EventSource/eventsource)
+- [`EventSource` for Node](https://github.com/EventSource/eventsource)
 - [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
-- [Server-Sent Events client for Android and Java](https://github.com/heremaps/oksse)
+- [Server-Sent Events client for Android / Java](https://github.com/heremaps/oksse)
 - [Server-Sent Events client for Swift](https://github.com/inaka/EventSource)
-- [JavaScript library to parse `Link` headers](https://github.com/thlorenz/parse-link-header)
-- [JavaScript library to decrypt JWE using the WebCrypto API](https://github.com/square/js-jose)
+- [`parse-link-header` (JavaScript)](https://github.com/thlorenz/parse-link-header) — parse `Link: rel="mercure"` headers.
+- [`jose` (JavaScript)](https://github.com/panva/jose) — JWT and JWE in the browser and Node.
 
-## Projects Using Mercure
+## Projects using Mercure
 
-- [HTTP Broadcast: a scalable and fault resilient HTTP broadcaster](https://github.com/jderusse/http-broadcast)
+- [HTTP Broadcast: scalable HTTP broadcaster](https://github.com/jderusse/http-broadcast)
 
-## Learning Resources
+## Learning resources
 
-### English 🇺🇸
+### English
 
-- 📺 [API Updates in Real Time w. Mercure.rocks](https://www.youtube.com/watch?v=odNsxoHSkT4)
+- 📺 [API updates in real time with Mercure.rocks](https://www.youtube.com/watch?v=odNsxoHSkT4)
 - 📺 [Building async public APIs using HTTP/2+ and the Mercure protocol](https://www.youtube.com/watch?v=IUx47Tx0O8E)
-- 📺 [Real-time Notifications with Symfony and Mercure (Basics)](https://www.youtube.com/watch?v=kYNC47V7R_0)
-- 📺 [Real-time Chat App with Symfony and Mercure](https://www.youtube.com/watch?v=wnr2A4aKnPU)
-- [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure (Symfony blog)](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
-- [Tech Workshop: Mercure by Kévin Dunglas at SensioLabs (SensioLabs)](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
+- 📺 [Real-time notifications with Symfony and Mercure (basics)](https://www.youtube.com/watch?v=kYNC47V7R_0)
+- 📺 [Real-time chat app with Symfony and Mercure](https://www.youtube.com/watch?v=wnr2A4aKnPU)
+- [Official push and real-time capabilities for Symfony and API Platform](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
+- [Tech workshop: Mercure by Kévin Dunglas](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
 - [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
 - [Using Mercure on Stackhero](https://www.stackhero.io/services/Mercure-Hub/documentations)
-- [Mercure - install and run](https://mysiar.github.io/dev/2020/04/12/mercure-part1.html)
 
-### French 🇫🇷
+### French
 
 - 📺 [Notifications instantanées avec Mercure (Grafikart)](https://www.grafikart.fr/tutoriels/symfony-mercure-1151)
-- 📺 [Live Coding : Notifications temps réel avec Mercure](https://www.youtube.com/watch?v=tqqJ1ul2M-E)
-- 📺 [Explication des Server Sent Events (SSE) avec Mercure](https://www.youtube.com/watch?v=Q4LRN2wXuIc)
-- 📺 [Mercure : des UIs toujours synchronisées avec les données en BDD](https://www.youtube.com/watch?v=UcBa4AugNTE)
-- 📺 [Mercure, et PHP s'enamoure enfin du temps réel](https://www.youtube.com/watch?v=GugURP88Rgg)
+- 📺 [Live coding: Notifications temps réel avec Mercure](https://www.youtube.com/watch?v=tqqJ1ul2M-E)
+- 📺 [Server-Sent Events avec Mercure](https://www.youtube.com/watch?v=Q4LRN2wXuIc)
+- 📺 [Mercure: des UIs synchronisées avec les données en BDD](https://www.youtube.com/watch?v=UcBa4AugNTE)
 - 📺 [Async avec Messenger, AMQP et Mercure](https://www.youtube.com/watch?v=cHPbcuydJiA)
-- [Mercure, un protocole pour pousser des mises à jour vers des navigateurs et app mobiles en temps réel (Les-Tilleuls.coop)](https://les-tilleuls.coop/blog/mercure-un-protocole-pour-pousser-des-mises-a-jour-vers-des-navigateurs-et-app-mobiles-en-temps-reel)
+- [Mercure, un protocole pour pousser des mises à jour en temps réel (Les-Tilleuls.coop)](https://les-tilleuls.coop/blog/mercure-un-protocole-pour-pousser-des-mises-a-jour-vers-des-navigateurs-et-app-mobiles-en-temps-reel)
 - [Symfony et Mercure](https://afsy.fr/avent/2019/21-symfony-et-mercure)
 - [À la découverte de Mercure](https://blog.eleven-labs.com/fr/a-la-decouverte-de-mercure/)
 
-### German 🇩🇪
+### German
 
 - [Neue Symfony-Komponente: Mercure ermöglicht Echtzeitübertragung](https://entwickler.de/online/php/symfony-mercure-komponente-579885243.html)
+
+## Find more
+
+[GitHub `mercure` topic](https://github.com/topics/mercure) — community-tagged repositories.
+
+## Add yours
+
+PRs welcome. Keep the structure (one bullet per item, language tag for libraries, language flag for learning resources) and aim for things people will actually find useful.
