@@ -36,7 +36,7 @@ Why this works:
 - The origin server doesn't have to keep the browser's HTTP connection open. It calls the hub and goes back to its event loop. This makes serverless inference (Lambda, Cloud Run, Workers) trivial.
 - Reconnection is built in. If the browser drops mid-stream, `EventSource` reconnects with `Last-Event-ID` and the hub resends any tokens it still has buffered.
 
-## Subscriber: the browser
+## Subscriber: The Browser
 
 Open one connection per chat session. Use a topic that includes the conversation ID:
 
@@ -65,7 +65,7 @@ Open one connection per chat session. Use a topic that includes the conversation
 
 The cookie carries a JWT whose `mercure.subscribe` claim authorizes the user for `https://example.com/conversations/<their-id>` topics only. See [Authorization](../concepts/authorization.md).
 
-## Publisher: server-side OpenAI streaming
+## Publisher: Server-Side OpenAI Streaming
 
 A Node.js handler that calls OpenAI's chat completions in streaming mode and forwards each delta to the hub:
 
@@ -110,7 +110,7 @@ export async function streamCompletion(conversationId, prompt) {
 
 The publish call is a single `POST`; it returns as soon as the hub accepts the update. You don't await delivery to subscribers — that happens in the background.
 
-## Why not just stream the response from the origin?
+## Why Not Just Stream the Response from the Origin?
 
 `POST /chat` could return `text/event-stream` directly. That works too, but it has tradeoffs Mercure avoids:
 
@@ -149,13 +149,13 @@ for await (const event of stream) {
 
 **Bedrock, Vertex, etc.:** the streaming API has a different shape, but the structure (iterate, publish per delta) is the same.
 
-## Performance Notes for LLM Token Streaming over Mercure
+## Performance Notes for LLM Token Streaming Over Mercure
 
 - **Don't await each publish if latency matters.** Fire-and-forget the `fetch` calls and `await Promise.all` at the end. Each call is a few hundred bytes; serializing them adds 1–5ms per token.
 - **Batch tiny tokens.** OpenAI sometimes emits single-character deltas. If your UI renders per token, that's fine; if you're hitting publish-rate limits on a managed hub, accumulate 50–100ms worth of tokens and publish in chunks.
 - **Stream IDs help replay.** Set a custom `id=` on each publish (a counter, or `<conversationId>:<index>`) so a reconnecting client can ask for everything after the last one it saw.
 
-## Authorization sketch
+## Authorization Sketch
 
 Mint a JWT for the user when they load the chat page:
 
@@ -176,7 +176,7 @@ Mint a JWT for the user when they load the chat page:
 
 Set it as the `mercureAuthorization` cookie with `Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict`. The browser's `EventSource` picks it up automatically. See [Authorization](../concepts/authorization.md).
 
-## Limits to be aware of
+## Limits to Be Aware Of
 
 - **One `EventSource` per browser tab is enough.** A tab can have one connection per origin under HTTP/2 and use `match*` parameters for as many topics as it wants.
 - **Connection counts.** A streaming chat keeps a connection open for the life of the page. The open-source hub has [no built-in cap](../concepts/reconnection-and-history.md#the-mercure-history-buffer) — sizing is whatever your hardware can handle. Cloud tiers cap connections per plan.

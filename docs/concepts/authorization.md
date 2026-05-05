@@ -35,17 +35,17 @@ A Mercure JWT is a regular [JWS](https://www.rfc-editor.org/rfc/rfc7515) with a 
 
 The hub verifies the signature with the key configured in `publisher_jwt` / `subscriber_jwt` (or via JWKS — see [Configuration](../deployment/configuration.md#jwt-validation-via-jwks)).
 
-## Three ways to send the token
+## Three Ways to Send the Token
 
-In order of preference:
+Pick the method that matches your client:
 
-1. **`Authorization: Bearer <token>` header.** Right for any client that can set custom headers — server-side code, mobile apps, CLI tools.
-2. **`mercureAuthorization` cookie.** The only choice for browser `EventSource`, which can't set headers. Set the cookie at discovery time so it's already present when the SSE connection opens.
-3. **`authorization` query parameter.** Last resort. Tokens leak into proxy logs, browser history, and `Referer` headers; use this only when nothing else works.
+1. **`mercureAuthorization` cookie — preferred for browsers.** Set with `HttpOnly`, `Secure`, and `SameSite`, the cookie keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history (no leakage via screenshots or `Referer`), and is the only mechanism `EventSource` natively carries on cross-origin connections. Set it at discovery time so it's already in place when the SSE connection opens.
+2. **`Authorization: Bearer <token>` header — preferred for non-browser clients.** Right for server-side code, mobile apps, and CLI tools — anything that can set custom headers. Browsers can't attach this to an `EventSource`, so it's not an option there.
+3. **`authorization` query parameter — last resort.** Tokens leak into proxy logs, browser history, and `Referer` headers. Use this only when neither cookie nor header is available.
 
-If a request carries multiple authorization sources, the header wins, then the query parameter, then the cookie.
+If a request carries multiple authorization sources, the header wins, then the query parameter, then the cookie. That precedence exists for unusual cases — clients should normally send only one.
 
-The hub never sends tokens over plain HTTP. Whichever method you pick, **HTTPS is mandatory** for any non-anonymous request.
+The hub never accepts tokens over plain HTTP. Whichever method you pick, **HTTPS is mandatory** for any non-anonymous request.
 
 ## Publishers
 
@@ -93,13 +93,13 @@ Empty `subscribe` array → no private updates can be received.
 
 `[{ "match": "*" }]` → all private updates can be received.
 
-### Anonymous subscribers
+### Anonymous Subscribers
 
 Hubs in development mode (or any hub with the `anonymous` directive set) accept subscribers without a JWT. Anonymous subscribers can only receive public updates — they have no `subscribe` claim to match against.
 
 This is the right default for live feeds, public dashboards, and any case where the data isn't user-specific. For everything else, leave `anonymous` off.
 
-## Per-user authorization on shared topics
+## Per-User Authorization on Shared Topics
 
 A common pattern: a subscriber wants to receive updates about every book it has access to. A naive solution would be `matchURLPattern=https://example.com/books/:id` in the query, plus the same in `mercure.subscribe`. But that authorizes the subscriber for **every** book, including ones it shouldn't see.
 
@@ -171,7 +171,7 @@ The first claim entry that matches wins. If none does, the hub falls back to `me
 
 Use payloads to ship per-subscriber metadata to other subscribers via subscription events: usernames, group memberships, IP address, role.
 
-## Cookies in detail
+## Cookies in Detail
 
 Set the cookie during discovery — when the user fetches the page or the API resource that links to the hub. By the time the browser opens the SSE connection, the cookie is already in place.
 

@@ -20,7 +20,7 @@ Topics are arbitrary strings. The protocol recommends URLs because they compose 
 
 Pick a scheme up front and stick to it. URLs are usually the right default; use a custom scheme only when there's no URL that names the thing you're broadcasting.
 
-## Subscribing with matchers
+## Subscribing with Matchers
 
 A subscriber sends one or more `match*` query parameters when opening the SSE connection:
 
@@ -114,7 +114,7 @@ CEL is the most expressive matcher but also the most expensive. Hubs that implem
 url.searchParams.append("matchURITemplate", "https://example.com/books/{id}");
 ```
 
-## Combining matchers
+## Combining Matchers
 
 A subscription with several `match*` parameters is a logical OR. There is no way to express AND inside a subscription — if you need that, use CEL.
 
@@ -132,7 +132,7 @@ This subscriber receives:
 - any user-notifications URL, **or**
 - the chat rooms 42 and 99.
 
-## Authorization claims use the same matcher types
+## Authorization Claims Use the Same Matcher Types
 
 The hub uses matchers in two places: at subscription time (which topics does the client want?) and at authorization time (which topics is the client *allowed to use*?). Both share the same matcher vocabulary.
 
@@ -155,11 +155,11 @@ In a JWT, the `mercure.subscribe` and `mercure.publish` claims hold an array of 
 
 `matchType` defaults to `"Exact"` if omitted. The reserved value `"*"` (with `matchType: "Exact"` or omitted) means "every topic." Full details and examples in [Authorization](authorization.md).
 
-## How matching works on the publish side
+## How Matching Works on the Publish Side
 
 When a publisher posts an update with a `topic` (and optionally several alternate `topic` values), the hub runs every connected subscriber's matchers against the topic list. Public updates go to every subscriber whose matchers hit. Private updates additionally check that the subscriber's `mercure.subscribe` claim matches at least one of the topics. See [Publishing](publishing.md) and [Authorization](authorization.md) for the full path.
 
-## Picking a matcher
+## Picking a Matcher
 
 A short rule of thumb:
 

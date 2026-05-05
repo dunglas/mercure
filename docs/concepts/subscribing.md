@@ -42,7 +42,7 @@ A few things to know:
 - A single `EventSource` connection can carry as many topic subscriptions as you want by passing more `match*` parameters.
 - `EventSource` does not let you set `Authorization` headers. For private subscriptions, use a [cookie](authorization.md#cookies-in-detail) (recommended) or the `authorization` query parameter (last resort).
 
-### `fetch-event-source` for advanced cases
+### `fetch-event-source` for Advanced Cases
 
 For finer-grained error handling, custom headers, or non-`GET` requests, use [Microsoft's `fetch-event-source`](https://github.com/Azure/fetch-event-source):
 
@@ -74,7 +74,7 @@ useEffect(() => {
 
 Skipping this is the most common cause of "the hub keeps a slot for me even though I navigated away." The hub sees the connection as live and counts it against any per-IP or per-token limits.
 
-## Server-side subscribers
+## Server-Side Subscribers
 
 Any HTTP client that exposes a streaming response works. A few examples:
 
@@ -113,7 +113,7 @@ for event in SSEClient("https://hub.example.com/.well-known/mercure?match=topic"
 
 [Awesome Mercure](../ecosystem/awesome.md) lists more libraries.
 
-## What the hub sends
+## What the Hub Sends
 
 Each event is a standard SSE message:
 

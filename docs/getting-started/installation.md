@@ -11,7 +11,7 @@ Pick the install method that matches how you ship the rest of your stack. They a
 
 The Mercure.rocks Hub is a custom build of the [Caddy web server](https://caddyserver.com/) with the Mercure module. Anything Caddy can do, this binary can do too — TLS, HTTP/3, compression, reverse proxying, Prometheus metrics.
 
-## Docker (recommended)
+## Docker (Recommended)
 
 ```console
 # Docker (recommended)
@@ -106,7 +106,7 @@ yay -S mercure
 
 Available [on the AUR](https://aur.archlinux.org/packages/mercure). Or `makepkg -sri` against the PKGBUILD if you don't use an AUR wrapper.
 
-## Custom Caddy build
+## Custom Caddy Build
 
 If you need other Caddy modules in the same binary (rate limiting, OAuth, custom storage), build with [`xcaddy`](https://github.com/caddyserver/xcaddy):
 

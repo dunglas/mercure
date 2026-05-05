@@ -193,7 +193,7 @@ Documents are usually private. Each user's `mercure.subscribe` claim should cove
 
 Mark every change publication `private=on` so the hub enforces the claim.
 
-## What about the publish path?
+## What About the Publish Path?
 
 If you want clients to publish directly to the hub (skipping the origin server), you can — give them a publisher JWT. But typically you don't: routing changes through your API lets you persist them, validate them, and rate-limit them. The publish to Mercure is just a fan-out at the end of that pipeline.
 

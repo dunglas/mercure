@@ -23,7 +23,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Python: cookie-based authorization](https://github.com/dunglas/mercure/blob/master/examples/chat/chat.py)
 - [API Platform: publish + subscribe](https://github.com/api-platform/demo) — book catalog updated in real time.
 
-## Hubs and server libraries
+## Hubs and Server Libraries
 
 - [Mercure.rocks Hub (Go)](https://mercure.rocks) — the reference implementation.
 - [Freddie (PHP)](https://github.com/bpolaszek/freddie)
@@ -49,7 +49,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Hotwire / Turbo Streams](../use-cases/hotwire.md)
 - [GitHub Action: publish on workflow events](https://github.com/Ilshidur/action-mercure)
 
-## Documentation, tooling, and code generation
+## Documentation, Tooling, and Code Generation
 
 - [AsyncAPI](https://www.asyncapi.com/) — natively supports the Mercure protocol.
 - [URI Template tester](https://uri-template-tester.mercure.rocks/) — for hubs running 0.x-style URI Template subscriptions.
@@ -65,7 +65,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [`parse-link-header` (JavaScript)](https://github.com/thlorenz/parse-link-header) — parse `Link: rel="mercure"` headers.
 - [`jose` (JavaScript)](https://github.com/panva/jose) — JWT and JWE in the browser and Node.
 
-## Projects using Mercure
+## Projects Using Mercure
 
 - [HTTP Broadcast: scalable HTTP broadcaster](https://github.com/jderusse/http-broadcast)
 

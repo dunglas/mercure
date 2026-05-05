@@ -9,7 +9,7 @@ GraphQL subscriptions traditionally run over WebSockets ([`graphql-transport-ws`
 
 Mercure can carry GraphQL subscriptions directly. The pattern: the server returns a topic URL in response to a subscription query, and the client opens an `EventSource` on that topic.
 
-## GraphQL Subscriptions over Mercure: The Flow
+## GraphQL Subscriptions Over Mercure: The Flow
 
 ```text
 # GraphQL Subscriptions over Mercure: The Flow
@@ -152,21 +152,21 @@ For a subscriber to open one connection that covers all of their subscriptions a
 }
 ```
 
-## Frameworks that already do this
+## Frameworks That Already Do This
 
 - **API Platform.** [Built-in support for GraphQL subscriptions over Mercure](https://api-platform.com/docs/master/core/graphql/#subscriptions). Generate a Mercure topic per subscription and a working frontend, no glue code.
 - **GraphQL Mesh, GraphQL Yoga.** Plugins exist; check the respective docs.
 
 If your stack rolls its own GraphQL layer, the pattern in this guide is enough — a topic per subscription, a publish per data change, an `EventSource` on the client.
 
-## When WebSockets are still better
+## When WebSockets Are Still Better
 
 - The subscription needs **client → server messages on the subscription stream itself** (uncommon in GraphQL, but possible with `subscribe` operations that take live arguments).
 - Latency budgets that make even `POST /graphql + GET /sub` round-trips a problem (rare; both run on HTTP/2 and the topic discovery is one extra request, once).
 
 For everything else, Mercure plus GraphQL is a smaller stack — one transport for all real-time, no second port, no second protocol.
 
-## Next Steps for GraphQL Subscriptions over Mercure
+## Next Steps for GraphQL Subscriptions Over Mercure
 
 - [LLM token streaming](llm-token-streaming.md) — for streaming responses outside of GraphQL.
 - [Authorization](../concepts/authorization.md) — per-user topics.

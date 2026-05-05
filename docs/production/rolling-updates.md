@@ -9,7 +9,7 @@ SSE connections are long-lived by design. A naive restart — kill the process, 
 
 The Mercure.rocks Hub is built to avoid this. Shutdown rides the same `write_timeout` that already rotates connections in steady state, so a restart looks, from a client's perspective, like normal churn.
 
-## How draining works
+## How Draining Works
 
 When the hub receives a shutdown signal (`SIGTERM`, the Caddy admin `/stop` endpoint, a graceful config reload), active subscriber handlers stay running. Each one exits when:
 
@@ -20,7 +20,7 @@ Because `write_timeout` already closes each SSE connection every few minutes dur
 
 If `write_timeout` is `0s` (steady-state rotation disabled), the hub exits all subscribers immediately on shutdown. At that point you've opted out of the drain mechanism, so the alternative would be to hang forever on active handlers.
 
-## Sizing the drain window
+## Sizing the Drain Window
 
 The orchestrator must give the hub enough time between `SIGTERM` and `SIGKILL`. If it doesn't, the drain mechanism does nothing.
 
@@ -53,7 +53,7 @@ Once Kubernetes marks a new pod Ready, the transport inside it still needs a mom
 
 With 30s of quiet time, each pod stabilizes before taking its share of load. The chart sets this by default; don't lower it without measuring.
 
-## Non-Kubernetes deployments
+## Non-Kubernetes Deployments
 
 Any supervisor that gives the hub time to drain works the same way:
 
@@ -73,13 +73,13 @@ The rule is the same: stop timeout ≥ `write_timeout` + small margin.
 
 This is the cleanest way to roll a config change in production: zero reconnects, zero downtime, regardless of `write_timeout`.
 
-## Self-Hosted transports
+## Self-Hosted Transports
 
 The drain mechanism is built into the open-source hub and works with BoltDB. The [Self-Hosted transports](high-availability.md) (Redis, PostgreSQL, Kafka, Pulsar) inherit it automatically — each connection drains at its own `write_timeout` regardless of which backend carries the updates.
 
 For deployments that can't afford any restart-related reconnect (sub-second SLOs, strict steady-state requirements), [Cloud and Self-Hosted](https://mercure.rocks/pricing) additionally run multi-node clusters that route around individual replica restarts entirely — a single replica restarting doesn't reconnect any clients at all, because they're balanced across the others.
 
-## Verifying the drain
+## Verifying the Drain
 
 Watch the active subscribers metric (`mercure_subscribers_connected`) during a deploy. Healthy drains look like a smooth ramp down on the old replica and a matching ramp up on the new one. A cliff to zero is a misconfigured grace period.
 

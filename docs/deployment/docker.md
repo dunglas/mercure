@@ -177,7 +177,7 @@ Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod — it log
 - `dunglas/mercure:<version>` — pin to a specific release.
 - Self-Hosted ships its own image with the multi-node transports — see [High availability](../production/high-availability.md).
 
-## Behind a reverse proxy
+## Behind a Reverse Proxy
 
 If you're already running Traefik or NGINX, terminate TLS there and let the hub speak HTTP. See [Reverse proxies](reverse-proxy.md).
 

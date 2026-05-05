@@ -32,7 +32,7 @@ Readiness should fail **fast**: a momentary blip on Redis, a Postgres failover, 
 
 Restarting a hub on a transient transport blip just adds a reconnect storm to whatever the transport problem already was. The two endpoints encode that distinction.
 
-## Probing from outside the container
+## Probing from Outside the Container
 
 The admin API binds to `localhost:2019` for security. That means standard `httpGet` probes — which run from outside the container — can't reach it. Use `exec` probes instead:
 
@@ -74,11 +74,11 @@ If you absolutely need `httpGet` probes, you can bind the admin API to all inter
 
 But that exposes `/stop`, `/load`, `/config` (the full admin API) to the pod network. Almost never what you want. Use `exec` probes.
 
-## The legacy `/healthz` endpoint
+## The Legacy `/healthz` Endpoint
 
 There's a `/healthz` endpoint on the main HTTP port. It only checks that the Caddy process is alive — not that the transport is healthy. **It is deprecated.** Don't add it to new probes; migrate existing probes to `/mercure/health/*`.
 
-## Prometheus metrics
+## Prometheus Metrics
 
 Enable metrics in `GLOBAL_OPTIONS`:
 

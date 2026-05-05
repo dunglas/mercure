@@ -74,7 +74,7 @@ await fetch("https://hub.example.com/.well-known/mercure", {
 });
 ```
 
-## Decrypting on the subscriber
+## Decrypting on the Subscriber
 
 In a browser, with [`jose`](https://github.com/panva/jose):
 
@@ -93,7 +93,7 @@ es.onmessage = async (event) => {
 
 The browser's WebCrypto API can do the same without an external library if you only need a fixed algorithm.
 
-## What you give up
+## What You Give Up
 
 End-to-end encryption rules out a few hub-side conveniences:
 
@@ -113,7 +113,7 @@ End-to-end encryption is the right call when:
 
 If the hub is yours and you control its hosts, HTTPS is sufficient and JWE adds operational cost without a meaningful security gain.
 
-## Not a substitute for authorization
+## Not a Substitute for Authorization
 
 Encryption hides content; authorization controls who connects. You still need [the JWT layer](authorization.md) on top — to keep unauthorized clients off the hub, and to gate `private` updates so the hub knows who to deliver them to even when it can't read them.
 

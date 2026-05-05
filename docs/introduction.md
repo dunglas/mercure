@@ -20,7 +20,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 - **Hypermedia-friendly.** Topics are URLs. The protocol works with REST, GraphQL, JSON-LD, and HTML over the wire (Hotwire, htmx).
 - **Encryption support.** Updates can be JWE-encrypted end-to-end, so even the hub operator cannot read them.
 
-## What it's good for
+## What It's Good For
 
 - **LLM streaming.** Stream tokens or tool calls from a server-side model invocation to the browser as they arrive. ([Guide](use-cases/llm-token-streaming.md))
 - **AI agent progress.** Push agent state to the UI: "searching the web", "reading file", "ran 3 tools, summarizing". ([Guide](use-cases/ai-agent-progress.md))
@@ -29,7 +29,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 - **Async jobs.** A worker computes a report; the result lands in the UI when ready. ([Guide](use-cases/async-jobs.md))
 - **Notifications.** In-app toasts, mentions, mailbox counters. ([Guide](use-cases/notifications.md))
 
-## How it differs from the alternatives
+## How It Differs from the Alternatives
 
 **vs. WebSockets.** WebSocket is a low-level transport; you still need to design framing, authorization, reconnection, replay, and presence. Mercure gives you all of that on top of HTTP/2, which most infrastructure already understands. For request/response inside the same connection, just use a regular `POST` — HTTP/2 already multiplexes it.
 
@@ -41,7 +41,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 
 See the [FAQ](reference/faq.md) for more.
 
-## The free version is the production version
+## The Free Version Is the Production Version
 
 The Mercure.rocks Hub is licensed under AGPL-3.0. Concretely, that means you can:
 

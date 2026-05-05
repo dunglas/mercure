@@ -7,7 +7,7 @@ description: "Deliver per-user notifications, badge counters, and broadcast anno
 
 In-app notifications: mention badges, mailbox counters, "X started following you" toasts. The unsexy, ubiquitous case for real-time. Mercure handles it without a dedicated stack.
 
-## What "notification" means here
+## What "Notification" Means Here
 
 Two flavors, with different topology:
 
@@ -64,7 +64,7 @@ def notify_user(user_id: str, payload: dict) -> None:
 
 Because the update is `private` and the user's claim is the only one matching the topic, no one else receives it.
 
-## Broadcast Announcements over Mercure
+## Broadcast Announcements Over Mercure
 
 Same connection, additional matcher:
 
@@ -120,7 +120,7 @@ Mercure delivers to *connected* clients. For a user with the app closed, you nee
 
 In your notify-user function, check connection state and dispatch to one or the other (or both). The [Active subscriptions API](../concepts/active-subscriptions.md#subscription-api) tells you whether the user is currently connected.
 
-## Notification Read Receipts over Mercure
+## Notification Read Receipts Over Mercure
 
 When the user opens a notification, post a `read` event to your origin, which publishes back over Mercure to update *all* of the user's tabs:
 
@@ -137,14 +137,14 @@ def mark_read(user_id: str, notif_id: str) -> None:
 
 Each tab listens on `https://example.com/users/<id>/notifications/read` and updates its badge accordingly.
 
-## Rate limiting publishers
+## Rate Limiting Publishers
 
 A bug or a runaway loop that publishes a notification per millisecond is a real risk. Mitigations:
 
 - **Coalesce on the publisher side** — debounce per user before emitting.
 - **Hub-level rate limits.** The Cloud and Self-Hosted hubs can rate-limit publishers. The open-source hub can be put behind [Caddy's `ratelimit` module](https://github.com/mholt/caddy-ratelimit), which is included in the Mercure binary.
 
-## Privacy and authorization
+## Privacy and Authorization
 
 Notifications often carry personal data. A few rules:
 

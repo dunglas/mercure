@@ -7,7 +7,7 @@ description: "Push live values, IoT telemetry, stock tickers, and dashboard upda
 
 The textbook Mercure use case: a value or set of values changes on the server, and connected clients see the change without polling. Stock tickers, room occupancy, IoT telemetry, sales counters, build statuses — anything where polling would either be too slow or too wasteful.
 
-## The shape of the problem
+## The Shape of the Problem
 
 ```text
 # The shape of the problem
@@ -22,7 +22,7 @@ The textbook Mercure use case: a value or set of values changes on the server, a
 
 Whatever produces the value (a database trigger, a webhook handler, an MQTT bridge, a worker reading from a queue) becomes the publisher. Browsers, mobile apps, and other servers subscribe.
 
-## Topic design
+## Topic Design
 
 The natural topic for a data point is its URL — the same URL that returns its current value as JSON.
 
@@ -118,7 +118,7 @@ For replay-driven dashboards (replay the last hour of price changes when the pag
 
 > **Pro tip.** The open-source hub stores history in BoltDB with **no built-in cap** — it grows until disk fills. Set `size N` in the transport config to bound it. Cloud tiers cap history at 100–5,000 messages depending on plan; if your dashboards need long histories and predictable storage, [Self-Hosted Mercure](https://mercure.rocks/pricing) with the Postgres transport keeps the data on infrastructure you control.
 
-## Dashboards: many topics, one connection
+## Dashboards: Many Topics, One Connection
 
 A dashboard that watches dozens of metrics opens **one** `EventSource` and uses many `match*` parameters, not one connection per metric:
 

@@ -5,7 +5,7 @@ description: "Track who is connected with Mercure subscription events and the JS
 
 # Active Subscriptions
 
-The hub can act as its own publisher: every time a subscription is created or terminated, it publishes an update describing what happened. There's also a REST-ish API for snapshotting the current set of subscriptions.
+The hub can act as its own publisher: every time a subscription is created or terminated, it publishes an update describing what happened. The hub also exposes a REST API for snapshotting the current set of subscriptions.
 
 Together, they're how you build presence ("who's online?"), shared cursors ("who's looking at this document?"), and any feature that needs to react to other subscribers' comings and goings.
 
@@ -19,7 +19,7 @@ mercure {
 }
 ```
 
-## Subscription events
+## Subscription Events
 
 When the feature is on, the hub publishes a private update each time a subscription opens or closes. The topic follows this pattern:
 
@@ -66,7 +66,7 @@ Fields:
 
 Subscription events are always **private**. To receive them, the listening subscriber needs `mercure.subscribe` covering the `/.well-known/mercure/subscriptions/...` topic family.
 
-## Authorization for subscription events
+## Authorization for Subscription Events
 
 A typical "show me everyone subscribed to this document" feature is authorized like this:
 
@@ -153,7 +153,7 @@ The hub returns:
 
 The data is volatile. Treat it as a cache, validate freshness, and don't rely on collection responses being complete forever — terminated subscriptions may be omitted or kept with `active: false` depending on the hub's policy.
 
-## Picking a `subscriber` value
+## Picking a `subscriber` Value
 
 The hub assigns a subscriber identifier when a subscription opens. To get the same value across a single user's multiple subscriptions, set it via the `mercure.subscriber` claim in the JWT:
 

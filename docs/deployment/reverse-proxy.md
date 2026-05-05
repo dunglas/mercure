@@ -186,7 +186,7 @@ Cloudflare proxies SSE, but be aware:
 
 For long-lived SSE without a 100s cap, [Mercure Cloud](https://mercure.rocks/pricing) terminates connections directly without a proxy in between.
 
-## CORS via reverse proxy
+## CORS via Reverse Proxy
 
 If your hub is on a different origin from your app, you can either configure CORS on the hub (`cors_origins`) or rewrite the request through the proxy so the hub appears same-origin:
 

@@ -12,7 +12,7 @@ Mercure is a public protocol, not just an implementation. The canonical source o
 
 This page is a quick orientation, not a substitute. Read the spec for normative language and edge cases.
 
-## What's in the protocol
+## What's in the Protocol
 
 - **Subscription** — `GET /.well-known/mercure?match=...` with one or more matcher query parameters.
 - **Publication** — `POST /.well-known/mercure` with form-encoded `topic`, `data`, and friends.
@@ -22,7 +22,7 @@ This page is a quick orientation, not a substitute. Read the spec for normative 
 - **Discovery** — `Link: rel="mercure"` headers on the publisher's resources.
 - **Encryption** — JWE for end-to-end privacy.
 
-## Matcher types (1.0)
+## Matcher Types (1.0)
 
 | Matcher | Query parameter | Required of hubs | Reference |
 | --- | --- | --- | --- |

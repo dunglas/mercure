@@ -105,7 +105,7 @@ def generate_report(job_id: str, user_id: str, filters: dict):
 
 `alternate` is the second `topic` form field (see [Publishing](../concepts/publishing.md#alternate-topics)). The user's JWT authorizes them for `https://example.com/users/<their-id>/jobs/:id`, so they receive their own jobs but not anyone else's, even if they guess a `jobId`.
 
-## When the user closes the tab
+## When the User Closes the Tab
 
 The browser-side `EventSource` is gone, but the worker keeps running and keeps publishing. The hub buffers updates in its history. When the user opens the page again — perhaps from a "your report is ready" email — the new `EventSource` includes `lastEventID` and the hub replays everything that happened. The user sees the final progress and the download link without polling.
 
@@ -133,7 +133,7 @@ es.onmessage = (e) => {
 
 The page where the user originally clicked "Run" may unmount when they navigate away. The connection in the context provider doesn't.
 
-## Reporting Async Job Errors over Mercure
+## Reporting Async Job Errors Over Mercure
 
 Workers fail. Make `failed` an event type and put the error message in `data`:
 
@@ -152,7 +152,7 @@ Don't bury failures: a worker that dies without publishing a terminal event leav
 
 If the goal is "anyone in the org can watch this job," skip `private=on` and the alternate topic. Authorize by matching the room/team URL instead. Public job streams are a common pattern for CI dashboards and shared deploy boards.
 
-## When polling beats Mercure
+## When Polling Beats Mercure
 
 For jobs that are usually fast (under a few seconds), a short poll loop ("retry every second for 30 seconds") may be simpler than a Mercure subscription. The break-even is somewhere around 5–10 seconds of expected duration: above that, the SSE connection is cheaper than repeated HTTP requests; below that, the connection setup outweighs the savings.
 

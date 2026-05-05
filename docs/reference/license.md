@@ -28,7 +28,7 @@ In practice:
 
 This is the same shape of license as MongoDB Community pre-SSPL: it lets anyone use the hub freely while preventing third parties from running modified versions as a proprietary SaaS without contributing back.
 
-## Commercial licenses
+## Commercial Licenses
 
 If your organization can't use AGPL-3.0 (some compliance teams refuse it categorically), commercial licenses are available:
 

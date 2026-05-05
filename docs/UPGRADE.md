@@ -11,7 +11,7 @@ The 1.0 release is the first version aligned with the IETF specification's typed
 
 If you only run the hub and don't author subscribers or mint JWTs yourself, the upgrade is a config change. If you do, plan a synchronized cutover of the hub and the clients that talk to it.
 
-### What changed at a glance
+### What Changed at a Glance
 
 | Area | 0.x | 1.0 |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ If you only run the hub and don't author subscribers or mint JWTs yourself, the 
 | Subscription JSON-LD | `topic` | `match` + `matchType` |
 | Backward-compat mode | `protocol_version_compatibility 7` | Removed |
 
-### Migrate your subscribers
+### Migrate Your Subscribers
 
 The single change is the query parameter name.
 
@@ -54,7 +54,7 @@ Two things to notice:
 
 If your existing patterns are URI Templates and you'd rather not rewrite them, the hub still supports them via `matchURITemplate`. New code should use URL Patterns — they're better-defined for URLs and the only matcher type natively supported by browsers.
 
-### Migrate your JWTs
+### Migrate Your JWTs
 
 The `mercure.publish` and `mercure.subscribe` claims must now contain **objects**, not bare strings. The hub rejects bare strings with a `401 Unauthorized` and refuses to mint a session.
 
@@ -97,7 +97,7 @@ Rules:
 - `matchType` is case-insensitive: `"URLPattern"`, `"urlpattern"`, and `"UrlPattern"` are equivalent.
 - The `payload` field is per-claim-entry, with [explicit fallback rules](concepts/authorization.md#mercure-subscriber-payloads) when several entries match.
 
-### Migrate the subscription API and events
+### Migrate the Subscription API and Events
 
 The route pattern and the JSON-LD shape changed.
 
@@ -108,7 +108,7 @@ The route pattern and the JSON-LD shape changed.
 
 `<matchType>`, `<match>`, and `<subscriber>` must be percent-encoded. See [Active subscriptions](concepts/active-subscriptions.md) for the new layout.
 
-### Compatibility mode is gone
+### Compatibility Mode Is Gone
 
 In 0.14, the `protocol_version_compatibility 7` directive let the hub speak the old protocol while you migrated. 1.0 removes it. The reasoning is that the JWT claim form changed from string to object, and silently re-interpreting old tokens under the new rules would change their meaning — that's a security risk, not a convenience. Mint new tokens.
 
@@ -136,7 +136,7 @@ The legacy non-Caddy server (deprecated since 0.11) is also removed. If you're s
 
 ---
 
-## Historical changes (0.x)
+## Historical Changes (0.x)
 
 The entries below describe earlier upgrades. They are kept for users migrating across multiple major versions.
 

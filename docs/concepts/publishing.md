@@ -91,7 +91,7 @@ public function __invoke(HubInterface $hub) {
 }
 ```
 
-## Alternate topics
+## Alternate Topics
 
 A single update can carry multiple topics. The first `topic` is the **canonical** identifier; the rest are **alternates**. The hub delivers the update to any subscriber whose matchers hit one of them.
 
@@ -106,7 +106,7 @@ curl -X POST https://hub.example.com/.well-known/mercure \
 
 Use alternates when the same logical update can be referred to by several names — a URL and a UUID, an English URL and a translated URL, the canonical version and a per-tenant version. They're also the mechanism that powers per-user authorization for shared resources; see [Authorization](authorization.md#per-user-authorization-on-shared-topics).
 
-## Public vs. private updates
+## Public vs. Private Updates
 
 Without the `private` field, an update is **public**: the hub sends it to every subscriber whose matchers hit, regardless of whether they presented a JWT.
 
@@ -144,7 +144,7 @@ The publisher's JWT must contain a `mercure.publish` claim with at least one mat
 
 A token with `[{ "match": "*" }]` can publish to anything. See [Authorization](authorization.md#publishers) for details.
 
-## What the hub returns
+## What the Hub Returns
 
 ```http
 # What the hub returns
@@ -177,7 +177,7 @@ function updateBook(id, data):
 
 For stricter delivery guarantees (every state change reaches the hub even if the publish call fails), wrap both writes in a transactional outbox: persist the update next to the row, and have a worker ship it to the hub. The Mercure hub itself is reliable; the network between your app and the hub is what you need to defend against.
 
-## Embedded publishing (no external hub)
+## Embedded Publishing (No External Hub)
 
 The Mercure protocol does not require an external hub. An application that already terminates HTTP/2 connections can speak the protocol directly: write SSE bytes to subscribers, validate JWTs, run matchers. This is unusual outside of frameworks that ship their own hub (FrankenPHP, for instance), but the spec allows it.
 

@@ -41,7 +41,7 @@ jobs:
 
 The hub is reachable at `http://localhost:1337/.well-known/mercure` from any step. `anonymous` and `cors_origins *` are convenient for tests; don't copy them to production.
 
-## Healthcheck before tests start
+## Healthcheck Before Tests Start
 
 Service containers start in parallel with the job. If your test relies on the hub being responsive, wait for it:
 
@@ -63,7 +63,7 @@ steps:
 
 The hub returns `405 Method Not Allowed` on plain `GET /.well-known/mercure` (no `match=` query parameter). That's the simplest "the hub is alive" check.
 
-## Sending updates from a workflow
+## Sending Updates from a Workflow
 
 To publish from inside a workflow (notify a Mercure-driven status page when a deploy finishes, post a Slack-style notification through your own hub):
 

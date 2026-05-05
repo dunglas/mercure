@@ -116,7 +116,7 @@ export default class extends Controller {
 
 The stream goes live on `connect` (when the element enters the DOM) and shuts down on `disconnect`. Turbo Drive navigations don't drop the stream in unexpected ways.
 
-## Private Turbo Streams over Mercure
+## Private Turbo Streams Over Mercure
 
 For per-user or per-team streams (a kanban board only the team's members can see), authorize via cookie:
 
@@ -136,7 +136,7 @@ Publish the Turbo Stream as a private update (`private=on`). Only authorized sub
 
 The cookie should be set during the page render (not in JavaScript) so that `EventSource(url, { withCredentials: true })` already has it. See [Authorization](../concepts/authorization.md#cookies-in-detail).
 
-## Many streams, one connection
+## Many Streams, One Connection
 
 A page often watches several streams: comments, presence, notifications, a sidebar counter. Use `match*` parameters on a single connection rather than spinning up four `EventSource`s:
 
@@ -158,7 +158,7 @@ Turbo Stream HTML is just bytes — no different from JSON for the hub. The cost
 
 The same Mercure topic works for Hotwire Native apps — the bridge ships an SSE consumer. Use the platform's `EventSource`-equivalent (or [`fetch-event-source`](https://github.com/Azure/fetch-event-source)) and feed bytes into the Turbo Native stream renderer.
 
-## Next Steps for Hotwire over Mercure
+## Next Steps for Hotwire Over Mercure
 
 - [Subscribing](../concepts/subscribing.md) — `EventSource` details.
 - [Authorization](../concepts/authorization.md) — cookies for browsers.

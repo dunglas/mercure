@@ -63,7 +63,7 @@ While the test runs, watch:
 - **Publish latency** — Caddy request duration histogram on `POST /.well-known/mercure`.
 - **Subscriber receive latency** — built into the Gatling report.
 
-## What changes the numbers
+## What Changes the Numbers
 
 Connections themselves are cheap. What scales the cost:
 
@@ -120,7 +120,7 @@ Load tests measure throughput. Conformance tests check correctness. Run both:
 - [Load test](load-testing.md) (this page).
 - [Conformance tests](../ecosystem/conformance-tests.md) — Playwright suite that verifies the hub follows the protocol.
 
-## When to scale beyond one node
+## When to Scale Beyond One Node
 
 Symptoms that mean a single node won't get you any further:
 

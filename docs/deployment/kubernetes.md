@@ -17,7 +17,7 @@ helm install mercure mercure/mercure \
 
 Default values produce a single-replica deployment with BoltDB, a `ClusterIP` service, and SSE-aware rolling-update settings. The full list of values lives in the [chart README](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md).
 
-## What the chart sets up for you
+## What the Chart Sets up for You
 
 The defaults are tuned for SSE workloads, not generic web apps:
 
@@ -167,7 +167,7 @@ helm upgrade mercure mercure/mercure -f values.yaml
 
 The chart triggers a rolling update. Subscribers reconnect at the cadence set by `write_timeout`, distributed across the drain window — they don't all reconnect at once. See [Rolling updates](../production/rolling-updates.md) for the full mechanism.
 
-## Multi-node and Self-Hosted
+## Multi-Node and Self-Hosted
 
 The chart supports the multi-node transports out of the box. Set `image.repository` to the Self-Hosted image and configure the transport block:
 

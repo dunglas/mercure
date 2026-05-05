@@ -11,7 +11,7 @@ What one node can't give you is redundancy. If the box goes down, every subscrib
 
 This page covers your options.
 
-## What the open-source build gives you
+## What the Open-Source Build Gives You
 
 | Capability | Open-source |
 | --- | --- |
@@ -27,7 +27,7 @@ This page covers your options.
 
 The "1 node" line is the only ceiling. Everything else is unbounded by the license — only by what your hardware and network can deliver.
 
-## When one node isn't enough
+## When One Node Isn't Enough
 
 Three reasons people graduate to multi-node:
 
@@ -37,9 +37,9 @@ Three reasons people graduate to multi-node:
 
 Connection counts alone rarely justify multi-node — a single hub at 100k concurrent connections is normal.
 
-## The two paths beyond single-node
+## The Two Paths Beyond Single-Node
 
-### Mercure Cloud (managed)
+### Mercure Cloud (Managed)
 
 A hub provisioned on the [Mercure.rocks Cloud](https://mercure.rocks/pricing). High-availability infrastructure, TLS, custom domains, SRE on call. You don't run anything.
 
@@ -54,7 +54,7 @@ The buffer caps exist because managed hubs need predictable storage. If you need
 
 The protocol is identical. Migrate later by changing one URL.
 
-### Self-Hosted Mercure (multi-node, on your infrastructure)
+### Self-Hosted Mercure (Multi-Node, on Your Infrastructure)
 
 A licensed build of the same hub with multi-node transports added. You run it on your servers (bare metal, your own Kubernetes, your own clouds). Data never leaves your infrastructure — useful for GDPR data residency, HIPAA, internal compliance.
 
@@ -70,7 +70,7 @@ A separate **Managed On-Premise** add-on (€5,000/year) covers remote setup, mo
 
 To purchase, email [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=Self-Hosted%20Mercure).
 
-## Self-Hosted transports
+## Self-Hosted Transports
 
 ### Redis / Valkey
 
@@ -190,7 +190,7 @@ When in doubt, Redis. It's the recommended default for Self-Hosted.
 
 The transport interface is small and public. If none of the above fits, write your own — see [`transport.go`](https://github.com/dunglas/mercure/blob/main/transport.go) and build a custom hub with `xcaddy`.
 
-## License keys
+## License Keys
 
 Self-Hosted is gated by a license key passed via `MERCURE_LICENSE`. The check runs in-process; the hub doesn't call back to a license server.
 

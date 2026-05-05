@@ -9,7 +9,7 @@ Network connections drop. SSE clients reconnect automatically — Mercure adds a
 
 This page covers how the replay mechanism works, what it costs, and how to size the history buffer.
 
-## Every event has an ID
+## Every Event Has an ID
 
 The hub assigns a unique ID to each update (or echoes the one the publisher provided):
 
@@ -23,7 +23,7 @@ data: {"status": "checked out"}
 
 `EventSource` stores the most recently received `id` and sends it back in the `Last-Event-ID` HTTP header on reconnect. The hub uses it to find the right place in its history and replays everything after that ID before resuming the live stream.
 
-## Bootstrapping after page load
+## Bootstrapping After Page Load
 
 The reconnection mechanism only solves *gap during a session*. The other gap to defend against is the one between **when your server generated the page** and **when the browser opened the SSE connection** — anywhere from a few hundred milliseconds to several seconds, during which updates may have been published.
 
@@ -107,7 +107,7 @@ transport bolt {
 
 `cleanup_frequency` is the chance (between 0 and 1) of running a cleanup pass on each publish. The default `0.3` strikes a balance between write latency and storage growth. See [Configuration](../deployment/configuration.md#bolt-transport-default-single-node).
 
-### When history isn't enough
+### When History Isn't Enough
 
 For workflows where lost updates are unacceptable — partial updates that mutate state, primary event store — pair the hub with a durable system:
 
@@ -127,7 +127,7 @@ retry: 5000
 
 Browsers wait at least that many milliseconds before reconnecting after a disconnect. The hub picks a sensible default; override it if you need a different cadence.
 
-## Native `EventSource` doesn't expose response headers
+## Native `EventSource` Doesn't Expose Response Headers
 
 This catches people. If you need to read the `Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library — `fetch-event-source` exposes it, native `EventSource` does not. Most server-side SSE clients also expose it.
 

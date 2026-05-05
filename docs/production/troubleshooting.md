@@ -20,7 +20,7 @@ Causes, in priority order:
 
 The hub logs the exact reason on `stderr`. Read the logs.
 
-## 403 Forbidden on publish
+## 403 Forbidden on Publish
 
 The publisher's `mercure.publish` claim doesn't cover one or more of the topics in the publication.
 
@@ -41,7 +41,7 @@ The publisher's `mercure.publish` claim doesn't cover one or more of the topics 
 
 Use `[{ "match": "*" }]` to allow every topic. Note the **object** form — `["*"]` (string) is not accepted.
 
-## Subscriber never receives a private update
+## Subscriber Never Receives a Private Update
 
 For a `private=on` update, the hub checks the subscriber's `mercure.subscribe` against **at least one** of the update's topics (canonical or alternate). If none match, the hub drops the update silently — no error, no log entry on the subscriber side.
 
@@ -77,7 +77,7 @@ If the hub is fully anonymous (no JWT, no cookie), `*` is fine, but understand t
 
 For production, the cleanest fix is to host the hub on the same registrable domain as your app and avoid CORS entirely. See [Reverse proxies](../deployment/reverse-proxy.md#cors-via-reverse-proxy).
 
-## URL patterns aren't matching
+## URL Patterns Aren't Matching
 
 Test patterns in the browser console:
 
@@ -95,7 +95,7 @@ Common surprises:
 
 For URI Templates in 0.x-compatible mode, the [URI Template tester](https://uri-template-tester.mercure.rocks/) is still online.
 
-## Connection drops after a few minutes
+## Connection Drops After a Few Minutes
 
 If your subscribers reconnect like clockwork every 30, 60, or 120 seconds, an intermediate proxy is closing idle connections. Common culprits:
 
@@ -106,7 +106,7 @@ If your subscribers reconnect like clockwork every 30, 60, or 120 seconds, an in
 
 The hub sends a comment heartbeat every `heartbeat` seconds (default 40). If your proxy times out at 30s, lower `heartbeat` to e.g. `25s`.
 
-## Disconnection with inability to reconnect after some time
+## Disconnection with Inability to Reconnect After Some Time
 
 If your JWT has an `exp` claim, the hub closes the connection at that time. The browser auto-reconnects with the same (now expired) token, fails with `401`, and gives up.
 
@@ -117,7 +117,7 @@ Two fixes:
 
 In practice, refreshing is the right answer for almost all cases.
 
-## macOS: "cannot be opened because the developer cannot be verified"
+## macOS: "Cannot Be Opened Because the Developer Cannot Be Verified"
 
 The binary is quarantined on first run. Strip the attribute once:
 
@@ -135,7 +135,7 @@ Then start as usual:
 
 You only need to do this once per binary.
 
-## "address already in use"
+## "Address Already in Use"
 
 Port 80 or 443 is taken by another service (Apache, NGINX, sometimes Skype). Either stop it, or move the hub to a free port:
 
@@ -146,7 +146,7 @@ SERVER_NAME=:3000 ./mercure run
 
 Note: Let's Encrypt's HTTP-01 challenge needs port 80 or 443 to be reachable. If you move the hub off those, either disable Let's Encrypt or use the DNS-01 challenge.
 
-## "too many open files"
+## "Too Many Open Files"
 
 The hub hit the OS file descriptor limit. Each subscriber takes one fd.
 
@@ -157,17 +157,17 @@ ulimit -n 100000
 
 For systemd services, set `LimitNOFILE=100000` in the unit file. For Docker, use `ulimits` in the compose file. See [Load testing](load-testing.md#file-descriptor-limits-for-the-mercure-hub) for full details.
 
-## Hub responds 405 Method Not Allowed
+## Hub Responds 405 Method Not Allowed
 
 Expected. The hub only accepts `GET` (subscribe) and `POST` (publish) on `/.well-known/mercure`. `405` means the hub is up and responding; you sent the wrong method.
 
 If you didn't send anything (no client, just `curl`), `405` is your readiness check.
 
-## Updates arrive in batches every few seconds
+## Updates Arrive in Batches Every Few Seconds
 
 Reverse proxy is buffering. Set `proxy_buffering off` (NGINX) or the equivalent on your proxy. See [Reverse proxies](../deployment/reverse-proxy.md).
 
-## Subscription events not firing
+## Subscription Events Not Firing
 
 Check that `subscriptions` is in the Caddyfile:
 
@@ -181,7 +181,7 @@ mercure {
 
 It's off by default. Without it, the hub doesn't publish subscription events and the subscription API returns `404`.
 
-## Self-Hosted: license errors
+## Self-Hosted: License Errors
 
 If you're running [Self-Hosted Mercure](https://mercure.rocks/pricing) and see license errors:
 

@@ -7,7 +7,7 @@ description: "Practical Mercure use cases including LLM token streaming, AI agen
 
 Mercure is a thin protocol; it covers a wide range of "I need to push something to a connected client" problems. The pages below are concrete walkthroughs — each one ships a working example you can run.
 
-## Modern AI workloads
+## Modern AI Workloads
 
 - **[LLM token streaming](llm-token-streaming.md)** — stream tokens from a server-side OpenAI / Anthropic / local-model call to the browser as they arrive, without a WebSocket gateway in front of your inference server.
 - **[AI agent progress](ai-agent-progress.md)** — push state changes from a long-running agent ("searching the web", "running tool", "summarizing") to the UI in real time.
@@ -35,6 +35,6 @@ Mercure is used at scale today — a few public examples:
 - [iGraal serves 100k concurrent Mercure users.](https://speakerdeck.com/dunglas/mercure-real-time-for-php-made-easy?slide=52)
 - [Raven Controls used Mercure to power Cop 21 and Euro 2020.](https://api-platform.com/con/2022/conferences/real-time-and-beyond-with-mercure/)
 
-## Don't see your case?
+## Don't See Your Case?
 
 Mercure is the right answer when "the server has fresh data, push it to clients" is the shape of the problem. If you're unsure, [ask in GitHub Discussions](https://github.com/dunglas/mercure/discussions) — most "should I use Mercure for X?" questions have already been answered there.

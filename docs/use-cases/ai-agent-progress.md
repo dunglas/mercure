@@ -9,7 +9,7 @@ When an LLM is just responding, you stream tokens. When it's an *agent* — call
 
 This guide pushes structured agent state to the UI in real time using Mercure.
 
-## Streaming Structured AI Agent Events over Mercure
+## Streaming Structured AI Agent Events Over Mercure
 
 For a token stream you push `text` chunks. For an agent you push **events** that describe what just happened:
 
@@ -69,7 +69,7 @@ url.searchParams.append("matchURLPattern", "https://example.com/runs/:id");
 
 Now every run the user is allowed to see flows over the same connection. The `id` field on each event tells you which run it belongs to — or set the topic per-event and read it from the SSE `id`.
 
-## Publisher: a Python agent
+## Publisher: A Python Agent
 
 A pseudocode harness for a tool-using agent that emits events as it goes:
 
@@ -130,7 +130,7 @@ def run_agent(run_id: str, prompt: str) -> None:
 
 Same pattern with [Anthropic's tool use](https://docs.anthropic.com/en/docs/build-with-claude/tool-use), Vercel AI SDK, LangGraph, or your own harness — the events you emit are yours to design.
 
-## Two coordinates: run topic and user topic
+## Two Coordinates: Run Topic and User Topic
 
 For most apps you want both:
 
@@ -146,7 +146,7 @@ The run topic identifies the work. The user topic gates access — only the user
 
 This is the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-topics) applied to agent runs.
 
-## What the UI gets for free
+## What the UI Gets for Free
 
 Because every event has a Mercure event ID and the hub buffers history:
 
@@ -154,7 +154,7 @@ Because every event has a Mercure event ID and the hub buffers history:
 - **Late join.** A second tab opened halfway through a run sees the run from the start (if the buffer is sized for it) — useful for "share this run" links.
 - **Cross-device.** A user starts a run on desktop, walks away, and the same run shows up on their phone if it's listening to the same user topic.
 
-## Cancel a run
+## Cancel a Run
 
 Send a `POST` from the browser to a small origin endpoint that flips a flag the agent harness checks between steps. The harness publishes a `run.cancelled` event and exits. There's no direct "cancel this Mercure subscription" — Mercure only carries the state, not the control plane.
 
@@ -167,7 +167,7 @@ Two practical mitigations:
 - **Coalesce on the publisher side.** Group rapid events of the same type before publishing.
 - **Throttle on the subscriber side.** Use `requestAnimationFrame` to batch state updates instead of rendering on every message.
 
-## Authorization sketch
+## Authorization Sketch
 
 ```jsonc
 // Authorization sketch
@@ -187,7 +187,7 @@ Two practical mitigations:
 
 The `subscriber` field gives you a stable identity across the user's tabs, which is convenient if you also want to surface presence (see [Active subscriptions](../concepts/active-subscriptions.md)) — "Alice is watching this run" pills on a shared dashboard, for instance.
 
-## When this is overkill
+## When This Is Overkill
 
 If your agent finishes in a few seconds and the only thing you'd push is a final result, just `await` the call from the browser. Mercure earns its keep when:
 

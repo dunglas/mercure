@@ -35,7 +35,7 @@ http://hub.example.com:80 {
 
 Setting the port to 80 also disables HTTPS implicitly.
 
-## Mercure directives
+## Mercure Directives
 
 | Directive | Description | Default |
 | --- | --- | --- |
@@ -82,7 +82,7 @@ The Docker image and the official Caddyfile read these:
 
 The transport stores history and (in clustered builds) synchronizes between nodes.
 
-### Bolt transport (default, single-node)
+### Bolt Transport (Default, Single-Node)
 
 ```caddyfile
 # Bolt transport (default, single-node)
@@ -130,7 +130,7 @@ mercure {
 
 If your app and hub run on the same registrable domain (e.g. `example.com` and `hub.example.com`), the hub can be reached without CORS at all by going through a reverse proxy that mounts the hub on the app's origin. See [Reverse proxies](reverse-proxy.md).
 
-## JWT validation via JWKS
+## JWT Validation via JWKS
 
 When tokens are minted by an external IdP (Keycloak, Cognito, Auth0):
 
@@ -144,7 +144,7 @@ mercure {
 
 The hub fetches and caches the keys, validates each token's `kid` against them, and rotates automatically when the IdP rotates. Token issuance stays with the IdP; the hub only verifies.
 
-## RSA / ECDSA keys
+## RSA / ECDSA Keys
 
 ```console
 # RSA / ECDSA keys

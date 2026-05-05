@@ -32,7 +32,7 @@ The profiler exposes its endpoints at `http://localhost:2019/debug/pprof/` (the 
 
 > **Production safety.** `debug` mode also makes Caddy log more verbosely, including update payloads when present in errors. The profiler endpoints themselves don't expose data, only profiles. For an always-on production deployment, prefer toggling `debug` only when you need to investigate something.
 
-## What's available
+## What's Available
 
 Visit `http://localhost:2019/debug/pprof/` for the full list. The ones that matter most:
 
@@ -111,7 +111,7 @@ go tool pprof -http=:8080 http://localhost:2019/debug/pprof/allocs
 
 Useful when chasing GC pressure: which call sites are allocating the most over time.
 
-## What healthy looks like
+## What Healthy Looks Like
 
 For a hub serving 10k subscribers, roughly:
 
