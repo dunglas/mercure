@@ -207,9 +207,12 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 		return nil, fmt.Errorf("invalid JWK Set URL %q: %w", rawURL, err)
 	}
 
-	if u.Scheme == "file" {
+	switch u.Scheme {
+	case "http", "https":
+		return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
+	case "file":
 		if u.Host != "" && u.Host != "localhost" {
-			return nil, fmt.Errorf("file:// JWK Set URL must not have a host component, got %q", u.Host) //nolint:err113
+			return nil, fmt.Errorf(`file:// JWK Set URL host must be empty or "localhost", got %q`, u.Host) //nolint:err113
 		}
 
 		b, err := os.ReadFile(u.Path)
@@ -223,9 +226,9 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 		}
 
 		return k, nil
+	default:
+		return nil, fmt.Errorf("unsupported JWK Set URL scheme %q, expected http, https or file", u.Scheme) //nolint:err113
 	}
-
-	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
 }
 
 type stoppingHandlerFunc func()
