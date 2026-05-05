@@ -167,7 +167,7 @@ func WithAllowedHosts(hosts []string) Option {
 func validateOrigins(origins []string) error {
 	for _, origin := range origins {
 		switch origin {
-		case "*", "null":
+		case "*", "null": //nolint:goconst
 			continue
 		}
 

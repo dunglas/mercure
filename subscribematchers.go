@@ -10,6 +10,15 @@ import (
 const (
 	maxMatcherCount  = 100
 	maxPatternLength = 4096
+
+	// paramTopic is the v8 query-parameter name carrying topic selectors.
+	// Accepted only under WithProtocolVersionCompatibility(8) AND the
+	// deprecated_topic build tag.
+	paramTopic = "topic"
+	// paramMatch and paramMatchType are the path-variable names mux
+	// extracts for the modern subscription URLs.
+	paramMatch     = "match"
+	paramMatchType = "matchType"
 )
 
 var (
@@ -34,7 +43,7 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]topicMatcher, 
 		keyLower := strings.ToLower(key)
 
 		switch {
-		case keyLower == "topic":
+		case keyLower == paramTopic:
 			if !deprecated {
 				return nil, errTopicParamNotSupported
 			}

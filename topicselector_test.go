@@ -28,6 +28,7 @@ func TestRegisterMatcherTypeRejectsEmptyName(t *testing.T) {
 	t.Parallel()
 
 	tss := &TopicSelectorStore{}
+
 	assert.Panics(t, func() { tss.RegisterMatcherType("", ExactMatcher) })
 }
 
@@ -35,6 +36,7 @@ func TestRegisterMatcherTypeRejectsNilMatcher(t *testing.T) {
 	t.Parallel()
 
 	tss := &TopicSelectorStore{}
+
 	assert.Panics(t, func() { tss.RegisterMatcherType("Exact", nil) })
 }
 

@@ -42,6 +42,7 @@ linters:
           - gochecknoglobals
           - goconst
           - godox
+          - gosec
           - noctx
           - wrapcheck
         path: _test\.go

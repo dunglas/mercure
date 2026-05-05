@@ -51,7 +51,11 @@ func validatePattern(m Matcher, pattern string) error {
 		return nil
 	}
 
-	return v.Validate(pattern)
+	if err := v.Validate(pattern); err != nil {
+		return fmt.Errorf("pattern validation failed: %w", err)
+	}
+
+	return nil
 }
 
 // topicMatcher pairs a resolved matcher implementation with a pattern string.

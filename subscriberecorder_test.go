@@ -47,6 +47,8 @@ func (r *subscribeRecorder) FlushError() error {
 	return nil
 }
 
+func (*subscribeRecorder) Flush() {}
+
 // deadlineExceeded reports whether the configured write deadline has
 // passed. A zero deadline means "no deadline" (matching net.Conn) — under
 // the previous logic time.Now().After(time.Time{}) was always true and any
@@ -54,5 +56,3 @@ func (r *subscribeRecorder) FlushError() error {
 func (r *subscribeRecorder) deadlineExceeded() bool {
 	return !r.writeDeadline.IsZero() && time.Now().After(r.writeDeadline)
 }
-
-func (*subscribeRecorder) Flush() {}

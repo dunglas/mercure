@@ -17,11 +17,14 @@ type AppVersionInfo struct {
 	Architecture string
 }
 
+// devVersion is the placeholder value the build script overrides via -ldflags.
+const devVersion = "dev"
+
 var AppVersion AppVersionInfo //nolint:gochecknoglobals
 
 // these variables are dynamically set at build.
 var (
-	version   = "dev"
+	version   = devVersion
 	buildDate = "" //nolint:gochecknoglobals
 	commit    = "" //nolint:gochecknoglobals
 )
@@ -43,7 +46,7 @@ func (v *AppVersionInfo) Shortline() string {
 func (v *AppVersionInfo) ChangelogURL() string {
 	const path = "https://github.com/dunglas/mercure"
 
-	if v.Version == "dev" {
+	if v.Version == devVersion {
 		return path + "/releases/latest"
 	}
 
@@ -78,7 +81,7 @@ func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {
 }
 
 func init() { //nolint:gochecknoinits
-	if version == "dev" {
+	if version == devVersion {
 		info, ok := debug.ReadBuildInfo()
 		if ok && info.Main.Version != "(devel)" && info.Main.Version != "" {
 			version = info.Main.Version

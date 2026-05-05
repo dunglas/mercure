@@ -69,7 +69,7 @@ func (h *Hub) initHandler() {
 		cors.New(cors.Options{
 			AllowedOrigins:   h.corsOrigins,
 			AllowCredentials: true,
-			AllowedHeaders:   []string{"authorization", "cache-control", "last-event-id"},
+			AllowedHeaders:   []string{"authorization", "cache-control", "last-event-id"}, //nolint:goconst
 			Debug:            h.debug,
 		}).Handler(router),
 	)

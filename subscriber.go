@@ -50,16 +50,6 @@ func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
 	return !private || s.matchesAny(topics, s.AllowedPrivateMatchers)
 }
 
-func (s *Subscriber) matchesAny(topics []string, matchers []topicMatcher) bool {
-	for _, m := range matchers {
-		if s.topicSelectorStore.matchMatcher(topics, m) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // Match checks if the current subscriber can receive the given update.
 func (s *Subscriber) Match(u *Update) bool {
 	return s.MatchTopics(u.Topics, u.Private)
@@ -80,6 +70,16 @@ func (s *Subscriber) LogValue() slog.Value {
 	}
 
 	return slog.GroupValue(attrs...)
+}
+
+func (s *Subscriber) matchesAny(topics []string, matchers []topicMatcher) bool {
+	for _, m := range matchers {
+		if s.topicSelectorStore.matchMatcher(topics, m) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func logMatcherPatterns(matchers []topicMatcher) []string {

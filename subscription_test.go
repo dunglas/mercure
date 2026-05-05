@@ -273,10 +273,10 @@ func TestEscapeSubscriptionSegmentRoundTrip(t *testing.T) {
 		wantBack string // what PathUnescape recovers
 	}{
 		{"https://example.com/foo", "https://example.com/foo"},
-		{"foo+bar", "foo+bar"},          // server-encoded literal '+'
-		{"foo bar", "foo bar"},          // space round-trips through %20
-		{"a:b", "a:b"},                  // ':' percent-encoded by encoder
-		{"x?y&z=1", "x?y&z=1"},          // query-style chars
+		{"foo+bar", "foo+bar"}, // server-encoded literal '+'
+		{"foo bar", "foo bar"}, // space round-trips through %20
+		{"a:b", "a:b"},         // ':' percent-encoded by encoder
+		{"x?y&z=1", "x?y&z=1"}, // query-style chars
 		{"https://example.com/{id}", "https://example.com/{id}"},
 	}
 
