@@ -39,7 +39,7 @@ What that command does:
 Save this as `index.html` and open it in your browser:
 
 ```html
-<!-- Subscribe to a Mercure Topic from the Browser -->
+<!-- index.html -->
 <!doctype html>
 <title>Mercure quickstart</title>
 <ul id="log"></ul>

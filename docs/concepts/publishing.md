@@ -119,7 +119,6 @@ curl -X POST $HUB -H "Authorization: Bearer $JWT" \
   -d 'data=...'
 
 # Private — only authorized subscribers get it
-
 curl -X POST $HUB -H "Authorization: Bearer $JWT" \
   -d 'topic=https://example.com/users/42/inbox' \
   -d 'data=...' \

@@ -134,18 +134,15 @@ A working hub does more than answer probes — it has to actually ferry data. A 
 ```bash
 #!/bin/sh
 # canary.sh — run from outside the cluster
-
 JWT=$(generate-publisher-jwt)
 TOPIC="https://example.com/_canary/$(date +%s)"
 
 # Subscribe in the background
-
 (curl -sN "https://hub.example.com/.well-known/mercure?match=$TOPIC" \
    --max-time 10 > /tmp/sub.txt) &
 sleep 1
 
 # Publish
-
 curl -sX POST https://hub.example.com/.well-known/mercure \
   -H "Authorization: Bearer $JWT" \
   -d "topic=$TOPIC" -d "data=ping"

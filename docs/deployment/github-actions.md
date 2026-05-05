@@ -8,7 +8,7 @@ description: "Run a Mercure.rocks Hub as a GitHub Actions service container for 
 Need a Mercure hub for integration tests? Use a [service container](https://docs.github.com/en/actions/using-containerized-services/about-service-containers).
 
 ```yaml
-# GitHub Actions
+# .github/workflows/ci.yml
 name: CI
 
 on: [push, pull_request]

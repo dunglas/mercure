@@ -12,7 +12,7 @@ The most idiomatic way to configure it is a [`Caddyfile`](https://caddyserver.co
 ## Minimal Caddyfile
 
 ```caddyfile
-# Minimal Caddyfile
+# Caddyfile
 hub.example.com {
   mercure {
     publisher_jwt  {env.MERCURE_PUBLISHER_JWT_KEY}
@@ -27,7 +27,7 @@ hub.example.com {
 Caddy provisions a Let's Encrypt certificate for `hub.example.com` automatically. To disable HTTPS (when behind a reverse proxy that terminates TLS), prefix the site address with `http://`:
 
 ```caddyfile
-# Minimal Caddyfile
+# Caddyfile
 http://hub.example.com:80 {
   # ...
 }

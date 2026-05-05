@@ -47,7 +47,6 @@ ingress:
       hosts: [hub.example.com]
 
 # Persist BoltDB and Caddy state
-
 persistence:
   enabled: true
   size: 10Gi
@@ -100,7 +99,7 @@ See [Health monitoring](../production/health-monitoring.md) for what the probes 
 Kubernetes runtimes (containerd 1.5+, cri-o) set `net.ipv4.ip_unprivileged_port_start=0` inside containers, so a non-root process can bind 80 and 443.
 
 ```yaml
-# Rootless Mercure on Kubernetes
+# values.yaml (snippet)
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -122,7 +121,7 @@ The chart's volume layout (`/data`, `/config`, `/tmp` mounted writable) accommod
 For older runtimes that haven't lowered `ip_unprivileged_port_start`, change the target port to an unprivileged value:
 
 ```yaml
-# Rootless Mercure on Kubernetes
+# values.yaml (snippet)
 service:
   port: 80
   targetPort: 8080
@@ -148,7 +147,7 @@ Two things SSE needs from your ingress:
 NGINX Ingress example:
 
 ```yaml
-# Configuring Ingress for Mercure SSE
+# values.yaml (snippet)
 ingress:
   annotations:
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
@@ -173,7 +172,7 @@ The chart triggers a rolling update. Subscribers reconnect at the cadence set by
 The chart supports the multi-node transports out of the box. Set `image.repository` to the Self-Hosted image and configure the transport block:
 
 ```yaml
-# Multi-node and Self-Hosted
+# values.yaml
 image:
   repository: registry.mercure.rocks/mercure-enterprise
   tag: 1.0.0

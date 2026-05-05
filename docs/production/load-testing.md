@@ -91,13 +91,10 @@ The single most common limit. On Linux:
 prlimit --pid $(pgrep mercure)
 
 # Set globally for the next process you start
-
 ulimit -n 100000
 
 # Persist via systemd
-
 # /etc/systemd/system/mercure.service.d/override.conf
-
 [Service]
 LimitNOFILE=100000
 ```

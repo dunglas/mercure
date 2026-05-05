@@ -111,7 +111,7 @@ The image runs as `root` by default. Recent Docker (20.10+) sets `net.ipv4.ip_un
 To run as a non-root user:
 
 ```yaml
-# Rootless Mercure on Docker
+# compose.yaml
 services:
   mercure:
     image: dunglas/mercure
@@ -144,7 +144,7 @@ For bind mounts, `chown 1000:1000` the host directory.
 Ship your own `Caddyfile`:
 
 ```yaml
-# Custom Caddyfile
+# compose.yaml
 services:
   mercure:
     image: dunglas/mercure

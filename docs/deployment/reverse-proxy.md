@@ -15,7 +15,7 @@ Below are working configurations for the proxies people use most. Adapt for your
 ## NGINX
 
 ```nginx
-# NGINX
+# /etc/nginx/conf.d/mercure.conf
 server {
     listen 443 ssl http2;
     server_name hub.example.com;
@@ -59,7 +59,7 @@ Key directives:
 Traefik is well-behaved out of the box for SSE — no buffering, sensible timeouts. A working `compose.yaml`:
 
 ```yaml
-# Traefik
+# compose.yaml
 services:
   reverse-proxy:
     image: traefik:v3
@@ -115,7 +115,7 @@ labels:
 If you're terminating TLS in another Caddy instance (or fronting Mercure with a separate Caddy reverse proxy):
 
 ```caddyfile
-# Caddy
+# Caddyfile
 hub.example.com {
   reverse_proxy mercure:80 {
     flush_interval -1     # flush every write
@@ -133,7 +133,7 @@ hub.example.com {
 In practice you don't need a separate Caddy in front of the Mercure hub — the Mercure binary *is* a Caddy build. You can mount your existing site and the hub on the same Caddy instance with one config:
 
 ```caddyfile
-# Caddy
+# Caddyfile
 example.com {
   route /api/* {
     reverse_proxy api:8080
@@ -153,7 +153,7 @@ This sidesteps CORS entirely (everything's same-origin) and is the recommended p
 ## HAProxy
 
 ```text
-# HAProxy
+# /etc/haproxy/haproxy.cfg
 frontend https
     bind *:443 ssl crt /etc/ssl/hub.example.com.pem alpn h2,http/1.1
     http-request set-header X-Forwarded-Proto https
@@ -191,7 +191,7 @@ For long-lived SSE without a 100s cap, [Mercure Cloud](https://mercure.rocks/pri
 If your hub is on a different origin from your app, you can either configure CORS on the hub (`cors_origins`) or rewrite the request through the proxy so the hub appears same-origin:
 
 ```caddyfile
-# CORS via reverse proxy
+# Caddyfile
 app.example.com {
   route /.well-known/mercure* {
     reverse_proxy hub.internal:80
