@@ -1,14 +1,20 @@
+---
+title: "Real-Time AI Agent Progress and State Sync with Mercure"
+description: "Push tool calls, step transitions, and live state from a running AI agent to the browser using structured events on Mercure topics."
+---
+
 # AI Agent Progress
 
 When an LLM is just responding, you stream tokens. When it's an *agent* — calling tools, searching the web, reading files, branching into sub-tasks — there's a lot more state to communicate than text deltas. The user wants to know "what is it doing right now?" and "how far along is it?".
 
 This guide pushes structured agent state to the UI in real time using Mercure.
 
-## What you're streaming
+## Streaming Structured AI Agent Events over Mercure
 
 For a token stream you push `text` chunks. For an agent you push **events** that describe what just happened:
 
-```json
+```jsonc
+// Streaming Structured AI Agent Events over Mercure
 { "type": "step.started",      "step": "search_web",       "input": {"query": "mercure protocol"} }
 { "type": "tool.called",       "tool": "fetch",            "url":   "https://mercure.rocks" }
 { "type": "tool.completed",    "tool": "fetch",            "bytes": 14732 }
@@ -27,6 +33,7 @@ The browser keeps a state machine fed by these events: a status line ("searching
 A run gets its own topic. Subscribe to that topic and you receive everything happening in that run:
 
 ```javascript
+// Topics
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", `https://example.com/runs/${runId}`);
 
@@ -56,6 +63,7 @@ es.onmessage = (event) => {
 A user with several runs in flight (say, a chat with multiple turns or a dashboard of background agents) opens **one** `EventSource` and uses `matchURLPattern`:
 
 ```javascript
+// Topics
 url.searchParams.append("matchURLPattern", "https://example.com/runs/:id");
 ```
 
@@ -66,6 +74,7 @@ Now every run the user is allowed to see flows over the same connection. The `id
 A pseudocode harness for a tool-using agent that emits events as it goes:
 
 ```python
+# Publisher: a Python agent
 import json
 import requests
 from openai import OpenAI
@@ -126,6 +135,7 @@ Same pattern with [Anthropic's tool use](https://docs.anthropic.com/en/docs/buil
 For most apps you want both:
 
 ```python
+# Two coordinates: run topic and user topic
 RUN_TOPIC  = f"https://example.com/runs/{run_id}"
 USER_TOPIC = f"https://example.com/users/{user_id}/runs/{run_id}"
 
@@ -148,7 +158,7 @@ Because every event has a Mercure event ID and the hub buffers history:
 
 Send a `POST` from the browser to a small origin endpoint that flips a flag the agent harness checks between steps. The harness publishes a `run.cancelled` event and exits. There's no direct "cancel this Mercure subscription" — Mercure only carries the state, not the control plane.
 
-## Backpressure
+## Backpressure for AI Agent Event Streams
 
 Tool-heavy agents can produce a lot of events (an agent that runs hundreds of small tool calls in a loop will publish thousands of messages). The hub takes them all, but the UI may struggle to render them fast enough.
 
@@ -159,7 +169,8 @@ Two practical mitigations:
 
 ## Authorization sketch
 
-```json
+```jsonc
+// Authorization sketch
 {
   "mercure": {
     "subscribe": [
@@ -184,7 +195,7 @@ If your agent finishes in a few seconds and the only thing you'd push is a final
 - the same agent state needs to reach multiple clients (multi-tab, multi-device, observers);
 - you're already running an agent worker and don't want to keep request-handling threads tied to it.
 
-## Next
+## Next Steps for AI Agent Streaming with Mercure
 
 - [LLM token streaming](llm-token-streaming.md) — for the simpler "just stream tokens" case.
 - [Active subscriptions](../concepts/active-subscriptions.md) — show who else is watching the run.

@@ -1,8 +1,14 @@
+---
+title: "Publishing Real-Time Updates to a Mercure Hub"
+description: "Send POST requests to publish public and private updates to a Mercure hub, attach alternate topics, and authorize publishers with a JWT."
+---
+
 # Publishing
 
 A publication is an HTTP `POST` to the hub with a form-encoded body:
 
 ```http
+# Publishing
 POST /.well-known/mercure HTTP/1.1
 Host: hub.example.com
 Authorization: Bearer <publisher JWT>
@@ -13,7 +19,7 @@ topic=https%3A%2F%2Fexample.com%2Fbooks%2F1&data=%7B%22status%22%3A%22checked+ou
 
 The hub fans the update out to every subscriber whose matchers hit at least one of the publication's topics, then returns the event ID it assigned.
 
-## The fields
+## Mercure Publish Form Fields
 
 | Field | Required | Description |
 | --- | --- | --- |
@@ -26,20 +32,22 @@ The hub fans the update out to every subscriber whose matchers hit at least one 
 
 The body is `application/x-www-form-urlencoded` — every field is URL-encoded.
 
-## Examples
+## Mercure Publish Examples
 
-### curl
+### Publishing to Mercure with curl
 
 ```console
+# Publishing to Mercure with curl
 curl -X POST https://hub.example.com/.well-known/mercure \
   -H "Authorization: Bearer $JWT" \
   -d 'topic=https://example.com/books/1' \
   -d 'data={"status": "checked out"}'
 ```
 
-### Node.js
+### Publishing to Mercure from Node.js
 
 ```javascript
+// Publishing to Mercure from Node.js
 await fetch("https://hub.example.com/.well-known/mercure", {
   method: "POST",
   headers: {
@@ -53,9 +61,10 @@ await fetch("https://hub.example.com/.well-known/mercure", {
 });
 ```
 
-### Python
+### Publishing to Mercure from Python
 
 ```python
+# Publishing to Mercure from Python
 import requests
 
 requests.post(
@@ -65,11 +74,12 @@ requests.post(
 )
 ```
 
-### PHP (Symfony)
+### Publishing to Mercure from PHP with Symfony
 
 The [Symfony Mercure component](https://symfony.com/doc/current/mercure.html) wraps the protocol:
 
 ```php
+// Publishing to Mercure from PHP with Symfony
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
@@ -86,6 +96,7 @@ public function __invoke(HubInterface $hub) {
 A single update can carry multiple topics. The first `topic` is the **canonical** identifier; the rest are **alternates**. The hub delivers the update to any subscriber whose matchers hit one of them.
 
 ```console
+# Alternate topics
 curl -X POST https://hub.example.com/.well-known/mercure \
   -H "Authorization: Bearer $JWT" \
   -d 'topic=https://example.com/books/1' \
@@ -108,6 +119,7 @@ curl -X POST $HUB -H "Authorization: Bearer $JWT" \
   -d 'data=...'
 
 # Private — only authorized subscribers get it
+
 curl -X POST $HUB -H "Authorization: Bearer $JWT" \
   -d 'topic=https://example.com/users/42/inbox' \
   -d 'data=...' \
@@ -120,7 +132,8 @@ If you want updates on a topic to be visible only to authorized subscribers, **m
 
 The publisher's JWT must contain a `mercure.publish` claim with at least one matcher that covers every topic in the publication. Otherwise the hub returns `403 Forbidden`.
 
-```json
+```jsonc
+// Authorization
 {
   "mercure": {
     "publish": [
@@ -135,6 +148,7 @@ A token with `[{ "match": "*" }]` can publish to anything. See [Authorization](a
 ## What the hub returns
 
 ```http
+# What the hub returns
 200 OK
 Content-Type: text/plain
 
@@ -148,11 +162,12 @@ The body is the event ID the hub assigned to the update. Store it if you need to
 
 If you provided your own `id`, the hub uses it as-is (subject to a few constraints noted in the spec) and echoes it back.
 
-## When to publish
+## When to Publish Mercure Updates from Your Application
 
 Publish from the same code path that mutates the underlying state. The simplest pattern, in pseudocode:
 
 ```text
+# When to Publish Mercure Updates from Your Application
 function updateBook(id, data):
     db.update(id, data)
     hub.publish(
@@ -169,7 +184,7 @@ The Mercure protocol does not require an external hub. An application that alrea
 
 For everyone else, run the hub.
 
-## Next
+## Next Steps for Mercure Publishing
 
 - [Authorization](authorization.md) — minting JWTs that pass validation.
 - [Active subscriptions](active-subscriptions.md) — knowing who's connected.

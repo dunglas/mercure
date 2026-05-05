@@ -1,13 +1,18 @@
+---
+title: "Awesome Mercure: Libraries, Integrations, Demos, and Tutorials"
+description: "Curated list of Mercure libraries, framework integrations, demos, and tutorials for JavaScript, PHP, Python, Go, Java, Dart, Rust, and more."
+---
+
 # Awesome Mercure
 
 A curated list of libraries, integrations, and learning resources around Mercure. Add yours via PR.
 
-## Demos
+## Mercure Demos
 
 - [Demo hub and debug UI](https://demo.mercure.rocks) ([source](https://github.com/dunglas/mercure/tree/master/public)) — managed demo hub with the official debug tools.
 - [Chat](https://demo-chat.mercure.rocks/) ([source](https://github.com/dunglas/mercure/tree/master/examples/chat)) — chat app with presence (JavaScript + Python).
 
-## Examples
+## Mercure Code Examples
 
 - [JavaScript: publish, subscribe, presence API](https://github.com/dunglas/mercure/blob/master/public/app.js)
 - [JavaScript: subscribe + presence](https://github.com/dunglas/mercure/blob/master/examples/chat/static/chat.js)
@@ -24,7 +29,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Freddie (PHP)](https://github.com/bpolaszek/freddie)
 - [Ilshidur/node-mercure (Node.js)](https://github.com/Ilshidur/node-mercure)
 
-## Client libraries
+## Mercure Client Libraries
 
 - [`@microsoft/fetch-event-source` (JavaScript)](https://github.com/Azure/fetch-event-source) — better SSE client for browsers and Node.
 - [`symfony/mercure` (PHP, publisher)](https://github.com/symfony/mercure)
@@ -34,7 +39,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [`java-mercure` (Java, publisher)](https://github.com/vitorluis/java-mercure)
 - [`mercure-rs` (Rust, publisher)](https://github.com/teohhanhui/mercure-rs)
 
-## Framework integrations
+## Mercure Framework Integrations
 
 - [Symfony](https://symfony.com/doc/current/mercure.html) — official component, full publisher support.
 - [API Platform](https://api-platform.com/docs/core/mercure/) — full publisher + subscriber + GraphQL subscriptions.
@@ -49,7 +54,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [AsyncAPI](https://www.asyncapi.com/) — natively supports the Mercure protocol.
 - [URI Template tester](https://uri-template-tester.mercure.rocks/) — for hubs running 0.x-style URI Template subscriptions.
 
-## Useful related libraries
+## Useful SSE and JWT Libraries for Mercure
 
 - [`EventSource` polyfill (Edge / IE / old browsers)](https://github.com/Yaffle/EventSource)
 - [`EventSource` polyfill for React Native](https://github.com/jordanbyron/react-native-event-source)
@@ -64,9 +69,9 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 - [HTTP Broadcast: scalable HTTP broadcaster](https://github.com/jderusse/http-broadcast)
 
-## Learning resources
+## Mercure Learning Resources
 
-### English
+### Mercure Resources in English
 
 - 📺 [API updates in real time with Mercure.rocks](https://www.youtube.com/watch?v=odNsxoHSkT4)
 - 📺 [Building async public APIs using HTTP/2+ and the Mercure protocol](https://www.youtube.com/watch?v=IUx47Tx0O8E)
@@ -77,7 +82,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
 - [Using Mercure on Stackhero](https://www.stackhero.io/services/Mercure-Hub/documentations)
 
-### French
+### Mercure Resources in French
 
 - 📺 [Notifications instantanées avec Mercure (Grafikart)](https://www.grafikart.fr/tutoriels/symfony-mercure-1151)
 - 📺 [Live coding: Notifications temps réel avec Mercure](https://www.youtube.com/watch?v=tqqJ1ul2M-E)
@@ -88,14 +93,14 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Symfony et Mercure](https://afsy.fr/avent/2019/21-symfony-et-mercure)
 - [À la découverte de Mercure](https://blog.eleven-labs.com/fr/a-la-decouverte-de-mercure/)
 
-### German
+### Mercure Resources in German
 
 - [Neue Symfony-Komponente: Mercure ermöglicht Echtzeitübertragung](https://entwickler.de/online/php/symfony-mercure-komponente-579885243.html)
 
-## Find more
+## Find More Mercure Projects
 
 [GitHub `mercure` topic](https://github.com/topics/mercure) — community-tagged repositories.
 
-## Add yours
+## Add Your Mercure Library or Tutorial
 
 PRs welcome. Keep the structure (one bullet per item, language tag for libraries, language flag for learning resources) and aim for things people will actually find useful.

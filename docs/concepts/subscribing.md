@@ -1,8 +1,14 @@
+---
+title: "Subscribing to Mercure Updates with Server-Sent Events"
+description: "Open SSE subscriptions to a Mercure hub from browsers, Node.js, Go, Python, and other clients with EventSource and fetch-event-source."
+---
+
 # Subscribing
 
 A subscription is an HTTP `GET` request to the hub's well-known URL that the hub keeps open and writes [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html) into.
 
 ```http
+# Subscribing
 GET /.well-known/mercure?match=https://example.com/books/1 HTTP/2
 Host: hub.example.com
 Accept: text/event-stream
@@ -10,11 +16,12 @@ Accept: text/event-stream
 
 Pick the matchers you want with [`match*` query parameters](topics-and-matchers.md). The rest of this page covers the client side.
 
-## Browser
+## Subscribing from a Browser with EventSource
 
 `EventSource` is built into every modern browser:
 
 ```javascript
+// Subscribing from a Browser with EventSource
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/books/1");
 url.searchParams.append("matchURLPattern", "https://example.com/users/:id");
@@ -40,6 +47,7 @@ A few things to know:
 For finer-grained error handling, custom headers, or non-`GET` requests, use [Microsoft's `fetch-event-source`](https://github.com/Azure/fetch-event-source):
 
 ```javascript
+// fetch-event-source for advanced cases
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 await fetchEventSource(url, {
@@ -51,11 +59,12 @@ await fetchEventSource(url, {
 
 This is the right choice for React Native, server-side runtimes, and any case where the native `EventSource` is too constrained.
 
-## Closing the connection
+## Closing the Mercure EventSource Connection
 
 `EventSource` keeps the TCP connection open until you close it. In single-page apps the connection survives component unmounts and route changes if you don't tear it down explicitly:
 
 ```javascript
+// Closing the Mercure EventSource Connection
 useEffect(() => {
   const es = new EventSource(url);
   es.onmessage = handler;
@@ -69,9 +78,10 @@ Skipping this is the most common cause of "the hub keeps a slot for me even thou
 
 Any HTTP client that exposes a streaming response works. A few examples:
 
-### Node.js
+### Subscribing to Mercure from Node.js
 
 ```javascript
+// Subscribing to Mercure from Node.js
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 await fetchEventSource("https://hub.example.com/.well-known/mercure?match=topic", {
@@ -79,9 +89,10 @@ await fetchEventSource("https://hub.example.com/.well-known/mercure?match=topic"
 });
 ```
 
-### Go
+### Subscribing to Mercure from Go
 
 ```go
+// Subscribing to Mercure from Go
 import "github.com/r3labs/sse/v2"
 
 client := sse.NewClient("https://hub.example.com/.well-known/mercure?match=topic")
@@ -90,9 +101,10 @@ client.Subscribe("messages", func(msg *sse.Event) {
 })
 ```
 
-### Python
+### Subscribing to Mercure from Python
 
 ```python
+# Subscribing to Mercure from Python
 from sseclient import SSEClient
 
 for event in SSEClient("https://hub.example.com/.well-known/mercure?match=topic"):
@@ -105,7 +117,8 @@ for event in SSEClient("https://hub.example.com/.well-known/mercure?match=topic"
 
 Each event is a standard SSE message:
 
-```
+```text
+# What the hub sends
 id: urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 event: message
 data: {"status": "checked out"}
@@ -118,11 +131,12 @@ Fields:
 - `event` — the `type` field from the publish request, if any. Defaults to `message`. `EventSource` triggers `addEventListener("<type>", ...)` for non-default types.
 - `data` — whatever the publisher sent in `data`. Mercure does not interpret it; it's bytes you decided on (JSON, HTML, JSON Patch, plain text...).
 
-## Discovering the hub
+## Discovering the Mercure Hub via Link Header
 
 The publisher of a resource can advertise its hub via a `Link` header so clients don't need to hard-code it:
 
 ```http
+# Discovering the Mercure Hub via Link Header
 GET /books/1 HTTP/1.1
 Host: example.com
 
@@ -134,6 +148,7 @@ Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 Subscribers that fetch the resource first can read the header to find the hub:
 
 ```javascript
+// Discovering the Mercure Hub via Link Header
 const res = await fetch("https://example.com/books/1");
 const link = res.headers.get("Link");
 const hub = link.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
@@ -145,13 +160,13 @@ new EventSource(url);
 
 This pattern decouples the URL of your data from the URL of the hub serving updates for it.
 
-## Heartbeats
+## Mercure SSE Heartbeats
 
 The hub sends an SSE comment every `heartbeat` seconds (default `40s`). Heartbeats keep idle connections alive through proxies that close them after silence and let clients detect dead connections faster.
 
 If you set `heartbeat 0s` to disable them, make sure nothing on the network path does idle-timeout TCP — most CDNs and reverse proxies do.
 
-## Connection limits
+## Mercure Subscriber Connection Limits
 
 | Limit | Where |
 | --- | --- |
@@ -161,7 +176,7 @@ If you set `heartbeat 0s` to disable them, make sure nothing on the network path
 
 A single connection serves any number of topics — pass more `match*` parameters rather than opening more `EventSource` instances.
 
-## Next
+## Next Steps for Mercure Subscribing
 
 - [Topics and matchers](topics-and-matchers.md) — choosing the right matcher type.
 - [Reconnection and history](reconnection-and-history.md) — surviving disconnects without losing events.

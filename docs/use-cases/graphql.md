@@ -1,12 +1,18 @@
+---
+title: "GraphQL Subscriptions over Mercure and SSE"
+description: "Back GraphQL subscriptions with Mercure topics and Server-Sent Events instead of WebSockets, including an Apollo Client transport."
+---
+
 # GraphQL Subscriptions
 
 GraphQL subscriptions traditionally run over WebSockets ([`graphql-transport-ws`](https://github.com/enisdenjo/graphql-ws)). That works, but you end up with two real-time stacks if you also use Mercure for non-GraphQL push (HTML, agent state, notifications).
 
 Mercure can carry GraphQL subscriptions directly. The pattern: the server returns a topic URL in response to a subscription query, and the client opens an `EventSource` on that topic.
 
-## The flow
+## GraphQL Subscriptions over Mercure: The Flow
 
-```
+```text
+# GraphQL Subscriptions over Mercure: The Flow
    client                          server
       │  POST /graphql              │
       │  subscription { msgAdded { ... } }
@@ -36,11 +42,12 @@ The GraphQL server's job is reduced to:
 
 The client subscribes to the topic with Mercure. When done, it closes the `EventSource`.
 
-## Server side
+## Server-Side GraphQL Subscription Resolver
 
 A minimal Apollo Server resolver that returns a topic instead of starting a WebSocket subscription:
 
 ```javascript
+// Server-Side GraphQL Subscription Resolver
 const resolvers = {
   Subscription: {
     messageAdded: {
@@ -57,6 +64,7 @@ const resolvers = {
 Wherever you mutate the data:
 
 ```javascript
+// Server-Side GraphQL Subscription Resolver
 async function postMessage(roomId, message) {
   await db.messages.insert({ roomId, ...message });
   for (const userId of await getMembers(roomId)) {
@@ -71,11 +79,12 @@ async function postMessage(roomId, message) {
 
 The payload should be the standard GraphQL response shape (`{ data, errors }`) so the client decoder can hand it straight to Apollo.
 
-## Client side
+## Apollo Client Mercure SSE Transport
 
 Apollo and other GraphQL clients accept a custom transport. Hand them an SSE-backed implementation:
 
 ```javascript
+// Apollo Client Mercure SSE Transport
 import { ApolloClient, InMemoryCache, split, HttpLink } from "@apollo/client";
 import { getMainDefinition } from "@apollo/client/utilities";
 
@@ -120,7 +129,8 @@ The client uses HTTP for queries and mutations; subscriptions go through Mercure
 
 The same JWT + cookie story as anywhere else. The server allocates topics that include the user's identity:
 
-```
+```text
+# Authorization
 https://example.com/graphql/subscriptions/<roomId>/<userId>
 ```
 
@@ -128,7 +138,8 @@ The user's JWT covers `https://example.com/graphql/subscriptions/<roomId>/<their
 
 For a subscriber to open one connection that covers all of their subscriptions across rooms:
 
-```json
+```jsonc
+// Authorization
 {
   "mercure": {
     "subscribe": [
@@ -155,7 +166,7 @@ If your stack rolls its own GraphQL layer, the pattern in this guide is enough �
 
 For everything else, Mercure plus GraphQL is a smaller stack — one transport for all real-time, no second port, no second protocol.
 
-## Next
+## Next Steps for GraphQL Subscriptions over Mercure
 
 - [LLM token streaming](llm-token-streaming.md) — for streaming responses outside of GraphQL.
 - [Authorization](../concepts/authorization.md) — per-user topics.

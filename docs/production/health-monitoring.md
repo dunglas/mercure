@@ -1,3 +1,8 @@
+---
+title: "Mercure Health Checks, Prometheus Metrics, and Monitoring"
+description: "Probe the Mercure transport-aware health endpoints, scrape Prometheus metrics, and monitor connection counts and dispatch failures."
+---
+
 # Health Checks and Monitoring
 
 What "the hub is healthy" means depends on the level you're checking at:
@@ -8,7 +13,7 @@ What "the hub is healthy" means depends on the level you're checking at:
 
 The hub exposes the third level explicitly. Use it.
 
-## Health endpoints
+## Mercure Hub Health Endpoints
 
 All health endpoints live on the Caddy admin API (default `localhost:2019`):
 
@@ -21,7 +26,7 @@ All health endpoints live on the Caddy admin API (default `localhost:2019`):
 
 Bolt and local transports always return `200` — there's no remote system whose connection can fail. Redis, Postgres, Kafka, and Pulsar transports actively check the connection.
 
-## Why two endpoints?
+## Why Mercure Has Two Health Endpoints
 
 Readiness should fail **fast**: a momentary blip on Redis, a Postgres failover, a Kafka rebalance — the pod isn't able to serve right now and traffic should route elsewhere. Liveness should fail **slow**: only when the pod is unrecoverable should the orchestrator restart it.
 
@@ -32,6 +37,7 @@ Restarting a hub on a transient transport blip just adds a reconnect storm to wh
 The admin API binds to `localhost:2019` for security. That means standard `httpGet` probes — which run from outside the container — can't reach it. Use `exec` probes instead:
 
 ```yaml
+# Probing from outside the container
 readinessProbe:
   exec:
     command: ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
@@ -47,6 +53,7 @@ livenessProbe:
 Same shape in Docker Compose:
 
 ```yaml
+# Probing from outside the container
 healthcheck:
   test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
   timeout: 5s
@@ -59,6 +66,7 @@ The 60s `start_period` matters: BoltDB takes a moment to open on first boot, so 
 If you absolutely need `httpGet` probes, you can bind the admin API to all interfaces:
 
 ```caddyfile
+# Probing from outside the container
 {
   admin 0.0.0.0:2019
 }
@@ -75,6 +83,7 @@ There's a `/healthz` endpoint on the main HTTP port. It only checks that the Cad
 Enable metrics in `GLOBAL_OPTIONS`:
 
 ```caddyfile
+# Prometheus metrics
 {
   servers :443 {
     metrics
@@ -95,7 +104,7 @@ Metrics live on the admin API at `/metrics`. The hub exposes Caddy's built-in me
 
 Plus standard Caddy metrics: request counts, latencies, in-flight requests, certificate expiry. See the [Caddy metrics docs](https://caddyserver.com/docs/metrics).
 
-## Useful alerts
+## Useful Alerts for the Mercure Hub
 
 Order matters — start with these, add more once you've learned your hub's normal behavior:
 
@@ -108,7 +117,7 @@ Order matters — start with these, add more once you've learned your hub's norm
 | Slow dispatch | Caddy request duration p99 on the hub URL above your SLO. |
 | Cert expiry | Less than 14 days. |
 
-## Dashboards
+## Mercure Grafana Dashboards
 
 A reasonable Grafana panel set:
 
@@ -118,7 +127,7 @@ A reasonable Grafana panel set:
 - **Transport health** — readiness endpoint state (a synthetic probe writing to a metric).
 - **Latency** — request duration histograms from Caddy.
 
-## Application-level checks
+## Application-Level Mercure Health Canaries
 
 A working hub does more than answer probes — it has to actually ferry data. A useful synthetic check that fully exercises the pipeline:
 
@@ -130,11 +139,13 @@ JWT=$(generate-publisher-jwt)
 TOPIC="https://example.com/_canary/$(date +%s)"
 
 # Subscribe in the background
+
 (curl -sN "https://hub.example.com/.well-known/mercure?match=$TOPIC" \
    --max-time 10 > /tmp/sub.txt) &
 sleep 1
 
 # Publish
+
 curl -sX POST https://hub.example.com/.well-known/mercure \
   -H "Authorization: Bearer $JWT" \
   -d "topic=$TOPIC" -d "data=ping"
@@ -146,7 +157,7 @@ echo "canary ok"
 
 Run it from a different network than the hub (a CI runner, a separate cloud account). It catches problems that internal probes miss: ingress misconfigurations, certificate issues, CORS regressions.
 
-## Logging
+## Mercure Hub Logging
 
 The hub logs to stdout in JSON. Useful fields:
 
@@ -157,7 +168,7 @@ The hub logs to stdout in JSON. Useful fields:
 
 For deeper diagnostics, set `GLOBAL_OPTIONS=debug`. **Don't leave it on in production:** it logs full update payloads, which means private data ends up in your log pipeline.
 
-## Performance baselines
+## Mercure Hub Performance Baselines
 
 What "normal" looks like, roughly:
 
@@ -166,7 +177,7 @@ What "normal" looks like, roughly:
 - Dispatch latency dominated by the slowest subscriber (`dispatch_timeout` caps it).
 - Memory growth flat once subscriber count plateaus; a steady upward drift means a goroutine leak — file an issue with a `pprof` snapshot.
 
-## Next
+## Next Steps for Mercure Monitoring
 
 - [Debugging](debugging.md) — when metrics aren't enough.
 - [Load testing](load-testing.md) — establish a baseline before going live.

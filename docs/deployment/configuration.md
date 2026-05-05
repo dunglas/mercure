@@ -1,3 +1,8 @@
+---
+title: "Mercure.rocks Hub Configuration: Caddyfile and Environment Variables"
+description: "Configure the Mercure.rocks Hub with Caddyfile directives, environment variables, transports, CORS, and JWKS validation."
+---
+
 # Configuration
 
 The Mercure.rocks Hub is a [Caddy](https://caddyserver.com/) build with the Mercure module. Anything the [Caddy docs](https://caddyserver.com/docs/) describe also applies to this binary.
@@ -7,6 +12,7 @@ The most idiomatic way to configure it is a [`Caddyfile`](https://caddyserver.co
 ## Minimal Caddyfile
 
 ```caddyfile
+# Minimal Caddyfile
 hub.example.com {
   mercure {
     publisher_jwt  {env.MERCURE_PUBLISHER_JWT_KEY}
@@ -21,6 +27,7 @@ hub.example.com {
 Caddy provisions a Let's Encrypt certificate for `hub.example.com` automatically. To disable HTTPS (when behind a reverse proxy that terminates TLS), prefix the site address with `http://`:
 
 ```caddyfile
+# Minimal Caddyfile
 http://hub.example.com:80 {
   # ...
 }
@@ -52,7 +59,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 
 The directives marked dev-only (`demo`, `ui`, `anonymous`) are off by default in production. Don't enable them on a hub that serves real users.
 
-## Environment variables
+## Mercure Hub Environment Variables
 
 The Docker image and the official Caddyfile read these:
 
@@ -71,13 +78,14 @@ The Docker image and the official Caddyfile read these:
 
 `MERCURE_EXTRA_DIRECTIVES` is convenient for quick tweaks but **don't put credentials there** (transport passwords, JWKS URLs with tokens). Write a custom Caddyfile and use `{env.MY_SECRET}` for those.
 
-## Transports
+## Mercure Hub Transports
 
 The transport stores history and (in clustered builds) synchronizes between nodes.
 
 ### Bolt transport (default, single-node)
 
 ```caddyfile
+# Bolt transport (default, single-node)
 mercure {
   transport bolt {
     path /data/mercure.db
@@ -97,7 +105,7 @@ mercure {
 
 The open-source build keeps history forever by default. Set `size` if you want a cap.
 
-### Local (no history)
+### Local Transport (No History)
 
 `transport local` disables history entirely. Use it when reconnect replay isn't needed and you want the lowest possible memory footprint.
 
@@ -112,6 +120,7 @@ These ship with [Self-Hosted Mercure](../production/high-availability.md). They 
 If the page that opens the SSE connection is on a different origin than the hub, you must list it in `cors_origins`:
 
 ```caddyfile
+# CORS
 mercure {
   cors_origins https://app.example.com https://admin.example.com
 }
@@ -126,6 +135,7 @@ If your app and hub run on the same registrable domain (e.g. `example.com` and `
 When tokens are minted by an external IdP (Keycloak, Cognito, Auth0):
 
 ```caddyfile
+# JWT validation via JWKS
 mercure {
   publisher_jwks_url https://idp.example.com/.well-known/jwks.json
   subscriber_jwks_url https://idp.example.com/.well-known/jwks.json
@@ -137,6 +147,7 @@ The hub fetches and caches the keys, validates each token's `kid` against them, 
 ## RSA / ECDSA keys
 
 ```console
+# RSA / ECDSA keys
 ssh-keygen -t rsa -b 4096 -m PEM -f publisher.key
 openssl rsa -in publisher.key -pubout -outform PEM -out publisher.key.pub
 ```
@@ -144,6 +155,7 @@ openssl rsa -in publisher.key -pubout -outform PEM -out publisher.key.pub
 Start the hub with the public key for verification and the algorithm:
 
 ```console
+# RSA / ECDSA keys
 MERCURE_PUBLISHER_JWT_KEY="$(cat publisher.key.pub)" \
 MERCURE_PUBLISHER_JWT_ALG=RS256 \
 MERCURE_SUBSCRIBER_JWT_KEY="$(cat subscriber.key.pub)" \
@@ -151,7 +163,7 @@ MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
 ./mercure run
 ```
 
-## Health checks
+## Mercure Hub Health Check Endpoints
 
 The Caddy admin API (default `localhost:2019`) exposes:
 
@@ -164,7 +176,7 @@ The Caddy admin API (default `localhost:2019`) exposes:
 
 The endpoints bind to `localhost` for security. Probes from outside the container should use `kubectl exec` or `docker exec` (see [Health monitoring](../production/health-monitoring.md)). Binding the admin API to `0.0.0.0:2019` works but exposes `/stop` and `/load` to the pod network — almost never what you want.
 
-## Performance tuning
+## Mercure Hub Performance Tuning
 
 A few knobs that move the needle:
 
@@ -175,11 +187,11 @@ A few knobs that move the needle:
 
 [Load testing](../production/load-testing.md) and [Debugging](../production/debugging.md) cover the rest.
 
-## Configuration reload
+## Mercure Hub Configuration Reload
 
 Caddy hot-reloads on signal: `kill -USR1 <pid>` or `caddy reload`. Active SSE connections are preserved across reloads as long as the listening sockets don't change.
 
-## Runtime introspection
+## Mercure Hub Runtime Introspection
 
 The Caddy admin API also exposes:
 

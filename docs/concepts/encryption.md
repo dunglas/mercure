@@ -1,12 +1,18 @@
+---
+title: "End-to-End Encryption for Mercure Updates with JWE"
+description: "Encrypt update payloads with JSON Web Encryption so the Mercure hub itself cannot read them, with key distribution patterns."
+---
+
 # Encryption
 
 HTTPS protects data on the wire. It does not protect data **from the hub** — operators of a Mercure hub can read every update that flows through it. For most cases that's fine; the hub is your infrastructure.
 
 When it isn't (third-party hub, multi-tenant hub, regulated data), encrypt the payload end-to-end with [JSON Web Encryption](https://www.rfc-editor.org/rfc/rfc7516).
 
-## How it works
+## How Mercure End-to-End Encryption Works
 
-```
+```text
+# How Mercure End-to-End Encryption Works
 publisher                    hub                       subscriber
     │                         │                            │
     │  encrypt(data, K)       │                            │
@@ -18,7 +24,7 @@ The publisher encrypts the `data` field before posting it. The hub stores and fo
 
 The hub never sees the plaintext, the key, or anything that lets it derive the key.
 
-## Distributing the key
+## Distributing the JWE Key Between Publisher and Subscriber
 
 The publisher and the subscriber need a shared key. Two patterns work:
 
@@ -27,6 +33,7 @@ The publisher and the subscriber need a shared key. Two patterns work:
 **2. Through the discovery endpoint.** When the publisher controls the resource the subscriber fetches first, attach a `key-set` link to the discovery response:
 
 ```http
+# Distributing the JWE Key Between Publisher and Subscriber
 GET /books/1 HTTP/1.1
 Host: example.com
 Authorization: Bearer <session token>
@@ -41,9 +48,10 @@ Content-Type: application/ld+json
 
 The `key-set` URL must serve [JWK Set](https://www.rfc-editor.org/rfc/rfc7517) JSON. **Authorize the request** — anyone who reads the key set can decrypt the updates. Reuse the same auth your application already enforces.
 
-## Publishing encrypted updates
+## Publishing Encrypted Mercure Updates
 
 ```javascript
+// Publishing Encrypted Mercure Updates
 import { CompactEncrypt } from "jose";
 
 const key = /* the JWK */;
@@ -71,6 +79,7 @@ await fetch("https://hub.example.com/.well-known/mercure", {
 In a browser, with [`jose`](https://github.com/panva/jose):
 
 ```javascript
+// Decrypting on the subscriber
 import { compactDecrypt } from "jose";
 
 const key = await fetchKey(); // from the key-set link
@@ -94,7 +103,7 @@ End-to-end encryption rules out a few hub-side conveniences:
 
 The topic and the SSE metadata (event ID, type) are still visible to the hub. If you need to hide *those* too, derive opaque topics from a secret and rotate them.
 
-## When to bother
+## When to Encrypt Mercure Updates with JWE
 
 End-to-end encryption is the right call when:
 

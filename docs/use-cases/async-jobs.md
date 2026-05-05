@@ -1,10 +1,16 @@
+---
+title: "Async Jobs and Background Progress over Mercure"
+description: "Notify users when long-running background jobs progress or complete by publishing private updates to per-user Mercure topics."
+---
+
 # Async Jobs and Progress
 
 A user kicks off something slow — generate a report, transcode a video, run an analysis. The HTTP request that triggered it doesn't (and shouldn't) wait for completion. Mercure delivers the result, and any progress events along the way, when they're ready.
 
-## The flow
+## Async Job Flow with Mercure
 
-```
+```text
+# Async Job Flow with Mercure
    browser                origin                worker          hub
       │                     │                      │              │
       │ POST /reports       │                      │              │
@@ -29,9 +35,10 @@ A user kicks off something slow — generate a report, transcode a video, run an
 
 The browser holds an `EventSource` open from the moment the job is created until it completes. The origin server returns immediately and goes back to handling other requests.
 
-## Originate the job
+## Originating an Async Job from the Browser
 
 ```javascript
+// Originating an Async Job from the Browser
 const res = await fetch("/api/reports", {
   method: "POST",
   body: JSON.stringify({ filters }),
@@ -64,15 +71,17 @@ es.onmessage = (e) => {
 The origin server enqueues the job and returns the ID:
 
 ```python
+# Originating an Async Job from the Browser
 def create_report(request):
     job_id = str(uuid.uuid4())
     queue.enqueue("generate_report", job_id, request.user.id, filters=request.json["filters"])
     return JsonResponse({"jobId": job_id}, status=202)
 ```
 
-## Worker side
+## Worker-Side Mercure Publishing
 
 ```python
+# Worker-Side Mercure Publishing
 def generate_report(job_id: str, user_id: str, filters: dict):
     topic = f"https://example.com/jobs/{job_id}"
     user_topic = f"https://example.com/users/{user_id}/jobs/{job_id}"
@@ -107,7 +116,7 @@ For this to work end to end:
 
 > **Pro tip.** For long-running batch jobs (hours), keep the history in Postgres or Kafka via [Self-Hosted Mercure](https://mercure.rocks/pricing). The Postgres transport doubles as a queryable event store — you can join job history with the rest of your data in SQL.
 
-## Reconnect across navigation
+## Reconnecting EventSource Across Client-Side Navigation
 
 If your app uses client-side routing, keep the `EventSource` alive across route changes by hoisting it out of the component that started the job. A typical React shape:
 
@@ -124,11 +133,12 @@ es.onmessage = (e) => {
 
 The page where the user originally clicked "Run" may unmount when they navigate away. The connection in the context provider doesn't.
 
-## Errors
+## Reporting Async Job Errors over Mercure
 
 Workers fail. Make `failed` an event type and put the error message in `data`:
 
 ```python
+# Reporting Async Job Errors over Mercure
 try:
     generate(...)
 except Exception as e:
@@ -138,7 +148,7 @@ except Exception as e:
 
 Don't bury failures: a worker that dies without publishing a terminal event leaves the UI hung. Catch broadly, publish, then re-raise so your queue's retry logic still kicks in.
 
-## Public job dashboards
+## Public Job Dashboards on Mercure
 
 If the goal is "anyone in the org can watch this job," skip `private=on` and the alternate topic. Authorize by matching the room/team URL instead. Public job streams are a common pattern for CI dashboards and shared deploy boards.
 
@@ -146,7 +156,7 @@ If the goal is "anyone in the org can watch this job," skip `private=on` and the
 
 For jobs that are usually fast (under a few seconds), a short poll loop ("retry every second for 30 seconds") may be simpler than a Mercure subscription. The break-even is somewhere around 5–10 seconds of expected duration: above that, the SSE connection is cheaper than repeated HTTP requests; below that, the connection setup outweighs the savings.
 
-## Next
+## Next Steps for Async Jobs with Mercure
 
 - [LLM token streaming](llm-token-streaming.md) — the same pattern with token-rate updates.
 - [Authorization](../concepts/authorization.md) — per-user job gating.

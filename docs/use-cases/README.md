@@ -1,3 +1,8 @@
+---
+title: "Mercure Use Cases: AI Streaming, Real-Time UIs, and Collaboration"
+description: "Practical Mercure use cases including LLM token streaming, AI agent progress, live data, collaborative editing, async jobs, and notifications."
+---
+
 # Use Cases
 
 Mercure is a thin protocol; it covers a wide range of "I need to push something to a connected client" problems. The pages below are concrete walkthroughs — each one ships a working example you can run.
@@ -7,22 +12,22 @@ Mercure is a thin protocol; it covers a wide range of "I need to push something 
 - **[LLM token streaming](llm-token-streaming.md)** — stream tokens from a server-side OpenAI / Anthropic / local-model call to the browser as they arrive, without a WebSocket gateway in front of your inference server.
 - **[AI agent progress](ai-agent-progress.md)** — push state changes from a long-running agent ("searching the web", "running tool", "summarizing") to the UI in real time.
 
-## Application real-time
+## Application Real-Time Use Cases
 
 - **[Live data and dashboards](live-data.md)** — stock tickers, availability counters, IoT telemetry, observability dashboards.
 - **[Collaborative editing](collaborative-editing.md)** — multiple users edit the same document, changes broadcast as they happen.
 - **[Async jobs and progress](async-jobs.md)** — kick off a long-running job, push progress to the requester, deliver the result when ready.
 - **[Notifications](notifications.md)** — in-app toasts, mention badges, mailbox counters.
 
-## Server-rendered apps
+## Server-Rendered Apps with Mercure
 
 - **[Hotwire / Turbo Streams](hotwire.md)** — stream HTML fragments to swap into the page, no JSON layer required.
 
-## API integrations
+## API Integrations with Mercure
 
 - **[GraphQL subscriptions](graphql.md)** — back GraphQL subscriptions with Mercure instead of WebSockets.
 
-## Already in production
+## Mercure in Production: Case Studies
 
 Mercure is used at scale today — a few public examples:
 

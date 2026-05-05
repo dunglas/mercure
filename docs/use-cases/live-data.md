@@ -1,10 +1,16 @@
+---
+title: "Real-Time Dashboards and Live Data Feeds with Mercure"
+description: "Push live values, IoT telemetry, stock tickers, and dashboard updates to web and mobile clients using Mercure topics and URL Patterns."
+---
+
 # Live Data and Dashboards
 
 The textbook Mercure use case: a value or set of values changes on the server, and connected clients see the change without polling. Stock tickers, room occupancy, IoT telemetry, sales counters, build statuses — anything where polling would either be too slow or too wasteful.
 
 ## The shape of the problem
 
-```
+```text
+# The shape of the problem
    data source                hub                        clients
         │                      │                            │
         │  POST /publish       │   GET /sub?match=...       │
@@ -30,6 +36,7 @@ The natural topic for a data point is its URL — the same URL that returns its 
 When clients want a *family* of values, use `matchURLPattern`:
 
 ```javascript
+// Topic design
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("matchURLPattern", "https://shop.example.com/products/:id/availability");
 new EventSource(url);
@@ -40,6 +47,7 @@ One connection, every product's availability changes flow over it.
 ## Subscriber
 
 ```html
+<!-- Subscriber -->
 <table id="prices">
   <tr data-topic="https://prices.example.com/AAPL"><td>AAPL</td><td class="value">--</td></tr>
   <tr data-topic="https://prices.example.com/GOOG"><td>GOOG</td><td class="value">--</td></tr>
@@ -63,13 +71,14 @@ One connection, every product's availability changes flow over it.
 Two things to notice:
 
 1. **Bootstrap from the origin first.** Render the page with the values you have; let Mercure deliver only the diffs. If you wait for the first SSE message before showing anything, your page is empty for as long as it takes for *any* value to change.
-2. **Idempotent updates.** Each event carries the full new value. A reconnect or replay re-applies the same value harmlessly. For partial updates (JSON Patch), see [Reconnection and history](../concepts/reconnection-and-history.md#detecting-data-loss).
+2. **Idempotent updates.** Each event carries the full new value. A reconnect or replay re-applies the same value harmlessly. For partial updates (JSON Patch), see [Reconnection and history](../concepts/reconnection-and-history.md#detecting-data-loss-in-mercure-replay).
 
 ## Publisher
 
 A worker tailing a price feed:
 
 ```python
+# Publisher
 def on_price_change(symbol: str, price: float) -> None:
     requests.post(
         HUB,
@@ -84,6 +93,7 @@ def on_price_change(symbol: str, price: float) -> None:
 Or, in your existing API service, fire the publish from the same code path that writes the database:
 
 ```python
+# Publisher
 def update_availability(product_id: int, in_stock: bool) -> None:
     db.update(product_id, in_stock=in_stock)
     publish(
@@ -94,13 +104,13 @@ def update_availability(product_id: int, in_stock: bool) -> None:
 
 For exactly-once-ish guarantees, write to a local outbox in the same transaction as the data change and have a worker drain it to the hub.
 
-## Public or private?
+## Public vs. Private Mercure Live Data Topics
 
 For data the whole world can see (public stock prices, public game scores), publish without `private=on`. Subscribers don't need a JWT.
 
 For per-user or per-tenant data (a customer's order status, a tenant's CI runs), publish private and authorize the matchers in the subscriber's JWT. The [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-topics) covers shared-topic-with-fine-grained-access setups.
 
-## Sizing the buffer
+## Sizing the Mercure History Buffer for Live Data
 
 For pure live data (the latest value is what matters; old values are useless), the history buffer doesn't have to be large. A handful of messages is enough to cover reconnects.
 
@@ -113,6 +123,7 @@ For replay-driven dashboards (replay the last hour of price changes when the pag
 A dashboard that watches dozens of metrics opens **one** `EventSource` and uses many `match*` parameters, not one connection per metric:
 
 ```javascript
+// Dashboards: many topics, one connection
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("matchURLPattern", "https://metrics.example.com/cpu/:host");
 url.searchParams.append("matchURLPattern", "https://metrics.example.com/memory/:host");
@@ -124,13 +135,13 @@ new EventSource(url);
 
 The hub multiplexes them all over a single TCP connection. The browser's HTTP/2 stack does the rest.
 
-## Throughput in practice
+## Mercure Throughput in Practice
 
 Public benchmarks: a t3.micro running the open-source hub holds **40k concurrent SSE connections** with the BoltDB transport. Connections aren't expensive in Mercure — every additional client costs a goroutine and a few KB of RAM. Where you'll feel cost is publish throughput: the hub fans every update out to every matching subscriber, so high-rate streams to many subscribers means high outbound bandwidth.
 
 For setups beyond what one node can handle, see [High availability](../production/high-availability.md).
 
-## Next
+## Next Steps for Mercure Live Data
 
 - [Reconnection and history](../concepts/reconnection-and-history.md) — replay after a disconnect.
 - [Authorization](../concepts/authorization.md) — per-user data.

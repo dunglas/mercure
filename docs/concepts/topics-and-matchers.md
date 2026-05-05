@@ -1,3 +1,8 @@
+---
+title: "Mercure Topics, Matchers, and Subscription Filters"
+description: "How subscribers select topics in Mercure 1.0 with exact match, URL Pattern, regular expression, CEL, and URI Template matchers."
+---
+
 # Topics and Matchers
 
 A **topic** is the address of an update. A **matcher** is the rule a subscriber uses to say which topics it cares about. Mercure 1.0 supports several matcher types — pick the one that fits the shape of your data.
@@ -19,7 +24,8 @@ Pick a scheme up front and stick to it. URLs are usually the right default; use 
 
 A subscriber sends one or more `match*` query parameters when opening the SSE connection:
 
-```
+```text
+# Subscribing with matchers
 GET /.well-known/mercure?match=https://example.com/books/1&matchURLPattern=https://example.com/users/:id HTTP/2
 ```
 
@@ -35,11 +41,12 @@ Each parameter starts with the literal string `match`, followed by the matcher t
 
 If a subscriber asks for a matcher type the hub doesn't implement, the hub responds `501 Not Implemented`.
 
-## Exact matching
+## Exact Matching with the `match` Parameter
 
 Case-sensitive string comparison. The matcher type the spec mandates every hub support.
 
 ```javascript
+// Exact Matching with the match Parameter
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/books/1");
 url.searchParams.append("match", "https://example.com/users/42");
@@ -48,11 +55,12 @@ new EventSource(url);
 
 The connection above receives updates published with `topic=https://example.com/books/1` or `topic=https://example.com/users/42` (and nothing else).
 
-## URL Pattern
+## URL Pattern Matchers
 
 [URL Patterns](https://urlpattern.spec.whatwg.org) are the WHATWG specification used by service workers and modern routers. They're the recommended way to subscribe to a family of URLs.
 
 ```javascript
+// URL Pattern Matchers
 url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
 url.searchParams.append("matchURLPattern", "https://example.com/users/:id/orders");
 url.searchParams.append("matchURLPattern", "https://example.com/feed/:type(news|alerts)");
@@ -71,11 +79,12 @@ A topic matches a URL Pattern if the URL Pattern accepts the topic string as a U
 
 > **URL Pattern playground.** The browser ships `URLPattern` natively. You can prototype patterns in the devtools console: `new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")`.
 
-## Regular expressions
+## Regular Expression Matchers (I-Regexp)
 
 `matchRegexp` takes an [I-Regexp](https://www.rfc-editor.org/rfc/rfc9485) regular expression — the interoperable subset that JSON Schema, XPath, and most modern engines agree on.
 
 ```javascript
+// Regular Expression Matchers (I-Regexp)
 url.searchParams.append("matchRegexp", "^chat-room-[0-9]+$");
 url.searchParams.append("matchRegexp", "^tenant:acme/.*/error$");
 ```
@@ -87,6 +96,7 @@ Reach for regular expressions when your topics aren't URLs, or when URL Patterns
 [CEL](https://cel.dev/) is a small, sandboxed expression language used by Kubernetes, gRPC, and Cloud IAM. The hub passes a `topics` array to the expression — index `0` is the canonical topic, the rest are alternates. The expression must return a boolean.
 
 ```javascript
+// Common Expression Language (CEL)
 url.searchParams.append(
   "matchCEL",
   "topics[0].startsWith('https://example.com/books/') && topics.exists(t, t.contains('lang=en'))"
@@ -95,11 +105,12 @@ url.searchParams.append(
 
 CEL is the most expressive matcher but also the most expensive. Hubs that implement it apply an evaluation cost limit and treat over-budget expressions as `false`. Use it when neither URL Patterns nor regular expressions can express the predicate, not as the default.
 
-## URI Templates
+## URI Template Matchers (Backward Compatibility)
 
 [URI Templates](https://www.rfc-editor.org/rfc/rfc6570) (`/books/{id}`) were the templating language of choice in Mercure 0.x. They're still supported via `matchURITemplate` for backward compatibility, but new code should use URL Patterns — they handle URLs better and are natively understood by browsers.
 
 ```javascript
+// URI Template Matchers (Backward Compatibility)
 url.searchParams.append("matchURITemplate", "https://example.com/books/{id}");
 ```
 
@@ -108,6 +119,7 @@ url.searchParams.append("matchURITemplate", "https://example.com/books/{id}");
 A subscription with several `match*` parameters is a logical OR. There is no way to express AND inside a subscription — if you need that, use CEL.
 
 ```javascript
+// Combining matchers
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/site/announcement");
 url.searchParams.append("matchURLPattern", "https://example.com/users/:id/notifications");
@@ -126,7 +138,8 @@ The hub uses matchers in two places: at subscription time (which topics does the
 
 In a JWT, the `mercure.subscribe` and `mercure.publish` claims hold an array of objects:
 
-```json
+```jsonc
+// Authorization claims use the same matcher types
 {
   "mercure": {
     "subscribe": [

@@ -1,3 +1,8 @@
+---
+title: "Mercure Troubleshooting: 401, 403, CORS, and Reconnect Issues"
+description: "Diagnose 401 / 403 errors, CORS failures, dropped SSE connections, and other common Mercure.rocks Hub issues with concrete fixes."
+---
+
 # Troubleshooting
 
 The greatest hits, in roughly the order you're likely to hit them.
@@ -19,7 +24,8 @@ The hub logs the exact reason on `stderr`. Read the logs.
 
 The publisher's `mercure.publish` claim doesn't cover one or more of the topics in the publication.
 
-```json
+```jsonc
+// 403 Forbidden on publish
 {
   "mercure": {
     "publish": [
@@ -57,6 +63,7 @@ Symptoms in the browser console:
 Set the allowed origins in the Caddyfile:
 
 ```caddyfile
+# CORS
 mercure {
   cors_origins https://app.example.com https://admin.example.com
 }
@@ -75,6 +82,7 @@ For production, the cleanest fix is to host the hub on the same registrable doma
 Test patterns in the browser console:
 
 ```javascript
+// URL patterns aren't matching
 new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")
 // → true
 ```
@@ -114,12 +122,14 @@ In practice, refreshing is the right answer for almost all cases.
 The binary is quarantined on first run. Strip the attribute once:
 
 ```console
+# macOS: "cannot be opened because the developer cannot be verified"
 xattr -d com.apple.quarantine ./mercure
 ```
 
 Then start as usual:
 
 ```console
+# macOS: "cannot be opened because the developer cannot be verified"
 ./mercure run
 ```
 
@@ -130,6 +140,7 @@ You only need to do this once per binary.
 Port 80 or 443 is taken by another service (Apache, NGINX, sometimes Skype). Either stop it, or move the hub to a free port:
 
 ```console
+# "address already in use"
 SERVER_NAME=:3000 ./mercure run
 ```
 
@@ -140,10 +151,11 @@ Note: Let's Encrypt's HTTP-01 challenge needs port 80 or 443 to be reachable. If
 The hub hit the OS file descriptor limit. Each subscriber takes one fd.
 
 ```console
+# "too many open files"
 ulimit -n 100000
 ```
 
-For systemd services, set `LimitNOFILE=100000` in the unit file. For Docker, use `ulimits` in the compose file. See [Load testing](load-testing.md#file-descriptor-limits) for full details.
+For systemd services, set `LimitNOFILE=100000` in the unit file. For Docker, use `ulimits` in the compose file. See [Load testing](load-testing.md#file-descriptor-limits-for-the-mercure-hub) for full details.
 
 ## Hub responds 405 Method Not Allowed
 
@@ -160,6 +172,7 @@ Reverse proxy is buffering. Set `proxy_buffering off` (NGINX) or the equivalent 
 Check that `subscriptions` is in the Caddyfile:
 
 ```caddyfile
+# Subscription events not firing
 mercure {
   subscriptions
   # ...
@@ -178,7 +191,7 @@ If you're running [Self-Hosted Mercure](https://mercure.rocks/pricing) and see l
 
 Email [contact@mercure.rocks](mailto:contact@mercure.rocks) with your hub ID for license issues.
 
-## When in doubt
+## When in Doubt: Mercure Hub Diagnostic Steps
 
 - Read the hub's `stderr` logs.
 - Capture a `goroutine?debug=2` dump (see [Debugging](debugging.md)).

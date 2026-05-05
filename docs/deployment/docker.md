@@ -1,12 +1,18 @@
+---
+title: "Run the Mercure.rocks Hub with Docker and Docker Compose"
+description: "Run the Mercure.rocks Hub with the official Docker image, Docker Compose, healthchecks, and rootless deployment."
+---
+
 # Docker
 
 The official image is `dunglas/mercure`. Built on top of the [Caddy image](https://hub.docker.com/_/caddy), so anything Caddy's image supports works here too.
 
-## Run it
+## Run the Mercure Docker Image
 
 Production mode:
 
 ```console
+# Run the Mercure Docker Image
 docker run \
     -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
@@ -19,6 +25,7 @@ The hub binds to `:80` and `:443`. Caddy issues a Let's Encrypt cert for `SERVER
 Behind a reverse proxy that handles TLS, set `SERVER_NAME=:80` and skip `:443`:
 
 ```console
+# Run the Mercure Docker Image
 docker run \
     -e SERVER_NAME=':80' \
     -e MERCURE_PUBLISHER_JWT_KEY='...' \
@@ -27,9 +34,10 @@ docker run \
     dunglas/mercure
 ```
 
-## Development mode
+## Mercure Docker Development Mode
 
 ```console
+# Mercure Docker Development Mode
 docker run \
     -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
@@ -76,13 +84,14 @@ volumes:
 
 Persist both. Losing `/data` means losing replay history; losing `/config` means re-issuing certificates on next boot.
 
-## Healthcheck
+## Mercure Docker Healthcheck
 
 The image's built-in healthcheck queries `localhost:2019/mercure/health/ready` — the [transport-aware](../production/health-monitoring.md) readiness endpoint, not just "is the process up."
 
 For Compose, override or extend it:
 
 ```yaml
+# Mercure Docker Healthcheck
 services:
   mercure:
     # ...
@@ -95,13 +104,14 @@ services:
 
 The `start_period` matters: BoltDB takes a moment to open on first boot, so the first probe may fail; treat that as "not unhealthy" for the first minute.
 
-## Rootless
+## Rootless Mercure on Docker
 
 The image runs as `root` by default. Recent Docker (20.10+) sets `net.ipv4.ip_unprivileged_port_start=0` inside the container, so an unprivileged process can still bind 80/443 directly.
 
 To run as a non-root user:
 
 ```yaml
+# Rootless Mercure on Docker
 services:
   mercure:
     image: dunglas/mercure
@@ -123,6 +133,7 @@ services:
 The volumes must be writable by UID 1000. For fresh named volumes, set ownership once:
 
 ```console
+# Rootless Mercure on Docker
 docker run --rm -v mercure_data:/data -v mercure_config:/config alpine chown 1000:1000 /data /config
 ```
 
@@ -133,6 +144,7 @@ For bind mounts, `chown 1000:1000` the host directory.
 Ship your own `Caddyfile`:
 
 ```yaml
+# Custom Caddyfile
 services:
   mercure:
     image: dunglas/mercure
@@ -149,7 +161,7 @@ A custom Caddyfile is the right move once you need:
 - Per-route rate limiting, request transformation, or custom auth.
 - Reading secrets from files (`{file./run/secrets/jwt_key}`) instead of environment variables.
 
-## Logs
+## Mercure Hub Docker Logs
 
 Caddy logs to stdout in JSON by default. Pipe to whatever your platform expects (Loki, Datadog, CloudWatch). Useful fields:
 
@@ -159,7 +171,7 @@ Caddy logs to stdout in JSON by default. Pipe to whatever your platform expects 
 
 Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod — it logs update payloads).
 
-## Image variants
+## Mercure Docker Image Variants
 
 - `dunglas/mercure` — Alpine-based, statically linked.
 - `dunglas/mercure:<version>` — pin to a specific release.
@@ -169,7 +181,7 @@ Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod — it log
 
 If you're already running Traefik or NGINX, terminate TLS there and let the hub speak HTTP. See [Reverse proxies](reverse-proxy.md).
 
-## Next
+## Next Steps for Mercure on Docker
 
 - [Configuration](configuration.md) — directives and env vars.
 - [Kubernetes](kubernetes.md) — same image, Helm chart.

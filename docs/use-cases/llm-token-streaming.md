@@ -1,12 +1,18 @@
+---
+title: "Stream LLM Tokens to the Browser with Mercure and SSE"
+description: "Stream OpenAI, Anthropic, or local-model tokens to the browser in real time using Mercure and Server-Sent Events without a WebSocket gateway."
+---
+
 # LLM Token Streaming
 
 LLMs return tokens one at a time. To deliver that to a browser as it happens, you need a streaming transport between your server and the browser. Mercure is a good fit for this: it's already SSE under the hood, no WebSocket gateway, no proprietary client.
 
 This guide builds a minimal server-side LLM endpoint that calls OpenAI's streaming API and forwards tokens to the browser through Mercure. The same shape works with Anthropic, Google, Mistral, AWS Bedrock, vLLM, llama.cpp — anything with a streaming API.
 
-## Architecture
+## LLM Token Streaming Architecture with Mercure
 
-```
+```text
+# LLM Token Streaming Architecture with Mercure
                    ┌──────────┐  POST /chat       ┌────────────┐
    browser ───────►│  origin  │─────────────────► │            │
         ▲          │  server  │                   │  Mercure   │
@@ -35,6 +41,7 @@ Why this works:
 Open one connection per chat session. Use a topic that includes the conversation ID:
 
 ```html
+<!-- Subscriber: the browser -->
 <div id="output"></div>
 
 <script type="module">
@@ -63,6 +70,7 @@ The cookie carries a JWT whose `mercure.subscribe` claim authorizes the user for
 A Node.js handler that calls OpenAI's chat completions in streaming mode and forwards each delta to the hub:
 
 ```javascript
+// Publisher: server-side OpenAI streaming
 import OpenAI from "openai";
 
 const openai = new OpenAI();
@@ -113,13 +121,14 @@ The publish call is a single `POST`; it returns as soon as the hub accepts the u
 
 That said, for the simplest case (one model, one tab, one prompt), a streaming HTTP response from your origin is fine. Reach for Mercure when the simple case stops being enough.
 
-## Other providers
+## Other LLM Providers with Mercure
 
 The pattern is identical — replace the streaming call.
 
 **Anthropic:**
 
 ```javascript
+// Other LLM Providers with Mercure
 import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
@@ -140,7 +149,7 @@ for await (const event of stream) {
 
 **Bedrock, Vertex, etc.:** the streaming API has a different shape, but the structure (iterate, publish per delta) is the same.
 
-## Performance notes
+## Performance Notes for LLM Token Streaming over Mercure
 
 - **Don't await each publish if latency matters.** Fire-and-forget the `fetch` calls and `await Promise.all` at the end. Each call is a few hundred bytes; serializing them adds 1–5ms per token.
 - **Batch tiny tokens.** OpenAI sometimes emits single-character deltas. If your UI renders per token, that's fine; if you're hitting publish-rate limits on a managed hub, accumulate 50–100ms worth of tokens and publish in chunks.
@@ -150,7 +159,8 @@ for await (const event of stream) {
 
 Mint a JWT for the user when they load the chat page:
 
-```json
+```jsonc
+// Authorization sketch
 {
   "mercure": {
     "subscribe": [
@@ -169,16 +179,16 @@ Set it as the `mercureAuthorization` cookie with `Domain=example.com; Path=/.wel
 ## Limits to be aware of
 
 - **One `EventSource` per browser tab is enough.** A tab can have one connection per origin under HTTP/2 and use `match*` parameters for as many topics as it wants.
-- **Connection counts.** A streaming chat keeps a connection open for the life of the page. The open-source hub has [no built-in cap](../concepts/reconnection-and-history.md#the-history-buffer) — sizing is whatever your hardware can handle. Cloud tiers cap connections per plan.
+- **Connection counts.** A streaming chat keeps a connection open for the life of the page. The open-source hub has [no built-in cap](../concepts/reconnection-and-history.md#the-mercure-history-buffer) — sizing is whatever your hardware can handle. Cloud tiers cap connections per plan.
 - **Buffer size.** If you want a user reloading mid-stream to recover the in-progress answer, set the hub's history buffer high enough to cover a typical answer's worth of tokens (5,000+).
 
 > **Pro tip.** For prototyping a streaming chat UI without provisioning infrastructure, the [Mercure Cloud Free tier](https://mercure.rocks/pricing) gives you a hub in seconds. Move to self-hosted later if connection volume or compliance demands it — the protocol is identical.
 
-## A complete reference
+## A Complete Mercure LLM Streaming Reference
 
 The pattern in this guide drives the SSE side of [Anthropic's web search streaming demos](https://github.com/anthropics) and several production chatbots built on the [API Platform framework](https://api-platform.com/docs/core/mercure/). [Awesome Mercure](../ecosystem/awesome.md) has more examples.
 
-## Next
+## Next Steps for LLM Streaming with Mercure
 
 - [AI agent progress](ai-agent-progress.md) — when there's more than tokens to stream.
 - [Authorization](../concepts/authorization.md) — minting per-conversation tokens.

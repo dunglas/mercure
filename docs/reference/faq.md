@@ -1,3 +1,8 @@
+---
+title: "Mercure FAQ: WebSockets, Pusher, GraphQL, and Connection Limits"
+description: "Common Mercure questions: comparisons with WebSockets, Pusher, Ably, WebSub, and Web Push, and answers about connection limits and history."
+---
+
 # FAQ
 
 ## What's the difference between Mercure and WebSockets?
@@ -48,6 +53,7 @@ A single `EventSource` connection can serve as many topic subscriptions as you w
 Yes. Pass several `match*` parameters:
 
 ```javascript
+// Can a single subscriber be in many topics over one connection?
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/announcements");
 url.searchParams.append("matchURLPattern", "https://example.com/users/:id/notifications");
@@ -66,6 +72,7 @@ Mercure is delivery-agnostic, so it pairs cleanly with GraphQL subscriptions: th
 Connect a Turbo Stream source to an `EventSource`:
 
 ```javascript
+// How do I use Mercure with Hotwire / Turbo Streams?
 import { connectStreamSource } from "@hotwired/turbo";
 connectStreamSource(new EventSource(mercureUrl));
 ```
@@ -77,6 +84,7 @@ Publish HTML with `<turbo-stream>` tags as the `data` field. See [Hotwire / Turb
 For cross-origin `EventSource`, set `withCredentials`:
 
 ```javascript
+// How do I send the authorization cookie to the hub?
 new EventSource(url, { withCredentials: true });
 ```
 
@@ -92,7 +100,7 @@ Yes, on the publisher side: a Lambda or Cloud Function can `POST` to the hub and
 
 If you're thinking about running the hub itself on serverless: the hub holds long-lived connections, so platforms with execution timeouts (most serverless) don't fit. Run the hub somewhere with persistent compute.
 
-## What's the latency?
+## What's the Mercure Hub Delivery Latency?
 
 End to end, the median publish-to-deliver latency on a single-node hub is sub-millisecond plus your network. With multi-node Self-Hosted transports, expect single-digit milliseconds added by the transport.
 

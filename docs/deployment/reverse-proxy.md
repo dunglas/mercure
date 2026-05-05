@@ -1,3 +1,8 @@
+---
+title: "Run Mercure Behind NGINX, Traefik, Caddy, HAProxy, or Cloudflare"
+description: "Reverse-proxy the Mercure.rocks Hub behind NGINX, Traefik, Caddy, HAProxy, AWS ALB, or Cloudflare with SSE-friendly buffering and timeouts."
+---
+
 # Reverse Proxies
 
 Mercure works behind any HTTP reverse proxy that can keep a streaming response open. Two configurations matter, and most defaults get them wrong:
@@ -10,6 +15,7 @@ Below are working configurations for the proxies people use most. Adapt for your
 ## NGINX
 
 ```nginx
+# NGINX
 server {
     listen 443 ssl http2;
     server_name hub.example.com;
@@ -53,6 +59,7 @@ Key directives:
 Traefik is well-behaved out of the box for SSE — no buffering, sensible timeouts. A working `compose.yaml`:
 
 ```yaml
+# Traefik
 services:
   reverse-proxy:
     image: traefik:v3
@@ -96,6 +103,7 @@ Disable the hub's own TLS (`SERVER_NAME=:80`) — Traefik handles it.
 For long write timeouts on Traefik (the default per-router timeout is generous, but worth pinning):
 
 ```yaml
+# Traefik
 labels:
   - "traefik.http.services.mercure.loadbalancer.responseforwarding.flushinterval=1ms"
 ```
@@ -107,6 +115,7 @@ labels:
 If you're terminating TLS in another Caddy instance (or fronting Mercure with a separate Caddy reverse proxy):
 
 ```caddyfile
+# Caddy
 hub.example.com {
   reverse_proxy mercure:80 {
     flush_interval -1     # flush every write
@@ -124,6 +133,7 @@ hub.example.com {
 In practice you don't need a separate Caddy in front of the Mercure hub — the Mercure binary *is* a Caddy build. You can mount your existing site and the hub on the same Caddy instance with one config:
 
 ```caddyfile
+# Caddy
 example.com {
   route /api/* {
     reverse_proxy api:8080
@@ -142,7 +152,8 @@ This sidesteps CORS entirely (everything's same-origin) and is the recommended p
 
 ## HAProxy
 
-```
+```text
+# HAProxy
 frontend https
     bind *:443 ssl crt /etc/ssl/hub.example.com.pem alpn h2,http/1.1
     http-request set-header X-Forwarded-Proto https
@@ -180,6 +191,7 @@ For long-lived SSE without a 100s cap, [Mercure Cloud](https://mercure.rocks/pri
 If your hub is on a different origin from your app, you can either configure CORS on the hub (`cors_origins`) or rewrite the request through the proxy so the hub appears same-origin:
 
 ```caddyfile
+# CORS via reverse proxy
 app.example.com {
   route /.well-known/mercure* {
     reverse_proxy hub.internal:80
@@ -192,7 +204,7 @@ app.example.com {
 
 Same-origin sidesteps CORS entirely. Same-origin also means the cookie can be `Domain=app.example.com` without any subdomain juggling.
 
-## Common gotchas
+## Common SSE Reverse-Proxy Gotchas with Mercure
 
 | Symptom | Likely cause |
 | --- | --- |
@@ -201,11 +213,12 @@ Same-origin sidesteps CORS entirely. Same-origin also means the cookie can be `D
 | 502 Bad Gateway after a while | Proxy thinks the upstream is dead because no bytes flowed. Lower `heartbeat` on the hub or raise the proxy's read timeout. |
 | `EventSource` never connects from the browser | CORS misconfiguration. Check `cors_origins` and the response headers. |
 
-## Set `USE_FORWARDED_HEADERS` carefully
+## Set `USE_FORWARDED_HEADERS` Carefully on the Mercure Hub
 
 The hub can read `X-Forwarded-*` and the RFC 7239 `Forwarded` header to know the original client IP and scheme:
 
 ```caddyfile
+# Set USEFORWARDEDHEADERS Carefully on the Mercure Hub
 {
   servers {
     trusted_proxies static 10.0.0.0/8 172.16.0.0/12
@@ -215,7 +228,7 @@ The hub can read `X-Forwarded-*` and the RFC 7239 `Forwarded` header to know the
 
 Only trust these headers when the proxy in front of the hub strips or replaces them on every request. If clients can send their own `X-Forwarded-For` and the hub trusts it, your IP-based logic is wrong.
 
-## Next
+## Next Steps for Mercure Reverse Proxies
 
 - [Configuration](configuration.md) — `cors_origins` and friends.
 - [Docker](docker.md) — running the hub in a container.

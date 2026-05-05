@@ -1,16 +1,21 @@
+---
+title: "Mercure Documentation"
+description: "Index for the Mercure protocol and Mercure.rocks Hub documentation: real-time SSE push, JWT authorization, deployment, and AI streaming use cases."
+---
+
 # Mercure Documentation
 
 Mercure is a real-time protocol built on HTTP and Server-Sent Events. The reference hub is open-source (AGPL-3.0), production-ready, and used to push billions of messages a month.
 
 This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 release**. If you're upgrading from 0.x, start with the [upgrade guide](UPGRADE.md).
 
-## Get started
+## Get Started with Mercure
 
 - [Introduction](introduction.md) — what Mercure is and when to reach for it
 - [Quickstart](getting-started/quickstart.md) — running hub, first subscription, first update in five minutes
 - [Installation](getting-started/installation.md) — binary, Docker, Compose, Kubernetes, AUR
 
-## Core concepts
+## Mercure Core Concepts
 
 - [Topics and matchers](concepts/topics-and-matchers.md) — how subscribers say what they want
 - [Subscribing](concepts/subscribing.md) — the SSE side
@@ -20,7 +25,7 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 - [Active subscriptions](concepts/active-subscriptions.md) — presence and the subscription API
 - [Encryption](concepts/encryption.md) — JWE end-to-end
 
-## Use cases
+## Mercure Use Cases
 
 - [Use cases overview](use-cases/README.md)
 - [LLM token streaming](use-cases/llm-token-streaming.md)
@@ -32,7 +37,7 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 - [Hotwire / Turbo Streams](use-cases/hotwire.md)
 - [GraphQL subscriptions](use-cases/graphql.md)
 
-## Deployment
+## Mercure Hub Deployment
 
 - [Configuration](deployment/configuration.md) — Caddyfile directives and environment variables
 - [Docker](deployment/docker.md)
@@ -40,7 +45,7 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 - [Reverse proxies](deployment/reverse-proxy.md) — NGINX and Traefik
 - [GitHub Actions](deployment/github-actions.md)
 
-## Production
+## Running Mercure in Production
 
 - [High availability](production/high-availability.md) — scaling beyond one node
 - [Rolling updates](production/rolling-updates.md) — graceful shutdown for SSE
@@ -49,19 +54,19 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 - [Debugging](production/debugging.md)
 - [Troubleshooting](production/troubleshooting.md)
 
-## Reference
+## Mercure Protocol Reference
 
 - [Protocol](reference/protocol.md) — the IETF specification
 - [FAQ](reference/faq.md)
 - [License](reference/license.md)
 - [Upgrade guide](UPGRADE.md)
 
-## Ecosystem
+## Mercure Ecosystem
 
 - [Awesome Mercure](ecosystem/awesome.md) — libraries, integrations, demos
 - [Conformance tests](ecosystem/conformance-tests.md)
 
-## Need help?
+## Mercure Support and Community
 
 - [GitHub Discussions](https://github.com/dunglas/mercure/discussions) for community questions
 - [Stack Overflow `mercure` tag](https://stackoverflow.com/questions/tagged/mercure)

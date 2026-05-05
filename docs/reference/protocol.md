@@ -1,3 +1,8 @@
+---
+title: "Mercure Protocol Specification Overview"
+description: "Introduction to the Mercure IETF specification: subscriptions, publications, JWT authorization, replay, active subscriptions, and matcher types."
+---
+
 # Protocol
 
 Mercure is a public protocol, not just an implementation. The canonical source of truth is the [IETF Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/), on track for publication as an RFC. The full text is also kept in this repository:
@@ -29,7 +34,7 @@ This page is a quick orientation, not a substitute. Read the spec for normative 
 
 See [Topics and matchers](../concepts/topics-and-matchers.md) for the developer-facing tour.
 
-## Implementations
+## Mercure Protocol Implementations
 
 - **[Mercure.rocks Hub](https://github.com/dunglas/mercure)** — the reference implementation. Caddy module, Go library, single static binary. Open-source (AGPL-3.0).
 - **[Freddie](https://github.com/bpolaszek/freddie)** — PHP hub. Stable; covers everything except subscription events.
@@ -41,16 +46,16 @@ See [Topics and matchers](../concepts/topics-and-matchers.md) for the developer-
 
 A non-exhaustive list — see [Awesome Mercure](../ecosystem/awesome.md) for client libraries in other languages and the full ecosystem.
 
-## Conformance
+## Mercure Protocol Conformance
 
 The reference test suite is published in the [`conformance-tests/`](https://github.com/dunglas/mercure/tree/main/conformance-tests) directory of the repository. Any hub claiming to implement the spec should pass it. See [Conformance tests](../ecosystem/conformance-tests.md) for how to run the suite against your hub.
 
-## Versioning
+## Mercure Protocol Versioning
 
 The protocol is versioned via the IETF draft number (currently `draft-dunglas-mercure-07`). The reference hub follows semver and ships breaking changes only at major versions. The current major is **1.0**, aligned with the typed-matcher model described in the spec.
 
 If you're upgrading from a previous version, see the [upgrade guide](../UPGRADE.md).
 
-## Patent and copyright
+## Mercure Protocol Patent and Copyright
 
 The specification is published under the [IETF copyright policy](https://trustee.ietf.org/copyright-faq.html). It can be implemented by any software, proprietary or otherwise. The reference hub itself is AGPL-3.0; see [License](license.md) for what that means in practice.

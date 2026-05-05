@@ -1,8 +1,14 @@
+---
+title: "Deploy the Mercure.rocks Hub on Kubernetes with Helm"
+description: "Install Mercure.rocks on Kubernetes with the official Helm chart, including SSE-aware probes, rolling updates, and rootless security context."
+---
+
 # Kubernetes
 
 The official Helm chart is the path of least resistance.
 
 ```console
+# Kubernetes
 helm repo add mercure https://charts.mercure.rocks
 helm install mercure mercure/mercure \
   --set jwt.publisherKey='!ChangeThisMercureHubJWTSecretKey!' \
@@ -21,7 +27,7 @@ The defaults are tuned for SSE workloads, not generic web apps:
 
 You don't have to know these to use the chart. You do have to know them if you change the chart's defaults.
 
-## Production values
+## Production Helm Values for the Mercure Hub
 
 ```yaml
 # values.yaml
@@ -41,6 +47,7 @@ ingress:
       hosts: [hub.example.com]
 
 # Persist BoltDB and Caddy state
+
 persistence:
   enabled: true
   size: 10Gi
@@ -64,11 +71,12 @@ For multi-replica deployments, use a transport that synchronizes between pods. T
 
 > **Pro tip.** Running more than one replica with the open-source build is possible if every pod handles its own slice of the topics (sticky load balancing on a hash of the topic). It's fragile — losing a pod loses its history. The Self-Hosted Redis transport replaces that with a real cluster: any replica can serve any subscriber, and the history is centralized.
 
-## Probes
+## Kubernetes Probes for the Mercure Hub
 
 The Caddy admin API binds to `localhost:2019` for security. That means probes from outside the container (the standard `httpGet` form) can't reach it. Use `exec` probes:
 
 ```yaml
+# Kubernetes Probes for the Mercure Hub
 readinessProbe:
   exec:
     command: ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
@@ -87,11 +95,12 @@ If you really want `httpGet` probes, bind the admin API to all interfaces by add
 
 See [Health monitoring](../production/health-monitoring.md) for what the probes actually check.
 
-## Rootless
+## Rootless Mercure on Kubernetes
 
 Kubernetes runtimes (containerd 1.5+, cri-o) set `net.ipv4.ip_unprivileged_port_start=0` inside containers, so a non-root process can bind 80 and 443.
 
 ```yaml
+# Rootless Mercure on Kubernetes
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -113,6 +122,7 @@ The chart's volume layout (`/data`, `/config`, `/tmp` mounted writable) accommod
 For older runtimes that haven't lowered `ip_unprivileged_port_start`, change the target port to an unprivileged value:
 
 ```yaml
+# Rootless Mercure on Kubernetes
 service:
   port: 80
   targetPort: 8080
@@ -128,7 +138,7 @@ A few things to know about scaling SSE in Kubernetes:
 - **HPAs based on CPU underestimate.** SSE is mostly waiting; CPU stays low while connection counts grow. Scale on `mercure_subscribers_connected` (Prometheus metric) instead.
 - **Connection draining matters.** A 1-replica → 5-replica scale-up is cheap. A 5 → 1 scale-down kills 4/5 of your subscribers if you don't drain. The chart's `terminationGracePeriodSeconds` handles this; don't lower it.
 
-## Ingress
+## Configuring Ingress for Mercure SSE
 
 Two things SSE needs from your ingress:
 
@@ -138,6 +148,7 @@ Two things SSE needs from your ingress:
 NGINX Ingress example:
 
 ```yaml
+# Configuring Ingress for Mercure SSE
 ingress:
   annotations:
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
@@ -147,9 +158,10 @@ ingress:
 
 See [Reverse proxies](reverse-proxy.md) for full configurations.
 
-## Updating
+## Upgrading the Mercure Helm Release
 
 ```console
+# Upgrading the Mercure Helm Release
 helm repo update
 helm upgrade mercure mercure/mercure -f values.yaml
 ```
@@ -161,6 +173,7 @@ The chart triggers a rolling update. Subscribers reconnect at the cadence set by
 The chart supports the multi-node transports out of the box. Set `image.repository` to the Self-Hosted image and configure the transport block:
 
 ```yaml
+# Multi-node and Self-Hosted
 image:
   repository: registry.mercure.rocks/mercure-enterprise
   tag: 1.0.0
@@ -178,7 +191,7 @@ extraEnv:
 
 The license is checked in-process; no callback to a license server.
 
-## Next
+## Next Steps for Mercure on Kubernetes
 
 - [Configuration](configuration.md) — directives and env vars.
 - [Health monitoring](../production/health-monitoring.md) — probes, metrics, dashboards.

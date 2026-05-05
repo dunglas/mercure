@@ -1,3 +1,8 @@
+---
+title: "Install the Mercure.rocks Hub"
+description: "Install the Mercure.rocks Hub on Docker, Docker Compose, Kubernetes (Helm), Linux, macOS, Windows, or Arch Linux, plus custom Caddy builds."
+---
+
 # Installation
 
 Pick the install method that matches how you ship the rest of your stack. They all run the same hub.
@@ -9,6 +14,7 @@ The Mercure.rocks Hub is a custom build of the [Caddy web server](https://caddys
 ## Docker (recommended)
 
 ```console
+# Docker (recommended)
 docker run \
     -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
@@ -21,6 +27,7 @@ HTTPS is on by default — Caddy issues a Let's Encrypt certificate for the conf
 For local development, swap the entrypoint to load `dev.Caddyfile`, which enables anonymous subscriptions and the debug UI:
 
 ```console
+# Docker (recommended)
 docker run \
     -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
@@ -64,17 +71,19 @@ The `/data` volume holds the BoltDB history; `/config` holds Caddy's autosaved c
 ## Kubernetes (Helm)
 
 ```console
+# Kubernetes (Helm)
 helm repo add mercure https://charts.mercure.rocks
 helm install my-release mercure/mercure
 ```
 
 The chart ships SSE-appropriate defaults (`terminationGracePeriodSeconds: 660`, surge updates) so rolling deploys don't reconnect every client at once. See [Kubernetes deployment](../deployment/kubernetes.md) for values, probes, and rootless setup.
 
-## Prebuilt binary
+## Mercure Hub Prebuilt Binary
 
 Download an archive for your OS from the [release page](https://github.com/dunglas/mercure/releases) and extract it.
 
 ```console
+# Mercure Hub Prebuilt Binary
 MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
 MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
 ./mercure run --config dev.Caddyfile
@@ -88,9 +97,10 @@ The hub binds to `https://localhost`. To run in production mode (no anonymous su
 
 If port 80 or 443 is taken (Apache, NGINX, Skype), set `SERVER_NAME=:3000` (or any free port) before starting.
 
-## Arch Linux
+## Mercure on Arch Linux
 
 ```console
+# Mercure on Arch Linux
 yay -S mercure
 ```
 
@@ -101,25 +111,27 @@ Available [on the AUR](https://aur.archlinux.org/packages/mercure). Or `makepkg 
 If you need other Caddy modules in the same binary (rate limiting, OAuth, custom storage), build with [`xcaddy`](https://github.com/caddyserver/xcaddy):
 
 ```console
+# Custom Caddy build
 xcaddy build \
   --with github.com/dunglas/mercure/caddy
 ```
 
 Or use the [Caddy download page](https://caddyserver.com/download?package=github.com%2Fdunglas%2Fmercure%2Fcaddy) to assemble a build in the browser.
 
-## Embedding in Go
+## Embedding the Mercure Hub in a Go Binary
 
 Mercure is also a Go library. See [pkg.go.dev/github.com/dunglas/mercure](https://pkg.go.dev/github.com/dunglas/mercure). You'd typically reach for it when you want to ship a hub as part of a larger Go binary; for everything else the standalone server is simpler.
 
-## Verify the install
+## Verify the Mercure Hub Installation
 
 ```console
+# Verify the Mercure Hub Installation
 curl -i https://localhost/.well-known/mercure
 ```
 
 You should see `405 Method Not Allowed` — the hub only accepts `GET` (subscribe) and `POST` (publish) on this endpoint. Anything else means the hub answered.
 
-## Next steps
+## Mercure Installation Next Steps
 
 - [Quickstart](quickstart.md) — first subscribe, first publish.
 - [Configuration](../deployment/configuration.md) — directives and environment variables.

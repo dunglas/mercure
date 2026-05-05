@@ -1,3 +1,8 @@
+---
+title: "Mercure Rolling Updates and Graceful SSE Shutdown"
+description: "Drain Server-Sent Events connections cleanly during Mercure restarts and rolling updates with write_timeout and orchestrator grace periods."
+---
+
 # Rolling Updates and Graceful Shutdown
 
 SSE connections are long-lived by design. A naive restart — kill the process, start the new one — severs every active subscriber at the same instant. Each client auto-reconnects, all at the same moment, producing a sharp reconnect storm on the ingress and the transport: TLS handshakes, upstream renegotiation, transport churn. Visible to users as "the realtime UI freezes for a few seconds."
@@ -36,12 +41,13 @@ A four-pod rolling update with these settings turns into a reconnect stream pace
 If you set `write_timeout` higher than 600s, raise `terminationGracePeriodSeconds` proportionally:
 
 ```yaml
+# Kubernetes
 terminationGracePeriodSeconds: 960  # for write_timeout 900s
 ```
 
 If you don't, `kubelet` `SIGKILL`s the pod mid-drain and the storm you were avoiding lands anyway.
 
-## `minReadySeconds` matters
+## Why `minReadySeconds` Matters for Mercure Rollouts
 
 Once Kubernetes marks a new pod Ready, the transport inside it still needs a moment to reach steady state — open the BoltDB cursor, start the Redis `XREAD` loop, join the Kafka consumer group. Without `minReadySeconds`, Kubernetes rotates the next pod as soon as the readiness probe passes, which fires before the backend is fully online.
 
@@ -61,7 +67,7 @@ Any supervisor that gives the hub time to drain works the same way:
 
 The rule is the same: stop timeout ≥ `write_timeout` + small margin.
 
-## Graceful config reloads
+## Graceful Mercure Hub Configuration Reloads
 
 `caddy reload` (or sending `SIGUSR1`) reloads the config without dropping active connections — the listener is shared across processes during the swap. SSE connections flow uninterrupted.
 
@@ -80,16 +86,17 @@ Watch the active subscribers metric (`mercure_subscribers_connected`) during a d
 A quick sanity check from the command line:
 
 ```console
+# Verifying the drain
 kubectl exec -it $POD -- wget -qO- localhost:2019/metrics | grep subscribers_connected
 ```
 
 Trigger a `kubectl rollout restart deployment/mercure` and watch the value glide rather than collapse.
 
-## What clients see
+## What Mercure Clients See During a Rolling Update
 
 Either nothing (the steady-state rotation already does this every `write_timeout`) or a single reconnect with `Last-Event-ID` set. The hub's history covers the brief gap; clients pick up where they left off. Browsers and the major SSE libraries handle this without prompting.
 
-## Next
+## Next Steps for Mercure Rolling Updates
 
 - [Configuration](../deployment/configuration.md) — `write_timeout` and friends.
 - [High availability](high-availability.md) — when even smooth restarts aren't enough.

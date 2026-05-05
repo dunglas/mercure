@@ -1,8 +1,14 @@
+---
+title: "Run a Mercure Hub Service Container in GitHub Actions"
+description: "Run a Mercure.rocks Hub as a GitHub Actions service container for integration tests, with healthcheck and JWT publishing."
+---
+
 # GitHub Actions
 
 Need a Mercure hub for integration tests? Use a [service container](https://docs.github.com/en/actions/using-containerized-services/about-service-containers).
 
 ```yaml
+# GitHub Actions
 name: CI
 
 on: [push, pull_request]
@@ -40,6 +46,7 @@ The hub is reachable at `http://localhost:1337/.well-known/mercure` from any ste
 Service containers start in parallel with the job. If your test relies on the hub being responsive, wait for it:
 
 ```yaml
+# Healthcheck before tests start
 steps:
   - name: Wait for Mercure
     run: |
@@ -61,6 +68,7 @@ The hub returns `405 Method Not Allowed` on plain `GET /.well-known/mercure` (no
 To publish from inside a workflow (notify a Mercure-driven status page when a deploy finishes, post a Slack-style notification through your own hub):
 
 ```yaml
+# Sending updates from a workflow
 - name: Notify
   run: |
     curl -X POST "$MERCURE_URL" \
@@ -74,11 +82,11 @@ To publish from inside a workflow (notify a Mercure-driven status page when a de
 
 Mint the JWT once with a long-lived `exp` and store it as a repository secret. Rotate it when the underlying signing key rotates.
 
-## Existing actions
+## Existing Mercure GitHub Actions
 
 - [`Ilshidur/action-mercure`](https://github.com/Ilshidur/action-mercure) wraps the publish call into a reusable Action.
 
-## Tips
+## Tips for Mercure in GitHub Actions Workflows
 
 - **Service containers don't expose Caddy's admin port.** The `2019/mercure/health/ready` endpoint isn't reachable from the job runner. Use the `405` check above for readiness.
 - **Use a fixed port.** `1337` is conventional; pick one that won't collide with other services in your matrix.

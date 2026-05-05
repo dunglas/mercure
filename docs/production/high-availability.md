@@ -1,3 +1,8 @@
+---
+title: "Mercure High Availability and Self-Hosted Multi-Node Transports"
+description: "Scale Mercure beyond a single node with the Self-Hosted Redis, PostgreSQL, Kafka, or Pulsar transports, or with managed Mercure Cloud."
+---
+
 # High Availability
 
 The open-source Mercure hub is a serious piece of software — a single instance comfortably handles tens of thousands of concurrent connections on modest hardware ([benchmark: 40k concurrent on a t3.micro](load-testing.md)). For most production workloads, **one node is enough**.
@@ -72,6 +77,7 @@ To purchase, email [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=
 The default for low-latency multi-node. Good fit when the hub is one of several services and the data is volatile.
 
 ```caddyfile
+# Redis / Valkey
 mercure {
   transport redis {
     url    rediss://default:p@ssw0rd@redis.example.com:6379
@@ -105,6 +111,7 @@ Reuse an existing Caddy storage Redis (when you also use [`caddy-storage-redis`]
 The Postgres transport uses `LISTEN`/`NOTIFY` for pub/sub and SQL tables for history. Right when you want events queryable from the rest of your data.
 
 ```caddyfile
+# PostgreSQL
 mercure {
   transport postgres {
     url postgres://user:password@db.example.com/mercure
@@ -125,6 +132,7 @@ The Postgres transport doubles as an event store. You can join Mercure events wi
 Use Kafka when it's already in your stack and you want Mercure to ride on it. Otherwise, prefer Redis or Postgres.
 
 ```caddyfile
+# Apache Kafka
 mercure {
   transport kafka {
     addresses host1:9092 host2:9092
@@ -150,6 +158,7 @@ mercure {
 ### Apache Pulsar
 
 ```caddyfile
+# Apache Pulsar
 mercure {
   transport pulsar {
     url pulsar://pulsar.example.com:6650
@@ -165,7 +174,7 @@ mercure {
 | Subscription API | ❌ |
 | Custom event ID | ❌ (planned) |
 
-## Picking a transport
+## Picking a Mercure Self-Hosted Transport
 
 | Need | Transport |
 | --- | --- |
@@ -177,7 +186,7 @@ mercure {
 
 When in doubt, Redis. It's the recommended default for Self-Hosted.
 
-## Custom transports
+## Custom Mercure Transports
 
 The transport interface is small and public. If none of the above fits, write your own — see [`transport.go`](https://github.com/dunglas/mercure/blob/main/transport.go) and build a custom hub with `xcaddy`.
 
@@ -186,6 +195,7 @@ The transport interface is small and public. If none of the above fits, write yo
 Self-Hosted is gated by a license key passed via `MERCURE_LICENSE`. The check runs in-process; the hub doesn't call back to a license server.
 
 ```console
+# License keys
 MERCURE_LICENSE=<key> \
 MERCURE_PUBLISHER_JWT_KEY=... \
 MERCURE_SUBSCRIBER_JWT_KEY=... \
@@ -194,7 +204,7 @@ MERCURE_SUBSCRIBER_JWT_KEY=... \
 
 The license enforces node count and connection caps. Going over the cap doesn't crash the hub; it returns `429 Too Many Requests` to publishers and refuses new subscribers.
 
-## Migration paths
+## Mercure Migration Paths
 
 | From | To | What changes |
 | --- | --- | --- |
@@ -204,7 +214,7 @@ The license enforces node count and connection caps. Going over the cap doesn't 
 
 There is no protocol fork: every tier speaks the same Mercure protocol. Code written against the open-source hub runs on Cloud and Self-Hosted unchanged.
 
-## Comparison: positioning
+## Mercure vs. Pusher and Ably: Pricing Comparison
 
 For people coming from SaaS-only real-time platforms, here's the rough picture:
 
@@ -217,12 +227,12 @@ For people coming from SaaS-only real-time platforms, here's the rough picture:
 
 Mercure is the only one of these you can run on your own infrastructure if you need to. That's by design.
 
-## Support
+## Mercure Support Channels
 
 - **Self-Hosted / Cloud:** [contact@mercure.rocks](mailto:contact@mercure.rocks)
 - **Open-source:** [GitHub Discussions](https://github.com/dunglas/mercure/discussions), [Stack Overflow `mercure` tag](https://stackoverflow.com/questions/tagged/mercure), `#mercure` on the Symfony Slack
 
-## Next
+## Next Steps for Mercure High Availability
 
 - [Rolling updates](rolling-updates.md) — graceful drain in any deployment.
 - [Health monitoring](health-monitoring.md) — knowing the hub is healthy.

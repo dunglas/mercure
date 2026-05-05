@@ -1,12 +1,18 @@
+---
+title: "Load Testing the Mercure.rocks Hub with Gatling"
+description: "Run the Gatling-based Mercure load test to measure subscriber capacity, publish throughput, and identify file-descriptor and matcher bottlenecks."
+---
+
 # Load Testing
 
 The Mercure repository ships a [Gatling](https://gatling.io)-based load test. Use it to measure your own infrastructure before users do.
 
 For reference, a public benchmark by Glory4Gamers reached **40,000 concurrent connections on a single EC2 t3.micro** running the open-source hub. Your numbers will vary with kernel limits, NIC, and publish rate; don't take 40k as a ceiling, take it as "one node holds a lot."
 
-## Run it
+## Run the Mercure Gatling Load Test
 
 ```console
+# Run the Mercure Gatling Load Test
 git clone https://github.com/dunglas/mercure
 cd mercure/gatling
 ./mvnw gatling:test
@@ -14,7 +20,7 @@ cd mercure/gatling
 
 Without configuration, the test hits a local hub on `https://localhost`. To target a real hub, set `HUB_URL` and a publisher JWT.
 
-## Configuration
+## Mercure Load Test Configuration
 
 All variables are optional.
 
@@ -34,6 +40,7 @@ All variables are optional.
 A useful starting recipe — build up to your expected traffic:
 
 ```console
+# Mercure Load Test Configuration
 HUB_URL=https://hub.example.com/.well-known/mercure \
 JWT=<publisher JWT> \
 INITIAL_SUBSCRIBERS=1000 \
@@ -46,7 +53,7 @@ CONNECTION_DURATION=600 \
 ./mvnw gatling:test
 ```
 
-## What to measure
+## What to Measure During a Mercure Load Test
 
 While the test runs, watch:
 
@@ -65,7 +72,7 @@ Connections themselves are cheap. What scales the cost:
 - **Matcher complexity.** Exact matchers are O(1); regex and CEL matchers cost time per evaluation. Use `topic_selector_cache` for repeated patterns.
 - **History writes.** BoltDB syncs to disk; write throughput is bounded by your storage. The Postgres transport is faster on bursty writes; Redis is the fastest.
 
-## Common bottlenecks
+## Common Mercure Hub Bottlenecks
 
 | Symptom | Probable cause |
 | --- | --- |
@@ -75,7 +82,7 @@ Connections themselves are cheap. What scales the cost:
 | Memory growth that doesn't plateau | Goroutine leak; capture a `pprof` heap and goroutine snapshot ([Debugging](debugging.md)) and file an issue. |
 | Test plateaus before the box does | Backpressure from the hub's listener; check `net.core.somaxconn` and `net.ipv4.tcp_max_syn_backlog` on Linux. |
 
-## File descriptor limits
+## File Descriptor Limits for the Mercure Hub
 
 The single most common limit. On Linux:
 
@@ -84,10 +91,13 @@ The single most common limit. On Linux:
 prlimit --pid $(pgrep mercure)
 
 # Set globally for the next process you start
+
 ulimit -n 100000
 
 # Persist via systemd
+
 # /etc/systemd/system/mercure.service.d/override.conf
+
 [Service]
 LimitNOFILE=100000
 ```
@@ -95,6 +105,7 @@ LimitNOFILE=100000
 In Docker:
 
 ```yaml
+# File Descriptor Limits for the Mercure Hub
 services:
   mercure:
     ulimits:
@@ -105,7 +116,7 @@ services:
 
 In Kubernetes, the host's limit applies to the container by default. If the host is set to `1024`, that's your ceiling — bump it on the node.
 
-## Conformance vs. load
+## Mercure Conformance vs. Load Testing
 
 Load tests measure throughput. Conformance tests check correctness. Run both:
 
@@ -122,7 +133,7 @@ Symptoms that mean a single node won't get you any further:
 
 At that point: [High availability](high-availability.md).
 
-## Next
+## Next Steps for Mercure Load Testing
 
 - [Debugging](debugging.md) — `pprof` for figuring out where the time goes.
 - [Health monitoring](health-monitoring.md) — what to watch in steady state.

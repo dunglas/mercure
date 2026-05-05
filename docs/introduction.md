@@ -1,3 +1,8 @@
+---
+title: "What Is Mercure? Real-Time HTTP Push with Server-Sent Events"
+description: "Mercure is an open real-time protocol that pushes server data to clients over plain HTTP and Server-Sent Events, with built-in JWT authorization and replay."
+---
+
 # Introduction
 
 Mercure pushes data from a server to connected clients in real time, over plain HTTP. It's a thin protocol on top of [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html), with a JWT-based authorization layer and a reconnection model that handles dropped connections without losing messages.
@@ -6,7 +11,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 
 ![Subscriptions Schema](../spec/subscriptions.png)
 
-## What you get
+## What You Get with Mercure
 
 - **Native browser support.** No SDK. The `EventSource` API ships in every modern browser; on the server, any HTTP client can publish.
 - **HTTP/2+ multiplexing.** One TCP connection carries every subscription a client opens, plus the rest of your app traffic.
@@ -48,7 +53,7 @@ There are paid tiers — Cloud (managed) and Self-Hosted (multi-node, premium tr
 
 When you outgrow a single node, [the production guide](production/high-availability.md) explains the options.
 
-## Where to next
+## Where to Go Next with Mercure
 
 - [Quickstart](getting-started/quickstart.md) — running hub, first subscription, first update.
 - [Topics and matchers](concepts/topics-and-matchers.md) — the part of the protocol that changed most in 1.0.
