@@ -198,19 +198,17 @@ func (m *Mercure) populateJWTConfig() error {
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
 //
-// Supported schemes are http, https and file. file:// URLs point to a local
-// JSON file containing a JWK Set; the file is read once at provision time, so
-// rotating the keys requires a Caddy config reload.
+// file:// URLs point to a local JSON file containing a JWK Set; the file is
+// read once at provision time, so rotating the keys requires a Caddy config
+// reload. Other URLs are forwarded to keyfunc.NewDefaultCtx, which handles
+// HTTP(S) and rejects unsupported schemes.
 func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid JWK Set URL %q: %w", rawURL, err)
 	}
 
-	switch u.Scheme {
-	case "http", "https":
-		return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
-	case "file":
+	if u.Scheme == "file" {
 		if u.Host != "" && u.Host != "localhost" {
 			return nil, fmt.Errorf(`file:// JWK Set URL host must be empty or "localhost", got %q`, u.Host) //nolint:err113
 		}
@@ -226,9 +224,9 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 		}
 
 		return k, nil
-	default:
-		return nil, fmt.Errorf("unsupported JWK Set URL scheme %q, expected http, https or file", u.Scheme) //nolint:err113
 	}
+
+	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
 }
 
 type stoppingHandlerFunc func()
