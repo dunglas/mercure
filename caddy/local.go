@@ -11,7 +11,7 @@ type localTransportKeyStruct struct{}
 var localTransportKey = localTransportKeyStruct{} //nolint:gochecknoglobals
 
 func init() { //nolint:gochecknoinits
-	caddy.RegisterModule(Local{})
+	caddy.RegisterModule(&Local{})
 }
 
 type Local struct {
@@ -19,7 +19,7 @@ type Local struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (Local) CaddyModule() caddy.ModuleInfo {
+func (*Local) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.mercure.local",
 		New: func() caddy.Module { return new(Local) },

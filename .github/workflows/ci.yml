@@ -38,6 +38,13 @@ jobs:
           version: latest
           args: --timeout=30m
 
+      - name: golangci-lint (caddy module)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --timeout=30m --config ../.golangci.yml
+          working-directory: caddy
+
   test:
     strategy:
       matrix:

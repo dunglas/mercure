@@ -10,6 +10,8 @@ run:
 linters:
   default: all
   settings:
+    gomoddirectives:
+      replace-local: true
     ireturn:
       allow:
         - anon

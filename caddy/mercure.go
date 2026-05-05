@@ -29,7 +29,9 @@ import (
 const defaultHubURL = "/.well-known/mercure"
 
 var (
-	// EXPERIMENTAL: AllowNoPublish allows not setting the publisher JWT, and then disable the publish endpoint.
+	// AllowNoPublish allows not setting the publisher JWT, and then disable the publish endpoint.
+	//
+	// EXPERIMENTAL.
 	//
 	// It is usually set to true in the init() function of Go applications allowing to publish programmatically by
 	// calling mercure.Publish() directly.
@@ -39,7 +41,7 @@ var (
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
-	hubsMu sync.Mutex
+	hubsMu sync.Mutex                        //nolint:gochecknoglobals
 )
 
 type hubInfo struct {
@@ -49,12 +51,14 @@ type hubInfo struct {
 }
 
 func init() { //nolint:gochecknoinits
-	caddy.RegisterModule(Mercure{})
+	caddy.RegisterModule(&Mercure{})
 	httpcaddyfile.RegisterHandlerDirective("mercure", parseCaddyfile)
 	httpcaddyfile.RegisterDirectiveOrder("mercure", "after", "encode")
 }
 
-// EXPERIMENTAL: FindHub finds the Mercure hub configured for the current route.
+// FindHub finds the Mercure hub configured for the current route.
+//
+// EXPERIMENTAL.
 func FindHub(modules []caddy.Module) *mercure.Hub {
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
@@ -88,6 +92,8 @@ type TopicSelectorCacheConfig struct {
 
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 type Mercure struct {
+	deprecatedTransport
+
 	// Human-readable name for this hub, used in health check endpoints and metrics.
 	Name string `json:"name,omitempty"`
 
@@ -147,86 +153,17 @@ type Mercure struct {
 	// The transport configuration.
 	TransportRaw json.RawMessage `json:"transport,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
 
-	deprecatedTransport
-
 	hub    *mercure.Hub
 	logger *slog.Logger
 	cancel context.CancelFunc
 }
 
 // CaddyModule returns the Caddy module information.
-func (Mercure) CaddyModule() caddy.ModuleInfo {
+func (*Mercure) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.mercure",
 		New: func() caddy.Module { return new(Mercure) },
 	}
-}
-
-func (m *Mercure) populateJWTConfig() error {
-	repl := caddy.NewReplacer()
-
-	if m.PublisherJWKSURL == "" {
-		m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
-
-		if m.PublisherJWT.Key != "" {
-			m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
-			if m.PublisherJWT.Alg == "" {
-				m.PublisherJWT.Alg = "HS256"
-			}
-		} else if !AllowNoPublish {
-			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
-		}
-	}
-
-	if m.SubscriberJWKSURL == "" {
-		m.SubscriberJWT.Key = repl.ReplaceKnown(m.SubscriberJWT.Key, "")
-		m.SubscriberJWT.Alg = repl.ReplaceKnown(m.SubscriberJWT.Alg, "HS256")
-
-		if m.SubscriberJWT.Key == "" {
-			if !m.Anonymous {
-				return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
-			}
-		}
-
-		if m.SubscriberJWT.Alg == "" {
-			m.SubscriberJWT.Alg = "HS256"
-		}
-	}
-
-	return nil
-}
-
-// newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
-//
-// file:// URLs point to a local JSON file containing a JWK Set; the file is
-// read once at provision time, so rotating the keys requires a Caddy config
-// reload. Other URLs are forwarded to keyfunc.NewDefaultCtx, which handles
-// HTTP(S) and rejects unsupported schemes.
-func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, error) {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JWK Set URL %q: %w", rawURL, err)
-	}
-
-	if u.Scheme == "file" {
-		if u.Host != "" && u.Host != "localhost" {
-			return nil, fmt.Errorf(`file:// JWK Set URL host must be empty or "localhost", got %q`, u.Host) //nolint:err113
-		}
-
-		b, err := os.ReadFile(u.Path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read JWK Set file %q: %w", u.Path, err)
-		}
-
-		k, err := keyfunc.NewJWKSetJSON(b)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse JWK Set file %q: %w", u.Path, err)
-		}
-
-		return k, nil
-	}
-
-	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
 }
 
 type stoppingHandlerFunc func()
@@ -238,7 +175,7 @@ func (s stoppingHandlerFunc) Handle(_ context.Context, _ caddy.Event) error {
 }
 
 //nolint:wrapcheck
-func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,gocognit
+func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,gocognit,gocyclo,maintidx
 	metrics := mercure.NewPrometheusMetrics(ctx.GetMetricsRegistry())
 
 	if err := m.populateJWTConfig(); err != nil {
@@ -380,6 +317,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	var c context.Context
+
 	c, m.cancel = context.WithCancel(ctx)
 	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(m.cancel)); err != nil {
 		return err
@@ -441,7 +379,7 @@ func (m *Mercure) Cleanup() error {
 	return m.cleanupTransportDeprecated()
 }
 
-func (m Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !strings.HasPrefix(r.URL.Path, defaultHubURL) {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
@@ -581,12 +519,15 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.ArgErr()
 				}
 
-				s, err := strconv.ParseUint(d.Val(), 10, 64)
+				size, err := strconv.Atoi(d.Val())
 				if err != nil {
 					return d.WrapErr(err)
 				}
 
-				size := int(s)
+				if size < 0 {
+					return d.Errf("subscriber_list_cache_size must be >= 0, got %d", size)
+				}
+
 				m.SubscriberListCacheSize = &size
 
 			case "cookie_name":
@@ -620,21 +561,90 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	return nil
 }
 
+func (m *Mercure) populateJWTConfig() error {
+	repl := caddy.NewReplacer()
+
+	if m.PublisherJWKSURL == "" {
+		m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
+
+		if m.PublisherJWT.Key != "" {
+			m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
+			if m.PublisherJWT.Alg == "" {
+				m.PublisherJWT.Alg = "HS256"
+			}
+		} else if !AllowNoPublish {
+			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
+		}
+	}
+
+	if m.SubscriberJWKSURL == "" {
+		m.SubscriberJWT.Key = repl.ReplaceKnown(m.SubscriberJWT.Key, "")
+		m.SubscriberJWT.Alg = repl.ReplaceKnown(m.SubscriberJWT.Alg, "HS256")
+
+		if m.SubscriberJWT.Key == "" {
+			if !m.Anonymous {
+				return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
+			}
+		}
+
+		if m.SubscriberJWT.Alg == "" {
+			m.SubscriberJWT.Alg = "HS256"
+		}
+	}
+
+	return nil
+}
+
+// newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
+//
+// file:// URLs point to a local JSON file containing a JWK Set; the file is
+// read once at provision time, so rotating the keys requires a Caddy config
+// reload. Other URLs are forwarded to keyfunc.NewDefaultCtx, which handles
+// HTTP(S) and rejects unsupported schemes.
+//
+//nolint:ireturn
+func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWK Set URL %q: %w", rawURL, err)
+	}
+
+	if u.Scheme == "file" {
+		if u.Host != "" && u.Host != "localhost" {
+			return nil, fmt.Errorf(`file:// JWK Set URL host must be empty or "localhost", got %q`, u.Host) //nolint:err113
+		}
+
+		b, err := os.ReadFile(u.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read JWK Set file %q: %w", u.Path, err)
+		}
+
+		k, err := keyfunc.NewJWKSetJSON(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse JWK Set file %q: %w", u.Path, err)
+		}
+
+		return k, nil
+	}
+
+	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
+}
+
 // parseCaddyfile unmarshals tokens from h into a new Middleware.
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) { //nolint:ireturn
-	var m Mercure
+	m := new(Mercure)
 
 	return m, m.UnmarshalCaddyfile(h.Dispenser)
 }
 
 func parseDurationParameter(d *caddyfile.Dispenser) (*caddy.Duration, error) {
 	if !d.NextArg() {
-		return nil, d.ArgErr()
+		return nil, d.ArgErr() //nolint:wrapcheck
 	}
 
 	du, err := caddy.ParseDuration(d.Val())
 	if err != nil {
-		return nil, d.WrapErr(err)
+		return nil, d.WrapErr(err) //nolint:wrapcheck
 	}
 
 	cd := caddy.Duration(du)
