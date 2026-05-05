@@ -17,35 +17,37 @@ The hub exposes the third level explicitly. Use it.
 
 All health endpoints live on the Caddy admin API (default `localhost:2019`):
 
-| Endpoint | Returns |
-| --- | --- |
-| `GET /mercure/health/ready` | `200` if all transports can serve traffic, `503` otherwise. **Use for readiness.** |
-| `GET /mercure/health/live` | `200` if all transports are fundamentally operational. `503` if any has been unhealthy for an extended period. **Use for liveness.** |
-| `GET /mercure/health/{name}/ready` | Per-hub readiness when running multiple hubs. |
-| `GET /mercure/health/{name}/live` | Per-hub liveness. |
+| Endpoint                           | Returns                                                                                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /mercure/health/ready`        | `200` if all transports can serve traffic, `503` otherwise. **Use for readiness.**                                                   |
+| `GET /mercure/health/live`         | `200` if all transports are fundamentally operational. `503` if any has been unhealthy for an extended period. **Use for liveness.** |
+| `GET /mercure/health/{name}/ready` | Per-hub readiness when running multiple hubs.                                                                                        |
+| `GET /mercure/health/{name}/live`  | Per-hub liveness.                                                                                                                    |
 
-Bolt and local transports always return `200` — there's no remote system whose connection can fail. Redis, Postgres, Kafka, and Pulsar transports actively check the connection.
+Bolt and local transports always return `200`: there's no remote system whose connection can fail. Redis, Postgres, Kafka, and Pulsar transports actively check the connection.
 
 ## Why Mercure Has Two Health Endpoints
 
-Readiness should fail **fast**: a momentary blip on Redis, a Postgres failover, a Kafka rebalance — the pod isn't able to serve right now and traffic should route elsewhere. Liveness should fail **slow**: only when the pod is unrecoverable should the orchestrator restart it.
+Readiness should fail **fast**: a momentary blip on Redis, a Postgres failover, a Kafka rebalance, the pod isn't able to serve right now and traffic should route elsewhere. Liveness should fail **slow**: only when the pod is unrecoverable should the orchestrator restart it.
 
 Restarting a hub on a transient transport blip just adds a reconnect storm to whatever the transport problem already was. The two endpoints encode that distinction.
 
 ## Probing from Outside the Container
 
-The admin API binds to `localhost:2019` for security. That means standard `httpGet` probes — which run from outside the container — can't reach it. Use `exec` probes instead:
+The admin API binds to `localhost:2019` for security. That means standard `httpGet` probes, which run from outside the container, can't reach it. Use `exec` probes instead:
 
 ```yaml
 # Probing from outside the container
 readinessProbe:
   exec:
-    command: ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
+    command:
+      ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
   initialDelaySeconds: 10
   periodSeconds: 10
 livenessProbe:
   exec:
-    command: ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/live"]
+    command:
+      ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/live"]
   initialDelaySeconds: 30
   periodSeconds: 30
 ```
@@ -55,7 +57,14 @@ Same shape in Docker Compose:
 ```yaml
 # Probing from outside the container
 healthcheck:
-  test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
+  test:
+    [
+      "CMD",
+      "wget",
+      "-q",
+      "--spider",
+      "http://localhost:2019/mercure/health/ready",
+    ]
   timeout: 5s
   retries: 5
   start_period: 60s
@@ -76,7 +85,7 @@ But that exposes `/stop`, `/load`, `/config` (the full admin API) to the pod net
 
 ## The Legacy `/healthz` Endpoint
 
-There's a `/healthz` endpoint on the main HTTP port. It only checks that the Caddy process is alive — not that the transport is healthy. **It is deprecated.** Don't add it to new probes; migrate existing probes to `/mercure/health/*`.
+There's a `/healthz` endpoint on the main HTTP port. It only checks that the Caddy process is alive, not that the transport is healthy. **It is deprecated.** Don't add it to new probes; migrate existing probes to `/mercure/health/*`.
 
 ## Prometheus Metrics
 
@@ -93,47 +102,47 @@ Enable metrics in `GLOBAL_OPTIONS`:
 
 Metrics live on the admin API at `/metrics`. The hub exposes Caddy's built-in metrics plus Mercure-specific ones:
 
-| Metric | Description |
-| --- | --- |
-| `mercure_subscribers_connected` | Current number of connected subscribers. |
-| `mercure_subscribers_total` | Total subscribers seen. |
-| `mercure_updates_total` | Total updates dispatched. |
-| `mercure_updates_failed_total` | Updates that failed dispatch. |
-| `mercure_topic_selector_cache_*` | Topic selector cache hits/misses. |
-| `mercure_subscriber_list_cache_*` | Subscriber list cache stats. |
+| Metric                            | Description                              |
+| --------------------------------- | ---------------------------------------- |
+| `mercure_subscribers_connected`   | Current number of connected subscribers. |
+| `mercure_subscribers_total`       | Total subscribers seen.                  |
+| `mercure_updates_total`           | Total updates dispatched.                |
+| `mercure_updates_failed_total`    | Updates that failed dispatch.            |
+| `mercure_topic_selector_cache_*`  | Topic selector cache hits/misses.        |
+| `mercure_subscriber_list_cache_*` | Subscriber list cache stats.             |
 
 Plus standard Caddy metrics: request counts, latencies, in-flight requests, certificate expiry. See the [Caddy metrics docs](https://caddyserver.com/docs/metrics).
 
 ## Useful Alerts for the Mercure Hub
 
-Order matters — start with these, add more once you've learned your hub's normal behavior:
+Order matters, start with these, add more once you've learned your hub's normal behavior:
 
-| Alert | Condition |
-| --- | --- |
-| Hub down | `mercure_subscribers_connected` absent for >5 min on a pod that should have traffic. |
-| Reconnect storm | `rate(mercure_subscribers_total[5m])` > 10× steady state. |
-| Transport unhealthy | Readiness endpoint returning 503. |
-| Update dispatch failures | `rate(mercure_updates_failed_total[5m]) / rate(mercure_updates_total[5m]) > 0.01`. |
-| Slow dispatch | Caddy request duration p99 on the hub URL above your SLO. |
-| Cert expiry | Less than 14 days. |
+| Alert                    | Condition                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| Hub down                 | `mercure_subscribers_connected` absent for >5 min on a pod that should have traffic. |
+| Reconnect storm          | `rate(mercure_subscribers_total[5m])` > 10x steady state.                            |
+| Transport unhealthy      | Readiness endpoint returning 503.                                                    |
+| Update dispatch failures | `rate(mercure_updates_failed_total[5m]) / rate(mercure_updates_total[5m]) > 0.01`.   |
+| Slow dispatch            | Caddy request duration p99 on the hub URL above your SLO.                            |
+| Cert expiry              | Less than 14 days.                                                                   |
 
 ## Mercure Grafana Dashboards
 
 A reasonable Grafana panel set:
 
-- **Connections** — `mercure_subscribers_connected` per pod, stacked.
-- **Publish rate** — `rate(mercure_updates_total[1m])`, with `mercure_updates_failed_total` overlaid.
-- **Reconnect rate** — `rate(mercure_subscribers_total[1m])`. Spikes correlate with deploys, ingress restarts, and cert renewals.
-- **Transport health** — readiness endpoint state (a synthetic probe writing to a metric).
-- **Latency** — request duration histograms from Caddy.
+- **Connections**: `mercure_subscribers_connected` per pod, stacked.
+- **Publish rate**: `rate(mercure_updates_total[1m])`, with `mercure_updates_failed_total` overlaid.
+- **Reconnect rate**: `rate(mercure_subscribers_total[1m])`. Spikes correlate with deploys, ingress restarts, and cert renewals.
+- **Transport health**: readiness endpoint state (a synthetic probe writing to a metric).
+- **Latency**: request duration histograms from Caddy.
 
 ## Application-Level Mercure Health Canaries
 
-A working hub does more than answer probes — it has to actually ferry data. A useful synthetic check that fully exercises the pipeline:
+A working hub does more than answer probes, it has to actually ferry data. A useful synthetic check that fully exercises the pipeline:
 
 ```bash
 #!/bin/sh
-# canary.sh — run from outside the cluster
+# canary.sh, run from outside the cluster
 JWT=$(generate-publisher-jwt)
 TOPIC="https://example.com/_canary/$(date +%s)"
 
@@ -158,10 +167,10 @@ Run it from a different network than the hub (a CI runner, a separate cloud acco
 
 The hub logs to stdout in JSON. Useful fields:
 
-- `level` — `info`, `warn`, `error`.
-- `msg` — human-readable description.
-- `mercure.subscriber.id` — subscriber ID (when present).
-- `caddy.error.*` — TLS, listener, transport errors.
+- `level`: `info`, `warn`, `error`.
+- `msg`: human-readable description.
+- `mercure.subscriber.id`: subscriber ID (when present).
+- `caddy.error.*`: TLS, listener, transport errors.
 
 For deeper diagnostics, set `GLOBAL_OPTIONS=debug`. **Don't leave it on in production:** it logs full update payloads, which means private data ends up in your log pipeline.
 
@@ -172,10 +181,10 @@ What "normal" looks like, roughly:
 - A subscriber costs ~10 KB of RAM and one goroutine.
 - Per-publish CPU scales with the number of matching subscribers.
 - Dispatch latency dominated by the slowest subscriber (`dispatch_timeout` caps it).
-- Memory growth flat once subscriber count plateaus; a steady upward drift means a goroutine leak — file an issue with a `pprof` snapshot.
+- Memory growth flat once subscriber count plateaus; a steady upward drift means a goroutine leak: file an issue with a `pprof` snapshot.
 
 ## Next Steps for Mercure Monitoring
 
-- [Debugging](debugging.md) — when metrics aren't enough.
-- [Load testing](load-testing.md) — establish a baseline before going live.
-- [Rolling updates](rolling-updates.md) — what your `mercure_subscribers_connected` chart should look like during a deploy.
+- [Debugging](debugging.md): when metrics aren't enough.
+- [Load testing](load-testing.md): establish a baseline before going live.
+- [Rolling updates](rolling-updates.md): what your `mercure_subscribers_connected` chart should look like during a deploy.

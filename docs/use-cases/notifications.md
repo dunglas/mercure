@@ -11,9 +11,9 @@ In-app notifications: mention badges, mailbox counters, "X started following you
 
 Two flavors, with different topology:
 
-| Flavor | Example | Best fit |
-| --- | --- | --- |
-| Per-user | "You have 3 new messages" | One topic per user, JWT-authorized. |
+| Flavor    | Example                     | Best fit                                  |
+| --------- | --------------------------- | ----------------------------------------- |
+| Per-user  | "You have 3 new messages"   | One topic per user, JWT-authorized.       |
 | Broadcast | "System maintenance at 8pm" | A shared topic, no auth needed if public. |
 
 You can ship both over the same connection.
@@ -25,7 +25,10 @@ Each user subscribes to a topic that's theirs:
 ```javascript
 // Per-User Mercure Notifications
 const url = new URL("https://hub.example.com/.well-known/mercure");
-url.searchParams.append("match", `https://example.com/users/${userId}/notifications`);
+url.searchParams.append(
+  "match",
+  `https://example.com/users/${userId}/notifications`,
+);
 
 const es = new EventSource(url, { withCredentials: true });
 es.onmessage = (e) => {
@@ -43,10 +46,10 @@ The cookie carries a JWT scoped to that user only:
   "mercure": {
     "subscribe": [
       { "match": "https://example.com/users/42/notifications" },
-      { "match": "https://example.com/site/announcements" }
-    ]
+      { "match": "https://example.com/site/announcements" },
+    ],
   },
-  "exp": 1730000000
+  "exp": 1730000000,
 }
 ```
 
@@ -98,7 +101,7 @@ es.addEventListener("read", (e) => {
 });
 ```
 
-Lighter on each message but races with multi-tab usage. Mitigate by listening to `read` events the user generated in *another* tab — the same SSE event reaches both tabs and they stay in sync.
+Lighter on each message but races with multi-tab usage. Mitigate by listening to `read` events the user generated in _another_ tab; the same SSE event reaches both tabs and they stay in sync.
 
 ## Multi-Tab Notification Consistency
 
@@ -113,16 +116,16 @@ This is a UI concern, not a Mercure concern. The hub delivers the same event to 
 
 ## Combining Mercure with Web Push for Offline Users
 
-Mercure delivers to *connected* clients. For a user with the app closed, you need [Web Push](https://web.dev/articles/push-notifications-overview) (or APNs / FCM on mobile). The two complement each other:
+Mercure delivers to _connected_ clients. For a user with the app closed, you need [Web Push](https://web.dev/articles/push-notifications-overview) (or APNs / FCM on mobile). The two complement each other:
 
-- User online → Mercure pushes the in-app notification.
-- User offline → Web Push pings the OS notification center.
+- User online -> Mercure pushes the in-app notification.
+- User offline -> Web Push pings the OS notification center.
 
 In your notify-user function, check connection state and dispatch to one or the other (or both). The [Active subscriptions API](../concepts/active-subscriptions.md#subscription-api) tells you whether the user is currently connected.
 
 ## Notification Read Receipts Over Mercure
 
-When the user opens a notification, post a `read` event to your origin, which publishes back over Mercure to update *all* of the user's tabs:
+When the user opens a notification, post a `read` event to your origin, which publishes back over Mercure to update _all_ of the user's tabs:
 
 ```python
 # Notification Read Receipts over Mercure
@@ -141,7 +144,7 @@ Each tab listens on `https://example.com/users/<id>/notifications/read` and upda
 
 A bug or a runaway loop that publishes a notification per millisecond is a real risk. Mitigations:
 
-- **Coalesce on the publisher side** — debounce per user before emitting.
+- **Coalesce on the publisher side**: debounce per user before emitting.
 - **Hub-level rate limits.** The Cloud and Self-Hosted hubs can rate-limit publishers. The open-source hub can be put behind [Caddy's `ratelimit` module](https://github.com/mholt/caddy-ratelimit), which is included in the Mercure binary.
 
 ## Privacy and Authorization
@@ -149,12 +152,12 @@ A bug or a runaway loop that publishes a notification per millisecond is a real 
 Notifications often carry personal data. A few rules:
 
 - Always mark notification updates `private=on`.
-- Authorize per-user — never use a wildcard subscriber matcher for notifications.
+- Authorize per-user: never use a wildcard subscriber matcher for notifications.
 - Don't leak the topic's path in URLs that could end up in logs (avoid the `authorization` query parameter; use cookies).
 - Consider [end-to-end encryption](../concepts/encryption.md) if the hub operator should not see the content.
 
 ## Next Steps for Mercure Notifications
 
-- [Authorization](../concepts/authorization.md) — minting per-user tokens.
-- [Active subscriptions](../concepts/active-subscriptions.md) — knowing whether the user is online.
-- [Live data](live-data.md) — for system-wide signals that aren't user-scoped.
+- [Authorization](../concepts/authorization.md): minting per-user tokens.
+- [Active subscriptions](../concepts/active-subscriptions.md): knowing whether the user is online.
+- [Live data](live-data.md): for system-wide signals that aren't user-scoped.

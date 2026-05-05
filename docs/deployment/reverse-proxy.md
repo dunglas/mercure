@@ -27,11 +27,11 @@ server {
         proxy_pass http://mercure-upstream;
         proxy_http_version 1.1;
 
-        # Don't buffer the response — SSE relies on immediate flush
+        # Don't buffer the response, SSE relies on immediate flush
         proxy_buffering off;
         proxy_cache off;
 
-        # Long read timeout — SSE connections live for hours
+        # Long read timeout, SSE connections live for hours
         proxy_read_timeout 24h;
 
         # Forwarded headers (only enable USE_FORWARDED_HEADERS=1 on the hub
@@ -50,13 +50,13 @@ upstream mercure-upstream {
 
 Key directives:
 
-- `proxy_buffering off` — without this, NGINX may hold events for seconds until the buffer fills. The single most common cause of "events arrive in batches."
-- `proxy_read_timeout 24h` — NGINX's default is 60 seconds. Anything less than your `heartbeat` setting (40s default on the hub) will drop connections regularly.
-- `proxy_http_version 1.1` and `Connection ""` — tell NGINX not to add a `Connection: close` and not to downgrade from HTTP/2 between the client and itself.
+- `proxy_buffering off`: without this, NGINX may hold events for seconds until the buffer fills. The single most common cause of "events arrive in batches."
+- `proxy_read_timeout 24h`: NGINX's default is 60 seconds. Anything less than your `heartbeat` setting (40s default on the hub) will drop connections regularly.
+- `proxy_http_version 1.1` and `Connection ""`: tell NGINX not to add a `Connection: close` and not to downgrade from HTTP/2 between the client and itself.
 
 ## Traefik
 
-Traefik is well-behaved out of the box for SSE — no buffering, sensible timeouts. A working `compose.yaml`:
+Traefik is well-behaved out of the box for SSE, no buffering, sensible timeouts. A working `compose.yaml`:
 
 ```yaml
 # compose.yaml
@@ -79,7 +79,7 @@ services:
     image: dunglas/mercure
     restart: unless-stopped
     environment:
-      SERVER_NAME: ":80"  # let Traefik handle TLS
+      SERVER_NAME: ":80" # let Traefik handle TLS
       MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
       MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
     volumes:
@@ -98,7 +98,7 @@ volumes:
   mercure_config:
 ```
 
-Disable the hub's own TLS (`SERVER_NAME=:80`) — Traefik handles it.
+Disable the hub's own TLS (`SERVER_NAME=:80`). Traefik handles it.
 
 For long write timeouts on Traefik (the default per-router timeout is generous, but worth pinning):
 
@@ -130,7 +130,7 @@ hub.example.com {
 
 `flush_interval -1` tells Caddy to flush immediately, never buffer. The default is generally good for SSE, but `-1` is explicit and safe.
 
-In practice you don't need a separate Caddy in front of the Mercure hub — the Mercure binary *is* a Caddy build. You can mount your existing site and the hub on the same Caddy instance with one config:
+In practice you don't need a separate Caddy in front of the Mercure hub, the Mercure binary _is_ a Caddy build. You can mount your existing site and the hub on the same Caddy instance with one config:
 
 ```caddyfile
 # Caddyfile
@@ -170,11 +170,11 @@ The `tunnel` timeout is HAProxy's term for how long it lets an idle connection s
 
 ## AWS ALB
 
-ALBs work with SSE if you bump the idle timeout — default is 60 seconds, which is too short:
+ALBs work with SSE if you bump the idle timeout, default is 60 seconds, which is too short:
 
 - **Idle timeout:** raise to several minutes (e.g. `300`).
 - **Connection re-use:** ALBs already do HTTP/2 to clients and HTTP/1.1 to targets, which is fine for SSE.
-- **Health checks:** point them at `/.well-known/mercure` (returns 405 — pass any 4xx/5xx as healthy). Or expose the admin health endpoints on a separate listener.
+- **Health checks:** point them at `/.well-known/mercure` (returns 405: pass any 4xx/5xx as healthy). Or expose the admin health endpoints on a separate listener.
 
 ## Cloudflare
 
@@ -206,12 +206,12 @@ Same-origin sidesteps CORS entirely. Same-origin also means the cookie can be `D
 
 ## Common SSE Reverse-Proxy Gotchas with Mercure
 
-| Symptom | Likely cause |
-| --- | --- |
-| Events arrive in batches every few seconds | Proxy is buffering. Disable it. |
-| Connections drop every 30 or 60 seconds | Proxy idle timeout. Raise it. |
-| 502 Bad Gateway after a while | Proxy thinks the upstream is dead because no bytes flowed. Lower `heartbeat` on the hub or raise the proxy's read timeout. |
-| `EventSource` never connects from the browser | CORS misconfiguration. Check `cors_origins` and the response headers. |
+| Symptom                                       | Likely cause                                                                                                               |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Events arrive in batches every few seconds    | Proxy is buffering. Disable it.                                                                                            |
+| Connections drop every 30 or 60 seconds       | Proxy idle timeout. Raise it.                                                                                              |
+| 502 Bad Gateway after a while                 | Proxy thinks the upstream is dead because no bytes flowed. Lower `heartbeat` on the hub or raise the proxy's read timeout. |
+| `EventSource` never connects from the browser | CORS misconfiguration. Check `cors_origins` and the response headers.                                                      |
 
 ## Set `USE_FORWARDED_HEADERS` Carefully on the Mercure Hub
 
@@ -230,6 +230,6 @@ Only trust these headers when the proxy in front of the hub strips or replaces t
 
 ## Next Steps for Mercure Reverse Proxies
 
-- [Configuration](configuration.md) — `cors_origins` and friends.
-- [Docker](docker.md) — running the hub in a container.
-- [Health monitoring](../production/health-monitoring.md) — what your proxy's health check should hit.
+- [Configuration](configuration.md): `cors_origins` and friends.
+- [Docker](docker.md): running the hub in a container.
+- [Health monitoring](../production/health-monitoring.md): what your proxy's health check should hit.

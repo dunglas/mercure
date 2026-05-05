@@ -28,7 +28,10 @@ Each document has a topic; every change is published to it.
 const docId = "books/42";
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", `https://docs.example.com/${docId}`);
-url.searchParams.append("matchURLPattern", `/.well-known/mercure/subscriptions/:matchType/:match/:subscriber`);
+url.searchParams.append(
+  "matchURLPattern",
+  `/.well-known/mercure/subscriptions/:matchType/:match/:subscriber`,
+);
 
 const es = new EventSource(url, { withCredentials: true });
 ```
@@ -90,7 +93,7 @@ es.onmessage = (event) => {
 
 The CRDT guarantees convergence; Mercure just ferries the binary updates around.
 
-[Automerge](https://automerge.org/) and [Loro](https://www.loro.dev/) work the same way — Mercure doesn't care what's in the payload.
+[Automerge](https://automerge.org/) and [Loro](https://www.loro.dev/) work the same way. Mercure doesn't care what's in the payload.
 
 ## Collaborative Presence with Mercure Subscription Events
 
@@ -104,14 +107,14 @@ Use [subscription events](../concepts/active-subscriptions.md) to show who's con
     "subscribe": [
       {
         "match": "https://docs.example.com/books/42",
-        "payload": { "name": "Alice", "color": "#ff0066" }
+        "payload": { "name": "Alice", "color": "#ff0066" },
       },
       {
         "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
-        "matchType": "URLPattern"
-      }
-    ]
-  }
+        "matchType": "URLPattern",
+      },
+    ],
+  },
 }
 ```
 
@@ -124,7 +127,7 @@ const peers = new Map();
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "matchURLPattern",
-  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"
+  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
 );
 
 new EventSource(url, { withCredentials: true }).onmessage = (event) => {
@@ -172,7 +175,7 @@ Mercure is a real-time bus, not a database. Persist:
 - The document's content (or its CRDT state) in your application's database.
 - Per-change history if you want undo/redo or audit trails.
 
-The hub's history buffer is for surviving brief disconnects, not for storing months of revisions. (You *can* configure it to do that, especially with the Postgres transport, but a database is the right tool for the job.)
+The hub's history buffer is for surviving brief disconnects, not for storing months of revisions. (You _can_ configure it to do that, especially with the Postgres transport, but a database is the right tool for the job.)
 
 ## Authorization
 
@@ -184,10 +187,16 @@ Documents are usually private. Each user's `mercure.subscribe` claim should cove
   "mercure": {
     "subscribe": [
       { "match": "https://docs.example.com/books/42" },
-      { "match": "https://docs.example.com/books/42/cursors/:user", "matchType": "URLPattern" },
-      { "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", "matchType": "URLPattern" }
-    ]
-  }
+      {
+        "match": "https://docs.example.com/books/42/cursors/:user",
+        "matchType": "URLPattern",
+      },
+      {
+        "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
+        "matchType": "URLPattern",
+      },
+    ],
+  },
 }
 ```
 
@@ -195,12 +204,12 @@ Mark every change publication `private=on` so the hub enforces the claim.
 
 ## What About the Publish Path?
 
-If you want clients to publish directly to the hub (skipping the origin server), you can — give them a publisher JWT. But typically you don't: routing changes through your API lets you persist them, validate them, and rate-limit them. The publish to Mercure is just a fan-out at the end of that pipeline.
+If you want clients to publish directly to the hub (skipping the origin server), you can: give them a publisher JWT. But typically you don't. Routing changes through your API lets you persist them, validate them, and rate-limit them. The publish to Mercure is just a fan-out at the end of that pipeline.
 
 > **Pro tip.** Collaborative apps benefit from multi-region deployments. The open-source hub runs on a single node; for HA across regions you'll want [Self-Hosted Mercure](https://mercure.rocks/pricing) with Redis or Postgres transports, or the [managed Cloud version](https://mercure.rocks/pricing).
 
 ## Next Steps for Collaborative Editing on Mercure
 
-- [Active subscriptions](../concepts/active-subscriptions.md) — the presence layer in detail.
-- [Reconnection and history](../concepts/reconnection-and-history.md) — surviving disconnects.
-- [Hotwire](hotwire.md) — when "the document" is HTML and you want to broadcast HTML diffs.
+- [Active subscriptions](../concepts/active-subscriptions.md): the presence layer in detail.
+- [Reconnection and history](../concepts/reconnection-and-history.md): surviving disconnects.
+- [Hotwire](hotwire.md): when "the document" is HTML and you want to broadcast HTML diffs.

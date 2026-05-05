@@ -20,7 +20,7 @@ docker run \
     dunglas/mercure
 ```
 
-The hub binds to `:80` and `:443`. Caddy issues a Let's Encrypt cert for `SERVER_NAME` automatically (don't set `SERVER_NAME=localhost` in production — it can't be issued a public certificate).
+The hub binds to `:80` and `:443`. Caddy issues a Let's Encrypt cert for `SERVER_NAME` automatically. Don't set `SERVER_NAME=localhost` in production: it can't be issued a public certificate.
 
 Behind a reverse proxy that handles TLS, set `SERVER_NAME=:80` and skip `:443`:
 
@@ -77,16 +77,16 @@ volumes:
   mercure_config:
 ```
 
-| Volume | What's in it |
-| --- | --- |
-| `/data` | BoltDB history (`mercure.db`) and Caddy data (autosave, cert cache). |
-| `/config` | Caddy autosaved configuration. |
+| Volume    | What's in it                                                         |
+| --------- | -------------------------------------------------------------------- |
+| `/data`   | BoltDB history (`mercure.db`) and Caddy data (autosave, cert cache). |
+| `/config` | Caddy autosaved configuration.                                       |
 
 Persist both. Losing `/data` means losing replay history; losing `/config` means re-issuing certificates on next boot.
 
 ## Mercure Docker Healthcheck
 
-The image's built-in healthcheck queries `localhost:2019/mercure/health/ready` — the [transport-aware](../production/health-monitoring.md) readiness endpoint, not just "is the process up."
+The image's built-in healthcheck queries `localhost:2019/mercure/health/ready`: the [transport-aware](../production/health-monitoring.md) readiness endpoint, not just "is the process up."
 
 For Compose, override or extend it:
 
@@ -96,7 +96,14 @@ services:
   mercure:
     # ...
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "--spider",
+          "http://localhost:2019/mercure/health/ready",
+        ]
       timeout: 5s
       retries: 5
       start_period: 60s
@@ -165,17 +172,17 @@ A custom Caddyfile is the right move once you need:
 
 Caddy logs to stdout in JSON by default. Pipe to whatever your platform expects (Loki, Datadog, CloudWatch). Useful fields:
 
-- `mercure.subscribers_*` — connection lifecycle.
-- `mercure.update_*` — publish events.
-- `caddy.error_*` — TLS, listener, and transport errors.
+- `mercure.subscribers_*`: connection lifecycle.
+- `mercure.update_*`: publish events.
+- `caddy.error_*`: TLS, listener, and transport errors.
 
-Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod — it logs update payloads).
+Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod: it logs update payloads).
 
 ## Mercure Docker Image Variants
 
-- `dunglas/mercure` — Alpine-based, statically linked.
-- `dunglas/mercure:<version>` — pin to a specific release.
-- Self-Hosted ships its own image with the multi-node transports — see [High availability](../production/high-availability.md).
+- `dunglas/mercure`: Alpine-based, statically linked.
+- `dunglas/mercure:<version>`: pin to a specific release.
+- Self-Hosted ships its own image with the multi-node transports: see [High availability](../production/high-availability.md).
 
 ## Behind a Reverse Proxy
 
@@ -183,6 +190,6 @@ If you're already running Traefik or NGINX, terminate TLS there and let the hub 
 
 ## Next Steps for Mercure on Docker
 
-- [Configuration](configuration.md) — directives and env vars.
-- [Kubernetes](kubernetes.md) — same image, Helm chart.
-- [Health monitoring](../production/health-monitoring.md) — what the probes actually check.
+- [Configuration](configuration.md): directives and env vars.
+- [Kubernetes](kubernetes.md): same image, Helm chart.
+- [Health monitoring](../production/health-monitoring.md): what the probes actually check.

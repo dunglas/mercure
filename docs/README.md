@@ -11,19 +11,19 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 
 ## Get Started with Mercure
 
-- [Introduction](introduction.md) — what Mercure is and when to reach for it
-- [Quickstart](getting-started/quickstart.md) — running hub, first subscription, first update in five minutes
-- [Installation](getting-started/installation.md) — binary, Docker, Compose, Kubernetes, AUR
+- [Introduction](introduction.md): what Mercure is and when to reach for it
+- [Quickstart](getting-started/quickstart.md): running hub, first subscription, first update in five minutes
+- [Installation](getting-started/installation.md): binary, Docker, Compose, Kubernetes, AUR
 
 ## Mercure Core Concepts
 
-- [Topics and matchers](concepts/topics-and-matchers.md) — how subscribers say what they want
-- [Subscribing](concepts/subscribing.md) — the SSE side
-- [Publishing](concepts/publishing.md) — the POST side
-- [Authorization](concepts/authorization.md) — JWTs, claims, cookies
-- [Reconnection and history](concepts/reconnection-and-history.md) — `Last-Event-ID`, replay
-- [Active subscriptions](concepts/active-subscriptions.md) — presence and the subscription API
-- [Encryption](concepts/encryption.md) — JWE end-to-end
+- [Topics and matchers](concepts/topics-and-matchers.md): how subscribers say what they want
+- [Subscribing](concepts/subscribing.md): the SSE side
+- [Publishing](concepts/publishing.md): the POST side
+- [Authorization](concepts/authorization.md): JWTs, claims, cookies
+- [Reconnection and history](concepts/reconnection-and-history.md): `Last-Event-ID`, replay
+- [Active subscriptions](concepts/active-subscriptions.md): presence and the subscription API
+- [Encryption](concepts/encryption.md): JWE end-to-end
 
 ## Mercure Use Cases
 
@@ -39,16 +39,16 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 
 ## Mercure Hub Deployment
 
-- [Configuration](deployment/configuration.md) — Caddyfile directives and environment variables
+- [Configuration](deployment/configuration.md): Caddyfile directives and environment variables
 - [Docker](deployment/docker.md)
 - [Kubernetes](deployment/kubernetes.md)
-- [Reverse proxies](deployment/reverse-proxy.md) — NGINX and Traefik
+- [Reverse proxies](deployment/reverse-proxy.md): NGINX and Traefik
 - [GitHub Actions](deployment/github-actions.md)
 
 ## Running Mercure in Production
 
-- [High availability](production/high-availability.md) — scaling beyond one node
-- [Rolling updates](production/rolling-updates.md) — graceful shutdown for SSE
+- [High availability](production/high-availability.md): scaling beyond one node
+- [Rolling updates](production/rolling-updates.md): graceful shutdown for SSE
 - [Health checks and monitoring](production/health-monitoring.md)
 - [Load testing](production/load-testing.md)
 - [Debugging](production/debugging.md)
@@ -56,14 +56,14 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 
 ## Mercure Protocol Reference
 
-- [Protocol](reference/protocol.md) — the IETF specification
+- [Protocol](reference/protocol.md): the IETF specification
 - [FAQ](reference/faq.md)
 - [License](reference/license.md)
 - [Upgrade guide](UPGRADE.md)
 
 ## Mercure Ecosystem
 
-- [Awesome Mercure](ecosystem/awesome.md) — libraries, integrations, demos
+- [Awesome Mercure](ecosystem/awesome.md): libraries, integrations, demos
 - [Conformance tests](ecosystem/conformance-tests.md)
 
 ## Mercure Support and Community

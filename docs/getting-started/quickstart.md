@@ -27,10 +27,10 @@ The hub is now serving on `http://localhost:8080`.
 
 What that command does:
 
-- `MERCURE_*_JWT_KEY` — the secret used to verify JWTs. Don't ship this value to production; the [installation guide](installation.md) covers proper key management.
-- `anonymous` — lets clients subscribe to public topics without a JWT (handy in dev, off by default in prod).
-- `cors_origins *` — allow any origin to connect (you'll want to restrict this).
-- `demo` — turns on the in-browser debugger at <http://localhost:8080/.well-known/mercure/ui/>.
+- `MERCURE_*_JWT_KEY`: the secret used to verify JWTs. Don't ship this value to production; the [installation guide](installation.md) covers proper key management.
+- `anonymous`: lets clients subscribe to public topics without a JWT (handy in dev, off by default in prod).
+- `cors_origins *`: allow any origin to connect (you'll want to restrict this).
+- `demo`: turns on the in-browser debugger at <http://localhost:8080/.well-known/mercure/ui/>.
 
 > **Pro tip.** Don't want to manage a hub? [Mercure Cloud](https://mercure.rocks/pricing) has a free tier sized for prototyping. Same protocol, no infrastructure to run.
 
@@ -86,7 +86,7 @@ The bearer token is a JWT signed with the dev key above and carrying the claim:
 { "mercure": { "publish": [{ "match": "*" }] } }
 ```
 
-Generate your own at [jwt.io](https://jwt.io). Note the **object** form (`{"match": "*"}`) — bare strings are rejected in 1.0. Details in [Authorization](../concepts/authorization.md).
+Generate your own at [jwt.io](https://jwt.io). Note the **object** form (`{"match": "*"}`); bare strings are rejected in 1.0. Details in [Authorization](../concepts/authorization.md).
 
 ## Closing the Mercure EventSource Connection
 
@@ -108,16 +108,16 @@ Otherwise, the browser keeps the connection alive on cached pages and the hub ke
 ```text
 # Mercure Quickstart: Publish/Subscribe Flow Recap
             POST /.well-known/mercure       GET /.well-known/mercure?match=...
-publisher  ───────────────────────►  hub  ◄──────────────────────────────  subscriber
+publisher  ----------------------->  hub  <-----------------------------  subscriber
                                   (HTTP/2,                              (Server-Sent
                                    one TCP                               Events,
                                    per client)                           one TCP)
 ```
 
-The hub is the only piece you need to deploy. Publishers can be anywhere — your existing API server, a worker, a serverless function, a GitHub webhook. Subscribers use plain `EventSource`, so anything that talks HTTP can subscribe.
+The hub is the only piece you need to deploy. Publishers can be anywhere: your existing API server, a worker, a serverless function, a GitHub webhook. Subscribers use plain `EventSource`, so anything that talks HTTP can subscribe.
 
 ## Mercure Quickstart Next Steps
 
-- **Learn the protocol surface** — [Topics and matchers](../concepts/topics-and-matchers.md), [Authorization](../concepts/authorization.md).
-- **Build something concrete** — the [LLM streaming](../use-cases/llm-token-streaming.md) and [AI agent progress](../use-cases/ai-agent-progress.md) guides each ship a working example.
-- **Move toward production** — [Configuration](../deployment/configuration.md), [Health checks](../production/health-monitoring.md), [Rolling updates](../production/rolling-updates.md).
+- **Learn the protocol surface**: [Topics and matchers](../concepts/topics-and-matchers.md), [Authorization](../concepts/authorization.md).
+- **Build something concrete**: the [LLM streaming](../use-cases/llm-token-streaming.md) and [AI agent progress](../use-cases/ai-agent-progress.md) guides each ship a working example.
+- **Move toward production**: [Configuration](../deployment/configuration.md), [Health checks](../production/health-monitoring.md), [Rolling updates](../production/rolling-updates.md).

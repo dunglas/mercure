@@ -21,16 +21,16 @@ The hub fans the update out to every subscriber whose matchers hit at least one 
 
 ## Mercure Publish Form Fields
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `topic` | Yes | Identifier of the topic. Repeat for alternate identifiers (see below). |
-| `data` | No | Payload of the update. Anything you want — JSON, HTML, JSON Patch, plain text. |
-| `private` | No | If present, the update is private. The hub only delivers it to subscribers authorized for one of the topics. |
-| `id` | No | Custom event ID. Must not start with `#`. The hub assigns one if you don't. |
-| `type` | No | Custom SSE `event` type. Defaults to `message`. |
-| `retry` | No | Reconnection time hint, in milliseconds. |
+| Field     | Required | Description                                                                                                  |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| `topic`   | Yes      | Identifier of the topic. Repeat for alternate identifiers (see below).                                       |
+| `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                |
+| `private` | No       | If present, the update is private. The hub only delivers it to subscribers authorized for one of the topics. |
+| `id`      | No       | Custom event ID. Must not start with `#`. The hub assigns one if you don't.                                  |
+| `type`    | No       | Custom SSE `event` type. Defaults to `message`.                                                              |
+| `retry`   | No       | Reconnection time hint, in milliseconds.                                                                     |
 
-The body is `application/x-www-form-urlencoded` — every field is URL-encoded.
+The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
 
 ## Mercure Publish Examples
 
@@ -104,7 +104,7 @@ curl -X POST https://hub.example.com/.well-known/mercure \
   -d 'data={"status": "checked out"}'
 ```
 
-Use alternates when the same logical update can be referred to by several names — a URL and a UUID, an English URL and a translated URL, the canonical version and a per-tenant version. They're also the mechanism that powers per-user authorization for shared resources; see [Authorization](authorization.md#per-user-authorization-on-shared-topics).
+Use alternates when the same logical update can be referred to by several names: a URL and a UUID, an English URL and a translated URL, the canonical version and a per-tenant version. They're also the mechanism that powers per-user authorization for shared resources; see [Authorization](authorization.md#per-user-authorization-on-shared-topics).
 
 ## Public vs. Private Updates
 
@@ -113,12 +113,12 @@ Without the `private` field, an update is **public**: the hub sends it to every 
 With `private=on` (the value can be anything; `on` is the convention), the update is **private**: a subscriber receives it only if its `mercure.subscribe` JWT claim covers at least one of the update's topics.
 
 ```console
-# Public — anyone subscribed to this topic gets it
+# Public, anyone subscribed to this topic gets it
 curl -X POST $HUB -H "Authorization: Bearer $JWT" \
   -d 'topic=https://example.com/news/latest' \
   -d 'data=...'
 
-# Private — only authorized subscribers get it
+# Private, only authorized subscribers get it
 curl -X POST $HUB -H "Authorization: Bearer $JWT" \
   -d 'topic=https://example.com/users/42/inbox' \
   -d 'data=...' \
@@ -136,9 +136,9 @@ The publisher's JWT must contain a `mercure.publish` claim with at least one mat
 {
   "mercure": {
     "publish": [
-      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
-    ]
-  }
+      { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+    ],
+  },
 }
 ```
 
@@ -185,6 +185,6 @@ For everyone else, run the hub.
 
 ## Next Steps for Mercure Publishing
 
-- [Authorization](authorization.md) — minting JWTs that pass validation.
-- [Active subscriptions](active-subscriptions.md) — knowing who's connected.
-- [Reconnection and history](reconnection-and-history.md) — making sure subscribers don't miss updates.
+- [Authorization](authorization.md): minting JWTs that pass validation.
+- [Active subscriptions](active-subscriptions.md): knowing who's connected.
+- [Reconnection and history](reconnection-and-history.md): making sure subscribers don't miss updates.

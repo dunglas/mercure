@@ -28,14 +28,14 @@ When the feature is on, the hub publishes a private update each time a subscript
 /.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}
 ```
 
-`{matchType}`, `{match}`, and `{subscriber}` are percent-encoded values. Subscribe to those topics with relative URL Patterns — the spec lets URL Patterns be relative to the hub URL, which is exactly what you want here:
+`{matchType}`, `{match}`, and `{subscriber}` are percent-encoded values. Subscribe to those topics with relative URL Patterns: the spec lets URL Patterns be relative to the hub URL, which is exactly what you want here:
 
 ```javascript
 // Subscription events
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "matchURLPattern",
-  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"
+  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
 );
 url.searchParams.append("withCredentials", true);
 new EventSource(url, { withCredentials: true });
@@ -53,16 +53,16 @@ Each event's `data` is a JSON-LD document:
   "match": "https://example.com/:selector",
   "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
   "active": true,
-  "payload": { "username": "alice" }
+  "payload": { "username": "alice" },
 }
 ```
 
 Fields:
 
-- `match`, `matchType` — the matcher the subscriber registered.
-- `subscriber` — opaque identifier for the subscriber. Same value across this subscriber's subscriptions if it has more than one.
-- `active` — `true` for new subscriptions, `false` for terminated ones.
-- `payload` — whatever the subscriber's JWT carried in `mercure.subscribe[*].payload` (see [Authorization](authorization.md#mercure-subscriber-payloads)).
+- `match`, `matchType`: the matcher the subscriber registered.
+- `subscriber`: opaque identifier for the subscriber. Same value across this subscriber's subscriptions if it has more than one.
+- `active`: `true` for new subscriptions, `false` for terminated ones.
+- `payload`: whatever the subscriber's JWT carried in `mercure.subscribe[*].payload` (see [Authorization](authorization.md#mercure-subscriber-payloads)).
 
 Subscription events are always **private**. To receive them, the listening subscriber needs `mercure.subscribe` covering the `/.well-known/mercure/subscriptions/...` topic family.
 
@@ -77,11 +77,11 @@ A typical "show me everyone subscribed to this document" feature is authorized l
     "subscribe": [
       {
         "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
-        "matchType": "URLPattern"
-      }
+        "matchType": "URLPattern",
+      },
     ],
-    "payload": { "username": "alice" }
-  }
+    "payload": { "username": "alice" },
+  },
 }
 ```
 
@@ -91,19 +91,19 @@ Tighten the matcher if a subscriber should only see presence for specific topics
 // Authorization for subscription events
 {
   "match": "/.well-known/mercure/subscriptions/:matchType/https%3A%2F%2Fexample.com%2Fdocs%2F42/:subscriber",
-  "matchType": "URLPattern"
+  "matchType": "URLPattern",
 }
 ```
 
 ## Subscription API
 
-Once subscription events are enabled, the hub also exposes a JSON-LD API. Use it to fetch the *current* set of subscriptions when a client connects, then keep it in sync via subscription events.
+Once subscription events are enabled, the hub also exposes a JSON-LD API. Use it to fetch the _current_ set of subscriptions when a client connects, then keep it in sync via subscription events.
 
-| URL | Returns |
-| --- | --- |
-| `GET /.well-known/mercure/subscriptions` | All active subscriptions. |
-| `GET /.well-known/mercure/subscriptions/{matchType}/{match}` | Subscriptions for a specific matcher. |
-| `GET /.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` | A single subscription. |
+| URL                                                                       | Returns                               |
+| ------------------------------------------------------------------------- | ------------------------------------- |
+| `GET /.well-known/mercure/subscriptions`                                  | All active subscriptions.             |
+| `GET /.well-known/mercure/subscriptions/{matchType}/{match}`              | Subscriptions for a specific matcher. |
+| `GET /.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` | A single subscription.                |
 
 Authorization rules are the same as for events: the request URL must match at least one entry of the caller's `mercure.subscribe` claim.
 
@@ -119,7 +119,7 @@ const snapshot = await fetch(
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "matchURLPattern",
-  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"
+  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
 );
 url.searchParams.append("lastEventID", snapshot.lastEventID);
 
@@ -145,13 +145,13 @@ The hub returns:
       "matchType": "URLPattern",
       "subscriber": "urn:uuid:bb3de268",
       "active": true,
-      "payload": { "username": "alice" }
-    }
-  ]
+      "payload": { "username": "alice" },
+    },
+  ],
 }
 ```
 
-The data is volatile. Treat it as a cache, validate freshness, and don't rely on collection responses being complete forever — terminated subscriptions may be omitted or kept with `active: false` depending on the hub's policy.
+The data is volatile. Treat it as a cache, validate freshness, and don't rely on collection responses being complete forever. Terminated subscriptions may be omitted or kept with `active: false` depending on the hub's policy.
 
 ## Picking a `subscriber` Value
 
@@ -162,12 +162,14 @@ The hub assigns a subscriber identifier when a subscription opens. To get the sa
 {
   "mercure": {
     "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
-    "subscribe": [/* ... */]
-  }
+    "subscribe": [
+      /* ... */
+    ],
+  },
 }
 ```
 
-A UUID, a [DID](https://www.w3.org/TR/did-core/), or any IRI works. Keep it stable across sessions if you want presence to look like the same person reconnecting — otherwise each tab/device is a different "user" in the API.
+A UUID, a [DID](https://www.w3.org/TR/did-core/), or any IRI works. Keep it stable across sessions if you want presence to look like the same person reconnecting; otherwise each tab/device is a different "user" in the API.
 
 ## Building Presence with Mercure Subscription Events
 
@@ -181,7 +183,7 @@ Because the JWT's `payload` field travels through subscription events, anything 
 
 ## Mercure Subscription Events Performance
 
-Subscription events are private updates like any other. They go through the hub's normal authorization pipeline. On a multi-thousand-subscriber hub with churn, the rate of subscription events can be significant — make sure the listeners that consume them have matchers narrow enough to receive only what they need.
+Subscription events are private updates like any other. They go through the hub's normal authorization pipeline. On a multi-thousand-subscriber hub with churn, the rate of subscription events can be significant; make sure the listeners that consume them have matchers narrow enough to receive only what they need.
 
 ## Disabling Mercure Active Subscriptions
 

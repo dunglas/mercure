@@ -5,7 +5,7 @@ description: "Encrypt update payloads with JSON Web Encryption so the Mercure hu
 
 # Encryption
 
-HTTPS protects data on the wire. It does not protect data **from the hub** — operators of a Mercure hub can read every update that flows through it. For most cases that's fine; the hub is your infrastructure.
+HTTPS protects data on the wire. It does not protect data **from the hub**. Operators of a Mercure hub can read every update that flows through it. For most cases that's fine; the hub is your infrastructure.
 
 When it isn't (third-party hub, multi-tenant hub, regulated data), encrypt the payload end-to-end with [JSON Web Encryption](https://www.rfc-editor.org/rfc/rfc7516).
 
@@ -14,10 +14,10 @@ When it isn't (third-party hub, multi-tenant hub, regulated data), encrypt the p
 ```text
 # How Mercure End-to-End Encryption Works
 publisher                    hub                       subscriber
-    │                         │                            │
-    │  encrypt(data, K)       │                            │
-    │ ───────────────────────►│  (sees ciphertext only)    │
-    │                         │ ──────────────────────────►│  decrypt(ciphertext, K)
+    |                          |                           |
+    |  encrypt(data, K)        |                           |
+    | -----------------------> |  (sees ciphertext only)   |
+    |                          | ------------------------> |  decrypt(ciphertext, K)
 ```
 
 The publisher encrypts the `data` field before posting it. The hub stores and forwards the ciphertext like any other payload. The subscriber decrypts it after receiving the SSE event.
@@ -46,7 +46,7 @@ Content-Type: application/ld+json
 { "@id": "/books/1", "...": "..." }
 ```
 
-The `key-set` URL must serve [JWK Set](https://www.rfc-editor.org/rfc/rfc7517) JSON. **Authorize the request** — anyone who reads the key set can decrypt the updates. Reuse the same auth your application already enforces.
+The `key-set` URL must serve [JWK Set](https://www.rfc-editor.org/rfc/rfc7517) JSON. **Authorize the request.** Anyone who reads the key set can decrypt the updates. Reuse the same auth your application already enforces.
 
 ## Publishing Encrypted Mercure Updates
 
@@ -101,7 +101,7 @@ End-to-end encryption rules out a few hub-side conveniences:
 - **Server-rendered debug UI.** The demo UI shows ciphertext, not plaintext.
 - **Partial updates that depend on aggregating prior state at the hub.** Any aggregation has to happen on the subscriber.
 
-The topic and the SSE metadata (event ID, type) are still visible to the hub. If you need to hide *those* too, derive opaque topics from a secret and rotate them.
+The topic and the SSE metadata (event ID, type) are still visible to the hub. If you need to hide _those_ too, derive opaque topics from a secret and rotate them.
 
 ## When to Encrypt Mercure Updates with JWE
 
@@ -115,6 +115,6 @@ If the hub is yours and you control its hosts, HTTPS is sufficient and JWE adds 
 
 ## Not a Substitute for Authorization
 
-Encryption hides content; authorization controls who connects. You still need [the JWT layer](authorization.md) on top — to keep unauthorized clients off the hub, and to gate `private` updates so the hub knows who to deliver them to even when it can't read them.
+Encryption hides content; authorization controls who connects. You still need [the JWT layer](authorization.md) on top: to keep unauthorized clients off the hub, and to gate `private` updates so the hub knows who to deliver them to even when it can't read them.
 
 For full data residency and operator control without the encryption overhead, [Self-Hosted Mercure](https://mercure.rocks/pricing) runs the same hub on your own infrastructure with no third party in the path.

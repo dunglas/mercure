@@ -9,7 +9,7 @@ Pick the install method that matches how you ship the rest of your stack. They a
 
 > **Skip the infrastructure?** [Mercure Cloud](https://mercure.rocks/pricing) is the managed version: a hub provisioned in seconds, with TLS, custom domains, and SRE on call. The free tier is sized for prototyping; paid tiers start at €35/month. Same protocol as the open-source hub, so your code doesn't change if you migrate later.
 
-The Mercure.rocks Hub is a custom build of the [Caddy web server](https://caddyserver.com/) with the Mercure module. Anything Caddy can do, this binary can do too — TLS, HTTP/3, compression, reverse proxying, Prometheus metrics.
+The Mercure.rocks Hub is a custom build of the [Caddy web server](https://caddyserver.com/) with the Mercure module. Anything Caddy can do, this binary can do too: TLS, HTTP/3, compression, reverse proxying, Prometheus metrics.
 
 ## Docker (Recommended)
 
@@ -22,7 +22,7 @@ docker run \
     dunglas/mercure
 ```
 
-HTTPS is on by default — Caddy issues a Let's Encrypt certificate for the configured `SERVER_NAME`. To disable HTTPS (typically when running behind a reverse proxy), set `SERVER_NAME=:80`.
+HTTPS is on by default. Caddy issues a Let's Encrypt certificate for the configured `SERVER_NAME`. To disable HTTPS (typically when running behind a reverse proxy), set `SERVER_NAME=:80`.
 
 For local development, swap the entrypoint to load `dev.Caddyfile`, which enables anonymous subscriptions and the debug UI:
 
@@ -129,10 +129,10 @@ Mercure is also a Go library. See [pkg.go.dev/github.com/dunglas/mercure](https:
 curl -i https://localhost/.well-known/mercure
 ```
 
-You should see `405 Method Not Allowed` — the hub only accepts `GET` (subscribe) and `POST` (publish) on this endpoint. Anything else means the hub answered.
+You should see `405 Method Not Allowed`: the hub only accepts `GET` (subscribe) and `POST` (publish) on this endpoint. Anything else means the hub answered.
 
 ## Mercure Installation Next Steps
 
-- [Quickstart](quickstart.md) — first subscribe, first publish.
-- [Configuration](../deployment/configuration.md) — directives and environment variables.
-- [Authorization](../concepts/authorization.md) — minting JWTs that actually pass validation.
+- [Quickstart](quickstart.md): first subscribe, first publish.
+- [Configuration](../deployment/configuration.md): directives and environment variables.
+- [Authorization](../concepts/authorization.md): minting JWTs that actually pass validation.

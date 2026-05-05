@@ -52,7 +52,7 @@
 - [Mercure Protocol Overview](https://mercure.rocks/docs/reference/protocol): Quick orientation to subscriptions, publications, authorization, replay, and matchers.
 - [Mercure FAQ](https://mercure.rocks/docs/reference/faq): Comparisons with WebSockets, Pusher, Ably, WebSub, Web Push, plus connection limits and history.
 - [Mercure Hub License](https://mercure.rocks/docs/reference/license): AGPL-3.0 reference hub, open protocol specification, commercial Self-Hosted licensing.
-- [Mercure 1.0 Upgrade Guide](https://mercure.rocks/docs/upgrade): Migration from Mercure 0.x to 1.0 — typed matchers, object-form JWT claims, new subscription API.
+- [Mercure 1.0 Upgrade Guide](https://mercure.rocks/docs/upgrade): Migration from Mercure 0.x to 1.0: typed matchers, object-form JWT claims, new subscription API.
 
 ## Ecosystem
 

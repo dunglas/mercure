@@ -13,15 +13,15 @@ If you only run the hub and don't author subscribers or mint JWTs yourself, the 
 
 ### What Changed at a Glance
 
-| Area | 0.x | 1.0 |
-| --- | --- | --- |
-| Subscribe query parameter | `topic=<pattern>` (URI Template or string) | `match=<exact>`, `matchURLPattern=<pattern>`, `matchRegexp=<pattern>`, ... |
-| Default templating language | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org)) |
-| `mercure.subscribe` / `mercure.publish` claim | Array of strings | Array of objects `{match, matchType, payload}` |
-| Wildcard | `"*"` (string) | `{"match": "*"}` (object) |
-| Subscription event topic | `/.well-known/mercure/subscriptions/{topic}/{subscriber}` | `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` |
-| Subscription JSON-LD | `topic` | `match` + `matchType` |
-| Backward-compat mode | `protocol_version_compatibility 7` | Removed |
+| Area                                          | 0.x                                                                | 1.0                                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Subscribe query parameter                     | `topic=<pattern>` (URI Template or string)                         | `match=<exact>`, `matchURLPattern=<pattern>`, `matchRegexp=<pattern>`, ... |
+| Default templating language                   | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org))                |
+| `mercure.subscribe` / `mercure.publish` claim | Array of strings                                                   | Array of objects `{match, matchType, payload}`                             |
+| Wildcard                                      | `"*"` (string)                                                     | `{"match": "*"}` (object)                                                  |
+| Subscription event topic                      | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`      |
+| Subscription JSON-LD                          | `topic`                                                            | `match` + `matchType`                                                      |
+| Backward-compat mode                          | `protocol_version_compatibility 7`                                 | Removed                                                                    |
 
 ### Migrate Your Subscribers
 
@@ -52,7 +52,7 @@ Two things to notice:
 1. The exact-match parameter is now `match` (alias: `matchExact`). The hub treats query parameter names case-insensitively for any name starting with `match`.
 2. The templated parameter is `matchURLPattern`, and the syntax is [URL Patterns](https://urlpattern.spec.whatwg.org) (`/:id`, not `/{id}`).
 
-If your existing patterns are URI Templates and you'd rather not rewrite them, the hub still supports them via `matchURITemplate`. New code should use URL Patterns — they're better-defined for URLs and the only matcher type natively supported by browsers.
+If your existing patterns are URI Templates and you'd rather not rewrite them, the hub still supports them via `matchURITemplate`. New code should use URL Patterns, they're better-defined for URLs and the only matcher type natively supported by browsers.
 
 ### Migrate Your JWTs
 
@@ -67,9 +67,9 @@ The `mercure.publish` and `mercure.subscribe` claims must now contain **objects*
     "publish": ["*"],
     "subscribe": [
       "https://example.com/users/42",
-      "https://example.com/books/{id}"
-    ]
-  }
+      "https://example.com/books/{id}",
+    ],
+  },
 }
 ```
 
@@ -79,14 +79,12 @@ The `mercure.publish` and `mercure.subscribe` claims must now contain **objects*
 // Migrate your JWTs
 {
   "mercure": {
-    "publish": [
-      { "match": "*" }
-    ],
+    "publish": [{ "match": "*" }],
     "subscribe": [
       { "match": "https://example.com/users/42" },
-      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
-    ]
-  }
+      { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+    ],
+  },
 }
 ```
 
@@ -101,27 +99,27 @@ Rules:
 
 The route pattern and the JSON-LD shape changed.
 
-| Before | After |
-| --- | --- |
+| Before                                                    | After                                                                 |
+| --------------------------------------------------------- | --------------------------------------------------------------------- |
 | `/.well-known/mercure/subscriptions/<topic>/<subscriber>` | `/.well-known/mercure/subscriptions/<matchType>/<match>/<subscriber>` |
-| `"topic": "https://..."` in the JSON-LD | `"match": "https://..."` and `"matchType": "URLPattern"` |
+| `"topic": "https://..."` in the JSON-LD                   | `"match": "https://..."` and `"matchType": "URLPattern"`              |
 
 `<matchType>`, `<match>`, and `<subscriber>` must be percent-encoded. See [Active subscriptions](concepts/active-subscriptions.md) for the new layout.
 
 ### Compatibility Mode Is Gone
 
-In 0.14, the `protocol_version_compatibility 7` directive let the hub speak the old protocol while you migrated. 1.0 removes it. The reasoning is that the JWT claim form changed from string to object, and silently re-interpreting old tokens under the new rules would change their meaning — that's a security risk, not a convenience. Mint new tokens.
+In 0.14, the `protocol_version_compatibility 7` directive let the hub speak the old protocol while you migrated. 1.0 removes it. The reasoning is that the JWT claim form changed from string to object, and silently re-interpreting old tokens under the new rules would change their meaning, that's a security risk, not a convenience. Mint new tokens.
 
 ### Mercure 1.0 Find-and-Replace Checklist
 
 Search your codebase for these patterns:
 
-- `?topic=` and `&topic=` in subscriber URLs → `match=` (or `matchURLPattern=` if templated)
-- `searchParams.append("topic"` / `appendParam("topic"` → `"match"`
-- URI Template syntax in subscribe URLs (`{id}`, `{+host}`) → URL Pattern syntax (`:id`, `:host`)
-- `"publish": ["*"]` in JWT issuer code → `"publish": [{"match": "*"}]`
-- `"subscribe": ["..."]` in JWT issuer code → `"subscribe": [{"match": "..."}]`
-- Hardcoded `subscriptions/{topic}/{subscriber}` paths → add the `{matchType}` segment
+- `?topic=` and `&topic=` in subscriber URLs -> `match=` (or `matchURLPattern=` if templated)
+- `searchParams.append("topic"` / `appendParam("topic"` -> `"match"`
+- URI Template syntax in subscribe URLs (`{id}`, `{+host}`) -> URL Pattern syntax (`:id`, `:host`)
+- `"publish": ["*"]` in JWT issuer code -> `"publish": [{"match": "*"}]`
+- `"subscribe": ["..."]` in JWT issuer code -> `"subscribe": [{"match": "..."}]`
+- Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{matchType}` segment
 
 Once your services emit and parse the new shapes, switch the hub to 1.0.
 
@@ -129,8 +127,8 @@ Once your services emit and parse the new shapes, switch the hub to 1.0.
 
 Two directives that no longer exist:
 
-- `protocol_version_compatibility` — removed.
-- `transport_url` — removed (deprecated since 0.17). Use `transport <name> { ... }`.
+- `protocol_version_compatibility`: removed.
+- `transport_url`: removed (deprecated since 0.17). Use `transport <name> { ... }`.
 
 The legacy non-Caddy server (deprecated since 0.11) is also removed. If you're still on it, see [Installation](getting-started/installation.md) for the current builds.
 
@@ -217,8 +215,8 @@ Before switching, [migrate your configuration](deployment/configuration.md).
 The protocol changed substantially. Highlights:
 
 - Targets are gone, replaced by topic selectors. Mark updates `private` and check the `mercure.publish` / `mercure.subscribe` claims.
-- Subscription JSON-LD: `"@type": "https://mercure.rocks/Subscription"` → `"type": "Subscription"`.
-- `dispatch_subscriptions` → `subscriptions`.
+- Subscription JSON-LD: `"@type": "https://mercure.rocks/Subscription"` -> `"type": "Subscription"`.
+- `dispatch_subscriptions` -> `subscriptions`.
 - `subscriptions_include_ip` removed; use `mercure.payload`.
 - IDs are now URNs (`urn:uuid:...`).
 - `*` as a topic became reserved.

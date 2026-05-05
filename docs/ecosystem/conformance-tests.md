@@ -33,12 +33,12 @@ BASE_URL=https://hub.example.com npx playwright test
 
 ## Mercure Conformance Test Configuration
 
-| Variable | Description |
-| --- | --- |
-| `BASE_URL` | URL of the hub to test. |
+| Variable    | Description                                                                |
+| ----------- | -------------------------------------------------------------------------- |
+| `BASE_URL`  | URL of the hub to test.                                                    |
 | `CUSTOM_ID` | Toggle tests that depend on the hub honoring publisher-supplied event IDs. |
 
-Set `CUSTOM_ID=0` for transports that don't support custom IDs (e.g. Pulsar — see [High availability](../production/high-availability.md#self-hosted-transports) for transport feature matrices).
+Set `CUSTOM_ID=0` for transports that don't support custom IDs (e.g. Pulsar, see [High availability](../production/high-availability.md#self-hosted-transports) for transport feature matrices).
 
 ## What the Mercure Conformance Suite Covers
 
@@ -54,5 +54,5 @@ Run with `--ui` for the interactive Playwright explorer; useful when debugging a
 
 ## Related Mercure Testing Resources
 
-- [Load test](../production/load-testing.md) — measures throughput, not correctness.
-- [Protocol](../reference/protocol.md) — the spec the tests are validating against.
+- [Load test](../production/load-testing.md): measures throughput, not correctness.
+- [Protocol](../reference/protocol.md): the spec the tests are validating against.

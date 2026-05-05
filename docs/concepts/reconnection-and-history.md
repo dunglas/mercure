@@ -5,7 +5,7 @@ description: "How EventSource auto-reconnects with Last-Event-ID, how the Mercur
 
 # Reconnection and History
 
-Network connections drop. SSE clients reconnect automatically — Mercure adds a way to **resume from the last event you saw**, so a brief disconnect doesn't lose updates.
+Network connections drop. SSE clients reconnect automatically. Mercure adds a way to **resume from the last event you saw**, so a brief disconnect doesn't lose updates.
 
 This page covers how the replay mechanism works, what it costs, and how to size the history buffer.
 
@@ -25,7 +25,7 @@ data: {"status": "checked out"}
 
 ## Bootstrapping After Page Load
 
-The reconnection mechanism only solves *gap during a session*. The other gap to defend against is the one between **when your server generated the page** and **when the browser opened the SSE connection** — anywhere from a few hundred milliseconds to several seconds, during which updates may have been published.
+The reconnection mechanism only solves _gap during a session_. The other gap to defend against is the one between **when your server generated the page** and **when the browser opened the SSE connection**: anywhere from a few hundred milliseconds to several seconds, during which updates may have been published.
 
 The publisher closes that gap by attaching a `last-event-id` attribute to its `Link` header at discovery time:
 
@@ -44,7 +44,10 @@ The subscriber adds the value to its first SSE request as a `lastEventID` query 
 // Bootstrapping after page load
 const hub = new URL("https://hub.example.com/.well-known/mercure");
 hub.searchParams.append("match", "https://example.com/books/1");
-hub.searchParams.append("lastEventID", "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb");
+hub.searchParams.append(
+  "lastEventID",
+  "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
+);
 new EventSource(hub);
 ```
 
@@ -68,7 +71,7 @@ await fetchEventSource(url, {
   onopen: (response) => {
     const replayedFrom = response.headers.get("Last-Event-ID");
     if (replayedFrom !== expectedLastEventID) {
-      // Possibly missed events — refetch the resource from the origin
+      // Possibly missed events, refetch the resource from the origin
     }
   },
   onmessage: handler,
@@ -81,16 +84,16 @@ For partial-update streams (JSON Patch, JSON Merge Patch) or anything where miss
 
 The hub stores recent events in a transport. The size of that buffer determines how far back a subscriber can replay.
 
-| Build | Default transport | History capacity |
-| --- | --- | --- |
-| Open-source hub | BoltDB | **Unlimited** (bound by disk space) |
-| Cloud (Free) | Managed | None (no replay) |
-| Cloud (Hobby) | Managed | 100 messages |
-| Cloud (Pro) | Managed | 500 messages |
-| Cloud (Business) | Managed | 5,000 messages |
+| Build                  | Default transport                   | History capacity                      |
+| ---------------------- | ----------------------------------- | ------------------------------------- |
+| Open-source hub        | BoltDB                              | **Unlimited** (bound by disk space)   |
+| Cloud (Free)           | Managed                             | None (no replay)                      |
+| Cloud (Hobby)          | Managed                             | 100 messages                          |
+| Cloud (Pro)            | Managed                             | 500 messages                          |
+| Cloud (Business)       | Managed                             | 5,000 messages                        |
 | Self-Hosted (any tier) | Redis / PostgreSQL / Kafka / Pulsar | **Unlimited** (bound by your storage) |
 
-> **Pro tip.** The open-source hub has **no built-in history limit**. The Cloud caps exist for operational reasons — managed instances need predictable storage. If you're running on your own infrastructure and want to keep weeks of history for replay or event sourcing, the open-source build will store everything you give it disk for.
+> **Pro tip.** The open-source hub has **no built-in history limit**. The Cloud caps exist for operational reasons: managed instances need predictable storage. If you're running on your own infrastructure and want to keep weeks of history for replay or event sourcing, the open-source build will store everything you give it disk for.
 
 ### Configuring the Mercure BoltDB History Size
 
@@ -109,7 +112,7 @@ transport bolt {
 
 ### When History Isn't Enough
 
-For workflows where lost updates are unacceptable — partial updates that mutate state, primary event store — pair the hub with a durable system:
+For workflows where lost updates are unacceptable (partial updates that mutate state, primary event store), pair the hub with a durable system:
 
 - **Use a primary store.** Persist the source of truth (Postgres, your domain DB) and treat Mercure as the live broadcast. On reconnect with data loss, refetch from the store.
 - **Use the PostgreSQL transport.** Self-Hosted ships a transport that stores events in Postgres. You can then query them with SQL alongside your application data.
@@ -129,15 +132,15 @@ Browsers wait at least that many milliseconds before reconnecting after a discon
 
 ## Native `EventSource` Doesn't Expose Response Headers
 
-This catches people. If you need to read the `Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library — `fetch-event-source` exposes it, native `EventSource` does not. Most server-side SSE clients also expose it.
+This catches people. If you need to read the `Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library: `fetch-event-source` exposes it; native `EventSource` does not. Most server-side SSE clients also expose it.
 
 ## Common Mercure Reconnect Issues
 
-| Symptom | Cause |
-| --- | --- |
-| Reconnects in a tight loop | Token expired; mint a fresh one before reconnecting. |
-| Replay returns nothing | Event ID isn't in the hub's history (evicted, or hub doesn't have it yet). |
-| Reconnect storm after a deploy | The hub didn't drain gracefully. See [Rolling updates](../production/rolling-updates.md). |
-| Connections silently die after N minutes | Idle proxy timeout; lower `heartbeat` or extend the proxy's read timeout. |
+| Symptom                                  | Cause                                                                                     |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Reconnects in a tight loop               | Token expired; mint a fresh one before reconnecting.                                      |
+| Replay returns nothing                   | Event ID isn't in the hub's history (evicted, or hub doesn't have it yet).                |
+| Reconnect storm after a deploy           | The hub didn't drain gracefully. See [Rolling updates](../production/rolling-updates.md). |
+| Connections silently die after N minutes | Idle proxy timeout; lower `heartbeat` or extend the proxy's read timeout.                 |
 
 [Troubleshooting](../production/troubleshooting.md) covers more.

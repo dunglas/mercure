@@ -5,7 +5,7 @@ description: "Push HTML fragments to the browser using Hotwire Turbo Streams and
 
 # Hotwire / Turbo Streams
 
-[Hotwire](https://hotwire.dev) sends HTML over the wire instead of JSON. [Turbo Streams](https://turbo.hotwire.dev/handbook/streams) let the server push HTML fragments that the browser splices into the page — append a row, replace a region, remove a node.
+[Hotwire](https://hotwire.dev) sends HTML over the wire instead of JSON. [Turbo Streams](https://turbo.hotwire.dev/handbook/streams) let the server push HTML fragments that the browser splices into the page: append a row, replace a region, remove a node.
 
 Mercure is a clean transport for Turbo Streams. No extra dependency on the server; on the client, three lines of glue.
 
@@ -126,9 +126,9 @@ For per-user or per-team streams (a kanban board only the team's members can see
   "mercure": {
     "subscribe": [
       { "match": "https://example.com/teams/acme/board" },
-      { "match": "https://example.com/users/42/notifications" }
-    ]
-  }
+      { "match": "https://example.com/users/42/notifications" },
+    ],
+  },
 }
 ```
 
@@ -145,21 +145,24 @@ A page often watches several streams: comments, presence, notifications, a sideb
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/posts/42/comments");
 url.searchParams.append("match", "https://example.com/posts/42/votes");
-url.searchParams.append("matchURLPattern", "https://example.com/users/:id/notifications");
+url.searchParams.append(
+  "matchURLPattern",
+  "https://example.com/users/:id/notifications",
+);
 ```
 
 Turbo applies whichever stream is in the `data`; the `target` attribute on each `<turbo-stream>` element decides where it lands.
 
 ## Hotwire and Mercure Rendering Performance
 
-Turbo Stream HTML is just bytes — no different from JSON for the hub. The cost is on the rendering side: every connected user re-runs `morphdom` (or whichever DOM patcher Turbo uses) on each message. Avoid publishing 100 streams a second to a page; coalesce on the server, or fall back to a JSON delta you render yourself.
+Turbo Stream HTML is just bytes; no different from JSON for the hub. The cost is on the rendering side: every connected user re-runs `morphdom` (or whichever DOM patcher Turbo uses) on each message. Avoid publishing 100 streams a second to a page; coalesce on the server, or fall back to a JSON delta you render yourself.
 
 ## Hotwire Native (iOS / Android)
 
-The same Mercure topic works for Hotwire Native apps — the bridge ships an SSE consumer. Use the platform's `EventSource`-equivalent (or [`fetch-event-source`](https://github.com/Azure/fetch-event-source)) and feed bytes into the Turbo Native stream renderer.
+The same Mercure topic works for Hotwire Native apps; the bridge ships an SSE consumer. Use the platform's `EventSource`-equivalent (or [`fetch-event-source`](https://github.com/Azure/fetch-event-source)) and feed bytes into the Turbo Native stream renderer.
 
 ## Next Steps for Hotwire Over Mercure
 
-- [Subscribing](../concepts/subscribing.md) — `EventSource` details.
-- [Authorization](../concepts/authorization.md) — cookies for browsers.
-- [Collaborative editing](collaborative-editing.md) — for editing scenarios where Turbo Streams aren't enough.
+- [Subscribing](../concepts/subscribing.md): `EventSource` details.
+- [Authorization](../concepts/authorization.md): cookies for browsers.
+- [Collaborative editing](collaborative-editing.md): for editing scenarios where Turbo Streams aren't enough.

@@ -29,9 +29,9 @@ The publisher's `mercure.publish` claim doesn't cover one or more of the topics 
 {
   "mercure": {
     "publish": [
-      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
-    ]
-  }
+      { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+    ],
+  },
 }
 ```
 
@@ -39,17 +39,17 @@ The publisher's `mercure.publish` claim doesn't cover one or more of the topics 
 - A publish to `https://example.com/users/42` is rejected.
 - A publish with two `topic` fields, where only one matches, is rejected entirely (the hub does **not** publish a partial subset).
 
-Use `[{ "match": "*" }]` to allow every topic. Note the **object** form — `["*"]` (string) is not accepted.
+Use `[{ "match": "*" }]` to allow every topic. Note the **object** form: `["*"]` (string) is not accepted.
 
 ## Subscriber Never Receives a Private Update
 
-For a `private=on` update, the hub checks the subscriber's `mercure.subscribe` against **at least one** of the update's topics (canonical or alternate). If none match, the hub drops the update silently — no error, no log entry on the subscriber side.
+For a `private=on` update, the hub checks the subscriber's `mercure.subscribe` against **at least one** of the update's topics (canonical or alternate). If none match, the hub drops the update silently: no error, no log entry on the subscriber side.
 
 Common shapes of this bug:
 
 - The publish includes only the canonical topic and the subscriber's claim covers an alternate that's never set.
 - The claim uses `Exact` (the default) but the topic is templated.
-- The claim's URL Pattern is more restrictive than the subscriber's `match*` query parameter — the subscriber asks for `:id` but is only authorized for `/books/:id`.
+- The claim's URL Pattern is more restrictive than the subscriber's `match*` query parameter: the subscriber asks for `:id` but is only authorized for `/books/:id`.
 
 The fix is usually to widen the claim, narrow the subscription, or use the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-topics).
 
@@ -71,7 +71,7 @@ mercure {
 
 Don't forget the `https://` prefix.
 
-For credentialed requests (cookie or `Authorization`), `cors_origins *` does **not** work — browsers reject wildcard origins on credentialed requests. List the explicit origins.
+For credentialed requests (cookie or `Authorization`), `cors_origins *` does **not** work: browsers reject wildcard origins on credentialed requests. List the explicit origins.
 
 If the hub is fully anonymous (no JWT, no cookie), `*` is fine, but understand the security implications.
 
@@ -83,8 +83,10 @@ Test patterns in the browser console:
 
 ```javascript
 // URL patterns aren't matching
-new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")
-// → true
+new URLPattern("https://example.com/books/:id").test(
+  "https://example.com/books/42",
+);
+// -> true
 ```
 
 Common surprises:
@@ -187,7 +189,7 @@ If you're running [Self-Hosted Mercure](https://mercure.rocks/pricing) and see l
 
 - Check `MERCURE_LICENSE` is set and the value isn't truncated (long keys are easy to truncate when copy-pasting).
 - The check runs in-process; no callback to a license server. License errors are about the value of the env var, not network reachability.
-- Connection cap exceeded → `429 Too Many Requests` to publishers, refusal of new subscribers. Upgrade your tier or shed connections.
+- Connection cap exceeded: `429 Too Many Requests` to publishers, refusal of new subscribers. Upgrade your tier or shed connections.
 
 Email [contact@mercure.rocks](mailto:contact@mercure.rocks) with your hub ID for license issues.
 

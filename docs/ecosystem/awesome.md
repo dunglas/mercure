@@ -9,8 +9,8 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Mercure Demos
 
-- [Demo hub and debug UI](https://demo.mercure.rocks) ([source](https://github.com/dunglas/mercure/tree/master/public)) — managed demo hub with the official debug tools.
-- [Chat](https://demo-chat.mercure.rocks/) ([source](https://github.com/dunglas/mercure/tree/master/examples/chat)) — chat app with presence (JavaScript + Python).
+- [Demo hub and debug UI](https://demo.mercure.rocks) ([source](https://github.com/dunglas/mercure/tree/master/public)): managed demo hub with the official debug tools.
+- [Chat](https://demo-chat.mercure.rocks/) ([source](https://github.com/dunglas/mercure/tree/master/examples/chat)): chat app with presence (JavaScript + Python).
 
 ## Mercure Code Examples
 
@@ -21,17 +21,17 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Ruby: publish](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
 - [Python: subscribe](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
 - [Python: cookie-based authorization](https://github.com/dunglas/mercure/blob/master/examples/chat/chat.py)
-- [API Platform: publish + subscribe](https://github.com/api-platform/demo) — book catalog updated in real time.
+- [API Platform: publish + subscribe](https://github.com/api-platform/demo): book catalog updated in real time.
 
 ## Hubs and Server Libraries
 
-- [Mercure.rocks Hub (Go)](https://mercure.rocks) — the reference implementation.
+- [Mercure.rocks Hub (Go)](https://mercure.rocks): the reference implementation.
 - [Freddie (PHP)](https://github.com/bpolaszek/freddie)
 - [Ilshidur/node-mercure (Node.js)](https://github.com/Ilshidur/node-mercure)
 
 ## Mercure Client Libraries
 
-- [`@microsoft/fetch-event-source` (JavaScript)](https://github.com/Azure/fetch-event-source) — better SSE client for browsers and Node.
+- [`@microsoft/fetch-event-source` (JavaScript)](https://github.com/Azure/fetch-event-source): better SSE client for browsers and Node.
 - [`symfony/mercure` (PHP, publisher)](https://github.com/symfony/mercure)
 - [`python-mercure` (Python, publish + subscribe)](https://github.com/vitorluis/python-mercure)
 - [`dart_mercure` (Dart / Flutter, publish + subscribe)](https://github.com/wallforfry/dart_mercure)
@@ -41,8 +41,8 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Mercure Framework Integrations
 
-- [Symfony](https://symfony.com/doc/current/mercure.html) — official component, full publisher support.
-- [API Platform](https://api-platform.com/docs/core/mercure/) — full publisher + subscriber + GraphQL subscriptions.
+- [Symfony](https://symfony.com/doc/current/mercure.html): official component, full publisher support.
+- [API Platform](https://api-platform.com/docs/core/mercure/): full publisher + subscriber + GraphQL subscriptions.
 - [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 - [Yii Mercure Behavior](https://github.com/bizley/mercure-behavior)
 - [CakePHP Mercure plugin](https://github.com/josbeir/cakephp-mercure)
@@ -51,8 +51,8 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Documentation, Tooling, and Code Generation
 
-- [AsyncAPI](https://www.asyncapi.com/) — natively supports the Mercure protocol.
-- [URI Template tester](https://uri-template-tester.mercure.rocks/) — for hubs running 0.x-style URI Template subscriptions.
+- [AsyncAPI](https://www.asyncapi.com/): natively supports the Mercure protocol.
+- [URI Template tester](https://uri-template-tester.mercure.rocks/): for hubs running 0.x-style URI Template subscriptions.
 
 ## Useful SSE and JWT Libraries for Mercure
 
@@ -62,8 +62,8 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Server-Sent Events client for Go](https://github.com/donovanhide/eventsource)
 - [Server-Sent Events client for Android / Java](https://github.com/heremaps/oksse)
 - [Server-Sent Events client for Swift](https://github.com/inaka/EventSource)
-- [`parse-link-header` (JavaScript)](https://github.com/thlorenz/parse-link-header) — parse `Link: rel="mercure"` headers.
-- [`jose` (JavaScript)](https://github.com/panva/jose) — JWT and JWE in the browser and Node.
+- [`parse-link-header` (JavaScript)](https://github.com/thlorenz/parse-link-header): parse `Link: rel="mercure"` headers.
+- [`jose` (JavaScript)](https://github.com/panva/jose): JWT and JWE in the browser and Node.
 
 ## Projects Using Mercure
 
@@ -99,7 +99,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Find More Mercure Projects
 
-[GitHub `mercure` topic](https://github.com/topics/mercure) — community-tagged repositories.
+[GitHub `mercure` topic](https://github.com/topics/mercure), community-tagged repositories.
 
 ## Add Your Mercure Library or Tutorial
 

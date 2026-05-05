@@ -31,13 +31,13 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 
 ## How It Differs from the Alternatives
 
-**vs. WebSockets.** WebSocket is a low-level transport; you still need to design framing, authorization, reconnection, replay, and presence. Mercure gives you all of that on top of HTTP/2, which most infrastructure already understands. For request/response inside the same connection, just use a regular `POST` — HTTP/2 already multiplexes it.
+**vs. WebSockets.** WebSocket is a low-level transport; you still need to design framing, authorization, reconnection, replay, and presence. Mercure gives you all of that on top of HTTP/2, which most infrastructure already understands. For request/response inside the same connection, just use a regular `POST`: HTTP/2 already multiplexes it.
 
 **vs. Pusher / Ably / Firebase / Supabase Realtime.** These are SaaS-only. Mercure is a protocol with an open-source reference hub: you own the data and the connections, and you can run it on your own infrastructure if compliance demands it. The free Mercure.rocks Hub has **unlimited connections and an unlimited history buffer**, bound only by the hardware you give it.
 
 **vs. WebSub.** WebSub is server-to-server only. Mercure does server-to-server, server-to-client, and client-to-client over the same primitive.
 
-**vs. Web Push.** The Push API targets *offline* devices through vendor servers (Apple, Google, Mozilla). Mercure targets *connected* clients with no third party in between and no payload-size limit.
+**vs. Web Push.** The Push API targets _offline_ devices through vendor servers (Apple, Google, Mozilla). Mercure targets _connected_ clients with no third party in between and no payload-size limit.
 
 See the [FAQ](reference/faq.md) for more.
 
@@ -47,14 +47,14 @@ The Mercure.rocks Hub is licensed under AGPL-3.0. Concretely, that means you can
 
 - Run it on your own infrastructure with no connection limit, no message-rate limit, and no buffer cap other than disk size.
 - Use it in production behind any HTTP/2 or HTTP/3 reverse proxy.
-- Build any kind of application on top of it, commercial or otherwise. The AGPL applies to *modifications of the hub*, not to your application.
+- Build any kind of application on top of it, commercial or otherwise. The AGPL applies to _modifications of the hub_, not to your application.
 
-There are paid tiers — Cloud (managed) and Self-Hosted (multi-node, premium transports) — but the free tier is not crippleware. It's what runs the demo hub, what powers production deployments at companies pushing tens of millions of updates a day, and what you should reach for first.
+There are paid tiers (Cloud for managed deployments, Self-Hosted for multi-node and premium transports), but the free tier is not crippleware. It's what runs the demo hub, what powers production deployments at companies pushing tens of millions of updates a day, and what you should reach for first.
 
 When you outgrow a single node, [the production guide](production/high-availability.md) explains the options.
 
 ## Where to Go Next with Mercure
 
-- [Quickstart](getting-started/quickstart.md) — running hub, first subscription, first update.
-- [Topics and matchers](concepts/topics-and-matchers.md) — the part of the protocol that changed most in 1.0.
-- [Read the specification](../spec/mercure.md) — also published as an [IETF Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) on track for RFC publication.
+- [Quickstart](getting-started/quickstart.md): running hub, first subscription, first update.
+- [Topics and matchers](concepts/topics-and-matchers.md): the part of the protocol that changed most in 1.0.
+- [Read the specification](../spec/mercure.md): also published as an [IETF Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) on track for RFC publication.

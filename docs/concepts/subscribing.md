@@ -38,7 +38,7 @@ es.onerror = () => {
 
 A few things to know:
 
-- Browsers cap concurrent HTTP/1.1 requests per origin at 6. With HTTP/2 (the default everywhere on HTTPS) the cap is 100 streams negotiated with the server. **Use HTTP/2** — your hub already speaks it.
+- Browsers cap concurrent HTTP/1.1 requests per origin at 6. With HTTP/2 (the default everywhere on HTTPS) the cap is 100 streams negotiated with the server. **Use HTTP/2**: your hub already speaks it.
 - A single `EventSource` connection can carry as many topic subscriptions as you want by passing more `match*` parameters.
 - `EventSource` does not let you set `Authorization` headers. For private subscriptions, use a [cookie](authorization.md#cookies-in-detail) (recommended) or the `authorization` query parameter (last resort).
 
@@ -84,9 +84,12 @@ Any HTTP client that exposes a streaming response works. A few examples:
 // Subscribing to Mercure from Node.js
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
-await fetchEventSource("https://hub.example.com/.well-known/mercure?match=topic", {
-  onmessage: (e) => console.log(e.data),
-});
+await fetchEventSource(
+  "https://hub.example.com/.well-known/mercure?match=topic",
+  {
+    onmessage: (e) => console.log(e.data),
+  },
+);
 ```
 
 ### Subscribing to Mercure from Go
@@ -127,9 +130,9 @@ data: {"status": "checked out"}
 
 Fields:
 
-- `id` — a unique identifier the hub assigns to every update. Clients send it back in `Last-Event-ID` to resume after a disconnect. See [Reconnection and history](reconnection-and-history.md).
-- `event` — the `type` field from the publish request, if any. Defaults to `message`. `EventSource` triggers `addEventListener("<type>", ...)` for non-default types.
-- `data` — whatever the publisher sent in `data`. Mercure does not interpret it; it's bytes you decided on (JSON, HTML, JSON Patch, plain text...).
+- `id`: a unique identifier the hub assigns to every update. Clients send it back in `Last-Event-ID` to resume after a disconnect. See [Reconnection and history](reconnection-and-history.md).
+- `event`: the `type` field from the publish request, if any. Defaults to `message`. `EventSource` triggers `addEventListener("<type>", ...)` for non-default types.
+- `data`: whatever the publisher sent in `data`. Mercure does not interpret it; it's bytes you decided on (JSON, HTML, JSON Patch, plain text...).
 
 ## Discovering the Mercure Hub via Link Header
 
@@ -154,7 +157,10 @@ const link = res.headers.get("Link");
 const hub = link.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
 
 const url = new URL(hub);
-url.searchParams.append("match", res.headers.get("Content-Location") ?? res.url);
+url.searchParams.append(
+  "match",
+  res.headers.get("Content-Location") ?? res.url,
+);
 new EventSource(url);
 ```
 
@@ -164,20 +170,20 @@ This pattern decouples the URL of your data from the URL of the hub serving upda
 
 The hub sends an SSE comment every `heartbeat` seconds (default `40s`). Heartbeats keep idle connections alive through proxies that close them after silence and let clients detect dead connections faster.
 
-If you set `heartbeat 0s` to disable them, make sure nothing on the network path does idle-timeout TCP — most CDNs and reverse proxies do.
+If you set `heartbeat 0s` to disable them, make sure nothing on the network path does idle-timeout TCP. Most CDNs and reverse proxies do.
 
 ## Mercure Subscriber Connection Limits
 
-| Limit | Where |
-| --- | --- |
-| Concurrent HTTP/2 streams per origin | Browser-negotiated, default 100 |
-| Concurrent HTTP/1.1 connections per origin | 6 (browser-enforced) |
-| Concurrent connections to the hub | Hardware-bound on OSS; tier-bound on Cloud |
+| Limit                                      | Where                                      |
+| ------------------------------------------ | ------------------------------------------ |
+| Concurrent HTTP/2 streams per origin       | Browser-negotiated, default 100            |
+| Concurrent HTTP/1.1 connections per origin | 6 (browser-enforced)                       |
+| Concurrent connections to the hub          | Hardware-bound on OSS; tier-bound on Cloud |
 
-A single connection serves any number of topics — pass more `match*` parameters rather than opening more `EventSource` instances.
+A single connection serves any number of topics: pass more `match*` parameters rather than opening more `EventSource` instances.
 
 ## Next Steps for Mercure Subscribing
 
-- [Topics and matchers](topics-and-matchers.md) — choosing the right matcher type.
-- [Reconnection and history](reconnection-and-history.md) — surviving disconnects without losing events.
-- [Active subscriptions](active-subscriptions.md) — presence and the subscription API.
+- [Topics and matchers](topics-and-matchers.md): choosing the right matcher type.
+- [Reconnection and history](reconnection-and-history.md): surviving disconnects without losing events.
+- [Active subscriptions](active-subscriptions.md): presence and the subscription API.
