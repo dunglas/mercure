@@ -1,5 +1,5 @@
 ---
-title: "Mercure Quickstart: Subscribe and Publish in 5 Minutes"
+title: "Mercure quickstart: subscribe and publish in 5 minutes"
 description: "Run the Mercure.rocks Hub locally with Docker, subscribe with EventSource, and publish your first real-time update with curl."
 ---
 
@@ -9,7 +9,7 @@ This guide gets you from zero to a real-time update in your browser in five minu
 
 If you already have a hub running, jump to [Subscribe](#subscribe) or [Publish](#publish).
 
-## Run the Mercure Hub Locally with Docker
+## Run the Mercure hub locally with Docker
 
 ```console
 # Run the Mercure Hub Locally with Docker
@@ -34,7 +34,7 @@ What that command does:
 
 > **Pro tip.** Don't want to manage a hub? [Mercure Cloud](https://mercure.rocks/pricing) has a free tier sized for prototyping. Same protocol, no infrastructure to run.
 
-## Subscribe to a Mercure Topic from the Browser
+## Subscribe to a Mercure topic from the browser
 
 Save this as `index.html` and open it in your browser:
 
@@ -65,7 +65,7 @@ url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
 
 URL patterns follow the [WHATWG URL Pattern](https://urlpattern.spec.whatwg.org) syntax. They replace URI templates as the recommended templating language for URL topics. [Topics and matchers](../concepts/topics-and-matchers.md) covers the full set.
 
-## Publish a Mercure Update with curl
+## Publish a Mercure update with curl
 
 In another terminal:
 
@@ -88,7 +88,7 @@ The bearer token is a JWT signed with the dev key above and carrying the claim:
 
 Generate your own at [jwt.io](https://jwt.io). Note the **object** form (`{"match": "*"}`); bare strings are rejected in 1.0. Details in [Authorization](../concepts/authorization.md).
 
-## Closing the Mercure EventSource Connection
+## Closing the Mercure EventSource connection
 
 `EventSource` keeps the TCP connection open as long as the page lives. Single-page apps in particular should call `es.close()` when the component that opened the stream unmounts:
 
@@ -103,7 +103,7 @@ useEffect(() => {
 
 Otherwise, the browser keeps the connection alive on cached pages and the hub keeps the slot allocated.
 
-## Mercure Quickstart: Publish/Subscribe Flow Recap
+## Mercure quickstart: publish/subscribe flow recap
 
 ```text
 # Mercure Quickstart: Publish/Subscribe Flow Recap
@@ -116,7 +116,7 @@ publisher  ----------------------->  hub  <-----------------------------  subscr
 
 The hub is the only piece you need to deploy. Publishers can be anywhere: your existing API server, a worker, a serverless function, a GitHub webhook. Subscribers use plain `EventSource`, so anything that talks HTTP can subscribe.
 
-## Mercure Quickstart Next Steps
+## Mercure quickstart next steps
 
 - **Learn the protocol surface**: [Topics and matchers](../concepts/topics-and-matchers.md), [Authorization](../concepts/authorization.md).
 - **Build something concrete**: the [LLM streaming](../use-cases/llm-token-streaming.md) and [AI agent progress](../use-cases/ai-agent-progress.md) guides each ship a working example.

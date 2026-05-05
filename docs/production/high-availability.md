@@ -1,9 +1,9 @@
 ---
-title: "Mercure High Availability and Self-Hosted Multi-Node Transports"
+title: "Mercure high availability and self-hosted multi-node transports"
 description: "Scale Mercure beyond a single node with the Self-Hosted Redis, PostgreSQL, Kafka, or Pulsar transports, or with managed Mercure Cloud."
 ---
 
-# High Availability
+# High availability
 
 The open-source Mercure hub is a serious piece of software. A single instance comfortably handles tens of thousands of concurrent connections on modest hardware ([benchmark: 40k concurrent on a t3.micro](load-testing.md)). For most production workloads, **one node is enough**.
 
@@ -11,7 +11,7 @@ What one node can't give you is redundancy. If the box goes down, every subscrib
 
 This page covers your options.
 
-## What the Open-Source Build Gives You
+## What the open-source build gives you
 
 | Capability             | Open-source                    |
 | ---------------------- | ------------------------------ |
@@ -27,7 +27,7 @@ This page covers your options.
 
 The "1 node" line is the only ceiling. Everything else is unbounded by the license; only by what your hardware and network can deliver.
 
-## When One Node Isn't Enough
+## When one node isn't enough
 
 Three reasons people graduate to multi-node:
 
@@ -37,9 +37,9 @@ Three reasons people graduate to multi-node:
 
 Connection counts alone rarely justify multi-node. A single hub at 100k concurrent connections is normal.
 
-## The Two Paths Beyond Single-Node
+## The two paths beyond single-node
 
-### Mercure Cloud (Managed)
+### Mercure Cloud (managed)
 
 A hub provisioned on the [Mercure.rocks Cloud](https://mercure.rocks/pricing). High-availability infrastructure, TLS, custom domains, SRE on call. You don't run anything.
 
@@ -54,7 +54,7 @@ The buffer caps exist because managed hubs need predictable storage. If you need
 
 The protocol is identical. Migrate later by changing one URL.
 
-### Self-Hosted Mercure (Multi-Node, on Your Infrastructure)
+### Self-hosted Mercure (multi-node, on your infrastructure)
 
 A licensed build of the same hub with multi-node transports added. You run it on your servers (bare metal, your own Kubernetes, your own clouds). Data never leaves your infrastructure. Useful for GDPR data residency, HIPAA, and internal compliance.
 
@@ -70,7 +70,7 @@ A separate **Managed On-Premise** add-on (€5,000/year) covers remote setup, mo
 
 To purchase, email [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=Self-Hosted%20Mercure).
 
-## Self-Hosted Transports
+## Self-hosted transports
 
 ### Redis / Valkey
 
@@ -174,7 +174,7 @@ mercure {
 | Subscription API | ❌           |
 | Custom event ID  | ❌ (planned) |
 
-## Picking a Mercure Self-Hosted Transport
+## Picking a Mercure self-hosted transport
 
 | Need                                 | Transport                |
 | ------------------------------------ | ------------------------ |
@@ -186,11 +186,11 @@ mercure {
 
 When in doubt, Redis. It's the recommended default for Self-Hosted.
 
-## Custom Mercure Transports
+## Custom Mercure transports
 
 The transport interface is small and public. If none of the above fits, write your own. See [`transport.go`](https://github.com/dunglas/mercure/blob/main/transport.go) and build a custom hub with `xcaddy`.
 
-## License Keys
+## License keys
 
 Self-Hosted is gated by a license key passed via `MERCURE_LICENSE`. The check runs in-process; the hub doesn't call back to a license server.
 
@@ -204,7 +204,7 @@ MERCURE_SUBSCRIBER_JWT_KEY=... \
 
 The license enforces node count and connection caps. Going over the cap doesn't crash the hub; it returns `429 Too Many Requests` to publishers and refuses new subscribers.
 
-## Mercure Migration Paths
+## Mercure migration paths
 
 | From                    | To          | What changes                                                                                                             |
 | ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
@@ -214,7 +214,7 @@ The license enforces node count and connection caps. Going over the cap doesn't 
 
 There is no protocol fork: every tier speaks the same Mercure protocol. Code written against the open-source hub runs on Cloud and Self-Hosted unchanged.
 
-## Mercure vs. Pusher and Ably: Pricing Comparison
+## Mercure vs. Pusher and ably: pricing comparison
 
 For people coming from SaaS-only real-time platforms, here's the rough picture:
 
@@ -227,12 +227,12 @@ For people coming from SaaS-only real-time platforms, here's the rough picture:
 
 Mercure is the only one of these you can run on your own infrastructure if you need to. That's by design.
 
-## Mercure Support Channels
+## Mercure support channels
 
 - **Self-Hosted / Cloud:** [contact@mercure.rocks](mailto:contact@mercure.rocks)
 - **Open-source:** [GitHub Discussions](https://github.com/dunglas/mercure/discussions), [Stack Overflow `mercure` tag](https://stackoverflow.com/questions/tagged/mercure), `#mercure` on the Symfony Slack
 
-## Next Steps for Mercure High Availability
+## Next steps for Mercure high availability
 
 - [Rolling updates](rolling-updates.md): graceful drain in any deployment.
 - [Health monitoring](health-monitoring.md): knowing the hub is healthy.

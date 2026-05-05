@@ -1,15 +1,15 @@
 ---
-title: "Real-Time AI Agent Progress and State Sync with Mercure"
+title: "Real-time AI agent progress and state sync with Mercure"
 description: "Push tool calls, step transitions, and live state from a running AI agent to the browser using structured events on Mercure topics."
 ---
 
-# AI Agent Progress
+# AI agent progress
 
 When an LLM is just responding, you stream tokens. When it's an _agent_ (calling tools, searching the web, reading files, branching into sub-tasks), there's a lot more state to communicate than text deltas. The user wants to know "what is it doing right now?" and "how far along is it?".
 
 This guide pushes structured agent state to the UI in real time using Mercure.
 
-## Streaming Structured AI Agent Events Over Mercure
+## Streaming structured AI agent events over Mercure
 
 For a token stream you push `text` chunks. For an agent you push **events** that describe what just happened:
 
@@ -69,7 +69,7 @@ url.searchParams.append("matchURLPattern", "https://example.com/runs/:id");
 
 Now every run the user is allowed to see flows over the same connection. The `id` field on each event tells you which run it belongs to. Or set the topic per-event and read it from the SSE `id`.
 
-## Publisher: A Python Agent
+## Publisher: a Python agent
 
 A pseudocode harness for a tool-using agent that emits events as it goes:
 
@@ -130,7 +130,7 @@ def run_agent(run_id: str, prompt: str) -> None:
 
 Same pattern with [Anthropic's tool use](https://docs.anthropic.com/en/docs/build-with-claude/tool-use), Vercel AI SDK, LangGraph, or your own harness. The events you emit are yours to design.
 
-## Two Coordinates: Run Topic and User Topic
+## Two coordinates: run topic and user topic
 
 For most apps you want both:
 
@@ -146,7 +146,7 @@ The run topic identifies the work. The user topic gates access: only the user th
 
 This is the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-topics) applied to agent runs.
 
-## What the UI Gets for Free
+## What the UI gets for free
 
 Because every event has a Mercure event ID and the hub buffers history:
 
@@ -154,11 +154,11 @@ Because every event has a Mercure event ID and the hub buffers history:
 - **Late join.** A second tab opened halfway through a run sees the run from the start (if the buffer is sized for it). Useful for "share this run" links.
 - **Cross-device.** A user starts a run on desktop, walks away, and the same run shows up on their phone if it's listening to the same user topic.
 
-## Cancel a Run
+## Cancel a run
 
 Send a `POST` from the browser to a small origin endpoint that flips a flag the agent harness checks between steps. The harness publishes a `run.cancelled` event and exits. There's no direct "cancel this Mercure subscription". Mercure only carries the state, not the control plane.
 
-## Backpressure for AI Agent Event Streams
+## Backpressure for AI agent event streams
 
 Tool-heavy agents can produce a lot of events (an agent that runs hundreds of small tool calls in a loop will publish thousands of messages). The hub takes them all, but the UI may struggle to render them fast enough.
 
@@ -167,7 +167,7 @@ Two practical mitigations:
 - **Coalesce on the publisher side.** Group rapid events of the same type before publishing.
 - **Throttle on the subscriber side.** Use `requestAnimationFrame` to batch state updates instead of rendering on every message.
 
-## Authorization Sketch
+## Authorization sketch
 
 ```jsonc
 // Authorization sketch
@@ -187,7 +187,7 @@ Two practical mitigations:
 
 The `subscriber` field gives you a stable identity across the user's tabs, which is convenient if you also want to surface presence (see [Active subscriptions](../concepts/active-subscriptions.md)). For instance, "Alice is watching this run" pills on a shared dashboard.
 
-## When This Is Overkill
+## When this is overkill
 
 If your agent finishes in a few seconds and the only thing you'd push is a final result, just `await` the call from the browser. Mercure earns its keep when:
 
@@ -195,7 +195,7 @@ If your agent finishes in a few seconds and the only thing you'd push is a final
 - the same agent state needs to reach multiple clients (multi-tab, multi-device, observers);
 - you're already running an agent worker and don't want to keep request-handling threads tied to it.
 
-## Next Steps for AI Agent Streaming with Mercure
+## Next steps for AI agent streaming with Mercure
 
 - [LLM token streaming](llm-token-streaming.md): for the simpler "just stream tokens" case.
 - [Active subscriptions](../concepts/active-subscriptions.md): show who else is watching the run.

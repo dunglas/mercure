@@ -1,5 +1,5 @@
 ---
-title: "Publishing Real-Time Updates to a Mercure Hub"
+title: "Publishing real-time updates to a Mercure hub"
 description: "Send POST requests to publish public and private updates to a Mercure hub, attach alternate topics, and authorize publishers with a JWT."
 ---
 
@@ -19,7 +19,7 @@ topic=https%3A%2F%2Fexample.com%2Fbooks%2F1&data=%7B%22status%22%3A%22checked+ou
 
 The hub fans the update out to every subscriber whose matchers hit at least one of the publication's topics, then returns the event ID it assigned.
 
-## Mercure Publish Form Fields
+## Mercure publish form fields
 
 | Field     | Required | Description                                                                                                  |
 | --------- | -------- | ------------------------------------------------------------------------------------------------------------ |
@@ -32,7 +32,7 @@ The hub fans the update out to every subscriber whose matchers hit at least one 
 
 The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
 
-## Mercure Publish Examples
+## Mercure publish examples
 
 ### Publishing to Mercure with curl
 
@@ -91,7 +91,7 @@ public function __invoke(HubInterface $hub) {
 }
 ```
 
-## Alternate Topics
+## Alternate topics
 
 A single update can carry multiple topics. The first `topic` is the **canonical** identifier; the rest are **alternates**. The hub delivers the update to any subscriber whose matchers hit one of them.
 
@@ -106,7 +106,7 @@ curl -X POST https://hub.example.com/.well-known/mercure \
 
 Use alternates when the same logical update can be referred to by several names: a URL and a UUID, an English URL and a translated URL, the canonical version and a per-tenant version. They're also the mechanism that powers per-user authorization for shared resources; see [Authorization](authorization.md#per-user-authorization-on-shared-topics).
 
-## Public vs. Private Updates
+## Public vs. Private updates
 
 Without the `private` field, an update is **public**: the hub sends it to every subscriber whose matchers hit, regardless of whether they presented a JWT.
 
@@ -144,7 +144,7 @@ The publisher's JWT must contain a `mercure.publish` claim with at least one mat
 
 A token with `[{ "match": "*" }]` can publish to anything. See [Authorization](authorization.md#publishers) for details.
 
-## What the Hub Returns
+## What the hub returns
 
 ```http
 # What the hub returns
@@ -161,7 +161,7 @@ The body is the event ID the hub assigned to the update. Store it if you need to
 
 If you provided your own `id`, the hub uses it as-is (subject to a few constraints noted in the spec) and echoes it back.
 
-## When to Publish Mercure Updates from Your Application
+## When to publish Mercure updates from your application
 
 Publish from the same code path that mutates the underlying state. The simplest pattern, in pseudocode:
 
@@ -177,13 +177,13 @@ function updateBook(id, data):
 
 For stricter delivery guarantees (every state change reaches the hub even if the publish call fails), wrap both writes in a transactional outbox: persist the update next to the row, and have a worker ship it to the hub. The Mercure hub itself is reliable; the network between your app and the hub is what you need to defend against.
 
-## Embedded Publishing (No External Hub)
+## Embedded publishing (no external hub)
 
 The Mercure protocol does not require an external hub. An application that already terminates HTTP/2 connections can speak the protocol directly: write SSE bytes to subscribers, validate JWTs, run matchers. This is unusual outside of frameworks that ship their own hub (FrankenPHP, for instance), but the spec allows it.
 
 For everyone else, run the hub.
 
-## Next Steps for Mercure Publishing
+## Next steps for Mercure publishing
 
 - [Authorization](authorization.md): minting JWTs that pass validation.
 - [Active subscriptions](active-subscriptions.md): knowing who's connected.

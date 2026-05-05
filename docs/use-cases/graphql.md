@@ -1,15 +1,15 @@
 ---
-title: "GraphQL Subscriptions over Mercure and SSE"
+title: "GraphQL subscriptions over Mercure and SSE"
 description: "Back GraphQL subscriptions with Mercure topics and Server-Sent Events instead of WebSockets, including an Apollo Client transport."
 ---
 
-# GraphQL Subscriptions
+# GraphQL subscriptions
 
 GraphQL subscriptions traditionally run over WebSockets ([`graphql-transport-ws`](https://github.com/enisdenjo/graphql-ws)). That works, but you end up with two real-time stacks if you also use Mercure for non-GraphQL push (HTML, agent state, notifications).
 
 Mercure can carry GraphQL subscriptions directly. The pattern: the server returns a topic URL in response to a subscription query, and the client opens an `EventSource` on that topic.
 
-## GraphQL Subscriptions Over Mercure: The Flow
+## GraphQL subscriptions over Mercure: the flow
 
 ```text
 # GraphQL Subscriptions over Mercure: The Flow
@@ -42,7 +42,7 @@ The GraphQL server's job is reduced to:
 
 The client subscribes to the topic with Mercure. When done, it closes the `EventSource`.
 
-## Server-Side GraphQL Subscription Resolver
+## Server-side GraphQL subscription resolver
 
 A minimal Apollo Server resolver that returns a topic instead of starting a WebSocket subscription:
 
@@ -79,7 +79,7 @@ async function postMessage(roomId, message) {
 
 The payload should be the standard GraphQL response shape (`{ data, errors }`) so the client decoder can hand it straight to Apollo.
 
-## Apollo Client Mercure SSE Transport
+## Apollo client Mercure SSE transport
 
 Apollo and other GraphQL clients accept a custom transport. Hand them an SSE-backed implementation:
 
@@ -154,21 +154,21 @@ For a subscriber to open one connection that covers all of their subscriptions a
 }
 ```
 
-## Frameworks That Already Do This
+## Frameworks that already do this
 
 - **API Platform.** [Built-in support for GraphQL subscriptions over Mercure](https://api-platform.com/docs/master/core/graphql/#subscriptions). Generate a Mercure topic per subscription and a working frontend, no glue code.
 - **GraphQL Mesh, GraphQL Yoga.** Plugins exist; check the respective docs.
 
 If your stack rolls its own GraphQL layer, the pattern in this guide is enough: a topic per subscription, a publish per data change, an `EventSource` on the client.
 
-## When WebSockets Are Still Better
+## When WebSockets are still better
 
 - The subscription needs **client -> server messages on the subscription stream itself** (uncommon in GraphQL, but possible with `subscribe` operations that take live arguments).
 - Latency budgets that make even `POST /graphql + GET /sub` round-trips a problem (rare; both run on HTTP/2 and the topic discovery is one extra request, once).
 
 For everything else, Mercure plus GraphQL is a smaller stack: one transport for all real-time, no second port, no second protocol.
 
-## Next Steps for GraphQL Subscriptions Over Mercure
+## Next steps for GraphQL subscriptions over Mercure
 
 - [LLM token streaming](llm-token-streaming.md): for streaming responses outside of GraphQL.
 - [Authorization](../concepts/authorization.md): per-user topics.

@@ -1,5 +1,5 @@
 ---
-title: "Deploy the Mercure.rocks Hub on Kubernetes with Helm"
+title: "Deploy the Mercure.rocks hub on Kubernetes with Helm"
 description: "Install Mercure.rocks on Kubernetes with the official Helm chart, including SSE-aware probes, rolling updates, and rootless security context."
 ---
 
@@ -17,7 +17,7 @@ helm install mercure mercure/mercure \
 
 Default values produce a single-replica deployment with BoltDB, a `ClusterIP` service, and SSE-aware rolling-update settings. The full list of values lives in the [chart README](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md).
 
-## What the Chart Sets up for You
+## What the chart sets up for you
 
 The defaults are tuned for SSE workloads, not generic web apps:
 
@@ -27,7 +27,7 @@ The defaults are tuned for SSE workloads, not generic web apps:
 
 You don't have to know these to use the chart. You do have to know them if you change the chart's defaults.
 
-## Production Helm Values for the Mercure Hub
+## Production Helm values for the Mercure hub
 
 ```yaml
 # values.yaml
@@ -70,7 +70,7 @@ For multi-replica deployments, use a transport that synchronizes between pods. T
 
 > **Pro tip.** Running more than one replica with the open-source build is possible if every pod handles its own slice of the topics (sticky load balancing on a hash of the topic). It's fragile: losing a pod loses its history. The Self-Hosted Redis transport replaces that with a real cluster: any replica can serve any subscriber, and the history is centralized.
 
-## Kubernetes Probes for the Mercure Hub
+## Kubernetes probes for the Mercure hub
 
 The Caddy admin API binds to `localhost:2019` for security. That means probes from outside the container (the standard `httpGet` form) can't reach it. Use `exec` probes:
 
@@ -139,7 +139,7 @@ A few things to know about scaling SSE in Kubernetes:
 - **HPAs based on CPU underestimate.** SSE is mostly waiting; CPU stays low while connection counts grow. Scale on `mercure_subscribers_connected` (Prometheus metric) instead.
 - **Connection draining matters.** A 1-replica -> 5-replica scale-up is cheap. A 5 -> 1 scale-down kills 4/5 of your subscribers if you don't drain. The chart's `terminationGracePeriodSeconds` handles this; don't lower it.
 
-## Configuring Ingress for Mercure SSE
+## Configuring ingress for Mercure SSE
 
 Two things SSE needs from your ingress:
 
@@ -159,7 +159,7 @@ ingress:
 
 See [Reverse proxies](reverse-proxy.md) for full configurations.
 
-## Upgrading the Mercure Helm Release
+## Upgrading the Mercure Helm release
 
 ```console
 # Upgrading the Mercure Helm Release
@@ -169,7 +169,7 @@ helm upgrade mercure mercure/mercure -f values.yaml
 
 The chart triggers a rolling update. Subscribers reconnect at the cadence set by `write_timeout`, distributed across the drain window; they don't all reconnect at once. See [Rolling updates](../production/rolling-updates.md) for the full mechanism.
 
-## Multi-Node and Self-Hosted
+## Multi-node and self-hosted
 
 The chart supports the multi-node transports out of the box. Set `image.repository` to the Self-Hosted image and configure the transport block:
 
@@ -192,7 +192,7 @@ extraEnv:
 
 The license is checked in-process; no callback to a license server.
 
-## Next Steps for Mercure on Kubernetes
+## Next steps for Mercure on Kubernetes
 
 - [Configuration](configuration.md): directives and env vars.
 - [Health monitoring](../production/health-monitoring.md): probes, metrics, dashboards.

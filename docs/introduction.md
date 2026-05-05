@@ -1,5 +1,5 @@
 ---
-title: "What Is Mercure? Real-Time HTTP Push with Server-Sent Events"
+title: "What is Mercure? Real-time HTTP push with Server-Sent Events"
 description: "Mercure is an open real-time protocol that pushes server data to clients over plain HTTP and Server-Sent Events, with built-in JWT authorization and replay."
 ---
 
@@ -11,7 +11,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 
 ![Subscriptions Schema](../spec/subscriptions.png)
 
-## What You Get with Mercure
+## What you get with Mercure
 
 - **Native browser support.** No SDK. The `EventSource` API ships in every modern browser; on the server, any HTTP client can publish.
 - **HTTP/2+ multiplexing.** One TCP connection carries every subscription a client opens, plus the rest of your app traffic.
@@ -20,7 +20,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 - **Hypermedia-friendly.** Topics are URLs. The protocol works with REST, GraphQL, JSON-LD, and HTML over the wire (Hotwire, htmx).
 - **Encryption support.** Updates can be JWE-encrypted end-to-end, so even the hub operator cannot read them.
 
-## What It's Good For
+## What it's good for
 
 - **LLM streaming.** Stream tokens or tool calls from a server-side model invocation to the browser as they arrive. ([Guide](use-cases/llm-token-streaming.md))
 - **AI agent progress.** Push agent state to the UI: "searching the web", "reading file", "ran 3 tools, summarizing". ([Guide](use-cases/ai-agent-progress.md))
@@ -29,7 +29,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 - **Async jobs.** A worker computes a report; the result lands in the UI when ready. ([Guide](use-cases/async-jobs.md))
 - **Notifications.** In-app toasts, mentions, mailbox counters. ([Guide](use-cases/notifications.md))
 
-## How It Differs from the Alternatives
+## How it differs from the alternatives
 
 **vs. WebSockets.** WebSocket is a low-level transport; you still need to design framing, authorization, reconnection, replay, and presence. Mercure gives you all of that on top of HTTP/2, which most infrastructure already understands. For request/response inside the same connection, just use a regular `POST`: HTTP/2 already multiplexes it.
 
@@ -41,7 +41,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 
 See the [FAQ](reference/faq.md) for more.
 
-## The Free Version Is the Production Version
+## The free version is the production version
 
 The Mercure.rocks Hub is licensed under AGPL-3.0. Concretely, that means you can:
 
@@ -53,7 +53,7 @@ There are paid tiers (Cloud for managed deployments, Self-Hosted for multi-node 
 
 When you outgrow a single node, [the production guide](production/high-availability.md) explains the options.
 
-## Where to Go Next with Mercure
+## Where to go next with Mercure
 
 - [Quickstart](getting-started/quickstart.md): running hub, first subscription, first update.
 - [Topics and matchers](concepts/topics-and-matchers.md): the part of the protocol that changed most in 1.0.

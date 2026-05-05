@@ -1,9 +1,9 @@
 ---
-title: "Mercure Protocol Conformance Tests with Playwright"
+title: "Mercure protocol conformance tests with Playwright"
 description: "Validate any Mercure hub implementation against the Mercure protocol with the official Playwright-based conformance test suite."
 ---
 
-# Conformance Tests
+# Conformance tests
 
 The Mercure repository ships a [Playwright](https://playwright.dev/)-based conformance test suite. It exercises the protocol against a running hub and checks that the responses match the spec.
 
@@ -13,7 +13,7 @@ Use it to:
 - Catch regressions when modifying the reference hub.
 - Understand the protocol by reading concrete examples.
 
-## Run the Mercure Conformance Test Suite
+## Run the Mercure conformance test suite
 
 ```console
 # Run the Mercure Conformance Test Suite
@@ -31,7 +31,7 @@ By default the suite hits a hub on `https://localhost`. Start one before running
 BASE_URL=https://hub.example.com npx playwright test
 ```
 
-## Mercure Conformance Test Configuration
+## Mercure conformance test configuration
 
 | Variable    | Description                                                                |
 | ----------- | -------------------------------------------------------------------------- |
@@ -40,7 +40,7 @@ BASE_URL=https://hub.example.com npx playwright test
 
 Set `CUSTOM_ID=0` for transports that don't support custom IDs (e.g. Pulsar, see [High availability](../production/high-availability.md#self-hosted-transports) for transport feature matrices).
 
-## What the Mercure Conformance Suite Covers
+## What the Mercure conformance suite covers
 
 Tests are organized by spec section:
 
@@ -52,7 +52,7 @@ Tests are organized by spec section:
 
 Run with `--ui` for the interactive Playwright explorer; useful when debugging a specific assertion failure.
 
-## Related Mercure Testing Resources
+## Related Mercure testing resources
 
 - [Load test](../production/load-testing.md): measures throughput, not correctness.
 - [Protocol](../reference/protocol.md): the spec the tests are validating against.

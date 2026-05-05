@@ -1,5 +1,5 @@
 ---
-title: "Run the Mercure.rocks Hub with Docker and Docker Compose"
+title: "Run the Mercure.rocks hub with Docker and Docker Compose"
 description: "Run the Mercure.rocks Hub with the official Docker image, Docker Compose, healthchecks, and rootless deployment."
 ---
 
@@ -7,7 +7,7 @@ description: "Run the Mercure.rocks Hub with the official Docker image, Docker C
 
 The official image is `dunglas/mercure`. Built on top of the [Caddy image](https://hub.docker.com/_/caddy), so anything Caddy's image supports works here too.
 
-## Run the Mercure Docker Image
+## Run the Mercure Docker image
 
 Production mode:
 
@@ -34,7 +34,7 @@ docker run \
     dunglas/mercure
 ```
 
-## Mercure Docker Development Mode
+## Mercure Docker development mode
 
 ```console
 # Mercure Docker Development Mode
@@ -84,7 +84,7 @@ volumes:
 
 Persist both. Losing `/data` means losing replay history; losing `/config` means re-issuing certificates on next boot.
 
-## Mercure Docker Healthcheck
+## Mercure Docker healthcheck
 
 The image's built-in healthcheck queries `localhost:2019/mercure/health/ready`: the [transport-aware](../production/health-monitoring.md) readiness endpoint, not just "is the process up."
 
@@ -168,7 +168,7 @@ A custom Caddyfile is the right move once you need:
 - Per-route rate limiting, request transformation, or custom auth.
 - Reading secrets from files (`{file./run/secrets/jwt_key}`) instead of environment variables.
 
-## Mercure Hub Docker Logs
+## Mercure hub Docker logs
 
 Caddy logs to stdout in JSON by default. Pipe to whatever your platform expects (Loki, Datadog, CloudWatch). Useful fields:
 
@@ -178,17 +178,17 @@ Caddy logs to stdout in JSON by default. Pipe to whatever your platform expects 
 
 Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod: it logs update payloads).
 
-## Mercure Docker Image Variants
+## Mercure Docker image variants
 
 - `dunglas/mercure`: Alpine-based, statically linked.
 - `dunglas/mercure:<version>`: pin to a specific release.
 - Self-Hosted ships its own image with the multi-node transports: see [High availability](../production/high-availability.md).
 
-## Behind a Reverse Proxy
+## Behind a reverse proxy
 
 If you're already running Traefik or NGINX, terminate TLS there and let the hub speak HTTP. See [Reverse proxies](reverse-proxy.md).
 
-## Next Steps for Mercure on Docker
+## Next steps for Mercure on Docker
 
 - [Configuration](configuration.md): directives and env vars.
 - [Kubernetes](kubernetes.md): same image, Helm chart.

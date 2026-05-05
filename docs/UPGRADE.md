@@ -1,9 +1,9 @@
 ---
-title: "Mercure 1.0 Upgrade Guide"
+title: "Mercure 1.0 upgrade guide"
 description: "Step-by-step migration from Mercure 0.x to 1.0: typed matcher query parameters, object-form JWT claims, and the new subscription event topic format."
 ---
 
-# Upgrade Guide
+# Upgrade guide
 
 ## 1.0 (from 0.x)
 
@@ -11,7 +11,7 @@ The 1.0 release is the first version aligned with the IETF specification's typed
 
 If you only run the hub and don't author subscribers or mint JWTs yourself, the upgrade is a config change. If you do, plan a synchronized cutover of the hub and the clients that talk to it.
 
-### What Changed at a Glance
+### What changed at a glance
 
 | Area                                          | 0.x                                                                | 1.0                                                                        |
 | --------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------- |
@@ -23,7 +23,7 @@ If you only run the hub and don't author subscribers or mint JWTs yourself, the 
 | Subscription JSON-LD                          | `topic`                                                            | `match` + `matchType`                                                      |
 | Backward-compat mode                          | `protocol_version_compatibility 7`                                 | Removed                                                                    |
 
-### Migrate Your Subscribers
+### Migrate your subscribers
 
 The single change is the query parameter name.
 
@@ -54,7 +54,7 @@ Two things to notice:
 
 If your existing patterns are URI Templates and you'd rather not rewrite them, the hub still supports them via `matchURITemplate`. New code should use URL Patterns, they're better-defined for URLs and the only matcher type natively supported by browsers.
 
-### Migrate Your JWTs
+### Migrate your JWTs
 
 The `mercure.publish` and `mercure.subscribe` claims must now contain **objects**, not bare strings. The hub rejects bare strings with a `401 Unauthorized` and refuses to mint a session.
 
@@ -95,7 +95,7 @@ Rules:
 - `matchType` is case-insensitive: `"URLPattern"`, `"urlpattern"`, and `"UrlPattern"` are equivalent.
 - The `payload` field is per-claim-entry, with [explicit fallback rules](concepts/authorization.md#mercure-subscriber-payloads) when several entries match.
 
-### Migrate the Subscription API and Events
+### Migrate the subscription API and events
 
 The route pattern and the JSON-LD shape changed.
 
@@ -106,11 +106,11 @@ The route pattern and the JSON-LD shape changed.
 
 `<matchType>`, `<match>`, and `<subscriber>` must be percent-encoded. See [Active subscriptions](concepts/active-subscriptions.md) for the new layout.
 
-### Compatibility Mode Is Gone
+### Compatibility mode is gone
 
 In 0.14, the `protocol_version_compatibility 7` directive let the hub speak the old protocol while you migrated. 1.0 removes it. The reasoning is that the JWT claim form changed from string to object, and silently re-interpreting old tokens under the new rules would change their meaning, that's a security risk, not a convenience. Mint new tokens.
 
-### Mercure 1.0 Find-and-Replace Checklist
+### Mercure 1.0 find-and-replace checklist
 
 Search your codebase for these patterns:
 
@@ -123,7 +123,7 @@ Search your codebase for these patterns:
 
 Once your services emit and parse the new shapes, switch the hub to 1.0.
 
-### Mercure Hub Configuration Changes in 1.0
+### Mercure hub configuration changes in 1.0
 
 Two directives that no longer exist:
 
@@ -134,11 +134,11 @@ The legacy non-Caddy server (deprecated since 0.11) is also removed. If you're s
 
 ---
 
-## Historical Changes (0.x)
+## Historical changes (0.x)
 
 The entries below describe earlier upgrades. They are kept for users migrating across multiple major versions.
 
-### Mercure 0.21 Upgrade Notes
+### Mercure 0.21 upgrade notes
 
 When Mercure is compiled manually or used as a Go library, deprecated features are no longer included by default.
 
@@ -153,7 +153,7 @@ To re-enable the legacy HTTP server, pass the `deprecated_server` build tag.
 
 Official binaries and Docker images still include deprecated features.
 
-### Mercure 0.17 Upgrade Notes
+### Mercure 0.17 upgrade notes
 
 The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directive were deprecated in favor of the `transport` directive.
 
@@ -176,23 +176,23 @@ transport bolt {
 
 To configure the transport via an environment variable, append the directive to `MERCURE_EXTRA_DIRECTIVES`. Avoid putting credentials there; use `{env.MY_VAR}` placeholders in a custom Caddyfile instead.
 
-### Mercure 0.16.2 Upgrade Notes
+### Mercure 0.16.2 upgrade notes
 
 `Caddyfile.dev` was renamed to `dev.Caddyfile` to match Caddy best practices.
 
-### Mercure 0.14.4 Upgrade Notes
+### Mercure 0.14.4 upgrade notes
 
 This release moved to Caddy 2.6, which removed single-hyphen long-form flags. Use `--config` instead of `-config`.
 
-### Mercure 0.14.3 Upgrade Notes
+### Mercure 0.14.3 upgrade notes
 
 The Prometheus metric `mercure_subscribers` was renamed `mercure_subscribers_connected` for better interoperability with Datadog and others.
 
-### Mercure 0.14.1 Upgrade Notes
+### Mercure 0.14.1 upgrade notes
 
 The default development key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecretKey!` to satisfy the spec's 256-bit minimum.
 
-### Mercure 0.14 Upgrade Notes
+### Mercure 0.14 upgrade notes
 
 The `Last-Event-ID` query parameter was renamed `lastEventID`. Update your clients.
 
@@ -200,17 +200,17 @@ Publishing public updates in topics not listed in `mercure.publish` was removed;
 
 A `protocol_version_compatibility 7` directive was added to ease the transition. It has since been removed in 1.0.
 
-### Mercure 0.13 Upgrade Notes
+### Mercure 0.13 upgrade notes
 
 The `DEBUG` environment variable was removed. Set `GLOBAL_OPTIONS=debug` instead.
 
-### Mercure 0.11 Upgrade Notes
+### Mercure 0.11 upgrade notes
 
 The hub became a Caddy module. Standalone binaries are now custom Caddy builds. The legacy server stayed available with a `legacy` build prefix until 1.0.
 
 Before switching, [migrate your configuration](deployment/configuration.md).
 
-### Mercure 0.10 Upgrade Notes
+### Mercure 0.10 upgrade notes
 
 The protocol changed substantially. Highlights:
 
@@ -221,7 +221,7 @@ The protocol changed substantially. Highlights:
 - IDs are now URNs (`urn:uuid:...`).
 - `*` as a topic became reserved.
 
-### Mercure 0.8 Upgrade Notes
+### Mercure 0.8 upgrade notes
 
 - Hub URL changed from `/hub` to `/.well-known/mercure`.
 - `HISTORY_CLEANUP_FREQUENCY`, `HISTORY_SIZE`, `DB_PATH` collapsed into `TRANSPORT_URL`.

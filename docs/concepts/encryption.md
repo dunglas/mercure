@@ -1,5 +1,5 @@
 ---
-title: "End-to-End Encryption for Mercure Updates with JWE"
+title: "End-to-end encryption for Mercure updates with JWE"
 description: "Encrypt update payloads with JSON Web Encryption so the Mercure hub itself cannot read them, with key distribution patterns."
 ---
 
@@ -9,7 +9,7 @@ HTTPS protects data on the wire. It does not protect data **from the hub**. Oper
 
 When it isn't (third-party hub, multi-tenant hub, regulated data), encrypt the payload end-to-end with [JSON Web Encryption](https://www.rfc-editor.org/rfc/rfc7516).
 
-## How Mercure End-to-End Encryption Works
+## How Mercure end-to-end encryption works
 
 ```text
 # How Mercure End-to-End Encryption Works
@@ -24,7 +24,7 @@ The publisher encrypts the `data` field before posting it. The hub stores and fo
 
 The hub never sees the plaintext, the key, or anything that lets it derive the key.
 
-## Distributing the JWE Key Between Publisher and Subscriber
+## Distributing the JWE key between publisher and subscriber
 
 The publisher and the subscriber need a shared key. Two patterns work:
 
@@ -48,7 +48,7 @@ Content-Type: application/ld+json
 
 The `key-set` URL must serve [JWK Set](https://www.rfc-editor.org/rfc/rfc7517) JSON. **Authorize the request.** Anyone who reads the key set can decrypt the updates. Reuse the same auth your application already enforces.
 
-## Publishing Encrypted Mercure Updates
+## Publishing encrypted Mercure updates
 
 ```javascript
 // Publishing Encrypted Mercure Updates
@@ -74,7 +74,7 @@ await fetch("https://hub.example.com/.well-known/mercure", {
 });
 ```
 
-## Decrypting on the Subscriber
+## Decrypting on the subscriber
 
 In a browser, with [`jose`](https://github.com/panva/jose):
 
@@ -93,7 +93,7 @@ es.onmessage = async (event) => {
 
 The browser's WebCrypto API can do the same without an external library if you only need a fixed algorithm.
 
-## What You Give Up
+## What you give up
 
 End-to-end encryption rules out a few hub-side conveniences:
 
@@ -103,7 +103,7 @@ End-to-end encryption rules out a few hub-side conveniences:
 
 The topic and the SSE metadata (event ID, type) are still visible to the hub. If you need to hide _those_ too, derive opaque topics from a secret and rotate them.
 
-## When to Encrypt Mercure Updates with JWE
+## When to encrypt Mercure updates with JWE
 
 End-to-end encryption is the right call when:
 
@@ -113,7 +113,7 @@ End-to-end encryption is the right call when:
 
 If the hub is yours and you control its hosts, HTTPS is sufficient and JWE adds operational cost without a meaningful security gain.
 
-## Not a Substitute for Authorization
+## Not a substitute for authorization
 
 Encryption hides content; authorization controls who connects. You still need [the JWT layer](authorization.md) on top: to keep unauthorized clients off the hub, and to gate `private` updates so the hub knows who to deliver them to even when it can't read them.
 

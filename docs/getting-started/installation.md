@@ -1,5 +1,5 @@
 ---
-title: "Install the Mercure.rocks Hub"
+title: "Install the Mercure.rocks hub"
 description: "Install the Mercure.rocks Hub on Docker, Docker Compose, Kubernetes (Helm), Linux, macOS, Windows, or Arch Linux, plus custom Caddy builds."
 ---
 
@@ -11,7 +11,7 @@ Pick the install method that matches how you ship the rest of your stack. They a
 
 The Mercure.rocks Hub is a custom build of the [Caddy web server](https://caddyserver.com/) with the Mercure module. Anything Caddy can do, this binary can do too: TLS, HTTP/3, compression, reverse proxying, Prometheus metrics.
 
-## Docker (Recommended)
+## Docker (recommended)
 
 ```console
 # Docker (recommended)
@@ -78,7 +78,7 @@ helm install my-release mercure/mercure
 
 The chart ships SSE-appropriate defaults (`terminationGracePeriodSeconds: 660`, surge updates) so rolling deploys don't reconnect every client at once. See [Kubernetes deployment](../deployment/kubernetes.md) for values, probes, and rootless setup.
 
-## Mercure Hub Prebuilt Binary
+## Mercure hub prebuilt binary
 
 Download an archive for your OS from the [release page](https://github.com/dunglas/mercure/releases) and extract it.
 
@@ -97,7 +97,7 @@ The hub binds to `https://localhost`. To run in production mode (no anonymous su
 
 If port 80 or 443 is taken (Apache, NGINX, Skype), set `SERVER_NAME=:3000` (or any free port) before starting.
 
-## Mercure on Arch Linux
+## Mercure on arch Linux
 
 ```console
 # Mercure on Arch Linux
@@ -106,7 +106,7 @@ yay -S mercure
 
 Available [on the AUR](https://aur.archlinux.org/packages/mercure). Or `makepkg -sri` against the PKGBUILD if you don't use an AUR wrapper.
 
-## Custom Caddy Build
+## Custom Caddy build
 
 If you need other Caddy modules in the same binary (rate limiting, OAuth, custom storage), build with [`xcaddy`](https://github.com/caddyserver/xcaddy):
 
@@ -118,11 +118,11 @@ xcaddy build \
 
 Or use the [Caddy download page](https://caddyserver.com/download?package=github.com%2Fdunglas%2Fmercure%2Fcaddy) to assemble a build in the browser.
 
-## Embedding the Mercure Hub in a Go Binary
+## Embedding the Mercure hub in a Go binary
 
 Mercure is also a Go library. See [pkg.go.dev/github.com/dunglas/mercure](https://pkg.go.dev/github.com/dunglas/mercure). You'd typically reach for it when you want to ship a hub as part of a larger Go binary; for everything else the standalone server is simpler.
 
-## Verify the Mercure Hub Installation
+## Verify the Mercure hub installation
 
 ```console
 # Verify the Mercure Hub Installation
@@ -131,7 +131,7 @@ curl -i https://localhost/.well-known/mercure
 
 You should see `405 Method Not Allowed`: the hub only accepts `GET` (subscribe) and `POST` (publish) on this endpoint. Anything else means the hub answered.
 
-## Mercure Installation Next Steps
+## Mercure installation next steps
 
 - [Quickstart](quickstart.md): first subscribe, first publish.
 - [Configuration](../deployment/configuration.md): directives and environment variables.

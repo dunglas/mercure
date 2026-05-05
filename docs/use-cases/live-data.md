@@ -1,13 +1,13 @@
 ---
-title: "Real-Time Dashboards and Live Data Feeds with Mercure"
+title: "Real-time dashboards and live data feeds with Mercure"
 description: "Push live values, IoT telemetry, stock tickers, and dashboard updates to web and mobile clients using Mercure topics and URL Patterns."
 ---
 
-# Live Data and Dashboards
+# Live data and dashboards
 
 The textbook Mercure use case: a value or set of values changes on the server, and connected clients see the change without polling. Stock tickers, room occupancy, IoT telemetry, sales counters, build statuses. Anything where polling would either be too slow or too wasteful.
 
-## The Shape of the Problem
+## The shape of the problem
 
 ```text
 # The shape of the problem
@@ -22,7 +22,7 @@ The textbook Mercure use case: a value or set of values changes on the server, a
 
 Whatever produces the value (a database trigger, a webhook handler, an MQTT bridge, a worker reading from a queue) becomes the publisher. Browsers, mobile apps, and other servers subscribe.
 
-## Topic Design
+## Topic design
 
 The natural topic for a data point is its URL, the same URL that returns its current value as JSON.
 
@@ -116,13 +116,13 @@ def update_availability(product_id: int, in_stock: bool) -> None:
 
 For exactly-once-ish guarantees, write to a local outbox in the same transaction as the data change and have a worker drain it to the hub.
 
-## Public vs. Private Mercure Live Data Topics
+## Public vs. Private Mercure live data topics
 
 For data the whole world can see (public stock prices, public game scores), publish without `private=on`. Subscribers don't need a JWT.
 
 For per-user or per-tenant data (a customer's order status, a tenant's CI runs), publish private and authorize the matchers in the subscriber's JWT. The [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-topics) covers shared-topic-with-fine-grained-access setups.
 
-## Sizing the Mercure History Buffer for Live Data
+## Sizing the Mercure history buffer for live data
 
 For pure live data (the latest value is what matters; old values are useless), the history buffer doesn't have to be large. A handful of messages is enough to cover reconnects.
 
@@ -130,7 +130,7 @@ For replay-driven dashboards (replay the last hour of price changes when the pag
 
 > **Pro tip.** The open-source hub stores history in BoltDB with **no built-in cap**: it grows until disk fills. Set `size N` in the transport config to bound it. Cloud tiers cap history at 100-5,000 messages depending on plan; if your dashboards need long histories and predictable storage, [Self-Hosted Mercure](https://mercure.rocks/pricing) with the Postgres transport keeps the data on infrastructure you control.
 
-## Dashboards: Many Topics, One Connection
+## Dashboards: many topics, one connection
 
 A dashboard that watches dozens of metrics opens **one** `EventSource` and uses many `match*` parameters, not one connection per metric:
 
@@ -159,13 +159,13 @@ new EventSource(url);
 
 The hub multiplexes them all over a single TCP connection. The browser's HTTP/2 stack does the rest.
 
-## Mercure Throughput in Practice
+## Mercure throughput in practice
 
 Public benchmarks: a t3.micro running the open-source hub holds **40k concurrent SSE connections** with the BoltDB transport. Connections aren't expensive in Mercure: every additional client costs a goroutine and a few KB of RAM. Where you'll feel cost is publish throughput: the hub fans every update out to every matching subscriber, so high-rate streams to many subscribers means high outbound bandwidth.
 
 For setups beyond what one node can handle, see [High availability](../production/high-availability.md).
 
-## Next Steps for Mercure Live Data
+## Next steps for Mercure live data
 
 - [Reconnection and history](../concepts/reconnection-and-history.md): replay after a disconnect.
 - [Authorization](../concepts/authorization.md): per-user data.

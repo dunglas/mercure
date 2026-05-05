@@ -1,9 +1,9 @@
 ---
-title: "Run Mercure Behind NGINX, Traefik, Caddy, HAProxy, or Cloudflare"
+title: "Run Mercure behind NGINX, Traefik, Caddy, HAProxy, or Cloudflare"
 description: "Reverse-proxy the Mercure.rocks Hub behind NGINX, Traefik, Caddy, HAProxy, AWS ALB, or Cloudflare with SSE-friendly buffering and timeouts."
 ---
 
-# Reverse Proxies
+# Reverse proxies
 
 Mercure works behind any HTTP reverse proxy that can keep a streaming response open. Two configurations matter, and most defaults get them wrong:
 
@@ -186,7 +186,7 @@ Cloudflare proxies SSE, but be aware:
 
 For long-lived SSE without a 100s cap, [Mercure Cloud](https://mercure.rocks/pricing) terminates connections directly without a proxy in between.
 
-## CORS via Reverse Proxy
+## CORS via reverse proxy
 
 If your hub is on a different origin from your app, you can either configure CORS on the hub (`cors_origins`) or rewrite the request through the proxy so the hub appears same-origin:
 
@@ -204,7 +204,7 @@ app.example.com {
 
 Same-origin sidesteps CORS entirely. Same-origin also means the cookie can be `Domain=app.example.com` without any subdomain juggling.
 
-## Common SSE Reverse-Proxy Gotchas with Mercure
+## Common SSE reverse-proxy gotchas with Mercure
 
 | Symptom                                       | Likely cause                                                                                                               |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -213,7 +213,7 @@ Same-origin sidesteps CORS entirely. Same-origin also means the cookie can be `D
 | 502 Bad Gateway after a while                 | Proxy thinks the upstream is dead because no bytes flowed. Lower `heartbeat` on the hub or raise the proxy's read timeout. |
 | `EventSource` never connects from the browser | CORS misconfiguration. Check `cors_origins` and the response headers.                                                      |
 
-## Set `USE_FORWARDED_HEADERS` Carefully on the Mercure Hub
+## Set `USE_FORWARDED_HEADERS` carefully on the Mercure hub
 
 The hub can read `X-Forwarded-*` and the RFC 7239 `Forwarded` header to know the original client IP and scheme:
 
@@ -228,7 +228,7 @@ The hub can read `X-Forwarded-*` and the RFC 7239 `Forwarded` header to know the
 
 Only trust these headers when the proxy in front of the hub strips or replaces them on every request. If clients can send their own `X-Forwarded-For` and the hub trusts it, your IP-based logic is wrong.
 
-## Next Steps for Mercure Reverse Proxies
+## Next steps for Mercure reverse proxies
 
 - [Configuration](configuration.md): `cors_origins` and friends.
 - [Docker](docker.md): running the hub in a container.

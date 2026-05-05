@@ -1,5 +1,5 @@
 ---
-title: "Subscribing to Mercure Updates with Server-Sent Events"
+title: "Subscribing to Mercure updates with server-sent events"
 description: "Open SSE subscriptions to a Mercure hub from browsers, Node.js, Go, Python, and other clients with EventSource and fetch-event-source."
 ---
 
@@ -16,7 +16,7 @@ Accept: text/event-stream
 
 Pick the matchers you want with [`match*` query parameters](topics-and-matchers.md). The rest of this page covers the client side.
 
-## Subscribing from a Browser with EventSource
+## Subscribing from a browser with EventSource
 
 `EventSource` is built into every modern browser:
 
@@ -42,7 +42,7 @@ A few things to know:
 - A single `EventSource` connection can carry as many topic subscriptions as you want by passing more `match*` parameters.
 - `EventSource` does not let you set `Authorization` headers. For private subscriptions, use a [cookie](authorization.md#cookies-in-detail) (recommended) or the `authorization` query parameter (last resort).
 
-### `fetch-event-source` for Advanced Cases
+### `fetch-event-source` for advanced cases
 
 For finer-grained error handling, custom headers, or non-`GET` requests, use [Microsoft's `fetch-event-source`](https://github.com/Azure/fetch-event-source):
 
@@ -59,7 +59,7 @@ await fetchEventSource(url, {
 
 This is the right choice for React Native, server-side runtimes, and any case where the native `EventSource` is too constrained.
 
-## Closing the Mercure EventSource Connection
+## Closing the Mercure EventSource connection
 
 `EventSource` keeps the TCP connection open until you close it. In single-page apps the connection survives component unmounts and route changes if you don't tear it down explicitly:
 
@@ -74,7 +74,7 @@ useEffect(() => {
 
 Skipping this is the most common cause of "the hub keeps a slot for me even though I navigated away." The hub sees the connection as live and counts it against any per-IP or per-token limits.
 
-## Server-Side Subscribers
+## Server-side subscribers
 
 Any HTTP client that exposes a streaming response works. A few examples:
 
@@ -116,7 +116,7 @@ for event in SSEClient("https://hub.example.com/.well-known/mercure?match=topic"
 
 [Awesome Mercure](../ecosystem/awesome.md) lists more libraries.
 
-## What the Hub Sends
+## What the hub sends
 
 Each event is a standard SSE message:
 
@@ -134,7 +134,7 @@ Fields:
 - `event`: the `type` field from the publish request, if any. Defaults to `message`. `EventSource` triggers `addEventListener("<type>", ...)` for non-default types.
 - `data`: whatever the publisher sent in `data`. Mercure does not interpret it; it's bytes you decided on (JSON, HTML, JSON Patch, plain text...).
 
-## Discovering the Mercure Hub via Link Header
+## Discovering the Mercure hub via link header
 
 The publisher of a resource can advertise its hub via a `Link` header so clients don't need to hard-code it:
 
@@ -166,13 +166,13 @@ new EventSource(url);
 
 This pattern decouples the URL of your data from the URL of the hub serving updates for it.
 
-## Mercure SSE Heartbeats
+## Mercure SSE heartbeats
 
 The hub sends an SSE comment every `heartbeat` seconds (default `40s`). Heartbeats keep idle connections alive through proxies that close them after silence and let clients detect dead connections faster.
 
 If you set `heartbeat 0s` to disable them, make sure nothing on the network path does idle-timeout TCP. Most CDNs and reverse proxies do.
 
-## Mercure Subscriber Connection Limits
+## Mercure subscriber connection limits
 
 | Limit                                      | Where                                      |
 | ------------------------------------------ | ------------------------------------------ |
@@ -182,7 +182,7 @@ If you set `heartbeat 0s` to disable them, make sure nothing on the network path
 
 A single connection serves any number of topics: pass more `match*` parameters rather than opening more `EventSource` instances.
 
-## Next Steps for Mercure Subscribing
+## Next steps for Mercure subscribing
 
 - [Topics and matchers](topics-and-matchers.md): choosing the right matcher type.
 - [Reconnection and history](reconnection-and-history.md): surviving disconnects without losing events.

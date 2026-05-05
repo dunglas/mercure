@@ -1,5 +1,5 @@
 ---
-title: "Mercure Authorization with JWT, Cookies, and JWKS"
+title: "Mercure authorization with JWT, cookies, and JWKS"
 description: "Mint, present, and validate JWTs for Mercure publishers and subscribers using HS256, RS256, JWKS, cookies, and the per-user authorization pattern."
 ---
 
@@ -11,7 +11,7 @@ Mercure uses JWTs to decide who can publish, who can subscribe to private update
 
 ![Authorization Schema](../../spec/authorization.png)
 
-## The Mercure JWT Token Structure
+## The Mercure JWT token structure
 
 A Mercure JWT is a regular [JWS](https://www.rfc-editor.org/rfc/rfc7515) with a `mercure` claim:
 
@@ -33,7 +33,7 @@ A Mercure JWT is a regular [JWS](https://www.rfc-editor.org/rfc/rfc7515) with a 
 
 The hub verifies the signature with the key configured in `publisher_jwt` / `subscriber_jwt` (or via JWKS, see [Configuration](../deployment/configuration.md#jwt-validation-via-jwks)).
 
-## Three Ways to Send the Token
+## Three ways to send the token
 
 Pick the method that matches your client:
 
@@ -94,13 +94,13 @@ Empty `subscribe` array -> no private updates can be received.
 
 `[{ "match": "*" }]` -> all private updates can be received.
 
-### Anonymous Subscribers
+### Anonymous subscribers
 
 Hubs in development mode (or any hub with the `anonymous` directive set) accept subscribers without a JWT. Anonymous subscribers can only receive public updates; they have no `subscribe` claim to match against.
 
 This is the right default for live feeds, public dashboards, and any case where the data isn't user-specific. For everything else, leave `anonymous` off.
 
-## Per-User Authorization on Shared Topics
+## Per-user authorization on shared topics
 
 A common pattern: a subscriber wants to receive updates about every book it has access to. A naive solution would be `matchURLPattern=https://example.com/books/:id` in the query, plus the same in `mercure.subscribe`. But that authorizes the subscriber for **every** book, including ones it shouldn't see.
 
@@ -134,7 +134,7 @@ curl -X POST $HUB -H "Authorization: Bearer $JWT" \
 
 The subscriber's `match*` query stays simple (`matchURLPattern=https://example.com/books/:id`). The hub checks that the subscriber's claim matches one of the alternates; only users 42 and 99 do, so only their tokens get the update.
 
-## Mercure Subscriber Payloads
+## Mercure subscriber payloads
 
 Each entry in `mercure.subscribe` can carry a `payload` (any JSON value). The hub attaches the payload to the [subscription event](active-subscriptions.md) and the [subscription API](active-subscriptions.md#subscription-api) record for that subscription.
 
@@ -172,7 +172,7 @@ The first claim entry that matches wins. If none does, the hub falls back to `me
 
 Use payloads to ship per-subscriber metadata to other subscribers via subscription events: usernames, group memberships, IP address, role.
 
-## Cookies in Detail
+## Cookies in detail
 
 Set the cookie during discovery, when the user fetches the page or the API resource that links to the hub. By the time the browser opens the SSE connection, the cookie is already in place.
 
@@ -201,7 +201,7 @@ new EventSource(url, { withCredentials: true });
 
 The hub must respond with the right CORS headers; see [Configuration](../deployment/configuration.md#cors).
 
-## Mercure JWT Token Expiration
+## Mercure JWT token expiration
 
 If the JWT carries a standard `exp` claim, the hub closes the subscriber's connection at that time. The browser auto-reconnects, but with the now-expired token it fails with `401`.
 
@@ -227,7 +227,7 @@ mercure {
 
 The hub fetches and caches the keys, rotates them when the IdP rotates them, and validates each token against the matching `kid`. See [Configuration](../deployment/configuration.md#jwt-validation-via-jwks).
 
-## Verifying Mercure JWTs with RSA and ECDSA Keys
+## Verifying Mercure JWTs with RSA and ECDSA keys
 
 The default algorithm is HS256 (symmetric HMAC). For asymmetric verification (the hub holds only the public key), set the `*_JWT_ALG` environment variable or pass the algorithm as the second argument of the directive:
 
@@ -241,7 +241,7 @@ mercure {
 
 Asymmetric keys keep the signing key off the hub entirely. That's useful when the hub is operated by a different team than the publisher.
 
-## Common Mercure Authorization Errors
+## Common Mercure authorization errors
 
 | Symptom                                    | Cause                                                                                            |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |

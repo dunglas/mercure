@@ -1,9 +1,9 @@
 ---
-title: "Mercure Topics, Matchers, and Subscription Filters"
+title: "Mercure topics, matchers, and subscription filters"
 description: "How subscribers select topics in Mercure 1.0 with exact match, URL Pattern, regular expression, CEL, and URI Template matchers."
 ---
 
-# Topics and Matchers
+# Topics and matchers
 
 A **topic** is the address of an update. A **matcher** is the rule a subscriber uses to say which topics it cares about. Mercure 1.0 supports several matcher types; pick the one that fits the shape of your data.
 
@@ -20,7 +20,7 @@ Topics are arbitrary strings. The protocol recommends URLs because they compose 
 
 Pick a scheme up front and stick to it. URLs are usually the right default; use a custom scheme only when there's no URL that names the thing you're broadcasting.
 
-## Subscribing with Matchers
+## Subscribing with matchers
 
 A subscriber sends one or more `match*` query parameters when opening the SSE connection:
 
@@ -41,7 +41,7 @@ Each parameter starts with the literal string `match`, followed by the matcher t
 
 If a subscriber asks for a matcher type the hub doesn't implement, the hub responds `501 Not Implemented`.
 
-## Exact Matching with the `match` Parameter
+## Exact matching with the `match` parameter
 
 Case-sensitive string comparison. The matcher type the spec mandates every hub support.
 
@@ -55,7 +55,7 @@ new EventSource(url);
 
 The connection above receives updates published with `topic=https://example.com/books/1` or `topic=https://example.com/users/42` (and nothing else).
 
-## URL Pattern Matchers
+## URL pattern matchers
 
 [URL Patterns](https://urlpattern.spec.whatwg.org) are the WHATWG specification used by service workers and modern routers. They're the recommended way to subscribe to a family of URLs.
 
@@ -85,7 +85,7 @@ A topic matches a URL Pattern if the URL Pattern accepts the topic string as a U
 
 > **URL Pattern playground.** The browser ships `URLPattern` natively. You can prototype patterns in the devtools console: `new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")`.
 
-## Regular Expression Matchers (I-Regexp)
+## Regular expression matchers (I-regexp)
 
 `matchRegexp` takes an [I-Regexp](https://www.rfc-editor.org/rfc/rfc9485) regular expression, the interoperable subset that JSON Schema, XPath, and most modern engines agree on.
 
@@ -97,7 +97,7 @@ url.searchParams.append("matchRegexp", "^tenant:acme/.*/error$");
 
 Reach for regular expressions when your topics aren't URLs, or when URL Patterns can't express the thing you need (negative lookaheads, anchors past path segments).
 
-## Common Expression Language (CEL)
+## Common expression language (CEL)
 
 [CEL](https://cel.dev/) is a small, sandboxed expression language used by Kubernetes, gRPC, and Cloud IAM. The hub passes a `topics` array to the expression: index `0` is the canonical topic, the rest are alternates. The expression must return a boolean.
 
@@ -111,7 +111,7 @@ url.searchParams.append(
 
 CEL is the most expressive matcher but also the most expensive. Hubs that implement it apply an evaluation cost limit and treat over-budget expressions as `false`. Use it when neither URL Patterns nor regular expressions can express the predicate, not as the default.
 
-## URI Template Matchers (Backward Compatibility)
+## URI template matchers (backward compatibility)
 
 [URI Templates](https://www.rfc-editor.org/rfc/rfc6570) (`/books/{id}`) were the templating language of choice in Mercure 0.x. They're still supported via `matchURITemplate` for backward compatibility, but new code should use URL Patterns: they handle URLs better and are natively understood by browsers.
 
@@ -120,7 +120,7 @@ CEL is the most expressive matcher but also the most expensive. Hubs that implem
 url.searchParams.append("matchURITemplate", "https://example.com/books/{id}");
 ```
 
-## Combining Matchers
+## Combining matchers
 
 A subscription with several `match*` parameters is a logical OR. There is no way to express AND inside a subscription. If you need that, use CEL.
 
@@ -142,7 +142,7 @@ This subscriber receives:
 - any user-notifications URL, **or**
 - the chat rooms 42 and 99.
 
-## Authorization Claims Use the Same Matcher Types
+## Authorization claims use the same matcher types
 
 The hub uses matchers in two places: at subscription time (which topics does the client want?) and at authorization time (which topics is the client _allowed to use_?). Both share the same matcher vocabulary.
 
@@ -166,11 +166,11 @@ In a JWT, the `mercure.subscribe` and `mercure.publish` claims hold an array of 
 
 `matchType` defaults to `"Exact"` if omitted. The reserved value `"*"` (with `matchType: "Exact"` or omitted) means "every topic." Full details and examples in [Authorization](authorization.md).
 
-## How Matching Works on the Publish Side
+## How matching works on the publish side
 
 When a publisher posts an update with a `topic` (and optionally several alternate `topic` values), the hub runs every connected subscriber's matchers against the topic list. Public updates go to every subscriber whose matchers hit. Private updates additionally check that the subscriber's `mercure.subscribe` claim matches at least one of the topics. See [Publishing](publishing.md) and [Authorization](authorization.md) for the full path.
 
-## Picking a Matcher
+## Picking a matcher
 
 A short rule of thumb:
 

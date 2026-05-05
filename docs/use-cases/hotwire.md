@@ -66,7 +66,7 @@ $update = new Update(
 $hub->publish($update);
 ```
 
-## Disconnecting a Turbo Stream Source from Mercure
+## Disconnecting a Turbo Stream source from Mercure
 
 ```javascript
 // Disconnecting a Turbo Stream Source from Mercure
@@ -78,7 +78,7 @@ disconnectStreamSource(es);
 
 Always disconnect when the page (or component) using the stream goes away.
 
-## A Stimulus Controller for Mercure Turbo Streams
+## A Stimulus controller for Mercure Turbo streams
 
 Wire the stream into a `<div>` and let Stimulus manage its lifecycle:
 
@@ -116,7 +116,7 @@ export default class extends Controller {
 
 The stream goes live on `connect` (when the element enters the DOM) and shuts down on `disconnect`. Turbo Drive navigations don't drop the stream in unexpected ways.
 
-## Private Turbo Streams Over Mercure
+## Private Turbo Streams over Mercure
 
 For per-user or per-team streams (a kanban board only the team's members can see), authorize via cookie:
 
@@ -136,7 +136,7 @@ Publish the Turbo Stream as a private update (`private=on`). Only authorized sub
 
 The cookie should be set during the page render (not in JavaScript) so that `EventSource(url, { withCredentials: true })` already has it. See [Authorization](../concepts/authorization.md#cookies-in-detail).
 
-## Many Streams, One Connection
+## Many streams, one connection
 
 A page often watches several streams: comments, presence, notifications, a sidebar counter. Use `match*` parameters on a single connection rather than spinning up four `EventSource`s:
 
@@ -153,15 +153,15 @@ url.searchParams.append(
 
 Turbo applies whichever stream is in the `data`; the `target` attribute on each `<turbo-stream>` element decides where it lands.
 
-## Hotwire and Mercure Rendering Performance
+## Hotwire and Mercure rendering performance
 
 Turbo Stream HTML is just bytes; no different from JSON for the hub. The cost is on the rendering side: every connected user re-runs `morphdom` (or whichever DOM patcher Turbo uses) on each message. Avoid publishing 100 streams a second to a page; coalesce on the server, or fall back to a JSON delta you render yourself.
 
-## Hotwire Native (iOS / Android)
+## Hotwire native (iOS / Android)
 
 The same Mercure topic works for Hotwire Native apps; the bridge ships an SSE consumer. Use the platform's `EventSource`-equivalent (or [`fetch-event-source`](https://github.com/Azure/fetch-event-source)) and feed bytes into the Turbo Native stream renderer.
 
-## Next Steps for Hotwire Over Mercure
+## Next steps for Hotwire over Mercure
 
 - [Subscribing](../concepts/subscribing.md): `EventSource` details.
 - [Authorization](../concepts/authorization.md): cookies for browsers.

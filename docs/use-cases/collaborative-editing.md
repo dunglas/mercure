@@ -1,13 +1,13 @@
 ---
-title: "Build Collaborative Editing on Mercure with CRDTs"
+title: "Build collaborative editing on Mercure with CRDTs"
 description: "Combine Mercure broadcast, presence, and replay with Yjs or Automerge to build real-time collaborative editing features."
 ---
 
-# Collaborative Editing
+# Collaborative editing
 
 Multiple users edit the same document and see each other's changes in real time. This guide covers the pieces Mercure handles directly (broadcast, presence, replay) and outlines where you still need to bring your own logic (conflict resolution).
 
-## Pieces of a Collaborative Editor on Mercure
+## Pieces of a collaborative editor on Mercure
 
 A working collaborative editor needs:
 
@@ -19,7 +19,7 @@ A working collaborative editor needs:
 
 Mercure handles 1, 3, and partially 5. Bring a CRDT (Yjs, Automerge, Loro) for 2. Use your normal database for 4.
 
-## Broadcasting Document Changes via Mercure
+## Broadcasting document changes via Mercure
 
 Each document has a topic; every change is published to it.
 
@@ -63,7 +63,7 @@ def post_change(doc_id: str, delta: dict, user_id: str) -> None:
 
 Every connected client receives the delta and applies it to their local copy.
 
-## CRDT Conflict Resolution with Mercure Transport
+## CRDT conflict resolution with Mercure transport
 
 Mercure delivers messages; it does not order them across publishers. If you publish raw text edits ("insert 'h' at position 5"), two users typing at once will produce inconsistent results.
 
@@ -95,7 +95,7 @@ The CRDT guarantees convergence; Mercure just ferries the binary updates around.
 
 [Automerge](https://automerge.org/) and [Loro](https://www.loro.dev/) work the same way. Mercure doesn't care what's in the payload.
 
-## Collaborative Presence with Mercure Subscription Events
+## Collaborative presence with Mercure subscription events
 
 Use [subscription events](../concepts/active-subscriptions.md) to show who's connected. Each user's JWT carries a payload with their name and color:
 
@@ -160,7 +160,7 @@ publish(
 )
 ```
 
-## Late Join: Hydrating a Collaborative Document
+## Late join: hydrating a collaborative document
 
 A user opens the doc and needs the latest state, not just the next change.
 
@@ -168,7 +168,7 @@ The simplest approach: serve the current document body as a normal HTTP `GET`, t
 
 For CRDT documents, hydrate the local Yjs doc from the snapshot and replay only the deltas published since.
 
-## Persisting Collaborative Document State
+## Persisting collaborative document state
 
 Mercure is a real-time bus, not a database. Persist:
 
@@ -202,13 +202,13 @@ Documents are usually private. Each user's `mercure.subscribe` claim should cove
 
 Mark every change publication `private=on` so the hub enforces the claim.
 
-## What About the Publish Path?
+## What about the publish path?
 
 If you want clients to publish directly to the hub (skipping the origin server), you can: give them a publisher JWT. But typically you don't. Routing changes through your API lets you persist them, validate them, and rate-limit them. The publish to Mercure is just a fan-out at the end of that pipeline.
 
 > **Pro tip.** Collaborative apps benefit from multi-region deployments. The open-source hub runs on a single node; for HA across regions you'll want [Self-Hosted Mercure](https://mercure.rocks/pricing) with Redis or Postgres transports, or the [managed Cloud version](https://mercure.rocks/pricing).
 
-## Next Steps for Collaborative Editing on Mercure
+## Next steps for collaborative editing on Mercure
 
 - [Active subscriptions](../concepts/active-subscriptions.md): the presence layer in detail.
 - [Reconnection and history](../concepts/reconnection-and-history.md): surviving disconnects.

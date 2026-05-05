@@ -1,9 +1,9 @@
 ---
-title: "Run a Mercure Hub Service Container in GitHub Actions"
+title: "Run a Mercure hub service container in GitHub actions"
 description: "Run a Mercure.rocks Hub as a GitHub Actions service container for integration tests, with healthcheck and JWT publishing."
 ---
 
-# GitHub Actions
+# GitHub actions
 
 Need a Mercure hub for integration tests? Use a [service container](https://docs.github.com/en/actions/using-containerized-services/about-service-containers).
 
@@ -41,7 +41,7 @@ jobs:
 
 The hub is reachable at `http://localhost:1337/.well-known/mercure` from any step. `anonymous` and `cors_origins *` are convenient for tests; don't copy them to production.
 
-## Healthcheck Before Tests Start
+## Healthcheck before tests start
 
 Service containers start in parallel with the job. If your test relies on the hub being responsive, wait for it:
 
@@ -63,7 +63,7 @@ steps:
 
 The hub returns `405 Method Not Allowed` on plain `GET /.well-known/mercure` (no `match=` query parameter). That's the simplest "the hub is alive" check.
 
-## Sending Updates from a Workflow
+## Sending updates from a workflow
 
 To publish from inside a workflow (notify a Mercure-driven status page when a deploy finishes, post a Slack-style notification through your own hub):
 
@@ -82,11 +82,11 @@ To publish from inside a workflow (notify a Mercure-driven status page when a de
 
 Mint the JWT once with a long-lived `exp` and store it as a repository secret. Rotate it when the underlying signing key rotates.
 
-## Existing Mercure GitHub Actions
+## Existing Mercure GitHub actions
 
 - [`Ilshidur/action-mercure`](https://github.com/Ilshidur/action-mercure) wraps the publish call into a reusable Action.
 
-## Tips for Mercure in GitHub Actions Workflows
+## Tips for Mercure in GitHub actions workflows
 
 - **Service containers don't expose Caddy's admin port.** The `2019/mercure/health/ready` endpoint isn't reachable from the job runner. Use the `405` check above for readiness.
 - **Use a fixed port.** `1337` is conventional; pick one that won't collide with other services in your matrix.

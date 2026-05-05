@@ -1,5 +1,5 @@
 ---
-title: "Mercure.rocks Hub License: AGPL-3.0 and Commercial Options"
+title: "Mercure.rocks hub license: AGPL-3.0 and commercial options"
 description: "Licensing for the Mercure protocol (open) and the Mercure.rocks Hub (AGPL-3.0), plus commercial Self-Hosted licensing options."
 ---
 
@@ -12,11 +12,11 @@ Short version:
 - **Software that uses the hub** (publishers, subscribers, your application) is **not affected** by the AGPL. Use any license you want: proprietary, MIT, GPL, anything.
 - For organizations that can't use AGPL software, [commercial licenses are available](https://mercure.rocks/pricing).
 
-## The Mercure Protocol License
+## The Mercure protocol license
 
 The [Mercure specification](../../spec/mercure.md) is published under the [IETF copyright policy](https://trustee.ietf.org/copyright-faq.html). It can be implemented by any software, including proprietary software, with no royalty or attribution requirement.
 
-## The Mercure.rocks Reference Hub License
+## The Mercure.rocks reference hub license
 
 The Mercure.rocks Hub (this repository) is [AGPL-3.0](https://github.com/dunglas/mercure/blob/master/LICENSE).
 
@@ -28,7 +28,7 @@ In practice:
 
 This is the same shape of license as MongoDB Community pre-SSPL: it lets anyone use the hub freely while preventing third parties from running modified versions as a proprietary SaaS without contributing back.
 
-## Commercial Licenses
+## Commercial licenses
 
 If your organization can't use AGPL-3.0 (some compliance teams refuse it categorically), commercial licenses are available:
 
@@ -37,18 +37,18 @@ If your organization can't use AGPL-3.0 (some compliance teams refuse it categor
 
 The commercial license is grant-based and doesn't require contributing modifications back. Your legal team can review the terms before purchase.
 
-## Mercure Trademarks
+## Mercure trademarks
 
 "Mercure" and "Mercure.rocks" are trademarks of Dunglas Services SAS. The trademarks are not licensed under the AGPL: you can't use them in the name of your own product without permission. Implementations that pass [the conformance tests](../ecosystem/conformance-tests.md) may describe themselves as "compatible with the Mercure protocol."
 
-## Contributing to the Mercure.rocks Hub
+## Contributing to the Mercure.rocks hub
 
 Contributions are welcome under AGPL-3.0. By submitting a pull request you agree to license your contribution under the same terms as the rest of the project. See [CONTRIBUTING.md](https://github.com/dunglas/mercure/blob/main/CONTRIBUTING.md) for the development workflow.
 
-## Mercure Patent Grant
+## Mercure patent grant
 
 The AGPL-3.0 includes an explicit patent grant from contributors. The protocol itself, published as an IETF Internet-Draft, is subject to the IETF's patent policy.
 
-## Mercure Licensing Questions
+## Mercure licensing questions
 
 For licensing questions that aren't answered here, email [contact@mercure.rocks](mailto:contact@mercure.rocks).

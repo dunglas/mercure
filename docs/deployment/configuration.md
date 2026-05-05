@@ -1,5 +1,5 @@
 ---
-title: "Mercure.rocks Hub Configuration: Caddyfile and Environment Variables"
+title: "Mercure.rocks hub configuration: Caddyfile and environment variables"
 description: "Configure the Mercure.rocks Hub with Caddyfile directives, environment variables, transports, CORS, and JWKS validation."
 ---
 
@@ -35,7 +35,7 @@ http://hub.example.com:80 {
 
 Setting the port to 80 also disables HTTPS implicitly.
 
-## Mercure Directives
+## Mercure directives
 
 | Directive                                      | Description                                                                                                               | Default                |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
@@ -59,7 +59,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 
 The directives marked dev-only (`demo`, `ui`, `anonymous`) are off by default in production. Don't enable them on a hub that serves real users.
 
-## Mercure Hub Environment Variables
+## Mercure hub environment variables
 
 The Docker image and the official Caddyfile read these:
 
@@ -78,11 +78,11 @@ The Docker image and the official Caddyfile read these:
 
 `MERCURE_EXTRA_DIRECTIVES` is convenient for quick tweaks but **don't put credentials there** (transport passwords, JWKS URLs with tokens). Write a custom Caddyfile and use `{env.MY_SECRET}` for those.
 
-## Mercure Hub Transports
+## Mercure hub transports
 
 The transport stores history and (in clustered builds) synchronizes between nodes.
 
-### Bolt Transport (Default, Single-Node)
+### Bolt transport (default, single-node)
 
 ```caddyfile
 # Bolt transport (default, single-node)
@@ -105,7 +105,7 @@ mercure {
 
 The open-source build keeps history forever by default. Set `size` if you want a cap.
 
-### Local Transport (No History)
+### Local transport (no history)
 
 `transport local` disables history entirely. Use it when reconnect replay isn't needed and you want the lowest possible memory footprint.
 
@@ -130,7 +130,7 @@ mercure {
 
 If your app and hub run on the same registrable domain (e.g. `example.com` and `hub.example.com`), the hub can be reached without CORS at all by going through a reverse proxy that mounts the hub on the app's origin. See [Reverse proxies](reverse-proxy.md).
 
-## JWT Validation via JWKS
+## JWT validation via JWKS
 
 When tokens are minted by an external IdP (Keycloak, Cognito, Auth0):
 
@@ -144,7 +144,7 @@ mercure {
 
 The hub fetches and caches the keys, validates each token's `kid` against them, and rotates automatically when the IdP rotates. Token issuance stays with the IdP; the hub only verifies.
 
-## RSA / ECDSA Keys
+## RSA / ECDSA keys
 
 ```console
 # RSA / ECDSA keys
@@ -163,7 +163,7 @@ MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
 ./mercure run
 ```
 
-## Mercure Hub Health Check Endpoints
+## Mercure hub health check endpoints
 
 The Caddy admin API (default `localhost:2019`) exposes:
 
@@ -176,7 +176,7 @@ The Caddy admin API (default `localhost:2019`) exposes:
 
 The endpoints bind to `localhost` for security. Probes from outside the container should use `kubectl exec` or `docker exec` (see [Health monitoring](../production/health-monitoring.md)). Binding the admin API to `0.0.0.0:2019` works but exposes `/stop` and `/load` to the pod network. Almost never what you want.
 
-## Mercure Hub Performance Tuning
+## Mercure hub performance tuning
 
 A few knobs that move the needle:
 
@@ -187,11 +187,11 @@ A few knobs that move the needle:
 
 [Load testing](../production/load-testing.md) and [Debugging](../production/debugging.md) cover the rest.
 
-## Mercure Hub Configuration Reload
+## Mercure hub configuration reload
 
 Caddy hot-reloads on signal: `kill -USR1 <pid>` or `caddy reload`. Active SSE connections are preserved across reloads as long as the listening sockets don't change.
 
-## Mercure Hub Runtime Introspection
+## Mercure hub runtime introspection
 
 The Caddy admin API also exposes:
 
