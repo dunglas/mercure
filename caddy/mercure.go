@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -194,6 +196,38 @@ func (m *Mercure) populateJWTConfig() error {
 	return nil
 }
 
+// newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
+//
+// Supported schemes are http, https and file. file:// URLs point to a local
+// JSON file containing a JWK Set; the file is read once at provision time, so
+// rotating the keys requires a Caddy config reload.
+func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWK Set URL %q: %w", rawURL, err)
+	}
+
+	if u.Scheme == "file" {
+		if u.Host != "" && u.Host != "localhost" {
+			return nil, fmt.Errorf("file:// JWK Set URL must not have a host component, got %q", u.Host) //nolint:err113
+		}
+
+		b, err := os.ReadFile(u.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read JWK Set file %q: %w", u.Path, err)
+		}
+
+		k, err := keyfunc.NewJWKSetJSON(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse JWK Set file %q: %w", u.Path, err)
+		}
+
+		return k, nil
+	}
+
+	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
+}
+
 type stoppingHandlerFunc func()
 
 func (s stoppingHandlerFunc) Handle(_ context.Context, _ caddy.Event) error {
@@ -278,7 +312,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	if m.PublisherJWKSURL != "" {
-		k, err := keyfunc.NewDefaultCtx(ctx, []string{m.PublisherJWKSURL})
+		k, err := newJWKSetKeyfunc(ctx, m.PublisherJWKSURL)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve publisher JWK Set: %w", err)
 		}
@@ -289,7 +323,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	if m.SubscriberJWKSURL != "" {
-		k, err := keyfunc.NewDefaultCtx(ctx, []string{m.SubscriberJWKSURL})
+		k, err := newJWKSetKeyfunc(ctx, m.SubscriberJWKSURL)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve subscriber JWK Set: %w", err)
 		}
