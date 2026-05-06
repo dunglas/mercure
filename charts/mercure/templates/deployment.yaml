@@ -12,34 +12,27 @@ spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- else if .Release.IsInstall }}
-  # Seed the Deployment at minReplicas on fresh install so the HPA
-  # doesn't have to scale up from Kubernetes' default of 1. On
-  # subsequent upgrades, the field is omitted so the HPA keeps full
-  # ownership of the replica count.
+  # Seed at minReplicas on fresh install so the HPA doesn't have to scale
+  # up from k8s' default of 1. Omitted on upgrade so the HPA keeps ownership.
   replicas: {{ .Values.autoscaling.minReplicas }}
   {{- end }}
   strategy:
     type: {{ .Values.updateStrategy.type }}
     {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
-    # Rotate one pod at a time without dropping capacity. Each pod
-    # termination closes its in-flight SSE subscribers; keeping the pace
-    # slow lets the ingress and the transport absorb each batch of
-    # reconnects separately instead of as a single storm.
+    # Rotate one pod at a time without dropping capacity. Pacing is slow
+    # on purpose so the ingress and transport absorb SSE reconnects in
+    # batches instead of as a single storm.
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
     {{- end }}
   {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
-  # Delay marking a newly-Ready pod as Available by 30s, which paces the
-  # rolling update (combined with maxSurge=1, maxUnavailable=0 the next
-  # pod only rotates out after the current one has been Available for
-  # this long). Gives the transport backend loops (BoltDB warm-up, or
-  # the Enterprise transport loops) time to reach steady state before
-  # the Deployment hands more of the rollout to them.
+  # 30s gap between Ready and Available paces the rollout (with
+  # maxSurge=1/maxUnavailable=0) and lets transport loops (BoltDB warm-up,
+  # Enterprise loops) reach steady state before the next pod rotates.
   minReadySeconds: 30
-  # Raise the default k8s progress deadline (600s) so `helm upgrade --wait`
-  # doesn't flag ProgressDeadlineExceeded while a pod is draining SSE
-  # connections within its terminationGracePeriodSeconds window.
+  # Raise the k8s default (600s) so `helm upgrade --wait` doesn't trip
+  # ProgressDeadlineExceeded while a pod drains SSE within its grace period.
   progressDeadlineSeconds: {{ .Values.progressDeadlineSeconds }}
   {{- end }}
   selector:
@@ -55,21 +48,17 @@ spec:
       {{- end }}
       labels:
         {{- include "mercure.labels" . | nindent 8 }}
-        # Merge so the chart's component label always wins over user podLabels:
-        # the NetworkPolicy podSelector relies on it. Safe to add post-install
-        # because the Deployment's immutable spec.selector doesn't reference it.
-        # `default dict` keeps the merge null-safe when podLabels is null/unset.
+        # Component label must win over user podLabels: the NetworkPolicy
+        # podSelector relies on it. Safe post-install because the
+        # Deployment's immutable spec.selector doesn't reference it.
         {{- $podLabels := merge (dict "app.kubernetes.io/component" "server") (.Values.podLabels | default dict) }}
         {{- toYaml $podLabels | nindent 8 }}
     spec:
       {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
-      # Driven by .Values.terminationGracePeriodSeconds so the hub can
-      # gracefully drain SSE subscribers at their own writeTimeout pace
-      # before k8s SIGKILLs the pod. Only set when RollingUpdate is in
-      # effect; with Recreate (used e.g. for BoltDB+persistence single-pod
-      # deployments) a long grace period would extend the downtime window
-      # because the replacement Pod isn't created until the old one fully
-      # terminates.
+      # Lets the hub drain SSE at its own writeTimeout before SIGKILL.
+      # Skipped under Recreate (e.g. BoltDB+persistence single-pod): the
+      # replacement Pod waits for full termination, so a long grace period
+      # would just extend downtime.
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- end }}
       {{- with .Values.imagePullSecrets }}
@@ -77,15 +66,11 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "mercure.serviceAccountName" . }}
-      # Force the SA-token automount setting onto the pod spec too, so it
-      # holds even when `serviceAccount.create=false` and the user points
-      # at an existing SA whose `automountServiceAccountToken` is true.
+      # Set on the pod too so it holds when `serviceAccount.create=false`
+      # points at an existing SA with `automountServiceAccountToken: true`.
       automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
-      # Mercure does not read service-discovery env vars, and on
-      # crowded namespaces (multi-tenant SaaS, shared dev clusters)
-      # the default exposes every neighbouring Service's host/port to
-      # the pod. Keep it off; the rest of the chart's hardening is
-      # opinionated the same way.
+      # Off because Mercure doesn't read service-discovery env vars; the
+      # default leaks every neighbour Service's host/port into the pod.
       enableServiceLinks: false
       {{- with .Values.podSecurityContext }}
       securityContext:
@@ -161,14 +146,12 @@ spec:
           {{- if .Values.extraEnvs }}
             {{- toYaml .Values.extraEnvs | nindent 12 }}
           {{- end }}
-          # /data, /config, and /tmp are mounted unconditionally so the chart
-          # works under `readOnlyRootFilesystem: true` regardless of which
-          # transport is in use. Caddy writes its autosave config under
-          # XDG_CONFIG_HOME=/config and its instance UUID + module data under
-          # `caddy.AppDataDir()` (/data), so both paths must be writable for
-          # any module that uses storage (e.g. the rate_limit module). When
-          # `persistence.enabled` is true, /data is the PVC; otherwise it
-          # falls back to an emptyDir, matching /config and /tmp.
+          # /data, /config, /tmp are always mounted so the chart works under
+          # `readOnlyRootFilesystem: true` whatever the transport. Caddy writes
+          # its autosave config to /config (XDG_CONFIG_HOME) and its instance
+          # UUID + module data to /data (`caddy.AppDataDir()`); both must be
+          # writable for any module that uses storage (e.g. `rate_limit`).
+          # /data is the PVC when `persistence.enabled`, otherwise an emptyDir.
           volumeMounts:
             - mountPath: /data
               name: mercure-data
@@ -184,9 +167,9 @@ spec:
               containerPort: {{ .Values.adminPort | default .Values.metrics.port }}
               protocol: TCP
           {{- if .Values.healthCheck.enabled }}
-          # Probes run inside the container via wget (curl isn't in caddy:2-alpine).
-          # 127.0.0.1 (not localhost) because BusyBox wget prefers ::1, which Caddy's
-          # IPv4-only admin listener refuses.
+          # Probes use wget (no curl in caddy:2-alpine) and 127.0.0.1 (not
+          # localhost): BusyBox wget prefers ::1, which Caddy's IPv4-only
+          # admin listener refuses.
           readinessProbe:
             exec:
               command: ["wget", "-q", "--spider", "http://127.0.0.1:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/ready"]
@@ -217,7 +200,7 @@ spec:
           lifecycle:
             preStop:
               exec:
-                # wget is used because curl is not shipped in the caddy:2-alpine base image.
+                # wget because caddy:2-alpine doesn't ship curl.
                 command: ["wget", "-q", "-O", "-", "--post-data=", "http://127.0.0.1:{{ .Values.adminPort | default .Values.metrics.port }}/stop"]
       {{- with .Values.nodeSelector }}
       nodeSelector:

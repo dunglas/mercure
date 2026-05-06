@@ -99,25 +99,19 @@ replicaCount: 1
 updateStrategy:
   type: RollingUpdate
 
-# -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout` plus a
-# margin so the hub's graceful SSE drain (subscribers close at their own
-# write deadline) finishes before k8s SIGKILLs the pod. Default matches
-# Mercure's DefaultWriteTimeout (600s) plus a 60s margin. Only applied
-# when `updateStrategy.type` is `RollingUpdate` — with `Recreate` we
-# intentionally leave k8s to use its default (30s) to minimize the
-# downtime window between old-pod-gone and new-pod-ready.
+# -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout` so SSE
+# subscribers drain at their own write deadline before k8s SIGKILLs the pod.
+# Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin.
+# Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s)
+# to minimize the gap between old pod gone and new pod ready.
 terminationGracePeriodSeconds: 660
 
-# -- Deployment `spec.progressDeadlineSeconds`. A rolling update of a hub
-# with live SSE subscribers can legitimately spend up to
-# `terminationGracePeriodSeconds` on each pod while the old replica
-# drains — well above the k8s default of 600s. Too-low values make
-# `helm upgrade --wait` (and similar CI gates) fail with
-# `ProgressDeadlineExceeded` even though the rollout is healthy. Default
-# covers a 2-pod rolling update with the defaults above; for larger
-# `replicaCount`, scale up accordingly (roughly `replicaCount ×
-# (terminationGracePeriodSeconds + minReadySeconds)` plus a safety
-# margin). Only applied when `updateStrategy.type` is `RollingUpdate`.
+# -- Deployment `spec.progressDeadlineSeconds`. A rolling update can spend
+# up to `terminationGracePeriodSeconds` per pod draining SSE, so the k8s
+# default (600s) trips `ProgressDeadlineExceeded` on healthy rollouts.
+# Default fits a 2-pod rollout; scale up for larger `replicaCount`
+# (roughly `replicaCount × (terminationGracePeriodSeconds + minReadySeconds)`
+# plus a margin). Only applied with `RollingUpdate`.
 progressDeadlineSeconds: 1800
 
 image:
@@ -140,8 +134,8 @@ serviceAccount:
   create: true
   # -- Automatically mount a ServiceAccount's API credentials in hub pods.
   # Defaults to false: Mercure does not call the Kubernetes API, so the
-  # projected token is unused attack surface. Set to true if a custom
-  # Caddy module, sidecar, or init container relies on the in-pod token.
+  # token is unused attack surface. Enable for sidecars or modules that
+  # need the in-pod token.
   automount: false
   # -- Annotations to add to the service account.
   annotations: {}
@@ -237,11 +231,9 @@ httpRoute:
   hostnames:
     - mercure-example.local
   # -- List of rules and filters applied. When empty, a default rule
-  # routing all traffic to the service is created with
-  # `timeouts.request: 0s` so long-lived SSE subscriptions aren't cut
-  # by the gateway (most controllers default to a finite timeout, e.g.
-  # Envoy: 15s). Mercure's own `write_timeout` (default 600s) drives
-  # subscriber rotation.
+  # routes all traffic with `timeouts.request: 0s` so long-lived SSE
+  # subscriptions aren't cut by the gateway (Envoy defaults to 15s).
+  # Mercure's own `write_timeout` (600s) drives subscriber rotation.
   # @default -- See [values.yaml](values.yaml).
   rules: []
   # rules:
@@ -284,17 +276,15 @@ httpRoute:
 networkPolicy:
   # -- Enable the NetworkPolicy.
   enabled: false
-  # -- `policyTypes` for the NetworkPolicy. The chart always renders both
-  # `ingress` and `egress` (defaulting to empty lists), so Kubernetes infers
-  # `policyTypes: [Ingress, Egress]`. Override (e.g. to `[Ingress]`) to opt
-  # out of egress restrictions.
+  # -- `policyTypes` for the NetworkPolicy. The chart always renders empty
+  # `ingress` and `egress` lists, so Kubernetes infers
+  # `policyTypes: [Ingress, Egress]`. Set to `[Ingress]` to skip egress.
   policyTypes: []
   # policyTypes:
   #   - Ingress
   #   - Egress
-  # -- Ingress rules (allowed inbound traffic). Pass-through to NetworkPolicy
-  # `spec.ingress`. With `policyTypes: [Ingress]` and `ingress: []`, all
-  # inbound traffic is denied.
+  # -- Ingress rules (allowed inbound traffic). Pass-through to
+  # `spec.ingress`. Empty list + `policyTypes: [Ingress]` denies all inbound.
   ingress: []
   # ingress:
   #   - from:
@@ -304,9 +294,8 @@ networkPolicy:
   #     ports:
   #     - protocol: TCP
   #       port: 80
-  # -- Egress rules (allowed outbound traffic). Pass-through to NetworkPolicy
-  # `spec.egress`. Allow at least DNS (UDP/TCP 53 to kube-system) plus the
-  # transport backend port.
+  # -- Egress rules (allowed outbound traffic). Pass-through to `spec.egress`.
+  # Allow at least DNS (UDP/TCP 53 to kube-system) plus the transport port.
   egress: []
   # egress:
   #   - to:
@@ -319,11 +308,10 @@ networkPolicy:
   #     - protocol: TCP
   #       port: 53
 
-# -- [CiliumNetworkPolicy](https://docs.cilium.io/en/stable/security/policy/) for
-# the hub pods. Use this on Cilium-enabled clusters when you need features that
-# the standard NetworkPolicy spec does not support (FQDN-based egress, L7 rules,
-# explicit deny rules, etc.). Independent of `networkPolicy.enabled` — enable
-# whichever your CNI supports.
+# -- [CiliumNetworkPolicy](https://docs.cilium.io/en/stable/security/policy/)
+# for the hub pods. Use on Cilium clusters for features the standard
+# NetworkPolicy lacks (FQDN-based egress, L7 rules, explicit deny).
+# Independent of `networkPolicy.enabled`; enable whichever your CNI supports.
 # @default -- Disabled by default.
 ciliumNetworkPolicy:
   # -- Enable the CiliumNetworkPolicy. Requires the `cilium.io/v2` CRDs to be
@@ -371,10 +359,7 @@ ciliumNetworkPolicy:
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
 # @default -- No requests or limits.
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # No defaults: leave the choice to the user. Set per your workload.
   # limits:
   #   cpu: 100m
   #   memory: 128Mi
@@ -431,10 +416,9 @@ affinity: {}
 #        {{- include "mercure.selectorLabels" . | nindent 8 }}
 
 # -- Switch /data from an emptyDir to a [Persistent Volume Claim](http://kubernetes.io/docs/user-guide/persistent-volumes/).
-# The chart always mounts /data so any module that writes under
-# `caddy.AppDataDir()` (e.g. `rate_limit`) works under
-# `readOnlyRootFilesystem: true`. Enable persistence when you need /data
-# to survive pod restarts, typically with the default BoltDB transport.
+# /data is always mounted so modules writing under `caddy.AppDataDir()`
+# (e.g. `rate_limit`) work under `readOnlyRootFilesystem: true`. Enable
+# persistence when /data must survive pod restarts (typical with BoltDB).
 persistence:
   enabled: false
   # -- Mercure Data Persistent Volume Storage Class.
