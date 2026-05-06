@@ -156,35 +156,31 @@ podAnnotations: {}
 podLabels: {}
 
 # -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
-# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details.
-# `seccompProfile.type: RuntimeDefault` is set by default: it engages the
-# container runtime's seccomp profile (blocks rare/unsafe syscalls) without
-# affecting Mercure, and is a prerequisite for the restricted PodSecurity
-# Standard. Override with `{}` if your cluster forbids seccompProfile on pods.
+# Defaults target the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted).
+# `fsGroup` makes the chart's writable volumes (/data, /config, /tmp) group-writable
+# by the rootless container; `OnRootMismatch` skips re-chowning PVCs on every restart.
+# Override with `{}` if your cluster forbids these fields.
 podSecurityContext:
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
   seccompProfile:
     type: RuntimeDefault
-  # fsGroup: 2000
 
 # -- Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container).
-# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details.
-# Rootless setups can drop ALL capabilities and bind directly on ports 80/443:
-# the binary no longer carries `cap_net_bind_service` as a file capability,
-# and modern container runtimes (containerd 1.5+, cri-o) set
-# `net.ipv4.ip_unprivileged_port_start=0` inside the container, so any
-# unprivileged process can bind any port. On older runtimes, set
-# `service.targetPort` to an unprivileged port (e.g. `8080`); the Service
-# still exposes `:80` to the cluster. The chart mounts `/data`, `/config`,
-# and `/tmp` as writable volumes so `readOnlyRootFilesystem: true` works
-# out of the box.
-securityContext: {}
-  # allowPrivilegeEscalation: false
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+# Defaults satisfy the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted):
+# rootless UID/GID 1000, no caps, no privilege escalation, read-only rootfs.
+# Binding to :80 relies on `net.ipv4.ip_unprivileged_port_start=0`, set by
+# containerd 1.5+ and cri-o. On older runtimes, set `service.targetPort` to
+# an unprivileged port (e.g. `8080`). Override with `{}` to opt out.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
 
 deployment:
   # -- Annotations to be added to the deployment.
