@@ -11,14 +11,36 @@ A **topic** is the address of an update. A **matcher** is the rule a subscriber 
 
 ## Topics
 
-Topics are arbitrary strings. The protocol recommends URLs because they compose well with hypermedia APIs (REST, JSON-LD, Atom), but anything works:
+Topics are arbitrary strings. Anything works:
 
 - `https://example.com/books/42`
 - `chat-room-1234`
 - `urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022`
 - `tenant:acme/orders/new`
 
-Pick a scheme up front and stick to it. URLs are usually the right default; use a custom scheme only when there's no URL that names the thing you're broadcasting.
+### Why URLs are the recommended identifier
+
+URLs (more precisely, [URIs](https://www.rfc-editor.org/rfc/rfc3986)) are the web's native identifier standard. Using them as Mercure topics is a best practice for the same reasons REST uses URIs to name resources:
+
+- **Resources already have URLs.** If your application exposes `https://example.com/books/42`, that URL already identifies the book. Reusing it as the Mercure topic means subscribers and publishers reference the same thing in the same way, end to end.
+- **Globally unique by construction.** A URL is unique within its domain and unique across domains. You don't need to coordinate a separate naming scheme between services.
+- **Hypermedia-friendly.** URLs compose with `Link: rel="self"`, `JSON-LD` `@id`, Atom `<id>`, ActivityPub, OpenAPI, and every other web standard that already names things by URL. The same URL drops into a `fetch()`, an `<a href>`, a Mercure `match=`, and a database join.
+- **Tooling understands them.** Browsers, log aggregators, IDEs, and the URL Pattern matcher all parse and validate URLs out of the box. Path-based routing and per-segment matching come for free.
+- **REST principle.** A topic is a resource that publishers update and subscribers observe. Resources have URIs. Naming the topic with the resource's URI keeps the protocol uniform with the rest of your HTTP surface.
+
+When you control the resource the update is about, the natural topic is its canonical URL.
+
+### When to use a non-URL identifier
+
+URLs aren't mandatory. Slugs, UUIDs, custom URN schemes, or any other string can be a topic. Use them when the thing being broadcast doesn't have a meaningful URL:
+
+- Ephemeral or in-memory channels: `chat-room-1234`, `lobby:42`.
+- Domain identifiers that aren't web-addressable: `urn:uuid:...`, `did:...`.
+- Internal namespaced events from a single service: `tenant:acme/orders/new`.
+
+Subscribers match these with `matchExact` (full-string match) or [`matchRegexp`](#regular-expression-matchers-i-regexp) (pattern match against the raw string). The hub doesn't care; it treats topics as opaque bytes.
+
+Pick a scheme up front and stick to it. URLs are usually the right default; reach for a custom scheme only when there's no URL that names the thing you're broadcasting.
 
 ## Subscribing with matchers
 

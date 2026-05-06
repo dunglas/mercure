@@ -11,9 +11,11 @@ The official Helm chart is the path of least resistance.
 # Kubernetes
 helm repo add mercure https://charts.mercure.rocks
 helm install mercure mercure/mercure \
-  --set jwt.publisherKey='!ChangeThisMercureHubJWTSecretKey!' \
-  --set jwt.subscriberKey='!ChangeThisMercureHubJWTSecretKey!'
+  --set publisherJwtKey='!ChangeThisMercureHubJWTSecretKey!' \
+  --set subscriberJwtKey='!ChangeThisMercureHubJWTSecretKey!'
 ```
+
+For real deployments, store the keys in a Kubernetes `Secret` and point the chart at it with `existingSecret` (the chart reads `publisher-jwt-key` and `subscriber-jwt-key` from the named secret) instead of passing keys on the command line.
 
 Default values produce a single-replica deployment with BoltDB, a `ClusterIP` service, and SSE-aware rolling-update settings. The full list of values lives in the [chart README](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md).
 
@@ -29,13 +31,15 @@ You don't have to know these to use the chart. You do have to know them if you c
 
 ## Production Helm values for the Mercure hub
 
+The open-source chart defaults to a single replica with BoltDB. That's the right shape for the open-source build: BoltDB is local to each pod, so multi-replica setups require a shared transport (see the Self-Hosted block at the end of this page).
+
 ```yaml
 # values.yaml
-replicaCount: 3
+replicaCount: 1
 
-jwt:
-  publisherKey: "{{ .Values.publisherSecret }}" # use a Secret in real life
-  subscriberKey: "{{ .Values.subscriberSecret }}"
+# Read the JWT keys from a Kubernetes Secret you create separately.
+# The Secret must contain "publisher-jwt-key" and "subscriber-jwt-key".
+existingSecret: mercure-jwt
 
 ingress:
   enabled: true
@@ -59,14 +63,21 @@ resources:
     cpu: 1
     memory: 1Gi
 
-extraEnv:
-  - name: MERCURE_EXTRA_DIRECTIVES
-    value: |
-      cors_origins https://app.example.com
-      subscriptions
+extraDirectives: |
+  cors_origins https://app.example.com
+  subscriptions
 ```
 
-For multi-replica deployments, use a transport that synchronizes between pods. The open-source build only supports BoltDB (single-node); for Redis, Postgres, Kafka, or Pulsar, [Self-Hosted Mercure](https://mercure.rocks/pricing) ships those transports.
+Create the JWT Secret once before installing the chart:
+
+```console
+# JWT Secret
+kubectl create secret generic mercure-jwt \
+  --from-literal=publisher-jwt-key='!ChangeThisMercureHubJWTSecretKey!' \
+  --from-literal=subscriber-jwt-key='!ChangeThisMercureHubJWTSecretKey!'
+```
+
+For multi-replica deployments, use a transport that synchronizes between pods. The open-source build only supports BoltDB (single-node); for Redis, Postgres, Kafka, or Pulsar, [Self-Hosted Mercure](https://mercure.rocks/pricing) ships those transports. See [Multi-node and self-hosted](#multi-node-and-self-hosted) below.
 
 > **Pro tip.** Running more than one replica with the open-source build is possible if every pod handles its own slice of the topics (sticky load balancing on a hash of the topic). It's fragile: losing a pod loses its history. The Self-Hosted Redis transport replaces that with a real cluster: any replica can serve any subscriber, and the history is centralized.
 
@@ -175,19 +186,19 @@ The chart supports the multi-node transports out of the box. Set `image.reposito
 
 ```yaml
 # values.yaml
+replicaCount: 3
+
 image:
   repository: registry.mercure.rocks/mercure-enterprise
   tag: 1.0.0
 
 license: "<your license key>"
 
-extraEnv:
-  - name: MERCURE_EXTRA_DIRECTIVES
-    value: |
-      transport redis {
-        url rediss://default:p@ssw0rd@redis.example.com:6379
-        stream mercure
-      }
+extraDirectives: |
+  transport redis {
+    url rediss://default:p@ssw0rd@redis.example.com:6379
+    stream mercure
+  }
 ```
 
 The license is checked in-process; no callback to a license server.

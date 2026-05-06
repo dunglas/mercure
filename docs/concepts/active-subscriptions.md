@@ -37,7 +37,6 @@ url.searchParams.append(
   "matchURLPattern",
   "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
 );
-url.searchParams.append("withCredentials", true);
 new EventSource(url, { withCredentials: true });
 ```
 

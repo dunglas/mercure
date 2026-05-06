@@ -85,7 +85,7 @@ Apollo and other GraphQL clients accept a custom transport. Hand them an SSE-bac
 
 ```javascript
 // Apollo Client Mercure SSE Transport
-import { ApolloClient, InMemoryCache, split, HttpLink } from "@apollo/client";
+import { ApolloClient, InMemoryCache, split, HttpLink, Observable } from "@apollo/client";
 import { getMainDefinition } from "@apollo/client/utilities";
 
 const httpLink = new HttpLink({ uri: "/graphql" });
@@ -93,21 +93,33 @@ const httpLink = new HttpLink({ uri: "/graphql" });
 const sseLink = {
   request: ({ query, variables, operationName }) =>
     new Observable((observer) => {
+      let es;
+      const controller = new AbortController();
+
       // Ask the server for the subscription topic
       fetch("/graphql", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, variables, operationName }),
+        signal: controller.signal,
       })
         .then((r) => r.json())
         .then(({ data: { topic } }) => {
           const url = new URL("https://hub.example.com/.well-known/mercure");
           url.searchParams.append("match", topic);
-          const es = new EventSource(url, { withCredentials: true });
+          es = new EventSource(url, { withCredentials: true });
           es.onmessage = (e) => observer.next(JSON.parse(e.data));
           es.onerror = (e) => observer.error(e);
-          return () => es.close();
+        })
+        .catch((err) => {
+          if (err.name !== "AbortError") observer.error(err);
         });
+
+      // Synchronous teardown: close the SSE if it opened, abort the fetch if it didn't.
+      return () => {
+        controller.abort();
+        if (es) es.close();
+      };
     }),
 };
 

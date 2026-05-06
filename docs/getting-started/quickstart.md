@@ -7,7 +7,7 @@ description: "Run the Mercure.rocks Hub locally with Docker, subscribe with Even
 
 This guide gets you from zero to a real-time update in your browser in five minutes. We'll run a hub locally with Docker, subscribe from a one-liner HTML page, and publish from `curl`.
 
-If you already have a hub running, jump to [Subscribe](#subscribe) or [Publish](#publish).
+If you already have a hub running, jump to [Subscribe](#subscribe-to-a-mercure-topic-from-the-browser) or [Publish](#publish-a-mercure-update-with-curl).
 
 ## Run the Mercure hub locally with Docker
 

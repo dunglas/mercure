@@ -49,7 +49,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `cookie_name <name>`                           | Cookie that carries the JWT for browser clients.                                                                          | `mercureAuthorization` |
 | `subscriptions`                                | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                               | off                    |
 | `heartbeat <duration>`                         | Interval between SSE heartbeat comments. `0s` to disable.                                                                 | `40s`                  |
-| `transport <name> [{ <options...> }]`          | Transport configuration. See [Transports](#transports).                                                                   | `bolt`                 |
+| `transport <name> [{ <options...> }]`          | Transport configuration. See [Transports](#mercure-hub-transports).                                                       | `bolt`                 |
 | `dispatch_timeout <duration>`                  | Max time to dispatch one update to one subscriber. `0s` disables.                                                         | `5s`                   |
 | `write_timeout <duration>`                     | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).          | `600s`                 |
 | `topic_selector_cache <maxEntries> [<shards>]` | Cache for matcher evaluations. `-1` to disable, `0` for unbounded.                                                        | `10000 256`            |
