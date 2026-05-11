@@ -100,7 +100,7 @@ jobs:
 
       - name: Install playwright browsers
         working-directory: conformance-tests/
-        run: npx playwright install --with-deps
+        run: npx playwright install
 
       - name: Run Playwright tests
         working-directory: conformance-tests/
