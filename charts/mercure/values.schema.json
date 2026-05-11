@@ -213,11 +213,12 @@
     "nodeSelector": { "type": "object" },
     "tolerations": { "type": "array", "items": { "type": "object" } },
     "affinity": { "type": "object" },
+    "topologySpreadConstraints": { "type": "string" },
     "persistence": {
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
-        "storageClass": { "type": "string" },
+        "storageClass": { "type": ["string", "null"] },
         "accessMode": { "type": "string" },
         "size": { "type": "string" },
         "existingClaim": { "type": "string" }
