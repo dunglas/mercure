@@ -101,7 +101,7 @@ jobs:
       - name: Install playwright browsers
         working-directory: conformance-tests/
         timeout-minutes: 5
-        run: npx playwright install
+        run: npx playwright install --with-deps
 
       - name: Run Playwright tests
         working-directory: conformance-tests/
