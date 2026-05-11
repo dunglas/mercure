@@ -1,0 +1,3 @@
+draft: 7
+output: values.schema.json
+useHelmDocs: true

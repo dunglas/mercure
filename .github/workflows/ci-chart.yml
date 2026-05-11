@@ -17,6 +17,23 @@ env:
   DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
 jobs:
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+
+      - name: Regenerate values.schema.json
+        uses: losisin/helm-values-schema-json-action@v2
+        with:
+          working-directory: charts/mercure
+          fail-on-diff: true
+
   lint-test:
     runs-on: ubuntu-latest
     env:

@@ -102,6 +102,7 @@ Kubernetes: `>=1.23.0-0`
 | subscriberJwtKey | string | `""` | The JWT key to use for subscribers, a random key will be generated if empty. |
 | terminationGracePeriodSeconds | int | `660` | Pod terminationGracePeriodSeconds. Must be >= `write_timeout` so SSE subscribers drain at their own write deadline before k8s SIGKILLs the pod. Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin. Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s) to minimize the gap between old pod gone and new pod ready. |
 | tolerations | list | `[]` | [Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for node taints. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
+| topologySpreadConstraints | string | `""` | [Topology spread constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) rendered into the pod spec. Evaluated as a Helm template, so it can reference `mercure.selectorLabels`. |
 | transportUrl | string | `""` | Deprecated: The URL representation of the transport to use. |
 | updateStrategy | object | `{"type":"RollingUpdate"}` | [Deployment strategy type](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy). Useful to set it to 'Recreate' when using BoltDB transport with persistence. |
 

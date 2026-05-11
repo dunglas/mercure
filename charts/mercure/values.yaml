@@ -47,7 +47,7 @@ existingSecret: ""
 license: ""
 
 # -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
-adminPort: 2019
+adminPort: 2019 # @schema minimum:1;maximum:65535
 
 # -- Transport-aware health checks exposed via the Caddy admin API.
 # When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live
@@ -56,15 +56,15 @@ healthCheck:
   # -- Enable transport-aware health checks.
   enabled: true
   readiness:
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    timeoutSeconds: 3
-    failureThreshold: 2
+    initialDelaySeconds: 5 # @schema minimum:0
+    periodSeconds: 5 # @schema minimum:1
+    timeoutSeconds: 3 # @schema minimum:1
+    failureThreshold: 2 # @schema minimum:1
   liveness:
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
+    initialDelaySeconds: 15 # @schema minimum:0
+    periodSeconds: 10 # @schema minimum:1
+    timeoutSeconds: 5 # @schema minimum:1
+    failureThreshold: 3 # @schema minimum:1
 
 metrics:
   # -- Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value.
@@ -73,7 +73,7 @@ metrics:
   # }
   enabled: false
   # -- Deprecated: The port to use for exposing the metrics (use adminPort instead).
-  port: 2019
+  port: 2019 # @schema minimum:1;maximum:65535
 
   serviceMonitor:
     # -- Whether to create a ServiceMonitor for Prometheus Operator.
@@ -92,19 +92,19 @@ metrics:
     honorLabels: false
 
 # -- The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).
-replicaCount: 1
+replicaCount: 1 # @schema minimum:1
 
 # -- [Deployment strategy type](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy).
 # Useful to set it to 'Recreate' when using BoltDB transport with persistence.
 updateStrategy:
-  type: RollingUpdate
+  type: RollingUpdate # @schema enum:[RollingUpdate, Recreate]
 
 # -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout` so SSE
 # subscribers drain at their own write deadline before k8s SIGKILLs the pod.
 # Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin.
 # Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s)
 # to minimize the gap between old pod gone and new pod ready.
-terminationGracePeriodSeconds: 660
+terminationGracePeriodSeconds: 660 # @schema minimum:0
 
 # -- Deployment `spec.progressDeadlineSeconds`. A rolling update can spend
 # up to `terminationGracePeriodSeconds` per pod draining SSE, so the k8s
@@ -112,13 +112,13 @@ terminationGracePeriodSeconds: 660
 # Default fits a 2-pod rollout; scale up for larger `replicaCount`
 # (roughly `replicaCount × (terminationGracePeriodSeconds + minReadySeconds)`
 # plus a margin). Only applied with `RollingUpdate`.
-progressDeadlineSeconds: 1800
+progressDeadlineSeconds: 1800 # @schema minimum:0
 
 image:
   # -- Name of the image repository to pull the container image from.
   repository: dunglas/mercure
   # -- [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node.
-  pullPolicy: IfNotPresent
+  pullPolicy: IfNotPresent # @schema enum:[Always, IfNotPresent, Never]
   # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
@@ -182,13 +182,13 @@ deployment:
 
 service:
   # -- Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types).
-  type: ClusterIP
+  type: ClusterIP # @schema enum:[ClusterIP, NodePort, LoadBalancer, ExternalName]
   # -- Service port.
-  port: 80
+  port: 80 # @schema minimum:1;maximum:65535
   # -- Service target port.
-  targetPort: 80
+  targetPort: 80 # @schema type:[integer, string];minimum:1;maximum:65535
   # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
-  nodePort:
+  nodePort: # @schema type:[integer, null];minimum:1;maximum:65535
   annotations: {}
 
 ingress:
@@ -279,7 +279,7 @@ networkPolicy:
   # -- `policyTypes` for the NetworkPolicy. The chart always renders empty
   # `ingress` and `egress` lists, so Kubernetes infers
   # `policyTypes: [Ingress, Egress]`. Set to `[Ingress]` to skip egress.
-  policyTypes: []
+  policyTypes: [] # @schema itemEnum:[Ingress, Egress]
   # policyTypes:
   #   - Ingress
   #   - Egress
@@ -371,9 +371,9 @@ resources: {}
 # @default -- Disabled by default.
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
+  minReplicas: 1 # @schema minimum:1
+  maxReplicas: 100 # @schema minimum:1
+  targetCPUUtilizationPercentage: 80 # @schema minimum:1;maximum:100
   # targetMemoryUtilizationPercentage: 80
   # -- Additional metrics appended to the HPA `spec.metrics` list (Pods, Object, External metric types).
   customMetrics: []
@@ -405,15 +405,16 @@ tolerations: []
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details.
 affinity: {}
 
-# -- [Topology spread constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) configuration.
-# This is a template
+# -- [Topology spread constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) rendered into the pod spec. Evaluated as a Helm template, so it can reference `mercure.selectorLabels`.
+topologySpreadConstraints: ""
+# Example:
 #  topologySpreadConstraints: |
-#  - maxSkew: 1
-#    topologyKey: kubernetes.io/hostname
-#    whenUnsatisfiable: DoNotSchedule
-#    labelSelector:
-#      matchLabels:
-#        {{- include "mercure.selectorLabels" . | nindent 8 }}
+#    - maxSkew: 1
+#      topologyKey: kubernetes.io/hostname
+#      whenUnsatisfiable: DoNotSchedule
+#      labelSelector:
+#        matchLabels:
+#          {{- include "mercure.selectorLabels" . | nindent 12 }}
 
 # -- Switch /data from an emptyDir to a [Persistent Volume Claim](http://kubernetes.io/docs/user-guide/persistent-volumes/).
 # /data is always mounted so modules writing under `caddy.AppDataDir()`
@@ -425,7 +426,7 @@ persistence:
   # If defined, `storageClassName: <storageClass>`
   # If set to `"-"``, `storageClassName: ""``, which disables dynamic provisioning.
   # If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner.
-  storageClass: ""
+  storageClass: "" # @schema type:[string, null]
 
   # -- A manually managed Persistent Volume and Claim.
   # Requires `persistence.enabled: true`
