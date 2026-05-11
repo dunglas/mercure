@@ -47,11 +47,13 @@ jobs:
 
       - name: Package Helm chart
         env:
-          KEY_EMAIL: ${{ steps.import_gpg.outputs.email }}
+          # `helm package --sign --key` substring-matches User IDs only
+          # (fingerprint/keyid lookups fail), so pass the full UID.
+          KEY_UID: ${{ steps.import_gpg.outputs.userid }}
         run: |
           mkdir -p .cr-release-packages
           helm package --sign \
-            --key "$KEY_EMAIL" \
+            --key "$KEY_UID" \
             --keyring "$HOME/.gnupg/secring.gpg" \
             --passphrase-file "$HOME/.gnupg/passphrase" \
             charts/mercure -d .cr-release-packages
