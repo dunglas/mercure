@@ -35,27 +35,26 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
 
-      - name: Prepare Helm signing keyring
+      - name: Package and sign Helm chart
         env:
           PASSPHRASE: ${{ secrets.PASSPHRASE }}
-        run: |
-          umask 077
-          # Helm signs using the legacy GPG keyring format.
-          gpg --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" \
-            --export-secret-keys > "$HOME/.gnupg/secring.gpg"
-          printf '%s' "$PASSPHRASE" > "$HOME/.gnupg/passphrase"
-
-      - name: Package Helm chart
-        env:
           # `helm package --sign --key` substring-matches User IDs only
           # (fingerprint/keyid lookups fail), so pass the full UID.
           KEY_UID: ${{ steps.import_gpg.outputs.userid }}
         run: |
+          umask 077
           mkdir -p .cr-release-packages
-          helm package --sign \
+          # Helm signs using the legacy GPG keyring format. Keep both the
+          # keyring and the passphrase out of disk: the keyring goes to a
+          # tmp file removed on exit, the passphrase is piped via stdin.
+          SECRING=$(mktemp)
+          trap 'rm -f "$SECRING"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" \
+            --export-secret-keys > "$SECRING"
+          printf '%s' "$PASSPHRASE" | helm package --sign \
             --key "$KEY_UID" \
-            --keyring "$HOME/.gnupg/secring.gpg" \
-            --passphrase-file "$HOME/.gnupg/passphrase" \
+            --keyring "$SECRING" \
+            --passphrase-file - \
             charts/mercure -d .cr-release-packages
 
       - name: Upload Helm chart to release

@@ -59,7 +59,7 @@ Kubernetes: `>=1.23.0-0`
 | ingress.enabled | bool | `false` | Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/). |
 | ingress.hosts | list | See [values.yaml](values.yaml). | Ingress host configuration. |
 | ingress.tls | list | See [values.yaml](values.yaml). | Ingress TLS configuration. |
-| license | string | `""` | The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version). |
+| license | string | `""` | The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version). |
 | metrics.enabled | bool | `false` | Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value. servers {     metrics } |
 | metrics.port | int | `2019` | Deprecated: The port to use for exposing the metrics (use adminPort instead). |
 | metrics.serviceMonitor.enabled | bool | `false` | Whether to create a ServiceMonitor for Prometheus Operator. |
@@ -79,7 +79,7 @@ Kubernetes: `>=1.23.0-0`
 | persistence | object | `{"accessMode":"ReadWriteOnce","enabled":false,"existingClaim":"","size":"1Gi","storageClass":""}` | Switch /data from an emptyDir to a [Persistent Volume Claim](http://kubernetes.io/docs/user-guide/persistent-volumes/). /data is always mounted so modules writing under `caddy.AppDataDir()` (e.g. `rate_limit`) work under `readOnlyRootFilesystem: true`. Enable persistence when /data must survive pod restarts (typical with BoltDB). |
 | persistence.accessMode | string | `"ReadWriteOnce"` | A manually managed Persistent Volume and Claim. Requires `persistence.enabled: true` If defined, PVC must be created manually before volume will be bound. |
 | persistence.existingClaim | string | `""` | If defined, PVC must be created manually before volume will be bound |
-| persistence.storageClass | string | `""` | Mercure Data Persistent Volume Storage Class. If defined, `storageClassName: <storageClass>` If set to `"-"``, `storageClassName: ""``, which disables dynamic provisioning. If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner. |
+| persistence.storageClass | string | `""` | Mercure Data Persistent Volume Storage Class. If defined, `storageClassName: <storageClass>`. If set to `"-"`, `storageClassName: ""`, which disables dynamic provisioning. If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner. |
 | podAnnotations | object | `{}` | Annotations to be added to pods. |
 | podLabels | object | `{}` | Extra labels to be added to pods. |
 | podSecurityContext | object | `{"fsGroup":1000,"fsGroupChangePolicy":"OnRootMismatch","seccompProfile":{"type":"RuntimeDefault"}}` | Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod). Defaults target the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted). `fsGroup` makes the chart's writable volumes (/data, /config, /tmp) group-writable by the rootless container; `OnRootMismatch` skips re-chowning PVCs on every restart. Override with `{}` if your cluster forbids these fields. |

@@ -43,7 +43,7 @@ existingSecret: ""
 # -  license:
 # -  caddy-extra-directives:
 
-# -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
+# -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).
 license: ""
 
 # -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
@@ -423,8 +423,8 @@ topologySpreadConstraints: ""
 persistence:
   enabled: false
   # -- Mercure Data Persistent Volume Storage Class.
-  # If defined, `storageClassName: <storageClass>`
-  # If set to `"-"``, `storageClassName: ""``, which disables dynamic provisioning.
+  # If defined, `storageClassName: <storageClass>`.
+  # If set to `"-"`, `storageClassName: ""`, which disables dynamic provisioning.
   # If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner.
   storageClass: ""  # @schema type:[string, null]
 

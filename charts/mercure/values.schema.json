@@ -105,6 +105,14 @@
       "description": "A name to substitute for the full names of resources.",
       "type": "string"
     },
+    "global": {
+      "description": "Global values shared between all subcharts",
+      "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "globalOptions": {
       "description": "Inject global options in the Caddyfile.",
       "type": "string"
@@ -275,7 +283,7 @@
       }
     },
     "license": {
-      "description": "The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).",
+      "description": "The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).",
       "type": "string"
     },
     "metrics": {
@@ -381,7 +389,7 @@
           "type": "string"
         },
         "storageClass": {
-          "description": "Mercure Data Persistent Volume Storage Class. If defined, `storageClassName: \u003cstorageClass\u003e` If set to `\"-\"``, `storageClassName: \"\"``, which disables dynamic provisioning. If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner.",
+          "description": "Mercure Data Persistent Volume Storage Class. If defined, `storageClassName: \u003cstorageClass\u003e`. If set to `\"-\"`, `storageClassName: \"\"`, which disables dynamic provisioning. If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner.",
           "type": [
             "string",
             "null"
@@ -572,5 +580,6 @@
         }
       }
     }
-  }
+  },
+  "additionalProperties": false
 }
