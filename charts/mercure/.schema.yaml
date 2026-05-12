@@ -1,3 +1,4 @@
 draft: 7
 output: values.schema.json
+indent: 2
 useHelmDocs: true
