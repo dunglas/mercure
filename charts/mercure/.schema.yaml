@@ -4,4 +4,3 @@ indent: 2
 useHelmDocs: true
 schemaRoot:
   additionalProperties: false
-
