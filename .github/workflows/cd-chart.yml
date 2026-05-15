@@ -40,7 +40,7 @@ jobs:
           PASSPHRASE: ${{ secrets.PASSPHRASE }}
           # `helm package --sign --key` substring-matches User IDs only
           # (fingerprint/keyid lookups fail), so pass the full UID.
-          KEY_UID: ${{ steps.import_gpg.outputs.userid }}
+          KEY_UID: ${{ steps.import_gpg.outputs.user }}
         run: |
           umask 077
           mkdir -p .cr-release-packages
