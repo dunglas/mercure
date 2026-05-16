@@ -1,0 +1,234 @@
+name: Release
+# Cuts a Mercure release end-to-end: bumps the Caddy module's mercure
+# dependency, bumps the Helm chart version, regenerates chart docs,
+# commits the result as github-actions[bot], tags v<version> and
+# caddy/v<version>, and dispatches the downstream build workflow which
+# drafts the GitHub release through GoReleaser. Dispatched by release.sh.
+#
+# The workflow is idempotent: re-dispatching after a partial failure
+# (network blip, registry hiccup) detects which steps already completed
+# and skips them, so the release can be resumed without manual cleanup.
+on:
+  workflow_dispatch:
+    inputs:
+      #checkov:skip=CKV_GHA_7
+      version:
+        description: "Version to release (e.g. 0.25.0, no v prefix)"
+        required: true
+        type: string
+permissions:
+  contents: write
+  # Needed to dispatch the downstream build workflow from this run.
+  actions: write
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+jobs:
+  release:
+    name: Release ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      GOTOOLCHAIN: local
+      GOFLAGS: "-tags=deprecated_server,deprecated_transport,nobadger,nomysql,nopgx"
+    steps:
+      - name: Refuse non-main dispatch
+        # workflow_dispatch can target any ref; reject anything but main so a
+        # mis-dispatched run fails loudly instead of being silently skipped.
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "::error::release.yml must be dispatched against refs/heads/main, got ${GITHUB_REF}"
+            exit 1
+          fi
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Determine release state
+        id: state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        # Tag existence is the source of truth for "release in progress":
+        # main HEAD may have moved past the release commit (a follow-up fix
+        # merged on top), so the commit-message check on HEAD is too narrow.
+        # If v<version> exists, resume from the commit it points at;
+        # otherwise it's a fresh attempt and tags must not exist.
+        run: |
+          set -euo pipefail
+          err=$(mktemp)
+          trap 'rm -f "${err}"' EXIT
+          # Capture stderr so we can distinguish a real 404 (tag absent → fresh
+          # attempt) from any other failure (rate limit, 5xx, auth) which must
+          # not be silently treated as "tag missing".
+          if ref=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/v${VERSION}" 2>"${err}"); then
+            sha=$(jq -r .object.sha <<<"${ref}")
+            type=$(jq -r .object.type <<<"${ref}")
+            if [[ "${type}" == "tag" ]]; then
+              sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${sha}" -q .object.sha)
+            fi
+            # Refuse to resume against a tag that isn't reachable from main:
+            # protects against an orphan tag created on a side branch.
+            if ! git merge-base --is-ancestor "${sha}" HEAD; then
+              echo "::error::Tag v${VERSION} (${sha}) is not reachable from main; refusing to resume."
+              exit 1
+            fi
+            echo "Resuming: v${VERSION} exists at ${sha}"
+            {
+              echo "resume=true"
+              echo "release_commit=${sha}"
+            } >> "${GITHUB_OUTPUT}"
+          elif grep -qF "(HTTP 404)" "${err}"; then
+            echo "resume=false" >> "${GITHUB_OUTPUT}"
+            if gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/caddy/v${VERSION}" --silent 2>/dev/null; then
+              echo "::error::caddy/v${VERSION} exists but v${VERSION} does not; refusing to release into a split state."
+              exit 1
+            fi
+          else
+            echo "::error::GitHub API call for tag v${VERSION} failed:"
+            cat "${err}" >&2
+            exit 1
+          fi
+      - if: steps.state.outputs.resume != 'true'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
+            caddy/go.sum
+      - if: steps.state.outputs.resume != 'true'
+        name: Install helm-docs
+        # Mercure's chart README is generated; helm-docs ensures the
+        # version/appVersion badges match Chart.yaml after the bump.
+        run: go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
+      - if: steps.state.outputs.resume != 'true'
+        name: Bump Caddy module
+        working-directory: caddy
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          go get "github.com/dunglas/mercure@v${VERSION}"
+          go mod tidy
+      - if: steps.state.outputs.resume != 'true'
+        name: Bump Helm chart
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          sed -i \
+            -e "s/^version: .*$/version: ${VERSION}/" \
+            -e "s/^appVersion: .*$/appVersion: \"v${VERSION}\"/" \
+            charts/mercure/Chart.yaml
+          helm-docs
+      - name: Commit and tag via GitHub API
+        # API-created commits/tags are signed server-side with GitHub's key
+        # and show as "Verified" under the github-actions[bot] identity.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+          RESUME: ${{ steps.state.outputs.resume }}
+          RELEASE_COMMIT: ${{ steps.state.outputs.release_commit }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${RESUME}" == "true" ]]; then
+            commit_sha="${RELEASE_COMMIT}"
+            echo "Reusing existing release commit ${commit_sha}"
+          else
+            # Stage the base64 in a temp file and feed it to jq via
+            # --rawfile: passing big blobs through --arg can exceed ARG_MAX
+            # on the runner. Subshell body + EXIT trap clean up the tmpfile
+            # even if base64/jq/gh aborts.
+            make_blob() (
+              local tmp
+              tmp=$(mktemp)
+              trap 'rm -f "$tmp"' EXIT
+              base64 -w0 <"$1" >"$tmp"
+              jq -nc --rawfile content "$tmp" \
+                '{content: $content, encoding: "base64"}' \
+                | gh api "repos/${REPO}/git/blobs" --input - -q .sha
+            )
+
+            parent_sha=$(gh api "repos/${REPO}/git/refs/heads/main" -q .object.sha)
+            base_tree=$(gh api "repos/${REPO}/git/commits/${parent_sha}" -q .tree.sha)
+
+            gomod_sha=$(make_blob caddy/go.mod)
+            gosum_sha=$(make_blob caddy/go.sum)
+            chart_sha=$(make_blob charts/mercure/Chart.yaml)
+            readme_sha=$(make_blob charts/mercure/README.md)
+
+            tree_sha=$(jq -nc \
+              --arg base_tree "$base_tree" \
+              --arg gomod "$gomod_sha" \
+              --arg gosum "$gosum_sha" \
+              --arg chart "$chart_sha" \
+              --arg readme "$readme_sha" \
+              '{
+                base_tree: $base_tree,
+                tree: [
+                  {path: "caddy/go.mod", mode: "100644", type: "blob", sha: $gomod},
+                  {path: "caddy/go.sum", mode: "100644", type: "blob", sha: $gosum},
+                  {path: "charts/mercure/Chart.yaml", mode: "100644", type: "blob", sha: $chart},
+                  {path: "charts/mercure/README.md", mode: "100644", type: "blob", sha: $readme}
+                ]
+              }' | gh api "repos/${REPO}/git/trees" --input - -q .sha)
+
+            # [skip ci] keeps push-triggered workflows from firing on top of
+            # the explicit downstream dispatch below.
+            commit_sha=$(jq -nc \
+              --arg message "chore: prepare release ${VERSION} [skip ci]" \
+              --arg tree "$tree_sha" \
+              --arg parent "$parent_sha" \
+              '{message: $message, tree: $tree, parents: [$parent]}' \
+              | gh api "repos/${REPO}/git/commits" --input - -q .sha)
+
+            gh api "repos/${REPO}/git/refs/heads/main" -X PATCH -f sha="$commit_sha" --silent
+          fi
+
+          # Idempotent tag creation: if the tag already exists and points at
+          # the release commit, leave it alone; if it points elsewhere, fail.
+          create_tag() {
+            local tag="$1"
+            local existing
+            if existing=$(gh api "repos/${REPO}/git/refs/tags/${tag}" 2>/dev/null); then
+              local obj_sha obj_type
+              obj_sha=$(jq -r .object.sha <<<"${existing}")
+              obj_type=$(jq -r .object.type <<<"${existing}")
+              if [[ "${obj_type}" == "tag" ]]; then
+                obj_sha=$(gh api "repos/${REPO}/git/tags/${obj_sha}" -q .object.sha)
+              fi
+              if [[ "${obj_sha}" == "${commit_sha}" ]]; then
+                echo "Tag ${tag} already points at ${commit_sha}; skipping."
+                return 0
+              fi
+              echo "::error::Tag ${tag} exists at ${obj_sha}, expected ${commit_sha}"
+              return 1
+            fi
+            local tag_sha
+            tag_sha=$(jq -nc \
+              --arg tag "${tag}" \
+              --arg message "Version ${VERSION}" \
+              --arg object "${commit_sha}" \
+              '{tag: $tag, message: $message, object: $object, type: "commit"}' \
+              | gh api "repos/${REPO}/git/tags" --input - -q .sha)
+            gh api "repos/${REPO}/git/refs" -f ref="refs/tags/${tag}" -f sha="${tag_sha}" --silent
+          }
+
+          create_tag "v${VERSION}"
+          create_tag "caddy/v${VERSION}"
+      - name: Trigger downstream release build
+        # GITHUB_TOKEN-driven API writes don't trigger workflows that listen
+        # on tag/push events, so dispatch cd.yml explicitly against the new
+        # tag. GoReleaser handles artifact builds and drafts the GitHub
+        # release; cd-chart.yml fires automatically once the release is
+        # published. Re-dispatch on resume is harmless: it just queues
+        # another build run.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! gh workflow run cd.yml --repo "${REPO}" --ref "v${VERSION}"; then
+            echo "::warning::Failed to dispatch cd.yml. Re-run it manually against v${VERSION}."
+          fi
