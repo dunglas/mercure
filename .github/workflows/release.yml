@@ -157,21 +157,33 @@ jobs:
             parent_sha=$(gh api "repos/${REPO}/git/refs/heads/main" -q .object.sha)
             base_tree=$(gh api "repos/${REPO}/git/commits/${parent_sha}" -q .tree.sha)
 
-            # Capture every touched file so transitive go.sum or helm-docs
-            # side effects aren't dropped from the release commit.
-            mapfile -t changed < <(git diff --name-only HEAD)
-            if [[ ${#changed[@]} -eq 0 ]]; then
-              echo "::error::No file changes detected after bump steps."
+            # Capture every touched file (modifications, additions,
+            # deletions) so transitive go.sum or helm-docs side effects
+            # aren't dropped from the release commit. Deletions are
+            # represented with a null sha in the tree.
+            mapfile -t modified < <(git diff --name-only --diff-filter=ACMR HEAD)
+            mapfile -t deleted < <(git diff --name-only --diff-filter=D HEAD)
+            mapfile -t untracked < <(git ls-files --others --exclude-standard)
+            if [[ ${#modified[@]} -eq 0 && ${#deleted[@]} -eq 0 && ${#untracked[@]} -eq 0 ]]; then
+              echo "::error::No file changes after bump/helm-docs. Is v${VERSION} already on main? Delete the local tags and pick a different version, or recreate the tags manually."
               exit 1
             fi
-            printf 'Including in release tree: %s\n' "${changed[@]}"
+            present=("${modified[@]}" "${untracked[@]}")
+            [[ ${#present[@]} -gt 0 ]] && printf 'Including (added/modified): %s\n' "${present[@]}"
+            [[ ${#deleted[@]} -gt 0 ]] && printf 'Including (deleted): %s\n' "${deleted[@]}"
 
             tree_entries=$(
-              for path in "${changed[@]}"; do
-                sha=$(make_blob "${path}")
-                jq -nc --arg path "${path}" --arg sha "${sha}" \
-                  '{path: $path, mode: "100644", type: "blob", sha: $sha}'
-              done | jq -sc .
+              {
+                for path in "${modified[@]}" "${untracked[@]}"; do
+                  sha=$(make_blob "${path}")
+                  jq -nc --arg path "${path}" --arg sha "${sha}" \
+                    '{path: $path, mode: "100644", type: "blob", sha: $sha}'
+                done
+                for path in "${deleted[@]}"; do
+                  jq -nc --arg path "${path}" \
+                    '{path: $path, mode: "100644", type: "blob", sha: null}'
+                done
+              } | jq -sc .
             )
 
             tree_sha=$(jq -nc \
@@ -193,14 +205,18 @@ jobs:
           fi
 
           # Idempotent: skip if tag already points at the release commit,
-          # fail if it points elsewhere.
+          # fail if it points elsewhere. matching-refs distinguishes
+          # "tag absent" (HTTP 200, empty array) from real failures, which
+          # still trip set -e.
           create_tag() {
             local tag="$1"
             local existing
-            if existing=$(gh api "repos/${REPO}/git/refs/tags/${tag}" 2>/dev/null); then
+            existing=$(gh api "repos/${REPO}/git/matching-refs/tags/${tag}" \
+              --jq ".[] | select(.ref == \"refs/tags/${tag}\") | {sha: .object.sha, type: .object.type}")
+            if [[ -n "${existing}" ]]; then
               local obj_sha obj_type
-              obj_sha=$(jq -r .object.sha <<<"${existing}")
-              obj_type=$(jq -r .object.type <<<"${existing}")
+              obj_sha=$(jq -r .sha <<<"${existing}")
+              obj_type=$(jq -r .type <<<"${existing}")
               if [[ "${obj_type}" == "tag" ]]; then
                 obj_sha=$(gh api "repos/${REPO}/git/tags/${obj_sha}" -q .object.sha)
               fi
@@ -225,30 +241,30 @@ jobs:
           create_tag "caddy/v${VERSION}"
       - name: Trigger downstream release build
         # GITHUB_TOKEN tag writes don't fire push triggers, so dispatch
-        # cd.yml explicitly. Skip if a prior run is in-flight or succeeded
-        # — GoReleaser refuses to overwrite an existing release.
+        # cd.yml explicitly. Skip if a GitHub Release for v${VERSION}
+        # already exists (GoReleaser drafts it and refuses to overwrite),
+        # or if a cd.yml run for the tag is still in flight.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          last_run=$(gh run list \
-            --repo "${REPO}" \
-            --workflow cd.yml \
-            --branch "v${VERSION}" \
-            --json databaseId,status,conclusion \
-            --jq '.[0] // empty')
-          if [[ -n "${last_run}" ]]; then
-            status=$(jq -r .status <<<"${last_run}")
-            conclusion=$(jq -r .conclusion <<<"${last_run}")
-            run_id=$(jq -r .databaseId <<<"${last_run}")
-            if [[ "${status}" != "completed" || "${conclusion}" == "success" ]]; then
-              echo "cd.yml run ${run_id} for v${VERSION} is ${status}/${conclusion:-none}; skipping dispatch."
-              exit 0
-            fi
-            echo "Previous cd.yml run ${run_id} ended as ${conclusion}; redispatching."
+          if gh release view "v${VERSION}" --repo "${REPO}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists; skipping cd.yml dispatch."
+            exit 0
+          fi
+          # head_branch on the runs API is the bare tag name (e.g.
+          # v0.25.0), regardless of gh CLI version quirks.
+          in_flight=$(gh api -X GET \
+            "repos/${REPO}/actions/workflows/cd.yml/runs" \
+            -F "branch=v${VERSION}" \
+            --jq '[.workflow_runs[] | select(.status != "completed")] | length')
+          if [[ "${in_flight}" -gt 0 ]]; then
+            echo "A cd.yml run for v${VERSION} is in flight; skipping dispatch."
+            exit 0
           fi
           if ! gh workflow run cd.yml --repo "${REPO}" --ref "v${VERSION}"; then
-            echo "::warning::Failed to dispatch cd.yml. Re-run it manually against v${VERSION}."
+            echo "::error::Failed to dispatch cd.yml against v${VERSION}."
+            exit 1
           fi
