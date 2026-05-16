@@ -6,6 +6,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -56,6 +58,11 @@ jobs:
             --keyring "$SECRING" \
             --passphrase-file - \
             charts/mercure -d .cr-release-packages
+
+      - name: Attest Helm chart
+        uses: actions/attest@v4
+        with:
+          subject-path: .cr-release-packages/*.tgz
 
       - name: Upload Helm chart to release
         env:
