@@ -1,38 +1,30 @@
 #!/usr/bin/env bash
 
-# Creates the tags for the library and the Caddy module.
+# Dispatches the Release workflow, which does the real work
+# (Caddy module bump, Helm chart bump, helm-docs, commit, tag, push,
+# downstream build dispatch). See .github/workflows/release.yml.
 
 set -o nounset
 set -o errexit
-trap 'echo "Aborting due to errexit on line $LINENO. Exit code: $?" >&2' ERR
-set -o errtrace
+set -o errtrace # so the ERR trap fires inside functions/subshells too
 set -o pipefail
-set -o xtrace
+trap 'echo "Aborting on line $LINENO. Exit: $?" >&2' ERR
 
-if ! type "git" >/dev/null; then
-	echo "The \"git\" command must be installed."
-	exit 1
-fi
-
-if ! type "helm-docs" >/dev/null; then
-	echo "The \"helm-docs\" command (https://github.com/norwoodj/helm-docs) must be installed."
-	exit 1
-fi
+for cmd in git gh; do
+	if ! command -v "$cmd" >/dev/null; then
+		echo "The \"$cmd\" command must be installed." >&2
+		exit 1
+	fi
+done
 
 if [[ $# -ne 1 ]]; then
 	echo "Usage: ./release.sh version" >&2
 	exit 1
 fi
 
-# Adapted from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-if [[ ! $1 =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$ ]]; then
-	echo "Invalid version number: $1" >&2
-	exit 1
-fi
-
-# Pre-flight checks
-if [[ "$(git branch --show-current)" != "main" ]]; then
-	echo "You must be on the main branch to release." >&2
+# Cheap operator-side guards; release.yml re-validates the version.
+if [[ "$(git branch --show-current 2>/dev/null)" != "main" ]]; then
+	echo "You must be on the main branch to dispatch a release." >&2
 	exit 1
 fi
 
@@ -41,7 +33,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
 	exit 1
 fi
 
-git fetch origin
+git fetch --quiet --tags origin main
 local_head="$(git rev-parse HEAD)"
 remote_head="$(git rev-parse origin/main)"
 if [[ "$local_head" != "$remote_head" ]]; then
@@ -55,15 +47,6 @@ if [[ "$local_head" != "$remote_head" ]]; then
 	exit 1
 fi
 
-cd caddy/
-go get "github.com/dunglas/mercure@v$1"
-cd -
-
-sed -i '' -e "s/^version: .*$/version: $1/" -e "s/^appVersion: .*$/appVersion: \"v$1\"/" charts/mercure/Chart.yaml
-helm-docs
-
-git commit -S -a -m "chore: prepare release $1"
-
-git tag -s -m "Version $1" "v$1"
-git tag -s -m "Version $1" "caddy/v$1"
-git push --follow-tags
+gh workflow run release.yml --ref main -f version="$1"
+echo "Release workflow dispatched for v$1."
+echo "Watch runs: gh run list --workflow=release.yml --event=workflow_dispatch"
