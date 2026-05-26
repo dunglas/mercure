@@ -47,7 +47,7 @@ jobs:
           fi
           version_major="${BASH_REMATCH[1]}"
           if [[ -n "${branch_major}" && "${branch_major}" != "${version_major}" ]]; then
-            echo "::error::Branch ${GITHUB_REF#refs/heads/} can only release ${branch_major}.y.z versions, got ${VERSION}"
+            echo "::error::Branch ${GITHUB_REF#refs/heads/} can only release versions with major ${branch_major} (e.g. ${branch_major}.0.0), got ${VERSION}"
             exit 1
           fi
       - uses: actions/create-github-app-token@v3
