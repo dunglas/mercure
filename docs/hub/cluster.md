@@ -175,7 +175,7 @@ Keep the password out of the ConfigMap by referencing it via Caddy's `{env.NAME}
 
    <!-- markdownlint-enable MD010 -->
 
-Caddy resolves `{env.REDIS_PASSWORD}` during the Caddyfile adapt phase, so the storage module receives the value already substituted. The ConfigMap holds only the structure of the block, and the credential can be rotated by updating the Secret.
+Caddy expands `{env.REDIS_PASSWORD}` when it loads the configuration, so the storage module receives the value already substituted and the ConfigMap holds only the structure of the block. Note that env vars sourced from a Secret are injected at Pod start: updating the Secret does not propagate to running Pods, so rotating the password requires rolling the Deployment (`kubectl rollout restart`) or using a secret-reloader controller.
 
 The same `{env.NAME}` placeholder works inside `MERCURE_EXTRA_DIRECTIVES` if you prefer to keep all Redis references pointing at a single env var rather than embedding the password twice.
 
