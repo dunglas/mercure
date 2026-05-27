@@ -6,7 +6,7 @@ submissiontype = "IETF"
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-dunglas-mercure-07"
+value = "draft-dunglas-mercure-08"
 stream = "IETF"
 status = "standard"
 
@@ -69,22 +69,23 @@ interpreted as described in [@!RFC2119].
 
 The subscriber subscribes to a URL exposed by a hub to receive updates from one or more topics.
 To subscribe, the client opens an HTTPS connection to the hub's subscription URL (advertised by
-the publisher) following the Server-Sent Events specification [@!W3C.REC-eventsource-20150203].
-The `GET` HTTP method **MUST** be used. The connection **SHOULD** use HTTP version 2 or higher
-to leverage multiplexing and other performance-related features.
+the publisher; see (#discovery)) following the Server-Sent Events specification
+[@!W3C.REC-eventsource-20150203]. The `GET` HTTP method **MUST** be used. The connection
+**SHOULD** use HTTP version 2 or higher to leverage multiplexing and other performance-related
+features.
 
 The subscriber specifies the list of topics to receive updates from using one or more query
-parameters named `match`. The subscriber receives updates only for topics matching exactly one
-of the `match` query parameters.
+parameters named `match`.
 
 The subscriber can also use other matcher types via query parameters whose name is `match`
 concatenated with the matcher type name (e.g., `matchRegexp`, `matchURLPattern`).
 
 The `matchExact` query parameter **MUST** be treated as equivalent to `match`.
 
-The hub **MUST** ignore the case of query parameters starting with `match`.
-For instance, `matchExact`, `matchEXACT`, `matchexact`, and `MaTCheXaCt` **MUST** be considered
-the same query parameter.
+The names of topic matcher query parameters are case-sensitive and **MUST** be spelled as
+registered in the "Mercure Topic Matcher Query Parameter Names" registry (see (#iana-query-params)).
+Requests using an unregistered or differently-cased name **MUST** be rejected with a 400 "Bad
+Request" HTTP status code.
 
 If the type of one or more matchers is not supported by the hub, it **MUST** respond with a
 501 "Not Implemented" HTTP status code.
@@ -96,7 +97,7 @@ The protocol does not specify the maximum number of query parameters that can be
 hub **MAY** apply an arbitrary limit. The hub **MAY** also enforce an implementation-defined
 maximum length for the pattern of each topic matcher. Requests exceeding any such limit **MUST**
 be rejected with a 400 "Bad Request" HTTP status code. A subscription is created for every
-provided parameter starting with the string `match`. See (#subscription-events).
+provided query parameter starting with the string `match`. See (#subscription-events).
 
 The `EventSource` JavaScript interface [@!eventsource-interface] **MAY** be used to establish
 the connection. Any other appropriate mechanism, including but not limited to readable streams
@@ -153,7 +154,8 @@ authorization rules not defined in this specification.
 ## Exact Matching
 
 The hub **MUST** support exact matching. With this matcher type, the hub **MUST** perform an
-exact, case-sensitive comparison between the topic and the matcher.
+exact, case-sensitive comparison between the topic and the matcher. The hub **MUST NOT**
+resolve relative values against the hub's URL or any other base.
 
 The matcher type name is `Exact`.
 The corresponding query parameters are `match` and `matchExact`.
@@ -169,12 +171,17 @@ a relative pattern or a relative topic, the hub **MUST** use the hub's URL as th
 base URL. This allows subscribers to match relative topics published by the hub
 itself, such as subscription events (see (#subscription-events)).
 
+URL patterns are evaluated per the URL Pattern Living Standard [@!urlpattern]; hubs **MUST NOT**
+enable the `ignoreCase` option. Host components remain case-insensitive as defined by URL
+canonicalization [@!RFC3986]; all other components are case-sensitive.
+
 The matcher type name is `URLPattern`.
 The corresponding query parameter is `matchURLPattern`.
 
 ## Regular Expression
 
 The hub **SHOULD** support using I-Regexp regular expressions [@!RFC9485] as matchers.
+The hub **MUST NOT** resolve relative values against the hub's URL or any other base.
 
 The matcher type name is `Regexp`.
 The corresponding query parameter is `matchRegexp`.
@@ -426,17 +433,20 @@ are not delivered.
 
 ## Topic Matcher List
 
-Topic matchers present in the `mercure.subscribe` or `mercure.publish` claim **MUST** be objects.
+Topic matchers present in the `mercure.subscribe` or `mercure.publish` claim **MUST** be JSON
+objects.
 
 Each object **MUST** have a `match` property containing the topic matcher itself, and **MAY**
-have an OPTIONAL `matchType` property containing the topic matcher type. The value of the
-`matchType` key **MUST** be considered case-insensitive. If no `matchType` key is present, the
-hub **MUST** assume the `Exact` matcher type.
+have an OPTIONAL `matchType` property containing the topic matcher type. The value of
+`matchType` is case-sensitive and **MUST** match exactly one of the matcher type names defined
+in (#matcher-types) (e.g., `Exact`, `URLPattern`, `Regexp`, `CEL`, `URITemplate`) or a name
+implemented by the hub. If no `matchType` key is present, the hub **MUST** assume the `Exact`
+matcher type.
 
-Bare strings **MUST** be rejected with a 401 "Unauthorized" HTTP status code. Earlier drafts of
-this protocol allowed matchers to be expressed as bare strings; silently reinterpreting them
-under the rules defined here could change the semantics of tokens minted for those earlier
-versions.
+Any entry that is not a JSON object **MUST** be rejected with a 400 "Bad Request" HTTP status
+code. Earlier drafts of this protocol allowed matchers to be expressed as bare strings;
+silently reinterpreting them under the rules defined here could change the semantics of tokens
+minted for those earlier versions.
 
 If the type of one or more matchers in `mercure.subscribe` is not supported by the hub, the hub
 **MUST** reject the subscription request with a 501 "Not Implemented" HTTP status code and
@@ -451,8 +461,11 @@ If the type of one or more matchers in `mercure.publish` is not supported by the
 User-defined data can be attached to subscriptions and made available through the subscription
 API and in subscription events. See (#subscription-events).
 
-Each entry in the `mercure.subscribe` claim represented as an object **MAY** contain a JSON
-object under the `payload` key.
+Each entry in the `mercure.subscribe` claim **MAY** contain a JSON object under the `payload`
+key, providing payload data scoped to that topic matcher.
+
+The `mercure` claim **MAY** also contain a top-level `payload` key holding a JSON object. This
+top-level payload is used as a default when no per-matcher payload applies.
 
 The `payload` value associated with the first topic matcher in the `mercure.subscribe` claim
 that matches the subscription's own matcher (as determined by the `match` and `matchType` query
@@ -461,13 +474,13 @@ subscription, both in the subscription API and in subscription events.
 
 A claim matcher is considered to match a subscription matcher when any of the following holds:
 
-1.  The claim matcher's pattern is the reserved string `*`.
-2.  The claim matcher's type is the same as the subscription matcher's type (case-insensitive)
-    and both patterns are identical.
-3.  The claim matcher, evaluated against the subscription matcher's `match` value as if that
-    value were a topic, returns true. For instance, a claim with `matchType=URLPattern` and
-    `match=https://example.com/:id` matches a subscription with `matchType=Exact` and
-    `match=https://example.com/42`, because the URL pattern accepts that URL.
+1.  The claim matcher's type is the same as the subscription matcher's type and both patterns
+    are byte-identical.
+2.  The claim matcher, evaluated against the subscription matcher's `match` value (treated as
+    an opaque string regardless of the subscription matcher's type), returns true. For
+    instance, a claim with `matchType=URLPattern` and `match=https://example.com/:id` matches a
+    subscription with `matchType=Exact` and `match=https://example.com/42`, because the URL
+    pattern accepts that URL string.
 
 If no claim matches the subscription, the hub **MUST** fall back to the top-level
 `mercure.payload` value, if any.
@@ -576,7 +589,9 @@ subscription is created or terminated.
 The topic of these updates **MUST** be an expansion of
 `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` with the following variables:
 
-*   `{matchType}`: the topic matcher type used for this subscription
+*   `{matchType}`: the topic matcher type used for this subscription. The value **MUST** be the
+    matcher type name in its canonical case as defined in (#matcher-types) (e.g., `URLPattern`,
+    `Exact`). URL path components are case-sensitive.
 *   `{match}`: the topic matcher used for this subscription
 *   `{subscriber}`: a unique identifier for the subscriber
 
@@ -598,8 +613,8 @@ at least the following properties:
 *   `id`: the identifier of this update; **MUST** be the same value as the subscription update's
     topic.
 *   `type`: the fixed value `Subscription`.
-*   `matchType`: the topic matcher type used for this subscription. The value **MUST** be
-    considered case-insensitive.
+*   `matchType`: the topic matcher type used for this subscription. The value is case-sensitive
+    and **MUST** be the matcher type name in its canonical case as defined in (#matcher-types).
 *   `match`: the topic matcher used for this subscription.
 *   `subscriber`: the identifier of the subscriber. It **SHOULD** be an IRI.
 *   `active`: `true` when the subscription is active, `false` when it is terminated.
@@ -983,6 +998,27 @@ A new "JSON Web Token Claim" as described in (#authorization) is to be registere
 *   Description: Mercure data.
 *   Reference: This specification, (#authorization)
 
+## Mercure Topic Matcher Query Parameter Names {#iana-query-params}
+
+IANA is requested to create a new registry titled "Mercure Topic Matcher Query Parameter
+Names", to be maintained under the "Mercure Protocol Parameters" group.
+
+The registration policy for this registry is "Specification Required" [@!RFC8126]. Parameter
+names are case-sensitive ASCII strings beginning with `match`. The matcher type name appended
+to `match` **MUST** match the matcher type name registered in the matcher-type table of the
+referenced specification, in its canonical case.
+
+The initial contents of the registry are:
+
+| Query Parameter Name | Matcher Type   | Reference                       |
+|----------------------|----------------|---------------------------------|
+| `match`              | `Exact`        | This specification, (#subscription) |
+| `matchExact`         | `Exact`        | This specification, (#subscription) |
+| `matchURLPattern`    | `URLPattern`   | This specification, (#url-pattern) |
+| `matchRegexp`        | `Regexp`       | This specification, (#regular-expression) |
+| `matchCEL`           | `CEL`          | This specification, (#common-expression-language-cel) |
+| `matchURITemplate`   | `URITemplate`  | This specification, (#uri-template) |
+
 # Security Considerations
 
 The confidentiality of the secret key(s) used to generate JWSs is a primary concern. Such keys
@@ -1268,7 +1304,7 @@ Reported compatible with the reference implementation of the Mercure Hub.
 
 Implementation Name and Details:
 
-dart*mercure, available at <<https://github.com/wallforfry/dart>*mercure>
+dart_mercure, available at <https://github.com/wallforfry/dart_mercure>
 
 Brief Description:
 
