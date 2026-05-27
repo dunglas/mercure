@@ -269,9 +269,36 @@ The corresponding query parameter is `matchURITemplate`.
 
 The hub **MAY** implement additional matcher types. Matcher type names intended for
 interoperable deployment **MUST** be registered in the "Mercure Matcher Types" registry; see
-(#iana-matcher-types). Implementation-specific names **MAY** be used internally but **SHOULD**
-be prefixed with a vendor token (e.g., `Example-Foo`) to avoid collision with future
-registrations.
+(#iana-matcher-types).
+
+Names for non-registered, hub-specific matcher types **MUST** use one of the following forms
+to guarantee global uniqueness and to be visually distinguishable from registered names:
+
+*   Reverse-DNS dotted notation rooted in a domain controlled by the implementer, for example
+    `com.example.Foo`.
+*   An absolute HTTPS URI under a domain controlled by the implementer, for example
+    `https://example.com/matchers/Foo`.
+
+Names that match the production for a registered matcher type (case-sensitive PascalCase
+ASCII without `.` or `/`) **MUST NOT** be used for non-registered types. The corresponding
+query parameter name is the concatenation of `match` and the non-registered name as given.
+
+Implementations of non-registered matcher types **MUST** apply the same denial-of-service and
+sandbox controls as the corresponding built-in matcher with the closest evaluation model. In
+particular, expression-based or pattern-based custom matchers **MUST** use either an engine
+that guarantees linear-time matching or an implementation-defined evaluation cost or time
+limit, and **MUST NOT** expose network requests, filesystem access, process execution, or
+other externally-observable side effects to the expression.
+
+A custom matcher **MUST NOT** produce an authorization decision that would not also be reached
+by some registered matcher type for the same `match` value and topic. In other words, custom
+matchers extend the set of usable patterns; they **MUST NOT** subvert authorization checks
+defined in (#authorization).
+
+JWSs containing non-registered matcher type names are not portable across hubs. Issuers and
+clients using such names accept that subscriptions and publications dependent on those names
+will be rejected with a 501 "Not Implemented" HTTP status code by hubs that do not implement
+the same name with compatible semantics.
 
 # Publication
 
@@ -1305,6 +1332,22 @@ of hub origins they will connect to, and **MAY** verify hub identity out of band
 JWE-protected updates are subject to algorithm-selection pitfalls and to replay. Implementers
 **MUST** restrict JWE algorithms to currently strong choices and **SHOULD** include freshness
 indicators in encrypted payloads when replay is in scope; see (#encryption).
+
+## Custom Matcher Types
+
+Hub-specific matcher types extend the protocol surface and therefore the attack surface.
+Misuse can cause authorization bypass through type confusion (a JWS minted for one hub's
+custom type evaluated under a different semantics on another hub), denial of service through
+unguarded pattern evaluation, and server-side request forgery or sensitive-material disclosure
+through expression-based matchers exposing dangerous operations.
+
+The rules in (#other-matcher-types) prevent these outcomes by mandating globally unique
+naming (reverse-DNS or HTTPS URI form, syntactically distinct from registered names), parity
+with built-in DoS and sandbox controls, and an authorization invariant requiring custom
+matchers to remain consistent with registered matchers for the same `match` value. Hub
+operators **MUST** review each custom matcher implementation against these requirements before
+enabling it, and **SHOULD** document its semantics so that JWS issuers can scope tokens
+correctly.
 
 # Implementation Status
 
