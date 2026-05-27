@@ -83,10 +83,10 @@ concatenated with the matcher type name (e.g., `matchRegexp`, `matchURLPattern`)
 
 The `matchExact` query parameter **MUST** be treated as equivalent to `match`.
 
-The names of topic matcher query parameters are case-sensitive and **MUST** be spelled as
-registered in the "Mercure Topic Matcher Query Parameter Names" registry (see (#iana-query-params)).
-Requests using an unregistered or differently-cased name **MUST** be rejected with a 400 "Bad
-Request" HTTP status code.
+The names of topic matcher query parameters are case-sensitive and **MUST** be those defined
+by the "Mercure Matcher Types" registry (see (#iana-matcher-types)). Requests using an
+unregistered or differently-cased name **MUST** be rejected with a 400 "Bad Request" HTTP
+status code.
 
 If the type of one or more matchers is not supported by the hub, it **MUST** respond with a
 501 "Not Implemented" HTTP status code.
@@ -102,7 +102,7 @@ To mitigate resource exhaustion, hubs **SHOULD** apply implementation-defined ma
 number of topic matcher query parameters in a single request and to the length of each
 matcher's pattern. Requests exceeding any such limit **MUST** be rejected with a 400 "Bad
 Request" HTTP status code. A subscription is created for every registered topic matcher query
-parameter present in the request (see (#iana-query-params)). Hubs **MAY** deduplicate
+parameter present in the request (see (#iana-matcher-types)). Hubs **MAY** deduplicate
 subscriptions that have identical matcher type and pattern. See (#subscription-events).
 
 The `EventSource` JavaScript interface [@!eventsource-interface] **MAY** be used to establish
@@ -1157,47 +1157,28 @@ A new "JSON Web Token Claim" as described in (#authorization) is to be registere
 *   Description: Mercure data.
 *   Reference: This specification, (#authorization)
 
-## Mercure Topic Matcher Query Parameter Names {#iana-query-params}
-
-IANA is requested to create a new registry titled "Mercure Topic Matcher Query Parameter
-Names", to be maintained under the "Mercure Protocol Parameters" group.
-
-The registration policy for this registry is "Specification Required" [@!RFC8126]. Parameter
-names are case-sensitive ASCII strings beginning with `match`. The matcher type name appended
-to `match` **MUST** correspond to a matcher type registered in the "Mercure Matcher Types"
-registry (see (#iana-matcher-types)), in its canonical case.
-
-The change controller for all initial entries is the IETF. The initial contents of the
-registry are:
-
-| Query Parameter Name | Matcher Type   | Reference                       |
-|----------------------|----------------|---------------------------------|
-| `match`              | `Exact`        | This specification, (#subscription) |
-| `matchExact`         | `Exact`        | This specification, (#subscription) |
-| `matchURLPattern`    | `URLPattern`   | This specification, (#url-pattern) |
-| `matchRegexp`        | `Regexp`       | This specification, (#regular-expression) |
-| `matchCEL`           | `CEL`          | This specification, (#common-expression-language-cel) |
-| `matchURITemplate`   | `URITemplate`  | This specification, (#uri-template) |
-
 ## Mercure Matcher Types {#iana-matcher-types}
 
 IANA is requested to create a new registry titled "Mercure Matcher Types", to be maintained
 under the "Mercure Protocol Parameters" group.
 
-The registration policy for this registry is "Specification Required" [@!RFC8126]. Matcher
-type names are case-sensitive ASCII strings. Names **SHOULD** be PascalCase. Implementations
-**MUST** treat registered names exactly as listed; case-folded variants are not equivalent.
+The registration policy for this registry is "Specification Required" [@!RFC8126]. Each
+registration defines a matcher type by a case-sensitive PascalCase name and the case-sensitive
+query parameter name used to request matchers of that type in a subscription request. The
+query parameter name **MUST** be the concatenation of the string `match` and the matcher type
+name. Implementations **MUST** treat registered names exactly as listed; case-folded variants
+are not equivalent.
 
 The change controller for all initial entries is the IETF. The initial contents of the
 registry are:
 
-| Matcher Type   | Reference                                              |
-|----------------|--------------------------------------------------------|
-| `Exact`        | This specification, (#exact-matching)                  |
-| `URLPattern`   | This specification, (#url-pattern)                     |
-| `Regexp`       | This specification, (#regular-expression)              |
-| `CEL`          | This specification, (#common-expression-language-cel)  |
-| `URITemplate`  | This specification, (#uri-template)                    |
+| Matcher Type   | Query Parameter               | Reference                                              |
+|----------------|-------------------------------|--------------------------------------------------------|
+| `Exact`        | `matchExact` (alias: `match`) | This specification, (#exact-matching)                  |
+| `URLPattern`   | `matchURLPattern`             | This specification, (#url-pattern)                     |
+| `Regexp`       | `matchRegexp`                 | This specification, (#regular-expression)              |
+| `CEL`          | `matchCEL`                    | This specification, (#common-expression-language-cel)  |
+| `URITemplate`  | `matchURITemplate`            | This specification, (#uri-template)                    |
 
 # Security Considerations
 
