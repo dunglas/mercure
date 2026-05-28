@@ -2,10 +2,13 @@ package mercure
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -13,6 +16,60 @@ import (
 type updateContextKeyType struct{}
 
 var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
+
+// reservedTopicSubstring is the substring whose presence in any topic
+// (canonical or alternate) identifies the hub's own resources, such as
+// subscription events. Publishers must not be able to forge those.
+const reservedTopicSubstring = "/.well-known/mercure"
+
+// Sentinel errors returned by Publish for invalid Update payloads.
+// PublishHandler maps them to HTTP status codes; library callers can
+// inspect them with errors.Is.
+var (
+	// ErrReservedTopic is returned when an Update contains a topic
+	// whose value references the reserved "/.well-known/mercure"
+	// namespace, which only the hub itself is allowed to publish to.
+	ErrReservedTopic = errors.New(`topic value references the reserved "/.well-known/mercure" namespace`)
+
+	// ErrInvalidEventID is returned when an Update's event id contains
+	// a character that would let the publisher inject arbitrary SSE
+	// fields into the subscriber's stream.
+	ErrInvalidEventID = errors.New(`"id" field contains a forbidden control character`)
+
+	// ErrInvalidEventType is returned when an Update's event type
+	// contains a character that would let the publisher inject
+	// arbitrary SSE fields into the subscriber's stream.
+	ErrInvalidEventType = errors.New(`"type" field contains a forbidden control character`)
+)
+
+// sseFieldForbiddenChars are characters that, if copied into an SSE
+// header field such as id: or event:, would let a publisher inject
+// arbitrary SSE fields into subscribers' streams.
+const sseFieldForbiddenChars = "\x00\r\n"
+
+// validate enforces the publish-side input rules that protect
+// subscribers from update forgery and SSE field injection. It is the
+// single source of truth for these checks; PublishHandler does not
+// re-validate. The sentinel errors returned (ErrReservedTopic,
+// ErrInvalidEventID, ErrInvalidEventType) are exported so callers of
+// Hub.Publish can branch on them via errors.Is.
+func (u *Update) validate() error {
+	for _, t := range u.Topics {
+		if strings.Contains(t, reservedTopicSubstring) {
+			return fmt.Errorf("%q: %w", t, ErrReservedTopic)
+		}
+	}
+
+	if strings.ContainsAny(u.ID, sseFieldForbiddenChars) {
+		return ErrInvalidEventID
+	}
+
+	if strings.ContainsAny(u.Type, sseFieldForbiddenChars) {
+		return ErrInvalidEventType
+	}
+
+	return nil
+}
 
 // Publish broadcasts the given update to all subscribers.
 // The id field of the Update instance can be updated by the underlying Transport.
@@ -26,6 +83,16 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 
 		span.End()
 	}()
+
+	if err := update.validate(); err != nil {
+		if h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Rejected invalid update", slog.Any("error", err))
+		}
+
+		recordSpanError(span, err)
+
+		return err
+	}
 
 	ctx = context.WithValue(ctx, UpdateContextKey, update)
 
@@ -138,17 +205,22 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
 
-	ctx = context.WithValue(ctx, UpdateContextKey, u)
 	dispatchCtx := context.WithoutCancel(ctx)
 
-	// Broadcast the update
-	if err := h.transport.Dispatch(dispatchCtx, u); err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-
-		if h.logger.Enabled(ctx, slog.LevelError) {
-			h.logger.LogAttrs(ctx, slog.LevelError, "Failed to dispatch update", slog.Any("error", err))
+	// Validation, dispatch, logging and metrics live in Hub.Publish.
+	if err := h.Publish(dispatchCtx, u); err != nil {
+		switch {
+		case errors.Is(err, ErrReservedTopic):
+			http.Error(w, err.Error(), http.StatusForbidden)
+		case errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 
+		// Mirror the error onto the handler span too; Hub.Publish's child
+		// span already records it, but leaving the parent span as success
+		// is misleading.
 		recordSpanError(span, err)
 
 		return
@@ -160,11 +232,5 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return
-	}
-
-	h.metrics.UpdatePublished(u)
-
-	if h.logger.Enabled(ctx, slog.LevelInfo) {
-		h.logger.LogAttrs(ctx, slog.LevelInfo, "Update published")
 	}
 }
