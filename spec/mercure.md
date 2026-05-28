@@ -704,19 +704,26 @@ topics. The hub **MAY** ignore this request according to its own policy.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `lastEventID` query parameter, the hub **MUST** set a
-`Last-Event-ID` header on the HTTP response. The value of this response header **MUST** be:
+`Last-Event-ID` header on the HTTP response.
 
-*   the same identifier as the one provided in the request, if the corresponding event exists
-    in the hub's history and the subscriber would have been authorized to receive it; or
-*   the reserved value `earliest` in every other case (for example, when the hub history is
-    empty, the requested event does not exist, has been discarded, or was a private update
-    the subscriber is not authorized to receive).
+The value of this response header **MUST** be one of:
 
-The hub **MUST NOT** disclose, via this header, any other identifier. This two-state response
-allows subscribers to detect that data may have been lost (the response value differs from
-the request value) without leaking the identifiers of events the subscriber cannot read, and
-avoids forcing the hub to scan its history backward on each reconnection, which would
-otherwise be a denial-of-service vector.
+*   the identifier of the most recent event preceding the first event sent to the subscriber,
+    provided that the subscriber is authorized to receive that event and that the hub located
+    it within an implementation-defined backward-scan limit; or
+*   the reserved value `earliest`, in every other case (for example, when the hub history is
+    empty, when the requested event does not exist or has been discarded, when the scan
+    limit was reached without finding a visible event, or when all candidate predecessors
+    are private updates the subscriber is not authorized to receive).
+
+The hub **MUST NOT** disclose, via this header, the identifier of any event the subscriber
+is not authorized to receive. To bound the cost of this lookup and prevent it from becoming a
+denial-of-service vector, hubs **MUST** enforce an implementation-defined maximum number of
+events scanned backward per request; once the limit is reached the response value **MUST** be
+`earliest`. Subscribers using the hub as an event store can use the returned predecessor
+identifier as a recovery anchor; subscribers that only need to detect data loss can compare
+the response value against the requested value (a different value indicates that loss may
+have occurred).
 
 The subscriber **SHOULD NOT** assume that no events will be lost (events may be lost, for
 instance, if the hub stores only a limited number of events in its history). In some cases (for
