@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -261,6 +262,54 @@ func TestSubscribeNoTopic(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
+}
+
+func TestSubscribeTooManyTopics(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	q := url.Values{}
+	for i := 0; i <= maxQueryTopics; i++ {
+		q.Add("topic", "https://example.com/foo")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?"+q.Encode(), nil)
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestSubscribeTooManyClaimMatchers(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+
+	scope := make([]string, maxClaimMatchers+1)
+	for i := range scope {
+		scope[i] = "https://example.com/foo"
+	}
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, scope))
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
 var errFailedToAddSubscriber = errors.New("failed to add a subscriber")
