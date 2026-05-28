@@ -218,6 +218,11 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 
+		// Mirror the error onto the handler span too; Hub.Publish's child
+		// span already records it, but leaving the parent span as success
+		// is misleading.
+		recordSpanError(span, err)
+
 		return
 	}
 

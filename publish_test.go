@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -519,7 +520,7 @@ func TestPublishHandlerRejectsSSEControlChars(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.field+"/"+tc.value, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/%q", tc.field, tc.value), func(t *testing.T) {
 			t.Parallel()
 
 			hub := createDummy(t)

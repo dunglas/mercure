@@ -256,18 +256,16 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 				break
 			}
 
-			if scanned >= maxHistoryScan {
-				// DoS guard: bound the per-request backward scan so an
-				// attacker cannot force unbounded history walks by sending
-				// an ancient or non-existent Last-Event-ID. responseLast-
-				// EventID stays at the most recent authorized id seen so
-				// far (or "earliest" if none).
-				break
-			}
-
-			scanned++
-
 			if !afterFromID {
+				// DoS guard: cap the search-for-requested-ID phase only.
+				// Once afterFromID is true the loop is dispatching legitimate
+				// authorized history and must not be truncated.
+				if scanned >= maxHistoryScan {
+					break
+				}
+
+				scanned++
+
 				id := string(k[8:])
 				if id == s.RequestLastEventID {
 					afterFromID = true
