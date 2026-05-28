@@ -717,13 +717,21 @@ The value of this response header **MUST** be one of:
     are private updates the subscriber is not authorized to receive).
 
 The hub **MUST NOT** disclose, via this header, the identifier of any event the subscriber
-is not authorized to receive. To bound the cost of this lookup and prevent it from becoming a
-denial-of-service vector, hubs **MUST** enforce an implementation-defined maximum number of
-events scanned backward per request; once the limit is reached the response value **MUST** be
-`earliest`. Subscribers using the hub as an event store can use the returned predecessor
-identifier as a recovery anchor; subscribers that only need to detect data loss can compare
-the response value against the requested value (a different value indicates that loss may
-have occurred).
+is not authorized to receive. To bound the cost of authorization filtering on candidate
+predecessor events, hubs **SHOULD** apply an implementation-defined backward-scan limit;
+once the limit is reached the response value **MUST** be `earliest`. Hubs whose storage
+backend supports both cheap predecessor seek (e.g., Redis Streams `XREVRANGE`) and cheap
+per-event authorization filtering **MAY** omit the limit. Subscribers using the hub as an
+event store can use the returned predecessor identifier as a recovery anchor; subscribers
+that only need to detect data loss can compare the response value against the requested
+value (a different value indicates that loss may have occurred).
+
+Note: The privacy impact of predecessor-identifier disclosure depends on the hub's identifier
+generation strategy. Opaque random identifiers (e.g., UUIDv4 [@!RFC4122]) leak only the
+existence of an event the subscriber cannot read; time-ordered or sequential identifiers
+(e.g., UUIDv7, Redis Stream IDs, snowflake IDs) additionally leak the timing and ordering of
+such events. Operators handling highly sensitive private updates **SHOULD** prefer opaque
+random identifiers, even though those are less convenient as event-store cursors.
 
 The subscriber **SHOULD NOT** assume that no events will be lost (events may be lost, for
 instance, if the hub stores only a limited number of events in its history). In some cases (for
