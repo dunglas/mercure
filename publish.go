@@ -42,22 +42,29 @@ var (
 	ErrInvalidEventType = errors.New(`"type" field contains a forbidden control character`)
 )
 
-// validateUpdate enforces the publish-side input rules that protect
+// sseFieldForbiddenChars are characters that, if copied into an SSE
+// header field such as id: or event:, would let a publisher inject
+// arbitrary SSE fields into subscribers' streams.
+const sseFieldForbiddenChars = "\x00\r\n"
+
+// validate enforces the publish-side input rules that protect
 // subscribers from update forgery and SSE field injection. It is the
 // single source of truth for these checks; PublishHandler does not
-// re-validate.
-func validateUpdate(u *Update) error {
+// re-validate. The sentinel errors returned (ErrReservedTopic,
+// ErrInvalidEventID, ErrInvalidEventType) are exported so callers of
+// Hub.Publish can branch on them via errors.Is.
+func (u *Update) validate() error {
 	for _, t := range u.Topics {
 		if strings.Contains(t, reservedTopicSubstring) {
 			return fmt.Errorf("%q: %w", t, ErrReservedTopic)
 		}
 	}
 
-	if containsSSEFieldForbiddenChar(u.Event.ID) {
+	if strings.ContainsAny(u.ID, sseFieldForbiddenChars) {
 		return ErrInvalidEventID
 	}
 
-	if containsSSEFieldForbiddenChar(u.Event.Type) {
+	if strings.ContainsAny(u.Type, sseFieldForbiddenChars) {
 		return ErrInvalidEventType
 	}
 
@@ -77,7 +84,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 		span.End()
 	}()
 
-	if err := validateUpdate(update); err != nil {
+	if err := update.validate(); err != nil {
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Rejected invalid update", slog.Any("error", err))
 		}

@@ -503,58 +503,30 @@ func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerRejectsSSEControlCharsInID(t *testing.T) {
+func TestPublishHandlerRejectsSSEControlChars(t *testing.T) {
 	t.Parallel()
 
-	for _, id := range []string{
-		"foo\nevent: injected",
-		"foo\revent: injected",
-		"foo\x00bar",
-	} {
-		t.Run(id, func(t *testing.T) {
-			t.Parallel()
-
-			hub := createDummy(t)
-
-			form := url.Values{}
-			form.Add("topic", "https://example.com/books/1")
-			form.Add("id", id)
-			form.Add("data", "Hello!")
-
-			req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
-			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-			req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
-
-			w := httptest.NewRecorder()
-			hub.PublishHandler(w, req)
-
-			resp := w.Result()
-
-			t.Cleanup(func() {
-				assert.NoError(t, resp.Body.Close())
-			})
-
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-		})
+	cases := []struct {
+		field string
+		value string
+	}{
+		{"id", "foo\nevent: injected"},
+		{"id", "foo\revent: injected"},
+		{"id", "foo\x00bar"},
+		{"type", "foo\nid: injected"},
+		{"type", "foo\rdata: injected"},
+		{"type", "foo\x00bar"},
 	}
-}
 
-func TestPublishHandlerRejectsSSEControlCharsInType(t *testing.T) {
-	t.Parallel()
-
-	for _, eventType := range []string{
-		"foo\nid: injected",
-		"foo\rdata: injected",
-		"foo\x00bar",
-	} {
-		t.Run(eventType, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.field+"/"+tc.value, func(t *testing.T) {
 			t.Parallel()
 
 			hub := createDummy(t)
 
 			form := url.Values{}
 			form.Add("topic", "https://example.com/books/1")
-			form.Add("type", eventType)
+			form.Add(tc.field, tc.value)
 			form.Add("data", "Hello!")
 
 			req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
