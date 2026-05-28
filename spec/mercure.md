@@ -1,6 +1,8 @@
 %%%
 title = "The Mercure Protocol"
-area = "Applications and Real-Time"
+abbrev = "Mercure"
+ipr = "trust200902"
+area = "Web and Internet Transport"
 workgroup = "HTTP"
 submissiontype = "IETF"
 
@@ -39,17 +41,38 @@ to receive it and then distribute it.
 
 {mainmatter}
 
+# Introduction
+
+Mercure is a protocol for pushing updates of web resources to clients over HTTP. It builds on
+Server-Sent Events [@!W3C.REC-eventsource-20150203] for delivery and on JSON Web Signatures
+[@!RFC7515] for authorization, so that it can be implemented on top of existing HTTP
+infrastructure and consumed natively by web browsers.
+
+Publishers send updates to a hub. Subscribers open a long-lived HTTP connection to the hub and
+declare, using topic matchers, which topics they want to receive. The hub checks authorization
+and dispatches matching updates, including updates marked as private that only authorized
+subscribers may receive.
+
+This document specifies the subscription and publication interfaces, the topic matcher types,
+the JWS-based authorization model, reconnection and state reconciliation, active-subscription
+tracking, discovery, and update encryption.
+
 # Terminology
 
-The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD
-NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL**, when they appear in this document, are to be
-interpreted as described in [@!RFC2119].
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**,
+**SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and **OPTIONAL** in this document
+are to be interpreted as described in BCP 14 [@!RFC2119] [@!RFC8174] when, and only when, they
+appear in all capitals, as shown here.
 
 *   Topic: The unit to which one can subscribe for changes. The topic is identified by a string
     that **MAY** be an IRI [@!RFC3987]. Topic strings **MUST** be valid UTF-8 [@!RFC3629] and
     **MUST NOT** contain C0 control characters (U+0000–U+001F) or U+007F (DEL).
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private; in that case, it **MUST** be dispatched only to subscribers allowed to receive it.
+*   Canonical topic: The first `topic` value of an update; the primary identifier of the
+    updated resource.
+*   Alternate topic: Any `topic` value of an update other than the canonical topic. An update
+    is dispatched to subscribers matching either the canonical or an alternate topic.
 *   Topic matcher: An expression matched against one or more topics,
     depending on the matcher type.
 *   Topic matcher type: The type of a matching expression,
@@ -83,15 +106,16 @@ concatenated with the matcher type name (e.g., `matchRegexp`, `matchURLPattern`)
 
 The `matchExact` query parameter **MUST** be treated as equivalent to `match`.
 
-The names of topic matcher query parameters are case-sensitive. They **MUST** be either a
+The names of topic matcher query parameters are case-sensitive. A well-formed name is either a
 query parameter name defined in the "Mercure Matcher Types" registry (see
-(#iana-matcher-types)), or the concatenation of `match` and a hub-supported non-registered
-matcher type name (see (#other-matcher-types)). Requests using a name that is neither
-registered nor implemented by the hub **MUST** be rejected with a 400 "Bad Request" HTTP
-status code.
+(#iana-matcher-types)), or the concatenation of `match` and a non-registered matcher type name
+conforming to the production in (#other-matcher-types).
 
-If the type of one or more matchers is not supported by the hub, it **MUST** respond with a
-501 "Not Implemented" HTTP status code.
+If a topic matcher query parameter name is not well-formed, the hub **MUST** reject the request
+with a 400 "Bad Request" HTTP status code. If the name is well-formed but the hub does not
+implement the corresponding matcher type, the hub **MUST** reject the request with a 501 "Not
+Implemented" HTTP status code. This mirrors the handling of unsupported matcher types in
+(#topic-matcher-list).
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 control characters or U+007F. Requests violating this constraint
@@ -103,13 +127,14 @@ the matcher type rules.
 To mitigate resource exhaustion, hubs **SHOULD** apply implementation-defined maximums to the
 number of topic matcher query parameters in a single request and to the length of each
 matcher's pattern. Requests exceeding any such limit **MUST** be rejected with a 400 "Bad
-Request" HTTP status code. A subscription is created for every registered topic matcher query
-parameter present in the request (see (#iana-matcher-types)). Hubs **MAY** deduplicate
+Request" HTTP status code. A subscription is created for every topic matcher query parameter
+present in the request, whether its type is registered (see (#iana-matcher-types)) or
+hub-specific (see (#other-matcher-types)). Hubs **MAY** deduplicate
 subscriptions that have identical matcher type and pattern. See (#subscription-events).
 
-The `EventSource` JavaScript interface [@!eventsource-interface] **MAY** be used to establish
+The `EventSource` JavaScript interface [@eventsource-interface] **MAY** be used to establish
 the connection. Any other appropriate mechanism, including but not limited to readable streams
-[@W3C.NOTE-streams-api-20161129] and XMLHttpRequest [@!xhr] (used by popular polyfills),
+[@W3C.NOTE-streams-api-20161129] and XMLHttpRequest [@xhr] (used by popular polyfills),
 **MAY** also be used.
 
 The hub sends updates to the subscriber for topics matching the provided topic matchers.
@@ -130,7 +155,7 @@ The resource **MAY** be represented in a format with hypermedia capabilities suc
 JSON-LD [@W3C.REC-json-ld-20140116], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
 [@W3C.REC-html52-20171214].
 
-Web Linking [@!RFC5988] **MAY** be used to indicate the IRI of the resource sent in the event.
+Web Linking [@!RFC8288] **MAY** be used to indicate the IRI of the resource sent in the event.
 When using Atom, XML, or HTML as the serialization format, the document **SHOULD** contain a
 `link` element with a `self` relation that holds the IRI of the resource. When using JSON-LD,
 the document **SHOULD** contain an `@id` property holding the IRI of the resource.
@@ -210,6 +235,9 @@ The corresponding query parameter is `matchURLPattern`.
 The hub **SHOULD** support using I-Regexp regular expressions [@!RFC9485] as matchers.
 The hub **MUST NOT** resolve relative values against the hub's URL or any other base.
 
+The expression **MUST** be matched against the entire topic string (as if anchored at both
+ends). A match against a proper substring of the topic **MUST NOT** be treated as a match.
+
 I-Regexp defines a dialect but not an evaluation engine. To mitigate denial-of-service attacks
 by clients submitting pathological expressions, hubs **MUST** either use a regular expression
 engine that guarantees linear-time matching (such as RE2 [@re2]) or enforce an
@@ -254,6 +282,14 @@ The corresponding query parameter is `matchCEL`.
 The hub **MAY** support using URI templates [@!RFC6570] as matchers.
 Whenever possible, URL patterns **SHOULD** be preferred.
 
+[@!RFC6570] defines expansion (template to URI) but not matching (URI to template). For this
+matcher type, a URI template matches a topic if and only if there exists an assignment of the
+template's variables whose expansion, under the rules of [@!RFC6570], is byte-for-byte equal to
+the topic. The hub **MUST NOT** resolve relative values against the hub's URL or any other
+base. Because reverse-matching a template can be ambiguous or costly, hubs **SHOULD** enforce an
+implementation-defined evaluation cost or time limit; when the limit is reached, the template
+**MUST** be treated as not matching and the evaluation **MUST** be aborted.
+
 The matcher type name is `URITemplate`.
 The corresponding query parameter is `matchURITemplate`.
 
@@ -297,6 +333,10 @@ by some registered matcher type for the same `match` value and topic. In other w
 matchers extend the set of usable patterns; they **MUST NOT** subvert authorization checks
 defined in (#authorization).
 
+Hub operators **MUST** review each custom matcher implementation against the requirements in
+this section before enabling it, and **SHOULD** document its semantics so that JWS issuers can
+scope tokens correctly.
+
 JWSs containing non-registered matcher type names are not portable across hubs. Issuers and
 clients using such names accept that subscriptions and publications dependent on those names
 will be rejected with a 501 "Not Implemented" HTTP status code by hubs that do not implement
@@ -322,22 +362,28 @@ values **MUST** be UTF-8 [@!RFC3629]. It **MAY** also contain the following name
     of the topic and the remaining ones are alternate IRIs. The hub **MUST** dispatch the update
     to subscribers that are subscribed to either the canonical IRI or any of its alternate IRIs.
     Topic values **MUST** conform to the constraints defined in (#terminology). Topic values
-    (canonical or alternate) **MUST NOT** start with the prefix `/.well-known/mercure/`; this
-    namespace is reserved for resources generated by the hub itself, including subscription
-    events (see (#subscription-events)). Hubs **MUST** reject publish requests violating this
-    rule with a 403 HTTP status code.
+    (canonical or alternate) **MUST NOT** address the reserved hub namespace. A topic addresses
+    the reserved namespace when, after being resolved as a URI reference against the hub's URL,
+    its path component is `/.well-known/mercure` or begins with `/.well-known/mercure/`,
+    regardless of scheme or authority. This namespace is reserved for resources generated by the
+    hub itself, including subscription events (see (#subscription-events)). Hubs **MUST** reject
+    publish requests violating this rule with a 403 HTTP status code. Checking the resolved path
+    component (rather than a leading-substring match on the raw value) prevents a publisher from
+    forging subscription events with an absolute topic such as
+    `https://hub.example.com/.well-known/mercure/subscriptions/...`.
 *   `data` (optional): the content of the new version of this topic. The value **MUST** be
     valid UTF-8 [@!RFC3629].
 *   `private` (optional): if this field is present, the update **MUST NOT** be dispatched to
     subscribers not authorized to receive it. See (#authorization). The presence of the field
-    name marks the update as private regardless of its value; hubs **MUST NOT** interpret the
-    field's value to determine privacy. It is **RECOMMENDED** to set the value to `on` for
-    interoperability, but it **MAY** contain any value, including an empty string.
+    name marks the update as private regardless of its value, whether or not a value is
+    supplied; hubs **MUST NOT** interpret the field's value to determine privacy. It is
+    **RECOMMENDED** to set the value to `on` for interoperability, but it **MAY** contain any
+    value, including an empty string.
 *   `id` (optional): the topic's revision identifier; used as the SSE `id` property.
     The provided ID **MUST NOT** start with the `#` character and **MUST NOT** contain U+000A
     (LF), U+000D (CR), or U+0000 (NUL). The provided ID **MAY** be a valid IRI. If omitted, the
-    hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC4122] or a
-    [DID](https://www.w3.org/TR/did-core/) **MAY** be used. Alternatively, the hub **MAY**
+    hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC9562] or a
+    [@DID] **MAY** be used. Alternatively, the hub **MAY**
     generate a relative URI composed of a fragment (starting with `#`). This is convenient to
     return an offset or a sequence that is unique for this hub. The hub **MAY** ignore the
     client-supplied ID and generate its own. The hub **MUST** reject client-supplied IDs
@@ -349,9 +395,11 @@ values **MUST** be UTF-8 [@!RFC3629]. It **MAY** also contain the following name
     consist solely of ASCII digits (U+0030–U+0039); hubs **MUST** reject violating values with
     a 400 HTTP status code.
 
-On success, the hub **MUST** return a successful HTTP status code, and the response body **MUST**
-be the `id` generated by the hub for the update. The publisher **MUST** be authorized to publish
-updates; see (#authorization).
+On success, the hub **MUST** return a 2xx HTTP status code, and the response body **MUST** be
+the `id` generated by the hub for the update. Hubs **SHOULD** use 200 (OK). The status code 201
+(Created) is **NOT RECOMMENDED**: an update is an ephemeral message rather than a resource
+retrievable at a dereferenceable URL, so the `id` is an event cursor (see (#reconciliation)),
+not a `Location`. The publisher **MUST** be authorized to publish updates; see (#authorization).
 
 Hubs **SHOULD** apply implementation-defined maximums to the size of the request body and to
 the length of individual fields. Requests exceeding any such limit **MUST** be rejected with a
@@ -376,7 +424,9 @@ urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 # Authorization
 
 To prove that they are authorized, both publishers and subscribers **MUST** present a valid JWS
-[@!RFC7515] in compact serialization to the hub. This JWS **SHOULD** be short-lived, especially
+[@!RFC7515] in compact serialization to the hub. The payload of this JWS is a JWT [@!RFC7519]
+carrying the `mercure` claim defined in this section together with the standard claims it
+references (`exp`, `nbf`, `aud`, `sub`). This JWS **SHOULD** be short-lived, especially
 when the subscriber is a web browser. Different keys **SHOULD** be used to sign subscribers' and
 publishers' tokens so that compromise of one role does not entail compromise of the other.
 
@@ -402,11 +452,12 @@ If the client sets an `authorization` query parameter and presents no `Authoriza
 the content of the query parameter **MUST** be used, and the content of the cookie **MUST** be
 ignored.
 
-If no JWS is presented, or if the JWS fails validation as defined in (#jws-validation), the hub
-**MUST** return a 401 "Unauthorized" HTTP status code. If a valid JWS is presented but does not
-authorize the requested operation, the hub **MUST** return a 403 "Forbidden" HTTP status code.
-Hubs **SHOULD NOT** disclose, in error responses, whether the failure was due to JWS validation
-or to insufficient scope.
+If no JWS is presented, the hub **MUST** return a 401 "Unauthorized" HTTP status code. If a JWS
+is presented but the request is not authorized — whether because the JWS fails validation as
+defined in (#jws-validation) or because a valid JWS does not authorize the requested operation
+— the hub **MUST** return a 403 "Forbidden" HTTP status code. Returning the same status code in
+both cases prevents error responses from disclosing whether the failure was due to JWS
+validation or to insufficient scope; hubs **MUST NOT** otherwise reveal that distinction.
 
 ## Authorization HTTP Header
 
@@ -429,13 +480,13 @@ cookie containing the JWS when connecting to the hub. It is **RECOMMENDED** to n
 hubs share the same domain.
 
 The cookie **SHOULD** be set during discovery (see (#discovery)) to improve overall security.
-Consequently, if the cookie is set during discovery, the publisher and the hub must share the
-same second-level domain. The `Domain` attribute **MAY** be used to allow the publisher and the
-hub to use different subdomains. See (#discovery).
+Consequently, if the cookie is set during discovery, the publisher and the hub **MUST** share
+the same registrable domain (eTLD+1). The `Domain` attribute **MAY** be used to allow the
+publisher and the hub to use different subdomains of that registrable domain. See (#discovery).
 
 The cookie **MUST** have the `Secure` and `HttpOnly` attributes set. The cookie **SHOULD** also
 have `SameSite=Strict`; `SameSite=Lax` **MAY** be used if cross-site discovery flows require it.
-The cookie's `Path` attribute **SHOULD** also be set to the hub's URL. See
+The cookie's `Path` attribute **SHOULD** be set to the path of the hub's subscription URL. See
 (#security-considerations).
 
 ## URI Query Parameter
@@ -615,6 +666,10 @@ A claim matcher is considered to match a subscription matcher when any of the fo
     subscription with `matchType=Exact` and `match=https://example.com/42`, because the URL
     pattern accepts that URL string.
 
+This matching rule governs payload selection only. It **MUST NOT** be used to make
+authorization decisions; authorization is determined exclusively by the rules in (#subscribers)
+and (#publishers).
+
 If no claim matches the subscription, the hub **MUST** fall back to the top-level
 `mercure.payload` value, if any.
 
@@ -669,7 +724,7 @@ implement an [Event store](https://en.wikipedia.org/wiki/Event_store).
 
 To allow re-establishment in case of connection loss, events dispatched by the hub **MUST**
 include an `id` property. The value of this property **SHOULD** be an IRI [@!RFC3987]. A UUID
-[@RFC4122] or a [DID](https://www.w3.org/TR/did-core/) **MAY** be used.
+[@RFC9562] or a [@DID] **MAY** be used.
 
 Per the server-sent events specification, the subscriber tries to reconnect automatically in
 case of connection loss. During reconnection, the subscriber **MUST** send the last received
@@ -700,7 +755,8 @@ current `mercure.subscribe` claim **MUST NOT** be dispatched, regardless of any 
 that may have applied at publication time.
 
 The reserved value `earliest` requests that the hub send all updates it has for the subscribed
-topics. The hub **MAY** ignore this request according to its own policy.
+topics. The hub **MAY** ignore this request according to its own policy. Because event
+identifiers are IRIs (see above), `earliest` cannot collide with a hub-generated identifier.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `lastEventID` query parameter, the hub **MUST** set a
@@ -769,8 +825,8 @@ If a subscriber has several subscriptions, the hub **SHOULD** assign the same `{
 value to all of them when it can correlate them (for example, when the same `sub` claim is
 presented across requests).
 
-`{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC4122] or a
-[DID](https://www.w3.org/TR/did-core/) **MAY** also be used.
+`{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC9562] or a
+[@DID] **MAY** also be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing
 at least the following properties:
@@ -978,7 +1034,7 @@ implementations or cached locally; this avoids both unnecessary network requests
 that an attacker able to control responses from the context URL alters the semantics of
 subsequently parsed documents.
 
-The JSON-LD context available at `https://mercure.rocks` is the following:
+The JSON-LD context available at `https://mercure.rocks/` is the following:
 
 ~~~ json
 {
@@ -1017,7 +1073,7 @@ Note: Publishers may wish to advertise and publish to more than one hub for faul
 redundancy. If one hub fails to propagate an update, the others increase the likelihood of
 delivery to subscribers.
 
-The publisher **SHOULD** include at least one Link Header [@!RFC5988] with `rel=mercure` (a hub
+The publisher **SHOULD** include at least one Link Header [@!RFC8288] with `rel=mercure` (a hub
 link header). The target URL of such links **MUST** be a hub implementing the Mercure protocol.
 
 Note: A compromised publisher can advertise a malicious hub URL and capture the JWSs of
@@ -1063,7 +1119,7 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 The discovery mechanism **MAY** also be used to identify the canonical URL for the topic that
 subscribers are expected to use for subscriptions.
 
-The publisher **MAY** include one Link Header [@!RFC5988] with `rel=self` (the self link
+The publisher **MAY** include one Link Header [@!RFC8288] with `rel=self` (the self link
 header). It **SHOULD** contain the canonical URL for the topic. If the link with `rel=self` is
 omitted, the current URL of the resource **MAY** be used as a fallback.
 
@@ -1240,10 +1296,10 @@ when the cookie-based authorization mechanism is used. Implementations supportin
 mechanism **MUST** mitigate such attacks.
 
 The first preventive measure is to set the `SameSite` attribute on the `mercureAuthorization`
-cookie. Because [some web browsers still do not support this
-attribute](https://caniuse.com/#feat=same-site-cookie-attribute), hub implementations **SHOULD**
-also use the `Origin` and `Referer` HTTP headers to verify that the source origin matches the
-target origin. If neither header is available, the hub **SHOULD** reject the request.
+cookie. Because some deployed user agents may not enforce this attribute, hub implementations
+**SHOULD** also use the `Origin` and `Referer` HTTP headers to verify that the source origin
+matches the target origin. If neither header is available, the hub **SHOULD** reject the
+request.
 
 CSRF prevention techniques are described in depth in [OWASP's Cross-Site Request Forgery (CSRF)
 Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
@@ -1255,96 +1311,96 @@ locations could steal the token.
 
 ## JWS Validation
 
-Hubs **MUST** validate JWS structure, signature, and standard claims as defined in
-(#jws-validation) before evaluating the `mercure` claim. Failure to reject `alg: none`, to
-bind `alg` to key type, or to enforce `exp` and `nbf` enables token forgery, replay across
-contexts, and algorithm-confusion attacks on JWS.
+JWS structure, signature, and standard-claim validation is required before the `mercure` claim
+is evaluated (see (#jws-validation)). Failure to reject `alg: none`, to bind `alg` to the key
+type, or to enforce `exp` and `nbf` enables token forgery, replay across contexts, and
+algorithm-confusion attacks on JWS.
 
 ## Server-Sent Events Field Injection
 
 Topic strings and the `id`, `type`, and `retry` publish fields end up on the wire as part of
 the Server-Sent Events framing. Values containing CR (U+000D), LF (U+000A), or NUL (U+0000)
-can inject arbitrary SSE fields into the stream as seen by subscribers, including forged event
-identifiers and event types. Hubs **MUST** reject such values; see (#terminology) and
-(#publication).
+could inject arbitrary SSE fields into the stream as seen by subscribers, including forged
+event identifiers and event types. The character constraints in (#terminology) and
+(#publication) prevent this injection.
 
 ## Reserved Hub Namespace
 
 The URL path prefix `/.well-known/mercure/` is reserved for resources generated by the hub
-itself. Publishers **MUST NOT** publish updates whose canonical or alternate topic falls under
-this prefix; otherwise a publisher with broad scope could forge subscription events (see
-(#subscription-events)) and mislead other subscribers tracking subscription lifecycle.
+itself (see (#publication)). A publisher with broad scope publishing under this prefix could
+forge subscription events (see (#subscription-events)) and mislead other subscribers tracking
+subscription lifecycle. The reserved-namespace test is applied to the topic's path component
+after resolution against the hub's URL, not as a leading-substring match on the raw value; a
+substring test would let an absolute topic addressing the hub's own host (for example,
+`https://hub.example.com/.well-known/mercure/subscriptions/...`) bypass it.
 
 ## Authorization on Event Replay
 
 When a subscriber reconnects with a `Last-Event-ID` header or `lastEventID` query parameter,
-the hub **MUST** apply the same authorization rules to replayed events as to live events. A
-subscriber whose authorized scope has shrunk between publication and reconnection **MUST NOT**
-receive private events it would not be authorized to receive at the time of reconnection. The
-identifier of a private event the subscriber is not authorized to receive **MUST NOT** appear
-in the `Last-Event-ID` response header; see (#reconciliation).
+the same authorization rules apply to replayed events as to live events (see (#reconciliation)
+and (#subscribers)). A subscriber whose authorized scope has shrunk between publication and
+reconnection does not receive private events outside its scope at reconnection time, and the
+identifier of such an event does not appear in the `Last-Event-ID` response header.
 
 ## Subscriber Identifier Assignment
 
-The `{subscriber}` identifier in subscription event topic URLs **MUST** be derived from
-information the hub has cryptographically validated, typically the `sub` claim of the
-subscriber's JWS. Allowing clients to supply, suggest, or override this value through any
-unauthenticated channel enables spoofing of subscription events and hijacking of subscription
-state belonging to other subscribers. See (#subscription-events).
+The `{subscriber}` identifier in subscription event topic URLs is derived from information the
+hub has cryptographically validated, typically the `sub` claim of the subscriber's JWS (see
+(#subscription-events)). Allowing clients to supply, suggest, or override this value through any
+unauthenticated channel would enable spoofing of subscription events and hijacking of
+subscription state belonging to other subscribers.
 
 ## Regular-Expression and URL-Pattern Denial of Service
 
-I-Regexp [@!RFC9485] is a dialect, not an evaluation engine. URL Pattern internally compiles
-to a regular expression. Naive implementations on engines such as PCRE are vulnerable to
-catastrophic backtracking. Hubs **MUST** use an engine that guarantees linear-time matching
-(such as RE2 [@re2]) or enforce per-evaluation cost or time limits; see (#regular-expression)
-and (#url-pattern).
+I-Regexp [@!RFC9485] is a dialect, not an evaluation engine, and URL Pattern compiles
+internally to a regular expression. Naive implementations on engines such as PCRE are
+vulnerable to catastrophic backtracking. The mitigations required in (#regular-expression) and
+(#url-pattern) — a linear-time engine (such as RE2 [@re2]) or a per-evaluation cost or time
+limit — bound this exposure.
 
 ## CEL Sandbox
 
-Implementation-specific functions exposed to CEL expressions **MUST** be deterministic and
-side-effect-free, and **MUST NOT** perform network requests, filesystem access, process
-execution, or any other externally-observable operation. Exposing such operations enables a
-malicious subscriber's expression to perform server-side request forgery, read sensitive
-material from the hub's environment, or amplify denial-of-service attacks. See
-(#common-expression-language-cel).
+Implementation-specific functions exposed to CEL expressions are constrained to be
+deterministic and side-effect-free (see (#common-expression-language-cel)). Were such functions
+to perform network requests, filesystem access, process execution, or any other
+externally-observable operation, a malicious subscriber's expression could perform server-side
+request forgery, read sensitive material from the hub's environment, or amplify
+denial-of-service attacks.
 
 ## Payload Privacy
 
 Per-matcher and top-level payloads carried in `mercure.subscribe` are included in subscription
-events and forwarded to other authorized subscribers. Issuers **MUST** treat payloads as
-broadcast data within the set of subscribers authorized for the corresponding subscription
-events, not as private metadata about an individual subscriber. See (#payloads).
+events and forwarded to other authorized subscribers (see (#payloads)). Within the set of
+subscribers authorized for the corresponding subscription events, a payload is effectively
+broadcast; it cannot carry private metadata about an individual subscriber.
 
 ## Topic Normalization
 
 Topic strings are compared as byte sequences. Without Unicode normalization (NFC) and IDNA
 host canonicalization, visually identical topics may be treated as distinct, leading to
 undelivered updates or to spoofable topic names through homograph attacks (e.g.,
-`example.com` versus a host containing Cyrillic look-alike characters). Publishers and
-subscribers **SHOULD** normalize topic strings to a canonical form before publication or
-subscription; see (#exact-matching).
+`example.com` versus a host containing Cyrillic look-alike characters). The normalization
+guidance in (#exact-matching) addresses this.
 
 ## Resource Limits
 
-Hubs **SHOULD** apply implementation-defined limits to: the size of publish request bodies,
-the length of individual fields, the number of topic matcher query parameters per request,
-the number of entries in `mercure.subscribe` and `mercure.publish`, the length of individual
-matcher patterns, and the number of concurrent subscriptions per token. Absent such limits,
-malicious clients can exhaust hub resources.
+Absent limits on request and token size, malicious clients can exhaust hub resources. The
+implementation-defined limits described elsewhere in this document — on publish request body
+size, individual field length, the number of topic matcher query parameters per request, the
+number of entries in `mercure.subscribe` and `mercure.publish`, individual pattern length, and
+concurrent subscriptions per token — bound this exposure.
 
 ## Hub Trust
 
 Subscribers obtain hub URLs from publishers via the discovery mechanism (see (#discovery)) and
 transmit credentials to the hub. A compromised publisher can therefore redirect subscribers to
-a hub of its choosing and capture those credentials. Subscribers **SHOULD** constrain the set
-of hub origins they will connect to, and **MAY** verify hub identity out of band.
+a hub of its choosing and capture those credentials. As described in (#discovery), subscribers
+constrain the set of hub origins they connect to and can verify hub identity out of band.
 
 ## JWE Algorithms and Replay
 
-JWE-protected updates are subject to algorithm-selection pitfalls and to replay. Implementers
-**MUST** restrict JWE algorithms to currently strong choices and **SHOULD** include freshness
-indicators in encrypted payloads when replay is in scope; see (#encryption).
+JWE-protected updates are subject to algorithm-selection pitfalls and to replay. The algorithm
+restrictions and freshness guidance in (#encryption) address these.
 
 ## Custom Matcher Types
 
@@ -1352,15 +1408,9 @@ Hub-specific matcher types extend the protocol surface and therefore the attack 
 Misuse can cause authorization bypass through type confusion (a JWS minted for one hub's
 custom type evaluated under a different semantics on another hub), denial of service through
 unguarded pattern evaluation, and server-side request forgery or sensitive-material disclosure
-through expression-based matchers exposing dangerous operations.
-
-The rules in (#other-matcher-types) prevent these outcomes by mandating globally unique
-naming (reverse-DNS or HTTPS URI form, syntactically distinct from registered names), parity
-with built-in DoS and sandbox controls, and an authorization invariant requiring custom
-matchers to remain consistent with registered matchers for the same `match` value. Hub
-operators **MUST** review each custom matcher implementation against these requirements before
-enabling it, and **SHOULD** document its semantics so that JWS issuers can scope tokens
-correctly.
+through expression-based matchers exposing dangerous operations. The naming, sandboxing,
+authorization-invariant, and operator-review requirements in (#other-matcher-types) address
+these risks.
 
 # Implementation Status
 
@@ -1368,12 +1418,12 @@ correctly.
 
 This section records the status of known implementations of the protocol defined by this
 specification at the time of posting of this Internet-Draft, and is based on a proposal described
-in [@RFC6982]. The description of implementations in this section is intended to assist the IETF in
+in [@RFC7942]. The description of implementations in this section is intended to assist the IETF in
 its decision processes in progressing drafts to RFCs. Please note that the listing of any individual
 implementation here does not imply endorsement by the IETF. Furthermore, no effort has been spent to
 verify the information presented here that was supplied by IETF contributors. This is not intended
 as, and must not be construed to be, a catalog of available implementations or their features.
-Readers are advised to note that other implementations may exist. According to RFC 6982, "this will
+Readers are advised to note that other implementations may exist. According to RFC 7942, "this will
 allow reviewers and working groups to assign due consideration to documents that have the benefit
 of running code, which may serve as evidence of valuable experimentation and feedback that have
 made the implemented protocols more mature. It is up to the individual working groups to use this
@@ -1833,6 +1883,16 @@ specification.
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
         <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="DID" target="https://www.w3.org/TR/did-core/">
+    <front>
+        <title>Decentralized Identifiers (DIDs) v1.0</title>
+        <author>
+            <organization>World Wide Web Consortium (W3C)</organization>
+        </author>
+        <date year="2022"/>
     </front>
 </reference>
 
