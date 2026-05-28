@@ -83,9 +83,11 @@ concatenated with the matcher type name (e.g., `matchRegexp`, `matchURLPattern`)
 
 The `matchExact` query parameter **MUST** be treated as equivalent to `match`.
 
-The names of topic matcher query parameters are case-sensitive and **MUST** be those defined
-by the "Mercure Matcher Types" registry (see (#iana-matcher-types)). Requests using an
-unregistered or differently-cased name **MUST** be rejected with a 400 "Bad Request" HTTP
+The names of topic matcher query parameters are case-sensitive. They **MUST** be either a
+query parameter name defined in the "Mercure Matcher Types" registry (see
+(#iana-matcher-types)), or the concatenation of `match` and a hub-supported non-registered
+matcher type name (see (#other-matcher-types)). Requests using a name that is neither
+registered nor implemented by the hub **MUST** be rejected with a 400 "Bad Request" HTTP
 status code.
 
 If the type of one or more matchers is not supported by the hub, it **MUST** respond with a
@@ -271,17 +273,17 @@ The hub **MAY** implement additional matcher types. Matcher type names intended 
 interoperable deployment **MUST** be registered in the "Mercure Matcher Types" registry; see
 (#iana-matcher-types).
 
-Names for non-registered, hub-specific matcher types **MUST** use one of the following forms
-to guarantee global uniqueness and to be visually distinguishable from registered names:
-
-*   Reverse-DNS dotted notation rooted in a domain controlled by the implementer, for example
-    `com.example.Foo`.
-*   An absolute HTTPS URI under a domain controlled by the implementer, for example
-    `https://example.com/matchers/Foo`.
+Names for non-registered, hub-specific matcher types **MUST** be prefixed by a token under
+the implementer's exclusive control, separated from the type-specific suffix by a `.`
+(U+002E) character. The prefix **SHOULD** be either a DNS-controlled domain name in
+reverse-dotted order (for example, `com.example.Foo`) or another globally-unique identifier
+such as a registered trademark (for example, `ACME.Foo`). The intent is to minimize the
+collision risk that motivated [@!RFC6648] to deprecate the `X-` convention for HTTP headers.
 
 Names that match the production for a registered matcher type (case-sensitive PascalCase
-ASCII without `.` or `/`) **MUST NOT** be used for non-registered types. The corresponding
-query parameter name is the concatenation of `match` and the non-registered name as given.
+ASCII without `.`) **MUST NOT** be used for non-registered types. The corresponding query
+parameter name is the concatenation of `match` and the non-registered name as given
+(for example, `matchcom.example.Foo`).
 
 Implementations of non-registered matcher types **MUST** apply the same denial-of-service and
 sandbox controls as the corresponding built-in matcher with the closest evaluation model. In
@@ -378,6 +380,12 @@ To prove that they are authorized, both publishers and subscribers **MUST** pres
 when the subscriber is a web browser. Different keys **SHOULD** be used to sign subscribers' and
 publishers' tokens so that compromise of one role does not entail compromise of the other.
 
+Note: Hubs **MAY** be deployed without requiring authorization (for example, when serving only
+publicly-readable updates over a trusted network). Such deployments fall outside the scope of
+the rest of this section. They **MUST NOT** be reachable from networks containing untrusted
+clients, since any client able to reach the hub will be able to publish and subscribe at will.
+The remainder of this section assumes JWS-based authorization is in use.
+
 Three mechanisms are defined to present the JWS to the hub:
 
 *   an `Authorization` HTTP header,
@@ -458,24 +466,20 @@ support this method.
 
 ## JWS Validation {#jws-validation}
 
-Before evaluating the `mercure` claim, the hub **MUST** validate the JWS itself. All of the
-following checks **MUST** pass:
+Hubs **MUST** validate JWSs in accordance with the JSON Web Token Best Current Practices
+[@!RFC8725]. In particular:
 
-*   The `alg` header parameter **MUST NOT** be `none` [@!RFC8725].
-*   The `alg` header parameter **MUST** belong to the set of algorithms configured for the
-    issuer at the hub. Hubs **MUST** verify that `alg` is compatible with the key type used to
-    verify the signature (for example, a JWS bearing an HMAC `alg` **MUST NOT** be verifiable
-    with a key intended for an asymmetric algorithm). Hubs **SHOULD** support at minimum
-    `EdDSA`, `ES256`, and `RS256`, and **MUST NOT** accept any algorithm whose security has been
-    compromised at the time of deployment.
-*   The signature **MUST** be cryptographically valid under the resolved key.
-*   If the `exp` claim [@!RFC7519] is present, its value **MUST** be later than the current
-    time, including JWSs received in their first request.
-*   If the `nbf` claim [@!RFC7519] is present, its value **MUST** be earlier than or equal to
-    the current time.
+*   Hubs **MUST NOT** accept JWSs with `alg=none` and **MUST** verify that the `alg` header
+    parameter is compatible with the key type used for signature verification (preventing
+    algorithm-confusion attacks).
+*   Hubs **MUST** enforce the `exp` claim [@!RFC7519] if present, including on the first
+    request received bearing a JWS, and **MUST** enforce the `nbf` claim if present.
 *   If the hub publishes an identifier (e.g., its canonical URL) for use in the `aud` claim,
     and the JWS contains an `aud` claim, the hub **MUST** verify that this identifier appears
     in `aud`.
+*   Hubs **SHOULD** support at minimum the algorithms `EdDSA`, `ES256`, and `RS256`, and
+    **MUST NOT** accept any algorithm whose security has been compromised at the time of
+    deployment.
 
 Failure of any of these checks **MUST** be treated as JWS validation failure and **MUST** be
 reported as defined in the introduction to this section.
@@ -700,13 +704,19 @@ topics. The hub **MAY** ignore this request according to its own policy.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `lastEventID` query parameter, the hub **MUST** set a
-`Last-Event-ID` header on the HTTP response. The value of this response header **MUST** be the
-ID of the most recent event preceding the first one sent to the subscriber that the subscriber
-is authorized to receive, or the reserved value `earliest` if there is no such event (for
-example, when the hub history is empty, when the requested event does not exist, or when all
-preceding events were private updates the subscriber is not authorized to receive). The hub
-**MUST NOT** disclose, via this header, the identifier of any event the subscriber is not
-authorized to receive.
+`Last-Event-ID` header on the HTTP response. The value of this response header **MUST** be:
+
+*   the same identifier as the one provided in the request, if the corresponding event exists
+    in the hub's history and the subscriber would have been authorized to receive it; or
+*   the reserved value `earliest` in every other case (for example, when the hub history is
+    empty, the requested event does not exist, has been discarded, or was a private update
+    the subscriber is not authorized to receive).
+
+The hub **MUST NOT** disclose, via this header, any other identifier. This two-state response
+allows subscribers to detect that data may have been lost (the response value differs from
+the request value) without leaking the identifiers of events the subscriber cannot read, and
+avoids forcing the hub to scan its history backward on each reconnection, which would
+otherwise be a denial-of-service vector.
 
 The subscriber **SHOULD NOT** assume that no events will be lost (events may be lost, for
 instance, if the hub stores only a limited number of events in its history). In some cases (for
@@ -743,12 +753,13 @@ The topic of these updates **MUST** be an expansion of
     matcher type name in its canonical case as defined in (#matcher-types) (e.g., `URLPattern`,
     `Exact`). URL path components are case-sensitive.
 *   `{match}`: the topic matcher used for this subscription
-*   `{subscriber}`: a unique identifier for the subscriber. This identifier **MUST** be
-    generated by the hub; clients **MUST NOT** supply, suggest, or override this value, and the
-    hub **MUST** ignore any client-supplied value. The hub **MUST** ensure that the identifier
-    is unique among active subscriptions. The hub **MAY** derive the identifier from the JWS
-    `sub` claim (after validation per (#jws-validation)) or from any other hub-controlled
-    value; it **MUST NOT** be derived solely from data the client controls.
+*   `{subscriber}`: a unique identifier for the subscriber. Subscribers and publishers
+    **MUST NOT** forge, supply, or override this value through query parameters, headers,
+    request bodies, or any other client-controlled channel. The hub **MUST** derive the
+    identifier exclusively from information it has cryptographically validated — typically
+    the `sub` claim of the subscriber's JWS (after validation per (#jws-validation)), but
+    other authenticated values **MAY** be used. The hub **MUST** ensure that the identifier
+    is unique among active subscriptions.
 
 Note: Because strings containing reserved characters (e.g., URIs, URL Patterns, and URI
 Templates) can be used for the `{match}` and `{subscriber}` variables, per [@!RFC6570] the
@@ -1275,9 +1286,11 @@ in the `Last-Event-ID` response header; see (#reconciliation).
 
 ## Subscriber Identifier Assignment
 
-The `{subscriber}` identifier in subscription event topic URLs is hub-assigned. Allowing
-clients to supply, suggest, or override this value enables spoofing of subscription events and
-hijacking of subscription state belonging to other subscribers. See (#subscription-events).
+The `{subscriber}` identifier in subscription event topic URLs **MUST** be derived from
+information the hub has cryptographically validated, typically the `sub` claim of the
+subscriber's JWS. Allowing clients to supply, suggest, or override this value through any
+unauthenticated channel enables spoofing of subscription events and hijacking of subscription
+state belonging to other subscribers. See (#subscription-events).
 
 ## Regular-Expression and URL-Pattern Denial of Service
 
