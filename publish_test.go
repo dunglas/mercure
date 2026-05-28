@@ -547,3 +547,61 @@ func TestPublishHandlerRejectsSSEControlChars(t *testing.T) {
 		})
 	}
 }
+
+func TestPublishHandlerTooManyTopics(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+
+	form := url.Values{}
+	for i := 0; i <= maxPublishTopics; i++ {
+		form.Add("topic", "https://example.com/books/1")
+	}
+
+	form.Add("data", "Hello!")
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestPublishHandlerTooManyClaimMatchers(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+
+	scope := make([]string, maxClaimMatchers+1)
+	for i := range scope {
+		scope[i] = "https://example.com/books/1"
+	}
+
+	form := url.Values{}
+	form.Add("topic", "https://example.com/books/1")
+	form.Add("data", "Hello!")
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, scope))
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
