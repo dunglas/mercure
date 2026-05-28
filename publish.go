@@ -159,6 +159,15 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Reject oversized topic lists before running canDispatch — otherwise
+	// an authenticated publisher could force O(topics × selectors)
+	// matching work on every request before being rejected by validate.
+	if len(topics) > maxPublishTopics {
+		http.Error(w, ErrTooManyTopics.Error(), http.StatusBadRequest)
+
+		return
+	}
+
 	var retry uint64
 
 	if retryString := r.PostForm.Get("retry"); retryString != "" {

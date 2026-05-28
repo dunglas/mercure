@@ -287,6 +287,31 @@ func TestSubscribeTooManyTopics(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
+func TestSubscribeTooManyClaimMatchers(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+
+	scope := make([]string, maxClaimMatchers+1)
+	for i := range scope {
+		scope[i] = "https://example.com/foo"
+	}
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, scope))
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
 var errFailedToAddSubscriber = errors.New("failed to add a subscriber")
 
 type addSubscriberErrorTransport struct{}
