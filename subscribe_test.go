@@ -883,6 +883,66 @@ func TestUnknownLastEventID(t *testing.T) {
 	})
 }
 
+func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport))
+
+		// Public event the anonymous subscriber is authorized to read.
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			Topics: []string{"https://example.com/foos/a"},
+			Event:  Event{ID: "a", Data: "d1"},
+		}))
+		// Private event the anonymous subscriber is NOT authorized to
+		// read. Its id must not appear in the Last-Event-ID response.
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			Topics:  []string{"https://example.com/foos/b"},
+			Private: true,
+			Event:   Event{ID: "b", Data: "secret"},
+		}))
+
+		ctx := t.Context()
+
+		go func(ctx context.Context) {
+			c, cancel := context.WithCancel(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(c)
+
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: c\ndata: d3\n\n",
+				tb:                 t,
+				cancel:             cancel,
+			}
+
+			hub.SubscribeHandler(w, req)
+			// Authorized "a" leaks back as the recovery anchor; the
+			// private "b" does not, even though it is the most recent
+			// in-history event.
+			assert.Equal(t, "a", w.Header().Get("Last-Event-ID"))
+		}(ctx)
+
+		for {
+			transport.RLock()
+			done := transport.subscribers.Len() == 1
+			transport.RUnlock()
+
+			if done {
+				break
+			}
+		}
+
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/c"},
+			Event:  Event{ID: "c", Data: "d3"},
+		}))
+
+		synctest.Wait()
+	})
+}
+
 func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 	t.Parallel()
 

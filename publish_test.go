@@ -467,3 +467,110 @@ func FuzzPublish(f *testing.F) {
 		assert.Equal(t, id, string(body))
 	})
 }
+
+func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
+	t.Parallel()
+
+	for _, topic := range []string{
+		"/.well-known/mercure/subscriptions/foo",
+		"https://example.com/.well-known/mercure/subscriptions/foo",
+		"foo/.well-known/mercure/bar",
+	} {
+		t.Run(topic, func(t *testing.T) {
+			t.Parallel()
+
+			hub := createDummy(t)
+
+			form := url.Values{}
+			form.Add("topic", topic)
+			form.Add("data", "Hello!")
+
+			req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+			w := httptest.NewRecorder()
+			hub.PublishHandler(w, req)
+
+			resp := w.Result()
+
+			t.Cleanup(func() {
+				assert.NoError(t, resp.Body.Close())
+			})
+
+			assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+		})
+	}
+}
+
+func TestPublishHandlerRejectsSSEControlCharsInID(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{
+		"foo\nevent: injected",
+		"foo\revent: injected",
+		"foo\x00bar",
+	} {
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+
+			hub := createDummy(t)
+
+			form := url.Values{}
+			form.Add("topic", "https://example.com/books/1")
+			form.Add("id", id)
+			form.Add("data", "Hello!")
+
+			req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+			w := httptest.NewRecorder()
+			hub.PublishHandler(w, req)
+
+			resp := w.Result()
+
+			t.Cleanup(func() {
+				assert.NoError(t, resp.Body.Close())
+			})
+
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		})
+	}
+}
+
+func TestPublishHandlerRejectsSSEControlCharsInType(t *testing.T) {
+	t.Parallel()
+
+	for _, eventType := range []string{
+		"foo\nid: injected",
+		"foo\rdata: injected",
+		"foo\x00bar",
+	} {
+		t.Run(eventType, func(t *testing.T) {
+			t.Parallel()
+
+			hub := createDummy(t)
+
+			form := url.Values{}
+			form.Add("topic", "https://example.com/books/1")
+			form.Add("type", eventType)
+			form.Add("data", "Hello!")
+
+			req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+			w := httptest.NewRecorder()
+			hub.PublishHandler(w, req)
+
+			resp := w.Result()
+
+			t.Cleanup(func() {
+				assert.NoError(t, resp.Body.Close())
+			})
+
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		})
+	}
+}

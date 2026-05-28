@@ -22,6 +22,13 @@ const BoltDefaultCleanupFrequency = 0.3
 
 const defaultBoltBucketName = "updates"
 
+// maxHistoryScan caps how many history events a single subscriber
+// reconnection can force the transport to walk before giving up on
+// finding the requested Last-Event-ID. The cap is a denial-of-service
+// guard: without it, an attacker sending an ancient or non-existent
+// Last-Event-ID forces an O(history-size) scan on every request.
+const maxHistoryScan = 10000
+
 // BoltTransport implements the TransportInterface using the Bolt database.
 type BoltTransport struct {
 	sync.RWMutex
@@ -238,6 +245,7 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 		c := b.Cursor()
 		responseLastEventID := EarliestLastEventID
 		afterFromID := s.RequestLastEventID == EarliestLastEventID
+		scanned := 0
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			// Keys written after the subscribe snapshot (concurrent Dispatch
@@ -248,10 +256,39 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 				break
 			}
 
+			if scanned >= maxHistoryScan {
+				// DoS guard: bound the per-request backward scan so an
+				// attacker cannot force unbounded history walks by sending
+				// an ancient or non-existent Last-Event-ID. responseLast-
+				// EventID stays at the most recent authorized id seen so
+				// far (or "earliest" if none).
+				break
+			}
+
+			scanned++
+
 			if !afterFromID {
-				responseLastEventID = string(k[8:])
-				if responseLastEventID == s.RequestLastEventID {
+				id := string(k[8:])
+				if id == s.RequestLastEventID {
 					afterFromID = true
+					// The subscriber already knows this id; echoing it
+					// is not a disclosure.
+					responseLastEventID = s.RequestLastEventID
+
+					continue
+				}
+
+				// Only disclose the id of an event the subscriber is
+				// authorized to read. We must deserialize to evaluate
+				// Match against the update's topics and Private flag.
+				var update *Update
+				if err := json.Unmarshal(v, &update); err != nil {
+					// Skip silently — do not disclose this id.
+					continue
+				}
+
+				if s.Match(update) {
+					responseLastEventID = id
 				}
 
 				continue
