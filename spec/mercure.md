@@ -54,8 +54,8 @@ and dispatches matching updates, including updates marked as private that only a
 subscribers may receive.
 
 This document specifies the subscription and publication interfaces, the topic matcher types,
-the JWS-based authorization model, reconnection and state reconciliation, active-subscription
-tracking, discovery, and update encryption.
+the OAuth 2.0-based authorization model, reconnection and state reconciliation,
+active-subscription tracking, discovery, and update encryption.
 
 # Terminology
 
@@ -66,13 +66,10 @@ appear in all capitals, as shown here.
 
 *   Topic: The unit to which one can subscribe for changes. The topic is identified by a string
     that **MAY** be an IRI [@!RFC3987]. Topic strings **MUST** be valid UTF-8 [@!RFC3629] and
-    **MUST NOT** contain C0 control characters (U+0000–U+001F) or U+007F (DEL).
+    **MUST NOT** contain C0 control characters (U+0000–U+001F) or U+007F (DEL). An update is
+    about exactly one topic.
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private; in that case, it **MUST** be dispatched only to subscribers allowed to receive it.
-*   Canonical topic: The first `topic` value of an update; the primary identifier of the
-    updated resource.
-*   Alternate topic: Any `topic` value of an update other than the canonical topic. An update
-    is dispatched to subscribers matching either the canonical or an alternate topic.
 *   Topic matcher: An expression matched against one or more topics,
     depending on the matcher type.
 *   Topic matcher type: The type of a matching expression, either exact match or URL pattern.
@@ -86,7 +83,15 @@ appear in all capitals, as shown here.
     have several subscriptions by providing several topic matchers.
 *   Hub: A server that handles subscription requests and distributes content to subscribers when
     the corresponding topics have been updated. A hub **MAY** implement its own policies on who
-    can use it.
+    can use it. The hub is an OAuth 2.0 protected resource [@!RFC6749].
+*   Access token: The credential a client presents to the hub to prove authorization, carried as
+    a JWT [@!RFC7519] following the JWT access token profile [@!RFC9068].
+*   Resource identifier: The OAuth 2.0 resource identifier of the hub, used as the audience
+    (`aud`) of access tokens and advertised through protected resource metadata [@!RFC9728].
+*   Authorization server: An OAuth 2.0 authorization server [@!RFC6749] that issues access tokens
+    for the hub. Its use is **OPTIONAL**; access tokens **MAY** be self-issued.
+*   Authorization details: The `authorization_details` claim [@!RFC9396] carried in an access
+    token, expressing which actions a client may perform on which topics.
 
 # Subscription
 
@@ -98,13 +103,15 @@ the publisher; see (#discovery)) following the Server-Sent Events specification
 features.
 
 The subscriber specifies the topics to receive updates from using topic matcher query
-parameters. The `match` and `matchExact` parameters select the `Exact` matcher type; the
-`matchURLPattern` parameter selects the `URLPattern` matcher type. A request **MAY** contain
-several such parameters, in any combination. See (#matcher-types).
+parameters. The `topic` parameter selects the `Exact` matcher type; the `topicURLPattern`
+parameter selects the `URLPattern` matcher type. A request **MAY** contain several such
+parameters, in any combination. See (#matcher-types). These parameters select which topics the
+subscriber receives; they do not by themselves grant access to private updates, which is
+governed by the access token (see (#authorization)).
 
 The names of topic matcher query parameters are case-sensitive. A request using a topic matcher
-query parameter name other than `match`, `matchExact`, or `matchURLPattern` **MUST** be rejected
-with a 400 "Bad Request" HTTP status code.
+query parameter name other than `topic` or `topicURLPattern` **MUST** be rejected with a 400
+"Bad Request" HTTP status code.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 control characters or U+007F. Requests violating this constraint
@@ -155,9 +162,9 @@ Example:
 // for the https://example.com/foo topic, the bar topic,
 // and to any topic matching the https://example.com/bar/:id URL Pattern
 const url = new URL('https://example.com/.well-known/mercure');
-url.searchParams.append('match', 'https://example.com/foo');
-url.searchParams.append('match', 'bar');
-url.searchParams.append('matchURLPattern', 'https://example.com/bar/:id');
+url.searchParams.append('topic', 'https://example.com/foo');
+url.searchParams.append('topic', 'bar');
+url.searchParams.append('topicURLPattern', 'https://example.com/bar/:id');
 
 const eventSource = new EventSource(url);
 
@@ -195,8 +202,9 @@ canonicalizations are Unicode NFC [@!UNICODE] and, for IRIs, IDNA-canonical host
 and percent-encoding normalization [@!RFC3986]. Otherwise, visually identical topics will be
 treated as distinct, and homograph attacks (see (#security-considerations)) become possible.
 
-The matcher type name is `Exact`.
-The corresponding query parameters are `match` and `matchExact`.
+The matcher type name is `Exact`. The corresponding subscribe query parameter is `topic`, and
+the corresponding `matchType` value in authorization details (see (#topic-matcher-list)) is
+`Exact`.
 
 ## URL Pattern
 
@@ -224,15 +232,16 @@ URL patterns whose `protocol` component is a wildcard or capture group can match
 identifiers within this protocol; subscribers **MUST NOT** dereference them as URLs without
 validating the scheme against an allowlist appropriate for the subscriber's environment.
 
-The matcher type name is `URLPattern`.
-The corresponding query parameter is `matchURLPattern`.
+The matcher type name is `URLPattern`. The corresponding subscribe query parameter is
+`topicURLPattern`, and the corresponding `matchType` value in authorization details (see
+(#topic-matcher-list)) is `URLPattern`.
 
 ## Summary of Matcher Types
 
-| Matcher Type   | Query Parameter        | Requirement  |
-|----------------|------------------------|--------------|
-| `Exact`        | `match` / `matchExact` | **MUST**     |
-| `URLPattern`   | `matchURLPattern`      | **MUST**     |
+| Matcher Type   | Subscribe Query Parameter | `matchType` | Requirement  |
+|----------------|---------------------------|-------------|--------------|
+| `Exact`        | `topic`                   | `Exact`     | **MUST**     |
+| `URLPattern`   | `topicURLPattern`         | `URLPattern`| **MUST**     |
 
 # Publication
 
@@ -246,23 +255,22 @@ An application **MAY** deliver events directly to subscribers without an externa
 case, the publish endpoint described in this section is not required.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
-[@W3C.REC-html52-20171214] and **MUST** contain at least one `topic` field. Field names and
+[@W3C.REC-html52-20171214] and **MUST** contain exactly one `topic` field. Field names and
 values **MUST** be UTF-8 [@!RFC3629]. It **MAY** also contain the following name-value tuples:
 
-*   `topic`: The identifiers of the updated topic. It is **RECOMMENDED** to use an IRI as
-    identifier. If this name is present several times, the first occurrence is the canonical IRI
-    of the topic and the remaining ones are alternate IRIs. The hub **MUST** dispatch the update
-    to subscribers that are subscribed to either the canonical IRI or any of its alternate IRIs.
-    Topic values **MUST** conform to the constraints defined in (#terminology). Topic values
-    (canonical or alternate) **MUST NOT** address the reserved hub namespace. A topic addresses
-    the reserved namespace when, after being resolved as a URI reference against the hub's URL,
-    its path component is `/.well-known/mercure` or begins with `/.well-known/mercure/`,
-    regardless of scheme or authority. This namespace is reserved for resources generated by the
-    hub itself, including subscription events (see (#subscription-events)). Hubs **MUST** reject
-    publish requests violating this rule with a 403 HTTP status code. Checking the resolved path
-    component (rather than a leading-substring match on the raw value) prevents a publisher from
-    forging subscription events with an absolute topic such as
-    `https://hub.example.com/.well-known/mercure/subscriptions/...`.
+*   `topic`: The identifier of the updated topic, and the resource against which private-read
+    authorization is evaluated (see (#subscribers)). It is **RECOMMENDED** to use an IRI as
+    identifier. This field **MUST** appear exactly once; a request carrying more than one `topic`
+    field **MUST** be rejected with a 400 "Bad Request" HTTP status code. The topic value
+    **MUST** conform to the constraints defined in (#terminology). The topic **MUST NOT** address
+    the reserved hub namespace. A topic addresses the reserved namespace when, after being
+    resolved as a URI reference against the hub's URL, its path component is `/.well-known/mercure`
+    or begins with `/.well-known/mercure/`, regardless of scheme or authority. This namespace is
+    reserved for resources generated by the hub itself, including subscription events (see
+    (#subscription-events)). Hubs **MUST** reject publish requests violating this rule with a 403
+    HTTP status code. Checking the resolved path component (rather than a leading-substring match
+    on the raw value) prevents a publisher from forging subscription events with an absolute topic
+    such as `https://hub.example.com/.well-known/mercure/subscriptions/...`.
 *   `data` (optional): the content of the new version of this topic. The value **MUST** be
     valid UTF-8 [@!RFC3629].
 *   `private` (optional): if this field is present, the update **MUST NOT** be dispatched to
@@ -315,61 +323,67 @@ urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 
 # Authorization
 
-To prove that they are authorized, both publishers and subscribers **MUST** present a valid JWS
-[@!RFC7515] in compact serialization to the hub. The payload of this JWS is a JWT [@!RFC7519]
-carrying the `mercure` claim defined in this section together with the standard claims it
-references (`exp`, `nbf`, `aud`, `sub`). This JWS **SHOULD** be short-lived, especially
-when the subscriber is a web browser. Different keys **SHOULD** be used to sign subscribers' and
-publishers' tokens so that compromise of one role does not entail compromise of the other.
+The hub is an OAuth 2.0 protected resource [@!RFC6749]. To prove that they are authorized, both
+publishers and subscribers **MUST** present an access token to the hub. The access token
+**MUST** be a JWT [@!RFC7519] following the JWT access token profile [@!RFC9068], carried as a
+JWS [@!RFC7515] in compact serialization. The token **SHOULD** be short-lived, especially when
+the subscriber is a web browser.
+
+Access tokens **MAY** be issued by an OAuth 2.0 authorization server or self-issued by the
+publisher (for example, signed with a key shared out of band with the hub). The hub need not
+operate or trust an external authorization server. When an authorization server is used, the hub
+**MAY** advertise it through protected resource metadata (see (#discovery)). Different keys
+**SHOULD** be used to sign subscribers' and publishers' tokens so that compromise of one role
+does not entail compromise of the other.
+
+Authorization is expressed with the `authorization_details` claim [@!RFC9396]; see
+(#authorization-details). Routing (which topics a subscriber listens to, via the query
+parameters of (#subscription)) is independent of authorization (what a token permits): the query
+parameters never grant access to private updates.
 
 Note: Hubs **MAY** be deployed without requiring authorization (for example, when serving only
 publicly-readable updates over a trusted network). Such deployments fall outside the scope of
 the rest of this section. They **MUST NOT** be reachable from networks containing untrusted
 clients, since any client able to reach the hub will be able to publish and subscribe at will.
-The remainder of this section assumes JWS-based authorization is in use.
+The remainder of this section assumes token-based authorization is in use.
 
-Three mechanisms are defined to present the JWS to the hub:
+## Presenting the Access Token
 
-*   an `Authorization` HTTP header,
-*   a cookie,
-*   an `authorization` URI query parameter.
+Three mechanisms are defined to present the access token to the hub, following the OAuth 2.0
+Bearer Token Usage specification [@!RFC6750] where applicable:
 
-When any authorization mechanism is used, the connection **MUST** use an encryption layer such
-as HTTPS.
+*   an `Authorization` HTTP header with the `Bearer` scheme [@!RFC6750],
+*   a cookie (a Mercure extension for web browsers, see below),
+*   an `access_token` URI query parameter [@!RFC6750].
 
-If the client presents an `Authorization` HTTP header, the JWS it contains **MUST** be used.
-The content of the `authorization` query parameter and of the cookie **MUST** be ignored.
+When any of these mechanisms is used, the connection **MUST** use an encryption layer such as
+HTTPS.
 
-If the client sets an `authorization` query parameter and presents no `Authorization` HTTP header,
-the content of the query parameter **MUST** be used, and the content of the cookie **MUST** be
-ignored.
+If the client presents an `Authorization` HTTP header, the token it contains **MUST** be used;
+the `access_token` query parameter and the cookie **MUST** be ignored. If the client sets an
+`access_token` query parameter and presents no `Authorization` HTTP header, the query parameter
+**MUST** be used and the cookie **MUST** be ignored.
 
-If no JWS is presented, the hub **MUST** return a 401 "Unauthorized" HTTP status code. If a JWS
-is presented but the request is not authorized — whether because the JWS fails validation as
-defined in (#jws-validation) or because a valid JWS does not authorize the requested operation
-— the hub **MUST** return a 403 "Forbidden" HTTP status code. Returning the same status code in
-both cases prevents error responses from disclosing whether the failure was due to JWS
-validation or to insufficient scope; hubs **MUST NOT** otherwise reveal that distinction.
-
-## Authorization HTTP Header
+### Authorization HTTP Header
 
 If the publisher or the subscriber is not a web browser, it **SHOULD** use an `Authorization`
 HTTP header. This header **MUST** contain the string `Bearer` followed by a space character and
-by the JWS. The hub checks that the JWS conforms to the rules (defined later) ensuring that the
-client is authorized to publish or subscribe to updates.
+by the access token, as defined in [@!RFC6750].
 
-## Cookie
+### Cookie
 
 Per the `EventSource` specification [@W3C.REC-eventsource-20150203], web browsers cannot set
 custom HTTP headers on such connections, and the connections can only be established using the
 `GET` HTTP method. However, cookies are supported and can be included even in cross-domain
 requests if [the CORS credentials are
 set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials).
+This cookie mechanism is a Mercure-specific extension to [@!RFC6750]; hubs that support it
+**SHOULD** advertise it in their protected resource metadata (see (#discovery)).
 
 If the publisher or the subscriber is a web browser, it **SHOULD**, whenever possible, send a
-cookie containing the JWS when connecting to the hub. It is **RECOMMENDED** to name the cookie
-`mercureAuthorization`, but a different name **MAY** be used to prevent conflicts when several
-hubs share the same domain.
+cookie containing the access token when connecting to the hub. It is **RECOMMENDED** to name the
+cookie `mercureAuthorization`, but a different name **MAY** be used to prevent conflicts when
+several hubs share the same domain.
 
 The cookie **SHOULD** be set during discovery (see (#discovery)) to improve overall security.
 Consequently, if the cookie is set during discovery, the publisher and the hub **MUST** share
@@ -381,19 +395,15 @@ have `SameSite=Strict`; `SameSite=Lax` **MAY** be used if cross-site discovery f
 The cookie's `Path` attribute **SHOULD** be set to the path of the hub's subscription URL. See
 (#security-considerations).
 
-## URI Query Parameter
+### URI Query Parameter
 
-If the client cannot use an `Authorization` HTTP header or a cookie, the JWS **MAY** be passed
-as a URI query component as defined by "Uniform Resource Identifier (URI): Generic Syntax"
-[@!RFC3986], using the `authorization` parameter.
-
-The `authorization` query parameter **MUST** be separated from topic matcher parameters and from
-other request-specific parameters using `&` characters (ASCII code 38).
+If the client cannot use an `Authorization` HTTP header or a cookie, the access token **MAY** be
+passed in the `access_token` URI query parameter as defined in [@!RFC6750] section 2.3.
 
 For example, the client makes the following HTTP request using transport-layer security:
 
 ~~~ http
-GET /.well-known/mercure?match=https://example.com/books/foo&authorization=<JWS>
+GET /.well-known/mercure?topic=https://example.com/books/foo&access_token=<token>
 Host: hub.example.com
 ~~~
 
@@ -407,184 +417,166 @@ token will be logged, this method **SHOULD NOT** be used unless it is impossible
 the access token in the `Authorization` request header field or a secure cookie. Hubs **MAY**
 support this method.
 
-## JWS Validation {#jws-validation}
+## Error Responses
 
-Hubs **MUST** validate JWSs in accordance with the JSON Web Token Best Current Practices
-[@!RFC8725]. In particular:
+The hub reports authorization failures using the error responses defined in [@!RFC6750]
+section 3:
 
+*   If no access token is presented, the hub **MUST** return a 401 "Unauthorized" status code
+    with a `WWW-Authenticate: Bearer` challenge and **MUST NOT** include an error code. The
+    challenge **SHOULD** include a `resource_metadata` parameter pointing to the hub's protected
+    resource metadata (see (#discovery)) per [@!RFC9728].
+*   If a token is presented but fails validation as defined in (#token-validation), the hub
+    **MUST** return a 401 status code with `error="invalid_token"`.
+*   If a valid token does not authorize the requested operation, the hub **MUST** return a 403
+    "Forbidden" status code with `error="insufficient_scope"`.
+*   If the request is malformed, the hub **MUST** return a 400 "Bad Request" status code with
+    `error="invalid_request"`.
+
+Returning `invalid_token` for every presented-token failure (rather than distinguishing a bad
+signature from an expired or not-yet-valid token) avoids disclosing why validation failed.
+
+## Token Validation {#token-validation}
+
+Hubs **MUST** validate access tokens as JWT access tokens [@!RFC9068] and in accordance with the
+JSON Web Token Best Current Practices [@!RFC8725]. In particular:
+
+*   Hubs **MUST** verify that the token header `typ` is `at+jwt` [@!RFC9068], so that tokens
+    issued for other purposes (for example, OpenID Connect ID Tokens) are not accepted.
 *   Hubs **MUST** be configured with an explicit allowlist of accepted signature algorithms and
-    **MUST** reject any JWS whose `alg` is not on that allowlist. Hubs **MUST NOT** accept
+    **MUST** reject any token whose `alg` is not on that allowlist. Hubs **MUST NOT** accept
     `alg=none`, **MUST NOT** derive the set of acceptable algorithms from the token, and **MUST**
     verify that `alg` is compatible with the key used for verification (preventing
     algorithm-confusion attacks). The allowlist **SHOULD** include at minimum `EdDSA`, `ES256`,
     and `RS256`, and **MUST NOT** include any algorithm whose security has been compromised at
     the time of deployment.
 *   Hubs **MUST** select the verification key independently of attacker-controlled input. When
-    more than one key is in use — for example, separate publisher and subscriber keys (see
-    (#authorization)) or rotated keys — the hub **SHOULD** select the key using the `kid` header
-    parameter and/or the role of the endpoint, and **MUST NOT** allow the token to cause an
-    unexpected key to be selected.
-*   Hubs **MUST** enforce the `exp` claim [@!RFC7519] if present, including on the first
-    request received bearing a JWS, and **MUST** enforce the `nbf` claim if present.
-*   Hubs **SHOULD** be configured with an identifier (for example, their canonical URL). When so
-    configured, the hub **SHOULD** require the `aud` claim and reject any JWS whose `aud` does not
-    include that identifier; this bounds a token to its intended hub and mitigates replay across
-    hubs that share signing keys (see (#hub-trust)). Independently, if the hub publishes such an
-    identifier and the JWS contains an `aud` claim, the hub **MUST** verify that the identifier
-    appears in `aud`.
+    more than one key is in use — for example, separate publisher and subscriber keys or rotated
+    keys — the hub **SHOULD** select the key using the `kid` header parameter and/or the role of
+    the endpoint, and **MUST NOT** allow the token to cause an unexpected key to be selected.
+    Verification keys are obtained from static configuration, from the authorization server's JWK
+    Set [@!RFC7517] discovered through its metadata [@!RFC8414], or from the hub's protected
+    resource metadata (see (#discovery)). This specification defines no hub-specific key
+    distribution endpoint.
+*   Hubs **MUST** enforce the `exp` claim [@!RFC7519], including on the first request received
+    bearing a token, and **MUST** enforce the `nbf` claim if present.
+*   Hubs **MUST** be configured with their resource identifier and **MUST** verify that it
+    appears in the token `aud` claim [@!RFC9068]; this bounds a token to its intended hub and
+    mitigates replay across hubs that share signing keys (see (#hub-trust)). Hubs **SHOULD**
+    verify the `iss` claim against the expected issuer.
 
-Failure of any of these checks **MUST** be treated as JWS validation failure and **MUST** be
-reported as defined in the introduction to this section.
+The `sub` claim, when present, identifies the subscriber and is used to derive subscription
+event identifiers (see (#subscription-events)).
+
+Failure of any of these checks **MUST** be reported as defined in (#error-responses).
+
+## Authorization Details {#authorization-details}
+
+Authorization is expressed with the `authorization_details` claim [@!RFC9396], a JSON array of
+authorization detail objects. This specification defines the authorization detail type `mercure`.
+
+A `mercure` authorization detail object:
+
+*   **MUST** have a `type` property whose value is the string `mercure`.
+*   **MUST** have an `actions` property: a non-empty JSON array whose values are a subset of
+    `["publish", "subscribe"]` (RFC 9396 `actions` field).
+*   **MUST** have a `topics` property: a non-empty JSON array of topic matcher objects (see
+    (#topic-matcher-list)) identifying the topics the actions apply to.
+*   **MAY** have a `payload` property (a JSON object), meaningful only for the `subscribe` action
+    (see (#payloads)).
+
+A token grants an action on a topic when it carries a `mercure` authorization detail whose
+`actions` includes that action and one of whose `topics` matches the topic. Tokens with no
+`mercure` authorization detail grant no publish or subscribe rights.
+
+Hubs **SHOULD** apply implementation-defined maximums to the number of `mercure` authorization
+details, to the number of entries in each `topics` array, and to the length of individual
+patterns. Tokens exceeding any such limit **MUST** be rejected with a 400 status code. If any
+`mercure` authorization detail fails to parse or validate (including failures specific to a
+matcher's `matchType`), the hub **MUST** reject the request with a 400 status code and **MUST
+NOT** act on the basis of the remaining entries; partial acceptance is forbidden because it
+would silently alter the effective authorization of the token.
+
+Hubs **MAY** also limit the number of concurrent subscriptions established under a single token
+and **MAY** reject further subscription attempts with a 429 "Too Many Requests" status code once
+the limit is reached.
 
 ## Publishers
 
-Publishers **MUST** be authorized by the hub and **MUST** prove they are authorized to publish
-updates for every topic of the update.
-
-To be allowed to publish an update, the JWS presented by the publisher **MUST** contain a claim
-named `mercure`, and this claim **MUST** contain a `publish` key. `mercure.publish` contains an
-array of topic matchers as defined in (#topic-matcher-list).
-
-If `mercure.publish` is not defined or contains an empty array, the publisher **MUST NOT** be
-authorized to dispatch any update. Otherwise, the hub **MUST** check that every topic of the
-update to dispatch matches at least one of the topic matchers contained in `mercure.publish`.
-
-If the publisher is not authorized for every topic of an update, the hub **MUST NOT** dispatch
-the update (even if some topics are allowed) and **MUST** return a 403 HTTP status code.
+A publisher **MUST** present a token that grants the `publish` action on the update's topic: the
+token **MUST** carry a `mercure` authorization detail whose `actions` includes `publish` and one
+of whose `topics` matches the update's topic. Otherwise the hub **MUST NOT** dispatch the update
+and **MUST** return a 403 status code with `error="insufficient_scope"` (see (#error-responses)).
 
 ## Subscribers
 
-To receive updates marked as `private`, a subscriber **MUST** prove that it is authorized for at
-least one topic of the update. If the subscriber is not authorized, it **MUST NOT** receive the
-update.
+To receive updates marked as `private`, a subscriber **MUST** present a token that grants the
+`subscribe` action on the update's topic: the token **MUST** carry a `mercure` authorization
+detail whose `actions` includes `subscribe` and one of whose `topics` matches the update's topic.
+If the token does not grant `subscribe` on that topic, the hub **MUST NOT** deliver the update to
+the subscriber.
 
-If the presented JWS contains an expiration time in the standard `exp` claim defined in
-[@!RFC7519], the hub **MUST** close the connection at that time. Because a JWS without an `exp`
-claim would otherwise authorize an indefinitely long-lived connection that cannot be revoked,
-hubs **SHOULD** impose a maximum connection lifetime independent of `exp` and close connections
-that exceed it, requiring the subscriber to reconnect and re-authenticate.
+Because an update has exactly one topic (see (#publication)) and authorization is evaluated
+against that single topic, a subscriber receives a private update only when its token explicitly
+grants `subscribe` on that resource. The subscriber's routing matchers (query parameters) only
+select which topics it listens to; they never widen what it may read.
 
-To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a claim
-named `mercure` containing a `subscribe` key. `mercure.subscribe` contains an array of topic
-matchers as described in (#topic-matcher-list).
+If the presented token contains an `exp` claim, the hub **MUST** close the connection at that
+time. Because a token without an `exp` claim would otherwise authorize an indefinitely
+long-lived connection that cannot be revoked, hubs **SHOULD** impose a maximum connection
+lifetime independent of `exp` and close connections that exceed it, requiring the subscriber to
+reconnect and re-authenticate.
 
-The hub **MUST** check that at least one topic of the update to dispatch (*canonical* or
-*alternate*) matches at least one topic matcher provided in `mercure.subscribe`.
+For example, a subscriber may listen to all books via the routing matcher
+`topicURLPattern=https://example.com/books/:id` while its token authorizes reading only specific
+books:
 
-This behavior allows subscribing to several topics using topic matchers while guaranteeing that
-only authorized subscribers receive private updates (even if their canonical topics are matched
-by these matchers).
-
-For example, a subscriber wants to receive updates concerning all *book* resources it has access
-to. It can use the URL Pattern `https://example.com/books/:id` as the value of the
-`matchURLPattern` query parameter. Adding this same URL Pattern to the `mercure.subscribe` claim
-would allow the subscriber to receive all updates for all book resources, which is not the
-desired behavior: this subscriber is only authorized to access **some** of those resources.
-
-To solve this problem, the `mercure.subscribe` claim can contain a URL Pattern topic matcher such
-as `https://example.com/users/foo/?topic=:topic`.
-
-The publisher then publishes a private update with `https://example.com/books/1` as the canonical
-topic and `https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1` as an
-alternate topic:
-
-~~~ http
-POST /.well-known/mercure
-Host: example.com
-Content-Type: application/x-www-form-urlencoded
-Authorization: Bearer [snip]
-
-topic=https://example.com/books/1&topic=https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1&private=on
+~~~ json
+{
+  "authorization_details": [
+    {
+      "type": "mercure",
+      "actions": ["subscribe"],
+      "topics": [
+        {"match": "https://example.com/books/1", "matchType": "Exact"},
+        {"match": "https://example.com/books/7", "matchType": "Exact"}
+      ]
+    }
+  ]
+}
 ~~~
 
-The subscriber is subscribed to `https://example.com/books/:id`, a URL Pattern matched by the
-canonical topic of the update. The canonical topic is not matched by the topic matcher in
-`mercure.subscribe`. However, the alternate topic
-`https://example.com/users/foo/?topic=https%3A%2F%2Fexample.com%2Fbooks%2F1` is. Consequently,
-this private update is delivered to the subscriber. Other updates whose canonical topic is
-matched by `matchURLPattern` but whose alternate topics are not matched by `mercure.subscribe`
-are not delivered.
-
-Authorization is satisfied when *any* topic of an update (canonical or alternate) matches *any*
-matcher in `mercure.subscribe`, and the hub then delivers the entire update content. The set of
-authorized readers of a private update is therefore the union of the readers of all its topics.
-A publisher **MUST NOT** attach to a private update an alternate topic matchable by a broader
-audience than the audience intended to read the update's content; doing so discloses the full
-content to that broader audience. See (#private-update-audience).
-
-Note: This model places the per-resource authorization boundary in the publisher's choice of
-topics. The hub enforces only that some topic of the update matches some matcher in the
-subscriber's validated JWS; it does not independently verify that the subscriber is entitled to
-the specific resource. Issuers and publishers are jointly responsible for constructing topics
-and `mercure.subscribe` scopes so that the matchable set corresponds to the intended
-access-control policy.
+A private update for `https://example.com/books/1` is delivered; a private update for
+`https://example.com/books/2` is not, even though the routing matcher would select it.
 
 ## Topic Matcher List
 
-Topic matchers present in the `mercure.subscribe` or `mercure.publish` claim **MUST** be JSON
-objects.
+A topic matcher object appears in the `topics` array of a `mercure` authorization detail (see
+(#authorization-details)). It **MUST** be a JSON object with a `match` property containing the
+topic matcher itself, and **MAY** have an OPTIONAL `matchType` property containing the matcher
+type. The value of `matchType` is case-sensitive and **MUST** be either `Exact` or `URLPattern`
+(see (#matcher-types)). If no `matchType` key is present, the hub **MUST** assume the `Exact`
+matcher type. The reserved value `*` matches every topic (see (#matcher-types)).
 
-Each object **MUST** have a `match` property containing the topic matcher itself, and **MAY**
-have an OPTIONAL `matchType` property containing the topic matcher type. The value of
-`matchType` is case-sensitive and **MUST** be either `Exact` or `URLPattern` (see
-(#matcher-types)). If no `matchType` key is present, the hub **MUST** assume the `Exact` matcher
-type.
-
-Any entry that is not a JSON object **MUST** be rejected with a 400 "Bad Request" HTTP status
-code. Earlier drafts of this protocol allowed matchers to be expressed as bare strings;
-silently reinterpreting them under the rules defined here could change the semantics of tokens
-minted for those earlier versions.
-
-If any entry in `mercure.subscribe` or `mercure.publish` fails to parse or validate as a topic
-matcher (including failures specific to its `matchType`), the hub **MUST** reject the request
-with a 400 "Bad Request" HTTP status code and **MUST NOT** establish a subscription or dispatch
-an update on the basis of the remaining entries. Partial acceptance of a matcher list is
-forbidden because it would silently alter the effective authorization scope of the JWS.
-
-Hubs **SHOULD** apply implementation-defined maximums to the number of entries in
-`mercure.subscribe` and `mercure.publish` and to the length of individual patterns. Tokens
-exceeding any such limit **MUST** be rejected with a 400 HTTP status code.
-
-Hubs **MAY** also limit the number of concurrent subscriptions established under a single JWS
-and **MAY** reject further subscription attempts with a 429 "Too Many Requests" HTTP status
-code once the limit is reached.
+Any entry that is not a JSON object, or that fails to parse or validate as a topic matcher,
+**MUST** cause the request to be rejected with a 400 status code as defined in
+(#authorization-details).
 
 ## Payloads
 
-User-defined data can be attached to subscriptions and made available through the subscription
+User-defined data can be attached to a subscription and made available through the subscription
 API and in subscription events. See (#subscription-events).
 
-Each entry in the `mercure.subscribe` claim **MAY** contain a JSON object under the `payload`
-key, providing payload data scoped to that topic matcher.
+A `mercure` authorization detail with the `subscribe` action **MAY** carry a `payload` JSON
+object. The `payload` of the first `subscribe` authorization detail whose `topics` matches the
+subscription's own matcher (the `topic` or `topicURLPattern` query parameter value) **MUST** be
+included under the `payload` key of the JSON object describing the subscription, both in the
+subscription API and in subscription events. A `subscribe` detail whose `topics` contains the `*`
+wildcard matches every subscription and can serve as a default.
 
-The `mercure` claim **MAY** also contain a top-level `payload` key holding a JSON object. This
-top-level payload is used as a default when no per-matcher payload applies.
-
-The `payload` value associated with the first topic matcher in the `mercure.subscribe` claim
-that matches the subscription's own matcher (as determined by the `match` and `matchType` query
-parameters) **MUST** be included under the `payload` key in the JSON object describing a
-subscription, both in the subscription API and in subscription events.
-
-A claim matcher is considered to match a subscription matcher when any of the following holds:
-
-1.  The claim matcher's type is the same as the subscription matcher's type and both patterns
-    are byte-identical.
-2.  The claim matcher, evaluated against the subscription matcher's `match` value (treated as
-    an opaque string regardless of the subscription matcher's type), returns true. For
-    instance, a claim with `matchType=URLPattern` and `match=https://example.com/:id` matches a
-    subscription with `matchType=Exact` and `match=https://example.com/42`, because the URL
-    pattern accepts that URL string.
-
-This matching rule governs payload selection only. It **MUST NOT** be used to make
-authorization decisions; authorization is determined exclusively by the rules in (#subscribers)
-and (#publishers).
-
-If no claim matches the subscription, the hub **MUST** fall back to the top-level
-`mercure.payload` value, if any.
-
-Note: Payload selection is order-dependent; the first matching entry in `mercure.subscribe`
-wins. Issuers placing broad catchall matchers before more specific entries will mask the
-payloads of the specific entries. Specific matchers **SHOULD** appear before broader ones.
+Note: Payload selection is order-dependent; the first matching authorization detail wins. Issuers
+placing broad matchers before more specific entries will mask the payloads of the specific
+entries. Specific matchers **SHOULD** appear before broader ones.
 
 Privacy: Payloads are forwarded to other authorized subscribers via subscription events (see
 (#subscription-events)). Issuers **MUST NOT** place data in payloads that should not be visible
@@ -592,29 +584,28 @@ to other subscribers authorized for the corresponding subscription events. In pa
 storing data identifying the subscriber (such as a user identifier or IP address) effectively
 broadcasts that data to all other subscribers within the same subscription-events scope.
 
-Example JWT document containing payloads:
+Example access token claims carrying payloads:
 
 ~~~ json
 {
-    "subscribe": [
+    "authorization_details": [
         {
-            "match": "https://example.com/foo",
-            "payload": {
-                "custom1": "data only available for subscriptions to this topic"
-            }
+            "type": "mercure",
+            "actions": ["subscribe"],
+            "topics": [{"match": "https://example.com/foo"}],
+            "payload": {"custom1": "data only available for this topic"}
         },
         {
-            "match": "https://example.com/bar/:id",
-            "matchType": "URLPattern",
-            "payload": {
-                "custom2": "data only available for subscriptions matching this matcher"
-            }
+            "type": "mercure",
+            "actions": ["subscribe"],
+            "topics": [{"match": "https://example.com/bar/:id", "matchType": "URLPattern"}],
+            "payload": {"custom2": "data available for matching subscriptions"}
         },
         {
-            "match": "*",
-            "payload": {
-                "custom3": "data available for all other subscriptions"
-            }
+            "type": "mercure",
+            "actions": ["subscribe"],
+            "topics": [{"match": "*"}],
+            "payload": {"custom3": "default data for all other subscriptions"}
         }
     ]
 }
@@ -657,10 +648,10 @@ If the `Last-Event-ID` HTTP header or the `lastEventID` query parameter is prese
 subject to authorization.
 
 The authorization rules defined in (#subscribers) apply to replayed events identically to live
-events: the hub **MUST** re-evaluate each candidate replayed event against the current JWS
-scope before dispatching it. Events whose `private` flag is set and that do not satisfy the
-current `mercure.subscribe` claim **MUST NOT** be dispatched, regardless of any authorization
-that may have applied at publication time.
+events: the hub **MUST** re-evaluate each candidate replayed event against the current access
+token before dispatching it. Events whose `private` flag is set and that the token does not
+authorize the subscriber to read (see (#authorization-details)) **MUST NOT** be dispatched,
+regardless of any authorization that may have applied at publication time.
 
 The reserved value `earliest` requests that the hub send all updates it has for the subscribed
 topics. The hub **MAY** ignore this request according to its own policy. Because event
@@ -736,7 +727,7 @@ The topic of these updates **MUST** be an expansion of
     **MUST NOT** forge, supply, or override this value through query parameters, headers,
     request bodies, or any other client-controlled channel. The hub **MUST** derive the
     identifier exclusively from information it has cryptographically validated — typically
-    the `sub` claim of the subscriber's JWS (after validation per (#jws-validation)), but
+    the `sub` claim of the subscriber's access token (after validation per (#token-validation)), but
     other authenticated values **MAY** be used. The hub **MUST** ensure that the identifier
     is unique among active subscriptions.
 
@@ -765,7 +756,7 @@ at least the following properties:
 *   `subscriber`: the identifier of the subscriber. It **SHOULD** be an IRI.
 *   `active`: `true` when the subscription is active, `false` when it is terminated.
 *   `payload` (optional): the content of the `payload` field associated with this subscription
-    in the subscriber's JWS (see (#payloads)).
+    in the subscriber's access token (see (#payloads)).
 
 The JSON-LD document **MAY** contain other properties.
 
@@ -804,8 +795,8 @@ The web API **MUST** expose endpoints following these patterns:
     subscription.
 
 To access these URLs, clients **MUST** be authorized according to the rules defined in
-(#authorization). The requested URL **MUST** match at least one of the topic matchers provided
-in the `mercure.subscribe` key of the JWS.
+(#authorization). The requested URL **MUST** be granted the `subscribe` action by a `mercure`
+authorization detail in the access token (see (#authorization-details)).
 
 The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
 
@@ -999,7 +990,7 @@ delivery to subscribers.
 The publisher **SHOULD** include at least one Link Header [@!RFC8288] with `rel=mercure` (a hub
 link header). The target URL of such links **MUST** be a hub implementing the Mercure protocol.
 
-Note: A compromised publisher can advertise a malicious hub URL and capture the JWSs of
+Note: A compromised publisher can advertise a malicious hub URL and capture the access tokens of
 subscribers that connect to it. Subscribers **SHOULD** restrict accepted hub URLs to origins
 they have a basis to trust (for example, hubs sharing the publisher's registered domain) and
 **MAY** verify the hub's identity through out-of-band means before transmitting credentials.
@@ -1014,13 +1005,6 @@ The publisher **MAY** provide the following target attributes in the Link Header
     the subscriber **MUST** assume that the content type matches that of the original resource.
     The `content-type` attribute is especially useful to indicate that partial updates will be
     pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
-*   `key-set`: the URL of the key set used to decrypt updates, encoded in the JWK Set (JSON Web
-    Key Set) format [@!RFC7517]. See (#encryption). Because this key set contains secret key
-    material, the publisher **MUST** restrict access to this URL to authorized subscribers
-    only. The authorization mechanism described in (#authorization) **MAY** be reused for this
-    purpose, but the publisher is responsible for implementing the access control on its own
-    endpoint; this is not the hub's responsibility. Misconfigured access control on the
-    `key-set` URL defeats the encryption protections described in (#encryption).
 
 All these attributes are optional.
 
@@ -1036,6 +1020,29 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
 {"@id": "/books/foo", "foo": "bar"}
 ~~~
+
+## Protected Resource Metadata
+
+As an OAuth 2.0 protected resource, the hub **SHOULD** publish OAuth 2.0 Protected Resource
+Metadata [@!RFC9728] at the path derived from its URL as defined in that specification (for the
+hub URL `/.well-known/mercure`, the metadata is served at
+`/.well-known/oauth-protected-resource/.well-known/mercure`). The metadata document **SHOULD**
+include:
+
+*   `resource`: the hub's resource identifier, which is the value clients **MUST** place in the
+    access token `aud` claim (see (#token-validation)).
+*   `authorization_servers` (optional): issuer identifiers of the authorization servers that can
+    issue tokens for the hub [@!RFC8414]. Omitted when tokens are self-issued.
+*   `jwks_uri` (optional): the location of the hub's token verification keys, when not obtained
+    from an authorization server.
+*   `bearer_methods_supported`: the token presentation methods the hub accepts (see
+    (#presenting-the-access-token)); the cookie method is advertised under the
+    implementation-specific value `cookie`.
+
+When a request carries no access token, the hub's `WWW-Authenticate: Bearer` challenge
+**SHOULD** include a `resource_metadata` parameter pointing to this document (see
+(#error-responses)), so that clients can discover the resource identifier and authorization
+server without prior configuration.
 
 ## Topic Discovery
 
@@ -1119,11 +1126,9 @@ eavesdropping by the hub.
 
 To prevent the hub from reading the message content, the publisher **MAY** encrypt the message
 before sending it. The publisher **SHOULD** use JSON Web Encryption [@!RFC7516] to encrypt the
-content of the update. The publisher **MAY** provide the URL of the relevant encryption key(s)
-in the `key-set` attribute of the `Link` HTTP header during discovery; see (#discovery). The
-`key-set` attribute **MUST** link to a key encoded using the JSON Web Key Set [@!RFC7517]
-format. Any other out-of-band mechanism **MAY** be used instead to share the key between the
-publisher and the subscriber.
+content of the update. The encryption keys are shared between the publisher and the subscriber
+through any out-of-band mechanism, for example a JSON Web Key Set [@!RFC7517]; the hub is not
+involved in this exchange.
 
 Update encryption is considered a best practice to prevent mass surveillance, especially when
 the hub is managed by an external provider.
@@ -1165,31 +1170,31 @@ Type" registry with the following entry:
 *   Description: The Mercure Hub to use to subscribe to updates of this resource.
 *   Reference: This specification, (#discovery)
 
-## JSON Web Token (JWT) Registry
+## Authorization Details Type
 
-A new "JSON Web Token Claim" as described in (#authorization) is to be registered in the
-"JSON Web Token Claims" registry with the following entry:
+A new authorization details type as described in (#authorization-details) is to be registered in
+the "OAuth Authorization Server Metadata" — "Authorization Details Type" registry established by
+[@!RFC9396], with the following entry:
 
-*   Claim Name: mercure
-*   Description: Mercure data.
-*   Reference: This specification, (#authorization)
+*   Type: mercure
+*   Reference: This specification, (#authorization-details)
 
 # Security Considerations
 
-The confidentiality of the secret key(s) used to generate JWSs is a primary concern. Such keys
-**MUST** be stored securely and **MUST** be revoked immediately in the event of a breach.
+The confidentiality of the secret key(s) used to sign access tokens is a primary concern. Such
+keys **MUST** be stored securely and **MUST** be revoked immediately in the event of a breach.
 
-A valid JWS allows any client that holds it to subscribe to or publish on the hub. Their
-confidentiality **MUST** therefore be ensured: JWSs **MUST** only be transmitted over secure
-connections.
+A valid access token allows any client that holds it to subscribe to or publish on the hub. Its
+confidentiality **MUST** therefore be ensured: access tokens **MUST** only be transmitted over
+secure connections.
 
-When the client is a web browser, the JWS **SHOULD NOT** be exposed to JavaScript, to provide
-resilience against [Cross-site Scripting (XSS) attacks](https://owasp.org/www-community/attacks/xss/).
+When the client is a web browser, the access token **SHOULD NOT** be exposed to JavaScript, to
+provide resilience against [Cross-site Scripting (XSS) attacks](https://owasp.org/www-community/attacks/xss/).
 For this reason, `HttpOnly` cookies **SHOULD** be preferred as the authorization mechanism in
 that case.
 
-In the event of a breach, revoking JWSs before their expiration is often difficult. Short-lived
-tokens are therefore strongly **RECOMMENDED**.
+In the event of a breach, revoking access tokens before their expiration is often difficult.
+Short-lived tokens are therefore strongly **RECOMMENDED**.
 
 The hub's publishing endpoint can be targeted by [Cross-Site Request Forgery (CSRF) attacks](https://owasp.org/www-community/attacks/csrf)
 when the cookie-based authorization mechanism is used. Implementations supporting that
@@ -1204,17 +1209,18 @@ request.
 CSRF prevention techniques are described in depth in [OWASP's Cross-Site Request Forgery (CSRF)
 Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
 
-JWSs **SHOULD NOT** be passed in page URLs (for example, via the `authorization` query string
+Access tokens **SHOULD NOT** be passed in page URLs (for example, via the `access_token` query
 parameter). Browsers, web servers, and other software may not adequately secure URLs stored in
 browser history, server logs, and other data structures, and an attacker able to read those
 locations could steal the token.
 
-## JWS Validation
+## Token Validation
 
-JWS structure, signature, and standard-claim validation is required before the `mercure` claim
-is evaluated (see (#jws-validation)). Failure to reject `alg: none`, to bind `alg` to the key
-type, or to enforce `exp` and `nbf` enables token forgery, replay across contexts, and
-algorithm-confusion attacks on JWS.
+Access tokens are validated as JWT access tokens before authorization details are evaluated (see
+(#token-validation)). Failure to verify the `typ` is `at+jwt`, to reject `alg: none`, to bind
+`alg` to the key type, to enforce `exp`/`nbf`, or to verify `aud` enables token forgery, token
+type confusion (for example, accepting an ID Token), replay across contexts, and
+algorithm-confusion attacks.
 
 ## Server-Sent Events Field Injection
 
@@ -1250,22 +1256,14 @@ hub has cryptographically validated, typically the `sub` claim of the subscriber
 unauthenticated channel would enable spoofing of subscription events and hijacking of
 subscription state belonging to other subscribers.
 
-## Private Update Audience {#private-update-audience}
+## Private Update Authorization
 
-A private update is delivered in full when any one of its topics, canonical or alternate,
-matches any one matcher in a subscriber's `mercure.subscribe` claim (see (#subscribers)).
-Authorization gates delivery of the whole update, not of individual topics, so the audience of a
-private update is the union of the audiences of all its topics. Attaching a broadly matchable
-alternate topic to an update carrying sensitive content therefore discloses that content to
-everyone authorized for the broad topic. Publishers **MUST NOT** attach to a private update an
-alternate topic matchable by an audience broader than the intended readers of its content.
-
-This design places the per-resource authorization boundary in the publisher's choice of topics
-rather than in a hub-enforced access check; the hub verifies only that the subscriber's
-validated JWS matches some topic of the update. Issuers and publishers are jointly responsible
-for keeping the matchable set aligned with the intended access-control policy. Deployments with
-strict per-resource confidentiality requirements should account for this when designing their
-topic and scope conventions.
+A private update has exactly one topic, and the hub delivers it to a subscriber only when the
+subscriber's access token grants the `subscribe` action on that topic (see (#subscribers) and
+(#authorization-details)). Authorization is therefore a hub-enforced, per-resource check tied to
+the token issued for the subscriber, not a property of the publisher's topic construction or of
+the subscriber's routing matchers. Issuers scope each token's authorization details to the
+resources a subscriber may read; the hub never widens that based on routing.
 
 ## URL-Pattern Denial of Service
 
@@ -1276,10 +1274,10 @@ exposure.
 
 ## Payload Privacy
 
-Per-matcher and top-level payloads carried in `mercure.subscribe` are included in subscription
-events and forwarded to other authorized subscribers (see (#payloads)). Within the set of
-subscribers authorized for the corresponding subscription events, a payload is effectively
-broadcast; it cannot carry private metadata about an individual subscriber.
+Payloads carried in `mercure` authorization details are included in subscription events and
+forwarded to other authorized subscribers (see (#payloads)). Within the set of subscribers
+authorized for the corresponding subscription events, a payload is effectively broadcast; it
+cannot carry private metadata about an individual subscriber.
 
 ## Topic Normalization
 
@@ -1294,8 +1292,8 @@ guidance in (#exact-matching) addresses this.
 Absent limits on request and token size, malicious clients can exhaust hub resources. The
 implementation-defined limits described elsewhere in this document — on publish request body
 size, individual field length, the number of topic matcher query parameters per request, the
-number of entries in `mercure.subscribe` and `mercure.publish`, individual pattern length, and
-concurrent subscriptions per token — bound this exposure.
+number of `mercure` authorization details and of entries in their `topics` arrays, individual
+pattern length, and concurrent subscriptions per token — bound this exposure.
 
 ## Hub Trust
 
@@ -1303,22 +1301,32 @@ Subscribers obtain hub URLs from publishers via the discovery mechanism (see (#d
 transmit credentials to the hub. A compromised publisher can therefore redirect subscribers to
 a hub of its choosing and capture those credentials. As described in (#discovery), subscribers
 constrain the set of hub origins they connect to and can verify hub identity out of band. Scoping
-each token to its intended hub with the `aud` claim (see (#jws-validation)) limits the value of a
-captured token: a token bound to one hub's identifier cannot be replayed against another hub,
+each token to its intended hub with the `aud` claim (see (#token-validation)) limits the value of
+a captured token: a token bound to one hub's identifier cannot be replayed against another hub,
 even when the two share signing keys.
+
+## Protected Resource Metadata and Authorization Server Selection
+
+When the hub advertises an authorization server through protected resource metadata [@!RFC9728]
+(see (#discovery)), a client that is misled into using an inappropriate authorization server may
+expose itself to an adversary-in-the-middle. Clients **SHOULD** validate protected resource
+metadata as described in [@!RFC9728] and obtain it only from the deterministically derived,
+TLS-protected well-known location. Hubs and clients fetching metadata or key sets by URL
+**SHOULD** take precautions against server-side request forgery, such as refusing requests to
+internal address ranges.
 
 ## Bearer Tokens and Sender Constraint
 
-The JWS is a bearer credential: any party that obtains it can act within its scope until it
-expires. Short-lived tokens (see above) limit the exposure window but do not prevent use of a
+The access token is a bearer credential: any party that obtains it can act within its scope until
+it expires. Short-lived tokens (see above) limit the exposure window but do not prevent use of a
 token during its lifetime. Deployments protecting high-value operations **MAY** additionally
 sender-constrain tokens, for example with DPoP [@RFC9449] or mutual-TLS-bound tokens, so that a
 captured token is unusable without the corresponding proof-of-possession key.
 
 ## Publish Request Replay
 
-A captured publish request carrying a bearer JWS can be replayed by an on-path attacker, causing
-the same update to be dispatched again. For most deployments re-dispatching an identical update
+A captured publish request carrying a bearer access token can be replayed by an on-path attacker,
+causing the same update to be dispatched again. For most deployments re-dispatching an identical update
 is harmless. Deployments for which it is not **SHOULD** include a freshness indicator in the
 update (for example, a unique `id` checked for replay, or a timestamp) and reject duplicates.
 
