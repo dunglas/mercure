@@ -1,0 +1,97 @@
+[
+  {
+    "source": "/docs/mercure",
+    "destination": "/docs/introduction",
+    "permanent": true
+  },
+  {
+    "source": "/docs/getting-started",
+    "destination": "/docs/getting-started/quickstart",
+    "permanent": true
+  },
+  {
+    "source": "/docs/spec/use-cases",
+    "destination": "/docs/use-cases",
+    "permanent": true
+  },
+  {
+    "source": "/docs/spec/faq",
+    "destination": "/docs/reference/faq",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/install",
+    "destination": "/docs/getting-started/installation",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/config",
+    "destination": "/docs/deployment/configuration",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/cloud",
+    "destination": "/docs/production/high-availability",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/cluster",
+    "destination": "/docs/production/high-availability",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/cookbooks",
+    "destination": "/docs/production/troubleshooting",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/nginx",
+    "destination": "/docs/deployment/reverse-proxy",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/traefik",
+    "destination": "/docs/deployment/reverse-proxy",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/rolling-updates",
+    "destination": "/docs/production/rolling-updates",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/troubleshooting",
+    "destination": "/docs/production/troubleshooting",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/debug",
+    "destination": "/docs/production/debugging",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/load-test",
+    "destination": "/docs/production/load-testing",
+    "permanent": true
+  },
+  {
+    "source": "/docs/hub/license",
+    "destination": "/docs/reference/license",
+    "permanent": true
+  },
+  {
+    "source": "/docs/ecosystem/hotwire",
+    "destination": "/docs/use-cases/hotwire",
+    "permanent": true
+  },
+  {
+    "source": "/docs/ecosystem/help",
+    "destination": "/docs/reference/faq",
+    "permanent": true
+  },
+  {
+    "source": "/docs/ecosystem/github-actions",
+    "destination": "/docs/deployment/github-actions",
+    "permanent": true
+  }
+]

@@ -1,0 +1,203 @@
+---
+title: "Mercure topics, matchers, and subscription filters"
+description: "How subscribers select topics in Mercure 1.0 with exact match, URL Pattern, regular expression, CEL, and URI Template matchers."
+---
+
+# Topics and matchers
+
+A **topic** is the address of an update. A **matcher** is the rule a subscriber uses to say which topics it cares about. Mercure 1.0 supports several matcher types; pick the one that fits the shape of your data.
+
+> **Upgrading from 0.x?** The query parameter for subscribers changed from `topic=` to `match=` (exact) or `matchURLPattern=` (templated). URI Templates are still supported as `matchURITemplate=` but no longer the default. JWT claims are now objects, not strings. Full details: [Upgrade guide](../UPGRADE.md#10-from-0x).
+
+## Topics
+
+Topics are arbitrary strings. Anything works:
+
+- `https://example.com/books/42`
+- `chat-room-1234`
+- `urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022`
+- `tenant:acme/orders/new`
+
+### Why URLs are the recommended identifier
+
+URLs (more precisely, [URIs](https://www.rfc-editor.org/rfc/rfc3986)) are the web's native identifier standard. Using them as Mercure topics is a best practice for the same reasons REST uses URIs to name resources:
+
+- **Resources already have URLs.** If your application exposes `https://example.com/books/42`, that URL already identifies the book. Reusing it as the Mercure topic means subscribers and publishers reference the same thing in the same way, end to end.
+- **Globally unique by construction.** A URL is unique within its domain and unique across domains. You don't need to coordinate a separate naming scheme between services.
+- **Hypermedia-friendly.** URLs compose with `Link: rel="self"`, `JSON-LD` `@id`, Atom `<id>`, ActivityPub, OpenAPI, and every other web standard that already names things by URL. The same URL drops into a `fetch()`, an `<a href>`, a Mercure `match=`, and a database join.
+- **Tooling understands them.** Browsers, log aggregators, IDEs, and the URL Pattern matcher all parse and validate URLs out of the box. Path-based routing and per-segment matching come for free.
+- **REST principle.** A topic is a resource that publishers update and subscribers observe. Resources have URIs. Naming the topic with the resource's URI keeps the protocol uniform with the rest of your HTTP surface.
+
+When you control the resource the update is about, the natural topic is its canonical URL.
+
+### When to use a non-URL identifier
+
+URLs aren't mandatory. Slugs, UUIDs, custom URN schemes, or any other string can be a topic. Use them when the thing being broadcast doesn't have a meaningful URL:
+
+- Ephemeral or in-memory channels: `chat-room-1234`, `lobby:42`.
+- Domain identifiers that aren't web-addressable: `urn:uuid:...`, `did:...`.
+- Internal namespaced events from a single service: `tenant:acme/orders/new`.
+
+Subscribers match these with `matchExact` (full-string match) or [`matchRegexp`](#regular-expression-matchers-i-regexp) (pattern match against the raw string). The hub doesn't care; it treats topics as opaque bytes.
+
+Pick a scheme up front and stick to it. URLs are usually the right default; reach for a custom scheme only when there's no URL that names the thing you're broadcasting.
+
+## Subscribing with matchers
+
+A subscriber sends one or more `match*` query parameters when opening the SSE connection:
+
+```text
+# Subscribing with matchers
+GET /.well-known/mercure?match=https://example.com/books/1&matchURLPattern=https://example.com/users/:id HTTP/2
+```
+
+Each parameter starts with the literal string `match`, followed by the matcher type (case-insensitive: `matchURLPattern`, `matchurlpattern`, and `MATCHURLPATTERN` are equivalent). The subscriber receives every update whose topic matches **at least one** of the parameters.
+
+| Matcher                    | Query parameter              | Required by hubs | Use it for                               |
+| -------------------------- | ---------------------------- | ---------------- | ---------------------------------------- |
+| Exact                      | `match` (alias `matchExact`) | **MUST**         | Specific resources, fixed identifiers    |
+| URL Pattern                | `matchURLPattern`            | **SHOULD**       | Families of URLs (`/books/:id`)          |
+| Regular expression         | `matchRegexp`                | **SHOULD**       | Strings that aren't URLs (rooms, slugs)  |
+| Common Expression Language | `matchCEL`                   | **MAY**          | Boolean logic over multiple topic fields |
+| URI Template               | `matchURITemplate`           | **MAY**          | Compatibility with 0.x clients           |
+
+If a subscriber asks for a matcher type the hub doesn't implement, the hub responds `501 Not Implemented`.
+
+## Exact matching with the `match` parameter
+
+Case-sensitive string comparison. The matcher type the spec mandates every hub support.
+
+```javascript
+// Exact Matching with the match Parameter
+const url = new URL("https://hub.example.com/.well-known/mercure");
+url.searchParams.append("match", "https://example.com/books/1");
+url.searchParams.append("match", "https://example.com/users/42");
+new EventSource(url);
+```
+
+The connection above receives updates published with `topic=https://example.com/books/1` or `topic=https://example.com/users/42` (and nothing else).
+
+## URL pattern matchers
+
+[URL Patterns](https://urlpattern.spec.whatwg.org) are the WHATWG specification used by service workers and modern routers. They're the recommended way to subscribe to a family of URLs.
+
+```javascript
+// URL Pattern Matchers
+url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
+url.searchParams.append(
+  "matchURLPattern",
+  "https://example.com/users/:id/orders",
+);
+url.searchParams.append(
+  "matchURLPattern",
+  "https://example.com/feed/:type(news|alerts)",
+);
+```
+
+URL Patterns understand:
+
+- Named groups: `:id`
+- Wildcards: `*`
+- Regex constraints inside groups: `:type(news|alerts)`
+- Optional segments: `/items{/:tail}?`
+
+Patterns can be **absolute** (`https://example.com/...`) or **relative** to the hub URL (`/.well-known/mercure/subscriptions/Exact/:topic/:subscriber`). Relative patterns are useful for [subscribing to subscription events](active-subscriptions.md), where the hub itself is the publisher.
+
+A topic matches a URL Pattern if the URL Pattern accepts the topic string as a URL.
+
+> **URL Pattern playground.** The browser ships `URLPattern` natively. You can prototype patterns in the devtools console: `new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")`.
+
+## Regular expression matchers (I-regexp)
+
+`matchRegexp` takes an [I-Regexp](https://www.rfc-editor.org/rfc/rfc9485) regular expression, the interoperable subset that JSON Schema, XPath, and most modern engines agree on.
+
+```javascript
+// Regular Expression Matchers (I-Regexp)
+url.searchParams.append("matchRegexp", "^chat-room-[0-9]+$");
+url.searchParams.append("matchRegexp", "^tenant:acme/.*/error$");
+```
+
+Reach for regular expressions when your topics aren't URLs, or when URL Patterns can't express the thing you need (negative lookaheads, anchors past path segments).
+
+## Common expression language (CEL)
+
+[CEL](https://cel.dev/) is a small, sandboxed expression language used by Kubernetes, gRPC, and Cloud IAM. The hub passes a `topics` array to the expression: index `0` is the canonical topic, the rest are alternates. The expression must return a boolean.
+
+```javascript
+// Common Expression Language (CEL)
+url.searchParams.append(
+  "matchCEL",
+  "topics[0].startsWith('https://example.com/books/') && topics.exists(t, t.contains('lang=en'))",
+);
+```
+
+CEL is the most expressive matcher but also the most expensive. Hubs that implement it apply an evaluation cost limit and treat over-budget expressions as `false`. Use it when neither URL Patterns nor regular expressions can express the predicate, not as the default.
+
+## URI template matchers (backward compatibility)
+
+[URI Templates](https://www.rfc-editor.org/rfc/rfc6570) (`/books/{id}`) were the templating language of choice in Mercure 0.x. They're still supported via `matchURITemplate` for backward compatibility, but new code should use URL Patterns: they handle URLs better and are natively understood by browsers.
+
+```javascript
+// URI Template Matchers (Backward Compatibility)
+url.searchParams.append("matchURITemplate", "https://example.com/books/{id}");
+```
+
+## Combining matchers
+
+A subscription with several `match*` parameters is a logical OR. There is no way to express AND inside a subscription. If you need that, use CEL.
+
+```javascript
+// Combining matchers
+const url = new URL("https://hub.example.com/.well-known/mercure");
+url.searchParams.append("match", "https://example.com/site/announcement");
+url.searchParams.append(
+  "matchURLPattern",
+  "https://example.com/users/:id/notifications",
+);
+url.searchParams.append("matchRegexp", "^chat-room-(42|99)$");
+new EventSource(url);
+```
+
+This subscriber receives:
+
+- exactly the announcement topic, **or**
+- any user-notifications URL, **or**
+- the chat rooms 42 and 99.
+
+## Authorization claims use the same matcher types
+
+The hub uses matchers in two places: at subscription time (which topics does the client want?) and at authorization time (which topics is the client _allowed to use_?). Both share the same matcher vocabulary.
+
+In a JWT, the `mercure.subscribe` and `mercure.publish` claims hold an array of objects:
+
+```jsonc
+// Authorization claims use the same matcher types
+{
+  "mercure": {
+    "subscribe": [
+      { "match": "https://example.com/users/42" },
+      {
+        "match": "https://example.com/users/42/:resource",
+        "matchType": "URLPattern",
+      },
+    ],
+    "publish": [{ "match": "*" }],
+  },
+}
+```
+
+`matchType` defaults to `"Exact"` if omitted. The reserved value `"*"` (with `matchType: "Exact"` or omitted) means "every topic." Full details and examples in [Authorization](authorization.md).
+
+## How matching works on the publish side
+
+When a publisher posts an update with a `topic` (and optionally several alternate `topic` values), the hub runs every connected subscriber's matchers against the topic list. Public updates go to every subscriber whose matchers hit. Private updates additionally check that the subscriber's `mercure.subscribe` claim matches at least one of the topics. See [Publishing](publishing.md) and [Authorization](authorization.md) for the full path.
+
+## Picking a matcher
+
+A short rule of thumb:
+
+- One specific resource -> **Exact**.
+- All resources of a type -> **URL Pattern**.
+- Topics that aren't URLs -> **Regular expression**.
+- Multi-condition or multi-topic predicates -> **CEL**.
+- Migrating from 0.x and don't want to rewrite patterns yet -> **URI Template**.
