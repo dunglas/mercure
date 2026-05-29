@@ -75,8 +75,7 @@ appear in all capitals, as shown here.
     is dispatched to subscribers matching either the canonical or an alternate topic.
 *   Topic matcher: An expression matched against one or more topics,
     depending on the matcher type.
-*   Topic matcher type: The type of a matching expression,
-    such as exact match, regular expression, or URL pattern.
+*   Topic matcher type: The type of a matching expression, either exact match or URL pattern.
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
     systems might call the publisher the "source". Typically a site or a web API, but it can also
@@ -98,24 +97,14 @@ the publisher; see (#discovery)) following the Server-Sent Events specification
 **SHOULD** use HTTP version 2 or higher to leverage multiplexing and other performance-related
 features.
 
-The subscriber specifies the list of topics to receive updates from using one or more query
-parameters named `match`.
+The subscriber specifies the topics to receive updates from using topic matcher query
+parameters. The `match` and `matchExact` parameters select the `Exact` matcher type; the
+`matchURLPattern` parameter selects the `URLPattern` matcher type. A request **MAY** contain
+several such parameters, in any combination. See (#matcher-types).
 
-The subscriber can also use other matcher types via query parameters whose name is `match`
-concatenated with the matcher type name (e.g., `matchRegexp`, `matchURLPattern`).
-
-The `matchExact` query parameter **MUST** be treated as equivalent to `match`.
-
-The names of topic matcher query parameters are case-sensitive. A well-formed name is either a
-query parameter name defined in the "Mercure Matcher Types" registry (see
-(#iana-matcher-types)), or the concatenation of `match` and a non-registered matcher type name
-conforming to the production in (#other-matcher-types).
-
-If a topic matcher query parameter name is not well-formed, the hub **MUST** reject the request
-with a 400 "Bad Request" HTTP status code. If the name is well-formed but the hub does not
-implement the corresponding matcher type, the hub **MUST** reject the request with a 501 "Not
-Implemented" HTTP status code. This mirrors the handling of unsupported matcher types in
-(#topic-matcher-list).
+The names of topic matcher query parameters are case-sensitive. A request using a topic matcher
+query parameter name other than `match`, `matchExact`, or `matchURLPattern` **MUST** be rejected
+with a 400 "Bad Request" HTTP status code.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 control characters or U+007F. Requests violating this constraint
@@ -128,9 +117,8 @@ To mitigate resource exhaustion, hubs **SHOULD** apply implementation-defined ma
 number of topic matcher query parameters in a single request and to the length of each
 matcher's pattern. Requests exceeding any such limit **MUST** be rejected with a 400 "Bad
 Request" HTTP status code. A subscription is created for every topic matcher query parameter
-present in the request, whether its type is registered (see (#iana-matcher-types)) or
-hub-specific (see (#other-matcher-types)). Hubs **MAY** deduplicate
-subscriptions that have identical matcher type and pattern. See (#subscription-events).
+present in the request. Hubs **MAY** deduplicate subscriptions that have identical matcher type
+and pattern. See (#subscription-events).
 
 The `EventSource` JavaScript interface [@eventsource-interface] **MAY** be used to establish
 the connection. Any other appropriate mechanism, including but not limited to readable streams
@@ -184,6 +172,16 @@ authorization rules not defined in this specification.
 
 # Matcher Types
 
+A topic matcher is an expression matched against topics; its matcher type determines how the
+expression is interpreted. This document defines two matcher types, `Exact` and `URLPattern`.
+Hubs **MUST** support both.
+
+The reserved matcher value `*` matches every topic, regardless of matcher type. A subscriber
+that wishes to match a literal topic equal to `*` **MUST** use a `URLPattern` matcher (for
+example, the pattern `*` under `URLPattern` matches all topics, while an escaped literal can be
+expressed as a pattern). Within the `Exact` matcher type, the value `*` is always interpreted as
+the reserved wildcard and never as the literal one-character topic.
+
 ## Exact Matching
 
 The hub **MUST** support exact matching. With this matcher type, the hub **MUST** perform an
@@ -202,8 +200,7 @@ The corresponding query parameters are `match` and `matchExact`.
 
 ## URL Pattern
 
-The hub **SHOULD** support using URL patterns [@!urlpattern] as matchers.
-URL patterns **SHOULD** be preferred to regular expressions when matching URLs.
+The hub **MUST** support using URL patterns [@!urlpattern] as matchers.
 
 URL patterns **MAY** be absolute (e.g., `https://example.com/books/:id`) or relative
 (e.g., `/.well-known/mercure/subscriptions/Exact/:topic/:subscriber`). When evaluating
@@ -217,10 +214,10 @@ canonicalization [@!RFC3986]; all other components are case-sensitive.
 
 The URL Pattern Living Standard compiles patterns to regular expressions internally; crafted
 patterns can therefore trigger catastrophic backtracking. To mitigate denial-of-service attacks
-by clients submitting pathological patterns, hubs implementing URL Pattern matchers **MUST**
-either use a regular expression engine that guarantees linear-time matching (such as RE2 [@re2])
-or enforce an implementation-defined evaluation cost or time limit. When such a limit is
-reached, the pattern **MUST** be treated as not matching and the evaluation **MUST** be aborted.
+by clients submitting pathological patterns, hubs **MUST** either use a regular expression
+engine that guarantees linear-time matching (such as RE2 [@re2]) or enforce an
+implementation-defined evaluation cost or time limit. When such a limit is reached, the pattern
+**MUST** be treated as not matching and the evaluation **MUST** be aborted.
 
 URL patterns whose `protocol` component is a wildcard or capture group can match `data:`,
 `javascript:`, `file:`, and other potentially dangerous URI schemes. Topic strings are opaque
@@ -230,117 +227,12 @@ validating the scheme against an allowlist appropriate for the subscriber's envi
 The matcher type name is `URLPattern`.
 The corresponding query parameter is `matchURLPattern`.
 
-## Regular Expression
-
-The hub **SHOULD** support using I-Regexp regular expressions [@!RFC9485] as matchers.
-The hub **MUST NOT** resolve relative values against the hub's URL or any other base.
-
-The expression **MUST** be matched against the entire topic string (as if anchored at both
-ends). A match against a proper substring of the topic **MUST NOT** be treated as a match.
-
-I-Regexp defines a dialect but not an evaluation engine. To mitigate denial-of-service attacks
-by clients submitting pathological expressions, hubs **MUST** either use a regular expression
-engine that guarantees linear-time matching (such as RE2 [@re2]) or enforce an
-implementation-defined evaluation cost or time limit. When such a limit is reached, the
-expression **MUST** be treated as not matching and the evaluation **MUST** be aborted.
-
-The matcher type name is `Regexp`.
-The corresponding query parameter is `matchRegexp`.
-
-## Common Expression Language (CEL)
-
-The hub **MAY** support using CEL expressions [@cel] as matchers.
-
-A variable named `topics` containing an array of strings **MUST** be passed to the expression.
-This variable **MUST** contain the canonical topic followed by the alternate topics of the
-update to match.
-
-The hub **MAY** also pass implementation-specific variables and expose implementation-specific
-functions. Implementation-specific functions **MUST** be deterministic and side-effect-free;
-they **MUST NOT** perform network requests, access the filesystem, execute external processes,
-read clocks or random sources, or expose any other operation with externally-observable side
-effects. Exposing such operations would allow a malicious subscriber's expression to perform
-server-side request forgery or read sensitive material from the hub's environment.
-
-Hubs **SHOULD** apply an implementation-defined maximum size to the `topics` array.
-
-The expression **MUST** return a boolean value: `true` if the topic matches, `false` otherwise.
-
-If parsing or checking of a CEL expression fails, or if the expression does not return a boolean
-value, the hub **MUST** return a 400 "Bad Request" HTTP status code.
-
-To mitigate denial-of-service attacks by clients submitting pathological expressions,
-hubs implementing CEL **MUST** enforce an implementation-defined evaluation cost limit.
-When the limit is reached during evaluation, the expression **MUST** be treated as returning
-`false` and the evaluation **MUST** be aborted. Hubs **MAY** additionally log the event.
-
-The matcher type name is `CEL`.
-The corresponding query parameter is `matchCEL`.
-
-## URI Template
-
-The hub **MAY** support using URI templates [@!RFC6570] as matchers.
-Whenever possible, URL patterns **SHOULD** be preferred.
-
-[@!RFC6570] defines expansion (template to URI) but not matching (URI to template). For this
-matcher type, a URI template matches a topic if and only if there exists an assignment of the
-template's variables whose expansion, under the rules of [@!RFC6570], is byte-for-byte equal to
-the topic. The hub **MUST NOT** resolve relative values against the hub's URL or any other
-base. Because reverse-matching a template can be ambiguous or costly, hubs **SHOULD** enforce an
-implementation-defined evaluation cost or time limit; when the limit is reached, the template
-**MUST** be treated as not matching and the evaluation **MUST** be aborted.
-
-The matcher type name is `URITemplate`.
-The corresponding query parameter is `matchURITemplate`.
-
 ## Summary of Matcher Types
 
-| Matcher Type   | Query Parameter      | Requirement  |
-|----------------|----------------------|--------------|
-| `Exact`        | `match` / `matchExact` | **MUST**   |
-| `URLPattern`   | `matchURLPattern`    | **SHOULD**   |
-| `Regexp`       | `matchRegexp`        | **SHOULD**   |
-| `CEL`          | `matchCEL`           | **MAY**      |
-| `URITemplate`  | `matchURITemplate`   | **MAY**      |
-
-## Other Matcher Types
-
-The hub **MAY** implement additional matcher types. Matcher type names intended for
-interoperable deployment **MUST** be registered in the "Mercure Matcher Types" registry; see
-(#iana-matcher-types).
-
-Names for non-registered, hub-specific matcher types **MUST** be prefixed by a token under
-the implementer's exclusive control, separated from the type-specific suffix by a `.`
-(U+002E) character. The prefix **SHOULD** be either a DNS-controlled domain name in
-reverse-dotted order (for example, `com.example.Foo`) or another globally-unique identifier
-such as a registered trademark (for example, `ACME.Foo`). The intent is to minimize the
-collision risk that motivated [@!RFC6648] to deprecate the `X-` convention for HTTP headers.
-
-Names that match the production for a registered matcher type (case-sensitive PascalCase
-ASCII without `.`) **MUST NOT** be used for non-registered types. The corresponding query
-parameter name is the concatenation of `match` and the non-registered name as given
-(for example, `matchcom.example.Foo`).
-
-Implementations of non-registered matcher types **MUST** apply the same denial-of-service and
-sandbox controls as the corresponding built-in matcher with the closest evaluation model. In
-particular, expression-based or pattern-based custom matchers **MUST** use either an engine
-that guarantees linear-time matching or an implementation-defined evaluation cost or time
-limit, and **MUST NOT** expose network requests, filesystem access, process execution, or
-other externally-observable side effects to the expression.
-
-A custom matcher **MUST NOT** produce an authorization decision that would not also be reached
-by some registered matcher type for the same `match` value and topic. In other words, custom
-matchers extend the set of usable patterns; they **MUST NOT** subvert authorization checks
-defined in (#authorization).
-
-Hub operators **MUST** review each custom matcher implementation against the requirements in
-this section before enabling it, and **SHOULD** document its semantics so that JWS issuers can
-scope tokens correctly.
-
-JWSs containing non-registered matcher type names are not portable across hubs. Issuers and
-clients using such names accept that subscriptions and publications dependent on those names
-will be rejected with a 501 "Not Implemented" HTTP status code by hubs that do not implement
-the same name with compatible semantics.
+| Matcher Type   | Query Parameter        | Requirement  |
+|----------------|------------------------|--------------|
+| `Exact`        | `match` / `matchExact` | **MUST**     |
+| `URLPattern`   | `matchURLPattern`      | **MUST**     |
 
 # Publication
 
@@ -608,23 +500,14 @@ objects.
 
 Each object **MUST** have a `match` property containing the topic matcher itself, and **MAY**
 have an OPTIONAL `matchType` property containing the topic matcher type. The value of
-`matchType` is case-sensitive and **MUST** match exactly one of the matcher type names defined
-in (#matcher-types) (e.g., `Exact`, `URLPattern`, `Regexp`, `CEL`, `URITemplate`) or a name
-implemented by the hub. If no `matchType` key is present, the hub **MUST** assume the `Exact`
-matcher type.
+`matchType` is case-sensitive and **MUST** be either `Exact` or `URLPattern` (see
+(#matcher-types)). If no `matchType` key is present, the hub **MUST** assume the `Exact` matcher
+type.
 
 Any entry that is not a JSON object **MUST** be rejected with a 400 "Bad Request" HTTP status
 code. Earlier drafts of this protocol allowed matchers to be expressed as bare strings;
 silently reinterpreting them under the rules defined here could change the semantics of tokens
 minted for those earlier versions.
-
-If the type of one or more matchers in `mercure.subscribe` is not supported by the hub, the hub
-**MUST** reject the subscription request with a 501 "Not Implemented" HTTP status code and
-**MUST NOT** establish the subscription.
-
-If the type of one or more matchers in `mercure.publish` is not supported by the hub, the hub
-**MUST** reject the publication request with a 501 "Not Implemented" HTTP status code and
-**MUST NOT** dispatch the update.
 
 If any entry in `mercure.subscribe` or `mercure.publish` fails to parse or validate as a topic
 matcher (including failures specific to its `matchType`), the hub **MUST** reject the request
@@ -702,8 +585,7 @@ Example JWT document containing payloads:
             }
         },
         {
-            "match": ".*",
-            "matchType": "Regexp",
+            "match": "*",
             "payload": {
                 "custom3": "data available for all other subscriptions"
             }
@@ -1266,29 +1148,6 @@ A new "JSON Web Token Claim" as described in (#authorization) is to be registere
 *   Description: Mercure data.
 *   Reference: This specification, (#authorization)
 
-## Mercure Matcher Types {#iana-matcher-types}
-
-IANA is requested to create a new registry titled "Mercure Matcher Types", to be maintained
-under the "Mercure Protocol Parameters" group.
-
-The registration policy for this registry is "Specification Required" [@!RFC8126]. Each
-registration defines a matcher type by a case-sensitive PascalCase name and the case-sensitive
-query parameter name used to request matchers of that type in a subscription request. The
-query parameter name **MUST** be the concatenation of the string `match` and the matcher type
-name. Implementations **MUST** treat registered names exactly as listed; case-folded variants
-are not equivalent.
-
-The change controller for all initial entries is the IETF. The initial contents of the
-registry are:
-
-| Matcher Type   | Query Parameter               | Reference                                              |
-|----------------|-------------------------------|--------------------------------------------------------|
-| `Exact`        | `matchExact` (alias: `match`) | This specification, (#exact-matching)                  |
-| `URLPattern`   | `matchURLPattern`             | This specification, (#url-pattern)                     |
-| `Regexp`       | `matchRegexp`                 | This specification, (#regular-expression)              |
-| `CEL`          | `matchCEL`                    | This specification, (#common-expression-language-cel)  |
-| `URITemplate`  | `matchURITemplate`            | This specification, (#uri-template)                    |
-
 # Security Considerations
 
 The confidentiality of the secret key(s) used to generate JWSs is a primary concern. Such keys
@@ -1365,22 +1224,12 @@ hub has cryptographically validated, typically the `sub` claim of the subscriber
 unauthenticated channel would enable spoofing of subscription events and hijacking of
 subscription state belonging to other subscribers.
 
-## Regular-Expression and URL-Pattern Denial of Service
+## URL-Pattern Denial of Service
 
-I-Regexp [@!RFC9485] is a dialect, not an evaluation engine, and URL Pattern compiles
-internally to a regular expression. Naive implementations on engines such as PCRE are
-vulnerable to catastrophic backtracking. The mitigations required in (#regular-expression) and
-(#url-pattern) — a linear-time engine (such as RE2 [@re2]) or a per-evaluation cost or time
-limit — bound this exposure.
-
-## CEL Sandbox
-
-Implementation-specific functions exposed to CEL expressions are constrained to be
-deterministic and side-effect-free (see (#common-expression-language-cel)). Were such functions
-to perform network requests, filesystem access, process execution, or any other
-externally-observable operation, a malicious subscriber's expression could perform server-side
-request forgery, read sensitive material from the hub's environment, or amplify
-denial-of-service attacks.
+URL Pattern compiles internally to a regular expression. Naive implementations on engines such
+as PCRE are vulnerable to catastrophic backtracking. The mitigations required in (#url-pattern)
+— a linear-time engine (such as RE2 [@re2]) or a per-evaluation cost or time limit — bound this
+exposure.
 
 ## Payload Privacy
 
@@ -1416,16 +1265,6 @@ constrain the set of hub origins they connect to and can verify hub identity out
 
 JWE-protected updates are subject to algorithm-selection pitfalls and to replay. The algorithm
 restrictions and freshness guidance in (#encryption) address these.
-
-## Custom Matcher Types
-
-Hub-specific matcher types extend the protocol surface and therefore the attack surface.
-Misuse can cause authorization bypass through type confusion (a JWS minted for one hub's
-custom type evaluated under a different semantics on another hub), denial of service through
-unguarded pattern evaluation, and server-side request forgery or sensitive-material disclosure
-through expression-based matchers exposing dangerous operations. The naming, sandboxing,
-authorization-invariant, and operator-review requirements in (#other-matcher-types) address
-these risks.
 
 # Implementation Status
 
@@ -1926,16 +1765,6 @@ specification.
         <title>XMLHttpRequest Living Standard</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
-        </author>
-        <date year="2024"/>
-    </front>
-</reference>
-
-<reference anchor="cel" target="https://cel.dev/">
-    <front>
-        <title>Common Expression Language</title>
-        <author>
-            <organization>Google</organization>
         </author>
         <date year="2024"/>
     </front>
