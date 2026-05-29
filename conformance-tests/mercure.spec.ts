@@ -45,27 +45,39 @@ test.describe("Publish update", () => {
       topicSelectors: [`https://example.net/foo/${randomStrings[3]}`],
     },
     {
-      name: "URI template",
+      name: "URL pattern",
       mustBeReceived: true,
       updateTopics: [`https://example.net/foo/${randomStrings[4]}`],
+      topicSelectors: ["https://example.net/foo/:random"],
+    },
+    {
+      name: "URI template",
+      mustBeReceived: true,
+      updateTopics: [`https://example.net/foo/${randomStrings[5]}`],
       topicSelectors: ["https://example.net/foo/{random}"],
     },
     {
       name: "nonmatching raw string",
       mustBeReceived: false,
-      updateTopics: [`will-not-match}`],
+      updateTopics: [`will-not-match`],
       topicSelectors: ["another-name"],
     },
     {
       name: "nonmatching URI",
       mustBeReceived: false,
-      updateTopics: [`https://example.net/foo/will-not-match}`],
+      updateTopics: [`https://example.net/foo/will-not-match`],
       topicSelectors: ["https://example.net/foo/another-name"],
+    },
+    {
+      name: "nonmatching URL pattern",
+      mustBeReceived: false,
+      updateTopics: [`https://example.net/foo/will-not-match`],
+      topicSelectors: ["https://example.net/bar/:var"],
     },
     {
       name: "nonmatching URI template",
       mustBeReceived: false,
-      updateTopics: [`https://example.net/foo/will-not-match}`],
+      updateTopics: [`https://example.net/foo/will-not-match`],
       topicSelectors: ["https://example.net/bar/{var}"],
     },
     {
@@ -83,10 +95,17 @@ test.describe("Publish update", () => {
       topicSelectors: [`https://example.net/foo/${randomStrings[3]}`],
     },
     {
-      name: "private URI template",
+      name: "private URL pattern",
       mustBeReceived: false,
       private: true,
       updateTopics: [`https://example.net/foo/${randomStrings[4]}`],
+      topicSelectors: ["https://example.net/foo/:random"],
+    },
+    {
+      name: "private URI template",
+      mustBeReceived: false,
+      private: true,
+      updateTopics: [`https://example.net/foo/${randomStrings[5]}`],
       topicSelectors: ["https://example.net/foo/{random}"],
     },
   ];
@@ -117,8 +136,18 @@ test.describe("Publish update", () => {
           );
 
           const url = new window.URL("/.well-known/mercure", window.origin);
+          // The v9 protocol replaced the single `topic` query parameter with
+          // a family of `match*` parameters. Selectors carrying a `:param`
+          // placeholder go through the URL Pattern matcher, those carrying
+          // `{var}` through URI Template, everything else through the
+          // exact-string matcher.
+          const paramName = (selector: string): string => {
+            if (/\/:[A-Za-z_]/.test(selector)) return "matchURLPattern";
+            if (/\{[A-Za-z_]/.test(selector)) return "matchURITemplate";
+            return "match";
+          };
           data.topicSelectors.forEach((topicSelector) =>
-            url.searchParams.append("topic", topicSelector),
+            url.searchParams.append(paramName(topicSelector), topicSelector),
           );
 
           const event = new window.URLSearchParams();
@@ -163,8 +192,11 @@ test.describe("Publish update", () => {
           const resp = await fetch(`/.well-known/mercure`, {
             method: "POST",
             headers: {
+              // mercure.{publish,subscribe}: [{match: "*"}] — the v9 object
+              // form of the deprecated ["*"] wildcard. The string form is
+              // accepted only under WithProtocolVersionCompatibility.
               Authorization:
-                "Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiKiJdfX0.bVXdlWXwfw9ySx7-iV5OpUSHo34RkjUdVzDLBcc6l_g",
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6IioifV19fQ.0E7cOjh6kGKAPLC5mKzIvVIsV5j4hCNt9Ee0VY4kjqk",
             },
             body: event,
           });

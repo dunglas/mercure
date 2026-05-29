@@ -33,8 +33,6 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
-	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
-
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
 	hubsMu sync.Mutex
@@ -76,12 +74,24 @@ type JWTConfig struct {
 }
 
 type TopicSelectorCacheConfig struct {
-	// Deprecated: use Size instead.
-	MaxEntriesPerShard int `json:"max_entries_per_shard,omitempty"`
-	// Deprecated: no longer used.
-	ShardCount uint64 `json:"shard_count,omitempty"`
-	// Size is the maximum number of entries in the cache.
+	// Size is the maximum number of entries in the match-results cache.
+	// Use -1 to disable the cache entirely.
 	Size int `json:"size,omitempty"`
+}
+
+// resolveTopicSelectorCacheSize converts a user-supplied TopicSelectorCacheConfig
+// into the single cacheSize expected by mercure.NewTopicSelectorStore, applying
+// the default when unset and honouring the explicit -1 opt-out.
+func resolveTopicSelectorCacheSize(cfg *TopicSelectorCacheConfig) int {
+	if cfg == nil || cfg.Size == 0 {
+		return mercure.DefaultTopicSelectorStoreCacheSize
+	}
+
+	if cfg.Size < 0 {
+		return 0
+	}
+
+	return cfg.Size
 }
 
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
@@ -128,9 +138,6 @@ type Mercure struct {
 	// Allowed CORS origins.
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
-	// Deprecated: not used anymore.
-	CacheShardSize *int64 `json:"cache_shard_size,omitempty"`
-
 	// Triggers use of topic selector cache and avoidance of select priority queue.
 	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
 
@@ -139,8 +146,24 @@ type Mercure struct {
 	// The name of the authorization cookie. Defaults to "mercureAuthorization".
 	CookieName string `json:"cookie_name,omitempty"`
 
-	// The version of the Mercure protocol to be backward compatible with (only version 7 is supported)
+	// PublicURL is the hub's public-facing URL (e.g. https://hub.example.com).
+	// Used as the base URL when the URL Pattern matcher resolves relative
+	// patterns or relative topics. When empty, only relative ↔ relative
+	// matches (such as the hub's own subscription events) work; cross-mode
+	// matching against absolute topics on the hub URL requires this value.
+	PublicURL string `json:"public_url,omitempty"`
+
+	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
+
+	// MatcherTypes lists which built-in matcher types to enable. Accepted
+	// values (case-insensitive) are "exact", "urlpattern", "regexp",
+	// "uritemplate" and "cel". Unknown values cause provisioning to fail.
+	// When omitted, defaults are selected based on the protocol compatibility
+	// mode: ["exact", "urlpattern"] for modern mode and
+	// ["exact", "urlpattern", "uritemplate"] under protocol_version_compatibility.
+	// "exact" is always registered because the protocol mandates it.
+	MatcherTypes []string `json:"matcher_types,omitempty"`
 
 	// The transport configuration.
 	TransportRaw json.RawMessage `json:"transport,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
@@ -210,26 +233,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		return err
 	}
 
-	cacheSize := mercure.DefaultTopicSelectorStoreCacheSize
-
-	if m.TopicSelectorCache != nil {
-		switch {
-		case m.TopicSelectorCache.Size > 0:
-			cacheSize = m.TopicSelectorCache.Size
-		case m.TopicSelectorCache.MaxEntriesPerShard > 0:
-			// Backward compat: convert old per-shard config
-			shardCount := m.TopicSelectorCache.ShardCount
-			if shardCount == 0 {
-				shardCount = 256
-			}
-
-			cacheSize = m.TopicSelectorCache.MaxEntriesPerShard * int(shardCount)
-		case m.TopicSelectorCache.MaxEntriesPerShard < 0:
-			cacheSize = 0
-		}
-	}
-
-	tss, err := mercure.NewTopicSelectorStore(cacheSize)
+	tss, err := mercure.NewTopicSelectorStore(resolveTopicSelectorCacheSize(m.TopicSelectorCache))
 	if err != nil {
 		return err
 	}
@@ -271,7 +275,15 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
+		mercure.WithPublicURL(m.PublicURL),
 	}
+
+	matcherOpts, err := m.matcherTypeOptions()
+	if err != nil {
+		return err
+	}
+
+	opts = append(opts, matcherOpts...)
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
 		opts = append(opts, mercure.WithDebug())
@@ -561,6 +573,19 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.CookieName = d.Val()
 
+			case "public_url":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.PublicURL = d.Val()
+
+			case "matcher_types":
+				m.MatcherTypes = d.RemainingArgs()
+				if len(m.MatcherTypes) == 0 {
+					return d.ArgErr()
+				}
+
 			case "protocol_version_compatibility":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -571,11 +596,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.WrapErr(err)
 				}
 
-				if v != 7 {
-					return d.WrapErr(ErrCompatibility)
+				switch v {
+				case 7, 8:
+					m.ProtocolVersionCompatibility = v
+				default:
+					return d.WrapErr(mercure.ErrUnsupportedProtocolVersion)
 				}
-
-				m.ProtocolVersionCompatibility = v
 			}
 		}
 	}
@@ -583,6 +609,54 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	m.assignDeprecatedTransportURLForEnv()
 
 	return nil
+}
+
+// resolveBuiltinMatcher returns the canonical name and an implementation for
+// a built-in matcher type. CEL is constructed with the module's logger so
+// pattern-compilation warnings flow through the configured logger; the other
+// types are stateless globals. Canonical casing is preserved so subscription
+// events and subscription API payloads always emit e.g. "URLPattern" even
+// when the operator configured "urlpattern" in the Caddyfile.
+func (m *Mercure) resolveBuiltinMatcher(name string) (canonicalName string, matcher mercure.Matcher, ok bool) { //nolint:nonamedreturns
+	switch strings.ToLower(name) {
+	case "exact":
+		return "Exact", mercure.ExactMatcher, true
+	case "uritemplate":
+		return "URITemplate", mercure.URITemplateMatcher, true
+	case "urlpattern":
+		return "URLPattern", mercure.NewURLPatternMatcher(m.PublicURL), true
+	case "regexp":
+		return "Regexp", mercure.RegexpMatcher, true
+	case "cel":
+		return "CEL", mercure.NewCELMatcher(m.logger), true
+	}
+
+	return "", nil, false
+}
+
+// matcherTypeOptions resolves the configured matcher_types into registration
+// options. Unknown types are rejected rather than silently ignored so typos
+// surface at provision time instead of at subscription time.
+func (m *Mercure) matcherTypeOptions() ([]mercure.Option, error) {
+	// When no matcher_types are configured, NewHub keeps its built-in defaults:
+	// Exact + URLPattern, with URITemplate additionally registered when
+	// protocol_version_compatibility is enabled.
+	if len(m.MatcherTypes) == 0 {
+		return nil, nil //nolint:nilnil
+	}
+
+	opts := make([]mercure.Option, 0, len(m.MatcherTypes))
+
+	for _, name := range m.MatcherTypes {
+		canonical, matcher, ok := m.resolveBuiltinMatcher(name)
+		if !ok {
+			return nil, fmt.Errorf("unknown matcher type %q", name) //nolint:err113
+		}
+
+		opts = append(opts, mercure.WithMatcherType(canonical, matcher))
+	}
+
+	return opts, nil
 }
 
 // parseCaddyfile unmarshals tokens from h into a new Middleware.

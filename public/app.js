@@ -7,8 +7,23 @@
   const origin = window.location.origin;
   const defaultTopic = document.URL + "demo/books/1.jsonld";
   const placeholderTopic = "https://example.com/my-private-topic";
+
+  // Object-form JWT (v9+ of the protocol). Signed with
+  // `!ChangeThisMercureHubJWTSecretKey!`.
+  //
+  // {
+  //   "mercure": {
+  //     "publish":  [{ "match": "*" }],
+  //     "subscribe": [
+  //       { "match": "https://example.com/my-private-topic" },
+  //       { "match": "https://example.com/demo/books/:id.jsonld", "matchType": "URLPattern" },
+  //       { "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", "matchType": "URLPattern" }
+  //     ],
+  //     "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
+  //   }
+  // }
   const defaultJwt =
-    "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifSx7Im1hdGNoIjoiLy53ZWxsLWtub3duL21lcmN1cmUvc3Vic2NyaXB0aW9ucy86bWF0Y2hUeXBlLzptYXRjaC86c3Vic2NyaWJlciIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.-I_LuyEjpjZKSfFI-4BstvrLzdCNslsSjHfR5RX0PcM";
 
   const $updates = document.getElementById("updates");
   const $subscriptions = document.getElementById("subscriptions");
@@ -56,6 +71,31 @@
     if (match && match[1]) return match[1];
   };
 
+  // matcherTypeLabel maps a match* query parameter name to the human-readable
+  // name used in 501-unsupported alerts.
+  const matcherTypeLabel = {
+    match: "Exact",
+    matchURLPattern: "URLPattern",
+    matchRegexp: "Regexp",
+    matchURITemplate: "URITemplate",
+    matchCEL: "CEL",
+  };
+
+  // unsupportedMatcherAlert tells the operator how to enable a matcher type
+  // when the hub answered 501 Not Implemented to a subscribe or subscription
+  // request.
+  const unsupportedMatcherAlert = (paramName) => {
+    const label = matcherTypeLabel[paramName] ?? paramName;
+    alert(
+      `The hub does not support the "${label}" matcher type (501 Not Implemented).\n\n` +
+        "Enable it in your hub configuration. Example Caddyfile directive:\n\n" +
+        "    mercure {\n" +
+        "        matcher_types exact urlpattern regexp uritemplate cel\n" +
+        "    }\n\n" +
+        'For the JSON config, set "matcher_types" on the module.',
+    );
+  };
+
   // Set default values
   document.addEventListener("DOMContentLoaded", () => {
     $settingsForm.hubUrl.value = origin + "/.well-known/mercure";
@@ -80,8 +120,11 @@
     );
 
     document.getElementById("subscribeTopicsExamples").textContent =
-      `${document.URL}demo/novels/{id}.jsonld
-${defaultTopic}
+      `${defaultTopic}
+${document.URL}demo/novels/:id.jsonld   (URL Pattern)
+${document.URL}demo/books/{id}.jsonld   (URI Template)
+^https://example\\.com/chapters/[0-9]+$ (Regexp)
+topics.all(t, t.startsWith("https://example.com/")) (CEL)
 foo`;
   });
 
@@ -122,6 +165,34 @@ foo`;
     }
   };
 
+  // openEventSource builds an EventSource-like object using the polyfill,
+  // which — unlike the native EventSource — exposes the HTTP status on
+  // error events so we can spot 501 Not Implemented for unregistered
+  // matcher types. Cookie auth goes through withCredentials; header auth
+  // goes through the Authorization header (unsupported by native EventSource
+  // in browsers).
+  const openEventSource = (url) => {
+    if ($settingsForm.authorization.value === "header") {
+      return new EventSourcePolyfill(url, {
+        headers: { Authorization: `Bearer ${$settingsForm.jwt.value}` },
+      });
+    }
+    return new EventSourcePolyfill(url, { withCredentials: true });
+  };
+
+  // matcherErrorHandler returns an onerror handler that intercepts the 501
+  // "Not Implemented" case with a dedicated alert, then delegates to the
+  // generic error reporter for everything else.
+  const matcherErrorHandler = (eventSource, paramName, cleanup) => (e) => {
+    if (e.status === 501) {
+      eventSource.close();
+      unsupportedMatcherAlert(paramName);
+      cleanup && cleanup();
+      return;
+    }
+    error(e);
+  };
+
   // Subscribe
   const $updateTemplate = document.getElementById("update");
   let updateEventSource;
@@ -132,24 +203,22 @@ foo`;
     $updates.textContent = "No updates pushed yet.";
 
     const {
-      elements: { topics, lastEventId },
+      elements: { topics, matcherType, lastEventId },
     } = this;
 
-    const topicList = topics.value.split("\n");
+    const paramName = matcherType.value;
     const u = new URL($settingsForm.hubUrl.value);
-    topicList.forEach((topic) => u.searchParams.append("topic", topic));
+    topics.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .forEach((pattern) => u.searchParams.append(paramName, pattern));
     if (lastEventId.value) {
       u.searchParams.append("lastEventID", lastEventId.value);
     }
 
     let ol = null;
-    if ($settingsForm.authorization.value === "header") {
-      updateEventSource = new EventSourcePolyfill(u, {
-        headers: {
-          Authorization: `Bearer ${$settingsForm.jwt.value}`,
-        },
-      });
-    } else updateEventSource = new EventSource(u);
+    updateEventSource = openEventSource(u);
 
     updateEventSource.onmessage = function (e) {
       if (!ol) {
@@ -165,8 +234,16 @@ foo`;
       li.querySelector("pre").textContent = e.data;
       ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
     };
-    updateEventSource.onerror = error;
-    this.elements.unsubscribe.disabled = false;
+    const unsubscribeBtn = this.elements.unsubscribe;
+    updateEventSource.onerror = matcherErrorHandler(
+      updateEventSource,
+      paramName,
+      () => {
+        unsubscribeBtn.disabled = true;
+        $updates.textContent = "Not subscribed.";
+      },
+    );
+    unsubscribeBtn.disabled = false;
   };
   $subscribeForm.elements.unsubscribe.onclick = function (e) {
     e.preventDefault();
@@ -217,7 +294,9 @@ foo`;
     );
     subscription.querySelector("div").setAttribute("id", s.id);
     subscription.querySelector(".card-header-title").textContent = s.id;
-    subscription.querySelector(".topic").textContent = s.topic;
+    // v9+ subscriptions expose match/matchType; deprecated ones expose topic.
+    subscription.querySelector(".match").textContent =
+      s.match !== undefined ? `${s.matchType || "Exact"} ${s.match}` : s.topic;
     subscription.querySelector(".subscriber").textContent = s.subscriber;
     subscription.querySelector("code").textContent = JSON.stringify(
       s.payload,
@@ -247,15 +326,16 @@ foo`;
 
       json.subscriptions.forEach(addSubscription);
 
+      // Subscribe to subscription events using a URL-pattern matcher that
+      // covers every {matchType}/{match}/{subscriber} triple.
       const u = new URL($settingsForm.hubUrl.value);
       u.searchParams.append(
-        "topic",
-        "/.well-known/mercure/subscriptions{/topic}{/subscriber}",
+        "matchURLPattern",
+        "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
       );
       u.searchParams.append("lastEventID", json.lastEventID);
 
-      if (opt) subscriptionEventSource = new EventSourcePolyfill(u, opt);
-      else subscriptionEventSource = new EventSource(u);
+      subscriptionEventSource = openEventSource(u);
 
       subscriptionEventSource.onmessage = function (e) {
         const s = JSON.parse(e.data);
@@ -267,9 +347,16 @@ foo`;
 
         document.getElementById(s.id).remove();
       };
-      subscriptionEventSource.onerror = error;
-
-      $subscriptionsForm.elements.unsubscribe.disabled = false;
+      const unsubscribeBtn = $subscriptionsForm.elements.unsubscribe;
+      subscriptionEventSource.onerror = matcherErrorHandler(
+        subscriptionEventSource,
+        "matchURLPattern",
+        () => {
+          unsubscribeBtn.disabled = true;
+          $subscriptions.textContent = "";
+        },
+      );
+      unsubscribeBtn.disabled = false;
     } catch (e) {
       error(e);
     }

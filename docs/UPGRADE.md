@@ -1,5 +1,114 @@
 # Upgrade
 
+## 0.24
+
+Subscribers and JWT matcher claims now follow the **topic matchers** model of
+spec draft `draft-dunglas-mercure-08`.
+
+### Query parameters
+
+The deprecated `topic=` query parameter is replaced by typed matcher parameters
+(case-insensitive):
+
+- `match` / `matchExact` — exact case-sensitive comparison (replaces plain
+  string selectors).
+- `matchURLPattern` — [URL Pattern](https://urlpattern.spec.whatwg.org/).
+- `matchRegexp` — [I-Regexp (RFC 9485)](https://www.rfc-editor.org/rfc/rfc9485.html).
+- `matchURITemplate` — [URI Template (RFC 6570)](https://tools.ietf.org/html/rfc6570)
+  (replaces the implicit URI template support of `topic=`).
+- `matchCEL` — [CEL](https://github.com/google/cel-spec).
+
+```patch
+-GET /.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo
++GET /.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo
+
+-GET /.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Fbooks%2F%7Bid%7D
++GET /.well-known/mercure?matchURITemplate=https%3A%2F%2Fexample.com%2Fbooks%2F%7Bid%7D
+```
+
+### JWT claims
+
+`mercure.publish` and `mercure.subscribe` entries must now be objects:
+
+```patch
+ {
+   "mercure": {
+-    "publish":   ["*"],
+-    "subscribe": ["https://example.com/users/{id}"]
++    "publish":   [{ "match": "*" }],
++    "subscribe": [{ "match": "https://example.com/users/:id", "matchType": "URLPattern" }]
+   }
+ }
+```
+
+`matchType` defaults to `Exact` when omitted. The v8 bare-string form is only
+accepted when `protocol_version_compatibility` is enabled — outside compat
+mode it is rejected with `401 Unauthorized` so tokens minted for v8 do not
+silently change meaning.
+
+### Subscription API
+
+The subscription URL is now `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`
+(URL-pattern shape). The deprecated `{topic}/{subscriber}` and `{topic}` routes
+are registered only under `protocol_version_compatibility`.
+
+JSON-LD subscription documents now expose `match` and `matchType` instead of
+`topic`:
+
+```patch
+ {
+   "type": "Subscription",
+-  "topic": "https://example.com/users/{id}",
++  "match": "https://example.com/users/:id",
++  "matchType": "URLPattern",
+   "subscriber": "urn:uuid:…"
+ }
+```
+
+### Backward compatibility
+
+Set `protocol_version_compatibility 8` in your `Caddyfile` (or
+`--protocol-version-compatibility=8` with the legacy server) to keep the
+v8 surface available during migration: `topic=` queries, bare-string JWT
+claims, the URI Template matcher by default, and the deprecated subscription
+routes all come back.
+
+### Go API
+
+- `Matcher` is a single interface: `Match(topics []string, pattern string) bool`.
+  Built-in implementations: `ExactMatcher`, `URITemplateMatcher`,
+  `RegexpMatcher`. URL Pattern is constructed per hub via
+  `NewURLPatternMatcher(baseURL)` and CEL via `NewCELMatcher(logger)` —
+  both carry per-instance state (the URL Pattern base URL, the CEL
+  compile cache and logger) that should not be shared across hubs.
+- Set `WithPublicURL("https://hub.example.com")` (Caddyfile:
+  `public_url`) to make the URL Pattern matcher resolve relative
+  patterns and relative topics against the hub's URL, per the
+  protocol's "the hub MUST use the hub's URL as the base URL" rule.
+  When unset, only relative ↔ relative and absolute ↔ absolute matches
+  work.
+- Register matcher types with `WithMatcherType(name, matcher)`, or pass a
+  pre-populated `*TopicSelectorStore` to `WithTopicSelectorStore`. When
+  neither is supplied, `NewHub` installs the spec-recommended defaults
+  (`Exact` + `URLPattern`, plus `URITemplate` under
+  `WithProtocolVersionCompatibility(8)`). `Exact` is always registered.
+- `Subscriber.SubscribedTopics`, `Subscriber.AllowedPrivateTopics`,
+  `Subscriber.EscapedTopics` and `Subscriber.SetTopics` are gone. The
+  replacement state lives on `Subscriber.SubscribedMatchers`,
+  `Subscriber.AllowedPrivateMatchers`, `Subscriber.EscapedMatchers` and
+  `Subscriber.SubscriptionPayloads` (the per-matcher JSON-LD `payload`
+  resolved from the JWT subscribe claim). These fields are populated
+  from the parsed request inside the hub; library users no longer drive
+  subscriber state from outside.
+- **Transport authors** that persist subscribers (Redis, Postgres, …)
+  do not need to do anything special. All the state the subscription
+  API needs to render JSON-LD lives in exported fields and survives a
+  JSON or gob round-trip; the deserialized `*Subscriber` can be returned
+  from `GetSubscribers` as-is.
+- The Caddy module's `matcher_types` directive replaces the previous
+  implicit URI-template default: set `matcher_types exact urlpattern cel`
+  to opt into additional types.
+
 ## 0.21
 
 When Mercure is compiled manually or used as a Go library, deprecated features are no longer included by default.

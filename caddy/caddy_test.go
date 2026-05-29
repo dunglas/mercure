@@ -17,10 +17,21 @@ import (
 )
 
 const (
-	bearerPrefix    = "Bearer "
-	publisherJWT    = "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdfX0.vhMwOaN5K68BTIhWokMLOeOJO4EPfT64brd8euJOA4M"
-	publisherJWTRSA = "eyJhbGciOiJSUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.iwryQ5k-CWNCNQLPg7CtgTdDWbG_CurSxDK8kMjTZfprGhh7Yli1SFt8WB3U4zbZ2wxUO7UfprZq3hnl8nSrozO9KDTCDwCYhMgRlcrdwm6XL1uXFwMJt4VSmp1srCQotv0FgT11jF8Km1vMQQOnUC27Va9fbfRtITVsjxsveYeMJqusVWO6F3vAvkM35oL8E8qgBbfrG_lnuhb_9Ws6RIq4YOslkOar_gopEs00CITxmV_aHVHRYzeW7QpycxjC7m8Mp-lKzaUewvJuKWI5HsM134xfaH8RAHSvh6H9pVQAiJ9tyc17bAx46M98WMsHFokVwz3rd7PoGGou6A7y5RzeGpiSxykTWCPPcBnxJ1gwUYqEYGTnRjl9JmhHY_VfQP4edyU-zhmMCCSie8rvkRDilAQGd5kj5m1voSn-EqA13sSe69evXxVUIB2nO70qHCcHBBHxunLqTIIerpc3F9_WWM4_Q_0j9CoTd2aFyuq_sdc6RcmAE3uTznp2DyKNQkT1EfpY7xCCe1MR-Webez5Ioa1EMDP0KrvLdnNRmuM3THSu1pqcvPV7Di7dJci5QWsYEmaP8cLuuZXdAhy_UoSgzbvfT_8mlDoJ9VvDXLJ39OwGYIyZiZ9VTNXm8mxre993cqg7boZRS8x70VRxnjmNxm40SgEvb6CHYO0lSBU"
-	subscriberJWT   = "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyIqIl19fQ.g3w81T7YQLKLrgovor9uEKUiOCAx6DmAAbq18qmDwsY"
+	bearerPrefix = "Bearer "
+
+	// Object-form JWT fixtures used by the non-deprecated tests.
+	//
+	// publisherJWT claims: {"mercure":{"publish":[{"match":"*"}]}}
+	// subscriberJWT claims: {"mercure":{"subscribe":[{"match":"*"}]}}
+	publisherJWT  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XX19.fxYhQH3ML8SA0ZYSo8qVUUezvIO6O6JNDRF5RN3zeZU"
+	subscriberJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6W3sibWF0Y2giOiIqIn1dfX0.73III1dtzX0DfOWGIeDbNCq0dmcyfCt4XEcUMQNzt-w"
+
+	// publisherJWTRSA: RS256 object-form JWT signed with fixtures/jwt/RS256.key.
+	// Claims: {"mercure":{"publish":[{"match":"*"}],"subscribe":[
+	//   {"match":"https://example.com/my-private-topic"},
+	//   {"match":"https://example.com/demo/books/:id.jsonld","matchType":"URLPattern"}
+	// ],"payload":{"user":"https://example.com/users/dunglas","remoteAddr":"127.0.0.1"}}}
+	publisherJWTRSA = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.ZDg48hUAzGEyiWyw4jl-vVPcdF4Mg9Lk22BKZCPXvHsRrDK9UZW-LaV9sEnJ82v80gHm_4xbgUqREPuN0aD_F16K6TaGHxAkjOggQKWByG-7l77mhUUTa7UQtR6HvHcWcgaswCcs6LBFqnSpQ-BSsHgeRJmlXqq_r3xJrLzezaOlQVqS1rDy1fAIdva3dzYTOwdji7M5a4gSDES-D05TETlOhQp1Cg7yxs2elL13n8j0-BdIbY8SkO1vy3GtHqqHWpj3pB9ks-D_VQwJQuLAOaXJKG5sVKLOG1EsgX_fYRbryWwgZpPO_IjHiL6y0bz5CWjjYBYfqOL3hUYCBQXp2A3J02CctvDHqgmlorxhCaA6GkKV-LXqP2tQNSiOMBl6TjCxQhKnou9lK27W2jsxXD5TRx3jmStJ38J1wT99HRGWOzJ9re3HlwPv1NsgNPn3kJdg9OSwWaxx_PqLbWSoHA09F66e4eMgaxZT_16HzbZZAymy9MsBrcCM7C-JyHnUZ97YjwuGm6MQDtvQWuTkixkSxHCpsv6EmbqJc-4cp9tP5ZeFYcZQTyu2jkQrvNzca-8GunXGftfH-IxckPoTwREd2wywwI3ZcRTKZ0SBd3iq8Jnxdgmu22dgCdrOFkM4lMn5x7rVT_fxUuF5EYTeTxkil1LcmPf17r4eNAImxfU"
 )
 
 func TestMercure(t *testing.T) {
@@ -81,7 +92,7 @@ example.com:9080 {
 			connected.Add(1)
 			received.Go(func() {
 				cx, cancel := context.WithCancel(t.Context())
-				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 				req = req.WithContext(cx)
 				resp := tester.AssertResponseCode(req, http.StatusOK)
 
@@ -126,6 +137,10 @@ example.com:9080 {
 	}
 }
 
+// TestJWTPlaceholders exercises env-var placeholder support with an object-form
+// RS256 JWT. The deprecated URI-template subscribe claim lives in
+// TestJWTPlaceholdersDeprecated — here the publisher uses the modern
+// "publish all topics" form with a URL-pattern subscribe claim.
 func TestJWTPlaceholders(t *testing.T) {
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	t.Setenv("TEST_JWT_KEY", string(k))
@@ -147,7 +162,7 @@ func TestJWTPlaceholders(t *testing.T) {
 				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
 				transport local
 			}
-	
+
 			respond 404
 		}
 	}
@@ -158,7 +173,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	connected.Add(1)
 	received.Go(func() {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp := tester.AssertResponseCode(req, http.StatusOK)
 
@@ -214,7 +229,7 @@ func TestSubscriptionAPI(t *testing.T) {
 				subscriptions
 				publisher_jwt !ChangeMe!
 			}
-	
+
 			respond 404
 		}
 	}
@@ -242,7 +257,7 @@ func TestCookieName(t *testing.T) {
 				cookie_name foo
 				publish_origins http://localhost:9080
 			}
-	
+
 			respond 404
 		}
 	}
@@ -253,7 +268,7 @@ func TestCookieName(t *testing.T) {
 	connected.Add(1)
 	received.Go(func() {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req.Header.Add("Origin", "http://localhost:9080")
 		req.AddCookie(&http.Cookie{Name: "foo", Value: subscriberJWT})
 		req = req.WithContext(cx)
@@ -315,7 +330,7 @@ func TestAllowNoPublish(t *testing.T) {
 			mercure {
 				subscriber_jwt !ChangeMe!
 			}
-	
+
 			respond 404
 		}
 	}

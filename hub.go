@@ -22,7 +22,7 @@ const (
 )
 
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
-var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
+var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 // Option instances allow to configure the library.
 type Option func(o *opt) error
@@ -167,7 +167,7 @@ func WithAllowedHosts(hosts []string) Option {
 func validateOrigins(origins []string) error {
 	for _, origin := range origins {
 		switch origin {
-		case "*", "null":
+		case "*", "null": //nolint:goconst
 			continue
 		}
 
@@ -260,11 +260,25 @@ func WithCookieName(cookieName string) Option {
 	}
 }
 
-// WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (only version 7 is supported).
+// WithPublicURL sets the hub's public-facing URL — used as the base URL
+// when the URL Pattern matcher resolves relative patterns or relative
+// topics, per the protocol's "the hub MUST use the hub's URL as the base
+// URL" rule. The value is forwarded to the auto-registered
+// URLPatternMatcher; library users that build their own matcher with
+// NewURLPatternMatcher can pass the same string directly.
+func WithPublicURL(publicURL string) Option {
+	return func(o *opt) error {
+		o.publicURL = publicURL
+
+		return nil
+	}
+}
+
+// WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported).
 func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	return func(o *opt) error {
 		switch protocolVersionCompatibility {
-		case 7:
+		case 7, 8:
 			o.protocolVersionCompatibility = protocolVersionCompatibility
 
 			return nil
@@ -280,6 +294,7 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 type opt struct {
 	transport                    Transport
 	topicSelectorStore           *TopicSelectorStore
+	matcherTypes                 []registeredMatcher
 	anonymous                    bool
 	debug                        bool
 	subscriptions                bool
@@ -298,11 +313,29 @@ type opt struct {
 	publishWOrigins              []wildcard
 	corsOrigins                  []string
 	cookieName                   string
+	publicURL                    string
 	protocolVersionCompatibility int
 }
 
 func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 	return o.protocolVersionCompatibility != 0 && version >= o.protocolVersionCompatibility
+}
+
+// WithMatcherType registers a topic matcher type (built-in or custom). The
+// name is case-insensitive and is used in match* query parameters and JWT
+// claims. When at least one WithMatcherType is supplied, only the registered
+// types are available; otherwise NewHub installs the spec-recommended
+// defaults. Exact is always registered because the protocol mandates it.
+//
+// Registration is deferred to NewHub, so order with WithTopicSelectorStore
+// does not matter: the matchers are applied to whichever store ends up on
+// the final hub.
+func WithMatcherType(name string, mt Matcher) Option {
+	return func(o *opt) error {
+		o.matcherTypes = append(o.matcherTypes, registeredMatcher{canonicalName: name, matcher: mt})
+
+		return nil
+	}
 }
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
@@ -339,6 +372,29 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		}
 
 		opt.topicSelectorStore = tss
+	}
+
+	// Apply WithMatcherType options after the final TopicSelectorStore is
+	// known, so the matchers always land on the store the hub will actually
+	// use — regardless of the order WithMatcherType / WithTopicSelectorStore
+	// were passed in.
+	for _, mt := range opt.matcherTypes {
+		opt.topicSelectorStore.RegisterMatcherType(mt.canonicalName, mt.matcher)
+	}
+
+	if len(opt.topicSelectorStore.matchers) == 0 {
+		// No WithMatcherType (and no pre-registered store) — install the
+		// spec-recommended defaults.
+		opt.topicSelectorStore.RegisterMatcherType("Exact", ExactMatcher)
+		opt.topicSelectorStore.RegisterMatcherType("URLPattern", NewURLPatternMatcher(opt.publicURL))
+
+		if opt.isBackwardCompatiblyEnabledWith(8) {
+			opt.topicSelectorStore.RegisterMatcherType("URITemplate", URITemplateMatcher)
+		}
+	} else if _, ok := opt.topicSelectorStore.matchers[exactMatcherTypeName]; !ok {
+		// The operator supplied custom types — Exact is mandated by the
+		// protocol, so make sure it is always registered.
+		opt.topicSelectorStore.RegisterMatcherType("Exact", ExactMatcher)
 	}
 
 	if opt.transport == nil {

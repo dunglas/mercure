@@ -1,0 +1,40 @@
+# Mercure hub configuration used by the Playwright conformance tests.
+# Keeps the dev.Caddyfile focused on the default modern setup, while here
+# every matcher type is enabled so the tests can exercise every selector
+# shape the spec defines.
+{
+	{$GLOBAL_OPTIONS}
+}
+
+{$CADDY_EXTRA_CONFIG}
+
+{$SERVER_NAME:localhost} {
+	log {
+		format filter {
+			fields {
+				request>uri query {
+					replace authorization REDACTED
+				}
+			}
+		}
+	}
+
+	encode zstd gzip
+
+	mercure {
+		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+		cors_origins *
+		publish_origins *
+		anonymous
+		subscriptions
+		matcher_types exact urlpattern regexp uritemplate cel
+		{$MERCURE_EXTRA_DIRECTIVES}
+	}
+
+	{$CADDY_SERVER_EXTRA_DIRECTIVES}
+
+	redir / /.well-known/mercure/ui/
+
+	respond "Not Found" 404
+}

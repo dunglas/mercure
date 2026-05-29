@@ -33,7 +33,7 @@ func BenchmarkSubscriberList(b *testing.B) {
 	for i := range 100 {
 		s := NewLocalSubscriber("", logger, tss)
 		t := fmt.Sprintf("https://example.com/%d", i%10)
-		s.SetTopics([]string{"https://example.org/foo", t}, []string{"https://example.net/bar", t})
+		s.setMatchers(stringsToExactMatchers([]string{"https://example.org/foo", t}), stringsToExactMatchers([]string{"https://example.net/bar", t}))
 
 		l.Add(s)
 	}

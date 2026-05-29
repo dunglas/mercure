@@ -86,7 +86,7 @@ func TestStop(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)
@@ -131,7 +131,7 @@ func TestContextCancellation(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)
@@ -173,7 +173,8 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 		{5, false},
 		{6, false},
 		{7, true},
-		{8, false},
+		{8, true},
+		{9, false},
 	}
 
 	for _, tc := range testCases {
@@ -437,13 +438,13 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) s
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, RegisteredClaims: jwt.RegisteredClaims{}}
+		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToExactClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
 		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
 			Mercure: mercureClaim{
-				Subscribe: topics,
+				Subscribe: stringsToExactClaims(topics),
 				Payload:   payload,
 			},
 			RegisteredClaims: jwt.RegisteredClaims{},

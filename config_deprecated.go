@@ -22,13 +22,17 @@ import (
 // Deprecated: use the Caddy server module or the standalone library instead.
 var ErrInvalidConfig = errors.New("invalid config")
 
+// defaultJWTAlgorithm is the JWT signing algorithm used when the operator
+// does not configure one explicitly.
+const defaultJWTAlgorithm = "HS256"
+
 // SetConfigDefaults sets defaults on a Viper instance.
 //
 // Deprecated: use the Caddy server module or the standalone library instead.
 func SetConfigDefaults(v *viper.Viper) {
 	v.SetDefault("debug", false)
 	v.SetDefault("transport_url", "bolt://updates.db")
-	v.SetDefault("jwt_algorithm", "HS256")
+	v.SetDefault("jwt_algorithm", defaultJWTAlgorithm)
 	v.SetDefault("allow_anonymous", false)
 	v.SetDefault("acme_http01_addr", ":http")
 	v.SetDefault("heartbeat_interval", 40*time.Second) // Must be < 45s for compatibility with Yaffle/EventSource
@@ -221,7 +225,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		alg := v.GetString("publisher_jwt_algorithm")
 		if alg == "" {
 			if alg = v.GetString("jwt_algorithm"); alg == "" {
-				alg = "HS256"
+				alg = defaultJWTAlgorithm
 			}
 		}
 
@@ -236,7 +240,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		alg := v.GetString("subscriber_jwt_algorithm")
 		if alg == "" {
 			if alg = v.GetString("jwt_algorithm"); alg == "" {
-				alg = "HS256"
+				alg = defaultJWTAlgorithm
 			}
 		}
 

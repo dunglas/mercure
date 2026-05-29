@@ -2,19 +2,42 @@ package mercure
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type updateContextKeyType struct{}
 
 var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 
+// ErrInvalidTopic is returned when an Update carries a topic with a NUL
+// byte. NUL is the TopicSelectorStore cache-key separator, so accepting
+// NUL-bearing topics would let two different inputs collide on the same
+// cache key.
+var ErrInvalidTopic = errors.New("invalid topic: NUL byte not allowed")
+
+func validateTopics(topics []string) error {
+	for _, t := range topics {
+		if strings.Contains(t, topicsKeySeparator) {
+			return fmt.Errorf("%w: %q", ErrInvalidTopic, t)
+		}
+	}
+
+	return nil
+}
+
 // Publish broadcasts the given update to all subscribers.
 // The id field of the Update instance can be updated by the underlying Transport.
 func (h *Hub) Publish(ctx context.Context, update *Update) error {
+	if err := validateTopics(update.Topics); err != nil {
+		return err
+	}
+
 	ctx = context.WithValue(ctx, UpdateContextKey, update)
 
 	if err := h.transport.Dispatch(ctx, update); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
@@ -34,7 +57,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 
 // PublishHandler allows publisher to broadcast updates to all subscribers.
 //
-//nolint:funlen
+//nolint:funlen,gocognit
 func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	var claims *claims
 
@@ -62,6 +85,15 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Topics must be valid IRIs; NUL bytes are illegal there and also
+	// happen to be the TopicSelectorStore cache-key separator, so rejecting
+	// them here avoids cache-key collisions downstream.
+	if err := validateTopics(topics); err != nil {
+		http.Error(w, `Invalid "topic" parameter: NUL byte not allowed`, http.StatusBadRequest)
+
+		return
+	}
+
 	var retry uint64
 
 	if retryString := r.PostForm.Get("retry"); retryString != "" {
@@ -76,6 +108,17 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	private := len(r.PostForm["private"]) != 0
+
+	// Resolve publisher claims
+	if claims != nil {
+		deprecated := h.isBackwardCompatiblyEnabledWith(8)
+		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, deprecated); err != nil {
+			writeMatcherClaimError(ctx, h.logger, w, err)
+
+			return
+		}
+	}
+
 	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) { //nolint:nestif
 		if private {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

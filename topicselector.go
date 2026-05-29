@@ -1,32 +1,53 @@
 package mercure
 
 import (
-	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/maypok86/otter/v2"
-	"github.com/yosida95/uritemplate/v3"
 )
 
-// DefaultTopicSelectorStoreCacheSize bounds the (topic_selector, topic) -> bool
-// match cache. At ~100 B/entry, 100_000 keeps the cache under ~10 MB. Raise it
-// via the `topic_selector_cache <N>` Caddyfile directive for hubs handling a
-// much larger topic / selector universe.
+// DefaultTopicSelectorStoreCacheSize bounds the (matcher_type, pattern, topics)
+// -> bool match cache. At ~100 B/entry, 100_000 keeps the cache under ~10 MB.
+// Raise it via the `topic_selector_cache <N>` Caddyfile directive for hubs
+// handling a much larger topic / selector universe.
 const DefaultTopicSelectorStoreCacheSize = 100_000
 
+// topicsKeySeparator joins the topics of an update into a single cache-key
+// field. It is a NUL byte, which is illegal in IRIs so the Publish handler
+// rejects topics containing one before they can reach the cache; no escaping
+// is required here.
+const topicsKeySeparator = "\x00"
+
+// matchCacheKey is the comparable struct used as the match-cache key. The
+// Topics field holds the update's topics joined with a NUL byte; for the
+// common single-topic case, strings.Join returns the single element without
+// allocating.
 type matchCacheKey struct {
-	topicSelector string
-	topic         string
+	Type    string
+	Pattern string
+	Topics  string
 }
 
-// TopicSelectorStore caches compiled templates to improve memory and CPU usage.
+// registeredMatcher bundles a resolved matcher with the canonical name it was
+// registered under, so subscription events can emit the type in the same case
+// the operator used (e.g. `URLPattern`, not `urlpattern`).
+type registeredMatcher struct {
+	canonicalName string
+	matcher       Matcher
+}
+
+// TopicSelectorStore caches match results and holds the registry of available
+// matcher types. The cache is a single unsharded otter instance; otter v2 is
+// designed for high concurrency.
 type TopicSelectorStore struct {
-	matchCache    *otter.Cache[matchCacheKey, bool]
-	templateCache *otter.Cache[string, *regexp.Regexp]
+	matchCache *otter.Cache[matchCacheKey, bool]
+	matchers   map[string]registeredMatcher // lowercase name → canonical name + implementation
 }
 
-// NewTopicSelectorStore creates a TopicSelectorStore.
-// If cacheSize > 0, match results and compiled templates are cached.
+// NewTopicSelectorStore creates a TopicSelectorStore. If cacheSize > 0, match
+// results are cached. Compiled patterns (regexps, URL patterns, CEL programs,
+// URI templates) are always memoised inside each matcher implementation.
 func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 	if cacheSize <= 0 {
 		return &TopicSelectorStore{}, nil
@@ -39,68 +60,103 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 		return nil, err //nolint:wrapcheck
 	}
 
-	templateCache, err := otter.New[string, *regexp.Regexp](&otter.Options[string, *regexp.Regexp]{
-		MaximumSize: cacheSize / 10, // Templates are fewer but larger
-	})
-	if err != nil {
-		return nil, err //nolint:wrapcheck
-	}
-
-	return &TopicSelectorStore{matchCache: matchCache, templateCache: templateCache}, nil
+	return &TopicSelectorStore{matchCache: matchCache}, nil
 }
 
-func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
-	// Always do an exact matching comparison first
-	// Also check if the topic selector is the reserved keyword *
-	if topicSelector == "*" || topic == topicSelector {
+// RegisterMatcherType registers a matcher type by name. Lookups are
+// case-insensitive; the casing provided here is the canonical form used in
+// serialized subscription events and subscription API payloads.
+//
+// RegisterMatcherType must be called during hub setup, before the hub starts
+// serving requests. The matcher registry is not protected by a mutex for
+// performance; concurrent registration and lookup would race.
+//
+// Panics on an empty name or a nil implementation — both would silently
+// produce a registry that no request can ever route to, and the call site
+// is always operator code running at startup.
+func (tss *TopicSelectorStore) RegisterMatcherType(name string, mt Matcher) {
+	if name == "" {
+		panic("mercure: RegisterMatcherType: empty matcher type name")
+	}
+
+	if mt == nil {
+		panic("mercure: RegisterMatcherType: nil matcher implementation for " + name)
+	}
+
+	if tss.matchers == nil {
+		tss.matchers = make(map[string]registeredMatcher)
+	}
+
+	tss.matchers[strings.ToLower(name)] = registeredMatcher{canonicalName: name, matcher: mt}
+}
+
+// ResolveMatcherType looks up a matcher type by name (case-insensitive).
+func (tss *TopicSelectorStore) ResolveMatcherType(name string) (Matcher, bool) { //nolint:ireturn
+	if tss.matchers == nil {
+		return nil, false
+	}
+
+	rm, ok := tss.matchers[strings.ToLower(name)]
+
+	return rm.matcher, ok
+}
+
+// newTopicMatcher creates a topicMatcher with the matcher implementation resolved.
+// The resulting Type field carries the canonical casing the matcher was
+// registered under (not the caller's casing), so wire-format representations
+// stay consistent across requests.
+func (tss *TopicSelectorStore) newTopicMatcher(typeName, pattern string) (topicMatcher, error) {
+	if tss.matchers == nil {
+		return topicMatcher{}, ErrUnsupportedMatcherType
+	}
+
+	rm, ok := tss.matchers[strings.ToLower(typeName)]
+	if !ok {
+		return topicMatcher{}, ErrUnsupportedMatcherType
+	}
+
+	return topicMatcher{
+		Type:    rm.canonicalName,
+		Pattern: pattern,
+		matcher: rm.matcher,
+	}, nil
+}
+
+// matchMatcher dispatches matching to the resolved matcher implementation,
+// caching the result per (type, pattern, topic-set).
+func (tss *TopicSelectorStore) matchMatcher(topics []string, m topicMatcher) bool {
+	// Wildcard always matches.
+	if m.Pattern == "*" {
 		return true
 	}
 
-	k := matchCacheKey{topicSelector: topicSelector, topic: topic}
-
-	if tss.matchCache != nil {
-		if value, found := tss.matchCache.GetIfPresent(k); found {
-			return value
-		}
-	}
-
-	r := tss.getRegexp(topicSelector)
-	if r == nil {
+	// A topicMatcher recovered from JSON or gob has its (unexported)
+	// matcher field set to nil. The local hub never reaches this path on
+	// a deserialized Subscriber — the subscription API renders payloads
+	// from the precomputed slice and dispatch happens on the live
+	// LocalSubscriber — but a defensive nil-return keeps the code safe
+	// for transports that might extend the use of Subscriber beyond the
+	// rendering path.
+	if m.matcher == nil {
 		return false
 	}
 
-	// Use template.Regexp() instead of template.Match() for performance
-	// See https://github.com/yosida95/uritemplate/pull/7
-	match := r.MatchString(topic)
-	if tss.matchCache != nil {
-		tss.matchCache.Set(k, match)
+	// Exact matching is so fast it doesn't need caching.
+	if _, ok := m.matcher.(exactMatcherType); ok {
+		return slices.Contains(topics, m.Pattern)
 	}
 
-	return match
-}
-
-// getRegexp retrieves regexp for this template selector.
-func (tss *TopicSelectorStore) getRegexp(topicSelector string) *regexp.Regexp {
-	// If it's definitely not a URI template, skip to save some resources
-	if !strings.Contains(topicSelector, "{") {
-		return nil
+	if tss.matchCache == nil {
+		return m.matcher.Match(topics, m.Pattern)
 	}
 
-	if tss.templateCache != nil {
-		if r, found := tss.templateCache.GetIfPresent(topicSelector); found {
-			return r
-		}
+	k := matchCacheKey{Type: m.Type, Pattern: m.Pattern, Topics: strings.Join(topics, topicsKeySeparator)}
+	if v, ok := tss.matchCache.GetIfPresent(k); ok {
+		return v
 	}
 
-	// If an error occurs, it's a raw string
-	if tpl, err := uritemplate.New(topicSelector); err == nil {
-		r := tpl.Regexp()
-		if tss.templateCache != nil {
-			tss.templateCache.Set(topicSelector, r)
-		}
+	r := m.matcher.Match(topics, m.Pattern)
+	tss.matchCache.Set(k, r)
 
-		return r
-	}
-
-	return nil
+	return r
 }

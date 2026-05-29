@@ -44,10 +44,13 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 		header["Content-Type"] = []string{mimeType}
 	}
 
-	cookie := &http.Cookie{
+	// Secure / HttpOnly are conditional on TLS so the demo keeps working
+	// when served over plain HTTP locally; gosec wants them unconditional.
+	cookie := &http.Cookie{ //nolint:gosec
 		Name:     h.cookieName,
 		Path:     defaultHubURL,
 		Value:    jwt,
+		Secure:   r.TLS != nil,
 		HttpOnly: r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
 	}
