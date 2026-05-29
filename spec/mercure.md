@@ -412,17 +412,26 @@ support this method.
 Hubs **MUST** validate JWSs in accordance with the JSON Web Token Best Current Practices
 [@!RFC8725]. In particular:
 
-*   Hubs **MUST NOT** accept JWSs with `alg=none` and **MUST** verify that the `alg` header
-    parameter is compatible with the key type used for signature verification (preventing
-    algorithm-confusion attacks).
+*   Hubs **MUST** be configured with an explicit allowlist of accepted signature algorithms and
+    **MUST** reject any JWS whose `alg` is not on that allowlist. Hubs **MUST NOT** accept
+    `alg=none`, **MUST NOT** derive the set of acceptable algorithms from the token, and **MUST**
+    verify that `alg` is compatible with the key used for verification (preventing
+    algorithm-confusion attacks). The allowlist **SHOULD** include at minimum `EdDSA`, `ES256`,
+    and `RS256`, and **MUST NOT** include any algorithm whose security has been compromised at
+    the time of deployment.
+*   Hubs **MUST** select the verification key independently of attacker-controlled input. When
+    more than one key is in use — for example, separate publisher and subscriber keys (see
+    (#authorization)) or rotated keys — the hub **SHOULD** select the key using the `kid` header
+    parameter and/or the role of the endpoint, and **MUST NOT** allow the token to cause an
+    unexpected key to be selected.
 *   Hubs **MUST** enforce the `exp` claim [@!RFC7519] if present, including on the first
     request received bearing a JWS, and **MUST** enforce the `nbf` claim if present.
-*   If the hub publishes an identifier (e.g., its canonical URL) for use in the `aud` claim,
-    and the JWS contains an `aud` claim, the hub **MUST** verify that this identifier appears
-    in `aud`.
-*   Hubs **SHOULD** support at minimum the algorithms `EdDSA`, `ES256`, and `RS256`, and
-    **MUST NOT** accept any algorithm whose security has been compromised at the time of
-    deployment.
+*   Hubs **SHOULD** be configured with an identifier (for example, their canonical URL). When so
+    configured, the hub **SHOULD** require the `aud` claim and reject any JWS whose `aud` does not
+    include that identifier; this bounds a token to its intended hub and mitigates replay across
+    hubs that share signing keys (see (#hub-trust)). Independently, if the hub publishes such an
+    identifier and the JWS contains an `aud` claim, the hub **MUST** verify that the identifier
+    appears in `aud`.
 
 Failure of any of these checks **MUST** be treated as JWS validation failure and **MUST** be
 reported as defined in the introduction to this section.
@@ -450,7 +459,10 @@ least one topic of the update. If the subscriber is not authorized, it **MUST NO
 update.
 
 If the presented JWS contains an expiration time in the standard `exp` claim defined in
-[@!RFC7519], the hub **MUST** close the connection at that time.
+[@!RFC7519], the hub **MUST** close the connection at that time. Because a JWS without an `exp`
+claim would otherwise authorize an indefinitely long-lived connection that cannot be revoked,
+hubs **SHOULD** impose a maximum connection lifetime independent of `exp` and close connections
+that exceed it, requiring the subscriber to reconnect and re-authenticate.
 
 To receive updates marked as `private`, the JWS presented by the subscriber **MUST** have a claim
 named `mercure` containing a `subscribe` key. `mercure.subscribe` contains an array of topic
@@ -492,6 +504,20 @@ canonical topic of the update. The canonical topic is not matched by the topic m
 this private update is delivered to the subscriber. Other updates whose canonical topic is
 matched by `matchURLPattern` but whose alternate topics are not matched by `mercure.subscribe`
 are not delivered.
+
+Authorization is satisfied when *any* topic of an update (canonical or alternate) matches *any*
+matcher in `mercure.subscribe`, and the hub then delivers the entire update content. The set of
+authorized readers of a private update is therefore the union of the readers of all its topics.
+A publisher **MUST NOT** attach to a private update an alternate topic matchable by a broader
+audience than the audience intended to read the update's content; doing so discloses the full
+content to that broader audience. See (#private-update-audience).
+
+Note: This model places the per-resource authorization boundary in the publisher's choice of
+topics. The hub enforces only that some topic of the update matches some matcher in the
+subscriber's validated JWS; it does not independently verify that the subscriber is entitled to
+the specific resource. Issuers and publishers are jointly responsible for constructing topics
+and `mercure.subscribe` scopes so that the matchable set corresponds to the intended
+access-control policy.
 
 ## Topic Matcher List
 
@@ -1209,6 +1235,23 @@ hub has cryptographically validated, typically the `sub` claim of the subscriber
 unauthenticated channel would enable spoofing of subscription events and hijacking of
 subscription state belonging to other subscribers.
 
+## Private Update Audience {#private-update-audience}
+
+A private update is delivered in full when any one of its topics, canonical or alternate,
+matches any one matcher in a subscriber's `mercure.subscribe` claim (see (#subscribers)).
+Authorization gates delivery of the whole update, not of individual topics, so the audience of a
+private update is the union of the audiences of all its topics. Attaching a broadly matchable
+alternate topic to an update carrying sensitive content therefore discloses that content to
+everyone authorized for the broad topic. Publishers **MUST NOT** attach to a private update an
+alternate topic matchable by an audience broader than the intended readers of its content.
+
+This design places the per-resource authorization boundary in the publisher's choice of topics
+rather than in a hub-enforced access check; the hub verifies only that the subscriber's
+validated JWS matches some topic of the update. Issuers and publishers are jointly responsible
+for keeping the matchable set aligned with the intended access-control policy. Deployments with
+strict per-resource confidentiality requirements should account for this when designing their
+topic and scope conventions.
+
 ## URL-Pattern Denial of Service
 
 URL Pattern compiles internally to a regular expression. Naive implementations on engines such
@@ -1244,7 +1287,25 @@ concurrent subscriptions per token — bound this exposure.
 Subscribers obtain hub URLs from publishers via the discovery mechanism (see (#discovery)) and
 transmit credentials to the hub. A compromised publisher can therefore redirect subscribers to
 a hub of its choosing and capture those credentials. As described in (#discovery), subscribers
-constrain the set of hub origins they connect to and can verify hub identity out of band.
+constrain the set of hub origins they connect to and can verify hub identity out of band. Scoping
+each token to its intended hub with the `aud` claim (see (#jws-validation)) limits the value of a
+captured token: a token bound to one hub's identifier cannot be replayed against another hub,
+even when the two share signing keys.
+
+## Bearer Tokens and Sender Constraint
+
+The JWS is a bearer credential: any party that obtains it can act within its scope until it
+expires. Short-lived tokens (see above) limit the exposure window but do not prevent use of a
+token during its lifetime. Deployments protecting high-value operations **MAY** additionally
+sender-constrain tokens, for example with DPoP [@RFC9449] or mutual-TLS-bound tokens, so that a
+captured token is unusable without the corresponding proof-of-possession key.
+
+## Publish Request Replay
+
+A captured publish request carrying a bearer JWS can be replayed by an on-path attacker, causing
+the same update to be dispatched again. For most deployments re-dispatching an identical update
+is harmless. Deployments for which it is not **SHOULD** include a freshness indicator in the
+update (for example, a unique `id` checked for replay, or a timestamp) and reject duplicates.
 
 ## JWE Algorithms and Replay
 
