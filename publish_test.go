@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -467,6 +468,53 @@ func FuzzPublish(f *testing.F) {
 
 		assert.Equal(t, id, string(body))
 	})
+}
+
+func TestUpdateValidate(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		update Update
+		want   error
+	}{
+		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topics: []string{"https://example.com/books/1"}}, nil},
+		{"empty", Update{}, nil},
+		{"reserved topic", Update{Topics: []string{"https://example.com/.well-known/mercure/subscriptions/foo"}}, ErrReservedTopic},
+		{"id LF", Update{Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
+		{"id CR", Update{Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
+		{"id NUL", Update{Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
+		{"type LF", Update{Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
+		{"type CR", Update{Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
+		{"type NUL", Update{Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tc.update.Validate()
+			if tc.want == nil {
+				assert.NoError(t, err)
+
+				return
+			}
+
+			assert.True(t, errors.Is(err, tc.want), "got %v, want %v", err, tc.want)
+		})
+	}
+}
+
+func TestUpdateValidateTooManyTopics(t *testing.T) {
+	t.Parallel()
+
+	topics := make([]string, maxPublishTopics+1)
+	for i := range topics {
+		topics[i] = "https://example.com/books/1"
+	}
+
+	err := (&Update{Topics: topics}).Validate()
+	assert.True(t, errors.Is(err, ErrTooManyTopics), "got %v, want %v", err, ErrTooManyTopics)
 }
 
 func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
