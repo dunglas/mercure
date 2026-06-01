@@ -48,10 +48,13 @@ const sseFieldForbiddenChars = "\x00\r\n"
 // from update forgery and SSE field injection. Hub.Publish calls it, so the
 // bundled hub and PublishHandler are already covered.
 //
-// Callers that dispatch updates through a Transport directly, bypassing
+// A caller that builds an Update from untrusted input (e.g. a publisher
+// request) and dispatches it through a Transport directly, bypassing
 // Hub.Publish, MUST call Validate first and reject the update on error.
 // Skipping it lets a CR, LF, or NUL in ID or Type inject arbitrary SSE
-// fields into subscribers' streams (CWE-93).
+// fields into subscribers' streams (CWE-93). Validate also rejects the
+// reserved "/.well-known/mercure" topic namespace, so it is meant for
+// publisher input, not hub-internal updates such as subscription events.
 func (u *Update) Validate() error {
 	if len(u.Topics) > maxPublishTopics {
 		return ErrTooManyTopics
