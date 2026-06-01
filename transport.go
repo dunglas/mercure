@@ -12,6 +12,11 @@ const EarliestLastEventID = "earliest"
 // Transport provides methods to dispatch and persist updates.
 type Transport interface {
 	// Dispatch dispatches an update to all subscribers.
+	//
+	// It trusts u to be well-formed: callers invoking Dispatch directly
+	// instead of through Hub.Publish MUST call u.Validate first and reject
+	// the update on error, otherwise a CR, LF, or NUL in ID or Type can
+	// inject arbitrary SSE fields into subscribers' streams (CWE-93).
 	Dispatch(ctx context.Context, u *Update) error
 
 	// AddSubscriber adds a new subscriber to the transport.
