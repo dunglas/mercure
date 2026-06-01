@@ -33,13 +33,13 @@ jobs:
             caddy/go.sum
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9.2.0
+        uses: golangci/golangci-lint-action@v9.2.1
         with:
           version: latest
           args: --timeout=30m
 
       - name: golangci-lint (caddy module)
-        uses: golangci/golangci-lint-action@v9.2.0
+        uses: golangci/golangci-lint-action@v9.2.1
         with:
           version: latest
           args: --timeout=30m --config ../.golangci.yml
