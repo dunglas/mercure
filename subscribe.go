@@ -238,6 +238,12 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		return nil, nil
 	}
 
+	if len(topics) > maxQueryTopics {
+		http.Error(w, `Too many "topic" parameters.`, http.StatusBadRequest)
+
+		return nil, nil
+	}
+
 	s.SetTopics(topics, privateTopics)
 
 	if span.IsRecording() {
