@@ -44,8 +44,18 @@ var (
 // let a publisher inject arbitrary SSE fields into subscribers' streams.
 const sseFieldForbiddenChars = "\x00\r\n"
 
-// validate is the single source of truth for publish-side input rules.
-func (u *Update) validate() error {
+// Validate enforces the publish-side input rules that protect subscribers
+// from update forgery and SSE field injection. Hub.Publish calls it, so the
+// bundled hub and PublishHandler are already covered.
+//
+// A caller that builds an Update from untrusted input (e.g. a publisher
+// request) and dispatches it through a Transport directly, bypassing
+// Hub.Publish, MUST call Validate first and reject the update on error.
+// Skipping it lets a CR, LF, or NUL in ID or Type inject arbitrary SSE
+// fields into subscribers' streams (CWE-93). Validate also rejects the
+// reserved "/.well-known/mercure" topic namespace, so it is meant for
+// publisher input, not hub-internal updates such as subscription events.
+func (u *Update) Validate() error {
 	if len(u.Topics) > maxPublishTopics {
 		return ErrTooManyTopics
 	}
@@ -80,7 +90,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 		span.End()
 	}()
 
-	if err := update.validate(); err != nil {
+	if err := update.Validate(); err != nil {
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Rejected invalid update", slog.Any("error", err))
 		}

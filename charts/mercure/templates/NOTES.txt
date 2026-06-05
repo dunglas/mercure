@@ -1,5 +1,5 @@
 1. Get the URL of the Mercure Hub by running these commands:
-{{- if .Values.httpRoute.enabled }}
+{{- if (.Values.httpRoute | default dict).enabled }}
 {{- if .Values.httpRoute.hostnames }}
     export APP_HOSTNAME={{ .Values.httpRoute.hostnames | first }}
 {{- else if .Values.httpRoute.parentRefs }}
