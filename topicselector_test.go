@@ -120,7 +120,7 @@ func TestValidatePattern(t *testing.T) {
 	assert.NoError(t, tss.validatePattern(urlPatternMatcher("/books/:id")))
 
 	// Genuinely malformed patterns still fail.
-	assert.Error(t, tss.validatePattern(urlPatternMatcher("{unclosed")))
+	require.Error(t, tss.validatePattern(urlPatternMatcher("{unclosed")))
 
 	// Unknown matcher types are rejected.
 	assert.ErrorIs(t, tss.validatePattern(topicMatcher{Type: "Regexp", Pattern: "fo+"}), ErrUnsupportedMatcherType)

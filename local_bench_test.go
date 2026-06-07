@@ -48,9 +48,9 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	for i := range concurrency {
 		s := NewLocalSubscriber("", slog.Default(), tss)
 		if i%100 < matchPct {
-			s.SetTopics(tsMatch, nil)
+			s.setMatchers(stringsToExactMatchers(tsMatch), stringsToExactMatchers(nil))
 		} else {
-			s.SetTopics(tsNoMatch, nil)
+			s.setMatchers(stringsToExactMatchers(tsNoMatch), stringsToExactMatchers(nil))
 		}
 
 		subscribers[i] = s

@@ -368,15 +368,19 @@ func TestMetricsCollect(t *testing.T) {
 	server.newSubscriber("https://example.com/alt/1", false)
 	server.waitSubscribers()
 
-	body := url.Values{"topic": {"https://example.com/foo/1", "https://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
+	// One update per topic: the modern protocol allows a single topic per update.
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {"hello"}, "id": {"first"}}
 	server.publish(body)
 
-	body = url.Values{"topic": {"https://example.com/foo/1"}, "data": {"second hello"}, "id": {"second"}}
+	body = url.Values{"topic": {"https://example.com/alt/1"}, "data": {"hello"}, "id": {"second"}}
+	server.publish(body)
+
+	body = url.Values{"topic": {"https://example.com/foo/1"}, "data": {"second hello"}, "id": {"third"}}
 	server.publish(body)
 
 	server.assertMetric("mercure_subscribers_connected 3")
 	server.assertMetric("mercure_subscribers_total 4")
-	server.assertMetric("mercure_updates_total 2")
+	server.assertMetric("mercure_updates_total 3")
 }
 
 func TestMetricsVersionIsAccessible(t *testing.T) {

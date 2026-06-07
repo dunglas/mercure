@@ -13,12 +13,11 @@ import (
 type Update struct {
 	// The Server-Sent Event to send.
 	Event
+	// v8 alternate topics; only present in builds with the deprecated_topic tag.
+	deprecatedTopics //nolint:unused // empty struct without the deprecated_topic tag
 
 	// The topic's Internationalized Resource Identifier (RFC3987) (will most likely be a URL).
 	Topic string
-
-	// v8 alternate topics; only present in builds with the deprecated_topic tag.
-	deprecatedTopics
 
 	// Private updates can only be dispatched to subscribers authorized to receive them.
 	Private bool
@@ -32,6 +31,7 @@ type Update struct {
 // in both build modes.
 type updateJSON struct {
 	Event
+
 	Topics  []string
 	Private bool
 	Debug   bool

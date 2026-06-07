@@ -9,7 +9,6 @@ import (
 
 	urlpattern "github.com/dunglas/go-urlpattern"
 	"github.com/maypok86/otter/v2"
-	"github.com/yosida95/uritemplate/v3"
 )
 
 // DefaultTopicSelectorStoreCacheSize bounds the (matcher_type, pattern, topics)
@@ -128,8 +127,10 @@ func (tss *TopicSelectorStore) matchMatcher(topics []string, m topicMatcher) boo
 		return slices.Contains(topics, m.Pattern)
 	case MatcherTypeURLPattern:
 		return tss.cachedMatch(topics, m, tss.matchURLPattern)
-	default:
+	case deprecatedMatcherTypeName:
 		return tss.matchDeprecatedMatcher(topics, m)
+	default:
+		return false
 	}
 }
 
@@ -175,60 +176,4 @@ func (tss *TopicSelectorStore) getOrCompileURLPattern(pattern string) (*urlpatte
 	actual, _ := tss.urlPatterns.LoadOrStore(pattern, p)
 
 	return actual.(*urlpattern.URLPattern), nil
-}
-
-func (tss *TopicSelectorStore) match(topic, topicSelector string) bool {
-	// Always do an exact matching comparison first
-	// Also check if the topic selector is the reserved keyword *
-	if topicSelector == "*" || topic == topicSelector {
-		return true
-	}
-
-	k := matchCacheKey{Type: deprecatedMatcherTypeName, Pattern: topicSelector, Topics: topic}
-
-	if tss.matchCache != nil {
-		if value, found := tss.matchCache.GetIfPresent(k); found {
-			return value
-		}
-	}
-
-	r := tss.getRegexp(topicSelector)
-	if r == nil {
-		return false
-	}
-
-	// Use template.Regexp() instead of template.Match() for performance
-	// See https://github.com/yosida95/uritemplate/pull/7
-	match := r.MatchString(topic)
-	if tss.matchCache != nil {
-		tss.matchCache.Set(k, match)
-	}
-
-	return match
-}
-
-// getRegexp retrieves regexp for this template selector.
-func (tss *TopicSelectorStore) getRegexp(topicSelector string) *regexp.Regexp {
-	// If it's definitely not a URI template, skip to save some resources
-	if !strings.Contains(topicSelector, "{") {
-		return nil
-	}
-
-	if tss.templateCache != nil {
-		if r, found := tss.templateCache.GetIfPresent(topicSelector); found {
-			return r
-		}
-	}
-
-	// If an error occurs, it's a raw string
-	if tpl, err := uritemplate.New(topicSelector); err == nil {
-		r := tpl.Regexp()
-		if tss.templateCache != nil {
-			tss.templateCache.Set(topicSelector, r)
-		}
-
-		return r
-	}
-
-	return nil
 }

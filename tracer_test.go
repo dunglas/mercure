@@ -110,7 +110,7 @@ func TestBoltHistoryEmitsSpan(t *testing.T) {
 	// A subscriber with a RequestLastEventID forces AddSubscriber to replay
 	// history, which is the span we want to verify.
 	s := NewLocalSubscriber("1", transport.logger, &TopicSelectorStore{})
-	s.SetTopics(topics, nil)
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 

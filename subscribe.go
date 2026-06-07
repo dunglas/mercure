@@ -203,8 +203,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r), h.logger, h.topicSelectorStore)
 
 	var (
-		privateTopics []string
-		claims        *claims
+		privateMatchers []matcherClaim
+		claims          *claims
 	)
 
 	if h.subscriberJWTKeyFunc != nil { //nolint:nestif
@@ -213,7 +213,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		claims, err = h.authorize(r, false)
 		if claims != nil {
 			s.Claims = claims
-			privateTopics = claims.Mercure.Subscribe
+			privateMatchers = claims.Mercure.Subscribe
 		}
 
 		if err != nil || (claims == nil && !h.anonymous) {
@@ -231,25 +231,34 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	topics := r.URL.Query()["topic"]
-	if len(topics) == 0 {
-		http.Error(w, `Missing "topic" parameter.`, http.StatusBadRequest)
+	deprecated := h.isBackwardCompatiblyEnabledWith(8)
+
+	matchers, err := h.parseMatchers(r.URL.Query(), deprecated)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		recordSpanError(span, err)
 
 		return nil, nil
 	}
 
-	if len(topics) > maxQueryTopics {
-		http.Error(w, `Too many "topic" parameters.`, http.StatusBadRequest)
+	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, deprecated); err != nil {
+		writeMatcherClaimError(ctx, h.logger, w, err)
+		recordSpanError(span, err)
 
 		return nil, nil
 	}
 
-	s.SetTopics(topics, privateTopics)
+	privateTopicMatchers := make([]topicMatcher, len(privateMatchers))
+	for i, c := range privateMatchers {
+		privateTopicMatchers[i] = c.topicMatcher
+	}
+
+	s.setMatchers(matchers, privateTopicMatchers)
 
 	if span.IsRecording() {
 		span.SetAttributes(
 			attribute.String("mercure.subscriber.id", s.ID),
-			attribute.StringSlice("mercure.topics", topics),
+			attribute.StringSlice("mercure.topics", logMatcherPatterns(matchers)),
 		)
 	}
 
@@ -394,7 +403,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		return
 	}
 
-	for _, subscription := range s.getSubscriptions("", jsonldContext, active) {
+	for _, subscription := range s.getSubscriptions(subscriptionFilter{}, jsonldContext, active) {
 		j, err := json.MarshalIndent(subscription, "", "  ")
 		if err != nil {
 			panic(err)

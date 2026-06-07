@@ -1,0 +1,111 @@
+package mercure
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMatcherClaimUnmarshalString(t *testing.T) {
+	t.Parallel()
+
+	var mc matcherClaim
+	require.NoError(t, json.Unmarshal([]byte(`"https://example.com/foo"`), &mc))
+
+	assert.Equal(t, "https://example.com/foo", mc.Pattern)
+	assert.Empty(t, mc.Type) // Unresolved — resolved later based on protocol version
+	assert.Nil(t, mc.Payload)
+}
+
+func TestMatcherClaimUnmarshalObject(t *testing.T) {
+	t.Parallel()
+
+	var mc matcherClaim
+	require.NoError(t, json.Unmarshal([]byte(`{"match": "https://example.com/:id", "matchType": "URLPattern"}`), &mc))
+
+	assert.Equal(t, "https://example.com/:id", mc.Pattern)
+	assert.Equal(t, MatcherTypeURLPattern, mc.Type)
+	assert.Nil(t, mc.Payload)
+}
+
+func TestMatcherClaimUnmarshalObjectDefaultsToExact(t *testing.T) {
+	t.Parallel()
+
+	var mc matcherClaim
+	require.NoError(t, json.Unmarshal([]byte(`{"match": "https://example.com/foo"}`), &mc))
+
+	assert.Equal(t, MatcherTypeExact, mc.Type)
+}
+
+func TestMatcherClaimUnmarshalObjectWithPayload(t *testing.T) {
+	t.Parallel()
+
+	var mc matcherClaim
+	require.NoError(t, json.Unmarshal([]byte(`{"match": "https://example.com/:id", "matchType": "URLPattern", "payload": {"user": "alice"}}`), &mc))
+
+	payloadMap, ok := mc.Payload.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "alice", payloadMap["user"])
+}
+
+// TestMatcherClaimUnmarshalReset guards against state leaking between decode
+// calls when a matcherClaim is reused.
+func TestMatcherClaimUnmarshalReset(t *testing.T) {
+	t.Parallel()
+
+	var mc matcherClaim
+	require.NoError(t, json.Unmarshal([]byte(`{"match": "a", "matchType": "URLPattern", "payload": 1}`), &mc))
+	require.NoError(t, json.Unmarshal([]byte(`"b"`), &mc))
+
+	assert.Equal(t, "b", mc.Pattern)
+	assert.Empty(t, mc.Type)
+	assert.Nil(t, mc.Payload)
+}
+
+func TestMatcherClaimMarshalRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	// Object form
+	in := matcherClaim{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}, Payload: map[string]any{"a": "b"}}
+	b, err := json.Marshal(&in)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"match": "https://example.com/:id", "matchType": "URLPattern", "payload": {"a": "b"}}`, string(b))
+
+	// String form (unresolved)
+	in = matcherClaim{topicMatcher: topicMatcher{Pattern: "https://example.com/foo"}}
+	b, err = json.Marshal(&in)
+	require.NoError(t, err)
+	assert.JSONEq(t, `"https://example.com/foo"`, string(b))
+}
+
+func TestResolveMatcherClaims(t *testing.T) {
+	t.Parallel()
+
+	tss, err := NewTopicSelectorStore(0)
+	require.NoError(t, err)
+
+	// Object-form claims with valid types resolve in modern mode.
+	cs := []matcherClaim{
+		{topicMatcher: topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}},
+		{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}},
+	}
+	require.NoError(t, resolveMatcherClaims(tss, cs, false))
+
+	// Bare-string claims are rejected in modern mode.
+	cs = []matcherClaim{{topicMatcher: topicMatcher{Pattern: "foo"}}}
+	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), errStringClaimRequiresCompat)
+
+	// Unknown matcher types are rejected; type values are case-sensitive.
+	cs = []matcherClaim{{topicMatcher: topicMatcher{Type: "urlpattern", Pattern: "foo"}}}
+	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), ErrUnsupportedMatcherType)
+
+	// Forged internal type is rejected in modern mode.
+	cs = []matcherClaim{{topicMatcher: topicMatcher{Type: deprecatedMatcherTypeName, Pattern: "foo"}}}
+	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), errStringClaimRequiresCompat)
+
+	// Invalid URLPattern pattern is rejected.
+	cs = []matcherClaim{{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "{unclosed"}}}
+	assert.Error(t, resolveMatcherClaims(tss, cs, false))
+}

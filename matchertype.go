@@ -30,16 +30,6 @@ const (
 // types defined by the protocol. The HTTP handlers map it to a 400 status code.
 var ErrUnsupportedMatcherType = errors.New("unsupported topic matcher type")
 
-// valid reports whether t is a matcher type defined by the protocol.
-func (t MatcherType) valid() bool {
-	switch t {
-	case MatcherTypeExact, MatcherTypeURLPattern:
-		return true
-	default:
-		return false
-	}
-}
-
 // topicMatcher pairs a matcher type with a pattern string.
 type topicMatcher struct {
 	Type    MatcherType

@@ -177,6 +177,15 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The protocol allows exactly one topic per update; alternate topics are
+	// a v8 feature, available only under the deprecated_topic build tag and
+	// WithProtocolVersionCompatibility(8).
+	if len(topics) > 1 && !h.allowsAlternateTopics() {
+		http.Error(w, `Multiple "topic" parameters are not supported anymore, publish one update per topic`, http.StatusBadRequest)
+
+		return
+	}
+
 	// Reject oversized topic lists before running canDispatch — otherwise
 	// an authenticated publisher could force O(topics × selectors)
 	// matching work on every request before being rejected by validate.
@@ -184,6 +193,15 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, ErrTooManyTopics.Error(), http.StatusBadRequest)
 
 		return
+	}
+
+	if claims != nil {
+		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, h.isBackwardCompatiblyEnabledWith(8)); err != nil {
+			writeMatcherClaimError(ctx, h.logger, w, err)
+			recordSpanError(span, err)
+
+			return
+		}
 	}
 
 	var retry uint64

@@ -7,16 +7,36 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestMatchAlternateTopics covers the v8 alternate-topic rule: an update is
-// receivable when any of its topics (canonical or alternate) matches a
-// subscriber selector.
+func stringsToDeprecatedMatchers(patterns []string) []topicMatcher {
+	out := make([]topicMatcher, len(patterns))
+	for i, p := range patterns {
+		out[i] = topicMatcher{Type: deprecatedMatcherTypeName, Pattern: p}
+	}
+
+	return out
+}
+
+// TestMatchAlternateTopics covers the v8 rules: URI Template selectors and
+// alternate topics — an update is receivable when any of its topics
+// (canonical or alternate) matches a subscriber selector.
 func TestMatchAlternateTopics(t *testing.T) {
 	t.Parallel()
 
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-	s.SetTopics([]string{"https://example.com/no-match", "https://example.com/books/{id}"}, []string{"https://example.com/users/foo/{?topic}"})
+	tss, err := NewTopicSelectorStore(0)
+	require.NoError(t, err)
+
+	s := NewLocalSubscriber("", slog.Default(), tss)
+	s.setMatchers(
+		stringsToDeprecatedMatchers([]string{"https://example.com/no-match", "https://example.com/books/{id}"}),
+		stringsToDeprecatedMatchers([]string{"https://example.com/users/foo/{?topic}"}),
+	)
+
+	// URI Template selectors keep working for v8 subscribers.
+	assert.True(t, s.Match(&Update{Topic: "https://example.com/books/1"}))
+	assert.False(t, s.Match(&Update{Topic: "https://example.com/books/1", Private: true}))
 
 	// The alternate topic does not match the private selector.
 	assert.False(t, s.Match(testUpdate(&Update{Private: true},

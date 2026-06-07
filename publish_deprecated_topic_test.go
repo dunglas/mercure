@@ -3,7 +3,6 @@
 package mercure
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,5 +19,5 @@ func TestUpdateValidateTooManyTopics(t *testing.T) {
 	}
 
 	err := testUpdate(&Update{}, topics...).Validate()
-	assert.True(t, errors.Is(err, ErrTooManyTopics), "got %v, want %v", err, ErrTooManyTopics)
+	assert.ErrorIs(t, err, ErrTooManyTopics)
 }

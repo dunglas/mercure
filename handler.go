@@ -93,7 +93,19 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	r.UseEncodedPath()
 	r.SkipClean(true)
 
-	r.HandleFunc(subscriptionURL, h.SubscriptionHandler).Methods(http.MethodGet)
-	r.HandleFunc(subscriptionsForTopicURL, h.SubscriptionsHandler).Methods(http.MethodGet)
+	// 3-segment route (more specific, registered first).
+	r.HandleFunc(subscriptionMatchURL, h.SubscriptionHandler).Methods(http.MethodGet)
+
+	// The collection route /subscriptions/{matchType}/{match} and the
+	// deprecated /subscriptions/{topic}/{subscriber} route have the same
+	// shape. In modern-only mode only the modern route is registered, so
+	// there is no ambiguity and no per-request check is added — this is the
+	// hot path. Under the deprecated_topic tag and compatibility mode, the
+	// deprecated registration guards the modern route with a MatcherFunc and
+	// adds the v8 routes.
+	if !h.registerDeprecatedSubscriptionHandlers(r) {
+		r.HandleFunc(subscriptionsForMatchURL, h.SubscriptionsHandler).Methods(http.MethodGet)
+	}
+
 	r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods(http.MethodGet)
 }

@@ -48,7 +48,7 @@ func TestBoltTransportHistory(t *testing.T) {
 	}
 
 	s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
-	s.SetTopics(topics, nil)
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 
 	require.NoError(t, transport.AddSubscriber(t.Context(), s))
 
@@ -76,7 +76,7 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 
 	topics := []string{"https://example.com/foo"}
 	s := NewLocalSubscriber("711131", transport.logger, &TopicSelectorStore{})
-	s.SetTopics(topics, nil)
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 	ctx := context.WithValue(t.Context(), SubscriberContextKey, &s.Subscriber)
 
 	require.NoError(t, transport.Dispatch(ctx, &Update{Topic: topics[0]})) // make sure the db is not empty
@@ -96,7 +96,7 @@ func TestBoltTopicSelectorHistory(t *testing.T) {
 	require.NoError(t, transport.Dispatch(ctx, &Update{Topic: "https://example.com/subscribed-public-only", Event: Event{ID: "4"}}))
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
-	s.SetTopics([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}, []string{"https://example.com/subscribed"})
+	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}), stringsToExactMatchers([]string{"https://example.com/subscribed"}))
 
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
@@ -119,7 +119,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	}
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicSelectorStore{})
-	s.SetTopics(topics, nil)
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	var count int
@@ -154,7 +154,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		}
 
 		s := NewLocalSubscriber("8", transport.logger, &TopicSelectorStore{})
-		s.SetTopics(topics, nil)
+		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 		require.NoError(t, transport.AddSubscriber(ctx, s))
 
 		go func() {
@@ -234,7 +234,7 @@ func TestBoltTransportDispatch(t *testing.T) {
 	ctx := t.Context()
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s.SetTopics([]string{"https://example.com/foo", "https://example.com/private"}, []string{"https://example.com/private"})
+	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/foo", "https://example.com/private"}), stringsToExactMatchers([]string{"https://example.com/private"}))
 
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
@@ -244,12 +244,12 @@ func TestBoltTransportDispatch(t *testing.T) {
 	subscribedNotAuthorized := &Update{Topic: "https://example.com/foo", Private: true}
 	require.NoError(t, transport.Dispatch(ctx, subscribedNotAuthorized))
 
-	public := testUpdate(&Update{}, s.SubscribedTopics...)
+	public := &Update{Topic: s.SubscribedMatchers[0].Pattern}
 	require.NoError(t, transport.Dispatch(ctx, public))
 
 	assert.Equal(t, public, <-s.Receive())
 
-	private := &Update{Topic: s.AllowedPrivateTopics[0], Private: true}
+	private := &Update{Topic: s.AllowedPrivateMatchers[0].Pattern, Private: true}
 	require.NoError(t, transport.Dispatch(ctx, private))
 
 	assert.Equal(t, private, <-s.Receive())
@@ -264,13 +264,13 @@ func TestBoltTransportClosed(t *testing.T) {
 	ctx := t.Context()
 
 	s := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s.SetTopics([]string{"https://example.com/foo"}, nil)
+	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/foo"}), stringsToExactMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
 	require.NoError(t, transport.Close(ctx))
 	require.Error(t, transport.AddSubscriber(ctx, s))
 
-	assert.Equal(t, transport.Dispatch(ctx, &Update{Topic: s.SubscribedTopics[0]}), ErrClosedTransport)
+	assert.Equal(t, transport.Dispatch(ctx, &Update{Topic: s.SubscribedMatchers[0].Pattern}), ErrClosedTransport)
 
 	_, ok := <-s.Receive()
 	assert.False(t, ok)
@@ -283,11 +283,11 @@ func TestBoltCleanDisconnectedSubscribers(t *testing.T) {
 	ctx := t.Context()
 
 	s1 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s1.SetTopics([]string{"foo"}, []string{})
+	s1.setMatchers(stringsToExactMatchers([]string{"foo"}), stringsToExactMatchers([]string{}))
 	require.NoError(t, transport.AddSubscriber(ctx, s1))
 
 	s2 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
-	s2.SetTopics([]string{"foo"}, []string{})
+	s2.setMatchers(stringsToExactMatchers([]string{"foo"}), stringsToExactMatchers([]string{}))
 	require.NoError(t, transport.AddSubscriber(ctx, s2))
 
 	assert.Equal(t, 2, transport.subscribers.Len())

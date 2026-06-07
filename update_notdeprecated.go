@@ -4,7 +4,7 @@ package mercure
 
 // deprecatedTopics is empty without the deprecated_topic build tag: an update
 // has exactly one topic.
-type deprecatedTopics struct{}
+type deprecatedTopics struct{} //nolint:unused // embedded in Update for build-mode symmetry, like deprecatedHub in Hub
 
 func (u *Update) topics() []string {
 	return []string{u.Topic}

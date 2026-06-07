@@ -22,7 +22,7 @@ const (
 )
 
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
-var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
+var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 // Option instances allow to configure the library.
 type Option func(o *opt) error
@@ -260,17 +260,33 @@ func WithCookieName(cookieName string) Option {
 	}
 }
 
-// WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (only version 7 is supported).
+// WithProtocolVersionCompatibility sets the version of the Mercure protocol
+// to be backward compatible with (versions 7 and 8 are supported). The v8
+// behaviors (URI Template selectors in the `topic` parameter, bare-string
+// JWT claims, alternate topics, v8 subscription routes) additionally require
+// a hub binary built with the deprecated_topic tag.
 func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	return func(o *opt) error {
 		switch protocolVersionCompatibility {
-		case 7:
+		case 7, 8:
 			o.protocolVersionCompatibility = protocolVersionCompatibility
 
 			return nil
 		default:
 			return ErrUnsupportedProtocolVersion
 		}
+	}
+}
+
+// WithPublicURL sets the URL at which subscribers reach the hub. It is used
+// as the base URL when matching relative URL patterns and topics, per the
+// protocol's "the hub MUST use the hub's URL as the base URL" rule. Without
+// it, only relative ↔ relative and absolute ↔ absolute matches work.
+func WithPublicURL(publicURL string) Option {
+	return func(o *opt) error {
+		o.publicURL = publicURL
+
+		return nil
 	}
 }
 
@@ -299,6 +315,7 @@ type opt struct {
 	corsOrigins                  []string
 	cookieName                   string
 	protocolVersionCompatibility int
+	publicURL                    string
 }
 
 func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
@@ -340,6 +357,8 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 
 		opt.topicSelectorStore = tss
 	}
+
+	opt.topicSelectorStore.setBaseURL(opt.publicURL)
 
 	if opt.transport == nil {
 		opt.transport = NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize))
