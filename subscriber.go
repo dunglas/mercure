@@ -88,7 +88,7 @@ func (s *Subscriber) MatchTopics(topics []string, private bool) bool {
 
 // Match checks if the current subscriber can receive the given update.
 func (s *Subscriber) Match(u *Update) bool {
-	return s.MatchTopics(u.Topics, u.Private)
+	return s.MatchTopics(u.topics(), u.Private)
 }
 
 func (s *Subscriber) LogValue() slog.Value {

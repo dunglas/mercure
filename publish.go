@@ -37,6 +37,7 @@ var (
 	ErrReservedTopic    = errors.New(`topic value references the reserved "/.well-known/mercure" namespace`)
 	ErrInvalidEventID   = errors.New(`"id" field contains a forbidden control character`)
 	ErrInvalidEventType = errors.New(`"type" field contains a forbidden control character`)
+	ErrInvalidTopic     = errors.New("topic contains a forbidden control character or invalid UTF-8")
 	ErrTooManyTopics    = errors.New("too many topics in update")
 )
 
@@ -56,13 +57,20 @@ const sseFieldForbiddenChars = "\x00\r\n"
 // reserved "/.well-known/mercure" topic namespace, so it is meant for
 // publisher input, not hub-internal updates such as subscription events.
 func (u *Update) Validate() error {
-	if len(u.Topics) > maxPublishTopics {
+	topics := u.topics()
+	if len(topics) > maxPublishTopics {
 		return ErrTooManyTopics
 	}
 
-	for _, t := range u.Topics {
+	for _, t := range topics {
 		if strings.Contains(t, reservedTopicSubstring) {
 			return fmt.Errorf("%q: %w", t, ErrReservedTopic)
+		}
+
+		// Control characters are forbidden by the protocol; a NUL would also
+		// collide with the match cache's topic-list separator.
+		if !validProtocolString(t) {
+			return fmt.Errorf("%q: %w", t, ErrInvalidTopic)
 		}
 	}
 
@@ -214,11 +222,11 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u = &Update{
-		Topics:  topics,
 		Private: private,
 		Debug:   h.debug,
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
+	u.setTopics(topics)
 
 	dispatchCtx := context.WithoutCancel(ctx)
 
@@ -227,7 +235,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, ErrReservedTopic):
 			http.Error(w, err.Error(), http.StatusForbidden)
-		case errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType), errors.Is(err, ErrTooManyTopics):
+		case errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
+			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

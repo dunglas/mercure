@@ -39,8 +39,8 @@ func BenchmarkSubscriberList(b *testing.B) {
 	}
 
 	for b.Loop() {
-		assert.NotEmpty(b, l.MatchAny(&Update{Topics: []string{"https://example.org/foo"}}))
-		assert.Empty(b, l.MatchAny(&Update{Topics: []string{"https://example.org/baz"}}))
-		assert.NotEmpty(b, l.MatchAny(&Update{Topics: []string{"https://example.com/8"}, Private: false}))
+		assert.NotEmpty(b, l.MatchAny(&Update{Topic: "https://example.org/foo"}))
+		assert.Empty(b, l.MatchAny(&Update{Topic: "https://example.org/baz"}))
+		assert.NotEmpty(b, l.MatchAny(&Update{Topic: "https://example.com/8", Private: false}))
 	}
 }

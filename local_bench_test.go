@@ -79,7 +79,7 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	b.Run(testName, func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
-				require.NoError(b, tr.Dispatch(ctx, &Update{Topics: top}))
+				require.NoError(b, tr.Dispatch(ctx, testUpdate(&Update{}, top...)))
 			}
 		})
 	})

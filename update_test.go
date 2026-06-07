@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"bytes"
+	"encoding/json"
 	"log/slog"
 	"strings"
 	"testing"
@@ -15,19 +16,42 @@ func TestAssignUUID(t *testing.T) {
 	t.Parallel()
 
 	u := &Update{
-		Topics:  []string{"foo"},
+		Topic:   "foo",
 		Private: true,
 		Event:   Event{Retry: 3},
 	}
 	u.AssignUUID()
 
-	assert.Equal(t, []string{"foo"}, u.Topics)
+	assert.Equal(t, "foo", u.Topic)
 	assert.True(t, u.Private)
 	assert.Equal(t, uint64(3), u.Retry)
 	assert.True(t, strings.HasPrefix(u.ID, "urn:uuid:"))
 
 	_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
 	require.NoError(t, err)
+}
+
+// TestUpdateJSONLegacyShape guards the wire format used by bolt: records
+// written by 0.x hubs carry a "Topics" array and must stay readable, and
+// records written by this version must keep the same shape.
+func TestUpdateJSONLegacyShape(t *testing.T) {
+	t.Parallel()
+
+	legacy := `{"Data":"d","ID":"i","Type":"t","Retry":3,"Topics":["https://example.com/a","https://example.com/b"],"Private":true,"Debug":false}`
+
+	var u *Update
+
+	require.NoError(t, json.Unmarshal([]byte(legacy), &u))
+	assert.Equal(t, "https://example.com/a", u.Topic)
+	assert.Equal(t, "d", u.Data)
+	assert.Equal(t, "i", u.ID)
+	assert.Equal(t, "t", u.Type)
+	assert.Equal(t, uint64(3), u.Retry)
+	assert.True(t, u.Private)
+
+	out, err := json.Marshal(u)
+	require.NoError(t, err)
+	assert.Contains(t, string(out), `"Topics":["https://example.com/a"`)
 }
 
 func TestLogUpdate(t *testing.T) {
@@ -38,7 +62,7 @@ func TestLogUpdate(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	u := &Update{
-		Topics:  []string{"https://example.com/foo"},
+		Topic:   "https://example.com/foo",
 		Private: true,
 		Debug:   true,
 		Event:   Event{ID: "a", Retry: 3, Data: "bar", Type: "baz"},

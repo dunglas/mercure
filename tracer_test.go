@@ -47,8 +47,8 @@ func TestPublishEmitsSpans(t *testing.T) {
 	hub := createAnonymousDummy(t)
 
 	require.NoError(t, hub.Publish(ctx, &Update{
-		Topics: []string{"https://example.com/books/1"},
-		Event:  Event{Data: "hello"},
+		Topic: "https://example.com/books/1",
+		Event: Event{Data: "hello"},
 	}))
 
 	assert.Contains(t, endedSpanNames(sr), "mercure.publish")
@@ -102,8 +102,8 @@ func TestBoltHistoryEmitsSpan(t *testing.T) {
 	topics := []string{"https://example.com/books/1"}
 	for i := 1; i <= 3; i++ {
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Event:  Event{ID: strconv.Itoa(i)},
-			Topics: topics,
+			Event: Event{ID: strconv.Itoa(i)},
+			Topic: topics[0],
 		}))
 	}
 

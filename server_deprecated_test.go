@@ -176,7 +176,7 @@ data: hello
 		require.NoError(t, resp.Body.Close())
 
 		assert.Equal(t, []byte(`:
-id: first
+id: second
 data: hello
 
 `), body)
@@ -184,14 +184,17 @@ data: hello
 
 	wgConnected.Wait()
 
-	body := url.Values{"topic": {"https://example.com/foo/1", "https://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
-	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+	// One update per topic: the modern protocol allows a single topic per update.
+	for i, topic := range []string{"https://example.com/foo/1", "https://example.com/alt/1"} {
+		body := url.Values{"topic": {topic}, "data": {"hello"}, "id": {[]string{"first", "second"}[i]}}
+		req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
-	resp2, err := client.Do(req)
-	require.NoError(t, err)
-	require.NoError(t, resp2.Body.Close())
+		resp2, err := client.Do(req)
+		require.NoError(t, err)
+		require.NoError(t, resp2.Body.Close())
+	}
 
 	require.NoError(t, h.server.Shutdown(t.Context()))
 	wgTested.Wait()

@@ -116,9 +116,9 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 		b.RunParallel(func(pb *testing.PB) {
 			for i := 0; pb.Next(); i++ {
 				if i%100 < matchPct {
-					s.Dispatch(ctx, &Update{Topics: tsMatch}, i%2 == 0 /* half history, half live */)
+					s.Dispatch(ctx, testUpdate(&Update{}, tsMatch...), i%2 == 0 /* half history, half live */)
 				} else {
-					s.Dispatch(ctx, &Update{Topics: tsNoMatch}, i%2 == 0 /* half history, half live */)
+					s.Dispatch(ctx, testUpdate(&Update{}, tsNoMatch...), i%2 == 0 /* half history, half live */)
 				}
 			}
 		})

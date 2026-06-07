@@ -401,7 +401,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		}
 
 		u := &Update{
-			Topics:  []string{subscription.ID},
+			Topic:   subscription.ID,
 			Private: true,
 			Debug:   h.debug,
 			Event:   Event{Data: string(j)},

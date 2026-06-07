@@ -36,7 +36,7 @@ func TestPublish(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, s.SubscribedTopics[0], u.Topic)
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -46,7 +46,7 @@ func TestPublish(t *testing.T) {
 				ID:   "id",
 				Data: "Hello!",
 			},
-			Topics:  s.SubscribedTopics,
+			Topic:   s.SubscribedTopics[0],
 			Private: true,
 		}))
 
@@ -278,7 +278,7 @@ func TestPublishHandlerOK(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, s.SubscribedTopics[0], u.Topic)
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -478,9 +478,12 @@ func TestUpdateValidate(t *testing.T) {
 		update Update
 		want   error
 	}{
-		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topics: []string{"https://example.com/books/1"}}, nil},
+		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topic: "https://example.com/books/1"}, nil},
 		{"empty", Update{}, nil},
-		{"reserved topic", Update{Topics: []string{"https://example.com/.well-known/mercure/subscriptions/foo"}}, ErrReservedTopic},
+		{"reserved topic", Update{Topic: "https://example.com/.well-known/mercure/subscriptions/foo"}, ErrReservedTopic},
+		{"topic NUL", Update{Topic: "https://example.com/foo\x00bar"}, ErrInvalidTopic},
+		{"topic C0", Update{Topic: "https://example.com/foo\nbar"}, ErrInvalidTopic},
+		{"topic invalid UTF-8", Update{Topic: "https://example.com/\xff"}, ErrInvalidTopic},
 		{"id LF", Update{Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
 		{"id CR", Update{Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
 		{"id NUL", Update{Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
@@ -503,18 +506,6 @@ func TestUpdateValidate(t *testing.T) {
 			assert.True(t, errors.Is(err, tc.want), "got %v, want %v", err, tc.want)
 		})
 	}
-}
-
-func TestUpdateValidateTooManyTopics(t *testing.T) {
-	t.Parallel()
-
-	topics := make([]string, maxPublishTopics+1)
-	for i := range topics {
-		topics[i] = "https://example.com/books/1"
-	}
-
-	err := (&Update{Topics: topics}).Validate()
-	assert.True(t, errors.Is(err, ErrTooManyTopics), "got %v, want %v", err, ErrTooManyTopics)
 }
 
 func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
