@@ -154,7 +154,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 		claims, err = h.authorize(r, true)
 		if err != nil || claims == nil {
-			h.httpAuthorizationError(w, r, err)
+			h.writeAuthError(w, r, err)
 
 			if err != nil {
 				recordSpanError(span, err)
@@ -209,7 +209,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	private := len(r.PostForm["private"]) != 0
 	if claims != nil && !claims.authz.grantsAll(h.topicSelectorStore, actionPublish, topics) { //nolint:nestif
 		if private {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
 			return
 		}
@@ -217,14 +217,14 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		infoEnabled := h.logger.Enabled(ctx, slog.LevelInfo)
 		if h.isBackwardCompatiblyEnabledWith(7) {
 			if infoEnabled {
-				h.logger.LogAttrs(ctx, slog.LevelInfo, `Deprecated: posting public updates to topics not listed in the "mercure.publish" JWT claim is deprecated since the version 7 of the protocol, use '["*"]' as value to allow publishing on all topics.`)
+				h.logger.LogAttrs(ctx, slog.LevelInfo, `Deprecated: posting public updates to topics not granted to the token is deprecated since the version 7 of the protocol, grant the "*" topic to allow publishing on all topics.`)
 			}
 		} else {
 			if infoEnabled {
-				h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: posting public updates to topics not listed in the "mercure.publish" JWT claim is not supported anymore, use '["*"]' as value to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
+				h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: posting public updates to topics not granted to the token is not supported anymore, grant the "*" topic to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
 			}
 
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
 			return
 		}

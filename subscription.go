@@ -184,7 +184,7 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, currentURL string, w
 
 	claims, err := h.authorize(r, false)
 	if err != nil || claims == nil {
-		h.httpAuthorizationError(w, r, err)
+		h.writeAuthError(w, r, err)
 
 		if err != nil {
 			recordSpanError(span, err)
@@ -194,7 +194,7 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, currentURL string, w
 	}
 
 	if !claims.authz.grants(h.topicSelectorStore, actionSubscribe, currentURL) {
-		h.httpAuthorizationError(w, r, errors.New("subscription URL not covered by token topic matchers")) //nolint:err113
+		h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
 		return false
 	}

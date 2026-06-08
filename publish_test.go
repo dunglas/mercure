@@ -207,7 +207,7 @@ func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
@@ -231,7 +231,7 @@ func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestPublishHandlerLegacyAuthorization(t *testing.T) {
@@ -639,5 +639,6 @@ func TestPublishHandlerTooManyClaimMatchers(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	// Too many topics in a single authorization detail → invalid_request.
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }

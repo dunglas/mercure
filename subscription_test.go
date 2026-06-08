@@ -31,7 +31,7 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 	w = httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res = w.Result()
-	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar", nil)
@@ -40,7 +40,7 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 	w = httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res = w.Result()
-	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 }
 
@@ -62,7 +62,7 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 	w = httptest.NewRecorder()
 	hub.SubscriptionHandler(w, req)
 	res = w.Result()
-	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 }
 

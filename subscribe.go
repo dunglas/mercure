@@ -213,11 +213,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		}
 
 		if err != nil || (claims == nil && !h.anonymous) {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-
-			if h.logger.Enabled(ctx, slog.LevelDebug) {
-				h.logger.LogAttrs(ctx, slog.LevelDebug, "Subscriber unauthorized", slog.Any("error", err))
-			}
+			h.writeAuthError(w, r, err)
 
 			if err != nil {
 				recordSpanError(span, err)
