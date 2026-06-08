@@ -22,7 +22,7 @@ const (
 	// Object-form JWT fixtures used by the non-deprecated tests.
 	//
 	// publisherJWT claims: {"mercure":{"publish":[{"match":"*"}]}}
-	// subscriberJWT claims: {"mercure":{"subscribe":[{"match":"*"}]}}
+	// subscriberJWT claims: {"mercure":{"subscribe":[{"match":"*"}]}}.
 	publisherJWT  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XX19.fxYhQH3ML8SA0ZYSo8qVUUezvIO6O6JNDRF5RN3zeZU"
 	subscriberJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6W3sibWF0Y2giOiIqIn1dfX0.73III1dtzX0DfOWGIeDbNCq0dmcyfCt4XEcUMQNzt-w"
 
@@ -456,4 +456,27 @@ mercure {
 		}
 	}
 }`)
+}
+
+func TestNewJWKSetKeyfunc(t *testing.T) {
+	jwksPath, err := filepath.Abs("testdata/RS256.jwks.json")
+	require.NoError(t, err)
+
+	t.Run("file URL with empty host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with localhost host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://localhost"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with rejected host", func(t *testing.T) {
+		_, err := newJWKSetKeyfunc(t.Context(), "file://example.com"+jwksPath)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"example.com"`)
+	})
 }
