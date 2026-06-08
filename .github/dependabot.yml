@@ -2,6 +2,7 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: "0.x"
     schedule:
       interval: weekly
     commit-message:
@@ -10,6 +11,7 @@ updates:
       default-days: 7
   - package-ecosystem: maven
     directory: /gatling
+    target-branch: "0.x"
     schedule:
       interval: weekly
     commit-message:
