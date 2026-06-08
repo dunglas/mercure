@@ -183,11 +183,12 @@ A topic matcher is an expression matched against topics; its matcher type determ
 expression is interpreted. This document defines two matcher types, `Exact` and `URLPattern`.
 Hubs **MUST** support both.
 
-The reserved matcher value `*` matches every topic, regardless of matcher type. A subscriber
-that wishes to match a literal topic equal to `*` **MUST** use a `URLPattern` matcher (for
-example, the pattern `*` under `URLPattern` matches all topics, while an escaped literal can be
-expressed as a pattern). Within the `Exact` matcher type, the value `*` is always interpreted as
-the reserved wildcard and never as the literal one-character topic.
+The matcher value `*` is reserved as a wildcard that matches every topic. It is recognized before
+the matcher type is resolved, so it has this meaning regardless of matcher type and regardless of
+whether `matchType` is supplied or defaulted (see (#topic-matcher-list)). As a consequence, a topic
+whose value is exactly `*` is not addressable: no matcher can select that single topic without also
+selecting every other. This mirrors the reserved wildcard characters of other publish-subscribe
+systems.
 
 ## Exact Matching
 
@@ -359,10 +360,13 @@ Bearer Token Usage specification [@!RFC6750] where applicable:
 When any of these mechanisms is used, the connection **MUST** use an encryption layer such as
 HTTPS.
 
-If the client presents an `Authorization` HTTP header, the token it contains **MUST** be used;
-the `access_token` query parameter and the cookie **MUST** be ignored. If the client sets an
-`access_token` query parameter and presents no `Authorization` HTTP header, the query parameter
-**MUST** be used and the cookie **MUST** be ignored.
+When more than one mechanism is present, the hub **MUST** select exactly one token using the
+following precedence, from highest to lowest: the `Authorization` HTTP header, then the
+`access_token` query parameter, then the cookie. The token from the selected mechanism **MUST**
+be used and the others **MUST** be ignored. Concretely: if an `Authorization` HTTP header is
+present, its token **MUST** be used and the `access_token` query parameter and the cookie **MUST**
+be ignored; otherwise, if an `access_token` query parameter is present, it **MUST** be used and the
+cookie **MUST** be ignored; otherwise, the cookie, if any, **MUST** be used.
 
 ### Authorization HTTP Header
 
@@ -461,9 +465,14 @@ JSON Web Token Best Current Practices [@!RFC8725]. In particular:
 *   Hubs **MUST** enforce the `exp` claim [@!RFC7519], including on the first request received
     bearing a token, and **MUST** enforce the `nbf` claim if present.
 *   Hubs **MUST** be configured with their resource identifier and **MUST** verify that it
-    appears in the token `aud` claim [@!RFC9068]; this bounds a token to its intended hub and
-    mitigates replay across hubs that share signing keys (see (#hub-trust)). Hubs **SHOULD**
-    verify the `iss` claim against the expected issuer.
+    appears in the token `aud` claim [@!RFC9068]. Per [@!RFC7519], `aud` **MAY** be a single
+    string or an array of strings; the resource identifier matches when it equals that string or
+    is a member of that array. This bounds a token to its intended hub and mitigates replay across
+    hubs that share signing keys (see (#hub-trust)). When the hub advertises one or more
+    authorization servers in its protected resource metadata (see (#discovery)), it **MUST**
+    verify that the `iss` claim is the issuer identifier of one of them [@!RFC9068]. A hub that
+    accepts self-issued tokens and advertises no authorization server **MAY** omit the `iss`
+    check.
 
 The `sub` claim, when present, identifies the subscriber and is used to derive subscription
 event identifiers (see (#subscription-events)).
@@ -521,11 +530,11 @@ against that single topic, a subscriber receives a private update only when its 
 grants `subscribe` on that resource. The subscriber's routing matchers (query parameters) only
 select which topics it listens to; they never widen what it may read.
 
-If the presented token contains an `exp` claim, the hub **MUST** close the connection at that
-time. Because a token without an `exp` claim would otherwise authorize an indefinitely
-long-lived connection that cannot be revoked, hubs **SHOULD** impose a maximum connection
-lifetime independent of `exp` and close connections that exceed it, requiring the subscriber to
-reconnect and re-authenticate.
+Because `exp` is required (see (#token-validation)), the hub **MUST** close the connection no
+later than the token's `exp` time. Since `exp` alone cannot revoke an already-established
+long-lived connection, hubs **SHOULD** also impose a maximum connection lifetime independent of
+`exp` and close connections that exceed it, requiring the subscriber to reconnect and
+re-authenticate.
 
 For example, a subscriber may listen to all books via the routing matcher
 `topicURLPattern=https://example.com/books/:id` while its token authorizes reading only specific
@@ -556,7 +565,8 @@ A topic matcher object appears in the `topics` array of a `mercure` authorizatio
 topic matcher itself, and **MAY** have an OPTIONAL `matchType` property containing the matcher
 type. The value of `matchType` is case-sensitive and **MUST** be either `Exact` or `URLPattern`
 (see (#matcher-types)). If no `matchType` key is present, the hub **MUST** assume the `Exact`
-matcher type. The reserved value `*` matches every topic (see (#matcher-types)).
+matcher type. A `match` value of `*` is the reserved wildcard and matches every topic regardless
+of `matchType`, including when `matchType` is absent (see (#matcher-types)).
 
 Any entry that is not a JSON object, or that fails to parse or validate as a topic matcher,
 **MUST** cause the request to be rejected with a 400 status code as defined in
@@ -733,7 +743,9 @@ The topic of these updates **MUST** be an expansion of
 
 Note: Because strings containing reserved characters (e.g., URIs, URL Patterns, and URI
 Templates) can be used for the `{match}` and `{subscriber}` variables, per [@!RFC6570] the
-values of all variables **MUST** be percent-encoded during expansion.
+value of each variable **MUST** be percent-encoded exactly once during expansion, encoding the
+raw matcher or subscriber string as a whole (any `%` characters it already contains are
+themselves encoded). Hubs **MUST NOT** double-encode an already-encoded value.
 
 If a subscriber has several subscriptions, the hub **SHOULD** assign the same `{subscriber}`
 value to all of them when it can correlate them (for example, when the same `sub` claim is
@@ -795,8 +807,15 @@ The web API **MUST** expose endpoints following these patterns:
     subscription.
 
 To access these URLs, clients **MUST** be authorized according to the rules defined in
-(#authorization). The requested URL **MUST** be granted the `subscribe` action by a `mercure`
-authorization detail in the access token (see (#authorization-details)).
+(#authorization). The hub **MUST** treat the requested URL (the request target, resolved against
+the hub's URL per (#url-pattern)) as the topic to authorize, and **MUST** verify that a `mercure`
+authorization detail in the access token grants the `subscribe` action on it, evaluated with the
+matcher rules of (#matcher-types). The same matching applies to every endpoint shape above: the
+collection URL `/.well-known/mercure/subscriptions`, the per-matcher collection URL, and the
+single-subscription URL are each matched as a topic, so a token whose `subscribe` matcher selects
+a broader set (for example a `URLPattern` covering the subscriptions namespace, or the reserved
+`*`) grants access to the corresponding endpoints. If no detail grants `subscribe` on the
+requested URL, the hub **MUST** answer `403` as defined in (#authorization).
 
 The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
 
@@ -1036,8 +1055,10 @@ include:
 *   `jwks_uri` (optional): the location of the hub's token verification keys, when not obtained
     from an authorization server.
 *   `bearer_methods_supported`: the token presentation methods the hub accepts (see
-    (#presenting-the-access-token)); the cookie method is advertised under the
-    implementation-specific value `cookie`.
+    (#presenting-the-access-token)). Standard values are `header` and `query` [@!RFC9728]. The
+    cookie method is advertised under the implementation-specific value `cookie`; because it is
+    not an IANA-registered value, clients that strictly follow [@!RFC9728] ignore it and so cannot
+    discover the cookie method from this field alone.
 
 When a request carries no access token, the hub's `WWW-Authenticate: Bearer` challenge
 **SHOULD** include a `resource_metadata` parameter pointing to this document (see
