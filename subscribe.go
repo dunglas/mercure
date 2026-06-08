@@ -241,7 +241,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		return nil, nil
 	}
 
-	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, deprecated); err != nil {
+	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, h.allowsAlternateTopics()); err != nil {
 		writeMatcherClaimError(ctx, h.logger, w, err)
 		recordSpanError(span, err)
 

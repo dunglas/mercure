@@ -33,3 +33,31 @@ func TestSubscribeTopicCompatRequiresTag(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	assert.Contains(t, w.Body.String(), "deprecated_topic")
 }
+
+// TestSubscribeStringClaimCompatRequiresTag checks that a v8 string-form
+// subscribe claim (here the "*" wildcard) is rejected on a binary built
+// without the deprecated_topic tag, even under WithProtocolVersionCompatibility(8).
+// Otherwise the wildcard short-circuit in matchMatcher would authorize every
+// topic although the v8 matcher code is not compiled in.
+func TestSubscribeStringClaimCompatRequiresTag(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithProtocolVersionCompatibility(8))
+
+	// Empty Type marshals to a bare string: the v8 wire form.
+	jwt := createDummySubscriberJWTWithClaims(t, []matcherClaim{{topicMatcher: topicMatcher{Pattern: "*"}}}, nil)
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topicURLPattern=https://example.com/books/:id", nil)
+	req.Header.Add("Authorization", bearerPrefix+jwt)
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}

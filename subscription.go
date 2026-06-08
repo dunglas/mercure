@@ -188,8 +188,7 @@ func (h *Hub) authorizeSubscriptionRequest(ctx context.Context, span trace.Span,
 		return false
 	}
 
-	deprecated := h.isBackwardCompatiblyEnabledWith(8)
-	if resolveErr := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Subscribe, deprecated); resolveErr != nil {
+	if resolveErr := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Subscribe, h.allowsAlternateTopics()); resolveErr != nil {
 		writeMatcherClaimError(ctx, h.logger, w, resolveErr)
 		recordSpanError(span, resolveErr)
 

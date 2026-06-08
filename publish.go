@@ -196,7 +196,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if claims != nil {
-		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, h.isBackwardCompatiblyEnabledWith(8)); err != nil {
+		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, h.allowsAlternateTopics()); err != nil {
 			writeMatcherClaimError(ctx, h.logger, w, err)
 			recordSpanError(span, err)
 
