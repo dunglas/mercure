@@ -386,7 +386,7 @@ This cookie mechanism is a Mercure-specific extension to [@!RFC6750]; hubs that 
 
 If the publisher or the subscriber is a web browser, it **SHOULD**, whenever possible, send a
 cookie containing the access token when connecting to the hub. It is **RECOMMENDED** to name the
-cookie `mercureAuthorization`, but a different name **MAY** be used to prevent conflicts when
+cookie `mercureAccessToken`, but a different name **MAY** be used to prevent conflicts when
 several hubs share the same domain.
 
 The cookie **SHOULD** be set during discovery (see (#discovery)) to improve overall security.
@@ -1213,7 +1213,7 @@ The hub's publishing endpoint can be targeted by [Cross-Site Request Forgery (CS
 when the cookie-based authorization mechanism is used. Implementations supporting that
 mechanism **MUST** mitigate such attacks.
 
-The first preventive measure is to set the `SameSite` attribute on the `mercureAuthorization`
+The first preventive measure is to set the `SameSite` attribute on the `mercureAccessToken`
 cookie. Because some deployed user agents may not enforce this attribute, hub implementations
 **SHOULD** also use the `Origin` and `Referer` HTTP headers to verify that the source origin
 matches the target origin. If neither header is available, the hub **SHOULD** reject the
