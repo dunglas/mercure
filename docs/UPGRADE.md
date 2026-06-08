@@ -22,7 +22,13 @@ two matcher types, Exact and [URL Pattern](https://urlpattern.spec.whatwg.org/).
 Entries of `mercure.publish` and `mercure.subscribe` use the object form:
 
 ```json
-{"mercure": {"subscribe": [{"match": "https://example.com/books/:id", "matchType": "URLPattern"}]}}
+{
+  "mercure": {
+    "subscribe": [
+      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
+    ]
+  }
+}
 ```
 
 `matchType` is case-sensitive and defaults to `Exact`. Bare-string entries
