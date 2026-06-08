@@ -1056,8 +1056,9 @@ include:
     from an authorization server.
 *   `bearer_methods_supported`: the token presentation methods the hub accepts (see
     (#presenting-the-access-token)). Standard values are `header` and `query` [@!RFC9728]. The
-    cookie method is advertised under the implementation-specific value `cookie`; because it is
-    not an IANA-registered value, clients that strictly follow [@!RFC9728] ignore it and so cannot
+    cookie method is advertised under the implementation-specific value `mercureCookie`; the
+    namespaced name avoids colliding with any future IANA-registered method. Because it is not an
+    IANA-registered value, clients that strictly follow [@!RFC9728] ignore it and so cannot
     discover the cookie method from this field alone.
 
 When a request carries no access token, the hub's `WWW-Authenticate: Bearer` challenge
