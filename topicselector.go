@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 
 	urlpattern "github.com/dunglas/go-urlpattern"
 	"github.com/maypok86/otter/v2"
@@ -48,14 +47,14 @@ type matchCacheKey struct {
 type TopicSelectorStore struct {
 	matchCache    *otter.Cache[matchCacheKey, bool]
 	templateCache *otter.Cache[string, *regexp.Regexp]
+	urlPatterns   *otter.Cache[string, *urlpattern.URLPattern]
 
-	baseURL     string
-	urlPatterns sync.Map // pattern string → *urlpattern.URLPattern
+	baseURL string
 }
 
 // NewTopicSelectorStore creates a TopicSelectorStore.
-// If cacheSize > 0, match results are cached. Compiled URL patterns are
-// always memoised.
+// If cacheSize > 0, match results, compiled templates and compiled URL
+// patterns are cached; otherwise nothing is memoised.
 func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 	if cacheSize <= 0 {
 		return &TopicSelectorStore{}, nil
@@ -68,14 +67,27 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 		return nil, err //nolint:wrapcheck
 	}
 
+	// Compiled templates and URL patterns are fewer but larger than match
+	// results. Size them at a fraction of the match cache, with a floor of 1:
+	// otter treats MaximumSize == 0 as unbounded, which would let an attacker
+	// stream distinct patterns until OOM.
+	auxSize := max(cacheSize/10, 1)
+
 	templateCache, err := otter.New[string, *regexp.Regexp](&otter.Options[string, *regexp.Regexp]{
-		MaximumSize: cacheSize / 10, // Templates are fewer but larger
+		MaximumSize: auxSize,
 	})
 	if err != nil {
 		return nil, err //nolint:wrapcheck
 	}
 
-	return &TopicSelectorStore{matchCache: matchCache, templateCache: templateCache}, nil
+	urlPatterns, err := otter.New[string, *urlpattern.URLPattern](&otter.Options[string, *urlpattern.URLPattern]{
+		MaximumSize: auxSize,
+	})
+	if err != nil {
+		return nil, err //nolint:wrapcheck
+	}
+
+	return &TopicSelectorStore{matchCache: matchCache, templateCache: templateCache, urlPatterns: urlPatterns}, nil
 }
 
 // setBaseURL sets the base URL used to resolve relative URL patterns and
@@ -116,7 +128,8 @@ func (tss *TopicSelectorStore) validatePattern(m topicMatcher) error {
 // matchMatcher dispatches matching per matcher type, caching results of
 // non-trivial matchers per (type, pattern, topic-set).
 func (tss *TopicSelectorStore) matchMatcher(topics []string, m topicMatcher) bool {
-	// Wildcard always matches.
+	// "*" is the reserved wildcard: it matches every topic regardless of
+	// matcher type, so a topic literally equal to "*" is not addressable.
 	if m.Pattern == "*" {
 		return true
 	}
@@ -163,8 +176,10 @@ func (tss *TopicSelectorStore) matchURLPattern(topics []string, pattern string) 
 }
 
 func (tss *TopicSelectorStore) getOrCompileURLPattern(pattern string) (*urlpattern.URLPattern, error) {
-	if cached, ok := tss.urlPatterns.Load(pattern); ok {
-		return cached.(*urlpattern.URLPattern), nil
+	if tss.urlPatterns != nil {
+		if cached, ok := tss.urlPatterns.GetIfPresent(pattern); ok {
+			return cached, nil
+		}
 	}
 
 	// A nil Options keeps ignoreCase disabled, as mandated by the protocol.
@@ -173,7 +188,9 @@ func (tss *TopicSelectorStore) getOrCompileURLPattern(pattern string) (*urlpatte
 		return nil, fmt.Errorf("invalid URL pattern: %w", err)
 	}
 
-	actual, _ := tss.urlPatterns.LoadOrStore(pattern, p)
+	if tss.urlPatterns != nil {
+		tss.urlPatterns.Set(pattern, p)
+	}
 
-	return actual.(*urlpattern.URLPattern), nil
+	return p, nil
 }

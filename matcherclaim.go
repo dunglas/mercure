@@ -99,13 +99,17 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 // Exact would change the meaning of tokens minted for v8.
 //
 // JWT claims are untrusted until the signature is checked and stay
-// attacker-shaped afterwards, so the same maxPatternLength cap the query
-// parser enforces also applies here (the entry count is already capped by
-// validateJWT).
+// attacker-shaped afterwards, so the same maxPatternLength cap and
+// control-character rejection the query parser enforces also apply here (the
+// entry count is already capped by validateJWT).
 func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprecated bool) error {
 	for i := range claims {
 		if len(claims[i].Pattern) > maxPatternLength {
 			return errPatternTooLong
+		}
+
+		if !validProtocolString(claims[i].Pattern) {
+			return errInvalidMatcherValue
 		}
 
 		switch claims[i].Type {
