@@ -48,6 +48,13 @@ func (h *Hub) initHandler() {
 		router.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
 	}
 
+	// Advertise OAuth 2.0 protected resource metadata (RFC 9728) only when the
+	// hub validates access tokens; a pure-anonymous hub is not a protected
+	// resource.
+	if h.publisherJWTKeyFunc != nil || h.subscriberJWTKeyFunc != nil {
+		router.HandleFunc(protectedResourceMetadataPath, h.ProtectedResourceMetadataHandler).Methods(http.MethodGet, http.MethodHead)
+	}
+
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         h.debug,
 		AllowedHosts:          h.allowedHosts,

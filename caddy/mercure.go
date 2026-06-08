@@ -26,7 +26,13 @@ import (
 	"github.com/dunglas/mercure"
 )
 
-const defaultHubURL = "/.well-known/mercure"
+const (
+	defaultHubURL = "/.well-known/mercure"
+	// protectedResourceMetadataPath mirrors the RFC 9728 well-known location
+	// served by the hub; it lives outside the hub URL prefix, so ServeHTTP
+	// must forward it explicitly.
+	protectedResourceMetadataPath = "/.well-known/oauth-protected-resource" + defaultHubURL
+)
 
 var (
 	// AllowNoPublish allows not setting the publisher JWT, and then disable the publish endpoint.
@@ -151,6 +157,14 @@ type Mercure struct {
 	// matching relative URL patterns and topics.
 	PublicURL string `json:"public_url,omitempty"`
 
+	// The hub's OAuth 2.0 resource identifier (the `aud` value access tokens
+	// must carry). Defaults to the public URL when unset.
+	ResourceIdentifier string `json:"resource_identifier,omitempty"`
+
+	// OAuth 2.0 authorization server issuer identifiers advertised in the
+	// hub's protected resource metadata.
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
+
 	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
@@ -248,6 +262,14 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
 		mercure.WithPublicURL(m.PublicURL),
+	}
+
+	if m.ResourceIdentifier != "" {
+		opts = append(opts, mercure.WithResourceIdentifier(m.ResourceIdentifier))
+	}
+
+	if len(m.AuthorizationServers) > 0 {
+		opts = append(opts, mercure.WithAuthorizationServers(m.AuthorizationServers))
 	}
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
@@ -385,7 +407,7 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) {
+	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != protectedResourceMetadataPath {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
@@ -548,6 +570,19 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				m.PublicURL = d.Val()
+
+			case "resource_identifier":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.ResourceIdentifier = d.Val()
+
+			case "authorization_servers":
+				m.AuthorizationServers = d.RemainingArgs()
+				if len(m.AuthorizationServers) == 0 {
+					return d.ArgErr()
+				}
 
 			case "protocol_version_compatibility":
 				if !d.NextArg() {

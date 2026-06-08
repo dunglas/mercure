@@ -3,6 +3,7 @@ package caddy
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -308,6 +309,42 @@ func TestCookieName(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	received.Wait()
+}
+
+func TestProtectedResourceMetadata(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				publisher_jwt !ChangeMe!
+				subscriber_jwt !ChangeMe!
+				resource_identifier https://example.com/.well-known/mercure
+				authorization_servers https://as.example.com
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure", nil)
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+	defer resp.Body.Close()
+
+	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(b), `"resource":"https://example.com/.well-known/mercure"`)
+	assert.Contains(t, string(b), `"authorization_servers":["https://as.example.com"]`)
 }
 
 func TestAllowNoPublish(t *testing.T) {

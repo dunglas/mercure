@@ -297,6 +297,27 @@ func WithPublicURL(publicURL string) Option {
 	}
 }
 
+// WithResourceIdentifier sets the hub's OAuth 2.0 resource identifier (RFC 9068
+// `aud` value, advertised through RFC 9728 protected resource metadata). It
+// defaults to the public URL when unset.
+func WithResourceIdentifier(resourceIdentifier string) Option {
+	return func(o *opt) error {
+		o.resourceIdentifier = resourceIdentifier
+
+		return nil
+	}
+}
+
+// WithAuthorizationServers sets the OAuth 2.0 authorization server issuer
+// identifiers advertised in the hub's protected resource metadata (RFC 9728).
+func WithAuthorizationServers(authorizationServers []string) Option {
+	return func(o *opt) error {
+		o.authorizationServers = authorizationServers
+
+		return nil
+	}
+}
+
 // opt contains the available options.
 //
 // If you change this, also update the Caddy module and the documentation.
@@ -323,6 +344,8 @@ type opt struct {
 	cookieName                   string
 	protocolVersionCompatibility int
 	publicURL                    string
+	resourceIdentifier           string
+	authorizationServers         []string
 }
 
 func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
@@ -366,6 +389,10 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 	}
 
 	opt.topicSelectorStore.setBaseURL(opt.publicURL)
+
+	if opt.resourceIdentifier == "" {
+		opt.resourceIdentifier = opt.publicURL
+	}
 
 	if opt.transport == nil {
 		opt.transport = NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize))
