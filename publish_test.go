@@ -25,7 +25,6 @@ func TestPublish(t *testing.T) {
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToExactClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -268,7 +267,6 @@ func TestPublishHandlerOK(t *testing.T) {
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToExactClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 

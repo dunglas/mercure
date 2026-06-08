@@ -24,6 +24,11 @@ const (
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
+// ErrMissingResourceIdentifier is returned when the hub validates access
+// tokens in modern mode but no resource identifier (nor public URL) is set:
+// RFC 9068 requires the token audience to be checked against it.
+var ErrMissingResourceIdentifier = errors.New("a resource identifier (or public URL) is required when JWT authentication is enabled; set WithResourceIdentifier or WithPublicURL, or enable compatibility mode")
+
 // Option instances allow to configure the library.
 type Option func(o *opt) error
 
@@ -392,6 +397,14 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 
 	if opt.resourceIdentifier == "" {
 		opt.resourceIdentifier = opt.publicURL
+	}
+
+	// In modern mode, RFC 9068 requires checking the token audience against the
+	// hub's resource identifier; refuse to start a token-validating hub that
+	// cannot perform that check.
+	if opt.resourceIdentifier == "" && opt.protocolVersionCompatibility == 0 &&
+		(opt.publisherJWTKeyFunc != nil || opt.subscriberJWTKeyFunc != nil) {
+		return nil, ErrMissingResourceIdentifier
 	}
 
 	if opt.transport == nil {

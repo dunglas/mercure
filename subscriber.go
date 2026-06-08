@@ -156,19 +156,15 @@ func (s *Subscriber) resolveSubscriptionPayload(m topicMatcher) any {
 		return nil
 	}
 
-	for _, mc := range s.Claims.Mercure.Subscribe {
-		if mc.Pattern != "*" && !s.topicSelectorStore.matchMatcher([]string{m.Pattern}, mc.topicMatcher) {
-			continue
-		}
-
-		if mc.Payload != nil {
-			return mc.Payload
-		}
-
-		break // first matching claim wins, even if it has no per-claim payload
+	// The payload of the first subscribe authorization detail whose topics
+	// match the subscription's matcher wins. A matching detail with no payload
+	// falls through to the legacy mercure.payload fallback (compatibility
+	// mode only; nil otherwise).
+	if p, ok := s.Claims.authz.subscribePayload(s.topicSelectorStore, m); ok && p != nil {
+		return p
 	}
 
-	return s.Claims.Mercure.Payload
+	return s.legacyPayloadFallback()
 }
 
 // getSubscriptions returns the subscriptions associated to this subscriber,

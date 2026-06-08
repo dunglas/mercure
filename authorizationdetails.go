@@ -48,6 +48,20 @@ type detailTopic struct {
 	topicMatcher
 }
 
+// MarshalJSON emits the object form {match, matchType}. Issuers normally mint
+// tokens, but the hub round-trips them in tests.
+func (d detailTopic) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(struct {
+		Match     string      `json:"match"`
+		MatchType MatcherType `json:"matchType,omitempty"`
+	}{d.Pattern, d.Type})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal topic matcher: %w", err)
+	}
+
+	return b, nil
+}
+
 // UnmarshalJSON enforces the object form. A bare string (the deprecated claim
 // shape) is rejected so that legacy tokens do not silently parse as Exact
 // matchers.

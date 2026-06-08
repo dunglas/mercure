@@ -153,7 +153,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		var err error
 
 		claims, err = h.authorize(r, true)
-		if err != nil || claims == nil || claims.Mercure.Publish == nil {
+		if err != nil || claims == nil {
 			h.httpAuthorizationError(w, r, err)
 
 			if err != nil {
@@ -195,15 +195,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if claims != nil {
-		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, h.allowsAlternateTopics()); err != nil {
-			writeMatcherClaimError(ctx, h.logger, w, err)
-			recordSpanError(span, err)
-
-			return
-		}
-	}
-
 	var retry uint64
 
 	if retryString := r.PostForm.Get("retry"); retryString != "" {
@@ -216,7 +207,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	private := len(r.PostForm["private"]) != 0
-	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) { //nolint:nestif
+	if claims != nil && !claims.authz.grantsAll(h.topicSelectorStore, actionPublish, topics) { //nolint:nestif
 		if private {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 

@@ -12,19 +12,19 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// claims contains Mercure's JWT claims.
+// claims contains the validated claims of a Mercure access token.
 type claims struct {
 	jwt.RegisteredClaims
 
-	Mercure mercureClaim `json:"mercure"`
-	// Optional fallback
-	MercureNamespaced *mercureClaim `json:"https://mercure.rocks/"`
-}
+	deprecatedMercureClaims //nolint:unused // populated only in deprecated_claim builds
 
-type mercureClaim struct {
-	Publish   []matcherClaim `json:"publish"`
-	Subscribe []matcherClaim `json:"subscribe"`
-	Payload   any            `json:"payload"`
+	// AuthorizationDetails carries the RFC 9396 authorization_details claim.
+	AuthorizationDetails []authorizationDetail `json:"authorization_details,omitempty"`
+
+	// authz holds the validated mercure authorization details (and, under the
+	// deprecated_claim tag in compatibility mode, the legacy mercure claim
+	// resolved into the same shape).
+	authz *mercureAuthz `json:"-"`
 }
 
 type role int
@@ -32,9 +32,11 @@ type role int
 const (
 	defaultCookieName = "mercureAuthorization"
 	bearerPrefix      = "Bearer "
-	// authorizationParam is the lowercase name shared by the authorization
+	// authorizationParam is the lowercase name of the legacy authorization
 	// query parameter and the CORS allowed header.
 	authorizationParam = "authorization"
+	// atJWTType is the required JWT access token "typ" header value (RFC 9068).
+	atJWTType = "at+jwt"
 )
 
 const (
@@ -45,13 +47,13 @@ const (
 var (
 	// ErrInvalidAuthorizationHeader is returned when the Authorization header is invalid.
 	ErrInvalidAuthorizationHeader = errors.New(`invalid "Authorization" HTTP header`)
-	// ErrInvalidAuthorizationQuery is returned when the authorization query parameter is invalid.
-	ErrInvalidAuthorizationQuery = errors.New(`invalid "authorization" Query parameter`)
+	// ErrInvalidAuthorizationQuery is returned when the access token query parameter is invalid.
+	ErrInvalidAuthorizationQuery = errors.New(`invalid "access_token" query parameter`)
 	// ErrNoOrigin is returned when the cookie authorization mechanism is used and no Origin nor Referer headers are presents.
 	ErrNoOrigin = errors.New(`an "Origin" or a "Referer" HTTP header must be present to use the cookie-based authorization mechanism`)
 	// ErrOriginNotAllowed is returned when the Origin is not allowed to post updates.
 	ErrOriginNotAllowed = errors.New("origin not allowed to post updates")
-	// ErrInvalidJWT is returned when the JWT is invalid.
+	// ErrInvalidJWT is returned when the access token is invalid.
 	ErrInvalidJWT = errors.New("invalid JWT")
 )
 
@@ -85,15 +87,21 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 			return nil, ErrInvalidAuthorizationHeader
 		}
 
-		return validateJWT(authorizationHeaders[0][7:], jwtKeyfunc)
+		return h.validateJWT(authorizationHeaders[0][7:], jwtKeyfunc)
 	}
 
-	if authorizationQuery, queryExists := r.URL.Query()[authorizationParam]; queryExists {
-		if len(authorizationQuery) != 1 || len(authorizationQuery[0]) < 41 {
+	if accessTokens, queryExists := r.URL.Query()["access_token"]; queryExists {
+		if len(accessTokens) != 1 || len(accessTokens[0]) < 41 {
 			return nil, ErrInvalidAuthorizationQuery
 		}
 
-		return validateJWT(authorizationQuery[0], jwtKeyfunc)
+		return h.validateJWT(accessTokens[0], jwtKeyfunc)
+	}
+
+	// The deprecated "authorization" query parameter is honored only in
+	// deprecated_claim builds running in compatibility mode.
+	if token, ok := h.legacyAuthQueryParam(r); ok {
+		return h.validateJWT(token, jwtKeyfunc)
 	}
 
 	cookie, err := r.Cookie(h.cookieName)
@@ -104,7 +112,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 
 	// CSRF attacks cannot occur when using safe methods
 	if r.Method != http.MethodPost {
-		return validateJWT(cookie.Value, jwtKeyfunc)
+		return h.validateJWT(cookie.Value, jwtKeyfunc)
 	}
 
 	origin := r.Header.Get("Origin")
@@ -124,29 +132,41 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	}
 
 	if h.publishOriginsAll {
-		return validateJWT(cookie.Value, jwtKeyfunc)
+		return h.validateJWT(cookie.Value, jwtKeyfunc)
 	}
 
 	if slices.Contains(h.publishOrigins, origin) {
-		return validateJWT(cookie.Value, jwtKeyfunc)
+		return h.validateJWT(cookie.Value, jwtKeyfunc)
 	}
 
 	for _, allowedOrigin := range h.publishWOrigins {
 		if allowedOrigin.match(origin) {
-			return validateJWT(cookie.Value, jwtKeyfunc)
+			return h.validateJWT(cookie.Value, jwtKeyfunc)
 		}
 	}
 
 	return nil, fmt.Errorf("%q: %w", origin, ErrOriginNotAllowed)
 }
 
-// ErrTooManyClaimMatchers is returned when mercure.subscribe or
-// mercure.publish exceeds maxClaimMatchers.
-var ErrTooManyClaimMatchers = errors.New("too many matchers in mercure claim")
+// jwtParserOptions returns the RFC 9068 parser checks enforced in modern mode:
+// a required audience matching the hub's resource identifier and a required
+// exp. In compatibility mode (deprecated_claim builds with
+// WithProtocolVersionCompatibility) these checks are relaxed.
+func (h *Hub) jwtParserOptions() []jwt.ParserOption {
+	if h.compatClaimsEnabled() {
+		return nil
+	}
 
-// validateJWT validates that the provided JWT token is a valid Mercure token.
-func validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, jwtKeyfunc)
+	return []jwt.ParserOption{
+		jwt.WithAudience(h.resourceIdentifier),
+		jwt.WithExpirationRequired(),
+	}
+}
+
+// validateJWT parses and validates an access token, returning its claims with
+// the mercure authorization details resolved into c.authz.
+func (h *Hub) validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, jwtKeyfunc, h.jwtParserOptions()...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse JWT: %w", err)
 	}
@@ -156,49 +176,32 @@ func validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
 		return nil, ErrInvalidJWT
 	}
 
-	if c.MercureNamespaced != nil {
-		c.Mercure = *c.MercureNamespaced
+	// RFC 9068: reject tokens not issued as JWT access tokens, so a token
+	// minted for another purpose (e.g. an OpenID Connect ID Token) is not
+	// accepted. Relaxed in compatibility mode.
+	if h.requireATJWT() {
+		if typ, _ := token.Header["typ"].(string); typ != atJWTType {
+			return nil, fmt.Errorf(`%w: the "typ" header must be %q`, ErrInvalidJWT, atJWTType)
+		}
 	}
 
-	if len(c.Mercure.Publish) > maxClaimMatchers || len(c.Mercure.Subscribe) > maxClaimMatchers {
-		return nil, ErrTooManyClaimMatchers
+	authz, err := validateAuthorizationDetails(h.topicSelectorStore, c.AuthorizationDetails)
+	if err != nil {
+		return nil, err
+	}
+
+	c.authz = authz
+
+	// The legacy mercure claim is honored only when the token carries no
+	// authorization_details, and only in deprecated_claim builds running in
+	// compatibility mode (the stub is a no-op otherwise).
+	if len(c.AuthorizationDetails) == 0 {
+		if err := h.resolveLegacyClaims(c); err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
-}
-
-func canReceive(s *TopicSelectorStore, topics []string, matchers []matcherClaim) bool {
-	for _, mc := range matchers {
-		if s.matchMatcher(topics, mc.topicMatcher) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func canDispatch(s *TopicSelectorStore, topics []string, matchers []matcherClaim) bool {
-	singleTopic := make([]string, 1)
-
-	for _, topic := range topics {
-		singleTopic[0] = topic
-
-		var matched bool
-
-		for _, mc := range matchers {
-			if s.matchMatcher(singleTopic, mc.topicMatcher) {
-				matched = true
-
-				break
-			}
-		}
-
-		if !matched {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (h *Hub) httpAuthorizationError(w http.ResponseWriter, r *http.Request, err error) {

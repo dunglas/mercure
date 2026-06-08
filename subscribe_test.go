@@ -426,7 +426,7 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(roleSubscriber, []string{"https://example.com/reviews/22"}, payload)})
+	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithDetails(t, payload, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/reviews/:id"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -608,11 +608,9 @@ func TestSubscriptionEvents(t *testing.T) {
 	wg.Go(func() {
 		// Authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithClaims(t, []matcherClaim{
-			{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"}},
-		}, struct {
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithDetails(t, struct {
 			Foo string `json:"foo"`
-		}{Foo: "bar"})})
+		}{Foo: "bar"}, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -672,7 +670,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		ctx, cancelRequest2 := context.WithCancel(ctx)
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
@@ -1103,12 +1101,13 @@ func TestSubscribeExpires(t *testing.T) {
 
 	hub := createAnonymousDummy(t, WithWriteTimeout(0), WithDispatchTimeout(0), WithHeartbeat(500*time.Millisecond))
 	token := jwt.New(jwt.SigningMethodHS256)
-
+	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
-		Mercure: mercureClaim{
-			Subscribe: stringsToExactClaims([]string{"*"}),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{testResourceIdentifier},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
 		},
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second))},
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "*"}),
 	}
 
 	signedString, err := token.SignedString([]byte("subscriber"))
@@ -1147,6 +1146,7 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 		WithAnonymous(),
 		WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
+		WithResourceIdentifier(testResourceIdentifier),
 		WithTopicSelectorStore(tss),
 		WithWriteTimeout(writeTimeout),
 	)
