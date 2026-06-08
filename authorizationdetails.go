@@ -169,6 +169,9 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 			if err := tss.validatePattern(m); err != nil {
 				return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
 			}
+		case deprecatedMatcherTypeName:
+			// The internal deprecated type must never be reachable from a token.
+			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, ErrUnsupportedMatcherType)
 		default:
 			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, ErrUnsupportedMatcherType)
 		}

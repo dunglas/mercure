@@ -11,8 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testPublicURL = "https://example.com/.well-known/mercure"
-const wantResourceMetadata = "https://example.com/.well-known/oauth-protected-resource/.well-known/mercure"
+const (
+	testPublicURL        = "https://example.com/.well-known/mercure"
+	wantResourceMetadata = "https://example.com/.well-known/oauth-protected-resource/.well-known/mercure"
+)
 
 func bearerErrorHub(tb testing.TB) *Hub {
 	tb.Helper()
@@ -49,6 +51,7 @@ func TestBearerErrorInvalidToken(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	req.Header.Add("Authorization", bearerPrefix+valid[:len(valid)-6]+"123456")
+
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 
@@ -66,6 +69,7 @@ func TestBearerErrorInsufficientScopeSubscriptionAPI(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com/not-the-api"}))
+
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 
@@ -85,6 +89,7 @@ func TestBearerErrorInsufficientScopePublish(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}))
+
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
@@ -102,6 +107,7 @@ func TestBearerErrorInvalidRequestMalformedHeader(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	req.Header.Add("Authorization", "Bearer x")
+
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 

@@ -23,24 +23,71 @@ namespace, where the parameter name encodes the matcher type:
 - Relative patterns and topics are resolved against the hub URL: set it with
   the `public_url` directive (Caddyfile) or `WithPublicURL` (Go).
 
-### JWT claims
+### Access tokens
 
-Entries of `mercure.publish` and `mercure.subscribe` use the object form:
+The hub is now an OAuth 2.0 protected resource. Access tokens **must** be JWT
+access tokens ([RFC 9068](https://www.rfc-editor.org/rfc/rfc9068)): the `typ`
+header is `at+jwt` and the `aud` claim must contain the hub's resource
+identifier. Set it with the `resource_identifier` directive (Caddyfile) or
+`WithResourceIdentifier` (Go); it defaults to the public URL. A token-validating
+hub started in modern mode without a resource identifier (nor a public URL)
+fails to start.
+
+The bespoke `mercure` claim is replaced by the standard `authorization_details`
+claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)):
 
 ```json
 {
+<<<<<<< HEAD
   "mercure": {
     "subscribe": [
       { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
     ]
   }
+=======
+  "aud": "https://example.com/.well-known/mercure",
+  "exp": 1735689600,
+  "authorization_details": [
+    { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
+    {
+      "type": "mercure",
+      "actions": ["subscribe"],
+      "topics": [
+        { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
+      ],
+      "payload": { "foo": "bar" }
+    }
+  ]
+>>>>>>> b512520 (ci: build and test with the deprecated_claim tag)
 }
 ```
 
-`matchType` is case-sensitive and defaults to `Exact`. Bare-string entries
-(the 0.x form) are rejected with a `401 Unauthorized` unless compatibility
-mode is enabled. The optional per-matcher `payload` value is attached to the
-subscriptions whose matcher it covers, falling back to `mercure.payload`.
+`matchType` is case-sensitive and defaults to `Exact`. A `mercure` detail must
+declare a non-empty `actions` array (a subset of `publish`/`subscribe`) and a
+non-empty `topics` array; an invalid detail rejects the whole token with a
+`400 Bad Request`. The optional per-detail `payload` is attached to the
+subscriptions covered by a `subscribe` detail.
+
+The access token is presented with an `Authorization: Bearer` header, an
+`access_token` query parameter (the `authorization` parameter is removed), or
+the authorization cookie.
+
+### Authorization errors
+
+Authorization failures follow
+[RFC 6750](https://www.rfc-editor.org/rfc/rfc6750): a `401` with a bare
+`WWW-Authenticate: Bearer` challenge (carrying a `resource_metadata` parameter)
+when no token is presented, `401 invalid_token` when a token fails validation,
+`403 insufficient_scope` when a valid token lacks the requested action on the
+topic, and `400 invalid_request` for malformed authorization requests.
+
+### Discovery
+
+The hub serves OAuth 2.0 Protected Resource Metadata
+([RFC 9728](https://www.rfc-editor.org/rfc/rfc9728)) at
+`/.well-known/oauth-protected-resource/.well-known/mercure`. Advertise
+authorization servers with the `authorization_servers` directive
+(`WithAuthorizationServers` in Go).
 
 ### Updates
 
@@ -57,13 +104,19 @@ expose `match` and `matchType` fields instead of `topic`.
 
 ### Backward compatibility
 
-The 0.x behaviors (URI Template selectors in `topic`, bare-string JWT claims,
-alternate topics and the previous subscription routes) require both:
+The 0.x topic behaviors (URI Template selectors in `topic`, alternate topics
+and the previous subscription routes) require both:
 
 1. a hub binary built with the `deprecated_topic` build tag (official binaries
    and Docker images include it), and
 2. the `protocol_version_compatibility 8` directive
    (`WithProtocolVersionCompatibility(8)` in Go).
+
+The 0.x authorization behaviors (the `mercure` JWT claim in string and object
+forms, the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the
+`authorization` query parameter, and tokens without `typ: at+jwt`/`aud`)
+require the `deprecated_claim` build tag (also included in official builds) and
+the same `protocol_version_compatibility 8` directive.
 
 Note: bolt databases written by 0.x hubs stay readable, but replaying history
 recorded with alternate topics only matches them in `deprecated_topic` builds.

@@ -463,6 +463,7 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) s
 	// An empty topic list means "grant nothing": a mercure detail must carry
 	// at least one topic, so emit no authorization details at all.
 	var details []authorizationDetail
+
 	if len(topics) > 0 {
 		detail := authorizationDetail{
 			Type:    authorizationDetailTypeMercure,

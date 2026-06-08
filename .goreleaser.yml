@@ -22,6 +22,7 @@ builds:
     tags:
       - deprecated_transport
       - deprecated_topic
+      - deprecated_claim
       - nobadger
       - nomysql
       - nopgx
@@ -50,6 +51,7 @@ builds:
       - deprecated_transport
       - deprecated_server
       - deprecated_topic
+      - deprecated_claim
     goos:
       - linux
       - darwin

@@ -394,6 +394,7 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	`, "caddyfile")
 
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure", nil)
+
 	resp := tester.AssertResponseCode(req, http.StatusOK)
 	defer resp.Body.Close()
 
