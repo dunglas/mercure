@@ -176,6 +176,21 @@ func TestAuthorizeCookie(t *testing.T) {
 	assert.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
 }
 
+// A modern hub does not honor the pre-1.0 "mercureAuthorization" cookie name,
+// so a client still using it is treated as anonymous.
+func TestAuthorizeLegacyCookieNameIgnored(t *testing.T) {
+	t.Parallel()
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"foo"})})
+
+	h := createDummy(t)
+
+	claims, err := h.authorize(r, false)
+	require.NoError(t, err)
+	require.Nil(t, claims)
+}
+
 func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 	t.Parallel()
 

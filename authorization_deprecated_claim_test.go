@@ -695,6 +695,25 @@ func TestAuthorizeCookie(t *testing.T) {
 	}
 }
 
+// In compatibility mode, the pre-1.0 "mercureAuthorization" cookie name is
+// accepted as a fallback when the configured cookie is absent.
+func TestAuthorizeLegacyCookieName(t *testing.T) {
+	t.Setenv("GODEBUG", "rsa1024min=0")
+
+	for _, testdata := range authTestData {
+		t.Run(testdata.algorithm, func(t *testing.T) {
+			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+			r.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: testdata.valid})
+
+			h := createLegacyDummy(t, WithSubscriberJWT([]byte(testdata.publicKey), testdata.algorithm))
+
+			claims, err := h.authorize(r, false)
+			require.NoError(t, err)
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
+		})
+	}
+}
+
 func TestAuthorizeCookieNoOriginNoReferer(t *testing.T) {
 	t.Setenv("GODEBUG", "rsa1024min=0")
 

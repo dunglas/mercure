@@ -29,7 +29,10 @@ type claims struct {
 type role int
 
 const (
-	defaultCookieName = "mercureAuthorization"
+	// defaultCookieName is the name of the authorization cookie carrying the
+	// access token. The pre-1.0 name "mercureAuthorization" is accepted as a
+	// fallback only in deprecated_claim builds running in compatibility mode.
+	defaultCookieName = "mercureAccessToken"
 	bearerPrefix      = "Bearer "
 	// authorizationParam is the lowercase name of the legacy authorization
 	// query parameter and the CORS allowed header.
@@ -109,7 +112,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 		return h.validateJWT(token, jwtKeyfunc, alg)
 	}
 
-	cookie, err := r.Cookie(h.cookieName)
+	cookie, err := h.readCookie(r)
 	if err != nil {
 		// Anonymous
 		return nil, nil //nolint:nilerr,nilnil

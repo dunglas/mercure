@@ -22,6 +22,12 @@ func (h *Hub) legacyAuthQueryParam(*http.Request) (string, bool) {
 	return "", false
 }
 
+// readCookie returns the authorization cookie. Without the deprecated_claim
+// tag, only the configured cookie name is accepted.
+func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
+	return r.Cookie(h.cookieName) //nolint:wrapcheck
+}
+
 // resolveLegacyClaims is a no-op without the deprecated_claim tag: the legacy
 // mercure claim grants nothing.
 func (h *Hub) resolveLegacyClaims(*claims) error {

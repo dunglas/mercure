@@ -150,7 +150,7 @@ type Mercure struct {
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
 
-	// The name of the authorization cookie. Defaults to "mercureAuthorization".
+	// The name of the authorization cookie. Defaults to "mercureAccessToken".
 	CookieName string `json:"cookie_name,omitempty"`
 
 	// The URL at which subscribers reach the hub. Used as the base URL when

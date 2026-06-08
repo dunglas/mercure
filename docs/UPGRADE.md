@@ -38,13 +38,6 @@ claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)):
 
 ```json
 {
-<<<<<<< HEAD
-  "mercure": {
-    "subscribe": [
-      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
-    ]
-  }
-=======
   "aud": "https://example.com/.well-known/mercure",
   "exp": 1735689600,
   "authorization_details": [
@@ -58,7 +51,6 @@ claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)):
       "payload": { "foo": "bar" }
     }
   ]
->>>>>>> b512520 (ci: build and test with the deprecated_claim tag)
 }
 ```
 
@@ -71,6 +63,19 @@ subscriptions covered by a `subscribe` detail.
 The access token is presented with an `Authorization: Bearer` header, an
 `access_token` query parameter (the `authorization` parameter is removed), or
 the authorization cookie.
+
+### Authorization cookie
+
+The default authorization cookie is renamed from `mercureAuthorization` to
+`mercureAccessToken`, so its name reflects the OAuth 2.0 access token it carries
+and matches the `access_token` query parameter. Browser subscribers relying on
+the default name must set the new cookie. Hubs that configure a custom name with
+the `cookie_name` directive (`WithCookieName` in Go) are unaffected.
+
+The old `mercureAuthorization` name is accepted as a fallback only by hubs built
+with the `deprecated_claim` build tag and running in compatibility mode (see
+[Backward compatibility](#backward-compatibility)). A modern hub ignores it,
+which makes it easy to tell which protocol version a client targets.
 
 ### Authorization errors
 
@@ -114,9 +119,10 @@ and the previous subscription routes) require both:
 
 The 0.x authorization behaviors (the `mercure` JWT claim in string and object
 forms, the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the
-`authorization` query parameter, and tokens without `typ: at+jwt`/`aud`)
-require the `deprecated_claim` build tag (also included in official builds) and
-the same `protocol_version_compatibility 8` directive.
+`authorization` query parameter, the `mercureAuthorization` cookie name, and
+tokens without `typ: at+jwt`/`aud`) require the `deprecated_claim` build tag
+(also included in official builds) and the same `protocol_version_compatibility 8`
+directive.
 
 Note: bolt databases written by 0.x hubs stay readable, but replaying history
 recorded with alternate topics only matches them in `deprecated_topic` builds.

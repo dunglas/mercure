@@ -11,6 +11,10 @@ import (
 // mercure.publish claim exceeds maxClaimMatchers.
 var ErrTooManyClaimMatchers = errors.New("too many matchers in mercure claim")
 
+// legacyCookieName is the pre-1.0 authorization cookie name, accepted as a
+// fallback only in compatibility mode. The modern name is defaultCookieName.
+const legacyCookieName = "mercureAuthorization"
+
 // compatClaimsEnabled reports whether legacy mercure-claim behavior is active:
 // the code is compiled in and the operator enabled compatibility mode.
 func (h *Hub) compatClaimsEnabled() bool {
@@ -38,6 +42,18 @@ func (h *Hub) legacyAuthQueryParam(r *http.Request) (string, bool) {
 	}
 
 	return q[0], true
+}
+
+// readCookie returns the authorization cookie. In compatibility mode, the
+// pre-1.0 cookie name is accepted as a fallback when the configured name is
+// absent, so subscribers still sending "mercureAuthorization" keep working.
+func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
+	cookie, err := r.Cookie(h.cookieName)
+	if err == nil || !h.compatClaimsEnabled() {
+		return cookie, err //nolint:wrapcheck
+	}
+
+	return r.Cookie(legacyCookieName) //nolint:wrapcheck
 }
 
 // resolveLegacyClaims converts the legacy mercure claim into the validated

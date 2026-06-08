@@ -186,7 +186,7 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
 
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: "invalid"})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: "invalid"})
 
 	hub.SubscribeHandler(w, req)
 
@@ -208,7 +208,7 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
 
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyUnauthorizedJWT()})
 	req.Header = http.Header{"Cookie": []string{w.Header().Get("Set-Cookie")}}
 
 	hub.SubscribeHandler(w, req)
@@ -231,7 +231,7 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
 
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyNoneSignedJWT()})
 
 	hub.SubscribeHandler(w, req)
 
@@ -427,7 +427,7 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithDetails(t, payload, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/reviews/:id"})})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, payload, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/reviews/:id"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -581,7 +581,7 @@ func TestSubscribePrivate(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22", "https://example.com/reviews/23"})})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22", "https://example.com/reviews/23"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -609,7 +609,7 @@ func TestSubscriptionEvents(t *testing.T) {
 	wg.Go(func() {
 		// Authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithDetails(t, struct {
+		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, struct {
 			Foo string `json:"foo"`
 		}{Foo: "bar"}, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
 
@@ -642,7 +642,7 @@ func TestSubscriptionEvents(t *testing.T) {
 	wg.Go(func() {
 		// Not authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", nil).WithContext(ctx2)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -671,7 +671,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		ctx, cancelRequest2 := context.WithCancel(ctx)
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
+		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
