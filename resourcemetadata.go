@@ -21,10 +21,11 @@ type protectedResourceMetadata struct {
 }
 
 // bearerMethodsSupported lists the token presentation methods the hub accepts.
-// "cookie" is a Mercure extension to RFC 6750.
+// "mercureCookie" is a Mercure extension to RFC 6750; the namespaced name
+// avoids colliding with any future IANA-registered "cookie" method.
 //
 //nolint:gochecknoglobals
-var bearerMethodsSupported = []string{"header", "query", "cookie"}
+var bearerMethodsSupported = []string{"header", "query", "mercureCookie"}
 
 // ProtectedResourceMetadataHandler serves the hub's RFC 9728 protected
 // resource metadata document.

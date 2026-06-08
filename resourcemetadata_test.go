@@ -30,7 +30,7 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&metadata))
 
 	assert.Equal(t, "https://example.com/.well-known/mercure", metadata.Resource)
-	assert.Equal(t, []string{"header", "query", "cookie"}, metadata.BearerMethodsSupported)
+	assert.Equal(t, []string{"header", "query", "mercureCookie"}, metadata.BearerMethodsSupported)
 	assert.Equal(t, []string{"https://as.example.com"}, metadata.AuthorizationServers)
 }
 
