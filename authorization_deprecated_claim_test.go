@@ -235,7 +235,7 @@ func TestAuthorizeAuthorizationHeaderInvalidAlg(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: token is unverifiable: ", err.Error())
+			require.Regexp(t, "^invalid JWT: token signature is invalid: signing method none is invalid", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -259,7 +259,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKey(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err, testdata.algorithm)
-			require.Regexp(t, "^unable to parse JWT: ", err.Error())
+			require.Regexp(t, "^invalid JWT: ", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -279,7 +279,7 @@ func TestAuthorizeAuthorizationHeaderInvalidSignature(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: token signature is invalid: ", err.Error())
+			require.Regexp(t, "^invalid JWT: token signature is invalid: ", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -382,7 +382,7 @@ func TestAuthorizeAuthorizationHeaderWrongAlgorithm(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: token is unverifiable: error while executing keyfunc: (.*): unexpected signing method$", err.Error())
+			require.Regexp(t, "^invalid JWT: token signature is invalid: signing method (.*) is invalid$", err.Error())
 			assert.Nil(t, claims)
 		})
 	}
@@ -435,7 +435,7 @@ func TestAuthorizeAuthorizationQueryInvalidAlg(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: token is unverifiable: ", err.Error())
+			require.Regexp(t, "^invalid JWT: token signature is invalid: signing method none is invalid", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -461,7 +461,7 @@ func TestAuthorizeAuthorizationQueryInvalidKey(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: ", err.Error())
+			require.Regexp(t, "^invalid JWT: ", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -483,7 +483,7 @@ func TestAuthorizeAuthorizationQueryInvalidSignature(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: token signature is invalid: ", err.Error())
+			require.Regexp(t, "^invalid JWT: token signature is invalid: ", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -594,7 +594,7 @@ func TestAuthorizeAuthorizationQueryWrongAlgorithm(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: token is unverifiable: error while executing keyfunc: (.*): unexpected signing method$", err.Error())
+			require.Regexp(t, "^invalid JWT: token signature is invalid: signing method (.*) is invalid$", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -611,7 +611,7 @@ func TestAuthorizeCookieInvalidAlg(t *testing.T) {
 			h := createLegacyDummy(t, WithSubscriberJWT([]byte(testdata.publicKey), testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
-			require.EqualError(t, err, "unable to parse JWT: token is unverifiable: error while executing keyfunc: *jwt.signingMethodNone: unexpected signing method")
+			require.EqualError(t, err, "invalid JWT: token signature is invalid: signing method none is invalid")
 			require.Nil(t, claims)
 		})
 	}
@@ -635,7 +635,7 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: ", err.Error())
+			require.Regexp(t, "^invalid JWT: ", err.Error())
 			require.Nil(t, claims)
 		})
 	}
@@ -653,7 +653,7 @@ func TestAuthorizeCookieInvalidSignature(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
-			require.Regexp(t, "^unable to parse JWT: token signature is invalid: ", err.Error())
+			require.Regexp(t, "^invalid JWT: token signature is invalid: ", err.Error())
 			require.Nil(t, claims)
 		})
 	}

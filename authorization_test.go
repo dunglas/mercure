@@ -304,3 +304,67 @@ func TestAuthorizeRejectsInvalidAuthorizationDetails(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAuthorizationDetail)
 	require.Nil(t, claims)
 }
+
+// A topic matcher carrying a control character is rejected, like the query and
+// publish paths, so attacker-shaped patterns cannot reach the match cache.
+func TestAuthorizeRejectsControlCharInAuthorizationDetail(t *testing.T) {
+	t.Parallel()
+
+	c := &claims{
+		RegisteredClaims:     subscriberRegisteredClaims(),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo\x00bar"}),
+	}
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, c))
+
+	h := createDummy(t)
+
+	claims, err := h.authorize(r, false)
+	require.ErrorIs(t, err, errInvalidAuthorizationDetail)
+	require.Nil(t, claims)
+}
+
+// When the hub advertises authorization servers, a token whose issuer is not
+// one of them is rejected even if its signature, audience and expiration are
+// valid (RFC 9068 §4).
+func TestAuthorizeRejectsUntrustedIssuer(t *testing.T) {
+	t.Parallel()
+
+	rc := subscriberRegisteredClaims()
+	rc.Issuer = "https://evil.example.com"
+	c := &claims{
+		RegisteredClaims:     rc,
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+	}
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, c))
+
+	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}))
+
+	claims, err := h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.Nil(t, claims)
+}
+
+// A token issued by one of the advertised authorization servers is accepted.
+func TestAuthorizeAcceptsTrustedIssuer(t *testing.T) {
+	t.Parallel()
+
+	rc := subscriberRegisteredClaims()
+	rc.Issuer = "https://auth.example.com"
+	c := &claims{
+		RegisteredClaims:     rc,
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+	}
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, c))
+
+	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}))
+
+	claims, err := h.authorize(r, false)
+	require.NoError(t, err)
+	require.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
+}

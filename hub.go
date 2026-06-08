@@ -145,6 +145,7 @@ func WithPublisherJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
 		keyfunc, err := createJWTKeyfunc(key, alg)
 		o.publisherJWTKeyFunc = keyfunc
+		o.publisherJWTAlgorithm = alg
 
 		return err
 	}
@@ -155,6 +156,7 @@ func WithSubscriberJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
 		keyfunc, err := createJWTKeyfunc(key, alg)
 		o.subscriberJWTKeyFunc = keyfunc
+		o.subscriberJWTAlgorithm = alg
 
 		return err
 	}
@@ -340,6 +342,8 @@ type opt struct {
 	heartbeat                    time.Duration
 	publisherJWTKeyFunc          jwt.Keyfunc
 	subscriberJWTKeyFunc         jwt.Keyfunc
+	publisherJWTAlgorithm        string
+	subscriberJWTAlgorithm       string
 	metrics                      Metrics
 	allowedHosts                 []string
 	publishOriginsAll            bool

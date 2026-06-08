@@ -162,6 +162,10 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errPatternTooLong)
 		}
 
+		if !validProtocolString(m.Pattern) {
+			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errInvalidMatcherValue)
+		}
+
 		// Only the protocol matcher types are valid in authorization details;
 		// the internal deprecated type must not be reachable from a token.
 		switch m.Type {
