@@ -32,6 +32,9 @@ type role int
 const (
 	defaultCookieName = "mercureAuthorization"
 	bearerPrefix      = "Bearer "
+	// authorizationParam is the lowercase name shared by the authorization
+	// query parameter and the CORS allowed header.
+	authorizationParam = "authorization"
 )
 
 const (
@@ -85,7 +88,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 		return validateJWT(authorizationHeaders[0][7:], jwtKeyfunc)
 	}
 
-	if authorizationQuery, queryExists := r.URL.Query()["authorization"]; queryExists {
+	if authorizationQuery, queryExists := r.URL.Query()[authorizationParam]; queryExists {
 		if len(authorizationQuery) != 1 || len(authorizationQuery[0]) < 41 {
 			return nil, ErrInvalidAuthorizationQuery
 		}

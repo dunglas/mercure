@@ -1,7 +1,6 @@
 package mercure
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -503,7 +502,7 @@ func TestUpdateValidate(t *testing.T) {
 				return
 			}
 
-			assert.True(t, errors.Is(err, tc.want), "got %v, want %v", err, tc.want)
+			assert.ErrorIs(t, err, tc.want)
 		})
 	}
 }
