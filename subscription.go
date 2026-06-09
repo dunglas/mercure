@@ -177,7 +177,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 
 // authorizeSubscriptionRequest checks the subscriber token against the
 // subscription API URL, writing the HTTP error response on failure.
-func (h *Hub) authorizeSubscriptionRequest(span trace.Span, currentURL string, w http.ResponseWriter, r *http.Request) bool {
+func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWriter, r *http.Request) bool {
 	if h.subscriberJWTKeyFunc == nil {
 		return true
 	}
@@ -193,7 +193,10 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, currentURL string, w
 		return false
 	}
 
-	if !claims.authz.grants(h.topicSelectorStore, actionSubscribe, currentURL) {
+	// Authorize against the request path only, not the full request URI: the
+	// subscription resource is identified by its path, so query parameters
+	// (e.g. lastEventID) must not change whether a subscribe grant matches.
+	if !claims.authz.grants(h.topicSelectorStore, actionSubscribe, r.URL.EscapedPath()) {
 		h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
 		return false
@@ -206,7 +209,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
 	currentURL = r.URL.RequestURI()
 
-	if !h.authorizeSubscriptionRequest(span, currentURL, w, r) {
+	if !h.authorizeSubscriptionRequest(span, w, r) {
 		return span, "", "", nil, false
 	}
 
