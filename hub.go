@@ -278,10 +278,17 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	}
 }
 
-// WithPublicURL sets the URL at which subscribers reach the hub. It is used
-// as the base URL when matching relative URL patterns and topics, per the
-// protocol's "the hub MUST use the hub's URL as the base URL" rule. Without
-// it, only relative ↔ relative and absolute ↔ absolute matches work.
+// WithPublicURL sets the URL at which subscribers reach the hub. This is the
+// full hub URL, including the "/.well-known/mercure" path (e.g.
+// "https://example.com/.well-known/mercure"), not just the origin.
+//
+// It is used as the base URL when matching relative URL patterns and topics,
+// per the protocol's "the hub MUST use the hub's URL as the base URL" rule
+// (without it, only relative ↔ relative and absolute ↔ absolute matches work);
+// as the default resource identifier (RFC 9068 aud) when WithResourceIdentifier
+// is unset; and to derive the protected resource metadata URL. Omitting the
+// "/.well-known/mercure" suffix degrades that derivation to a request-based
+// fallback.
 func WithPublicURL(publicURL string) Option {
 	return func(o *opt) error {
 		o.publicURL = publicURL
