@@ -7,13 +7,19 @@ two matcher types, Exact and [URL Pattern](https://urlpattern.spec.whatwg.org/).
 
 ### Query parameters
 
-- `topic` selects exact, case-sensitive comparison. The implicit
-  [URI Template (RFC 6570)](https://tools.ietf.org/html/rfc6570) support of the
-  0.x `topic` parameter is removed.
-- `topicURLPattern` selects URL Pattern matching: replace
-  `https://example.com/books/{id}` with `https://example.com/books/:id`.
-- Parameter names are case-sensitive; other matcher parameter names are
-  rejected with a `400 Bad Request`.
+Subscribe parameters move from `topic`/`topicURLPattern` to the `match`
+namespace, where the parameter name encodes the matcher type:
+
+- `match` selects exact, case-sensitive comparison (the default type). Replace
+  the 0.x `topic` parameter with `match`; its implicit
+  [URI Template (RFC 6570)](https://tools.ietf.org/html/rfc6570) support is
+  removed. `matchExact` is an explicit alias.
+- `match<MatcherType>` selects a named matcher type: replace `topicURLPattern`
+  with `matchURLPattern`, e.g. `matchURLPattern=https://example.com/books/:id`
+  (note `:id`, not `{id}`).
+- Parameter names are case-sensitive; any other name in the reserved `match`
+  namespace is rejected with a `400 Bad Request`. The bare `match` mirrors the
+  optional, `Exact`-defaulting `matchType` of authorization details.
 - Relative patterns and topics are resolved against the hub URL: set it with
   the `public_url` directive (Caddyfile) or `WithPublicURL` (Go).
 

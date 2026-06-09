@@ -14,7 +14,8 @@ func TestParseMatchersExact(t *testing.T) {
 
 	h := createDummy(t)
 
-	query := url.Values{"topic": {"foo", "bar"}}
+	// Bare "match" defaults to the Exact matcher type.
+	query := url.Values{"match": {"foo", "bar"}}
 	matchers, err := h.parseMatchers(query, false)
 	require.NoError(t, err)
 
@@ -25,12 +26,27 @@ func TestParseMatchersExact(t *testing.T) {
 	assert.Equal(t, "bar", matchers[1].Pattern)
 }
 
+func TestParseMatchersExactExplicit(t *testing.T) {
+	t.Parallel()
+
+	h := createDummy(t)
+
+	// "matchExact" is the explicit spelling of the default Exact type.
+	query := url.Values{"matchExact": {"foo"}}
+	matchers, err := h.parseMatchers(query, false)
+	require.NoError(t, err)
+
+	require.Len(t, matchers, 1)
+	assert.Equal(t, MatcherTypeExact, matchers[0].Type)
+	assert.Equal(t, "foo", matchers[0].Pattern)
+}
+
 func TestParseMatchersURLPattern(t *testing.T) {
 	t.Parallel()
 
 	h := createDummy(t)
 
-	query := url.Values{"topicURLPattern": {"https://example.com/:id"}}
+	query := url.Values{"matchURLPattern": {"https://example.com/:id"}}
 	matchers, err := h.parseMatchers(query, false)
 	require.NoError(t, err)
 
@@ -39,17 +55,30 @@ func TestParseMatchersURLPattern(t *testing.T) {
 }
 
 // TestParseMatchersCaseSensitive verifies the spec rule: topic matcher query
-// parameter names are case-sensitive, and a request using any other matcher
-// parameter name must be rejected.
+// parameter names are case-sensitive, and a request using any other parameter
+// name in the reserved "match" namespace (an unknown matcher type or a case
+// typo of a known name) must be rejected.
 func TestParseMatchersCaseSensitive(t *testing.T) {
 	t.Parallel()
 
 	h := createDummy(t)
 
-	for _, name := range []string{"TOPIC", "Topic", "topicUrlPattern", "TOPICURLPATTERN", "topicRegexp"} {
+	for _, name := range []string{"MATCH", "Match", "matchurlpattern", "MATCHURLPATTERN", "matchExactly", "matchRegexp"} {
 		_, err := h.parseMatchers(url.Values{name: {"foo"}}, false)
 		assert.ErrorIs(t, err, errUnknownMatcherParam, name)
 	}
+}
+
+// TestParseMatchersTopicRejectedInModernMode verifies the deprecated v8 "topic"
+// query parameter is rejected outside compatibility mode, with a migration
+// hint pointing at "match".
+func TestParseMatchersTopicRejectedInModernMode(t *testing.T) {
+	t.Parallel()
+
+	h := createDummy(t)
+
+	_, err := h.parseMatchers(url.Values{"topic": {"foo"}}, false)
+	assert.ErrorIs(t, err, errUnknownMatcherParam)
 }
 
 func TestParseMatchersInvalidURLPattern(t *testing.T) {
@@ -57,7 +86,7 @@ func TestParseMatchersInvalidURLPattern(t *testing.T) {
 
 	h := createDummy(t)
 
-	_, err := h.parseMatchers(url.Values{"topicURLPattern": {"{unclosed"}}, false)
+	_, err := h.parseMatchers(url.Values{"matchURLPattern": {"{unclosed"}}, false)
 	require.Error(t, err)
 }
 
@@ -67,7 +96,7 @@ func TestParseMatchersInvalidValue(t *testing.T) {
 	h := createDummy(t)
 
 	for _, v := range []string{"foo\x00bar", "foo\nbar", "\x7f", "\xff"} {
-		_, err := h.parseMatchers(url.Values{"topic": {v}}, false)
+		_, err := h.parseMatchers(url.Values{"match": {v}}, false)
 		assert.ErrorIs(t, err, errInvalidMatcherValue)
 	}
 }
@@ -82,10 +111,10 @@ func TestParseMatchersLimits(t *testing.T) {
 		tooMany[i] = "foo"
 	}
 
-	_, err := h.parseMatchers(url.Values{"topic": tooMany}, false)
+	_, err := h.parseMatchers(url.Values{"match": tooMany}, false)
 	require.ErrorIs(t, err, errTooManyMatchers)
 
-	_, err = h.parseMatchers(url.Values{"topic": {strings.Repeat("a", maxPatternLength+1)}}, false)
+	_, err = h.parseMatchers(url.Values{"match": {strings.Repeat("a", maxPatternLength+1)}}, false)
 	require.ErrorIs(t, err, errPatternTooLong)
 }
 
@@ -97,7 +126,7 @@ func TestParseMatchersURLPatternRelativeAccepted(t *testing.T) {
 
 	h := createDummy(t)
 
-	query := url.Values{"topicURLPattern": {"/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"}}
+	query := url.Values{"matchURLPattern": {"/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"}}
 	matchers, err := h.parseMatchers(query, false)
 	require.NoError(t, err)
 	require.Len(t, matchers, 1)
@@ -111,7 +140,7 @@ func TestParseMatchersMissing(t *testing.T) {
 
 	query := url.Values{"other": {"value"}}
 	_, err := h.parseMatchers(query, false)
-	assert.ErrorIs(t, err, errMissingTopic)
+	assert.ErrorIs(t, err, errMissingMatcher)
 }
 
 func TestParseMatchersNonMatcherParamsIgnored(t *testing.T) {
@@ -120,7 +149,7 @@ func TestParseMatchersNonMatcherParamsIgnored(t *testing.T) {
 	h := createDummy(t)
 
 	query := url.Values{
-		"topic":         {"foo"},
+		"match":         {"foo"},
 		"authorization": {"jwt"},
 		"lastEventID":   {"id"},
 	}

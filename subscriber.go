@@ -14,7 +14,7 @@ type Subscriber struct {
 	RequestLastEventID string
 
 	// SubscribedMatchers are the topic matchers from the topic and
-	// topicURLPattern query parameters (or from the v8 `topic` parameter,
+	// matchURLPattern query parameters (or from the v8 `topic` parameter,
 	// which resolves to a deprecated matcher under compatibility mode).
 	SubscribedMatchers []topicMatcher
 	// AllowedPrivateMatchers are the topic matchers from the JWT claims.

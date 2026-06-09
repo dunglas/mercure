@@ -62,7 +62,7 @@ func TestSubscribeEmitsSpan(t *testing.T) {
 	reqCtx, cancel := context.WithCancel(ctx)
 	req := httptest.NewRequest(
 		http.MethodGet,
-		defaultHubURL+"?topic=https://example.com/books/1",
+		defaultHubURL+"?match=https://example.com/books/1",
 		nil,
 	).WithContext(reqCtx)
 

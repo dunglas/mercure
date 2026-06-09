@@ -33,7 +33,7 @@ func TestParseMatchersURLPatternInCompatMode(t *testing.T) {
 	h := createDeprecatedDummy(t)
 
 	query := url.Values{
-		"topicURLPattern": {"https://example.com/:id"},
+		"matchURLPattern": {"https://example.com/:id"},
 		"topic":           {"https://example.com/{id}"},
 	}
 	matchers, err := h.parseMatchers(query, true)

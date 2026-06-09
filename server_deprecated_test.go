@@ -153,7 +153,7 @@ func TestServe(t *testing.T) {
 	wgConnected.Add(2)
 
 	wgTested.Go(func() {
-		resp, err := client.Get(testURL + "?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1")
+		resp, err := client.Get(testURL + "?match=https%3A%2F%2Fexample.com%2Ffoo%2F1")
 		require.NoError(t, err)
 		wgConnected.Done()
 
@@ -168,7 +168,7 @@ data: hello
 	})
 
 	wgTested.Go(func() {
-		resp, err := client.Get(testURL + "?topic=https%3A%2F%2Fexample.com%2Falt%2F1")
+		resp, err := client.Get(testURL + "?match=https%3A%2F%2Fexample.com%2Falt%2F1")
 		require.NoError(t, err)
 		wgConnected.Done()
 
@@ -228,7 +228,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 	subscribe := func(expectedBodyData string) {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, testURL+"?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, testURL+"?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -457,7 +457,7 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 	s.wgConnected.Add(1)
 
 	s.wgTested.Go(func() {
-		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
+		resp, err := s.client.Get(testURL + "?match=" + url.QueryEscape(topic))
 		require.NoError(s.t, err)
 
 		s.wgConnected.Done()

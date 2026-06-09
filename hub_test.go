@@ -86,7 +86,7 @@ func TestStop(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)
@@ -131,7 +131,7 @@ func TestContextCancellation(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)

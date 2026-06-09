@@ -151,7 +151,7 @@ func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 
 	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
 	matchers, err := hub.parseMatchers(url.Values{
-		"topic": {"https://example.com/foo", "https://example.com/bar"},
+		"match": {"https://example.com/foo", "https://example.com/bar"},
 	}, false)
 	require.NoError(t, err)
 
@@ -191,7 +191,7 @@ func TestSubscriptionPayloadFallbackToGlobal(t *testing.T) {
 
 	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
 	matchers, err := hub.parseMatchers(url.Values{
-		"topic": {"https://example.com/foo"},
+		"match": {"https://example.com/foo"},
 	}, false)
 	require.NoError(t, err)
 
@@ -227,7 +227,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 
 	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
 	matchers, err := hub.parseMatchers(url.Values{
-		"topicURLPattern": {"https://example.com/:id"},
+		"matchURLPattern": {"https://example.com/:id"},
 	}, false)
 	require.NoError(t, err)
 	sub.setMatchers(matchers, nil)
