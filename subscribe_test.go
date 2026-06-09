@@ -245,6 +245,41 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
 }
 
+// TestSubscribeJWTAlgorithmsPinned verifies the algorithm allowlist is enforced
+// on the keyfunc (JWKS-style) path: a token whose alg is outside the allowlist
+// is rejected at parse time, regardless of its signature.
+func TestSubscribeJWTAlgorithmsPinned(t *testing.T) {
+	t.Parallel()
+
+	// A keyfunc returning the HMAC secret for any token, like a JWKS-backed
+	// keyfunc that does not by itself pin the algorithm.
+	kf := func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }
+
+	hub := createAnonymousDummy(t,
+		WithSubscriberJWTKeyFunc(kf),
+		WithSubscriberJWTAlgorithms([]string{jwt.SigningMethodRS256.Name}),
+	)
+
+	// HS256 token: outside the RS256 allowlist.
+	token := mintAccessToken([]byte("subscriber"), testResourceIdentifier, []authorizationDetail{{
+		Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
+		Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
+	}})
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
+	req.Header.Add("Authorization", bearerPrefix+token)
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
 func TestSubscribeNoTopic(t *testing.T) {
 	t.Parallel()
 

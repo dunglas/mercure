@@ -130,11 +130,20 @@ type Mercure struct {
 	// JWK Set URL to use for publishers.
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
+	// Allowed JWS algorithms for publisher tokens validated via the JWK Set.
+	// Recommended with publisher_jwks_url: it pins the algorithms (RFC 8725)
+	// rather than trusting the token header or relying on each JWK's "alg".
+	PublisherJWKSAlgorithms []string `json:"publisher_jwks_algorithms,omitempty"`
+
 	// JWT key and signing algorithm to use for subscribers.
 	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitzero"`
 
 	// JWK Set URL to use for subscribers.
 	SubscriberJWKSURL string `json:"subscriber_jwks_url,omitempty"`
+
+	// Allowed JWS algorithms for subscriber tokens validated via the JWK Set.
+	// See PublisherJWKSAlgorithms.
+	SubscriberJWKSAlgorithms []string `json:"subscriber_jwks_algorithms,omitempty"`
 
 	// Origins allowed to publish updates
 	PublishOrigins []string `json:"publish_origins,omitempty"`
@@ -283,6 +292,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		}
 
 		opts = append(opts, mercure.WithPublisherJWTKeyFunc(k.Keyfunc))
+
+		if len(m.PublisherJWKSAlgorithms) > 0 {
+			opts = append(opts, mercure.WithPublisherJWTAlgorithms(m.PublisherJWKSAlgorithms))
+		}
 	} else if m.PublisherJWT.Key != "" {
 		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
 	}
@@ -294,6 +307,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		}
 
 		opts = append(opts, mercure.WithSubscriberJWTKeyFunc(k.Keyfunc))
+
+		if len(m.SubscriberJWKSAlgorithms) > 0 {
+			opts = append(opts, mercure.WithSubscriberJWTAlgorithms(m.SubscriberJWKSAlgorithms))
+		}
 	} else if m.SubscriberJWT.Key != "" {
 		opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
 	}
@@ -464,6 +481,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.PublisherJWKSURL = d.Val()
 
+			case "publisher_jwks_algorithms":
+				m.PublisherJWKSAlgorithms = d.RemainingArgs()
+				if len(m.PublisherJWKSAlgorithms) == 0 {
+					return d.ArgErr()
+				}
+
 			case "publisher_jwt":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -480,6 +503,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				m.SubscriberJWKSURL = d.Val()
+
+			case "subscriber_jwks_algorithms":
+				m.SubscriberJWKSAlgorithms = d.RemainingArgs()
+				if len(m.SubscriberJWKSAlgorithms) == 0 {
+					return d.ArgErr()
+				}
 
 			case "subscriber_jwt":
 				if !d.NextArg() {

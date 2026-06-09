@@ -145,7 +145,7 @@ func WithPublisherJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
 		keyfunc, err := createJWTKeyfunc(key, alg)
 		o.publisherJWTKeyFunc = keyfunc
-		o.publisherJWTAlgorithm = alg
+		o.publisherJWTAlgorithms = []string{alg}
 
 		return err
 	}
@@ -156,7 +156,7 @@ func WithSubscriberJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
 		keyfunc, err := createJWTKeyfunc(key, alg)
 		o.subscriberJWTKeyFunc = keyfunc
-		o.subscriberJWTAlgorithm = alg
+		o.subscriberJWTAlgorithms = []string{alg}
 
 		return err
 	}
@@ -317,9 +317,38 @@ func WithResourceIdentifier(resourceIdentifier string) Option {
 
 // WithAuthorizationServers sets the OAuth 2.0 authorization server issuer
 // identifiers advertised in the hub's protected resource metadata (RFC 9728).
+//
+// When set, the token issuer (iss) check applies to both publisher and
+// subscriber tokens: a token whose iss is not one of these identifiers is
+// rejected. A self-issued token (for example a publisher signing with a key
+// shared out of band) must therefore carry a matching iss, or this option must
+// be left unset.
 func WithAuthorizationServers(authorizationServers []string) Option {
 	return func(o *opt) error {
 		o.authorizationServers = authorizationServers
+
+		return nil
+	}
+}
+
+// WithPublisherJWTAlgorithms pins the JWS algorithms accepted for publisher
+// access tokens. WithPublisherJWT already pins its single algorithm; this
+// option is for the WithPublisherJWTKeyFunc / JWKS path, where the algorithm
+// would otherwise be taken from the token header. Setting it makes the parser
+// reject any token whose alg is not in the list (RFC 8725).
+func WithPublisherJWTAlgorithms(algorithms []string) Option {
+	return func(o *opt) error {
+		o.publisherJWTAlgorithms = algorithms
+
+		return nil
+	}
+}
+
+// WithSubscriberJWTAlgorithms pins the JWS algorithms accepted for subscriber
+// access tokens. See WithPublisherJWTAlgorithms.
+func WithSubscriberJWTAlgorithms(algorithms []string) Option {
+	return func(o *opt) error {
+		o.subscriberJWTAlgorithms = algorithms
 
 		return nil
 	}
@@ -342,8 +371,8 @@ type opt struct {
 	heartbeat                    time.Duration
 	publisherJWTKeyFunc          jwt.Keyfunc
 	subscriberJWTKeyFunc         jwt.Keyfunc
-	publisherJWTAlgorithm        string
-	subscriberJWTAlgorithm       string
+	publisherJWTAlgorithms       []string
+	subscriberJWTAlgorithms      []string
 	metrics                      Metrics
 	allowedHosts                 []string
 	publishOriginsAll            bool
