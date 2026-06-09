@@ -95,7 +95,9 @@ func TestParseMatchersInvalidValue(t *testing.T) {
 
 	h := createDummy(t)
 
-	for _, v := range []string{"foo\x00bar", "foo\nbar", "\x7f", "\xff"} {
+	// Covers C0 (NUL, LF), DEL (U+007F), a C1 control (U+0085, valid UTF-8 but
+	// a control character) and invalid UTF-8 (\xff).
+	for _, v := range []string{"foo\x00bar", "foo\nbar", "\x7f", "\u0085", "\xff"} {
 		_, err := h.parseMatchers(url.Values{"match": {v}}, false)
 		assert.ErrorIs(t, err, errInvalidMatcherValue)
 	}
