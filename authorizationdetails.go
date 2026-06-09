@@ -6,12 +6,16 @@ import (
 	"fmt"
 )
 
-// Element-count caps on the authorization_details claim, mirroring the
-// publish/subscribe query limits. A token exceeding any of them is rejected
-// with a 400 status code.
+// Caps on the authorization_details claim, aligned with the subscribe query
+// limit (maxMatcherCount, in subscribematchers.go): the total number of topic
+// matchers a token can carry, summed across all mercure details, is bounded by
+// maxMatcherCount, and the number of mercure details by the same value. Each
+// matcher can force a URL Pattern compilation during validation, so these
+// bounds cap that work to the same ceiling as a subscribe request. A token
+// exceeding either is rejected with a 400 status code.
 const (
-	maxMercureDetails = 1000 // type=="mercure" authorization details
-	maxDetailTopics   = 1000 // entries per `topics` array
+	maxMercureDetails = maxMatcherCount // type=="mercure" authorization details
+	maxDetailTopics   = maxMatcherCount // topic matchers summed across all details
 )
 
 // authorizationDetailTypeMercure is the RFC 9396 authorization detail type
@@ -105,7 +109,7 @@ type mercureAuthz struct {
 func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDetail) (*mercureAuthz, error) {
 	authz := &mercureAuthz{}
 
-	var count int
+	var count, totalTopics int
 
 	for i := range raw {
 		if raw[i].Type != authorizationDetailTypeMercure {
@@ -115,6 +119,14 @@ func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDe
 		count++
 		if count > maxMercureDetails {
 			return nil, fmt.Errorf("%w: too many mercure authorization details (max %d)", errInvalidAuthorizationDetail, maxMercureDetails)
+		}
+
+		// Bound the cumulative matcher count before validateMercureDetail
+		// compiles any pattern, so a token cannot force unbounded URL Pattern
+		// compilation regardless of how the topics are split across details.
+		totalTopics += len(raw[i].Topics)
+		if totalTopics > maxDetailTopics {
+			return nil, fmt.Errorf("%w: too many topics across mercure authorization details (max %d)", errInvalidAuthorizationDetail, maxDetailTopics)
 		}
 
 		vd, err := validateMercureDetail(tss, raw[i])
@@ -148,10 +160,6 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 
 	if len(d.Topics) == 0 {
 		return vd, fmt.Errorf("%w: a mercure detail must declare at least one topic", errInvalidAuthorizationDetail)
-	}
-
-	if len(d.Topics) > maxDetailTopics {
-		return vd, fmt.Errorf("%w: too many topics in a mercure detail (max %d)", errInvalidAuthorizationDetail, maxDetailTopics)
 	}
 
 	vd.topics = make([]topicMatcher, len(d.Topics))
@@ -257,7 +265,9 @@ func (a *mercureAuthz) subscribePayload(tss *TopicSelectorStore, m topicMatcher)
 		}
 
 		for _, tm := range a.details[i].topics {
-			if tm.Pattern == "*" || tss.matchMatcher(pattern, tm) {
+			// matchMatcher already treats the "*" wildcard as matching every
+			// pattern, so no separate wildcard check is needed here.
+			if tss.matchMatcher(pattern, tm) {
 				return a.details[i].payload, true
 			}
 		}

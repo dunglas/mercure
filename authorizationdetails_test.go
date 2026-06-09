@@ -100,6 +100,24 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 		}})
 		require.ErrorIs(t, err, errInvalidAuthorizationDetail)
 	})
+
+	// The cap is cumulative across details: two details each within the limit
+	// but over it combined are rejected, so the matcher count (and thus URL
+	// Pattern compilation work) cannot be split to bypass the bound.
+	t.Run("too many topics across details", func(t *testing.T) {
+		half := maxDetailTopics/2 + 1
+		mk := func() authorizationDetail {
+			topics := make([]detailTopic, half)
+			for i := range topics {
+				topics[i] = detailTopic{topicMatcher{MatcherTypeExact, "a"}}
+			}
+
+			return authorizationDetail{Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}, Topics: topics}
+		}
+
+		_, err := validateAuthorizationDetails(tss, []authorizationDetail{mk(), mk()})
+		require.ErrorIs(t, err, errInvalidAuthorizationDetail)
+	})
 }
 
 func TestMercureAuthzGrants(t *testing.T) {
