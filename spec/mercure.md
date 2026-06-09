@@ -66,8 +66,8 @@ appear in all capitals, as shown here.
 
 *   Topic: The unit to which one can subscribe for changes. The topic is identified by a string
     that **MAY** be an IRI [@!RFC3987]. Topic strings **MUST** be valid UTF-8 [@!RFC3629] and
-    **MUST NOT** contain C0 control characters (U+0000–U+001F) or U+007F (DEL). An update is
-    about exactly one topic.
+    **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters or U+007F
+    (DEL). An update is about exactly one topic.
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private; in that case, it **MUST** be dispatched only to subscribers allowed to receive it.
 *   Topic matcher: An expression matched against one or more topics,
@@ -122,8 +122,8 @@ ASCII case-insensitive comparison) that does not correspond to a matcher type de
 (#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
-**MUST NOT** contain C0 control characters or U+007F. Requests violating this constraint
-**MUST** be rejected with a 400 "Bad Request" HTTP status code.
+**MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters or U+007F.
+Requests violating this constraint **MUST** be rejected with a 400 "Bad Request" HTTP status code.
 
 The subscriber receives updates for all topics matching at least one topic matcher according to
 the matcher type rules.
@@ -1063,11 +1063,14 @@ include:
 *   `jwks_uri` (optional): the location of the hub's token verification keys, when not obtained
     from an authorization server.
 *   `bearer_methods_supported`: the token presentation methods the hub accepts (see
-    (#presenting-the-access-token)). Standard values are `header` and `query` [@!RFC9728]. The
-    cookie method is advertised under the implementation-specific value `mercureCookie`; the
-    namespaced name avoids colliding with any future IANA-registered method. Because it is not an
-    IANA-registered value, clients that strictly follow [@!RFC9728] ignore it and so cannot
-    discover the cookie method from this field alone.
+    (#presenting-the-access-token)). Values are `header` and `query` [@!RFC9728]. The cookie
+    mechanism is not a [@!RFC6750] bearer method, so it is not listed here; it is advertised by
+    the separate `mercure_cookie` member below.
+*   `mercure_cookie` (optional): a boolean. When `true`, the hub also accepts the access token in
+    a cookie (a Mercure extension to [@!RFC6750]; see (#cookie)). The cookie mechanism is
+    advertised as a dedicated metadata member rather than a value of `bearer_methods_supported`,
+    whose values are constrained to the [@!RFC6750] methods. This member is omitted when the hub
+    does not offer cookie authorization.
 
 When a request carries no access token, the hub's `WWW-Authenticate: Bearer` challenge
 **SHOULD** include a `resource_metadata` parameter pointing to this document (see
