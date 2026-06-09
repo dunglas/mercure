@@ -18,14 +18,19 @@ type protectedResourceMetadata struct {
 	Resource               string   `json:"resource"`
 	BearerMethodsSupported []string `json:"bearer_methods_supported"`
 	AuthorizationServers   []string `json:"authorization_servers,omitempty"`
+	// MercureCookie advertises the cookie token-presentation mechanism, a
+	// Mercure extension to RFC 6750. It is a dedicated member rather than a
+	// value of bearer_methods_supported, whose values are constrained to the
+	// RFC 6750 methods (a cookie is not one of them).
+	MercureCookie bool `json:"mercure_cookie,omitempty"`
 }
 
-// bearerMethodsSupported lists the token presentation methods the hub accepts.
-// "mercureCookie" is a Mercure extension to RFC 6750; the namespaced name
-// avoids colliding with any future IANA-registered "cookie" method.
+// bearerMethodsSupported lists the RFC 6750 token presentation methods the hub
+// accepts. The cookie mechanism is not an RFC 6750 method, so it is advertised
+// through the dedicated "mercure_cookie" member instead.
 //
 //nolint:gochecknoglobals
-var bearerMethodsSupported = []string{"header", "query", "mercureCookie"}
+var bearerMethodsSupported = []string{"header", "query"}
 
 // ProtectedResourceMetadataHandler serves the hub's RFC 9728 protected
 // resource metadata document.
@@ -36,6 +41,9 @@ func (h *Hub) ProtectedResourceMetadataHandler(w http.ResponseWriter, r *http.Re
 		Resource:               h.resourceIdentifier,
 		BearerMethodsSupported: bearerMethodsSupported,
 		AuthorizationServers:   h.authorizationServers,
+		// The hub always accepts the access token in a cookie when it
+		// validates tokens (this handler is only served in that case).
+		MercureCookie: true,
 	}
 
 	if err := json.NewEncoder(w).Encode(metadata); err != nil && h.logger.Enabled(r.Context(), slog.LevelInfo) {
