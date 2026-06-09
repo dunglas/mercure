@@ -103,15 +103,23 @@ the publisher; see (#discovery)) following the Server-Sent Events specification
 features.
 
 The subscriber specifies the topics to receive updates from using topic matcher query
-parameters. The `topic` parameter selects the `Exact` matcher type; the `topicURLPattern`
-parameter selects the `URLPattern` matcher type. A request **MAY** contain several such
+parameters. The parameter name encodes the matcher type: the bare `match` parameter selects the
+default `Exact` matcher type, and a `match<MatcherType>` parameter selects the named matcher
+type — for example, `matchURLPattern` selects the `URLPattern` matcher type, and `matchExact` is
+the explicit spelling of the default. The `<MatcherType>` suffix **MUST** be the matcher type
+name in its canonical case as defined in (#matcher-types). A request **MAY** contain several such
 parameters, in any combination. See (#matcher-types). These parameters select which topics the
 subscriber receives; they do not by themselves grant access to private updates, which is
 governed by the access token (see (#authorization)).
 
-The names of topic matcher query parameters are case-sensitive. A request using a topic matcher
-query parameter name other than `topic` or `topicURLPattern` **MUST** be rejected with a 400
-"Bad Request" HTTP status code.
+This mirrors the topic matcher list of authorization details (see (#topic-matcher-list)), where
+the `matchType` member is optional and defaults to `Exact`: omitting it there is equivalent to
+using the bare `match` parameter here.
+
+The names of topic matcher query parameters are case-sensitive. A request using a parameter name
+in the reserved `match` namespace (a name equal to `match`, or beginning with `match` under an
+ASCII case-insensitive comparison) that does not correspond to a matcher type defined in
+(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 control characters or U+007F. Requests violating this constraint
@@ -162,9 +170,9 @@ Example:
 // for the https://example.com/foo topic, the bar topic,
 // and to any topic matching the https://example.com/bar/:id URL Pattern
 const url = new URL('https://example.com/.well-known/mercure');
-url.searchParams.append('topic', 'https://example.com/foo');
-url.searchParams.append('topic', 'bar');
-url.searchParams.append('topicURLPattern', 'https://example.com/bar/:id');
+url.searchParams.append('match', 'https://example.com/foo');
+url.searchParams.append('match', 'bar');
+url.searchParams.append('matchURLPattern', 'https://example.com/bar/:id');
 
 const eventSource = new EventSource(url);
 
@@ -203,9 +211,9 @@ canonicalizations are Unicode NFC [@!UNICODE] and, for IRIs, IDNA-canonical host
 and percent-encoding normalization [@!RFC3986]. Otherwise, visually identical topics will be
 treated as distinct, and homograph attacks (see (#security-considerations)) become possible.
 
-The matcher type name is `Exact`. The corresponding subscribe query parameter is `topic`, and
-the corresponding `matchType` value in authorization details (see (#topic-matcher-list)) is
-`Exact`.
+The matcher type name is `Exact`. It is the default matcher type: the corresponding subscribe
+query parameter is the bare `match` (or, explicitly, `matchExact`), and it is the default
+`matchType` value in authorization details (see (#topic-matcher-list)).
 
 ## URL Pattern
 
@@ -234,15 +242,15 @@ identifiers within this protocol; subscribers **MUST NOT** dereference them as U
 validating the scheme against an allowlist appropriate for the subscriber's environment.
 
 The matcher type name is `URLPattern`. The corresponding subscribe query parameter is
-`topicURLPattern`, and the corresponding `matchType` value in authorization details (see
+`matchURLPattern`, and the corresponding `matchType` value in authorization details (see
 (#topic-matcher-list)) is `URLPattern`.
 
 ## Summary of Matcher Types
 
-| Matcher Type   | Subscribe Query Parameter | `matchType` | Requirement  |
-|----------------|---------------------------|-------------|--------------|
-| `Exact`        | `topic`                   | `Exact`     | **MUST**     |
-| `URLPattern`   | `topicURLPattern`         | `URLPattern`| **MUST**     |
+| Matcher Type   | Subscribe Query Parameter     | `matchType` | Requirement  |
+|----------------|-------------------------------|-------------|--------------|
+| `Exact`        | `match` (or `matchExact`)     | `Exact`     | **MUST**     |
+| `URLPattern`   | `matchURLPattern`             | `URLPattern`| **MUST**     |
 
 # Publication
 
@@ -537,7 +545,7 @@ long-lived connection, hubs **SHOULD** also impose a maximum connection lifetime
 re-authenticate.
 
 For example, a subscriber may listen to all books via the routing matcher
-`topicURLPattern=https://example.com/books/:id` while its token authorizes reading only specific
+`matchURLPattern=https://example.com/books/:id` while its token authorizes reading only specific
 books:
 
 ~~~ json
@@ -579,7 +587,7 @@ API and in subscription events. See (#subscription-events).
 
 A `mercure` authorization detail with the `subscribe` action **MAY** carry a `payload` JSON
 object. The `payload` of the first `subscribe` authorization detail whose `topics` matches the
-subscription's own matcher (the `topic` or `topicURLPattern` query parameter value) **MUST** be
+subscription's own matcher (the `match` or `match<MatcherType>` query parameter value) **MUST** be
 included under the `payload` key of the JSON object describing the subscription, both in the
 subscription API and in subscription events. A `subscribe` detail whose `topics` contains the `*`
 wildcard matches every subscription and can serve as a default.
