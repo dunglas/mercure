@@ -273,6 +273,7 @@ func TestSubscribeJWTAlgorithmsPinned(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+
 	t.Cleanup(func() {
 		require.NoError(t, resp.Body.Close())
 	})

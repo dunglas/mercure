@@ -79,6 +79,7 @@ func TestSubscriptionsHandlerAuthorizesAgainstPath(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
+
 	res := w.Result()
 	defer res.Body.Close()
 

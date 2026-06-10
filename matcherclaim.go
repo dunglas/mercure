@@ -3,12 +3,9 @@
 package mercure
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
-	"net/http"
 )
 
 // errStringClaimRequiresCompat is returned when a JWT mercure.publish /
@@ -137,36 +134,4 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 	}
 
 	return nil
-}
-
-// writeMatcherClaimError translates a resolveMatcherClaims error into an HTTP
-// response: 400 for unknown matcher types or invalid patterns, 401 for
-// everything else (string claim in modern mode, malformed claim, …). It also
-// logs the cause at info level so operators upgrading from v8 see a hint
-// without having to enable debug logging.
-func writeMatcherClaimError(ctx context.Context, logger *slog.Logger, w http.ResponseWriter, err error) {
-	if errors.Is(err, errStringClaimRequiresCompat) {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-	} else {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-	}
-
-	if logger == nil || !logger.Enabled(ctx, slog.LevelInfo) {
-		return
-	}
-
-	switch {
-	case errors.Is(err, errStringClaimRequiresCompat):
-		logger.LogAttrs(ctx, slog.LevelInfo,
-			`JWT contains v8 bare-string topic claims. Re-mint tokens with the {"match": "...", "matchType": "..."} object form, or run the hub with WithProtocolVersionCompatibility(8) and the deprecated_topic build tag to keep accepting them.`,
-			slog.Any("error", err))
-	case errors.Is(err, ErrUnsupportedMatcherType):
-		logger.LogAttrs(ctx, slog.LevelInfo,
-			`JWT references an unknown matcher type; supported values are "Exact" and "URLPattern" (case-sensitive).`,
-			slog.Any("error", err))
-	default:
-		logger.LogAttrs(ctx, slog.LevelInfo,
-			"Failed to resolve JWT topic matcher claims",
-			slog.Any("error", err))
-	}
 }
