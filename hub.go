@@ -29,6 +29,22 @@ var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports
 // RFC 9068 requires the token audience to be checked against it.
 var ErrMissingResourceIdentifier = errors.New("a resource identifier (or public URL) is required when JWT authentication is enabled; set WithResourceIdentifier or WithPublicURL, or enable compatibility mode")
 
+// ErrInvalidResourceIdentifier is returned when the configured resource
+// identifier is not an RFC 9728 protected resource identifier: an absolute
+// URL without a fragment component.
+var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be an absolute URL without a fragment (RFC 9728)")
+
+// schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
+const schemeHTTPS = "https"
+
+// defaultJWTAlgorithms is the signature-algorithm allowlist applied in modern
+// mode when a JWT key function is configured without an explicit list (the
+// JWKS path). It contains only asymmetric algorithms: allowing an HMAC
+// algorithm next to public keys would enable algorithm-confusion attacks.
+//
+//nolint:gochecknoglobals
+var defaultJWTAlgorithms = []string{"EdDSA", "ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"}
+
 // Option instances allow to configure the library.
 type Option func(o *opt) error
 
@@ -386,6 +402,71 @@ type opt struct {
 	authorizationServers         []string
 }
 
+// configureIdentifiers wires the public URL, the URL Pattern base, and the
+// resource identifier defaults, then applies the modern-mode rules.
+func (o *opt) configureIdentifiers() error {
+	// When only the resource identifier is configured and it is a full hub
+	// URL, it is the hub URL: use it as the URL Pattern base so relative
+	// patterns and topics resolve per the protocol without requiring the
+	// public URL to be configured twice.
+	if o.publicURL == "" && strings.HasSuffix(o.resourceIdentifier, defaultHubURL) {
+		o.publicURL = o.resourceIdentifier
+	}
+
+	o.topicSelectorStore.setBaseURL(o.publicURL)
+
+	if o.resourceIdentifier == "" {
+		o.resourceIdentifier = o.publicURL
+	}
+
+	// In modern mode, RFC 9068 requires checking the token audience against
+	// the hub's resource identifier; refuse to start a token-validating hub
+	// that cannot perform that check.
+	if o.resourceIdentifier == "" && o.protocolVersionCompatibility == 0 &&
+		(o.publisherJWTKeyFunc != nil || o.subscriberJWTKeyFunc != nil) {
+		return ErrMissingResourceIdentifier
+	}
+
+	return o.applyModernDefaults()
+}
+
+// applyModernDefaults enforces the modern-mode (non-compatibility) config
+// rules: an RFC 9728-shaped resource identifier and an explicit JWS
+// algorithm allowlist for every configured key function.
+func (o *opt) applyModernDefaults() error {
+	if o.protocolVersionCompatibility != 0 {
+		return nil
+	}
+
+	// The resource identifier is published as the RFC 9728 "resource" member
+	// and checked against the token audience; strict clients ignore metadata
+	// whose identifier is not a URL without a fragment.
+	if o.resourceIdentifier != "" {
+		u, err := url.Parse(o.resourceIdentifier)
+		if err != nil || !u.IsAbs() || u.Host == "" || u.Fragment != "" {
+			return ErrInvalidResourceIdentifier
+		}
+
+		if u.Scheme != schemeHTTPS {
+			o.logger.Warn(`The resource identifier does not use the "https" scheme; strict RFC 9728 clients will ignore the hub's protected resource metadata.`)
+		}
+	}
+
+	// The protocol requires an explicit signature-algorithm allowlist that is
+	// never derived from the token. Key functions configured without one (the
+	// JWKS path) get the documented default: asymmetric algorithms only, so a
+	// public JWK can never be reinterpreted as an HMAC secret.
+	if o.publisherJWTKeyFunc != nil && len(o.publisherJWTAlgorithms) == 0 {
+		o.publisherJWTAlgorithms = defaultJWTAlgorithms
+	}
+
+	if o.subscriberJWTKeyFunc != nil && len(o.subscriberJWTAlgorithms) == 0 {
+		o.subscriberJWTAlgorithms = defaultJWTAlgorithms
+	}
+
+	return nil
+}
+
 func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 	return o.protocolVersionCompatibility != 0 && version >= o.protocolVersionCompatibility
 }
@@ -426,18 +507,8 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.topicSelectorStore = tss
 	}
 
-	opt.topicSelectorStore.setBaseURL(opt.publicURL)
-
-	if opt.resourceIdentifier == "" {
-		opt.resourceIdentifier = opt.publicURL
-	}
-
-	// In modern mode, RFC 9068 requires checking the token audience against the
-	// hub's resource identifier; refuse to start a token-validating hub that
-	// cannot perform that check.
-	if opt.resourceIdentifier == "" && opt.protocolVersionCompatibility == 0 &&
-		(opt.publisherJWTKeyFunc != nil || opt.subscriberJWTKeyFunc != nil) {
-		return nil, ErrMissingResourceIdentifier
+	if err := opt.configureIdentifiers(); err != nil {
+		return nil, err
 	}
 
 	if opt.transport == nil {

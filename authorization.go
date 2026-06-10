@@ -166,12 +166,12 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 // jwtParserOptions returns the RFC 9068 parser checks enforced in modern mode:
 // a required audience matching the hub's resource identifier and a required
 // exp. In compatibility mode (deprecated_claim builds with
-// WithProtocolVersionCompatibility) these checks are relaxed. When the accepted
-// algorithms are known they are pinned here (RFC 8725) so the algorithm can
-// never be taken from the token header: a single-key configuration pins its one
-// algorithm, and the JWKS path pins whatever WithPublisher/SubscriberJWTAlgorithms
-// declares. When no algorithm is configured (JWKS without an allowlist) the hub
-// relies on the key set's own per-key algorithm constraints.
+// WithProtocolVersionCompatibility) these checks are relaxed. The accepted
+// algorithms are pinned here (RFC 8725) so the algorithm can never be taken
+// from the token header: a single-key configuration pins its one algorithm,
+// the JWKS path pins whatever WithPublisher/SubscriberJWTAlgorithms declares,
+// and NewHub fills defaultJWTAlgorithms in modern mode when nothing is
+// declared, so algs is only empty in compatibility mode.
 func (h *Hub) jwtParserOptions(algs []string) []jwt.ParserOption {
 	var opts []jwt.ParserOption
 
@@ -206,11 +206,17 @@ func (h *Hub) validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc, algs []st
 
 	// RFC 9068: reject tokens not issued as JWT access tokens, so a token
 	// minted for another purpose (e.g. an OpenID Connect ID Token) is not
-	// accepted. The media type is matched case-insensitively and tolerates the
+	// accepted. The media type is matched case-insensitively, including the
 	// optional "application/" prefix. Relaxed in compatibility mode.
 	if h.requireATJWT() {
 		typ, _ := token.Header["typ"].(string)
-		if !strings.EqualFold(strings.TrimPrefix(typ, "application/"), atJWTType) {
+
+		const mediaTypePrefix = "application/"
+		if len(typ) >= len(mediaTypePrefix) && strings.EqualFold(typ[:len(mediaTypePrefix)], mediaTypePrefix) {
+			typ = typ[len(mediaTypePrefix):]
+		}
+
+		if !strings.EqualFold(typ, atJWTType) {
 			return nil, fmt.Errorf(`%w: the "typ" header must be %q`, ErrInvalidJWT, atJWTType)
 		}
 	}

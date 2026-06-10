@@ -33,6 +33,7 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	assert.Equal(t, []string{"header", "query"}, metadata.BearerMethodsSupported)
 	assert.True(t, metadata.MercureCookie)
 	assert.Equal(t, []string{"https://as.example.com"}, metadata.AuthorizationServers)
+	assert.Equal(t, []string{authorizationDetailTypeMercure}, metadata.AuthorizationDetailsTypesSupported)
 }
 
 func TestProtectedResourceMetadataDefaultsToPublicURL(t *testing.T) {

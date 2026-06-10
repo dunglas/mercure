@@ -87,8 +87,8 @@ func (h *Hub) resourceMetadataURL(r *http.Request) string {
 		}
 	}
 
-	scheme := "https"
-	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https" {
+	scheme := schemeHTTPS
+	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != schemeHTTPS {
 		scheme = "http"
 	}
 

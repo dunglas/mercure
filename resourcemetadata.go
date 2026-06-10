@@ -18,6 +18,9 @@ type protectedResourceMetadata struct {
 	Resource               string   `json:"resource"`
 	BearerMethodsSupported []string `json:"bearer_methods_supported"`
 	AuthorizationServers   []string `json:"authorization_servers,omitempty"`
+	// AuthorizationDetailsTypesSupported advertises the RFC 9396
+	// authorization detail types the hub understands.
+	AuthorizationDetailsTypesSupported []string `json:"authorization_details_types_supported,omitempty"`
 	// MercureCookie advertises the cookie token-presentation mechanism, a
 	// Mercure extension to RFC 6750. It is a dedicated member rather than a
 	// value of bearer_methods_supported, whose values are constrained to the
@@ -38,9 +41,10 @@ func (h *Hub) ProtectedResourceMetadataHandler(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Type", "application/json")
 
 	metadata := protectedResourceMetadata{
-		Resource:               h.resourceIdentifier,
-		BearerMethodsSupported: bearerMethodsSupported,
-		AuthorizationServers:   h.authorizationServers,
+		Resource:                           h.resourceIdentifier,
+		BearerMethodsSupported:             bearerMethodsSupported,
+		AuthorizationServers:               h.authorizationServers,
+		AuthorizationDetailsTypesSupported: []string{authorizationDetailTypeMercure},
 		// The hub always accepts the access token in a cookie when it
 		// validates tokens (this handler is only served in that case).
 		MercureCookie: true,

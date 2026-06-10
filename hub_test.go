@@ -429,6 +429,49 @@ func createAnonymousDummy(tb testing.TB, options ...Option) *Hub {
 
 // testResourceIdentifier is the audience minted access tokens carry and that
 // createDummy configures the hub with.
+func TestNewHubInvalidResourceIdentifier(t *testing.T) {
+	t.Parallel()
+
+	for _, ri := range []string{"foo", "/relative", "https://example.com/x#frag"} {
+		_, err := NewHub(t.Context(), WithResourceIdentifier(ri))
+		require.ErrorIs(t, err, ErrInvalidResourceIdentifier, ri)
+	}
+}
+
+// A resource identifier that is the full hub URL doubles as the URL Pattern
+// base when no public URL is configured.
+func TestNewHubDerivesPatternBaseFromResourceIdentifier(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(), WithResourceIdentifier(testResourceIdentifier))
+	require.NoError(t, err)
+	assert.Equal(t, testResourceIdentifier, h.topicSelectorStore.baseURL)
+	assert.Equal(t, testResourceIdentifier, h.publicURL)
+}
+
+// A key function configured without an explicit algorithm allowlist gets the
+// default asymmetric list in modern mode, so an HMAC token cannot abuse a
+// public key set (algorithm confusion).
+func TestNewHubDefaultJWTAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithSubscriberJWTKeyFunc(func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, defaultJWTAlgorithms, h.subscriberJWTAlgorithms)
+	assert.Empty(t, h.publisherJWTAlgorithms)
+
+	// An HS256 token is rejected even though the key function would return
+	// the right secret: the algorithm is not in the default allowlist.
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"foo"}))
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+}
+
 const testResourceIdentifier = "https://example.com/.well-known/mercure"
 
 func createDummyAuthorizedJWT(r role, topics []string) string {

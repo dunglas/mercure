@@ -254,6 +254,33 @@ func TestAuthorizeRejectsNonAccessToken(t *testing.T) {
 	require.Nil(t, claims)
 }
 
+// RFC 9068 media types are case-insensitive, including the optional
+// "application/" prefix.
+func TestAuthorizeAcceptsMixedCaseATJWTType(t *testing.T) {
+	t.Parallel()
+
+	for _, typ := range []string{"at+jwt", "AT+JWT", "application/at+jwt", "Application/AT+JWT"} {
+		token := jwt.New(jwt.SigningMethodHS256)
+		token.Header["typ"] = typ
+		token.Claims = &claims{
+			RegisteredClaims:     subscriberRegisteredClaims(),
+			AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+		}
+
+		s, err := token.SignedString([]byte("subscriber"))
+		require.NoError(t, err)
+
+		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+		r.Header.Add("Authorization", bearerPrefix+s)
+
+		h := createDummy(t)
+
+		c, err := h.authorize(r, false)
+		require.NoError(t, err, typ)
+		require.NotNil(t, c, typ)
+	}
+}
+
 func TestAuthorizeRejectsWrongAudience(t *testing.T) {
 	t.Parallel()
 

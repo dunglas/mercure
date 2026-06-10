@@ -130,9 +130,10 @@ type Mercure struct {
 	// JWK Set URL to use for publishers.
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
-	// Allowed JWS algorithms for publisher tokens validated via the JWK Set.
-	// Recommended with publisher_jwks_url: it pins the algorithms (RFC 8725)
-	// rather than trusting the token header or relying on each JWK's "alg".
+	// Allowed JWS algorithms for publisher tokens validated via the JWK Set
+	// (RFC 8725: the algorithm is never taken from the token header). When
+	// omitted in modern mode, the hub applies its default allowlist of
+	// asymmetric algorithms.
 	PublisherJWKSAlgorithms []string `json:"publisher_jwks_algorithms,omitempty"`
 
 	// JWT key and signing algorithm to use for subscribers.
