@@ -143,6 +143,16 @@ the connection. Any other appropriate mechanism, including but not limited to re
 [@W3C.NOTE-streams-api-20161129] and XMLHttpRequest [@xhr] (used by popular polyfills),
 **MAY** also be used.
 
+Web browsers enforce the CORS protocol [@!FETCH] on cross-origin `EventSource` connections.
+Hubs serving browser-based subscribers on other origins **MUST** send the appropriate CORS
+response headers. When the connection carries credentials (such as the cookie defined in
+(#cookie)), the `Access-Control-Allow-Origin` response header **MUST NOT** be the `*` wildcard
+and **MUST NOT** be reflected from arbitrary request origins: it **MUST** be restricted to an
+explicit allowlist of trusted origins, and the hub **MUST** also send
+`Access-Control-Allow-Credentials: true`. Reflecting arbitrary origins on a credentialed
+endpoint would allow any website visited by the subscriber to read updates using the
+subscriber's cookie.
+
 The hub sends updates to the subscriber for topics matching the provided topic matchers.
 
 If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscribers not authorized
@@ -1946,6 +1956,16 @@ specification.
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
         <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="FETCH" target="https://fetch.spec.whatwg.org/">
+    <front>
+        <title>Fetch Living Standard</title>
+        <author>
+            <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
+        </author>
+        <date year="2026"/>
     </front>
 </reference>
 
