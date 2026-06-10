@@ -822,10 +822,16 @@ The web API **MUST** expose endpoints following these patterns:
     subscription.
 
 To access these URLs, clients **MUST** be authorized according to the rules defined in
-(#authorization). The hub **MUST** treat the requested URL (the request target, resolved against
-the hub's URL per (#url-pattern)) as the topic to authorize, and **MUST** verify that a `mercure`
-authorization detail in the access token grants the `subscribe` action on it, evaluated with the
-matcher rules of (#matcher-types). The same matching applies to every endpoint shape above: the
+(#authorization). The topic to authorize is the requested URL in relative form: its absolute
+path (for example, `/.well-known/mercure/subscriptions/{matchType}/{match}`), which is the
+same form used for subscription event topics (see (#subscription-events)). The hub **MUST**
+verify that a `mercure` authorization detail in the access token grants the `subscribe` action
+on this relative topic, evaluated with the matcher rules of (#matcher-types): `Exact` matchers
+are compared byte-for-byte against the relative form, while URL patterns — absolute, or
+relative and then resolved against the hub's URL — are evaluated against it per
+(#url-pattern). Because subscription event topics and subscription API URLs share this
+canonical relative form, a single matcher covers both the events and the API resources
+describing the same subscriptions. The same matching applies to every endpoint shape above: the
 collection URL `/.well-known/mercure/subscriptions`, the per-matcher collection URL, and the
 single-subscription URL are each matched as a topic, so a token whose `subscribe` matcher selects
 a broader set (for example a `URLPattern` covering the subscriptions namespace, or the reserved
