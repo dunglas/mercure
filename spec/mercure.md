@@ -446,7 +446,9 @@ section 3:
     with a `WWW-Authenticate: Bearer` challenge and **MUST NOT** include an error code. The
     challenge **SHOULD** include a `resource_metadata` parameter pointing to the hub's protected
     resource metadata (see (#discovery)) per [@!RFC9728].
-*   If a token is presented but fails validation as defined in (#token-validation), the hub
+*   If a token is presented but fails validation as defined in (#token-validation), or carries
+    `mercure` authorization details that fail to parse or validate or that exceed
+    implementation-defined limits (see (#authorization-details)), the hub
     **MUST** return a 401 status code with `error="invalid_token"`.
 *   If a valid token does not authorize the requested operation, the hub **MUST** return a 403
     "Forbidden" status code with `error="insufficient_scope"`.
@@ -516,11 +518,14 @@ A token grants an action on a topic when it carries a `mercure` authorization de
 
 Hubs **SHOULD** apply implementation-defined maximums to the number of `mercure` authorization
 details, to the number of entries in each `topics` array, and to the length of individual
-patterns. Tokens exceeding any such limit **MUST** be rejected with a 400 status code. If any
+patterns. Tokens exceeding any such limit **MUST** be rejected as invalid tokens, with a 401
+status code and `error="invalid_token"` (see (#error-responses)). If any
 `mercure` authorization detail fails to parse or validate (including failures specific to a
-matcher's `matchType`), the hub **MUST** reject the request with a 400 status code and **MUST
+matcher's `matchType`), the hub **MUST** reject the token the same way and **MUST
 NOT** act on the basis of the remaining entries; partial acceptance is forbidden because it
-would silently alter the effective authorization of the token.
+would silently alter the effective authorization of the token. These are defects of the
+presented token, not of the request, so they are reported as `invalid_token` rather than
+`invalid_request` [@!RFC6750].
 
 Hubs **MAY** also limit the number of concurrent subscriptions established under a single token
 and **MAY** reject further subscription attempts with a 429 "Too Many Requests" status code once
@@ -586,8 +591,8 @@ matcher type. A `match` value of `*` is the reserved wildcard and matches every 
 of `matchType`, including when `matchType` is absent (see (#matcher-types)).
 
 Any entry that is not a JSON object, or that fails to parse or validate as a topic matcher,
-**MUST** cause the request to be rejected with a 400 status code as defined in
-(#authorization-details).
+**MUST** cause the token to be rejected with a 401 status code and `error="invalid_token"` as
+defined in (#authorization-details).
 
 ## Payloads
 
