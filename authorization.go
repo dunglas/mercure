@@ -91,7 +91,13 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 
 	authorizationHeaders, authorizationHeaderExists := r.Header["Authorization"]
 	if authorizationHeaderExists {
-		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 || authorizationHeaders[0][:7] != bearerPrefix {
+		// 48 = len(bearerPrefix) + 41, the shortest length a JWS in compact
+		// serialization can plausibly have (two dots plus base64url-encoded
+		// header, claims and signature); anything shorter is garbage and is
+		// rejected before signature verification. The auth scheme is matched
+		// case-insensitively per RFC 9110 §11.1.
+		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 ||
+			!strings.EqualFold(authorizationHeaders[0][:7], bearerPrefix) {
 			return nil, ErrInvalidAuthorizationHeader
 		}
 
@@ -99,6 +105,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	}
 
 	if accessTokens, queryExists := r.URL.Query()["access_token"]; queryExists {
+		// 41 = the same minimal plausible JWS length as above.
 		if len(accessTokens) != 1 || len(accessTokens[0]) < 41 {
 			return nil, ErrInvalidAuthorizationQuery
 		}

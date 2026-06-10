@@ -116,6 +116,20 @@ func TestAuthorizeAuthorizationHeader(t *testing.T) {
 	assert.False(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "baz"))
 }
 
+func TestAuthorizeAuthorizationHeaderLowercaseScheme(t *testing.T) {
+	t.Parallel()
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	// The auth scheme is case-insensitive (RFC 9110 §11.1).
+	r.Header.Add("Authorization", "bearer "+createDummyAuthorizedJWT(roleSubscriber, []string{"foo"}))
+
+	h := createDummy(t)
+
+	claims, err := h.authorize(r, false)
+	require.NoError(t, err)
+	assert.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
+}
+
 func TestAuthorizeAccessTokenQueryTooShort(t *testing.T) {
 	t.Parallel()
 
