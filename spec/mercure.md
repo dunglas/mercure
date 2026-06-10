@@ -150,7 +150,7 @@ response headers. When the connection carries credentials (such as the cookie de
 and **MUST NOT** be reflected from arbitrary request origins: it **MUST** be restricted to an
 explicit allowlist of trusted origins, and the hub **MUST** also send
 `Access-Control-Allow-Credentials: true`. Reflecting arbitrary origins on a credentialed
-endpoint would allow any website visited by the subscriber to read updates using the
+endpoint would allow any site visited by the subscriber to read updates using the
 subscriber's cookie.
 
 The hub sends updates to the subscriber for topics matching the provided topic matchers.
