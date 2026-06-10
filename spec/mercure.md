@@ -1141,11 +1141,13 @@ include:
     advertised as a dedicated metadata member rather than a value of `bearer_methods_supported`,
     whose values are constrained to the [@!RFC6750] methods. This member is omitted when the hub
     does not offer cookie authorization.
-*   `mercure_version` (optional, **RECOMMENDED**): the revision of the Mercure protocol
-    implemented by the hub, as a JSON number. The value for the protocol described by this
-    document is `8`. Clients **MAY** use this member to detect hubs implementing incompatible
-    earlier revisions, which used the `topic` subscribe query parameter and a different access
-    token format and which do not publish protected resource metadata at all.
+
+This protocol carries no version identifier: a future incompatible revision is expected to be
+published as a new specification defining its own metadata members or well-known location.
+Hubs implementing pre-standardization revisions of this protocol (which used a `topic`
+subscribe query parameter and a bespoke token claim) do not publish protected resource
+metadata; clients needing to coexist with them **MAY** treat the absence of this metadata as a
+hint that the hub implements such a revision.
 
 When a request carries no access token, the hub's `WWW-Authenticate: Bearer` challenge
 **SHOULD** include a `resource_metadata` parameter pointing to this document (see
@@ -1280,17 +1282,12 @@ Type" registry with the following entry:
 
 ## OAuth Protected Resource Metadata Registry
 
-The following values are to be registered in the "OAuth Protected Resource Metadata" registry
+The following value is to be registered in the "OAuth Protected Resource Metadata" registry
 established by [@!RFC9728]:
 
 *   Metadata Name: mercure_cookie
 *   Metadata Description: Boolean indicating that the Mercure hub also accepts the access
     token in a cookie
-*   Change Controller: IETF
-*   Specification Document(s): This specification, (#protected-resource-metadata)
-
-*   Metadata Name: mercure_version
-*   Metadata Description: Revision of the Mercure protocol implemented by the hub
 *   Change Controller: IETF
 *   Specification Document(s): This specification, (#protected-resource-metadata)
 
