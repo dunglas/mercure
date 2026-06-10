@@ -335,8 +335,12 @@ urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 
 # Authorization
 
-The hub is an OAuth 2.0 protected resource [@!RFC6749]. To prove that they are authorized, both
-publishers and subscribers **MUST** present an access token to the hub. The access token
+The hub is an OAuth 2.0 protected resource [@!RFC6749]. To prove that they are authorized,
+publishers **MUST** present an access token to the hub, and subscribers **MUST** present an
+access token to receive updates marked as private. Hubs **MAY** accept unauthenticated
+subscribers; such subscribers receive only updates that are not marked as private. Hubs
+**MAY** instead require all subscribers to present an access token, according to their own
+policy. The access token
 **MUST** be a JWT [@!RFC7519] following the JWT access token profile [@!RFC9068], carried as a
 JWS [@!RFC7515] in compact serialization. The token **SHOULD** be short-lived, especially when
 the subscriber is a web browser.
@@ -353,11 +357,11 @@ Authorization is expressed with the `authorization_details` claim [@!RFC9396]; s
 parameters of (#subscription)) is independent of authorization (what a token permits): the query
 parameters never grant access to private updates.
 
-Note: Hubs **MAY** be deployed without requiring authorization (for example, when serving only
-publicly-readable updates over a trusted network). Such deployments fall outside the scope of
-the rest of this section. They **MUST NOT** be reachable from networks containing untrusted
-clients, since any client able to reach the hub will be able to publish and subscribe at will.
-The remainder of this section assumes token-based authorization is in use.
+Note: Hubs **MAY** also be deployed without requiring authorization for publication (for
+example, on a trusted private network). Because any client able to reach such a hub can
+publish at will, these deployments **MUST NOT** be reachable from networks containing
+untrusted clients. The remainder of this section assumes token-based authorization is in use
+for publication.
 
 ## Presenting the Access Token
 
@@ -437,7 +441,8 @@ support this method.
 The hub reports authorization failures using the error responses defined in [@!RFC6750]
 section 3:
 
-*   If no access token is presented, the hub **MUST** return a 401 "Unauthorized" status code
+*   If no access token is presented and the requested operation requires one (see above), the
+    hub **MUST** return a 401 "Unauthorized" status code
     with a `WWW-Authenticate: Bearer` challenge and **MUST NOT** include an error code. The
     challenge **SHOULD** include a `resource_metadata` parameter pointing to the hub's protected
     resource metadata (see (#discovery)) per [@!RFC9728].
@@ -541,8 +546,9 @@ against that single topic, a subscriber receives a private update only when its 
 grants `subscribe` on that resource. The subscriber's routing matchers (query parameters) only
 select which topics it listens to; they never widen what it may read.
 
-Because `exp` is required (see (#token-validation)), the hub **MUST** close the connection no
-later than the token's `exp` time. Since `exp` alone cannot revoke an already-established
+When the subscriber presented an access token, the hub **MUST** close the connection no
+later than the token's `exp` time, since `exp` is required (see (#token-validation)).
+Since `exp` alone cannot revoke an already-established
 long-lived connection, hubs **SHOULD** also impose a maximum connection lifetime independent of
 `exp` and close connections that exceed it, requiring the subscriber to reconnect and
 re-authenticate.
@@ -754,7 +760,9 @@ The topic of these updates **MUST** be an expansion of
     request bodies, or any other client-controlled channel. The hub **MUST** derive the
     identifier exclusively from information it has cryptographically validated — typically
     the `sub` claim of the subscriber's access token (after validation per (#token-validation)), but
-    other authenticated values **MAY** be used. The hub **MUST** ensure that the identifier
+    other authenticated values **MAY** be used. For unauthenticated subscribers (see
+    (#authorization)), the hub **MUST** generate the identifier itself, for example a random
+    UUID [@RFC9562]. The hub **MUST** ensure that the identifier
     is unique among active subscriptions.
 
 Note: Because strings containing reserved characters (e.g., URIs, URL Patterns, and URI
@@ -1305,7 +1313,9 @@ subscriber's access token grants the `subscribe` action on that topic (see (#sub
 (#authorization-details)). Authorization is therefore a hub-enforced, per-resource check tied to
 the token issued for the subscriber, not a property of the publisher's topic construction or of
 the subscriber's routing matchers. Issuers scope each token's authorization details to the
-resources a subscriber may read; the hub never widens that based on routing.
+resources a subscriber may read; the hub never widens that based on routing. Unauthenticated
+subscribers, when the hub accepts them (see (#authorization)), present no token and therefore
+never receive private updates.
 
 ## URL-Pattern Denial of Service
 
