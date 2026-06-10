@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/trace"
@@ -22,6 +23,8 @@ const (
 )
 
 var jsonldContentType = []string{"application/ld+json"} // nolint:gochecknoglobals
+
+var etagEscaper = strings.NewReplacer("%", "%25", `"`, "%22") //nolint:gochecknoglobals
 
 type subscription struct {
 	Context     string `json:"@context,omitempty"`
@@ -238,9 +241,11 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 		return span, currentURL, lastEventID, subscribers, false
 	}
 
-	// ETags are quoted strings (RFC 9110 §8.8.3); event IDs are IRIs or
-	// hub-generated URNs, so wrapping in quotes is enough.
-	etag := `"` + lastEventID + `"`
+	// ETags are quoted strings (RFC 9110 §8.8.3). DQUOTE is the only etagc-
+	// forbidden byte a publisher-supplied event ID can contain (control
+	// characters are rejected at publication), so escape it; "%" is escaped
+	// first to keep the mapping injective.
+	etag := `"` + etagEscaper.Replace(lastEventID) + `"`
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
 

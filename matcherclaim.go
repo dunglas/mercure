@@ -138,8 +138,8 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 }
 
 // writeMatcherClaimError translates a resolveMatcherClaims error into an HTTP
-// response: 400 for unknown matcher types or invalid patterns, 401 for
-// everything else (string claim in modern mode, malformed claim, …). It also
+// response: 401 when string-form claims would require compatibility mode, 400
+// for everything else (unknown matcher types, invalid patterns, …). It also
 // logs the cause at info level so operators upgrading from v8 see a hint
 // without having to enable debug logging.
 func writeMatcherClaimError(ctx context.Context, logger *slog.Logger, w http.ResponseWriter, err error) {
