@@ -352,6 +352,25 @@ operate or trust an external authorization server. When an authorization server 
 **SHOULD** be used to sign subscribers' and publishers' tokens so that compromise of one role
 does not entail compromise of the other.
 
+For example, a minimal self-issued subscriber token is a JWS with the protected header
+`{"alg": "ES256", "typ": "at+jwt"}` and the following claims (see (#token-validation) for the
+claims a hub requires):
+
+~~~ json
+{
+  "aud": "https://hub.example.com/.well-known/mercure",
+  "exp": 1767225600,
+  "sub": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
+  "authorization_details": [
+    {
+      "type": "mercure",
+      "actions": ["subscribe"],
+      "topics": [{"match": "https://example.com/books/:id", "matchType": "URLPattern"}]
+    }
+  ]
+}
+~~~
+
 Authorization is expressed with the `authorization_details` claim [@!RFC9396]; see
 (#authorization-details). Routing (which topics a subscriber listens to, via the query
 parameters of (#subscription)) is independent of authorization (what a token permits): the query
@@ -470,20 +489,24 @@ JSON Web Token Best Current Practices [@!RFC8725]. In particular:
     `alg=none`, **MUST NOT** derive the set of acceptable algorithms from the token, and **MUST**
     verify that `alg` is compatible with the key used for verification (preventing
     algorithm-confusion attacks). The allowlist **SHOULD** include at minimum `EdDSA`, `ES256`,
-    and `RS256`, and **MUST NOT** include any algorithm whose security has been compromised at
+    and `RS256`, and **SHOULD NOT** include algorithms known to be cryptographically weak at
     the time of deployment.
-*   Hubs **MUST** select the verification key independently of attacker-controlled input. When
-    more than one key is in use — for example, separate publisher and subscriber keys or rotated
-    keys — the hub **SHOULD** select the key using the `kid` header parameter and/or the role of
-    the endpoint, and **MUST NOT** allow the token to cause an unexpected key to be selected.
-    Verification keys are obtained from static configuration, from the authorization server's JWK
+*   Hubs **MUST** select the verification key from a preconfigured or pre-trusted set and
+    **MUST NOT** use key material supplied by the token itself (such as the `jwk`, `jku`, or
+    `x5u` header parameters). When more than one trusted key is in use — for example, separate
+    publisher and subscriber keys or rotated keys — the `kid` header parameter **MAY** be used
+    as a hint to choose among the trusted keys, as **MAY** the role of the endpoint; the token
+    can thus influence which trusted key is tried, but never introduce a new one.
+    Trusted keys are obtained from static configuration, from the authorization server's JWK
     Set [@!RFC7517] discovered through its metadata [@!RFC8414], or from the hub's protected
     resource metadata (see (#discovery)). This specification defines no hub-specific key
     distribution endpoint.
 *   Hubs **MUST** enforce the `exp` claim [@!RFC7519], including on the first request received
     bearing a token, and **MUST** enforce the `nbf` claim if present.
 *   Hubs **MUST** be configured with their resource identifier and **MUST** verify that it
-    appears in the token `aud` claim [@!RFC9068]. Per [@!RFC7519], `aud` **MAY** be a single
+    appears in the token `aud` claim [@!RFC9068]. It is **RECOMMENDED** that the resource
+    identifier be the canonical URL of the hub (for example,
+    `https://hub.example.com/.well-known/mercure`), which gives deployments an obvious default. Per [@!RFC7519], `aud` **MAY** be a single
     string or an array of strings; the resource identifier matches when it equals that string or
     is a member of that array. This bounds a token to its intended hub and mitigates replay across
     hubs that share signing keys (see (#hub-trust)). When the hub advertises one or more
@@ -491,6 +514,14 @@ JSON Web Token Best Current Practices [@!RFC8725]. In particular:
     verify that the `iss` claim is the issuer identifier of one of them [@!RFC9068]. A hub that
     accepts self-issued tokens and advertises no authorization server **MAY** omit the `iss`
     check.
+
+[@!RFC9068] requires authorization servers to populate the `iss`, `exp`, `aud`, `sub`,
+`client_id`, `iat`, and `jti` claims. Hubs **MUST** enforce `exp`, `aud`, and — when an
+authorization server is advertised — `iss`, as described above. Hubs accepting self-issued
+tokens **SHOULD NOT** require the remaining [@!RFC9068] claims unless they rely on them: a
+minimal self-issued token carries only `exp`, `aud`, the `authorization_details` claim (see
+(#authorization-details)), and `sub` when subscription events are used (see
+(#subscription-events)).
 
 The `sub` claim, when present, identifies the subscriber and is used to derive subscription
 event identifiers (see (#subscription-events)).
@@ -1203,9 +1234,9 @@ involved in this exchange.
 Update encryption is considered a best practice to prevent mass surveillance, especially when
 the hub is managed by an external provider.
 
-Implementations **MUST** restrict JWE algorithms to those whose security properties remain
-acceptable at the time of deployment. Algorithms whose security has been compromised
-(for example, `RSA1_5` due to padding oracle vulnerabilities [@RFC8017]) **MUST NOT** be used.
+Implementations **SHOULD** restrict JWE algorithms to those whose security properties remain
+acceptable at the time of deployment; in particular, `RSA1_5` **MUST NOT** be used, due to
+padding oracle vulnerabilities [@RFC8017].
 At the time of writing, key management algorithms `ECDH-ES+A256KW` and `RSA-OAEP-256`, and
 content encryption algorithm `A256GCM`, are **RECOMMENDED**.
 
