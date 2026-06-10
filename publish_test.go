@@ -476,17 +476,28 @@ func TestUpdateValidate(t *testing.T) {
 		want   error
 	}{
 		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topic: "https://example.com/books/1"}, nil},
-		{"empty", Update{}, nil},
+		// The empty topic resolves to the hub URL itself, which is reserved.
+		{"empty", Update{}, ErrReservedTopic},
 		{"reserved topic", Update{Topic: "https://example.com/.well-known/mercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic relative", Update{Topic: "mercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic absolute path", Update{Topic: "/.well-known/mercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic exact", Update{Topic: "https://example.com/.well-known/mercure"}, ErrReservedTopic},
+		{"reserved topic percent-encoded", Update{Topic: "https://example.com/.well-known/%6Dercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic backslashes", Update{Topic: `https://example.com\.well-known\mercure\subscriptions\foo`}, ErrReservedTopic},
+		{"non-reserved mid-path namespace", Update{Topic: "https://example.com/foo/.well-known/mercure/bar"}, nil},
+		{"non-reserved sibling path", Update{Topic: "https://example.com/.well-known/mercure-dashboard"}, nil},
+		{"non-reserved opaque topic", Update{Topic: "urn:example:mercure"}, nil},
+		{"id starts with #", Update{Topic: "https://example.com/books/1", Event: Event{ID: "#42"}}, ErrInvalidEventID},
+		{"id earliest", Update{Topic: "https://example.com/books/1", Event: Event{ID: EarliestLastEventID}}, ErrInvalidEventID},
 		{"topic NUL", Update{Topic: "https://example.com/foo\x00bar"}, ErrInvalidTopic},
 		{"topic C0", Update{Topic: "https://example.com/foo\nbar"}, ErrInvalidTopic},
 		{"topic invalid UTF-8", Update{Topic: "https://example.com/\xff"}, ErrInvalidTopic},
-		{"id LF", Update{Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
-		{"id CR", Update{Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
-		{"id NUL", Update{Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
-		{"type LF", Update{Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
-		{"type CR", Update{Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
-		{"type NUL", Update{Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
+		{"id LF", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
+		{"id CR", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
+		{"id NUL", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
+		{"type LF", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
+		{"type CR", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
+		{"type NUL", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
 	}
 
 	for _, tc := range cases {
@@ -511,7 +522,8 @@ func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
 	for _, topic := range []string{
 		"/.well-known/mercure/subscriptions/foo",
 		"https://example.com/.well-known/mercure/subscriptions/foo",
-		"foo/.well-known/mercure/bar",
+		"mercure/subscriptions/foo", // relative, resolves into the namespace
+		"https://example.com/.well-known/%6Dercure/subscriptions/foo",
 	} {
 		t.Run(topic, func(t *testing.T) {
 			t.Parallel()
