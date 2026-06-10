@@ -118,8 +118,15 @@ jobs:
       - name: Install playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: conformance-tests/
-        timeout-minutes: 10
-        run: npx playwright install
+        timeout-minutes: 15
+        # The CDN download can hang mid-install; bound each attempt and retry
+        # instead of letting the step-level timeout kill the whole job.
+        run: |
+          for i in 1 2 3; do
+            timeout 240 npx playwright install && exit 0
+            echo "::warning::playwright install attempt $i failed or hung, retrying"
+          done
+          exit 1
 
       - name: Run Playwright tests
         working-directory: conformance-tests/
