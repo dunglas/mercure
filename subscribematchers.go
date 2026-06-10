@@ -116,6 +116,9 @@ func matcherTypeFromParam(key string) (MatcherType, bool) {
 	switch mt {
 	case MatcherTypeExact, MatcherTypeURLPattern:
 		return mt, true
+	case deprecatedMatcherTypeName:
+		// The internal deprecated type is not addressable from the wire.
+		return "", false
 	default:
 		return "", false
 	}
