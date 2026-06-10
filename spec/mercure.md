@@ -420,7 +420,8 @@ cookie **MUST** be ignored; otherwise, the cookie, if any, **MUST** be used.
 
 If the publisher or the subscriber is not a web browser, it **SHOULD** use an `Authorization`
 HTTP header. This header **MUST** contain the string `Bearer` followed by a space character and
-by the access token, as defined in [@!RFC6750].
+by the access token, as defined in [@!RFC6750]. As with every HTTP authentication scheme, the
+scheme name is matched case-insensitively [@RFC9110].
 
 ### Cookie
 
