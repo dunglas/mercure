@@ -1,0 +1,585 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "adminPort": {
+      "description": "Port used for the Caddy admin API (health checks, metrics, graceful shutdown).",
+      "type": "integer",
+      "maximum": 65535,
+      "minimum": 1
+    },
+    "affinity": {
+      "description": "[Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details.",
+      "type": "object"
+    },
+    "autoscaling": {
+      "description": "Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details).",
+      "type": "object",
+      "properties": {
+        "behavior": {
+          "description": "[Scaling policies](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#configurable-scaling-behavior) passed to the HPA `spec.behavior`.",
+          "type": "object"
+        },
+        "customMetrics": {
+          "description": "Additional metrics appended to the HPA `spec.metrics` list (Pods, Object, External metric types).",
+          "type": "array"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "targetCPUUtilizationPercentage": {
+          "type": "integer",
+          "maximum": 100,
+          "minimum": 1
+        }
+      }
+    },
+    "caddyExtraConfig": {
+      "description": "Inject snippet or named-routes options in the Caddyfile",
+      "type": "string"
+    },
+    "caddyExtraDirectives": {
+      "description": "Inject extra Caddy directives in the Caddyfile.",
+      "type": "string"
+    },
+    "ciliumNetworkPolicy": {
+      "description": "[CiliumNetworkPolicy](https://docs.cilium.io/en/stable/security/policy/) for the hub pods. Use on Cilium clusters for features the standard NetworkPolicy lacks (FQDN-based egress, L7 rules, explicit deny). Independent of `networkPolicy.enabled`; enable whichever your CNI supports.",
+      "type": "object",
+      "properties": {
+        "egress": {
+          "description": "Allowed outbound traffic. Pass-through to `spec.egress`. The DNS rule below is required when using `toFQDNs`: Cilium learns IPs by inspecting responses, so DNS visibility on `kube-dns` must be allowed first.",
+          "type": "array"
+        },
+        "egressDeny": {
+          "description": "Explicit outbound deny rules. Pass-through to `spec.egressDeny`.",
+          "type": "array"
+        },
+        "enabled": {
+          "description": "Enable the CiliumNetworkPolicy. Requires the `cilium.io/v2` CRDs to be installed in the cluster.",
+          "type": "boolean"
+        },
+        "ingress": {
+          "description": "Allowed inbound traffic. Pass-through to `spec.ingress`.",
+          "type": "array"
+        },
+        "ingressDeny": {
+          "description": "Explicit inbound deny rules. Pass-through to `spec.ingressDeny`.",
+          "type": "array"
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations to be added to the deployment.",
+          "type": "object"
+        }
+      }
+    },
+    "dev": {
+      "description": "Enable the development mode, including the debug UI and the demo.",
+      "type": "boolean"
+    },
+    "existingSecret": {
+      "description": "Allows to pass an existing secret name, the above values will be used if empty.",
+      "type": "string"
+    },
+    "extraDirectives": {
+      "description": "Inject extra Mercure directives in the Caddyfile.",
+      "type": "string"
+    },
+    "extraEnvs": {
+      "description": "Additional environment variables to set",
+      "type": "array"
+    },
+    "fullnameOverride": {
+      "description": "A name to substitute for the full names of resources.",
+      "type": "string"
+    },
+    "global": {
+      "description": "Global values shared between all subcharts",
+      "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "globalOptions": {
+      "description": "Inject global options in the Caddyfile.",
+      "type": "string"
+    },
+    "healthCheck": {
+      "description": "Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port instead of /healthz on the HTTP port.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enable transport-aware health checks.",
+          "type": "boolean"
+        },
+        "liveness": {
+          "type": "object",
+          "properties": {
+            "failureThreshold": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "initialDelaySeconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "readiness": {
+          "type": "object",
+          "properties": {
+            "failureThreshold": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "initialDelaySeconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "httpRoute": {
+      "description": "Expose the service via gateway-api HTTPRoute Requires Gateway API resources and suitable controller installed within the cluster (see: https://gateway-api.sigs.k8s.io/guides/)",
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "HTTPRoute annotations.",
+          "type": "object"
+        },
+        "enabled": {
+          "description": "HTTPRoute enabled.",
+          "type": "boolean"
+        },
+        "hostnames": {
+          "description": "Hostnames matching HTTP header.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parentRefs": {
+          "description": "Which Gateways this Route is attached to.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "sectionName": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rules": {
+          "description": "List of rules and filters applied. When empty, a default rule routes all traffic with `timeouts.request: 0s` so long-lived SSE subscriptions aren't cut by the gateway (Envoy defaults to 15s). Mercure's own `write_timeout` (600s) drives subscriber rotation.",
+          "type": "array"
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "pullPolicy": {
+          "description": "[Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node.",
+          "type": "string",
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        },
+        "repository": {
+          "description": "Name of the image repository to pull the container image from.",
+          "type": "string"
+        },
+        "tag": {
+          "description": "Overrides the image tag whose default is the chart appVersion.",
+          "type": "string"
+        }
+      }
+    },
+    "imagePullSecrets": {
+      "description": "Reference to one or more secrets to be used when [pulling images](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret) (from private registries).",
+      "type": "array"
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations to be added to the ingress.",
+          "type": "object"
+        },
+        "className": {
+          "description": "Ingress [class name](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class).",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/).",
+          "type": "boolean"
+        },
+        "hosts": {
+          "description": "Ingress host configuration.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "pathType": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tls": {
+          "description": "Ingress TLS configuration.",
+          "type": "array"
+        }
+      }
+    },
+    "license": {
+      "description": "The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).",
+      "type": "string"
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value. servers { metrics }",
+          "type": "boolean"
+        },
+        "port": {
+          "description": "Deprecated: The port to use for exposing the metrics (use adminPort instead).",
+          "type": "integer",
+          "maximum": 65535,
+          "minimum": 1
+        },
+        "serviceMonitor": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Whether to create a ServiceMonitor for Prometheus Operator.",
+              "type": "boolean"
+            },
+            "honorLabels": {
+              "description": "Specify honorLabels parameter to add the scrape endpoint",
+              "type": "boolean"
+            },
+            "interval": {
+              "description": "The interval to use for the ServiceMonitor to scrape the metrics.",
+              "type": "string"
+            },
+            "metricRelabelings": {
+              "description": "RelabelConfigs to apply to samples before ingestion (sample relabeling).",
+              "type": "array"
+            },
+            "relabelings": {
+              "description": "RelabelConfigs to apply to samples before scraping (target relabeling).",
+              "type": "array"
+            },
+            "scrapeTimeout": {
+              "description": "Timeout after which the scrape is ended",
+              "type": "string"
+            },
+            "selector": {
+              "description": "Additional labels that can be used so ServiceMonitor will be discovered by Prometheus",
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "nameOverride": {
+      "description": "A name in place of the chart name for `app:` labels.",
+      "type": "string"
+    },
+    "networkPolicy": {
+      "description": "[NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) for the hub pods. When enabled with no ingress/egress rules, all traffic to/from the hub pods is denied. Supply rules to allow what you need.",
+      "type": "object",
+      "properties": {
+        "egress": {
+          "description": "Egress rules (allowed outbound traffic). Pass-through to `spec.egress`. Allow at least DNS (UDP/TCP 53 to kube-system) plus the transport port.",
+          "type": "array"
+        },
+        "enabled": {
+          "description": "Enable the NetworkPolicy.",
+          "type": "boolean"
+        },
+        "ingress": {
+          "description": "Ingress rules (allowed inbound traffic). Pass-through to `spec.ingress`. Empty list + `policyTypes: [Ingress]` denies all inbound.",
+          "type": "array"
+        },
+        "policyTypes": {
+          "description": "`policyTypes` for the NetworkPolicy. The chart always renders empty `ingress` and `egress` lists, so Kubernetes infers `policyTypes: [Ingress, Egress]`. Set to `[Ingress]` to skip egress.",
+          "type": "array",
+          "items": {
+            "enum": [
+              "Ingress",
+              "Egress"
+            ]
+          }
+        }
+      }
+    },
+    "nodeSelector": {
+      "description": "[Node selector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) configuration.",
+      "type": "object"
+    },
+    "persistence": {
+      "description": "Switch /data from an emptyDir to a [Persistent Volume Claim](http://kubernetes.io/docs/user-guide/persistent-volumes/). /data is always mounted so modules writing under `caddy.AppDataDir()` (e.g. `rate_limit`) work under `readOnlyRootFilesystem: true`. Enable persistence when /data must survive pod restarts (typical with BoltDB).",
+      "type": "object",
+      "properties": {
+        "accessMode": {
+          "description": "A manually managed Persistent Volume and Claim. Requires `persistence.enabled: true` If defined, PVC must be created manually before volume will be bound.",
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "existingClaim": {
+          "description": "a manually managed Persistent Volume Claim",
+          "type": "string"
+        },
+        "size": {
+          "type": "string"
+        },
+        "storageClass": {
+          "description": "Mercure Data Persistent Volume Storage Class. If defined, `storageClassName: \u003cstorageClass\u003e`. If set to `\"-\"`, `storageClassName: \"\"`, which disables dynamic provisioning. If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "podAnnotations": {
+      "description": "Annotations to be added to pods.",
+      "type": "object"
+    },
+    "podLabels": {
+      "description": "Extra labels to be added to pods.",
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "description": "Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod). Defaults target the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted). `fsGroup` makes the chart's writable volumes (/data, /config, /tmp) group-writable by the rootless container; `OnRootMismatch` skips re-chowning PVCs on every restart. Override with `{}` if your cluster forbids these fields.",
+      "type": "object",
+      "properties": {
+        "fsGroup": {
+          "type": "integer"
+        },
+        "fsGroupChangePolicy": {
+          "type": "string"
+        },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "progressDeadlineSeconds": {
+      "description": "Deployment `spec.progressDeadlineSeconds`. A rolling update can spend up to `terminationGracePeriodSeconds` per pod draining SSE, so the k8s default (600s) trips `ProgressDeadlineExceeded` on healthy rollouts. Default fits a 2-pod rollout; scale up for larger `replicaCount` (roughly `replicaCount × (terminationGracePeriodSeconds + minReadySeconds)` plus a margin). Only applied with `RollingUpdate`.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "publisherJwtAlg": {
+      "description": "The JWT algorithm to use for publishers.",
+      "type": "string"
+    },
+    "publisherJwtKey": {
+      "description": "The JWT key to use for publishers, a random key will be generated if empty.",
+      "type": "string"
+    },
+    "replicaCount": {
+      "description": "The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "resources": {
+      "description": "Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.",
+      "type": "object"
+    },
+    "securityContext": {
+      "description": "Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container). Defaults satisfy the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted): rootless UID/GID 1000, no caps, no privilege escalation, read-only rootfs. Binding to :80 relies on `net.ipv4.ip_unprivileged_port_start=0`, set by containerd 1.5+ and cri-o. On older runtimes, set `service.targetPort` to an unprivileged port (e.g. `8080`). Override with `{}` to opt out.",
+      "type": "object",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "type": "boolean"
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "drop": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "readOnlyRootFilesystem": {
+          "type": "boolean"
+        },
+        "runAsGroup": {
+          "type": "integer"
+        },
+        "runAsNonRoot": {
+          "type": "boolean"
+        },
+        "runAsUser": {
+          "type": "integer"
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "type": "object"
+        },
+        "nodePort": {
+          "description": "Set this, to pin the external nodePort in case `service.type` is `NodePort`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "maximum": 65535,
+          "minimum": 1
+        },
+        "port": {
+          "description": "Service port.",
+          "type": "integer",
+          "maximum": 65535,
+          "minimum": 1
+        },
+        "targetPort": {
+          "description": "Service target port.",
+          "type": [
+            "integer",
+            "string"
+          ],
+          "maximum": 65535,
+          "minimum": 1
+        },
+        "type": {
+          "description": "Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types).",
+          "type": "string",
+          "enum": [
+            "ClusterIP",
+            "NodePort",
+            "LoadBalancer",
+            "ExternalName"
+          ]
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations to add to the service account.",
+          "type": "object"
+        },
+        "automount": {
+          "description": "Automatically mount a ServiceAccount's API credentials in hub pods. Defaults to false: Mercure does not call the Kubernetes API, so the token is unused attack surface. Enable for sidecars or modules that need the in-pod token.",
+          "type": "boolean"
+        },
+        "create": {
+          "description": "Specifies whether a service account should be created.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "The name of the service account to use. If not set and create is true, a name is generated using the fullname template.",
+          "type": "string"
+        }
+      }
+    },
+    "subscriberJwtAlg": {
+      "description": "The JWT algorithm to use for subscribers.",
+      "type": "string"
+    },
+    "subscriberJwtKey": {
+      "description": "The JWT key to use for subscribers, a random key will be generated if empty.",
+      "type": "string"
+    },
+    "terminationGracePeriodSeconds": {
+      "description": "Pod terminationGracePeriodSeconds. Must be \u003e= `write_timeout` so SSE subscribers drain at their own write deadline before k8s SIGKILLs the pod. Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin. Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s) to minimize the gap between old pod gone and new pod ready.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "tolerations": {
+      "description": "[Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for node taints. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details.",
+      "type": "array"
+    },
+    "topologySpreadConstraints": {
+      "description": "[Topology spread constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) rendered into the pod spec. Evaluated as a Helm template, so it can reference `mercure.selectorLabels`.",
+      "type": "string"
+    },
+    "transportUrl": {
+      "description": "Deprecated: The URL representation of the transport to use.",
+      "type": "string"
+    },
+    "updateStrategy": {
+      "description": "[Deployment strategy type](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy). Useful to set it to 'Recreate' when using BoltDB transport with persistence.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "RollingUpdate",
+            "Recreate"
+          ]
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

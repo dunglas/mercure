@@ -138,6 +138,47 @@ GLOBAL_OPTIONS="storage redis"
 
 <!-- markdownlint-enable MD010 -->
 
+###### Storing the Redis Password Securely (Helm)
+
+The Helm chart writes `GLOBAL_OPTIONS` into a ConfigMap (`templates/configmap.yaml`). Putting the Redis password directly in a `storage redis { ... password "..." ... }` block exposes it to anyone with `get configmap` permission on the namespace, while the rest of the credentials path (`MERCURE_EXTRA_DIRECTIVES`, JWT keys, license) already lives in a Secret.
+
+Keep the password out of the ConfigMap by referencing it via Caddy's `{env.NAME}` placeholder and sourcing the env var from a Secret:
+
+1. Create the Secret:
+
+   ```console
+   kubectl create secret generic mercure-redis \
+     --from-literal=password='<your Redis password>'
+   ```
+
+2. Reference it from the chart values:
+
+   <!-- markdownlint-disable MD010 -->
+
+   ```yaml
+   # values.yaml
+   globalOptions: |
+     storage redis {
+         host redis.example.com
+         port 6380
+         username default
+         password "{env.REDIS_PASSWORD}"
+         tls_enabled true
+     }
+   extraEnvs:
+     - name: REDIS_PASSWORD
+       valueFrom:
+         secretKeyRef:
+           name: mercure-redis
+           key: password
+   ```
+
+   <!-- markdownlint-enable MD010 -->
+
+Caddy expands `{env.REDIS_PASSWORD}` when it loads the configuration, so the storage module receives the value already substituted and the ConfigMap holds only the structure of the block. Note that env vars sourced from a Secret are injected at Pod start: updating the Secret does not propagate to running Pods, so rotating the password requires rolling the Deployment (`kubectl rollout restart`) or using a secret-reloader controller.
+
+The same `{env.NAME}` placeholder works inside `MERCURE_EXTRA_DIRECTIVES` if you prefer to keep all Redis references pointing at a single env var rather than embedding the password twice.
+
 ###### Legacy Redis URL
 
 **This feature is deprecated: use the new `transport` directive instead**.

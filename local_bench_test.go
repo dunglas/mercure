@@ -30,14 +30,14 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 
 	tsNoMatch := make([]string, topics)
 	for i := range topics {
-		tsNoMatch[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int()) //nolint:gosec
+		tsNoMatch[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
 		if topics/2 == i {
-			n1 := rand.Int() //nolint:gosec
-			n2 := rand.Int() //nolint:gosec
+			n1 := rand.Int()
+			n2 := rand.Int()
 			top[i] = fmt.Sprintf("/%d/%d", n1, n2)
 			tsMatch[i] = fmt.Sprintf("/%d/{%d}", n1, n2)
 		} else {
-			top[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int()) //nolint:gosec
+			top[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
 			tsMatch[i] = tsNoMatch[i]
 		}
 	}

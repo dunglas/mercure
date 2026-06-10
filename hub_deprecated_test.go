@@ -40,7 +40,7 @@ func TestStartCrash(t *testing.T) {
 		return
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestStartCrash") //nolint:gosec
+	cmd := exec.Command(os.Args[0], "-test.run=TestStartCrash")
 
 	cmd.Env = append(os.Environ(), "BE_START_CRASH=1")
 	err := cmd.Run()

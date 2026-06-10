@@ -137,6 +137,10 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	return nil, fmt.Errorf("%q: %w", origin, ErrOriginNotAllowed)
 }
 
+// ErrTooManyClaimMatchers is returned when mercure.subscribe or
+// mercure.publish exceeds maxClaimMatchers.
+var ErrTooManyClaimMatchers = errors.New("too many matchers in mercure claim")
+
 // validateJWT validates that the provided JWT token is a valid Mercure token.
 func validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
 	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, jwtKeyfunc)
@@ -144,15 +148,20 @@ func validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
 		return nil, fmt.Errorf("unable to parse JWT: %w", err)
 	}
 
-	if claims, ok := token.Claims.(*claims); ok && token.Valid {
-		if claims.MercureNamespaced != nil {
-			claims.Mercure = *claims.MercureNamespaced
-		}
-
-		return claims, nil
+	c, ok := token.Claims.(*claims)
+	if !ok || !token.Valid {
+		return nil, ErrInvalidJWT
 	}
 
-	return nil, ErrInvalidJWT
+	if c.MercureNamespaced != nil {
+		c.Mercure = *c.MercureNamespaced
+	}
+
+	if len(c.Mercure.Publish) > maxClaimMatchers || len(c.Mercure.Subscribe) > maxClaimMatchers {
+		return nil, ErrTooManyClaimMatchers
+	}
+
+	return c, nil
 }
 
 func canReceive(s *TopicSelectorStore, topics, topicSelectors []string) bool {

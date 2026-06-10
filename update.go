@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/gofrs/uuid/v5"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Update represents an update to send to subscribers.
@@ -49,6 +50,19 @@ func (u *Update) AssignUUID() {
 	if u.ID == "" {
 		u.ID = "urn:uuid:" + uuid.Must(uuid.NewV7()).String()
 	}
+}
+
+// SpanAttributes returns the OpenTelemetry attributes describing this update.
+func (u *Update) SpanAttributes() []attribute.KeyValue {
+	attrs := make([]attribute.KeyValue, 0, 3)
+	if u.ID != "" {
+		attrs = append(attrs, attribute.String("mercure.update.id", u.ID))
+	}
+
+	return append(attrs,
+		attribute.StringSlice("mercure.topics", u.Topics),
+		attribute.Bool("mercure.private", u.Private),
+	)
 }
 
 func newSerializedUpdate(u *Update) *serializedUpdate {

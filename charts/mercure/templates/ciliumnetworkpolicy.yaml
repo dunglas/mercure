@@ -6,16 +6,15 @@ metadata:
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
 spec:
-  # Selects only the Deployment pods. The helm test pod inherits
-  # `mercure.selectorLabels` via `mercure.labels` but does not carry
-  # `app.kubernetes.io/component: server`, so it stays unscoped.
+  # Targets the Deployment pods only. The helm test pod shares
+  # `mercure.selectorLabels` but lacks `app.kubernetes.io/component: server`,
+  # so it stays out of scope.
   endpointSelector:
     matchLabels:
       {{- include "mercure.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: server
   {{- /*
-    All four list fields render unconditionally so an explicit empty list
-    surfaces in the manifest. With `values.yaml` defaulting each to `[]`,
+    Always emit all four lists so an explicit `[]` surfaces in the manifest;
     enabling the policy without rules yields default-deny on every side.
   */}}
   {{- if .Values.ciliumNetworkPolicy.ingress }}

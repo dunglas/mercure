@@ -8,7 +8,6 @@ import (
 	"github.com/dunglas/mercure"
 )
 
-//nolint:gosec
 func Example() {
 	ctx := context.Background()
 

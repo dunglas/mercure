@@ -442,3 +442,62 @@ mercure {
 	}
 }`)
 }
+
+func TestJWKSURLFile(t *testing.T) {
+	jwksPath, err := filepath.Abs("testdata/RS256.jwks.json")
+	require.NoError(t, err)
+
+	tester := caddytest.NewTester(t)
+	tester.InitServer(fmt.Sprintf(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				publisher_jwks_url file://%s
+				transport local
+			}
+
+			respond 404
+		}
+	}
+	`, jwksPath), "caddyfile")
+
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	require.NoError(t, err)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+publisherJWTRSA)
+
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestNewJWKSetKeyfunc(t *testing.T) {
+	jwksPath, err := filepath.Abs("testdata/RS256.jwks.json")
+	require.NoError(t, err)
+
+	t.Run("file URL with empty host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with localhost host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://localhost"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with rejected host", func(t *testing.T) {
+		_, err := newJWKSetKeyfunc(t.Context(), "file://example.com"+jwksPath)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"example.com"`)
+	})
+}

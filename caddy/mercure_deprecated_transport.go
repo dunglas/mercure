@@ -16,7 +16,7 @@ import (
 var transports = caddy.NewUsagePool() //nolint:gochecknoglobals
 // Deprecated
 //
-//nolint:wrapcheck,ireturn
+//nolint:wrapcheck,ireturn,nilnil
 func (m *Mercure) createTransportDeprecated() (mercure.Transport, error) {
 	if m.TransportURL == "" {
 		return nil, nil
@@ -41,7 +41,7 @@ func (m *Mercure) createTransportDeprecated() (mercure.Transport, error) {
 
 		u.RawQuery = query.Encode()
 
-		transport, err := mercure.NewTransport(u, m.logger)
+		transport, err := mercure.NewTransport(u, m.logger) //nolint:staticcheck
 		if err != nil {
 			return nil, err
 		}
