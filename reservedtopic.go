@@ -60,6 +60,7 @@ func decodeUnreservedPercentEncoding(s string) string {
 			if okHi && okLo {
 				if c := hi<<4 | lo; isUnreservedByte(c) {
 					b.WriteByte(c)
+
 					i += 2
 
 					continue
