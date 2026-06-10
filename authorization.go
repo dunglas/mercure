@@ -22,9 +22,9 @@ type claims struct {
 }
 
 type mercureClaim struct {
-	Publish   []string `json:"publish"`
-	Subscribe []string `json:"subscribe"`
-	Payload   any      `json:"payload"`
+	Publish   []matcherClaim `json:"publish"`
+	Subscribe []matcherClaim `json:"subscribe"`
+	Payload   any            `json:"payload"`
 }
 
 type role int
@@ -32,6 +32,9 @@ type role int
 const (
 	defaultCookieName = "mercureAuthorization"
 	bearerPrefix      = "Bearer "
+	// authorizationParam is the lowercase name shared by the authorization
+	// query parameter and the CORS allowed header.
+	authorizationParam = "authorization"
 )
 
 const (
@@ -85,7 +88,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 		return validateJWT(authorizationHeaders[0][7:], jwtKeyfunc)
 	}
 
-	if authorizationQuery, queryExists := r.URL.Query()["authorization"]; queryExists {
+	if authorizationQuery, queryExists := r.URL.Query()[authorizationParam]; queryExists {
 		if len(authorizationQuery) != 1 || len(authorizationQuery[0]) < 41 {
 			return nil, ErrInvalidAuthorizationQuery
 		}
@@ -164,28 +167,26 @@ func validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
 	return c, nil
 }
 
-func canReceive(s *TopicSelectorStore, topics, topicSelectors []string) bool {
-	for _, topic := range topics {
-		for _, topicSelector := range topicSelectors {
-			if s.match(topic, topicSelector) {
-				return true
-			}
+func canReceive(s *TopicSelectorStore, topics []string, matchers []matcherClaim) bool {
+	for _, mc := range matchers {
+		if s.matchMatcher(topics, mc.topicMatcher) {
+			return true
 		}
 	}
 
 	return false
 }
 
-func canDispatch(s *TopicSelectorStore, topics, topicSelectors []string) bool {
+func canDispatch(s *TopicSelectorStore, topics []string, matchers []matcherClaim) bool {
+	singleTopic := make([]string, 1)
+
 	for _, topic := range topics {
+		singleTopic[0] = topic
+
 		var matched bool
 
-		for _, topicSelector := range topicSelectors {
-			if topicSelector == "*" {
-				return true
-			}
-
-			if s.match(topic, topicSelector) {
+		for _, mc := range matchers {
+			if s.matchMatcher(singleTopic, mc.topicMatcher) {
 				matched = true
 
 				break

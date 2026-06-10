@@ -295,8 +295,8 @@ func TestAuthorizeAuthorizationHeaderNoContent(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			require.Nil(t, claims.Mercure.Publish)
-			require.Nil(t, claims.Mercure.Subscribe)
+			require.Nil(t, matcherClaimPatterns(claims.Mercure.Publish))
+			require.Nil(t, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -313,8 +313,8 @@ func TestAuthorizeAuthorizationHeader(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -336,8 +336,8 @@ func TestAuthorizeAuthorizationHeaderWithCert(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -359,8 +359,8 @@ func TestAuthorizeAuthorizationHeaderNamespaced(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -499,8 +499,8 @@ func TestAuthorizeAuthorizationQueryNoContent(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			require.Nil(t, claims.Mercure.Publish)
-			require.Nil(t, claims.Mercure.Subscribe)
+			require.Nil(t, matcherClaimPatterns(claims.Mercure.Publish))
+			require.Nil(t, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -519,8 +519,8 @@ func TestAuthorizeAuthorizationQuery(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -544,8 +544,8 @@ func TestAuthorizeAuthorizationQueryNamespaced(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -569,8 +569,8 @@ func TestAuthorizeAuthorizationQueryRsaWithCert(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -667,8 +667,8 @@ func TestAuthorizeCookieNoContent(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			require.Nil(t, claims.Mercure.Publish)
-			require.Nil(t, claims.Mercure.Subscribe)
+			require.Nil(t, matcherClaimPatterns(claims.Mercure.Publish))
+			require.Nil(t, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -685,8 +685,8 @@ func TestAuthorizeCookie(t *testing.T) {
 
 			claims, err := h.authorize(r, false)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -782,8 +782,8 @@ func TestAuthorizeCookieOriginHasPriority(t *testing.T) {
 
 			claims, err := h.authorize(r, true)
 			require.NoError(t, err)
-			assert.Equal(t, []string{"foo", "bar"}, claims.Mercure.Publish)
-			assert.Equal(t, []string{"foo", "baz"}, claims.Mercure.Subscribe)
+			assert.Equal(t, []string{"foo", "bar"}, matcherClaimPatterns(claims.Mercure.Publish))
+			assert.Equal(t, []string{"foo", "baz"}, matcherClaimPatterns(claims.Mercure.Subscribe))
 		})
 	}
 }
@@ -843,22 +843,22 @@ func TestCanReceive(t *testing.T) {
 	t.Parallel()
 
 	tss := &TopicSelectorStore{}
-	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
-	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"bar"}))
-	assert.True(t, canReceive(tss, []string{"foo", "bar"}, []string{"*"}))
-	assert.False(t, canReceive(tss, []string{"foo", "bar"}, []string{}))
-	assert.False(t, canReceive(tss, []string{"foo", "bar"}, []string{"baz"}))
-	assert.False(t, canReceive(tss, []string{"foo", "bar"}, []string{"baz", "bat"}))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"foo", "bar"})))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"bar"})))
+	assert.True(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"*"})))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{})))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz"})))
+	assert.False(t, canReceive(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz", "bat"})))
 }
 
 func TestCanDispatch(t *testing.T) {
 	t.Parallel()
 
 	tss := &TopicSelectorStore{}
-	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"foo", "bar"}))
-	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, []string{"*"}))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{}))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"foo"}))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz"}))
-	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, []string{"baz", "bat"}))
+	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"foo", "bar"})))
+	assert.True(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"*"})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"foo"})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz"})))
+	assert.False(t, canDispatch(tss, []string{"foo", "bar"}, stringsToExactClaims([]string{"baz", "bat"})))
 }

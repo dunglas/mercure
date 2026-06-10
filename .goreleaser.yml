@@ -21,6 +21,7 @@ builds:
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
     tags:
       - deprecated_transport
+      - deprecated_topic
       - nobadger
       - nomysql
       - nopgx
@@ -48,6 +49,7 @@ builds:
     tags:
       - deprecated_transport
       - deprecated_server
+      - deprecated_topic
     goos:
       - linux
       - darwin

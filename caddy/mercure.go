@@ -37,7 +37,7 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
-	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
+	ErrCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
@@ -147,7 +147,11 @@ type Mercure struct {
 	// The name of the authorization cookie. Defaults to "mercureAuthorization".
 	CookieName string `json:"cookie_name,omitempty"`
 
-	// The version of the Mercure protocol to be backward compatible with (only version 7 is supported)
+	// The URL at which subscribers reach the hub. Used as the base URL when
+	// matching relative URL patterns and topics.
+	PublicURL string `json:"public_url,omitempty"`
+
+	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
 	// The transport configuration.
@@ -243,6 +247,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
+		mercure.WithPublicURL(m.PublicURL),
 	}
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
@@ -537,6 +542,13 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.CookieName = d.Val()
 
+			case "public_url":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.PublicURL = d.Val()
+
 			case "protocol_version_compatibility":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -547,7 +559,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.WrapErr(err)
 				}
 
-				if v != 7 {
+				if v != 7 && v != 8 {
 					return d.WrapErr(ErrCompatibility)
 				}
 

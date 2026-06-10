@@ -97,7 +97,7 @@ func decode(f string) (topics []string, private bool) {
 }
 
 func (sl *SubscriberList) MatchAny(u *Update) []*LocalSubscriber {
-	return sl.skipfilter.MatchAny(encode(u.Topics, u.Private))
+	return sl.skipfilter.MatchAny(encode(u.topics(), u.Private))
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {

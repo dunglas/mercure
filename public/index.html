@@ -35,6 +35,18 @@
             <h2 class="title">Subscribe</h2>
             <form name="subscribe">
               <div class="field">
+                <label class="label" for="matcherType">Matcher type</label>
+                <div class="control">
+                  <div class="select">
+                    <select name="matcherType" id="matcherType">
+                      <option value="match">Exact</option>
+                      <option value="matchURLPattern">URL Pattern</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
                 <label class="label" for="subscribeTopics"
                   >Topics to get updates for*</label
                 >
@@ -51,16 +63,11 @@ https://example.com/my-private-topic</textarea
 
                 <div class="help">
                   <p>
-                    One
-                    <a href="https://tools.ietf.org/html/rfc6570"
-                      >URI template</a
-                    >
-                    or string per line (<a
-                      href="https://uri-template-tester.mercure.rocks/"
-                      >try the tester</a
-                    >).
+                    One topic per line. Each line is interpreted with the
+                    <a href="https://mercure.rocks/spec">matcher type</a>
+                    picked above. Use <code>*</code> to subscribe to every
+                    topic.
                   </p>
-                  <p>Use <code>*</code> to subscribe to all topics.</p>
                   <p>Examples:</p>
                   <pre><code id="subscribeTopicsExamples"></code></pre>
                 </div>
@@ -116,10 +123,8 @@ https://example.com/my-private-topic</textarea
               </div>
 
               <p class="help">
-                First line: canonical
-                <a href="https://tools.ietf.org/html/rfc4622">IRI</a> or
-                string.<br />
-                Next lines: alternate IRIs or strings.
+                One <a href="https://tools.ietf.org/html/rfc4622">IRI</a> or
+                string per line: one update is published per topic.
               </p>
             </div>
 
@@ -221,13 +226,23 @@ https://example.com/my-private-topic</textarea
                 </p>
                 <pre><code>{
   "mercure": {
-    "subscribe": ["list of topic selectors, * for all, omit for public only"],
-    "publish": ["list of topic selectors, * for all, omit to not allow to publish"]
+    "subscribe": [
+      { "match": "&lt;topic or pattern&gt;", "matchType": "Exact|URLPattern" }
+      // use "*" for all, omit subscribe for public only
+    ],
+    "publish": [
+      { "match": "&lt;topic or pattern&gt;", "matchType": "Exact|URLPattern" }
+      // use "*" for all, omit publish to not allow publishing
+    ]
   }
 }</code></pre>
+                <p>
+                  <code>matchType</code> defaults to <code>Exact</code> when
+                  omitted.
+                </p>
                 <br />
                 <a
-                  href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM"
+                  href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifSx7Im1hdGNoIjoiLy53ZWxsLWtub3duL21lcmN1cmUvc3Vic2NyaXB0aW9ucy86bWF0Y2hUeXBlLzptYXRjaC86c3Vic2NyaWJlciIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.-I_LuyEjpjZKSfFI-4BstvrLzdCNslsSjHfR5RX0PcM"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="button is-link is-small"
@@ -301,8 +316,8 @@ https://example.com/my-private-topic</textarea
               <div class="card-content">
                 <div class="content">
                   <dl>
-                    <dt>Topic</dt>
-                    <dd class="topic"></dd>
+                    <dt>Matcher</dt>
+                    <dd class="match"></dd>
                     <dt>Subscriber</dt>
                     <dd class="subscriber"></dd>
                     <dt>payload</dt>
