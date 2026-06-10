@@ -1,4 +1,4 @@
-//go:build deprecated_topic
+//go:build deprecated_topic && deprecated_claim
 
 // Tests in this file cover the v8-compatibility surface:
 // protocol_version_compatibility, the deprecated `topic=` query parameter,

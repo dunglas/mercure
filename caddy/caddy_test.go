@@ -3,6 +3,7 @@ package caddy
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,8 +11,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/caddyserver/caddy/v2/caddytest"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,20 +22,72 @@ import (
 const (
 	bearerPrefix = "Bearer "
 
-	// Object-form JWT fixtures used by the non-deprecated tests.
-	//
-	// publisherJWT claims: {"mercure":{"publish":[{"match":"*"}]}}
-	// subscriberJWT claims: {"mercure":{"subscribe":[{"match":"*"}]}}.
-	publisherJWT  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XX19.fxYhQH3ML8SA0ZYSo8qVUUezvIO6O6JNDRF5RN3zeZU"
-	subscriberJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6W3sibWF0Y2giOiIqIn1dfX0.73III1dtzX0DfOWGIeDbNCq0dmcyfCt4XEcUMQNzt-w"
-
-	// publisherJWTRSA: RS256 object-form JWT signed with fixtures/jwt/RS256.key.
-	// Claims: {"mercure":{"publish":[{"match":"*"}],"subscribe":[
-	//   {"match":"https://example.com/my-private-topic"},
-	//   {"match":"https://example.com/demo/books/:id.jsonld","matchType":"URLPattern"}
-	// ],"payload":{"user":"https://example.com/users/dunglas","remoteAddr":"127.0.0.1"}}}
-	publisherJWTRSA = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.ZDg48hUAzGEyiWyw4jl-vVPcdF4Mg9Lk22BKZCPXvHsRrDK9UZW-LaV9sEnJ82v80gHm_4xbgUqREPuN0aD_F16K6TaGHxAkjOggQKWByG-7l77mhUUTa7UQtR6HvHcWcgaswCcs6LBFqnSpQ-BSsHgeRJmlXqq_r3xJrLzezaOlQVqS1rDy1fAIdva3dzYTOwdji7M5a4gSDES-D05TETlOhQp1Cg7yxs2elL13n8j0-BdIbY8SkO1vy3GtHqqHWpj3pB9ks-D_VQwJQuLAOaXJKG5sVKLOG1EsgX_fYRbryWwgZpPO_IjHiL6y0bz5CWjjYBYfqOL3hUYCBQXp2A3J02CctvDHqgmlorxhCaA6GkKV-LXqP2tQNSiOMBl6TjCxQhKnou9lK27W2jsxXD5TRx3jmStJ38J1wT99HRGWOzJ9re3HlwPv1NsgNPn3kJdg9OSwWaxx_PqLbWSoHA09F66e4eMgaxZT_16HzbZZAymy9MsBrcCM7C-JyHnUZ97YjwuGm6MQDtvQWuTkixkSxHCpsv6EmbqJc-4cp9tP5ZeFYcZQTyu2jkQrvNzca-8GunXGftfH-IxckPoTwREd2wywwI3ZcRTKZ0SBd3iq8Jnxdgmu22dgCdrOFkM4lMn5x7rVT_fxUuF5EYTeTxkil1LcmPf17r4eNAImxfU"
+	// caddyResourceIdentifier is the access-token audience the test Caddyfiles
+	// configure via `resource_identifier`.
+	caddyResourceIdentifier = "https://example.com/.well-known/mercure"
 )
+
+// RFC 9068 access tokens used by the non-deprecated tests, minted at package
+// init so the assertions stay readable.
+//
+//nolint:gochecknoglobals
+var (
+	// publisherJWT grants publish on every topic (HS256, key "!ChangeMe!").
+	publisherJWT = mustMintHMACToken(actionDetail("publish", topicMatch("*")))
+	// subscriberJWT grants subscribe on every topic (HS256, key "!ChangeMe!").
+	subscriberJWT = mustMintHMACToken(actionDetail("subscribe", topicMatch("*")))
+	// publisherJWTRSA grants publish on every topic, signed with
+	// fixtures/jwt/RS256.key, to exercise RS256 verification.
+	publisherJWTRSA = mustMintRSAToken(actionDetail("publish", topicMatch("*")))
+)
+
+func topicMatch(match string) map[string]any { return map[string]any{"match": match} }
+
+func actionDetail(action string, topics ...map[string]any) map[string]any {
+	return map[string]any{"type": "mercure", "actions": []string{action}, "topics": topics}
+}
+
+func newAccessTokenClaims(details ...map[string]any) jwt.MapClaims {
+	return jwt.MapClaims{
+		"aud":                   caddyResourceIdentifier,
+		"exp":                   time.Now().Add(time.Hour).Unix(),
+		"authorization_details": details,
+	}
+}
+
+func mustMintHMACToken(details ...map[string]any) string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessTokenClaims(details...))
+	token.Header["typ"] = "at+jwt"
+
+	s, err := token.SignedString([]byte("!ChangeMe!"))
+	if err != nil {
+		panic(err)
+	}
+
+	return s
+}
+
+func mustMintRSAToken(details ...map[string]any) string {
+	pem, err := os.ReadFile("../fixtures/jwt/RS256.key")
+	if err != nil {
+		panic(err)
+	}
+
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(pem)
+	if err != nil {
+		panic(err)
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, newAccessTokenClaims(details...))
+	token.Header["typ"] = "at+jwt"
+
+	s, err := token.SignedString(key)
+	if err != nil {
+		panic(err)
+	}
+
+	return s
+}
 
 func TestMercure(t *testing.T) {
 	boltPath := filepath.Join(t.TempDir(), "bolt.db")
@@ -68,6 +123,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			%[1]s
 		}
 
@@ -80,6 +136,7 @@ example.com:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			%[1]s
 		}
 
@@ -160,6 +217,7 @@ func TestJWTPlaceholders(t *testing.T) {
 			mercure {
 				anonymous
 				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+				resource_identifier https://example.com/.well-known/mercure
 				transport local
 			}
 
@@ -228,6 +286,7 @@ func TestSubscriptionAPI(t *testing.T) {
 				anonymous
 				subscriptions
 				publisher_jwt !ChangeMe!
+				resource_identifier https://example.com/.well-known/mercure
 			}
 
 			respond 404
@@ -254,6 +313,7 @@ func TestCookieName(t *testing.T) {
 			mercure {
 				publisher_jwt !ChangeMe!
 				subscriber_jwt !ChangeMe!
+				resource_identifier https://example.com/.well-known/mercure
 				cookie_name foo
 				publish_origins http://localhost:9080
 			}
@@ -310,6 +370,43 @@ func TestCookieName(t *testing.T) {
 	received.Wait()
 }
 
+func TestProtectedResourceMetadata(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				publisher_jwt !ChangeMe!
+				subscriber_jwt !ChangeMe!
+				resource_identifier https://example.com/.well-known/mercure
+				authorization_servers https://as.example.com
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure", nil)
+
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+	defer resp.Body.Close()
+
+	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(b), `"resource":"https://example.com/.well-known/mercure"`)
+	assert.Contains(t, string(b), `"authorization_servers":["https://as.example.com"]`)
+}
+
 func TestAllowNoPublish(t *testing.T) {
 	AllowNoPublish = true
 
@@ -329,6 +426,7 @@ func TestAllowNoPublish(t *testing.T) {
 		route {
 			mercure {
 				subscriber_jwt !ChangeMe!
+				resource_identifier https://example.com/.well-known/mercure
 			}
 
 			respond 404
@@ -360,6 +458,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			transport bolt {
 				path test.db
 				bucket_name foo

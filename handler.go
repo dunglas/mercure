@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"slices"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -48,6 +49,13 @@ func (h *Hub) initHandler() {
 		router.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
 	}
 
+	// Advertise OAuth 2.0 protected resource metadata (RFC 9728) only when the
+	// hub validates access tokens; a pure-anonymous hub is not a protected
+	// resource.
+	if h.publisherJWTKeyFunc != nil || h.subscriberJWTKeyFunc != nil {
+		router.HandleFunc(protectedResourceMetadataPath, h.ProtectedResourceMetadataHandler).Methods(http.MethodGet, http.MethodHead)
+	}
+
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         h.debug,
 		AllowedHosts:          h.allowedHosts,
@@ -63,10 +71,17 @@ func (h *Hub) initHandler() {
 		return
 	}
 
+	// The protocol forbids combining a wildcard Access-Control-Allow-Origin
+	// with credentials: cookies cross origins only when the allowed origins
+	// form an explicit allowlist. With "*", credentialed responses are
+	// rejected by browsers anyway, so disable credentials instead of shipping
+	// a header pair that can never work.
+	allowCredentials := !slices.Contains(h.corsOrigins, "*")
+
 	h.handler = secureMiddleware.Handler(
 		cors.New(cors.Options{
 			AllowedOrigins:   h.corsOrigins,
-			AllowCredentials: true,
+			AllowCredentials: allowCredentials,
 			AllowedHeaders:   []string{authorizationParam, "cache-control", "last-event-id"},
 			Debug:            h.debug,
 		}).Handler(router),

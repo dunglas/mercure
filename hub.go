@@ -24,6 +24,27 @@ const (
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
+// ErrMissingResourceIdentifier is returned when the hub validates access
+// tokens in modern mode but no resource identifier (nor public URL) is set:
+// RFC 9068 requires the token audience to be checked against it.
+var ErrMissingResourceIdentifier = errors.New("a resource identifier (or public URL) is required when JWT authentication is enabled; set WithResourceIdentifier or WithPublicURL, or enable compatibility mode")
+
+// ErrInvalidResourceIdentifier is returned when the configured resource
+// identifier is not an RFC 9728 protected resource identifier: an absolute
+// URL without a fragment component.
+var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be an absolute URL without a fragment (RFC 9728)")
+
+// schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
+const schemeHTTPS = "https"
+
+// defaultJWTAlgorithms is the signature-algorithm allowlist applied in modern
+// mode when a JWT key function is configured without an explicit list (the
+// JWKS path). It contains only asymmetric algorithms: allowing an HMAC
+// algorithm next to public keys would enable algorithm-confusion attacks.
+//
+//nolint:gochecknoglobals
+var defaultJWTAlgorithms = []string{"EdDSA", "ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"}
+
 // Option instances allow to configure the library.
 type Option func(o *opt) error
 
@@ -140,6 +161,7 @@ func WithPublisherJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
 		keyfunc, err := createJWTKeyfunc(key, alg)
 		o.publisherJWTKeyFunc = keyfunc
+		o.publisherJWTAlgorithms = []string{alg}
 
 		return err
 	}
@@ -150,6 +172,7 @@ func WithSubscriberJWT(key []byte, alg string) Option {
 	return func(o *opt) error {
 		keyfunc, err := createJWTKeyfunc(key, alg)
 		o.subscriberJWTKeyFunc = keyfunc
+		o.subscriberJWTAlgorithms = []string{alg}
 
 		return err
 	}
@@ -251,7 +274,7 @@ func WithTopicSelectorStore(tss *TopicSelectorStore) Option {
 	}
 }
 
-// WithCookieName sets the name of the authorization cookie (defaults to "mercureAuthorization").
+// WithCookieName sets the name of the authorization cookie (defaults to "mercureAccessToken").
 func WithCookieName(cookieName string) Option {
 	return func(o *opt) error {
 		o.cookieName = cookieName
@@ -297,6 +320,56 @@ func WithPublicURL(publicURL string) Option {
 	}
 }
 
+// WithResourceIdentifier sets the hub's OAuth 2.0 resource identifier (RFC 9068
+// `aud` value, advertised through RFC 9728 protected resource metadata). It
+// defaults to the public URL when unset.
+func WithResourceIdentifier(resourceIdentifier string) Option {
+	return func(o *opt) error {
+		o.resourceIdentifier = resourceIdentifier
+
+		return nil
+	}
+}
+
+// WithAuthorizationServers sets the OAuth 2.0 authorization server issuer
+// identifiers advertised in the hub's protected resource metadata (RFC 9728).
+//
+// When set, the token issuer (iss) check applies to both publisher and
+// subscriber tokens: a token whose iss is not one of these identifiers is
+// rejected. A self-issued token (for example a publisher signing with a key
+// shared out of band) must therefore carry a matching iss, or this option must
+// be left unset.
+func WithAuthorizationServers(authorizationServers []string) Option {
+	return func(o *opt) error {
+		o.authorizationServers = authorizationServers
+
+		return nil
+	}
+}
+
+// WithPublisherJWTAlgorithms pins the JWS algorithms accepted for publisher
+// access tokens. WithPublisherJWT already pins its single algorithm; this
+// option is for the WithPublisherJWTKeyFunc / JWKS path, where the algorithm
+// would otherwise be taken from the token header. Setting it makes the parser
+// reject any token whose alg is not in the list (RFC 8725).
+func WithPublisherJWTAlgorithms(algorithms []string) Option {
+	return func(o *opt) error {
+		o.publisherJWTAlgorithms = algorithms
+
+		return nil
+	}
+}
+
+// WithSubscriberJWTAlgorithms pins the JWS algorithms accepted for subscriber
+// access tokens. See WithPublisherJWTAlgorithms.
+func WithSubscriberJWTAlgorithms(algorithms []string) Option {
+	return func(o *opt) error {
+		o.subscriberJWTAlgorithms = algorithms
+
+		return nil
+	}
+}
+
 // opt contains the available options.
 //
 // If you change this, also update the Caddy module and the documentation.
@@ -314,6 +387,8 @@ type opt struct {
 	heartbeat                    time.Duration
 	publisherJWTKeyFunc          jwt.Keyfunc
 	subscriberJWTKeyFunc         jwt.Keyfunc
+	publisherJWTAlgorithms       []string
+	subscriberJWTAlgorithms      []string
 	metrics                      Metrics
 	allowedHosts                 []string
 	publishOriginsAll            bool
@@ -323,6 +398,73 @@ type opt struct {
 	cookieName                   string
 	protocolVersionCompatibility int
 	publicURL                    string
+	resourceIdentifier           string
+	authorizationServers         []string
+}
+
+// configureIdentifiers wires the public URL, the URL Pattern base, and the
+// resource identifier defaults, then applies the modern-mode rules.
+func (o *opt) configureIdentifiers() error {
+	// When only the resource identifier is configured and it is a full hub
+	// URL, it is the hub URL: use it as the URL Pattern base so relative
+	// patterns and topics resolve per the protocol without requiring the
+	// public URL to be configured twice.
+	if o.publicURL == "" && strings.HasSuffix(o.resourceIdentifier, defaultHubURL) {
+		o.publicURL = o.resourceIdentifier
+	}
+
+	o.topicSelectorStore.setBaseURL(o.publicURL)
+
+	if o.resourceIdentifier == "" {
+		o.resourceIdentifier = o.publicURL
+	}
+
+	// In modern mode, RFC 9068 requires checking the token audience against
+	// the hub's resource identifier; refuse to start a token-validating hub
+	// that cannot perform that check.
+	if o.resourceIdentifier == "" && o.protocolVersionCompatibility == 0 &&
+		(o.publisherJWTKeyFunc != nil || o.subscriberJWTKeyFunc != nil) {
+		return ErrMissingResourceIdentifier
+	}
+
+	return o.applyModernDefaults()
+}
+
+// applyModernDefaults enforces the modern-mode (non-compatibility) config
+// rules: an RFC 9728-shaped resource identifier and an explicit JWS
+// algorithm allowlist for every configured key function.
+func (o *opt) applyModernDefaults() error {
+	if o.protocolVersionCompatibility != 0 {
+		return nil
+	}
+
+	// The resource identifier is published as the RFC 9728 "resource" member
+	// and checked against the token audience; strict clients ignore metadata
+	// whose identifier is not a URL without a fragment.
+	if o.resourceIdentifier != "" {
+		u, err := url.Parse(o.resourceIdentifier)
+		if err != nil || !u.IsAbs() || u.Host == "" || u.Fragment != "" {
+			return ErrInvalidResourceIdentifier
+		}
+
+		if u.Scheme != schemeHTTPS {
+			o.logger.Warn(`The resource identifier does not use the "https" scheme; strict RFC 9728 clients will ignore the hub's protected resource metadata.`)
+		}
+	}
+
+	// The protocol requires an explicit signature-algorithm allowlist that is
+	// never derived from the token. Key functions configured without one (the
+	// JWKS path) get the documented default: asymmetric algorithms only, so a
+	// public JWK can never be reinterpreted as an HMAC secret.
+	if o.publisherJWTKeyFunc != nil && len(o.publisherJWTAlgorithms) == 0 {
+		o.publisherJWTAlgorithms = defaultJWTAlgorithms
+	}
+
+	if o.subscriberJWTKeyFunc != nil && len(o.subscriberJWTAlgorithms) == 0 {
+		o.subscriberJWTAlgorithms = defaultJWTAlgorithms
+	}
+
+	return nil
 }
 
 func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
@@ -365,7 +507,9 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.topicSelectorStore = tss
 	}
 
-	opt.topicSelectorStore.setBaseURL(opt.publicURL)
+	if err := opt.configureIdentifiers(); err != nil {
+		return nil, err
+	}
 
 	if opt.transport == nil {
 		opt.transport = NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize))

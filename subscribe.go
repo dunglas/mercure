@@ -202,10 +202,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r), h.logger, h.topicSelectorStore)
 
-	var (
-		privateMatchers []matcherClaim
-		claims          *claims
-	)
+	var claims *claims
 
 	if h.subscriberJWTKeyFunc != nil { //nolint:nestif
 		var err error
@@ -213,15 +210,10 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		claims, err = h.authorize(r, false)
 		if claims != nil {
 			s.Claims = claims
-			privateMatchers = claims.Mercure.Subscribe
 		}
 
 		if err != nil || (claims == nil && !h.anonymous) {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-
-			if h.logger.Enabled(ctx, slog.LevelDebug) {
-				h.logger.LogAttrs(ctx, slog.LevelDebug, "Subscriber unauthorized", slog.Any("error", err))
-			}
+			h.writeAuthError(w, r, err)
 
 			if err != nil {
 				recordSpanError(span, err)
@@ -241,16 +233,9 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		return nil, nil
 	}
 
-	if err := resolveMatcherClaims(h.topicSelectorStore, privateMatchers, h.allowsAlternateTopics()); err != nil {
-		writeMatcherClaimError(ctx, h.logger, w, err)
-		recordSpanError(span, err)
-
-		return nil, nil
-	}
-
-	privateTopicMatchers := make([]topicMatcher, len(privateMatchers))
-	for i, c := range privateMatchers {
-		privateTopicMatchers[i] = c.topicMatcher
+	var privateTopicMatchers []topicMatcher
+	if claims != nil {
+		privateTopicMatchers = claims.authz.subscribeMatchers()
 	}
 
 	s.setMatchers(matchers, privateTopicMatchers)
@@ -284,7 +269,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("payload", claims.Mercure.Payload))
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("payload", s.SubscriptionPayloads))
 		} else {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber")
 		}

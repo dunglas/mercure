@@ -24,7 +24,7 @@ func TestEmptyBodyAndJWT(t *testing.T) {
 	assert.Equal(t, []string{hubLink, `<https://example.com/demo/foo.jsonld>; rel="self"`}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
-	assert.Equal(t, "mercureAuthorization", cookie.Name)
+	assert.Equal(t, defaultCookieName, cookie.Name)
 	assert.Empty(t, cookie.Value)
 	assert.True(t, cookie.Expires.Before(time.Now()))
 
@@ -50,7 +50,7 @@ func TestBodyAndJWT(t *testing.T) {
 	assert.Equal(t, []string{hubLink, `<https://example.com/demo/foo/bar.xml?body=<hello/>&jwt=token>; rel="self"`}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
-	assert.Equal(t, "mercureAuthorization", cookie.Name)
+	assert.Equal(t, defaultCookieName, cookie.Name)
 	assert.Equal(t, "token", cookie.Value)
 	assert.Empty(t, cookie.Expires)
 

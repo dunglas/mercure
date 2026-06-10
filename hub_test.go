@@ -53,6 +53,7 @@ func TestNewHubWithConfig(t *testing.T) {
 		t.Context(),
 		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
+		WithResourceIdentifier(testResourceIdentifier),
 	)
 	require.NotNil(t, h)
 	require.NoError(t, err)
@@ -352,7 +353,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(t.Context(), WithPublisherJWT([]byte(""), "HS256"))
+	h, err := NewHub(t.Context(), WithPublisherJWT([]byte(""), "HS256"), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -401,6 +402,7 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 		[]Option{
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
+			WithResourceIdentifier(testResourceIdentifier),
 			WithTopicSelectorStore(tss),
 		},
 		options...,
@@ -425,32 +427,113 @@ func createAnonymousDummy(tb testing.TB, options ...Option) *Hub {
 	return createDummy(tb, options...)
 }
 
+// testResourceIdentifier is the audience minted access tokens carry and that
+// createDummy configures the hub with.
+func TestNewHubInvalidResourceIdentifier(t *testing.T) {
+	t.Parallel()
+
+	for _, ri := range []string{"foo", "/relative", "https://example.com/x#frag"} {
+		_, err := NewHub(t.Context(), WithResourceIdentifier(ri))
+		require.ErrorIs(t, err, ErrInvalidResourceIdentifier, ri)
+	}
+}
+
+// A resource identifier that is the full hub URL doubles as the URL Pattern
+// base when no public URL is configured.
+func TestNewHubDerivesPatternBaseFromResourceIdentifier(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(), WithResourceIdentifier(testResourceIdentifier))
+	require.NoError(t, err)
+	assert.Equal(t, testResourceIdentifier, h.topicSelectorStore.baseURL)
+	assert.Equal(t, testResourceIdentifier, h.publicURL)
+}
+
+// A key function configured without an explicit algorithm allowlist gets the
+// default asymmetric list in modern mode, so an HMAC token cannot abuse a
+// public key set (algorithm confusion).
+func TestNewHubDefaultJWTAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithSubscriberJWTKeyFunc(func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, defaultJWTAlgorithms, h.subscriberJWTAlgorithms)
+	assert.Empty(t, h.publisherJWTAlgorithms)
+
+	// An HS256 token is rejected even though the key function would return
+	// the right secret: the algorithm is not in the default allowlist.
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"foo"}))
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+}
+
+const testResourceIdentifier = "https://example.com/.well-known/mercure"
+
 func createDummyAuthorizedJWT(r role, topics []string) string {
 	return createDummyAuthorizedJWTWithPayload(r, topics, struct {
 		Foo string `json:"foo"`
 	}{Foo: "bar"})
 }
 
-func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) string {
-	token := jwt.New(jwt.SigningMethodHS256)
+// stringsToDetailTopics wraps topic strings into Exact detailTopics.
+func stringsToDetailTopics(patterns []string) []detailTopic {
+	topics := make([]detailTopic, len(patterns))
+	for i, p := range patterns {
+		topics[i] = detailTopic{topicMatcher{Type: MatcherTypeExact, Pattern: p}}
+	}
 
-	var key []byte
+	return topics
+}
+
+func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) string {
+	var (
+		action mercureAction
+		key    []byte
+	)
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToExactClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
-		key = []byte("publisher")
-
+		action, key = actionPublish, []byte("publisher")
 	case roleSubscriber:
-		token.Claims = &claims{
-			Mercure: mercureClaim{
-				Subscribe: stringsToExactClaims(topics),
-				Payload:   payload,
-			},
-			RegisteredClaims: jwt.RegisteredClaims{},
+		action, key = actionSubscribe, []byte("subscriber")
+	}
+
+	// An empty topic list means "grant nothing": a mercure detail must carry
+	// at least one topic, so emit no authorization details at all.
+	var details []authorizationDetail
+
+	if len(topics) > 0 {
+		detail := authorizationDetail{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{action},
+			Topics:  stringsToDetailTopics(topics),
+		}
+		if r == roleSubscriber {
+			detail.Payload = payload
 		}
 
-		key = []byte("subscriber")
+		details = []authorizationDetail{detail}
+	}
+
+	return mintAccessToken(key, testResourceIdentifier, details)
+}
+
+// mintAccessToken signs an RFC 9068 access token (typ at+jwt, audience set,
+// exp in one hour) carrying the given authorization details.
+func mintAccessToken(key []byte, audience string, details []authorizationDetail) string {
+	token := jwt.New(jwt.SigningMethodHS256)
+	token.Header["typ"] = atJWTType
+	token.Claims = &claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{audience},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+		AuthorizationDetails: details,
 	}
 
 	tokenString, _ := token.SignedString(key)

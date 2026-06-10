@@ -186,7 +186,7 @@ func TestSubscribeInvalidJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
 
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: "invalid"})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: "invalid"})
 
 	hub.SubscribeHandler(w, req)
 
@@ -208,7 +208,7 @@ func TestSubscribeUnauthorizedJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
 
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyUnauthorizedJWT()})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyUnauthorizedJWT()})
 	req.Header = http.Header{"Cookie": []string{w.Header().Get("Set-Cookie")}}
 
 	hub.SubscribeHandler(w, req)
@@ -231,7 +231,7 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
 	w := httptest.NewRecorder()
 
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyNoneSignedJWT()})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyNoneSignedJWT()})
 
 	hub.SubscribeHandler(w, req)
 
@@ -243,6 +243,42 @@ func TestSubscribeInvalidAlgJWT(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.Equal(t, http.StatusText(http.StatusUnauthorized)+"\n", w.Body.String())
+}
+
+// TestSubscribeJWTAlgorithmsPinned verifies the algorithm allowlist is enforced
+// on the keyfunc (JWKS-style) path: a token whose alg is outside the allowlist
+// is rejected at parse time, regardless of its signature.
+func TestSubscribeJWTAlgorithmsPinned(t *testing.T) {
+	t.Parallel()
+
+	// A keyfunc returning the HMAC secret for any token, like a JWKS-backed
+	// keyfunc that does not by itself pin the algorithm.
+	kf := func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }
+
+	hub := createAnonymousDummy(t,
+		WithSubscriberJWTKeyFunc(kf),
+		WithSubscriberJWTAlgorithms([]string{jwt.SigningMethodRS256.Name}),
+	)
+
+	// HS256 token: outside the RS256 allowlist.
+	token := mintAccessToken([]byte("subscriber"), testResourceIdentifier, []authorizationDetail{{
+		Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
+		Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
+	}})
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
+	req.Header.Add("Authorization", bearerPrefix+token)
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
 func TestSubscribeNoTopic(t *testing.T) {
@@ -309,6 +345,7 @@ func TestSubscribeTooManyClaimMatchers(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 	})
 
+	// Too many topics in a single authorization detail → invalid_token.
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
@@ -426,7 +463,7 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(roleSubscriber, []string{"https://example.com/reviews/22"}, payload)})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, payload, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/reviews/:id"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -580,7 +617,7 @@ func TestSubscribePrivate(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22", "https://example.com/reviews/23"})})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22", "https://example.com/reviews/23"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -608,11 +645,9 @@ func TestSubscriptionEvents(t *testing.T) {
 	wg.Go(func() {
 		// Authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithClaims(t, []matcherClaim{
-			{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"}},
-		}, struct {
+		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, struct {
 			Foo string `json:"foo"`
-		}{Foo: "bar"})})
+		}{Foo: "bar"}, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -643,7 +678,7 @@ func TestSubscriptionEvents(t *testing.T) {
 	wg.Go(func() {
 		// Not authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", nil).WithContext(ctx2)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -672,7 +707,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		ctx, cancelRequest2 := context.WithCancel(ctx)
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
 
 		w := &responseTester{
 			expectedStatusCode: http.StatusOK,
@@ -1103,12 +1138,13 @@ func TestSubscribeExpires(t *testing.T) {
 
 	hub := createAnonymousDummy(t, WithWriteTimeout(0), WithDispatchTimeout(0), WithHeartbeat(500*time.Millisecond))
 	token := jwt.New(jwt.SigningMethodHS256)
-
+	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
-		Mercure: mercureClaim{
-			Subscribe: stringsToExactClaims([]string{"*"}),
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{testResourceIdentifier},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
 		},
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second))},
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "*"}),
 	}
 
 	signedString, err := token.SignedString([]byte("subscriber"))
@@ -1147,6 +1183,7 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 		WithAnonymous(),
 		WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
+		WithResourceIdentifier(testResourceIdentifier),
 		WithTopicSelectorStore(tss),
 		WithWriteTimeout(writeTimeout),
 	)

@@ -164,11 +164,11 @@ test.describe("Publish update", () => {
           const resp = await fetch(`/.well-known/mercure`, {
             method: "POST",
             headers: {
-              // mercure.{publish,subscribe}: [{match: "*"}] — the v9 object
-              // form of the deprecated ["*"] wildcard. The string form is
-              // accepted only under WithProtocolVersionCompatibility.
+              // RFC 9068 access token (typ at+jwt, aud the hub resource
+              // identifier) granting publish and subscribe on every topic via
+              // an authorization_details claim.
               Authorization:
-                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6IioifV19fQ.0E7cOjh6kGKAPLC5mKzIvVIsV5j4hCNt9Ee0VY4kjqk",
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJ0b3BpY3MiOlt7Im1hdGNoIjoiKiJ9XSwidHlwZSI6Im1lcmN1cmUifV0sImV4cCI6NDEwMjQ0NDgwMH0.AIQorI3mpd1OEJXqqgnnuTid7QDJgQFfkv8pNb4cDR0",
             },
             body: event,
           });

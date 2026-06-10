@@ -1,4 +1,4 @@
-//go:build deprecated_topic
+//go:build deprecated_topic && deprecated_claim
 
 package mercure
 
@@ -42,7 +42,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	s2EscapedTopic := url.QueryEscape(s2.SubscribedMatchers[0].Pattern)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/"+s2EscapedTopic, nil)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/" + s2EscapedTopic})})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/" + s2EscapedTopic})})
 
 	w := httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
@@ -97,7 +97,7 @@ func TestSubscriptionHandlerForTopic(t *testing.T) {
 	sEscapedTemplate := url.QueryEscape(s.SubscribedMatchers[1].Pattern)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/"+sEscapedTemplate+"/"+s.EscapedID, nil)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -113,7 +113,7 @@ func TestSubscriptionHandlerForTopic(t *testing.T) {
 	assert.Equal(t, expectedSub, subscription)
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/notexist/"+s.EscapedID, nil)
-	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})
 
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)

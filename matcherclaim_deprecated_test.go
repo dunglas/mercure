@@ -1,4 +1,4 @@
-//go:build deprecated_topic
+//go:build deprecated_topic && deprecated_claim
 
 package mercure
 

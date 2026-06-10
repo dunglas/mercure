@@ -3,13 +3,12 @@ package mercure
 import (
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
 // Test helpers that wrap a slice of topic strings into Exact-matcher
-// topicMatchers and matcherClaims. Used by tests that don't specifically
-// exercise the deprecated topic path.
+// topicMatchers. Used by tests that don't specifically exercise the
+// deprecated topic path.
 
 func stringsToExactMatchers(patterns []string) []topicMatcher {
 	if patterns == nil {
@@ -24,41 +23,48 @@ func stringsToExactMatchers(patterns []string) []topicMatcher {
 	return out
 }
 
-func stringsToExactClaims(patterns []string) []matcherClaim {
-	matchers := stringsToExactMatchers(patterns)
-
-	claims := make([]matcherClaim, len(matchers))
+// subscribeDetailsFromMatchers builds a single subscribe authorization detail
+// covering the given matchers, with an optional payload.
+func subscribeDetailsFromMatchers(payload any, matchers ...topicMatcher) []authorizationDetail {
+	topics := make([]detailTopic, len(matchers))
 	for i, m := range matchers {
-		claims[i] = matcherClaim{topicMatcher: m}
+		topics[i] = detailTopic{m}
 	}
 
-	return claims
+	return []authorizationDetail{{
+		Type:    authorizationDetailTypeMercure,
+		Actions: []mercureAction{actionSubscribe},
+		Topics:  topics,
+		Payload: payload,
+	}}
 }
 
-func matcherClaimPatterns(claims []matcherClaim) []string {
-	if claims == nil {
-		return nil
-	}
-
-	patterns := make([]string, len(claims))
-	for i, c := range claims {
-		patterns[i] = c.Pattern
-	}
-
-	return patterns
-}
-
-func createDummySubscriberJWTWithClaims(tb testing.TB, subscribe []matcherClaim, payload any) string {
+// createDummySubscriberJWTWithDetails mints a subscriber access token granting
+// the subscribe action on the given matchers, carrying the given payload.
+func createDummySubscriberJWTWithDetails(tb testing.TB, payload any, matchers ...topicMatcher) string {
 	tb.Helper()
 
-	token := jwt.New(jwt.SigningMethodHS256)
-	token.Claims = &claims{
-		Mercure:          mercureClaim{Subscribe: subscribe, Payload: payload},
-		RegisteredClaims: jwt.RegisteredClaims{},
-	}
+	return mintAccessToken([]byte("subscriber"), testResourceIdentifier, subscribeDetailsFromMatchers(payload, matchers...))
+}
 
-	tokenString, err := token.SignedString([]byte("subscriber"))
+// subscribeDetail builds a subscribe authorization detail covering a single
+// matcher, with an optional payload.
+func subscribeDetail(payload any, m topicMatcher) authorizationDetail {
+	return authorizationDetail{
+		Type:    authorizationDetailTypeMercure,
+		Actions: []mercureAction{actionSubscribe},
+		Topics:  []detailTopic{{m}},
+		Payload: payload,
+	}
+}
+
+// detailClaims builds a *claims with the given authorization details validated
+// into its authz, for tests that set Subscriber.Claims directly.
+func detailClaims(tb testing.TB, tss *TopicSelectorStore, details ...authorizationDetail) *claims {
+	tb.Helper()
+
+	authz, err := validateAuthorizationDetails(tss, details)
 	require.NoError(tb, err)
 
-	return tokenString
+	return &claims{AuthorizationDetails: details, authz: authz}
 }

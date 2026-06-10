@@ -1,4 +1,4 @@
-//go:build deprecated_topic
+//go:build deprecated_topic && deprecated_claim
 
 package mercure
 
@@ -48,15 +48,18 @@ func createDeprecatedAuthorizedJWT(r role, topics []string, payload ...any) stri
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: stringsToDeprecatedClaims(topics)}, RegisteredClaims: jwt.RegisteredClaims{}}
+		token.Claims = &claims{
+			deprecatedMercureClaims: deprecatedMercureClaims{Mercure: mercureClaim{Publish: stringsToDeprecatedClaims(topics)}},
+			RegisteredClaims:        jwt.RegisteredClaims{},
+		}
 		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
-			Mercure: mercureClaim{
+			deprecatedMercureClaims: deprecatedMercureClaims{Mercure: mercureClaim{
 				Subscribe: stringsToDeprecatedClaims(topics),
 				Payload:   p,
-			},
+			}},
 			RegisteredClaims: jwt.RegisteredClaims{},
 		}
 

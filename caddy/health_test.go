@@ -27,6 +27,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -73,6 +74,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -101,6 +103,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -148,6 +151,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -226,6 +230,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 

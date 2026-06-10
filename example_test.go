@@ -15,6 +15,7 @@ func Example() {
 		ctx,
 		mercure.WithPublisherJWT([]byte("!ChangeMe!"), "HS256"),
 		mercure.WithSubscriberJWT([]byte("!ChangeMe!"), "HS256"),
+		mercure.WithPublicURL("https://example.com/.well-known/mercure"),
 	)
 	if err != nil {
 		log.Fatal(err)

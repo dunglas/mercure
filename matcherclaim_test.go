@@ -1,3 +1,5 @@
+//go:build deprecated_claim
+
 package mercure
 
 import (

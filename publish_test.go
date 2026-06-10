@@ -25,7 +25,6 @@ func TestPublish(t *testing.T) {
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToExactClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -208,7 +207,7 @@ func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
@@ -232,7 +231,7 @@ func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestPublishHandlerLegacyAuthorization(t *testing.T) {
@@ -268,7 +267,6 @@ func TestPublishHandlerOK(t *testing.T) {
 		topics := []string{"https://example.com/books/1"}
 		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
 		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: stringsToExactClaims(topics)}}
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -653,5 +651,6 @@ func TestPublishHandlerTooManyClaimMatchers(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
+	// Too many topics in a single authorization detail → invalid_token.
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }

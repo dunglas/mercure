@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,21 +35,27 @@ func TestSubscribeTopicCompatRequiresTag(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "deprecated_topic")
 }
 
-// TestSubscribeStringClaimCompatRequiresTag checks that a v8 string-form
-// subscribe claim (here the "*" wildcard) is rejected on a binary built
-// without the deprecated_topic tag, even under WithProtocolVersionCompatibility(8).
-// Otherwise the wildcard short-circuit in matchMatcher would authorize every
-// topic although the v8 matcher code is not compiled in.
-func TestSubscribeStringClaimCompatRequiresTag(t *testing.T) {
+// TestLegacyClaimRequiresTag checks that the legacy mercure claim is rejected
+// on a binary built without the deprecated_claim tag, even under
+// WithProtocolVersionCompatibility(8): such a token carries neither the
+// at+jwt typ header nor an audience, so it fails RFC 9068 validation and the
+// wildcard claim never authorizes anything.
+func TestLegacyClaimRequiresTag(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t, WithProtocolVersionCompatibility(8))
 
-	// Empty Type marshals to a bare string: the v8 wire form.
-	jwt := createDummySubscriberJWTWithClaims(t, []matcherClaim{{topicMatcher: topicMatcher{Pattern: "*"}}}, nil)
+	// A v8 mercure-claim token signed with the subscriber key, with no typ or
+	// audience: the modern build must reject it.
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"mercure": map[string]any{"subscribe": []string{"*"}},
+	})
+
+	signed, err := token.SignedString([]byte("subscriber"))
+	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/books/:id", nil)
-	req.Header.Add("Authorization", bearerPrefix+jwt)
+	req.Header.Add("Authorization", bearerPrefix+signed)
 
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)

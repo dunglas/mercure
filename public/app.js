@@ -8,22 +8,28 @@
   const defaultTopic = document.URL + "demo/books/1.jsonld";
   const placeholderTopic = "https://example.com/my-private-topic";
 
-  // Object-form JWT (v9+ of the protocol). Signed with
-  // `!ChangeThisMercureHubJWTSecretKey!`.
+  // RFC 9068 access token (typ: at+jwt, aud: the hub resource identifier).
+  // Signed with `!ChangeThisMercureHubJWTSecretKey!`.
   //
   // {
-  //   "mercure": {
-  //     "publish":  [{ "match": "*" }],
-  //     "subscribe": [
-  //       { "match": "https://example.com/my-private-topic" },
-  //       { "match": "https://example.com/demo/books/:id.jsonld", "matchType": "URLPattern" },
-  //       { "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", "matchType": "URLPattern" }
-  //     ],
-  //     "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
-  //   }
+  //   "aud": "https://localhost/.well-known/mercure",
+  //   "exp": 4102444800,
+  //   "authorization_details": [
+  //     { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
+  //     {
+  //       "type": "mercure",
+  //       "actions": ["subscribe"],
+  //       "topics": [
+  //         { "match": "https://example.com/my-private-topic" },
+  //         { "match": "https://example.com/demo/books/:id.jsonld", "matchType": "URLPattern" },
+  //         { "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", "matchType": "URLPattern" }
+  //       ],
+  //       "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
+  //     }
+  //   ]
   // }
   const defaultJwt =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifSx7Im1hdGNoIjoiLy53ZWxsLWtub3duL21lcmN1cmUvc3Vic2NyaXB0aW9ucy86bWF0Y2hUeXBlLzptYXRjaC86c3Vic2NyaWJlciIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.-I_LuyEjpjZKSfFI-4BstvrLzdCNslsSjHfR5RX0PcM";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJwYXlsb2FkIjp7InJlbW90ZUFkZHIiOiIxMjcuMC4wLjEiLCJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIn0sInRvcGljcyI6W3sibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL215LXByaXZhdGUtdG9waWMifSx7Im1hdGNoIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9kZW1vL2Jvb2tzLzppZC5qc29ubGQiLCJtYXRjaFR5cGUiOiJVUkxQYXR0ZXJuIn0seyJtYXRjaCI6Ii8ud2VsbC1rbm93bi9tZXJjdXJlL3N1YnNjcmlwdGlvbnMvOm1hdGNoVHlwZS86bWF0Y2gvOnN1YnNjcmliZXIiLCJtYXRjaFR5cGUiOiJVUkxQYXR0ZXJuIn1dLCJ0eXBlIjoibWVyY3VyZSJ9XSwiZXhwIjo0MTAyNDQ0ODAwfQ.0QQwiX8GLRjDDDy4fq5nWt2bYqmu2Jo3LaVvn0azotE";
 
   const $updates = document.getElementById("updates");
   const $subscriptions = document.getElementById("subscriptions");

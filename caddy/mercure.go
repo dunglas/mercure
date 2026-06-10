@@ -26,7 +26,13 @@ import (
 	"github.com/dunglas/mercure"
 )
 
-const defaultHubURL = "/.well-known/mercure"
+const (
+	defaultHubURL = "/.well-known/mercure"
+	// protectedResourceMetadataPath mirrors the RFC 9728 well-known location
+	// served by the hub; it lives outside the hub URL prefix, so ServeHTTP
+	// must forward it explicitly.
+	protectedResourceMetadataPath = "/.well-known/oauth-protected-resource" + defaultHubURL
+)
 
 var (
 	// AllowNoPublish allows not setting the publisher JWT, and then disable the publish endpoint.
@@ -124,11 +130,21 @@ type Mercure struct {
 	// JWK Set URL to use for publishers.
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
+	// Allowed JWS algorithms for publisher tokens validated via the JWK Set
+	// (RFC 8725: the algorithm is never taken from the token header). When
+	// omitted in modern mode, the hub applies its default allowlist of
+	// asymmetric algorithms.
+	PublisherJWKSAlgorithms []string `json:"publisher_jwks_algorithms,omitempty"`
+
 	// JWT key and signing algorithm to use for subscribers.
 	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitzero"`
 
 	// JWK Set URL to use for subscribers.
 	SubscriberJWKSURL string `json:"subscriber_jwks_url,omitempty"`
+
+	// Allowed JWS algorithms for subscriber tokens validated via the JWK Set.
+	// See PublisherJWKSAlgorithms.
+	SubscriberJWKSAlgorithms []string `json:"subscriber_jwks_algorithms,omitempty"`
 
 	// Origins allowed to publish updates
 	PublishOrigins []string `json:"publish_origins,omitempty"`
@@ -144,12 +160,20 @@ type Mercure struct {
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
 
-	// The name of the authorization cookie. Defaults to "mercureAuthorization".
+	// The name of the authorization cookie. Defaults to "mercureAccessToken".
 	CookieName string `json:"cookie_name,omitempty"`
 
 	// The URL at which subscribers reach the hub. Used as the base URL when
 	// matching relative URL patterns and topics.
 	PublicURL string `json:"public_url,omitempty"`
+
+	// The hub's OAuth 2.0 resource identifier (the `aud` value access tokens
+	// must carry). Defaults to the public URL when unset.
+	ResourceIdentifier string `json:"resource_identifier,omitempty"`
+
+	// OAuth 2.0 authorization server issuer identifiers advertised in the
+	// hub's protected resource metadata.
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
 
 	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
@@ -250,6 +274,14 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithPublicURL(m.PublicURL),
 	}
 
+	if m.ResourceIdentifier != "" {
+		opts = append(opts, mercure.WithResourceIdentifier(m.ResourceIdentifier))
+	}
+
+	if len(m.AuthorizationServers) > 0 {
+		opts = append(opts, mercure.WithAuthorizationServers(m.AuthorizationServers))
+	}
+
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
 		opts = append(opts, mercure.WithDebug())
 	}
@@ -261,6 +293,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		}
 
 		opts = append(opts, mercure.WithPublisherJWTKeyFunc(k.Keyfunc))
+
+		if len(m.PublisherJWKSAlgorithms) > 0 {
+			opts = append(opts, mercure.WithPublisherJWTAlgorithms(m.PublisherJWKSAlgorithms))
+		}
 	} else if m.PublisherJWT.Key != "" {
 		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
 	}
@@ -272,6 +308,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		}
 
 		opts = append(opts, mercure.WithSubscriberJWTKeyFunc(k.Keyfunc))
+
+		if len(m.SubscriberJWKSAlgorithms) > 0 {
+			opts = append(opts, mercure.WithSubscriberJWTAlgorithms(m.SubscriberJWKSAlgorithms))
+		}
 	} else if m.SubscriberJWT.Key != "" {
 		opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
 	}
@@ -385,7 +425,7 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) {
+	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != protectedResourceMetadataPath {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
@@ -442,6 +482,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.PublisherJWKSURL = d.Val()
 
+			case "publisher_jwks_algorithms":
+				m.PublisherJWKSAlgorithms = d.RemainingArgs()
+				if len(m.PublisherJWKSAlgorithms) == 0 {
+					return d.ArgErr()
+				}
+
 			case "publisher_jwt":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -458,6 +504,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				m.SubscriberJWKSURL = d.Val()
+
+			case "subscriber_jwks_algorithms":
+				m.SubscriberJWKSAlgorithms = d.RemainingArgs()
+				if len(m.SubscriberJWKSAlgorithms) == 0 {
+					return d.ArgErr()
+				}
 
 			case "subscriber_jwt":
 				if !d.NextArg() {
@@ -548,6 +600,19 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				m.PublicURL = d.Val()
+
+			case "resource_identifier":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.ResourceIdentifier = d.Val()
+
+			case "authorization_servers":
+				m.AuthorizationServers = d.RemainingArgs()
+				if len(m.AuthorizationServers) == 0 {
+					return d.ArgErr()
+				}
 
 			case "protocol_version_compatibility":
 				if !d.NextArg() {
