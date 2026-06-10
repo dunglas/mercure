@@ -33,8 +33,13 @@ func (h *Hub) writeBearerError(w http.ResponseWriter, r *http.Request, code stri
 
 // writeAuthError maps an authorization failure to the RFC 6750 response:
 //   - nil error (no token presented) → 401 bare challenge,
-//   - malformed request / invalid authorization details → 400 invalid_request,
-//   - any other validation failure → 401 invalid_token.
+//   - malformed request framing (bad header or query parameter) →
+//     400 invalid_request,
+//   - any token defect, including malformed authorization details →
+//     401 invalid_token. Authorization details live inside the token, so
+//     their defects are token-validation failures, and a single error code
+//     avoids disclosing that the signature verified but the claims were
+//     malformed.
 //
 // insufficient_scope (403) is written directly by the handlers, which know
 // whether a valid token merely lacked a grant.
@@ -42,8 +47,7 @@ func (h *Hub) writeAuthError(w http.ResponseWriter, r *http.Request, err error) 
 	switch {
 	case err == nil:
 		h.writeBearerChallenge(w, r)
-	case errors.Is(err, errInvalidAuthorizationDetail),
-		errors.Is(err, ErrInvalidAuthorizationHeader),
+	case errors.Is(err, ErrInvalidAuthorizationHeader),
 		errors.Is(err, ErrInvalidAuthorizationQuery):
 		h.writeBearerError(w, r, bearerErrInvalidRequest, http.StatusBadRequest)
 	default:

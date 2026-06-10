@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"slices"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -70,10 +71,17 @@ func (h *Hub) initHandler() {
 		return
 	}
 
+	// The protocol forbids combining a wildcard Access-Control-Allow-Origin
+	// with credentials: cookies cross origins only when the allowed origins
+	// form an explicit allowlist. With "*", credentialed responses are
+	// rejected by browsers anyway, so disable credentials instead of shipping
+	// a header pair that can never work.
+	allowCredentials := !slices.Contains(h.corsOrigins, "*")
+
 	h.handler = secureMiddleware.Handler(
 		cors.New(cors.Options{
 			AllowedOrigins:   h.corsOrigins,
-			AllowCredentials: true,
+			AllowCredentials: allowCredentials,
 			AllowedHeaders:   []string{authorizationParam, "cache-control", "last-event-id"},
 			Debug:            h.debug,
 		}).Handler(router),

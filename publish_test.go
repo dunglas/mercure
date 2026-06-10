@@ -651,6 +651,6 @@ func TestPublishHandlerTooManyClaimMatchers(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	// Too many topics in a single authorization detail → invalid_request.
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	// Too many topics in a single authorization detail → invalid_token.
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }

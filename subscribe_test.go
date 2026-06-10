@@ -344,8 +344,8 @@ func TestSubscribeTooManyClaimMatchers(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 	})
 
-	// Too many topics in a single authorization detail → invalid_request.
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	// Too many topics in a single authorization detail → invalid_token.
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
 var errFailedToAddSubscriber = errors.New("failed to add a subscriber")

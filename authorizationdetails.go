@@ -12,7 +12,7 @@ import (
 // maxMatcherCount, and the number of mercure details by the same value. Each
 // matcher can force a URL Pattern compilation during validation, so these
 // bounds cap that work to the same ceiling as a subscribe request. A token
-// exceeding either is rejected with a 400 status code.
+// exceeding either is rejected as an invalid token (401).
 const (
 	maxMercureDetails = maxMatcherCount // type=="mercure" authorization details
 	maxDetailTopics   = maxMatcherCount // topic matchers summed across all details
@@ -32,7 +32,7 @@ const (
 )
 
 // errInvalidAuthorizationDetail is returned when the authorization_details
-// claim is malformed. The HTTP handlers map it to a 400 "invalid_request"
+// claim is malformed. The HTTP handlers map it to a 401 "invalid_token"
 // response (no partial acceptance: one bad mercure detail rejects the token).
 var errInvalidAuthorizationDetail = errors.New("invalid authorization_details claim")
 
