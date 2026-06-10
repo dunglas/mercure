@@ -18,8 +18,8 @@ If the app connecting to the Mercure hub and the hub itself are not served from 
 
 The usual symptoms of a CORS misconfiguration are errors about missing CORS HTTP headers in the browser console:
 
-- Chrome: `Refused to connect to 'https://hub.example.com/.well-known/mercure?topic=foo' because it violates the following Content Security Policy directive`
-- Firefox: `Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at https://hub.example.com/.well-known/mercure?topic=foo. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing)`
+- Chrome: `Refused to connect to 'https://hub.example.com/.well-known/mercure?match=foo' because it violates the following Content Security Policy directive`
+- Firefox: `Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at https://hub.example.com/.well-known/mercure?match=foo. (Reason: CORS header ‘Access-Control-Allow-Origin’ missing)`
 
 To fix these errors, set the list of domains allowed to connect to the hub as the value of `cors_origins` in the `Caddyfile`. Example: `cors_origins https://example.com https://example.net`. Don't forget the `https://` prefix before the domain name!
 
