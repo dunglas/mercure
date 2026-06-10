@@ -1141,6 +1141,9 @@ include:
     issue tokens for the hub [@!RFC8414]. Omitted when tokens are self-issued.
 *   `jwks_uri` (optional): the location of the hub's token verification keys, when not obtained
     from an authorization server.
+*   `authorization_details_types_supported`: the authorization detail types the hub understands
+    [@!RFC9728]; for hubs implementing this specification, the array contains `mercure` (see
+    (#authorization-details)).
 *   `bearer_methods_supported`: the [@!RFC6750] token presentation methods the hub actually
     accepts (see (#presenting-the-access-token)): `header`, plus `query` when the hub supports
     the URI query parameter method [@!RFC9728]. The cookie mechanism is not a [@!RFC6750]
