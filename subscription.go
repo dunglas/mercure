@@ -233,7 +233,10 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 		return span, currentURL, lastEventID, subscribers, false
 	}
 
-	if r.Header.Get("If-None-Match") == lastEventID {
+	// ETags are quoted strings (RFC 9110 §8.8.3); event IDs are IRIs or
+	// hub-generated URNs, so wrapping in quotes is enough.
+	etag := `"` + lastEventID + `"`
+	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
 
 		return span, "", "", nil, false
@@ -241,7 +244,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 	header := w.Header()
 	header["Content-Type"] = jsonldContentType
-	header["ETag"] = []string{lastEventID}
+	header["ETag"] = []string{etag}
 
 	return span, currentURL, lastEventID, subscribers, true
 }

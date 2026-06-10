@@ -92,7 +92,7 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 	hub := createDummy(t)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
-	req.Header.Add("If-None-Match", EarliestLastEventID)
+	req.Header.Add("If-None-Match", `"`+EarliestLastEventID+`"`)
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
 
 	w := httptest.NewRecorder()
@@ -102,7 +102,7 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 	require.NoError(t, res.Body.Close())
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/foo/bar", nil)
-	req.Header.Add("If-None-Match", EarliestLastEventID)
+	req.Header.Add("If-None-Match", `"`+EarliestLastEventID+`"`)
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo/bar"})})
 
 	w = httptest.NewRecorder()
