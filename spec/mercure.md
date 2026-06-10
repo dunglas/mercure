@@ -119,7 +119,10 @@ using the bare `match` parameter here.
 The names of topic matcher query parameters are case-sensitive. A request using a parameter name
 in the reserved `match` namespace (a name equal to `match`, or beginning with `match` under an
 ASCII case-insensitive comparison) that does not correspond to a matcher type defined in
-(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code.
+(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code. This
+deliberately reserves the whole `match` prefix: unrelated query parameters whose names begin
+with `match` cannot be used on the subscription URL, and a misspelled matcher type fails
+loudly instead of being silently ignored.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters or U+007F.
@@ -182,8 +185,8 @@ eventSource.onmessage = function ({data}) {
 };
 ~~~
 
-The hub **MAY** require subscribers and publishers to be authenticated, and **MAY** apply extra
-authorization rules not defined in this specification.
+The hub **MAY** apply extra authorization rules not defined in this specification. See
+(#authorization).
 
 # Matcher Types
 
@@ -264,10 +267,10 @@ An application **MAY** deliver events directly to subscribers without an externa
 case, the publish endpoint described in this section is not required.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
-[@W3C.REC-html52-20171214] and **MUST** contain exactly one `topic` field. Field names and
-values **MUST** be UTF-8 [@!RFC3629]. It **MAY** also contain the following name-value tuples:
+[@W3C.REC-html52-20171214]. Field names and values **MUST** be UTF-8 [@!RFC3629]. The request
+**MUST** contain exactly one `topic` field; all other fields defined below are optional:
 
-*   `topic`: The identifier of the updated topic, and the resource against which private-read
+*   `topic` (required): The identifier of the updated topic, and the resource against which private-read
     authorization is evaluated (see (#subscribers)). It is **RECOMMENDED** to use an IRI as
     identifier. This field **MUST** appear exactly once; a request carrying more than one `topic`
     field **MUST** be rejected with a 400 "Bad Request" HTTP status code. The topic value
@@ -415,7 +418,7 @@ passed in the `access_token` URI query parameter as defined in [@!RFC6750] secti
 For example, the client makes the following HTTP request using transport-layer security:
 
 ~~~ http
-GET /.well-known/mercure?topic=https://example.com/books/foo&access_token=<token>
+GET /.well-known/mercure?match=https%3A%2F%2Fexample.com%2Fbooks%2Ffoo&access_token=<token>
 Host: hub.example.com
 ~~~
 
@@ -591,6 +594,11 @@ subscription's own matcher (the `match` or `match<MatcherType>` query parameter 
 included under the `payload` key of the JSON object describing the subscription, both in the
 subscription API and in subscription events. A `subscribe` detail whose `topics` contains the `*`
 wildcard matches every subscription and can serve as a default.
+
+Matching here treats the subscription's own matcher string as if it were a topic: for example,
+the `URLPattern` matcher `https://example.com/bar/:id` in a `subscribe` detail matches the
+subscription created by `matchURLPattern=https://example.com/bar/:id`, and an `Exact` matcher
+matches a subscription whose matcher string is byte-for-byte identical to it.
 
 Note: Payload selection is order-dependent; the first matching authorization detail wins. Issuers
 placing broad matchers before more specific entries will mask the payloads of the specific
@@ -866,7 +874,7 @@ Host: example.com
 200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
-ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-control: must-revalidate
 
 {
@@ -913,7 +921,7 @@ Host: example.com
 200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
-ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-control: must-revalidate
 
 {
@@ -951,7 +959,7 @@ Host: example.com
 200 OK
 Content-type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
-ETag: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-control: must-revalidate
 
 {
@@ -1003,7 +1011,7 @@ The JSON-LD context available at `https://mercure.rocks/` is the following:
 
 The discovery mechanism aims at identifying the URL of one or more hubs designated by the publisher.
 
-The URL of the hub **MUST** be the "well-known" [@!RFC5785] fixed path `/.well-known/mercure`.
+The URL of the hub **MUST** be the "well-known" [@!RFC8615] fixed path `/.well-known/mercure`.
 
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the
 subscriber so that the subscriber can receive live updates. If more than one hub URL is
@@ -1062,10 +1070,11 @@ include:
     issue tokens for the hub [@!RFC8414]. Omitted when tokens are self-issued.
 *   `jwks_uri` (optional): the location of the hub's token verification keys, when not obtained
     from an authorization server.
-*   `bearer_methods_supported`: the token presentation methods the hub accepts (see
-    (#presenting-the-access-token)). Values are `header` and `query` [@!RFC9728]. The cookie
-    mechanism is not a [@!RFC6750] bearer method, so it is not listed here; it is advertised by
-    the separate `mercure_cookie` member below.
+*   `bearer_methods_supported`: the [@!RFC6750] token presentation methods the hub actually
+    accepts (see (#presenting-the-access-token)): `header`, plus `query` when the hub supports
+    the URI query parameter method [@!RFC9728]. The cookie mechanism is not a [@!RFC6750]
+    bearer method, so it is not listed here; it is advertised by the separate `mercure_cookie`
+    member below.
 *   `mercure_cookie` (optional): a boolean. When `true`, the hub also accepts the access token in
     a cookie (a Mercure extension to [@!RFC6750]; see (#cookie)). The cookie mechanism is
     advertised as a dedicated metadata member rather than a value of `bearer_methods_supported`,
