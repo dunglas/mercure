@@ -501,6 +501,10 @@ Failure of any of these checks **MUST** be reported as defined in (#error-respon
 
 Authorization is expressed with the `authorization_details` claim [@!RFC9396], a JSON array of
 authorization detail objects. This specification defines the authorization detail type `mercure`.
+[@!RFC9396] does not establish a registry of authorization details type identifiers (it leaves
+their registration with authorization servers out of scope); the `mercure` type is defined by
+this document. Authorization servers supporting it advertise the value `mercure` in their
+`authorization_details_types_supported` metadata [@!RFC9396].
 
 A `mercure` authorization detail object:
 
@@ -1099,6 +1103,11 @@ include:
     advertised as a dedicated metadata member rather than a value of `bearer_methods_supported`,
     whose values are constrained to the [@!RFC6750] methods. This member is omitted when the hub
     does not offer cookie authorization.
+*   `mercure_version` (optional, **RECOMMENDED**): the revision of the Mercure protocol
+    implemented by the hub, as a JSON number. The value for the protocol described by this
+    document is `8`. Clients **MAY** use this member to detect hubs implementing incompatible
+    earlier revisions, which used the `topic` subscribe query parameter and a different access
+    token format and which do not publish protected resource metadata at all.
 
 When a request carries no access token, the hub's `WWW-Authenticate: Bearer` challenge
 **SHOULD** include a `resource_metadata` parameter pointing to this document (see
@@ -1231,14 +1240,21 @@ Type" registry with the following entry:
 *   Description: The Mercure Hub to use to subscribe to updates of this resource.
 *   Reference: This specification, (#discovery)
 
-## Authorization Details Type
+## OAuth Protected Resource Metadata Registry
 
-A new authorization details type as described in (#authorization-details) is to be registered in
-the "OAuth Authorization Server Metadata" — "Authorization Details Type" registry established by
-[@!RFC9396], with the following entry:
+The following values are to be registered in the "OAuth Protected Resource Metadata" registry
+established by [@!RFC9728]:
 
-*   Type: mercure
-*   Reference: This specification, (#authorization-details)
+*   Metadata Name: mercure_cookie
+*   Metadata Description: Boolean indicating that the Mercure hub also accepts the access
+    token in a cookie
+*   Change Controller: IETF
+*   Specification Document(s): This specification, (#protected-resource-metadata)
+
+*   Metadata Name: mercure_version
+*   Metadata Description: Revision of the Mercure protocol implemented by the hub
+*   Change Controller: IETF
+*   Specification Document(s): This specification, (#protected-resource-metadata)
 
 # Security Considerations
 
