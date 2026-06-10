@@ -6,14 +6,17 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
     if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
+    environment: release
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -27,17 +30,46 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v5
 
-      - name: Package Helm chart
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+
+      - name: Package and sign Helm chart
+        env:
+          PASSPHRASE: ${{ secrets.PASSPHRASE }}
+          # `helm package --sign --key` substring-matches User IDs only
+          # (fingerprint/keyid lookups fail), so pass the full UID.
+          KEY_UID: ${{ steps.import_gpg.outputs.user }}
         run: |
+          umask 077
           mkdir -p .cr-release-packages
-          helm package charts/mercure -d .cr-release-packages
+          # Helm signs using the legacy GPG keyring format. Keep both the
+          # keyring and the passphrase out of disk: the keyring goes to a
+          # tmp file removed on exit, the passphrase is piped via stdin.
+          SECRING=$(mktemp)
+          trap 'rm -f "$SECRING"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" \
+            --export-secret-keys > "$SECRING"
+          printf '%s' "$PASSPHRASE" | helm package --sign \
+            --key "$KEY_UID" \
+            --keyring "$SECRING" \
+            --passphrase-file - \
+            charts/mercure -d .cr-release-packages
+
+      - name: Attest Helm chart
+        uses: actions/attest@v4
+        with:
+          subject-path: .cr-release-packages/*.tgz
 
       - name: Upload Helm chart to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          gh release upload "$RELEASE_TAG" .cr-release-packages/*.tgz --clobber
+          gh release upload "$RELEASE_TAG" .cr-release-packages/* --clobber
 
       - name: Update Helm chart repo index
         uses: helm/chart-releaser-action@v1.7.0

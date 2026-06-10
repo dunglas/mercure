@@ -1,4 +1,4 @@
-{{- if .Values.httpRoute.enabled -}}
+{{- if (.Values.httpRoute | default dict).enabled -}}
 {{- $fullName := include "mercure.fullname" . -}}
 {{- $svcPort := .Values.service.port -}}
 apiVersion: gateway.networking.k8s.io/v1

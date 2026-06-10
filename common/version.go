@@ -19,9 +19,11 @@ type AppVersionInfo struct {
 
 var AppVersion AppVersionInfo //nolint:gochecknoglobals
 
+const dev = "dev"
+
 // these variables are dynamically set at build.
 var (
-	version   = "dev"
+	version   = dev
 	buildDate = "" //nolint:gochecknoglobals
 	commit    = "" //nolint:gochecknoglobals
 )
@@ -43,7 +45,7 @@ func (v *AppVersionInfo) Shortline() string {
 func (v *AppVersionInfo) ChangelogURL() string {
 	const path = "https://github.com/dunglas/mercure"
 
-	if v.Version == "dev" {
+	if v.Version == dev {
 		return path + "/releases/latest"
 	}
 
@@ -78,7 +80,7 @@ func (v *AppVersionInfo) NewMetricsCollector() *prometheus.GaugeVec {
 }
 
 func init() { //nolint:gochecknoinits
-	if version == "dev" {
+	if version == dev {
 		info, ok := debug.ReadBuildInfo()
 		if ok && info.Main.Version != "(devel)" && info.Main.Version != "" {
 			version = info.Main.Version

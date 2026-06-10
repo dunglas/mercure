@@ -44,7 +44,7 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 		header["Content-Type"] = []string{mimeType}
 	}
 
-	cookie := &http.Cookie{
+	cookie := &http.Cookie{ //nolint:gosec // ignore Secure flag as this is a demo endpoint
 		Name:     h.cookieName,
 		Path:     defaultHubURL,
 		Value:    jwt,

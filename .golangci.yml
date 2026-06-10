@@ -9,6 +9,20 @@ run:
     - nopgx
 linters:
   default: all
+  settings:
+    gomoddirectives:
+      replace-local: true
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+        - generic
+        - go.opentelemetry.io/otel/trace.Span
+    spancheck:
+      extra-start-span-signatures:
+        - "github.com/dunglas/mercure.startSpan:opentelemetry"
   disable:
     - canonicalheader
     - cyclop
@@ -16,6 +30,7 @@ linters:
     - errcheck
     - exhaustruct
     - forcetypeassert
+    - gomodguard
     - intrange
     - lll
     - mnd
@@ -38,6 +53,7 @@ linters:
       - std-error-handling
     rules:
       - linters:
+          - gosec
           - funlen
           - gochecknoglobals
           - goconst

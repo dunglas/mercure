@@ -8,6 +8,9 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type subscriberContextKeyType struct{}
@@ -194,6 +197,9 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 // registerSubscriber initializes the connection.
 func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) { //nolint:funlen
+	ctx, span := startSpan(ctx, "mercure.subscribe", trace.WithSpanKind(trace.SpanKindConsumer))
+	defer span.End()
+
 	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r), h.logger, h.topicSelectorStore)
 
 	var (
@@ -201,7 +207,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		claims        *claims
 	)
 
-	if h.subscriberJWTKeyFunc != nil {
+	if h.subscriberJWTKeyFunc != nil { //nolint:nestif
 		var err error
 
 		claims, err = h.authorize(r, false)
@@ -217,6 +223,10 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 				h.logger.LogAttrs(ctx, slog.LevelDebug, "Subscriber unauthorized", slog.Any("error", err))
 			}
 
+			if err != nil {
+				recordSpanError(span, err)
+			}
+
 			return nil, nil
 		}
 	}
@@ -228,7 +238,20 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		return nil, nil
 	}
 
+	if len(topics) > maxQueryTopics {
+		http.Error(w, `Too many "topic" parameters.`, http.StatusBadRequest)
+
+		return nil, nil
+	}
+
 	s.SetTopics(topics, privateTopics)
+
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("mercure.subscriber.id", s.ID),
+			attribute.StringSlice("mercure.topics", topics),
+		)
+	}
 
 	addCtx := context.WithoutCancel(ctx)
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
@@ -240,6 +263,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		if h.logger.Enabled(ctx, slog.LevelError) {
 			h.logger.LogAttrs(ctx, slog.LevelError, "Unable to add subscriber", slog.Any("error", err))
 		}
+
+		recordSpanError(span, err)
 
 		return nil, nil
 	}

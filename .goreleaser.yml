@@ -102,10 +102,13 @@ dockers:
     goos: linux
     goarch: amd64
     image_templates:
+      # Rolling tags (vN, vN.M, latest) are suppressed on prereleases so
+      # a 1.0.0-beta.X cut does not move :latest/:v1 off the stable line.
+      # GoReleaser drops empty entries, so the {{ if }} blocks emit no tag.
       - "dunglas/mercure:{{ .Tag }}-amd64"
-      - "dunglas/mercure:v{{ .Major }}-amd64"
-      - "dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "dunglas/mercure:latest-amd64"
+      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}-amd64{{ end }}"
+      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64{{ end }}"
+      - "{{ if not .Prerelease }}dunglas/mercure:latest-amd64{{ end }}"
     use: buildx
     build_flag_templates:
       - "--platform=linux/amd64"
@@ -118,9 +121,9 @@ dockers:
     goarch: arm64
     image_templates:
       - "dunglas/mercure:{{ .Tag }}-arm64v8"
-      - "dunglas/mercure:v{{ .Major }}-arm64v8"
-      - "dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8"
-      - "dunglas/mercure:latest-arm64v8"
+      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}-arm64v8{{ end }}"
+      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8{{ end }}"
+      - "{{ if not .Prerelease }}dunglas/mercure:latest-arm64v8{{ end }}"
     use: buildx
     build_flag_templates:
       - "--platform=linux/arm64/v8"
@@ -132,23 +135,28 @@ dockers:
     dockerfile: Dockerfile.legacy
     image_templates:
       - "dunglas/mercure:legacy-{{ .Tag }}"
-      - "dunglas/mercure:legacy-v{{ .Major }}"
-      - "dunglas/mercure:legacy-v{{ .Major }}.{{ .Minor }}"
-      - "dunglas/mercure:legacy-latest"
+      - "{{ if not .Prerelease }}dunglas/mercure:legacy-v{{ .Major }}{{ end }}"
+      - "{{ if not .Prerelease }}dunglas/mercure:legacy-v{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not .Prerelease }}dunglas/mercure:legacy-latest{{ end }}"
 docker_manifests:
   - name_template: dunglas/mercure:{{ .Tag }}
     image_templates:
       - dunglas/mercure:{{ .Tag }}-amd64
       - dunglas/mercure:{{ .Tag }}-arm64v8
+  # Rolling manifests are skipped on prereleases (name_template cannot
+  # be empty, so use skip_push instead of an {{ if }} wrap).
   - name_template: dunglas/mercure:v{{ .Major }}
+    skip_push: "{{ .Prerelease }}"
     image_templates:
       - dunglas/mercure:v{{ .Major }}-amd64
       - dunglas/mercure:v{{ .Major }}-arm64v8
   - name_template: dunglas/mercure:v{{ .Major }}.{{ .Minor }}
+    skip_push: "{{ .Prerelease }}"
     image_templates:
       - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64
       - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8
   - name_template: dunglas/mercure:latest
+    skip_push: "{{ .Prerelease }}"
     image_templates:
       - dunglas/mercure:latest-amd64
       - dunglas/mercure:latest-arm64v8

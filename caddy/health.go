@@ -23,14 +23,14 @@ var (
 )
 
 func init() { //nolint:gochecknoinits
-	caddy.RegisterModule(Health{})
+	caddy.RegisterModule(&Health{})
 }
 
 // Health is a Caddy admin API module that exposes transport health check endpoints.
 type Health struct{}
 
 // CaddyModule returns the Caddy module information.
-func (Health) CaddyModule() caddy.ModuleInfo {
+func (*Health) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "admin.api.mercure_health",
 		New: func() caddy.Module { return new(Health) },
@@ -38,7 +38,7 @@ func (Health) CaddyModule() caddy.ModuleInfo {
 }
 
 // Routes returns the admin routes for the health module.
-func (h Health) Routes() []caddy.AdminRoute {
+func (h *Health) Routes() []caddy.AdminRoute {
 	return []caddy.AdminRoute{
 		{
 			Pattern: "/mercure/health/",
@@ -52,7 +52,7 @@ type healthResponse struct {
 	Error  string `json:"error,omitempty"`
 }
 
-func (h Health) handleHealth(w http.ResponseWriter, r *http.Request) error {
+func (h *Health) handleHealth(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		return caddy.APIError{
 			HTTPStatus: http.StatusMethodNotAllowed,
@@ -115,7 +115,7 @@ func parseHealthPath(urlPath string) (checkType, hubName string, err error) {
 	}
 }
 
-func (h Health) checkTransports(r *http.Request, checkType, hubName string) error {
+func (h *Health) checkTransports(r *http.Request, checkType, hubName string) error {
 	infos := h.snapshotHubs()
 
 	var matched bool
@@ -151,7 +151,7 @@ func (h Health) checkTransports(r *http.Request, checkType, hubName string) erro
 	return nil
 }
 
-func (h Health) snapshotHubs() []*hubInfo {
+func (h *Health) snapshotHubs() []*hubInfo {
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
 
