@@ -111,12 +111,12 @@ test.describe("Publish update", () => {
           );
 
           const url = new window.URL("/.well-known/mercure", window.origin);
-          // The `topic` query parameter selects exact matching;
-          // `topicURLPattern` selects the URL Pattern matcher. Selectors
+          // The `match` query parameter selects exact matching;
+          // `matchURLPattern` selects the URL Pattern matcher. Selectors
           // carrying a `:param` placeholder go through the latter.
           const paramName = (selector: string): string => {
-            if (/\/:[A-Za-z_]/.test(selector)) return "topicURLPattern";
-            return "topic";
+            if (/\/:[A-Za-z_]/.test(selector)) return "matchURLPattern";
+            return "match";
           };
           data.topicSelectors.forEach((topicSelector) =>
             url.searchParams.append(paramName(topicSelector), topicSelector),

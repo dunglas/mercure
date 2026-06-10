@@ -292,7 +292,7 @@ foo`;
       // covers every {matchType}/{match}/{subscriber} triple.
       const u = new URL($settingsForm.hubUrl.value);
       u.searchParams.append(
-        "topicURLPattern",
+        "matchURLPattern",
         "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
       );
       u.searchParams.append("lastEventID", json.lastEventID);
