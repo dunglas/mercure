@@ -44,7 +44,7 @@ to receive it and then distribute it.
 # Introduction
 
 Mercure is a protocol for pushing updates of web resources to clients over HTTP. It builds on
-Server-Sent Events [@!W3C.REC-eventsource-20150203] for delivery and on JSON Web Signatures
+Server-Sent Events [@!HTML] for delivery and on JSON Web Signatures
 [@!RFC7515] for authorization, so that it can be implemented on top of existing HTTP
 infrastructure and consumed natively by web browsers.
 
@@ -98,7 +98,7 @@ appear in all capitals, as shown here.
 The subscriber subscribes to a URL exposed by a hub to receive updates from one or more topics.
 To subscribe, the client opens an HTTPS connection to the hub's subscription URL (advertised by
 the publisher; see (#discovery)) following the Server-Sent Events specification
-[@!W3C.REC-eventsource-20150203]. The `GET` HTTP method **MUST** be used. The connection
+[@!HTML]. The `GET` HTTP method **MUST** be used. The connection
 **SHOULD** use HTTP version 2 or higher to leverage multiplexing and other performance-related
 features.
 
@@ -138,7 +138,7 @@ Request" HTTP status code. A subscription is created for every topic matcher que
 present in the request. Hubs **MAY** deduplicate subscriptions that have identical matcher type
 and pattern. See (#subscription-events).
 
-The `EventSource` JavaScript interface [@eventsource-interface] **MAY** be used to establish
+The `EventSource` JavaScript interface [@HTML] **MAY** be used to establish
 the connection. Any other appropriate mechanism, including but not limited to readable streams
 [@W3C.NOTE-streams-api-20161129] and XMLHttpRequest [@xhr] (used by popular polyfills),
 **MAY** also be used.
@@ -159,7 +159,7 @@ If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscri
 to receive it. See (#authorization).
 
 The hub **MUST** send these updates as `text/event-stream`-compliant events
-[@!W3C.REC-eventsource-20150203].
+[@!HTML].
 
 The `data` property **MUST** contain the topic's new version. It **MAY** be the full resource or
 a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
@@ -169,7 +169,7 @@ be supported by hubs.
 
 The resource **MAY** be represented in a format with hypermedia capabilities such as
 JSON-LD [@W3C.REC-json-ld-20140116], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
-[@W3C.REC-html52-20171214].
+[@HTML].
 
 Web Linking [@!RFC8288] **MAY** be used to indicate the IRI of the resource sent in the event.
 When using Atom, XML, or HTML as the serialization format, the document **SHOULD** contain a
@@ -277,7 +277,7 @@ An application **MAY** deliver events directly to subscribers without an externa
 case, the publish endpoint described in this section is not required.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
-[@W3C.REC-html52-20171214]. Field names and values **MUST** be UTF-8 [@!RFC3629]. The request
+[@!URL]. Field names and values **MUST** be UTF-8 [@!RFC3629]. The request
 **MUST** contain exactly one `topic` field; all other fields defined below are optional:
 
 *   `topic` (required): The identifier of the updated topic, and the resource against which private-read
@@ -424,7 +424,7 @@ by the access token, as defined in [@!RFC6750].
 
 ### Cookie
 
-Per the `EventSource` specification [@W3C.REC-eventsource-20150203], web browsers cannot set
+Per the `EventSource` specification [@HTML], web browsers cannot set
 custom HTTP headers on such connections, and the connections can only be established using the
 `GET` HTTP method. However, cookies are supported and can be included even in cross-domain
 requests if [the CORS credentials are
@@ -1948,13 +1948,23 @@ specification.
     </front>
 </reference>
 
-<reference anchor="eventsource-interface" target="https://html.spec.whatwg.org/#the-eventsource-interface">
+<reference anchor="HTML" target="https://html.spec.whatwg.org/multipage/server-sent-events.html">
     <front>
         <title>HTML Living Standard</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
-        <date year="2024"/>
+        <date year="2026"/>
+    </front>
+</reference>
+
+<reference anchor="URL" target="https://url.spec.whatwg.org/">
+    <front>
+        <title>URL Living Standard</title>
+        <author>
+            <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
+        </author>
+        <date year="2026"/>
     </front>
 </reference>
 
