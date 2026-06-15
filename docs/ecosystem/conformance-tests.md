@@ -1,23 +1,58 @@
-# Conformance Tests
+---
+title: "Mercure protocol conformance tests with Playwright"
+description: "Validate any Mercure hub implementation against the Mercure protocol with the official Playwright-based conformance test suite."
+---
 
-We provide conformance tests to check if a hub is compliant with the Mercure specification.
-This test suite is based on [Playwright](https://playwright.dev/).
+# Conformance tests
 
-## Install
+The Mercure repository ships a [Playwright](https://playwright.dev/)-based conformance test suite. It exercises the protocol against a running hub and checks that the responses match the spec.
 
-1. Clone the repository: `git clone https://github.com/dunglas/mercure`
-2. Go in the conformance tests directory: `cd conformance-tests`
-3. Install the dependencies: `npm ci`
-4. Install Playwright: `npx playwright install --with-deps`
-5. Run the test suite: `npx playwright test`
+Use it to:
 
-## Configuration
+- Validate a third-party Mercure implementation.
+- Catch regressions when modifying the reference hub.
+- Understand the protocol by reading concrete examples.
 
-The test suite can be configured by setting environment variables:
+## Run the Mercure conformance test suite
 
-- `BASE_URL`: the URL of the hub to test
-- `CUSTOM_ID`: enable or disable tests related to custom IDs support
+```console
+# Run the Mercure Conformance Test Suite
+git clone https://github.com/dunglas/mercure
+cd mercure/conformance-tests
+npm ci
+npx playwright install --with-deps
+npx playwright test
+```
 
-## See Also
+By default the suite hits a hub on `https://localhost`. Start one before running tests, or override `BASE_URL`:
 
-- [The load test](../hub/load-test.md)
+```console
+# Run the Mercure Conformance Test Suite
+BASE_URL=https://hub.example.com npx playwright test
+```
+
+## Mercure conformance test configuration
+
+| Variable    | Description                                                                |
+| ----------- | -------------------------------------------------------------------------- |
+| `BASE_URL`  | URL of the hub to test.                                                    |
+| `CUSTOM_ID` | Toggle tests that depend on the hub honoring publisher-supplied event IDs. |
+
+Set `CUSTOM_ID=0` for transports that don't support custom IDs (e.g. Pulsar, see [High availability](../production/high-availability.md#self-hosted-transports) for transport feature matrices).
+
+## What the Mercure conformance suite covers
+
+Tests are organized by spec section:
+
+- Subscribe semantics (`match` and `matchURLPattern`).
+- Publish semantics (form fields, single topic, custom IDs).
+- Authorization (OAuth 2.0 access token validation, `authorization_details`, RFC 6750 errors).
+- Reconnection (`Last-Event-ID`, `lastEventID`, `earliest`).
+- Active subscriptions (events + API).
+
+Run with `--ui` for the interactive Playwright explorer; useful when debugging a specific assertion failure.
+
+## Related Mercure testing resources
+
+- [Load test](../production/load-testing.md): measures throughput, not correctness.
+- [Protocol](../reference/protocol.md): the spec the tests are validating against.
