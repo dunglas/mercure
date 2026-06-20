@@ -11,7 +11,7 @@ replace github.com/dunglas/mercure => ../
 
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.0
-	github.com/caddyserver/caddy/v2 v2.11.3
+	github.com/caddyserver/caddy/v2 v2.11.4
 	github.com/dunglas/mercure v0.24.2
 	github.com/stretchr/testify v1.11.1
 )
