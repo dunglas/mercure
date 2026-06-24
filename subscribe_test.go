@@ -145,15 +145,15 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 		}
 
 		_ = hub.transport.Dispatch(t.Context(), &Update{
-			Topics: []string{"https://example.com/foo"},
-			Event:  Event{Data: "Hello World"},
+			Topic: "https://example.com/foo",
+			Event: Event{Data: "Hello World"},
 		})
 	}()
 
 	assert.Panics(t, func() {
 		hub.SubscribeHandler(
 			&responseWriterMock{},
-			httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil),
+			httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil),
 		)
 	})
 }
@@ -261,7 +261,7 @@ func TestSubscribeNoTopic(t *testing.T) {
 	})
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-	assert.Equal(t, "Missing \"topic\" parameter.\n", w.Body.String())
+	assert.Equal(t, "missing \"match\" subscription parameter\n", w.Body.String())
 }
 
 func TestSubscribeTooManyTopics(t *testing.T) {
@@ -271,7 +271,7 @@ func TestSubscribeTooManyTopics(t *testing.T) {
 
 	q := url.Values{}
 	for i := 0; i <= maxQueryTopics; i++ {
-		q.Add("topic", "https://example.com/foo")
+		q.Add("match", "https://example.com/foo")
 	}
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?"+q.Encode(), nil)
@@ -297,7 +297,7 @@ func TestSubscribeTooManyClaimMatchers(t *testing.T) {
 		scope[i] = "https://example.com/foo"
 	}
 
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, scope))
 
 	w := httptest.NewRecorder()
@@ -341,7 +341,7 @@ func TestSubscribeAddSubscriberError(t *testing.T) {
 
 	hub := createAnonymousDummy(t, WithTransport(&addSubscriberErrorTransport{}))
 
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=foo", nil)
 	w := httptest.NewRecorder()
 
 	hub.SubscribeHandler(w, req)
@@ -374,24 +374,24 @@ func subscribe(tb testing.TB, numberOfSubscribers int) {
 		}
 
 		_ = hub.transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/not-subscribed"},
-			Event:  Event{Data: "Hello World", ID: "a"},
+			Topic: "https://example.com/not-subscribed",
+			Event: Event{Data: "Hello World", ID: "a"},
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/books/1"},
-			Event:  Event{Data: "Hello World", ID: "b"},
+			Topic: "https://example.com/books/1",
+			Event: Event{Data: "Hello World", ID: "b"},
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/reviews/22"},
-			Event:  Event{Data: "Great", ID: "c"},
+			Topic: "https://example.com/reviews/22",
+			Event: Event{Data: "Great", ID: "c"},
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/hub?topic=faulty{iri"},
-			Event:  Event{Data: "Faulty IRI", ID: "d"},
+			Topic: "https://example.com/hub?topic=faulty{iri",
+			Event: Event{Data: "Faulty IRI", ID: "d"},
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
-			Topics: []string{"string"},
-			Event:  Event{Data: "string", ID: "e"},
+			Topic: "string",
+			Event: Event{Data: "string", ID: "e"},
 		})
 	}()
 
@@ -400,7 +400,7 @@ func subscribe(tb testing.TB, numberOfSubscribers int) {
 	for range numberOfSubscribers {
 		wg.Go(func() {
 			ctx, cancel := context.WithCancel(tb.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1&topic=string&topic=https://example.com/reviews/{id}&topic=https://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1&match=string&matchURLPattern=https://example.com/reviews/:id&match=https://example.com/hub?topic=faulty{iri", nil).WithContext(ctx)
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
@@ -425,7 +425,7 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/reviews/{id}", nil).WithContext(ctx)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWTWithPayload(roleSubscriber, []string{"https://example.com/reviews/22"}, payload)})
 
 	w := &responseTester{
@@ -490,7 +490,7 @@ func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
 	h := createAnonymousDummy(t, WithLogger(logger))
 
 	ctx, cancel := context.WithCancel(t.Context())
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/", nil).WithContext(ctx)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/", nil).WithContext(ctx)
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -515,7 +515,7 @@ func TestUnsubscribe(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 
 		go func() {
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(ctx)
 			hub.SubscribeHandler(newSubscribeRecorder(), req)
 			assert.Equal(t, 0, s.subscribers.Len())
 			s.subscribers.Walk(0, func(s *LocalSubscriber) bool {
@@ -559,17 +559,17 @@ func TestSubscribePrivate(t *testing.T) {
 			}
 
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/21"},
+				Topic:   "https://example.com/reviews/21",
 				Event:   Event{Data: "Foo", ID: "a"},
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/22"},
+				Topic:   "https://example.com/reviews/22",
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/23"},
+				Topic:   "https://example.com/reviews/23",
 				Event:   Event{Data: "Great", ID: "c", Retry: 1},
 				Private: true,
 			})
@@ -579,7 +579,7 @@ func TestSubscribePrivate(t *testing.T) {
 	}()
 
 	ctx, cancel := context.WithCancel(t.Context())
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/reviews/{id}", nil).WithContext(ctx)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com/reviews/22", "https://example.com/reviews/23"})})
 
 	w := &responseTester{
@@ -607,8 +607,12 @@ func TestSubscriptionEvents(t *testing.T) {
 
 	wg.Go(func() {
 		// Authorized to receive connection events
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topic}/{subscriber}", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/{topic}/{subscriber}"})})
+		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
+		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithClaims(t, []matcherClaim{
+			{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"}},
+		}, struct {
+			Foo string `json:"foo"`
+		}{Foo: "bar"})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -625,10 +629,11 @@ func TestSubscriptionEvents(t *testing.T) {
 
 		bodyContent := string(body)
 		assert.Contains(t, bodyContent, `data:   "@context": "https://mercure.rocks/",`)
-		assert.Regexp(t, `(?m)^data:   "id": "/\.well-known/mercure/subscriptions/https%3A%2F%2Fexample\.com/.*,$`, bodyContent)
+		assert.Regexp(t, `(?m)^data:   "id": "/\.well-known/mercure/subscriptions/Exact/https%3A%2F%2Fexample\.com/.*,$`, bodyContent)
 		assert.Contains(t, bodyContent, `data:   "type": "Subscription",`)
 		assert.Contains(t, bodyContent, `data:   "subscriber": "urn:uuid:`)
-		assert.Contains(t, bodyContent, `data:   "topic": "https://example.com",`)
+		assert.Contains(t, bodyContent, `data:   "match": "https://example.com",`)
+		assert.Contains(t, bodyContent, `data:   "matchType": "Exact",`)
 		assert.Contains(t, bodyContent, `data:   "active": true,`)
 		assert.Contains(t, bodyContent, `data:   "active": false,`)
 		assert.Contains(t, bodyContent, `data:   "payload": {`)
@@ -637,7 +642,7 @@ func TestSubscriptionEvents(t *testing.T) {
 
 	wg.Go(func() {
 		// Not authorized to receive connection events
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=/.well-known/mercure/subscriptions/{topicSelector}/{subscriber}", nil).WithContext(ctx2)
+		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", nil).WithContext(ctx2)
 		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
 
 		w := newSubscribeRecorder()
@@ -666,7 +671,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		}
 
 		ctx, cancelRequest2 := context.WithCancel(ctx)
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com", nil).WithContext(ctx)
+		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
 		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
 
 		w := &responseTester{
@@ -702,12 +707,12 @@ func TestSubscribeAll(t *testing.T) {
 			}
 
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/21"},
+				Topic:   "https://example.com/reviews/21",
 				Event:   Event{Data: "Foo", ID: "a"},
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/22"},
+				Topic:   "https://example.com/reviews/22",
 				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
 				Private: true,
 			})
@@ -717,7 +722,7 @@ func TestSubscribeAll(t *testing.T) {
 	}()
 
 	ctx, cancel := context.WithCancel(t.Context())
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/reviews/{id}", nil).WithContext(ctx)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
 	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"random", "*"}))
 
 	w := &responseTester{
@@ -740,14 +745,14 @@ func TestSendMissedEvents(t *testing.T) {
 		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/foos/a"},
+			Topic: "https://example.com/foos/a",
 			Event: Event{
 				ID:   "a",
 				Data: "d1",
 			},
 		}))
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/foos/b"},
+			Topic: "https://example.com/foos/b",
 			Event: Event{
 				ID:   "b",
 				Data: "d2",
@@ -757,7 +762,7 @@ func TestSendMissedEvents(t *testing.T) {
 		// Using deprecated 'Last-Event-ID' query parameter
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&Last-Event-ID=a", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id&Last-Event-ID=a", nil).WithContext(ctx)
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
@@ -771,7 +776,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=a", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id&lastEventID=a", nil).WithContext(ctx)
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
@@ -785,7 +790,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id", nil).WithContext(ctx)
 			req.Header.Add("Last-Event-ID", "a")
 
 			w := &responseTester{
@@ -811,14 +816,14 @@ func TestSendAllEvents(t *testing.T) {
 		ctx := t.Context()
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/foos/a"},
+			Topic: "https://example.com/foos/a",
 			Event: Event{
 				ID:   "a",
 				Data: "d1",
 			},
 		}))
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/foos/b"},
+			Topic: "https://example.com/foos/b",
 			Event: Event{
 				ID:   "b",
 				Data: "d2",
@@ -827,7 +832,7 @@ func TestSendAllEvents(t *testing.T) {
 
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID="+EarliestLastEventID, nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id&lastEventID="+EarliestLastEventID, nil).WithContext(ctx)
 
 			w := &responseTester{
 				header:             http.Header{},
@@ -842,7 +847,7 @@ func TestSendAllEvents(t *testing.T) {
 
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id", nil).WithContext(ctx)
 			req.Header.Add("Last-Event-ID", EarliestLastEventID)
 
 			w := &responseTester{
@@ -868,7 +873,7 @@ func TestUnknownLastEventID(t *testing.T) {
 		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport))
 
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Topics: []string{"https://example.com/foos/a"},
+			Topic: "https://example.com/foos/a",
 			Event: Event{
 				ID:   "a",
 				Data: "d1",
@@ -879,7 +884,7 @@ func TestUnknownLastEventID(t *testing.T) {
 
 		go func(ctx context.Context) {
 			c, cancel := context.WithCancel(ctx)
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(c)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id&lastEventID=unknown", nil).WithContext(c)
 
 			w := &responseTester{
 				header:             http.Header{},
@@ -895,7 +900,7 @@ func TestUnknownLastEventID(t *testing.T) {
 
 		go func(ctx context.Context) {
 			c, cancel := context.WithCancel(ctx)
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(c)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id", nil).WithContext(c)
 			req.Header.Add("Last-Event-ID", "unknown")
 
 			w := &responseTester{
@@ -921,7 +926,7 @@ func TestUnknownLastEventID(t *testing.T) {
 		}
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/foos/b"},
+			Topic: "https://example.com/foos/b",
 			Event: Event{
 				ID:   "b",
 				Data: "d2",
@@ -941,13 +946,13 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 
 		// Public event the anonymous subscriber is authorized to read.
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Topics: []string{"https://example.com/foos/a"},
-			Event:  Event{ID: "a", Data: "d1"},
+			Topic: "https://example.com/foos/a",
+			Event: Event{ID: "a", Data: "d1"},
 		}))
 		// Private event the anonymous subscriber is NOT authorized to
 		// read. Its id must not appear in the Last-Event-ID response.
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Topics:  []string{"https://example.com/foos/b"},
+			Topic:   "https://example.com/foos/b",
 			Private: true,
 			Event:   Event{ID: "b", Data: "secret"},
 		}))
@@ -956,7 +961,7 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 
 		go func(ctx context.Context) {
 			c, cancel := context.WithCancel(ctx)
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(c)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id&lastEventID=unknown", nil).WithContext(c)
 
 			w := &responseTester{
 				header:             http.Header{},
@@ -984,8 +989,8 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 		}
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/foos/c"},
-			Event:  Event{ID: "c", Data: "d3"},
+			Topic: "https://example.com/foos/c",
+			Event: Event{ID: "c", Data: "d3"},
 		}))
 
 		synctest.Wait()
@@ -1003,7 +1008,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 		go func() {
 			ctx, cancel := context.WithCancel(ctx)
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}&lastEventID=unknown", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id&lastEventID=unknown", nil).WithContext(ctx)
 
 			w := &responseTester{
 				header:             http.Header{},
@@ -1019,7 +1024,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 		go func() {
 			ctx, cancel := context.WithCancel(ctx)
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foos/{id}", nil).WithContext(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/foos/:id", nil).WithContext(ctx)
 			req.Header.Add("Last-Event-ID", "unknown")
 
 			w := &responseTester{
@@ -1045,7 +1050,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 		}
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Topics: []string{"https://example.com/foos/b"},
+			Topic: "https://example.com/foos/b",
 			Event: Event{
 				ID:   "b",
 				Data: "d2",
@@ -1072,8 +1077,8 @@ func TestSubscribeHeartbeat(t *testing.T) {
 			}
 
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics: []string{"https://example.com/books/1"},
-				Event:  Event{Data: "Hello World", ID: "b"},
+				Topic: "https://example.com/books/1",
+				Event: Event{Data: "Hello World", ID: "b"},
 			})
 
 			return
@@ -1081,7 +1086,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 	}()
 
 	ctx, cancel := context.WithCancel(ctx)
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1&topic=https://example.com/reviews/{id}", nil).WithContext(ctx)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1&matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -1101,7 +1106,7 @@ func TestSubscribeExpires(t *testing.T) {
 
 	token.Claims = &claims{
 		Mercure: mercureClaim{
-			Subscribe: []string{"*"},
+			Subscribe: stringsToExactClaims([]string{"*"}),
 		},
 		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second))},
 	}
@@ -1109,7 +1114,7 @@ func TestSubscribeExpires(t *testing.T) {
 	signedString, err := token.SignedString([]byte("subscriber"))
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=foo", nil)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=foo", nil)
 	req.Header.Add("Authorization", bearerPrefix+signedString)
 
 	w := newSubscribeRecorder()
@@ -1164,7 +1169,7 @@ func TestShutdownKeepsSubscribersWhenWriteTimeoutEnabled(t *testing.T) {
 		transport, _ := hub.transport.(*LocalTransport)
 
 		go func() {
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1", nil).WithContext(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(t.Context())
 			hub.SubscribeHandler(newSubscribeRecorder(), req)
 		}()
 
@@ -1194,7 +1199,7 @@ func TestShutdownClosesSubscribersWhenWriteTimeoutDisabled(t *testing.T) {
 		transport, _ := hub.transport.(*LocalTransport)
 
 		go func() {
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/books/1", nil).WithContext(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(t.Context())
 			hub.SubscribeHandler(newSubscribeRecorder(), req)
 		}()
 

@@ -13,7 +13,7 @@ permissions:
 
 env:
   GOTOOLCHAIN: local
-  GOFLAGS: "-tags=deprecated_server,deprecated_transport,nobadger,nomysql,nopgx"
+  GOFLAGS: "-tags=deprecated_server,deprecated_transport,deprecated_topic,nobadger,nomysql,nopgx"
 
 jobs:
   golangci:
@@ -71,6 +71,11 @@ jobs:
 
       - name: Test
         run: go test -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
+
+      - name: Test (without the deprecated_topic tag)
+        run: go test -tags=deprecated_server,deprecated_transport,nobadger,nomysql,nopgx ./...
+        env:
+          GOFLAGS: ""
 
       - name: Test Caddy module
         working-directory: caddy/

@@ -1,5 +1,73 @@
 # Upgrade
 
+## 1.0
+
+Topic matching now follows the topic matchers model of the revised specification:
+two matcher types, Exact and [URL Pattern](https://urlpattern.spec.whatwg.org/).
+
+### Query parameters
+
+Subscribe parameters move from `topic`/`topicURLPattern` to the `match`
+namespace, where the parameter name encodes the matcher type:
+
+- `match` selects exact, case-sensitive comparison (the default type). Replace
+  the 0.x `topic` parameter with `match`; its implicit
+  [URI Template (RFC 6570)](https://tools.ietf.org/html/rfc6570) support is
+  removed. `matchExact` is an explicit alias.
+- `match<MatcherType>` selects a named matcher type: replace `topicURLPattern`
+  with `matchURLPattern`, e.g. `matchURLPattern=https://example.com/books/:id`
+  (note `:id`, not `{id}`).
+- Parameter names are case-sensitive; any other name in the reserved `match`
+  namespace is rejected with a `400 Bad Request`. The bare `match` mirrors the
+  optional, `Exact`-defaulting `matchType` of authorization details.
+- Relative patterns and topics are resolved against the hub URL: set it with
+  the `public_url` directive (Caddyfile) or `WithPublicURL` (Go).
+
+### JWT claims
+
+Entries of `mercure.publish` and `mercure.subscribe` use the object form:
+
+```json
+{
+  "mercure": {
+    "subscribe": [
+      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
+    ]
+  }
+}
+```
+
+`matchType` is case-sensitive and defaults to `Exact`. Bare-string entries
+(the 0.x form) are rejected with a `401 Unauthorized` unless compatibility
+mode is enabled. The optional per-matcher `payload` value is attached to the
+subscriptions whose matcher it covers, falling back to `mercure.payload`.
+
+### Updates
+
+An update has exactly one topic: publish requests with several `topic` fields
+are rejected with a `400 Bad Request`, and `Update.Topics` is replaced by
+`Update.Topic` in the Go API. Publish one update per topic instead of using
+alternate topics.
+
+### Subscription API
+
+Subscription URLs move from `/subscriptions/{topic}[/{subscriber}]` to
+`/subscriptions/{matchType}/{match}[/{subscriber}]`, and the JSON-LD documents
+expose `match` and `matchType` fields instead of `topic`.
+
+### Backward compatibility
+
+The 0.x behaviors (URI Template selectors in `topic`, bare-string JWT claims,
+alternate topics and the previous subscription routes) require both:
+
+1. a hub binary built with the `deprecated_topic` build tag (official binaries
+   and Docker images include it), and
+2. the `protocol_version_compatibility 8` directive
+   (`WithProtocolVersionCompatibility(8)` in Go).
+
+Note: bolt databases written by 0.x hubs stay readable, but replaying history
+recorded with alternate topics only matches them in `deprecated_topic` builds.
+
 ## 0.21
 
 When Mercure is compiled manually or used as a Go library, deprecated features are no longer included by default.
