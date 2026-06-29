@@ -73,7 +73,7 @@ jobs:
 
       - name: Attest release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@v4
+        uses: actions/attest@v4.1.0
         with:
           subject-path: |
             ${{ github.workspace }}/dist/**/mercure
@@ -93,7 +93,7 @@ jobs:
 
       - name: Attest Caddy Docker manifest
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@v4
+        uses: actions/attest@v4.1.0
         with:
           # docker.io/ prefix is required: actions/attest splits subject-name
           # on the first '/' to find the registry. We only push to Docker Hub.
@@ -110,7 +110,7 @@ jobs:
 
       - name: Attest legacy Docker image
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@v4
+        uses: actions/attest@v4.1.0
         with:
           subject-name: docker.io/dunglas/mercure
           subject-digest: ${{ steps.legacy_image.outputs.digest }}

@@ -60,7 +60,7 @@ jobs:
             charts/mercure -d .cr-release-packages
 
       - name: Attest Helm chart
-        uses: actions/attest@v4
+        uses: actions/attest@v4.1.0
         with:
           subject-path: .cr-release-packages/*.tgz
 
