@@ -26,13 +26,13 @@ jobs:
     environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           cache: false
           go-version: "1.26"
@@ -43,7 +43,7 @@ jobs:
 
       - name: Login to Docker Hub
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@v4.2.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -51,7 +51,7 @@ jobs:
       - name: Import GPG key
         if: startsWith(github.ref, 'refs/tags/v')
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
@@ -63,7 +63,7 @@ jobs:
           echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v7.2.2
+        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
         with:
           version: latest
           args: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'build --single-target --snapshot' }} --clean --timeout 60m
@@ -73,7 +73,7 @@ jobs:
 
       - name: Attest release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@v4
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
         with:
           subject-path: |
             ${{ github.workspace }}/dist/**/mercure
@@ -93,7 +93,7 @@ jobs:
 
       - name: Attest Caddy Docker manifest
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@v4
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
         with:
           # docker.io/ prefix is required: actions/attest splits subject-name
           # on the first '/' to find the registry. We only push to Docker Hub.
@@ -110,7 +110,7 @@ jobs:
 
       - name: Attest legacy Docker image
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@v4
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
         with:
           subject-name: docker.io/dunglas/mercure
           subject-digest: ${{ steps.legacy_image.outputs.digest }}
@@ -121,7 +121,7 @@ jobs:
 
       - name: Upload snapshot
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: snapshot
           path: dist/*
