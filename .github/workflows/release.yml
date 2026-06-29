@@ -153,7 +153,7 @@ jobs:
             echo "resume=false" >> "${GITHUB_OUTPUT}"
           fi
       - if: steps.state.outputs.resume != 'true'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v6.4.0
         with:
           go-version-file: go.mod
           check-latest: true
