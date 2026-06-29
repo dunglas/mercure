@@ -10,6 +10,7 @@ permissions: {}
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
+    environment: dependabot
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
