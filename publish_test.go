@@ -208,7 +208,9 @@ func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	// Valid token whose publish matchers do not cover the topic is out of
+	// scope: 403 insufficient_scope, not 401.
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
@@ -232,7 +234,8 @@ func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	// A valid token carrying no publish grant is out of scope: 403.
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestPublishHandlerLegacyAuthorization(t *testing.T) {

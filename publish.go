@@ -154,12 +154,20 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		var err error
 
 		claims, err = h.authorize(r, true)
-		if err != nil || claims == nil || claims.Mercure.Publish == nil {
+		if err != nil || claims == nil {
 			h.httpAuthorizationError(w, r, err)
 
 			if err != nil {
 				recordSpanError(span, err)
 			}
+
+			return
+		}
+
+		// A valid token that carries no publish authorization lacks the scope
+		// for this request: 403 insufficient_scope, not 401.
+		if claims.Mercure.Publish == nil {
+			h.httpInsufficientScopeError(w, r, nil)
 
 			return
 		}
@@ -196,6 +204,19 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate topics before they can reach the shared match cache via
+	// canDispatch. Update.Validate() runs later (inside Hub.Publish), but
+	// canDispatch keys the cache on the topic list joined with NUL; an
+	// unvalidated topic containing a literal NUL would collide with a
+	// legitimate multi-topic key and poison the entry (CWE-20).
+	for _, t := range topics {
+		if !validProtocolString(t) {
+			http.Error(w, fmt.Errorf("%q: %w", t, ErrInvalidTopic).Error(), http.StatusBadRequest)
+
+			return
+		}
+	}
+
 	if claims != nil {
 		if err := resolveMatcherClaims(h.topicSelectorStore, claims.Mercure.Publish, h.allowsAlternateTopics()); err != nil {
 			writeMatcherClaimError(ctx, h.logger, w, err)
@@ -219,7 +240,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	private := len(r.PostForm["private"]) != 0
 	if claims != nil && !canDispatch(h.topicSelectorStore, topics, claims.Mercure.Publish) { //nolint:nestif
 		if private {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			h.httpInsufficientScopeError(w, r, nil)
 
 			return
 		}
@@ -234,7 +255,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 				h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: posting public updates to topics not listed in the "mercure.publish" JWT claim is not supported anymore, use '["*"]' as value to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
 			}
 
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			h.httpInsufficientScopeError(w, r, nil)
 
 			return
 		}

@@ -609,7 +609,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		// Authorized to receive connection events
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
 		req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummySubscriberJWTWithClaims(t, []matcherClaim{
-			{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"}},
+			{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"}},
 		}, struct {
 			Foo string `json:"foo"`
 		}{Foo: "bar"})})

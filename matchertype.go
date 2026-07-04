@@ -30,8 +30,10 @@ const (
 // types defined by the protocol. The HTTP handlers map it to a 400 status code.
 var ErrUnsupportedMatcherType = errors.New("unsupported topic matcher type")
 
-// topicMatcher pairs a matcher type with a pattern string.
-type topicMatcher struct {
+// TopicMatcher pairs a matcher type with a pattern string. It is the exported
+// value type transports use to (re)construct a Subscriber's matchers via
+// Subscriber.SetMatchers.
+type TopicMatcher struct {
 	Type    MatcherType
 	Pattern string
 }

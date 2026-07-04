@@ -365,7 +365,9 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.topicSelectorStore = tss
 	}
 
-	opt.topicSelectorStore.setBaseURL(opt.publicURL)
+	if err := opt.topicSelectorStore.setBaseURL(opt.publicURL); err != nil {
+		return nil, err
+	}
 
 	if opt.transport == nil {
 		opt.transport = NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize))

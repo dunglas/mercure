@@ -169,7 +169,7 @@ func validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc) (*claims, error) {
 
 func canReceive(s *TopicSelectorStore, topics []string, matchers []matcherClaim) bool {
 	for _, mc := range matchers {
-		if s.matchMatcher(topics, mc.topicMatcher) {
+		if s.matchMatcher(topics, mc.TopicMatcher) {
 			return true
 		}
 	}
@@ -186,7 +186,7 @@ func canDispatch(s *TopicSelectorStore, topics []string, matchers []matcherClaim
 		var matched bool
 
 		for _, mc := range matchers {
-			if s.matchMatcher(singleTopic, mc.topicMatcher) {
+			if s.matchMatcher(singleTopic, mc.TopicMatcher) {
 				matched = true
 
 				break
@@ -207,5 +207,20 @@ func (h *Hub) httpAuthorizationError(w http.ResponseWriter, r *http.Request, err
 	ctx := r.Context()
 	if h.logger.Enabled(ctx, slog.LevelDebug) {
 		h.logger.LogAttrs(ctx, slog.LevelDebug, "Topic selectors not matched, not provided or authorization error", slog.Any("error", err))
+	}
+}
+
+// httpInsufficientScopeError is returned when a token validated successfully but
+// does not grant the requested action on the requested topic. The protocol
+// requires 403 insufficient_scope here, distinct from the 401 used for a
+// missing or invalid token, so clients can tell "re-authenticate" apart from
+// "this token is not allowed".
+func (h *Hub) httpInsufficientScopeError(w http.ResponseWriter, r *http.Request, err error) {
+	w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope"`)
+	http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+
+	ctx := r.Context()
+	if h.logger.Enabled(ctx, slog.LevelDebug) {
+		h.logger.LogAttrs(ctx, slog.LevelDebug, "Token does not grant the requested action on the requested topic", slog.Any("error", err))
 	}
 }

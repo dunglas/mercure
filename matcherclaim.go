@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,11 +16,17 @@ import (
 // WithProtocolVersionCompatibility. Mapped to 401 on the wire.
 var errStringClaimRequiresCompat = errors.New("string-form matcher claims require backward-compatibility mode")
 
+// errMissingMatchProperty is returned when an object-form matcher claim omits
+// the required "match" property (or is JSON null). The protocol requires every
+// topic matcher object to carry a "match" property; a token containing such an
+// entry must be rejected rather than silently treated as an empty pattern.
+var errMissingMatchProperty = errors.New(`topic matcher object is missing the required "match" property`)
+
 // matcherClaim represents a single entry in the mercure.publish or
 // mercure.subscribe JWT claim. It supports both the deprecated string format
 // and the object format.
 type matcherClaim struct {
-	topicMatcher
+	TopicMatcher
 
 	Payload any // Per-subscription payload, nil if not set
 }
@@ -61,6 +68,13 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 	*mc = matcherClaim{}
 
+	// A null entry is neither a v8 string selector nor a valid matcher object;
+	// json.Unmarshal(null) is a silent no-op, so reject it explicitly rather
+	// than accept an empty-pattern matcher.
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return errMissingMatchProperty
+	}
+
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
 		// Empty Type signals "unresolved string claim"; resolveMatcherClaims
@@ -70,8 +84,10 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
+	// Match is a pointer so an absent property is distinguishable from an
+	// explicit empty string: the protocol requires the property to be present.
 	var obj struct {
-		Match     string      `json:"match"`
+		Match     *string     `json:"match"`
 		MatchType MatcherType `json:"matchType"`
 		Payload   any         `json:"payload"`
 	}
@@ -80,7 +96,11 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 		return err //nolint:wrapcheck
 	}
 
-	mc.Pattern = obj.Match
+	if obj.Match == nil {
+		return errMissingMatchProperty
+	}
+
+	mc.Pattern = *obj.Match
 	mc.Payload = obj.Payload
 	mc.Type = obj.MatchType
 
@@ -126,7 +146,7 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 				return errStringClaimRequiresCompat
 			}
 		case MatcherTypeExact, MatcherTypeURLPattern:
-			if err := tss.validatePattern(claims[i].topicMatcher); err != nil {
+			if err := tss.validatePattern(claims[i].TopicMatcher); err != nil {
 				return fmt.Errorf("invalid matcher in JWT claim: %w", err)
 			}
 		default:
@@ -138,16 +158,14 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 }
 
 // writeMatcherClaimError translates a resolveMatcherClaims error into an HTTP
-// response: 401 when string-form claims would require compatibility mode, 400
-// for everything else (unknown matcher types, invalid patterns, …). It also
-// logs the cause at info level so operators upgrading from v8 see a hint
+// response. Every failure here is a defect of the matcher entries carried by
+// the presented token (unknown matcher type, invalid pattern, control
+// characters, string form without compatibility mode), so the protocol
+// classifies them all as invalid_token (401), never invalid_request (400). It
+// also logs the cause at info level so operators upgrading from v8 see a hint
 // without having to enable debug logging.
 func writeMatcherClaimError(ctx context.Context, logger *slog.Logger, w http.ResponseWriter, err error) {
-	if errors.Is(err, errStringClaimRequiresCompat) {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-	} else {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-	}
+	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 
 	if logger == nil || !logger.Enabled(ctx, slog.LevelInfo) {
 		return

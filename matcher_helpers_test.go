@@ -11,14 +11,14 @@ import (
 // topicMatchers and matcherClaims. Used by tests that don't specifically
 // exercise the deprecated topic path.
 
-func stringsToExactMatchers(patterns []string) []topicMatcher {
+func stringsToExactMatchers(patterns []string) []TopicMatcher {
 	if patterns == nil {
 		return nil
 	}
 
-	out := make([]topicMatcher, len(patterns))
+	out := make([]TopicMatcher, len(patterns))
 	for i, p := range patterns {
-		out[i] = topicMatcher{Type: MatcherTypeExact, Pattern: p}
+		out[i] = TopicMatcher{Type: MatcherTypeExact, Pattern: p}
 	}
 
 	return out
@@ -29,7 +29,7 @@ func stringsToExactClaims(patterns []string) []matcherClaim {
 
 	claims := make([]matcherClaim, len(matchers))
 	for i, m := range matchers {
-		claims[i] = matcherClaim{topicMatcher: m}
+		claims[i] = matcherClaim{TopicMatcher: m}
 	}
 
 	return claims

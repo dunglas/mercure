@@ -11,6 +11,6 @@ var errTopicParamCompatNotSupported = errors.New(`v8 "topic" semantics require a
 
 // appendDeprecatedTopicMatchers is the stub compiled without the
 // deprecated_topic build tag.
-func (h *Hub) appendDeprecatedTopicMatchers([]topicMatcher, []string) ([]topicMatcher, error) {
+func (h *Hub) appendDeprecatedTopicMatchers([]TopicMatcher, []string) ([]TopicMatcher, error) {
 	return nil, errTopicParamCompatNotSupported
 }

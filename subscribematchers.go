@@ -38,6 +38,11 @@ var (
 	errInvalidMatcherValue = errors.New("topic matcher values must be valid UTF-8 without control characters")
 	errTooManyMatchers     = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
 	errPatternTooLong      = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
+	// errInvalidMatcherPattern wraps a pattern-compilation failure. The
+	// underlying compiler error is kept in the chain for logging but must never
+	// be written to the client: for some malformed URL Patterns go-urlpattern
+	// returns a struct dump embedding a live heap pointer (CWE-209).
+	errInvalidMatcherPattern = errors.New("invalid topic matcher pattern")
 )
 
 // parseMatchers extracts topic matchers from the subscribe query parameters:
@@ -49,8 +54,8 @@ var (
 // Any other parameter in the reserved "match" namespace (an unknown matcher
 // type or a case typo of a known one) is rejected with an error mapped to a
 // 400 status code. Parameter names are case-sensitive.
-func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]topicMatcher, error) {
-	var matchers []topicMatcher
+func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
+	var matchers []TopicMatcher
 
 	for key, values := range query {
 		if key == paramTopic {
@@ -125,8 +130,8 @@ func matcherTypeFromParam(key string) (MatcherType, bool) {
 }
 
 // appendMatchers validates each value of one topic matcher query parameter
-// and appends one topicMatcher per value.
-func (h *Hub) appendMatchers(matchers []topicMatcher, matcherType MatcherType, values []string) ([]topicMatcher, error) {
+// and appends one TopicMatcher per value.
+func (h *Hub) appendMatchers(matchers []TopicMatcher, matcherType MatcherType, values []string) ([]TopicMatcher, error) {
 	for _, v := range values {
 		if len(matchers) >= maxMatcherCount {
 			return nil, errTooManyMatchers
@@ -140,9 +145,9 @@ func (h *Hub) appendMatchers(matchers []topicMatcher, matcherType MatcherType, v
 			return nil, errInvalidMatcherValue
 		}
 
-		m := topicMatcher{Type: matcherType, Pattern: v}
+		m := TopicMatcher{Type: matcherType, Pattern: v}
 		if err := h.topicSelectorStore.validatePattern(m); err != nil {
-			return nil, fmt.Errorf("invalid %s pattern: %w", matcherType, err)
+			return nil, fmt.Errorf("%w (%s): %w", errInvalidMatcherPattern, matcherType, err)
 		}
 
 		matchers = append(matchers, m)

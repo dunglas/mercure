@@ -14,7 +14,7 @@ import (
 // case-sensitive comparison, then a URI Template fallback. It powers both the
 // v8 `topic=` query parameter and bare-string JWT claims when the hub is
 // compiled with the deprecated_topic build tag.
-func (tss *TopicSelectorStore) matchDeprecatedMatcher(topics []string, m topicMatcher) bool {
+func (tss *TopicSelectorStore) matchDeprecatedMatcher(topics []string, m TopicMatcher) bool {
 	if m.Type != deprecatedMatcherTypeName {
 		return false
 	}

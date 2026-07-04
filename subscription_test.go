@@ -25,13 +25,15 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 
+	// A valid token that does not cover the requested URL is out of scope:
+	// 403 insufficient_scope, not 401.
 	req = httptest.NewRequest(http.MethodGet, subscriptionsURL, nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo"})})
 
 	w = httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res = w.Result()
-	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar", nil)
@@ -40,7 +42,7 @@ func TestSubscriptionsHandlerAccessDenied(t *testing.T) {
 	w = httptest.NewRecorder()
 	hub.SubscriptionsHandler(w, req)
 	res = w.Result()
-	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 }
 
@@ -56,13 +58,14 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 
+	// Valid token not covering the URL: 403 insufficient_scope, not 401.
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/bar/baz", nil)
 	req.AddCookie(&http.Cookie{Name: "mercureAuthorization", Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo"})})
 
 	w = httptest.NewRecorder()
 	hub.SubscriptionHandler(w, req)
 	res = w.Result()
-	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
+	assert.Equal(t, http.StatusForbidden, res.StatusCode)
 	require.NoError(t, res.Body.Close())
 }
 
@@ -159,11 +162,11 @@ func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 		Mercure: mercureClaim{
 			Subscribe: []matcherClaim{
 				// Non-matching claim first — must not be picked.
-				{topicMatcher: topicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}, Payload: map[string]any{"tag": "x"}},
+				{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}, Payload: map[string]any{"tag": "x"}},
 				// This URLPattern claim covers /foo AND /bar → gets picked as "first matching".
-				{topicMatcher: topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}, Payload: map[string]any{"tag": "urlpattern"}},
+				{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}, Payload: map[string]any{"tag": "urlpattern"}},
 				// Exact claim for /bar — would only win if iteration reached it first.
-				{topicMatcher: topicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/bar"}, Payload: map[string]any{"tag": "exact-bar"}},
+				{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/bar"}, Payload: map[string]any{"tag": "exact-bar"}},
 			},
 		},
 	}
@@ -200,7 +203,7 @@ func TestSubscriptionPayloadFallbackToGlobal(t *testing.T) {
 			Payload: map[string]any{"global": true},
 			Subscribe: []matcherClaim{
 				// A claim that doesn't match the subscription's matcher.
-				{topicMatcher: topicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}, Payload: map[string]any{"tag": "ignored"}},
+				{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}, Payload: map[string]any{"tag": "ignored"}},
 			},
 		},
 	}

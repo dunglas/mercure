@@ -45,7 +45,7 @@ func TestSubscribeStringClaimCompatRequiresTag(t *testing.T) {
 	hub := createDummy(t, WithProtocolVersionCompatibility(8))
 
 	// Empty Type marshals to a bare string: the v8 wire form.
-	jwt := createDummySubscriberJWTWithClaims(t, []matcherClaim{{topicMatcher: topicMatcher{Pattern: "*"}}}, nil)
+	jwt := createDummySubscriberJWTWithClaims(t, []matcherClaim{{TopicMatcher: TopicMatcher{Pattern: "*"}}}, nil)
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/books/:id", nil)
 	req.Header.Add("Authorization", bearerPrefix+jwt)

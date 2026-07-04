@@ -235,7 +235,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	matchers, err := h.parseMatchers(r.URL.Query(), deprecated)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.writeMatcherParamError(ctx, w, err)
 		recordSpanError(span, err)
 
 		return nil, nil
@@ -248,9 +248,9 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		return nil, nil
 	}
 
-	privateTopicMatchers := make([]topicMatcher, len(privateMatchers))
+	privateTopicMatchers := make([]TopicMatcher, len(privateMatchers))
 	for i, c := range privateMatchers {
-		privateTopicMatchers[i] = c.topicMatcher
+		privateTopicMatchers[i] = c.TopicMatcher
 	}
 
 	s.setMatchers(matchers, privateTopicMatchers)
@@ -458,4 +458,22 @@ func (h *Hub) handleWriterError(ctx context.Context, err error, message string) 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		h.logger.LogAttrs(ctx, slog.LevelInfo, message, slog.Any("error", err))
 	}
+}
+
+// writeMatcherParamError answers a subscribe-query matcher error with 400. For
+// an invalid pattern it writes a generic message and logs the detail: the
+// underlying URL Pattern compiler can embed internal memory addresses in its
+// error text (CWE-209), which must not reach the client.
+func (h *Hub) writeMatcherParamError(ctx context.Context, w http.ResponseWriter, err error) {
+	if errors.Is(err, errInvalidMatcherPattern) {
+		http.Error(w, errInvalidMatcherPattern.Error(), http.StatusBadRequest)
+
+		if h.logger.Enabled(ctx, slog.LevelDebug) {
+			h.logger.LogAttrs(ctx, slog.LevelDebug, "Invalid topic matcher pattern in subscribe request", slog.Any("error", err))
+		}
+
+		return
+	}
+
+	http.Error(w, err.Error(), http.StatusBadRequest)
 }

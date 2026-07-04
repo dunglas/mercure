@@ -16,9 +16,9 @@ type Subscriber struct {
 	// SubscribedMatchers are the topic matchers from the topic and
 	// matchURLPattern query parameters (or from the v8 `topic` parameter,
 	// which resolves to a deprecated matcher under compatibility mode).
-	SubscribedMatchers []topicMatcher
+	SubscribedMatchers []TopicMatcher
 	// AllowedPrivateMatchers are the topic matchers from the JWT claims.
-	AllowedPrivateMatchers []topicMatcher
+	AllowedPrivateMatchers []TopicMatcher
 	// EscapedMatchers are precomputed "escapedType/escapedPattern" slugs for
 	// subscription URLs.
 	EscapedMatchers []string
@@ -72,7 +72,7 @@ func (s *Subscriber) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-func (s *Subscriber) matchesAny(topics []string, matchers []topicMatcher) bool {
+func (s *Subscriber) matchesAny(topics []string, matchers []TopicMatcher) bool {
 	for _, m := range matchers {
 		if s.topicSelectorStore.matchMatcher(topics, m) {
 			return true
@@ -82,7 +82,7 @@ func (s *Subscriber) matchesAny(topics []string, matchers []topicMatcher) bool {
 	return false
 }
 
-func logMatcherPatterns(matchers []topicMatcher) []string {
+func logMatcherPatterns(matchers []TopicMatcher) []string {
 	out := make([]string, len(matchers))
 	for i, m := range matchers {
 		out[i] = string(m.Type) + ":" + m.Pattern
@@ -91,11 +91,22 @@ func logMatcherPatterns(matchers []topicMatcher) []string {
 	return out
 }
 
+// SetMatchers sets the subscribed and allowed-private topic matchers and
+// recomputes the derived subscription slugs and payloads, keeping the parallel
+// SubscribedMatchers / EscapedMatchers / SubscriptionPayloads slices
+// consistent. Transport implementations that reconstruct a Subscriber on
+// another node use it to populate matchers programmatically, instead of
+// relying on the exported fields (whose parallel-slice invariant is not
+// otherwise enforced).
+func (s *Subscriber) SetMatchers(subscribed, allowedPrivate []TopicMatcher) {
+	s.setMatchers(subscribed, allowedPrivate)
+}
+
 // setMatchers sets the subscribed and allowed private topic matchers, and
 // precomputes the per-matcher subscription payload so the subscription
 // API can render it from a serialized Subscriber without re-running the
 // matcher dispatch.
-func (s *Subscriber) setMatchers(subscribed, allowedPrivate []topicMatcher) {
+func (s *Subscriber) setMatchers(subscribed, allowedPrivate []TopicMatcher) {
 	s.SubscribedMatchers = subscribed
 	s.AllowedPrivateMatchers = allowedPrivate
 	s.recomputeEscapedMatchers()
@@ -145,19 +156,65 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 		return
 	}
 
+	// Fast path: per-matcher resolution only matters when some subscribe claim
+	// carries its own payload. Otherwise every matcher resolves to the
+	// token-wide mercure.payload, so skip the O(matchers × claims) matcher
+	// dispatch — which, at the protocol caps (100 matchers × 1000 claims),
+	// would otherwise run up to 100_000 URL Pattern evaluations per request.
+	if !s.hasPerClaimPayload() {
+		fallback := s.claimsPayload()
+
+		s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
+		for i := range s.SubscriptionPayloads {
+			s.SubscriptionPayloads[i] = fallback
+		}
+
+		return
+	}
+
 	s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
 	for i, m := range s.SubscribedMatchers {
 		s.SubscriptionPayloads[i] = s.resolveSubscriptionPayload(m)
 	}
 }
 
-func (s *Subscriber) resolveSubscriptionPayload(m topicMatcher) any {
+// hasPerClaimPayload reports whether any subscribe claim carries its own
+// payload, which is the only case where per-matcher resolution differs from the
+// token-wide fallback.
+func (s *Subscriber) hasPerClaimPayload() bool {
+	if s.Claims == nil {
+		return false
+	}
+
+	for _, mc := range s.Claims.Mercure.Subscribe {
+		if mc.Payload != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+// claimsPayload returns the token-wide mercure.payload, or nil when the
+// subscriber is anonymous.
+func (s *Subscriber) claimsPayload() any {
 	if s.Claims == nil {
 		return nil
 	}
 
+	return s.Claims.Mercure.Payload
+}
+
+func (s *Subscriber) resolveSubscriptionPayload(m TopicMatcher) any {
+	if s.Claims == nil {
+		return nil
+	}
+
+	// Hoisted out of the claims loop: matchMatcher only reads it.
+	topic := []string{m.Pattern}
+
 	for _, mc := range s.Claims.Mercure.Subscribe {
-		if mc.Pattern != "*" && !s.topicSelectorStore.matchMatcher([]string{m.Pattern}, mc.topicMatcher) {
+		if mc.Pattern != "*" && !s.topicSelectorStore.matchMatcher(topic, mc.TopicMatcher) {
 			continue
 		}
 

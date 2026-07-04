@@ -187,7 +187,7 @@ func (h *Hub) authorizeSubscriptionRequest(ctx context.Context, span trace.Span,
 	}
 
 	claims, err := h.authorize(r, false)
-	if err != nil || claims == nil || claims.Mercure.Subscribe == nil {
+	if err != nil || claims == nil {
 		h.httpAuthorizationError(w, r, err)
 
 		if err != nil {
@@ -204,8 +204,10 @@ func (h *Hub) authorizeSubscriptionRequest(ctx context.Context, span trace.Span,
 		return false
 	}
 
-	if !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
-		h.httpAuthorizationError(w, r, errors.New("subscription URL not covered by token topic matchers")) //nolint:err113
+	// The token is valid; if it does not grant subscribe on this URL the
+	// failure is insufficient_scope (403), not an authentication error (401).
+	if claims.Mercure.Subscribe == nil || !canReceive(h.topicSelectorStore, []string{currentURL}, claims.Mercure.Subscribe) {
+		h.httpInsufficientScopeError(w, r, errors.New("subscription URL not covered by token topic matchers")) //nolint:err113
 
 		return false
 	}
@@ -215,7 +217,11 @@ func (h *Hub) authorizeSubscriptionRequest(ctx context.Context, span trace.Span,
 
 func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
-	currentURL = r.URL.RequestURI()
+	// The topic to authorize (and the collection id) is the absolute path in
+	// relative form; RequestURI() would append the query string, so a token
+	// presented via the access_token query parameter would no longer match an
+	// Exact matcher byte-for-byte.
+	currentURL = r.URL.EscapedPath()
 
 	if !h.authorizeSubscriptionRequest(ctx, span, currentURL, w, r) {
 		return span, "", "", nil, false
