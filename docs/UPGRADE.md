@@ -57,7 +57,8 @@ claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)):
 `matchType` is case-sensitive and defaults to `Exact`. A `mercure` detail must
 declare a non-empty `actions` array (a subset of `publish`/`subscribe`) and a
 non-empty `topics` array; an invalid detail rejects the whole token with a
-`400 Bad Request`. The optional per-detail `payload` is attached to the
+`401 Unauthorized` and `error="invalid_token"` (the defect is in the presented
+token, not the request framing). The optional per-detail `payload` is attached to the
 subscriptions covered by a `subscribe` detail.
 
 The access token is presented with an `Authorization: Bearer` header, an

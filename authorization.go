@@ -183,10 +183,18 @@ func (h *Hub) jwtParserOptions(algs []string) []jwt.ParserOption {
 		return opts
 	}
 
-	return append(opts,
-		jwt.WithAudience(h.resourceIdentifier),
-		jwt.WithExpirationRequired(),
-	)
+	opts = append(opts, jwt.WithExpirationRequired())
+
+	// Enforce the audience only when a resource identifier is configured.
+	// Compatibility mode on a build without the deprecated_claim tag still
+	// reaches this path (compatClaimsEnabled is a no-op stub there) with an
+	// empty identifier; golang-jwt treats an empty expected audience as a
+	// required claim, so enforcing it would reject every otherwise-valid token.
+	if h.resourceIdentifier != "" {
+		opts = append(opts, jwt.WithAudience(h.resourceIdentifier))
+	}
+
+	return opts
 }
 
 // validateJWT parses and validates an access token, returning its claims with

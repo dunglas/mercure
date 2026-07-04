@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,6 +46,42 @@ type authorizationDetail struct {
 	Payload any             `json:"payload,omitempty"`
 }
 
+// UnmarshalJSON decodes the type of every entry but the mercure-specific
+// members only for entries of type "mercure". RFC 9396 lets other detail types
+// define their own member shapes (for example a "topics" string), so applying
+// the mercure schema to every entry would reject valid multi-resource tokens;
+// non-mercure entries are ignored during validation.
+func (ad *authorizationDetail) UnmarshalJSON(data []byte) error {
+	var head struct {
+		Type string `json:"type"`
+	}
+
+	if err := json.Unmarshal(data, &head); err != nil {
+		return fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
+	}
+
+	ad.Type = head.Type
+	if head.Type != authorizationDetailTypeMercure {
+		return nil
+	}
+
+	var body struct {
+		Actions []mercureAction `json:"actions"`
+		Topics  []detailTopic   `json:"topics"`
+		Payload any             `json:"payload"`
+	}
+
+	if err := json.Unmarshal(data, &body); err != nil {
+		return fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
+	}
+
+	ad.Actions = body.Actions
+	ad.Topics = body.Topics
+	ad.Payload = body.Payload
+
+	return nil
+}
+
 // detailTopic is one entry of a mercure authorization detail `topics` array.
 // Only the object form {match, matchType?} is accepted; matchType is
 // case-sensitive and defaults to Exact.
@@ -66,12 +103,20 @@ func (d detailTopic) MarshalJSON() ([]byte, error) {
 	return b, nil
 }
 
-// UnmarshalJSON enforces the object form. A bare string (the deprecated claim
-// shape) is rejected so that legacy tokens do not silently parse as Exact
-// matchers.
+// UnmarshalJSON enforces the object form with a required "match" property. A
+// bare string (the deprecated claim shape) is rejected so that legacy tokens do
+// not silently parse as Exact matchers, and an object without "match" (or a
+// JSON null) invalidates the token instead of becoming an empty-pattern matcher.
 func (d *detailTopic) UnmarshalJSON(data []byte) error {
+	// json.Unmarshal(null) is a silent no-op, so reject null explicitly.
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return fmt.Errorf(`%w: a topic entry must be an object with a "match" property`, errInvalidAuthorizationDetail)
+	}
+
+	// Match is a pointer so an absent property is distinguishable from an
+	// explicit empty string: the protocol requires the property to be present.
 	var obj struct {
-		Match     string      `json:"match"`
+		Match     *string     `json:"match"`
 		MatchType MatcherType `json:"matchType"`
 	}
 
@@ -79,7 +124,11 @@ func (d *detailTopic) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("%w: topic entries must be objects: %w", errInvalidAuthorizationDetail, err)
 	}
 
-	d.Pattern = obj.Match
+	if obj.Match == nil {
+		return fmt.Errorf(`%w: a topic entry is missing the required "match" property`, errInvalidAuthorizationDetail)
+	}
+
+	d.Pattern = *obj.Match
 	d.Type = obj.MatchType
 
 	if d.Type == "" {
