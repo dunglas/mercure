@@ -13,7 +13,7 @@ func stringsToDeprecatedClaims(patterns []string) []matcherClaim {
 
 	claims := make([]matcherClaim, len(matchers))
 	for i, m := range matchers {
-		claims[i] = matcherClaim{topicMatcher: m}
+		claims[i] = matcherClaim{TopicMatcher: m}
 	}
 
 	return claims

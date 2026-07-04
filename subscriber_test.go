@@ -73,10 +73,10 @@ func TestMatchTopic(t *testing.T) {
 	require.NoError(t, err)
 
 	s := NewLocalSubscriber("", slog.Default(), tss)
-	s.setMatchers([]topicMatcher{
+	s.setMatchers([]TopicMatcher{
 		{Type: MatcherTypeExact, Pattern: "https://example.com/no-match"},
 		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/books/:id"},
-	}, []topicMatcher{
+	}, []TopicMatcher{
 		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/users/foo/*"},
 	})
 

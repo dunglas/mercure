@@ -10,14 +10,14 @@ import (
 // topicMatchers. Used by tests that don't specifically exercise the
 // deprecated topic path.
 
-func stringsToExactMatchers(patterns []string) []topicMatcher {
+func stringsToExactMatchers(patterns []string) []TopicMatcher {
 	if patterns == nil {
 		return nil
 	}
 
-	out := make([]topicMatcher, len(patterns))
+	out := make([]TopicMatcher, len(patterns))
 	for i, p := range patterns {
-		out[i] = topicMatcher{Type: MatcherTypeExact, Pattern: p}
+		out[i] = TopicMatcher{Type: MatcherTypeExact, Pattern: p}
 	}
 
 	return out
@@ -25,7 +25,7 @@ func stringsToExactMatchers(patterns []string) []topicMatcher {
 
 // subscribeDetailsFromMatchers builds a single subscribe authorization detail
 // covering the given matchers, with an optional payload.
-func subscribeDetailsFromMatchers(payload any, matchers ...topicMatcher) []authorizationDetail {
+func subscribeDetailsFromMatchers(payload any, matchers ...TopicMatcher) []authorizationDetail {
 	topics := make([]detailTopic, len(matchers))
 	for i, m := range matchers {
 		topics[i] = detailTopic{m}
@@ -41,7 +41,7 @@ func subscribeDetailsFromMatchers(payload any, matchers ...topicMatcher) []autho
 
 // createDummySubscriberJWTWithDetails mints a subscriber access token granting
 // the subscribe action on the given matchers, carrying the given payload.
-func createDummySubscriberJWTWithDetails(tb testing.TB, payload any, matchers ...topicMatcher) string {
+func createDummySubscriberJWTWithDetails(tb testing.TB, payload any, matchers ...TopicMatcher) string {
 	tb.Helper()
 
 	return mintAccessToken([]byte("subscriber"), testResourceIdentifier, subscribeDetailsFromMatchers(payload, matchers...))
@@ -49,7 +49,7 @@ func createDummySubscriberJWTWithDetails(tb testing.TB, payload any, matchers ..
 
 // subscribeDetail builds a subscribe authorization detail covering a single
 // matcher, with an optional payload.
-func subscribeDetail(payload any, m topicMatcher) authorizationDetail {
+func subscribeDetail(payload any, m TopicMatcher) authorizationDetail {
 	return authorizationDetail{
 		Type:    authorizationDetailTypeMercure,
 		Actions: []mercureAction{actionSubscribe},

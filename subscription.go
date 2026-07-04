@@ -210,7 +210,11 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWrite
 
 func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
-	currentURL = r.URL.RequestURI()
+	// The topic to authorize (and the collection id) is the absolute path in
+	// relative form; RequestURI() would append the query string, so a token
+	// presented via the access_token query parameter would no longer match an
+	// Exact matcher byte-for-byte.
+	currentURL = r.URL.EscapedPath()
 
 	if !h.authorizeSubscriptionRequest(span, w, r) {
 		return span, "", "", nil, false

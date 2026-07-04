@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func deprecatedMatcher(pattern string) topicMatcher {
-	return topicMatcher{Type: deprecatedMatcherTypeName, Pattern: pattern}
+func deprecatedMatcher(pattern string) TopicMatcher {
+	return TopicMatcher{Type: deprecatedMatcherTypeName, Pattern: pattern}
 }
 
 func TestMatchDeprecated(t *testing.T) {
@@ -30,8 +30,9 @@ func TestMatchDeprecated(t *testing.T) {
 	// A selector that is not a valid URI Template falls back to exact-only.
 	assert.False(t, tss.matchMatcher([]string{"foo"}, deprecatedMatcher("{invalid")))
 
-	// Template match results are cached.
+	// Template match results are cached, scoped to the resolution base URL.
 	_, found := tss.matchCache.GetIfPresent(matchCacheKey{
+		Base:    tss.base(),
 		Type:    deprecatedMatcherTypeName,
 		Pattern: "https://example.com/{foo}/bar",
 		Topics:  "https://example.com/foo/bar",

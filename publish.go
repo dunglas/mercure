@@ -196,6 +196,20 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate topics before they can reach the shared match cache via the
+	// authorization grant check (grantsAll → matchMatcher → cachedMatch), which
+	// keys the cache on the topic list joined with NUL; an unvalidated topic
+	// containing a literal NUL would collide with a legitimate multi-topic key
+	// and poison the entry (CWE-20). Update.Validate() re-checks later, but only
+	// after the grant check has already consulted the cache.
+	for _, t := range topics {
+		if !validProtocolString(t) {
+			http.Error(w, fmt.Errorf("%q: %w", t, ErrInvalidTopic).Error(), http.StatusBadRequest)
+
+			return
+		}
+	}
+
 	var retry uint64
 
 	if retryString := r.PostForm.Get("retry"); retryString != "" {

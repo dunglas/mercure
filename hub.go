@@ -413,7 +413,9 @@ func (o *opt) configureIdentifiers() error {
 		o.publicURL = o.resourceIdentifier
 	}
 
-	o.topicSelectorStore.setBaseURL(o.publicURL)
+	if err := o.topicSelectorStore.setBaseURL(o.publicURL); err != nil {
+		return err
+	}
 
 	if o.resourceIdentifier == "" {
 		o.resourceIdentifier = o.publicURL

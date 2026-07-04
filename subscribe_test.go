@@ -263,7 +263,7 @@ func TestSubscribeJWTAlgorithmsPinned(t *testing.T) {
 	// HS256 token: outside the RS256 allowlist.
 	token := mintAccessToken([]byte("subscriber"), testResourceIdentifier, []authorizationDetail{{
 		Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
-		Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
+		Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
 	}})
 
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
@@ -463,7 +463,7 @@ func testSubscribeLogs(t *testing.T, hub *Hub, payload any) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/reviews/:id", nil).WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, payload, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/reviews/:id"})})
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, payload, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/reviews/:id"})})
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -647,7 +647,7 @@ func TestSubscriptionEvents(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
 		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, struct {
 			Foo string `json:"foo"`
-		}{Foo: "bar"}, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
+		}{Foo: "bar"}, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
 
 		w := newSubscribeRecorder()
 		hub.SubscribeHandler(w, req)
@@ -1144,7 +1144,7 @@ func TestSubscribeExpires(t *testing.T) {
 			Audience:  jwt.ClaimStrings{testResourceIdentifier},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
 		},
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "*"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "*"}),
 	}
 
 	signedString, err := token.SignedString([]byte("subscriber"))

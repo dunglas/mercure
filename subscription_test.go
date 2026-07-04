@@ -177,11 +177,11 @@ func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 
 	sub.Claims = detailClaims(t, hub.topicSelectorStore,
 		// Non-matching detail first — must not be picked.
-		subscribeDetail(map[string]any{"tag": "x"}, topicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}),
+		subscribeDetail(map[string]any{"tag": "x"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}),
 		// This URLPattern detail covers /foo AND /bar → gets picked as "first matching".
-		subscribeDetail(map[string]any{"tag": "urlpattern"}, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}),
+		subscribeDetail(map[string]any{"tag": "urlpattern"}, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}),
 		// Exact detail for /bar — would only win if iteration reached it first.
-		subscribeDetail(map[string]any{"tag": "exact-bar"}, topicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/bar"}),
+		subscribeDetail(map[string]any{"tag": "exact-bar"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/bar"}),
 	)
 
 	sub.setMatchers(matchers, nil)

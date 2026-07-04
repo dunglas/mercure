@@ -49,7 +49,7 @@ type authorizationDetail struct {
 // Only the object form {match, matchType?} is accepted; matchType is
 // case-sensitive and defaults to Exact.
 type detailTopic struct {
-	topicMatcher
+	TopicMatcher
 }
 
 // MarshalJSON emits the object form {match, matchType}. Issuers normally mint
@@ -93,7 +93,7 @@ func (d *detailTopic) UnmarshalJSON(data []byte) error {
 type validatedDetail struct {
 	publish   bool
 	subscribe bool
-	topics    []topicMatcher
+	topics    []TopicMatcher
 	payload   any
 }
 
@@ -162,9 +162,9 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 		return vd, fmt.Errorf("%w: a mercure detail must declare at least one topic", errInvalidAuthorizationDetail)
 	}
 
-	vd.topics = make([]topicMatcher, len(d.Topics))
+	vd.topics = make([]TopicMatcher, len(d.Topics))
 	for i := range d.Topics {
-		m := d.Topics[i].topicMatcher
+		m := d.Topics[i].TopicMatcher
 
 		if len(m.Pattern) > maxPatternLength {
 			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errPatternTooLong)
@@ -230,12 +230,12 @@ func (a *mercureAuthz) grantsAll(tss *TopicSelectorStore, action mercureAction, 
 
 // subscribeMatchers returns every topic matcher carried by a subscribe detail,
 // used as the subscriber's allowed private matchers.
-func (a *mercureAuthz) subscribeMatchers() []topicMatcher {
+func (a *mercureAuthz) subscribeMatchers() []TopicMatcher {
 	if a == nil {
 		return nil
 	}
 
-	var matchers []topicMatcher //nolint:prealloc
+	var matchers []TopicMatcher //nolint:prealloc
 
 	for i := range a.details {
 		if !a.details[i].subscribe {
@@ -252,7 +252,7 @@ func (a *mercureAuthz) subscribeMatchers() []topicMatcher {
 // topics match the subscription's own matcher m (the `*` wildcard matches
 // every subscription). The boolean reports whether a matching detail was
 // found, regardless of whether it carried a payload.
-func (a *mercureAuthz) subscribePayload(tss *TopicSelectorStore, m topicMatcher) (any, bool) {
+func (a *mercureAuthz) subscribePayload(tss *TopicSelectorStore, m TopicMatcher) (any, bool) {
 	if a == nil {
 		return nil, false
 	}

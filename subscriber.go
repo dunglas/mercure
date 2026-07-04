@@ -16,9 +16,9 @@ type Subscriber struct {
 	// SubscribedMatchers are the topic matchers from the topic and
 	// matchURLPattern query parameters (or from the v8 `topic` parameter,
 	// which resolves to a deprecated matcher under compatibility mode).
-	SubscribedMatchers []topicMatcher
+	SubscribedMatchers []TopicMatcher
 	// AllowedPrivateMatchers are the topic matchers from the JWT claims.
-	AllowedPrivateMatchers []topicMatcher
+	AllowedPrivateMatchers []TopicMatcher
 	// EscapedMatchers are precomputed "escapedType/escapedPattern" slugs for
 	// subscription URLs.
 	EscapedMatchers []string
@@ -72,7 +72,7 @@ func (s *Subscriber) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-func (s *Subscriber) matchesAny(topics []string, matchers []topicMatcher) bool {
+func (s *Subscriber) matchesAny(topics []string, matchers []TopicMatcher) bool {
 	for _, m := range matchers {
 		if s.topicSelectorStore.matchMatcher(topics, m) {
 			return true
@@ -82,7 +82,7 @@ func (s *Subscriber) matchesAny(topics []string, matchers []topicMatcher) bool {
 	return false
 }
 
-func logMatcherPatterns(matchers []topicMatcher) []string {
+func logMatcherPatterns(matchers []TopicMatcher) []string {
 	out := make([]string, len(matchers))
 	for i, m := range matchers {
 		out[i] = string(m.Type) + ":" + m.Pattern
@@ -91,11 +91,22 @@ func logMatcherPatterns(matchers []topicMatcher) []string {
 	return out
 }
 
+// SetMatchers sets the subscribed and allowed-private topic matchers and
+// recomputes the derived subscription slugs and payloads, keeping the parallel
+// SubscribedMatchers / EscapedMatchers / SubscriptionPayloads slices
+// consistent. Transport implementations that reconstruct a Subscriber on
+// another node use it to populate matchers programmatically, instead of
+// relying on the exported fields (whose parallel-slice invariant is not
+// otherwise enforced).
+func (s *Subscriber) SetMatchers(subscribed, allowedPrivate []TopicMatcher) {
+	s.setMatchers(subscribed, allowedPrivate)
+}
+
 // setMatchers sets the subscribed and allowed private topic matchers, and
 // precomputes the per-matcher subscription payload so the subscription
 // API can render it from a serialized Subscriber without re-running the
 // matcher dispatch.
-func (s *Subscriber) setMatchers(subscribed, allowedPrivate []topicMatcher) {
+func (s *Subscriber) setMatchers(subscribed, allowedPrivate []TopicMatcher) {
 	s.SubscribedMatchers = subscribed
 	s.AllowedPrivateMatchers = allowedPrivate
 	s.recomputeEscapedMatchers()
@@ -151,7 +162,7 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 	}
 }
 
-func (s *Subscriber) resolveSubscriptionPayload(m topicMatcher) any {
+func (s *Subscriber) resolveSubscriptionPayload(m TopicMatcher) any {
 	if s.Claims == nil {
 		return nil
 	}
