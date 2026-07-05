@@ -116,17 +116,29 @@ This mirrors the topic matcher list of authorization details (see (#topic-matche
 the `matchType` member is optional and defaults to `Exact`: omitting it there is equivalent to
 using the bare `match` parameter here.
 
+The query component of the subscription URL **MUST** be parsed into name/value pairs using the
+`application/x-www-form-urlencoded` parsing algorithm of [@!URL] (the algorithm implemented by
+`URLSearchParams` and used by `EventSource`). The reserved-namespace rule and the value
+constraints below apply to the percent-decoded parameter names and values. A parameter name
+given without a value is equivalent to that name with an empty value.
+
 The names of topic matcher query parameters are case-sensitive. A request using a parameter name
 in the reserved `match` namespace (a name equal to `match`, or beginning with `match` under an
 ASCII case-insensitive comparison) that does not correspond to a matcher type defined in
-(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code. This
+(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code. A request
+carrying the pre-1.0 `topic` query parameter, which earlier protocol versions used to select
+topics, **MUST** likewise be rejected with a 400 "Bad Request" HTTP status code unless the hub
+runs in a backward-compatibility mode, so that a subscriber built for an earlier version fails
+loudly instead of receiving no updates. This
 deliberately reserves the whole `match` prefix: unrelated query parameters whose names begin
 with `match` cannot be used on the subscription URL, and a misspelled matcher type fails
 loudly instead of being silently ignored.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters or U+007F.
-Requests violating this constraint **MUST** be rejected with a 400 "Bad Request" HTTP status code.
+A parameter value that is not valid for its matcher type (for example, a `matchURLPattern`
+value that is not a well-formed URL Pattern) is equally invalid. Requests violating any of these
+constraints **MUST** be rejected with a 400 "Bad Request" HTTP status code.
 
 The subscriber receives updates for all topics matching at least one topic matcher according to
 the matcher type rules.
@@ -138,7 +150,7 @@ Request" HTTP status code. A subscription is created for every topic matcher que
 present in the request. Hubs **MAY** deduplicate subscriptions that have identical matcher type
 and pattern. See (#subscription-events).
 
-The `EventSource` JavaScript interface [@HTML] **MAY** be used to establish
+The `EventSource` JavaScript interface [@!HTML] **MAY** be used to establish
 the connection. Any other appropriate mechanism, including but not limited to readable streams
 [@W3C.NOTE-streams-api-20161129] and XMLHttpRequest [@xhr] (used by popular polyfills),
 **MAY** also be used.
@@ -162,14 +174,14 @@ The hub **MUST** send these updates as `text/event-stream`-compliant events
 [@!HTML].
 
 The `data` property **MUST** contain the topic's new version. It **MAY** be the full resource or
-a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
+a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396].
 
 All other properties defined in the Server-Sent Events specification **MAY** be used and **MUST**
 be supported by hubs.
 
 The resource **MAY** be represented in a format with hypermedia capabilities such as
-JSON-LD [@W3C.REC-json-ld-20140116], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
-[@HTML].
+JSON-LD [@W3C.REC-json-ld11-20200716], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
+[@!HTML].
 
 Web Linking [@!RFC8288] **MAY** be used to indicate the IRI of the resource sent in the event.
 When using Atom, XML, or HTML as the serialization format, the document **SHOULD** contain a
@@ -285,19 +297,28 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     identifier. This field **MUST** appear exactly once; a request carrying more than one `topic`
     field **MUST** be rejected with a 400 "Bad Request" HTTP status code. The topic value
     **MUST** conform to the constraints defined in (#terminology). The topic **MUST NOT** address
-    the reserved hub namespace. A topic addresses the reserved namespace when, after being
-    resolved as a URI reference against the hub's URL, its path component is `/.well-known/mercure`
-    or begins with `/.well-known/mercure/`, regardless of scheme or authority. Before this
-    comparison, the path **MUST** be normalized by decoding percent-encoded octets that
-    correspond to unreserved characters [@!RFC3986]; otherwise, percent-encoded variants such
-    as `/.well-known/%6Dercure/...` would bypass the check. This namespace is
+    the reserved hub namespace. To test this, the topic **MUST** be resolved against the hub's URL
+    (see (#discovery)) using the URL parser of [@!URL] — the same algorithm and canonicalization
+    used for URL Pattern matching (see (#url-pattern)). A topic addresses the reserved namespace
+    when the resolved path component is `/.well-known/mercure` or begins with
+    `/.well-known/mercure/`, regardless of scheme or authority. Before this comparison, the path
+    **MUST** have its dot-segments removed and its percent-encoded octets that correspond to
+    unreserved characters decoded [@!RFC3986]; otherwise, variants such as
+    `/.well-known/%6Dercure/...` or `/.well-known/mercure/../mercure/...` would bypass the check.
+    A topic that cannot be parsed as a URL reference against the hub's URL does not address the
+    reserved namespace (it cannot name a hub path) and is not rejected by this rule. This namespace is
     reserved for resources generated by the hub itself, including subscription events (see
     (#subscription-events)). Hubs **MUST** reject publish requests violating this rule with a 403
     HTTP status code. Checking the resolved path component (rather than a leading-substring match
     on the raw value) prevents a publisher from forging subscription events with an absolute topic
     such as `https://hub.example.com/.well-known/mercure/subscriptions/...`.
 *   `data` (optional): the content of the new version of this topic. The value **MUST** be
-    valid UTF-8 [@!RFC3629].
+    valid UTF-8 [@!RFC3629]. When dispatching the update, the hub **MUST** serialize the value as
+    one SSE `data:` field per line, splitting on CR, LF, or CRLF, per the Server-Sent Events
+    serialization rules [@!HTML]. A receiver reassembles the fields joined by LF, so a value
+    containing CR or CRLF is received with those sequences normalized to LF; publishers that
+    require byte-exact round-tripping (for example, of encrypted payloads) **SHOULD** encode the
+    value (for example, with base64) before publication.
 *   `private` (optional): if this field is present, the update **MUST NOT** be dispatched to
     subscribers not authorized to receive it. See (#authorization). The presence of the field
     name marks the update as private regardless of its value, whether or not a value is
@@ -355,9 +376,11 @@ access token to receive updates marked as private. Hubs **MAY** accept unauthent
 subscribers; such subscribers receive only updates that are not marked as private. Hubs
 **MAY** instead require all subscribers to present an access token, according to their own
 policy. The access token
-**MUST** be a JWT [@!RFC7519] following the JWT access token profile [@!RFC9068], carried as a
-JWS [@!RFC7515] in compact serialization. The token **SHOULD** be short-lived, especially when
-the subscriber is a web browser.
+**MUST** be a JWT [@!RFC7519] structured as a JWT access token [@!RFC9068] — in particular
+using the `at+jwt` media type — carried as a JWS [@!RFC7515] in compact serialization, and
+**MUST** be validated as described in (#token-validation). Hubs apply the [@!RFC9068]
+validation rules with the deviations for self-issued tokens defined there. The token
+**SHOULD** be short-lived, especially when the subscriber is a web browser.
 
 Access tokens **MAY** be issued by an OAuth 2.0 authorization server or self-issued by the
 publisher (for example, signed with a key shared out of band with the hub). The hub need not
@@ -425,7 +448,7 @@ scheme name is matched case-insensitively [@RFC9110].
 
 ### Cookie
 
-Per the `EventSource` specification [@HTML], web browsers cannot set
+Per the `EventSource` specification [@!HTML], web browsers cannot set
 custom HTTP headers on such connections, and the connections can only be established using the
 `GET` HTTP method. However, cookies are supported and can be included even in cross-domain
 requests if [the CORS credentials are
@@ -473,7 +496,10 @@ support this method.
 ## Error Responses
 
 The hub reports authorization failures using the error responses defined in [@!RFC6750]
-section 3:
+section 3. Each error code below is carried as the `error` attribute (`auth-param`) of a
+`WWW-Authenticate: Bearer` challenge, not as a response body field; every 401 response carries
+that header [@!RFC9110], and the challenge **SHOULD** include the `resource_metadata` parameter
+(see (#discovery)) per [@!RFC9728] in all of these cases, not only when no token is presented:
 
 *   If no access token is presented and the requested operation requires one (see above), the
     hub **MUST** return a 401 "Unauthorized" status code
@@ -497,8 +523,10 @@ signature from an expired or not-yet-valid token) avoids disclosing why validati
 Hubs **MUST** validate access tokens as JWT access tokens [@!RFC9068] and in accordance with the
 JSON Web Token Best Current Practices [@!RFC8725]. In particular:
 
-*   Hubs **MUST** verify that the token header `typ` is `at+jwt` [@!RFC9068], so that tokens
-    issued for other purposes (for example, OpenID Connect ID Tokens) are not accepted.
+*   Hubs **MUST** verify that the token header `typ` is `at+jwt`, or the equivalent
+    `application/at+jwt`, compared with the `application/` prefix omitted and case-insensitively
+    per [@!RFC7515] section 4.1.9 [@!RFC9068], so that tokens issued for other purposes (for
+    example, OpenID Connect ID Tokens) are not accepted.
 *   Hubs **MUST** be configured with an explicit allowlist of accepted signature algorithms and
     **MUST** reject any token whose `alg` is not on that allowlist. Hubs **MUST NOT** accept
     `alg=none`, **MUST NOT** derive the set of acceptable algorithms from the token, and **MUST**
@@ -515,20 +543,26 @@ JSON Web Token Best Current Practices [@!RFC8725]. In particular:
     Trusted keys are obtained from static configuration, from the authorization server's JWK
     Set [@!RFC7517] discovered through its metadata [@!RFC8414], or from the hub's protected
     resource metadata (see (#discovery)). This specification defines no hub-specific key
-    distribution endpoint.
+    distribution endpoint. When the hub trusts key material from more than one issuer, it
+    **MUST** verify the signature using only the key(s) associated with the token's `iss` (for
+    self-issued tokens, the key(s) bound to the out-of-band trust relationship), never a pooled
+    set spanning issuers, so that a token signed by one trusted issuer cannot be accepted under
+    another issuer's identity.
 *   Hubs **MUST** enforce the `exp` claim [@!RFC7519], including on the first request received
-    bearing a token, and **MUST** enforce the `nbf` claim if present.
+    bearing a token, and **MUST** reject a token that has no `exp` claim ([@!RFC9068] requires
+    it). Hubs **MUST** enforce the `nbf` claim if present.
 *   Hubs **MUST** be configured with their resource identifier and **MUST** verify that it
     appears in the token `aud` claim [@!RFC9068]. It is **RECOMMENDED** that the resource
     identifier be the canonical URL of the hub (for example,
     `https://hub.example.com/.well-known/mercure`), which gives deployments an obvious default. Per [@!RFC7519], `aud` **MAY** be a single
     string or an array of strings; the resource identifier matches when it equals that string or
     is a member of that array. This bounds a token to its intended hub and mitigates replay across
-    hubs that share signing keys (see (#hub-trust)). When the hub advertises one or more
-    authorization servers in its protected resource metadata (see (#discovery)), it **MUST**
-    verify that the `iss` claim is the issuer identifier of one of them [@!RFC9068]. A hub that
-    accepts self-issued tokens and advertises no authorization server **MAY** omit the `iss`
-    check.
+    hubs that share signing keys (see (#hub-trust)). When the hub trusts one or more
+    authorization servers, it **MUST** verify that the `iss` claim is the issuer identifier of
+    one of them [@!RFC9068], whether or not it advertises them in its protected resource
+    metadata (see (#discovery)). A hub that accepts only self-issued tokens and trusts no
+    authorization server **MAY** omit the `iss` check; such a hub **MUST** use an `aud` value
+    unique to it (see (#hub-trust)) so that the audience alone bounds the token to the hub.
 
 [@!RFC9068] requires authorization servers to populate the `iss`, `exp`, `aud`, `sub`,
 `client_id`, `iat`, and `jti` claims. Hubs **MUST** enforce `exp`, `aud`, and — when an
@@ -826,7 +860,7 @@ presented across requests).
 `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC9562] or a
 [@DID] **MAY** also be used.
 
-The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld-20140116] document containing
+The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld11-20200716] document containing
 at least the following properties:
 
 *   `@context`: the fixed value `https://mercure.rocks/`. `@context` **MAY** be omitted if
@@ -1101,7 +1135,7 @@ The publisher **MAY** provide the following target attributes in the Link Header
 *   `content-type`: the content type of the updates that will be pushed by the hub. If omitted,
     the subscriber **MUST** assume that the content type matches that of the original resource.
     The `content-type` attribute is especially useful to indicate that partial updates will be
-    pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7386].
+    pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396].
 
 All these attributes are optional.
 
@@ -1123,11 +1157,13 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 As an OAuth 2.0 protected resource, the hub **SHOULD** publish OAuth 2.0 Protected Resource
 Metadata [@!RFC9728] at the path derived from its URL as defined in that specification (for the
 hub URL `/.well-known/mercure`, the metadata is served at
-`/.well-known/oauth-protected-resource/.well-known/mercure`). The metadata document **SHOULD**
-include:
+`/.well-known/oauth-protected-resource/.well-known/mercure`). Publishing the document is a
+**SHOULD**; a document that is published **MUST** include the `resource` member (required by
+[@!RFC9728]) and **MAY** include the others:
 
-*   `resource`: the hub's resource identifier, which is the value clients **MUST** place in the
-    access token `aud` claim (see (#token-validation)).
+*   `resource` (required): the hub's resource identifier, which is the value clients **MUST**
+    place in the access token `aud` claim (see (#token-validation)). Clients **MUST** verify that
+    this value equals the resource identifier they used to derive the well-known URL [@!RFC9728].
 *   `authorization_servers` (optional): issuer identifiers of the authorization servers that can
     issue tokens for the hub [@!RFC8414]. Omitted when tokens are self-issued.
 *   `jwks_uri` (optional): the location of the hub's token verification keys, when not obtained
@@ -1273,6 +1309,7 @@ registry as described below:
 *   URI Suffix: mercure
 *   Change Controller: IETF
 *   Specification document(s): This specification, (#discovery)
+*   Status: permanent
 *   Related information: N/A
 
 ## Link Relation Types Registry
@@ -1292,7 +1329,7 @@ established by [@!RFC9728]:
 *   Metadata Name: mercure_cookie
 *   Metadata Description: Boolean indicating that the Mercure hub also accepts the access
     token in a cookie
-*   Change Controller: IETF
+*   Change Controller: IESG
 *   Specification Document(s): This specification, (#protected-resource-metadata)
 
 # Security Considerations
@@ -1344,7 +1381,11 @@ Topic strings and the `id`, `type`, and `retry` publish fields end up on the wir
 the Server-Sent Events framing. Values containing CR (U+000D), LF (U+000A), or NUL (U+0000)
 could inject arbitrary SSE fields into the stream as seen by subscribers, including forged
 event identifiers and event types. The character constraints in (#terminology) and
-(#publication) prevent this injection.
+(#publication) prevent this injection. The `data` field may contain line breaks legitimately;
+it is not constrained the same way, so the hub **MUST** serialize it as one `data:` field per
+line (see (#publication)) rather than emitting the raw value. A hub that writes the value
+without this line-splitting would let a `data` value containing `\nevent:` or `\nid:` inject a
+forged field, so this serialization is a security requirement, not only a formatting one.
 
 ## Reserved Hub Namespace
 
