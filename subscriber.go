@@ -156,6 +156,8 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 		return
 	}
 
+	s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
+
 	// Fast path: when no authorization detail carries a payload, every matcher
 	// resolves to the same token-wide fallback, so skip the per-matcher matcher
 	// dispatch — which at the protocol caps (100 matchers × 100 detail topics)
@@ -167,8 +169,6 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 
 	if !authz.hasPayload() {
 		fallback := s.legacyPayloadFallback()
-
-		s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
 		for i := range s.SubscriptionPayloads {
 			s.SubscriptionPayloads[i] = fallback
 		}
@@ -176,7 +176,6 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 		return
 	}
 
-	s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
 	for i, m := range s.SubscribedMatchers {
 		s.SubscriptionPayloads[i] = s.resolveSubscriptionPayload(m)
 	}
