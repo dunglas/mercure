@@ -215,28 +215,17 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 	for i := range d.Topics {
 		m := d.Topics[i].TopicMatcher
 
-		if len(m.Pattern) > maxPatternLength {
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errPatternTooLong)
-		}
-
+		// An empty pattern is a meaningless matcher; reject it before the shared
+		// validator, which does not (an empty Exact pattern compiles fine).
 		if m.Pattern == "" {
 			return vd, fmt.Errorf("%w: a topic matcher pattern must not be empty", errInvalidAuthorizationDetail)
 		}
 
-		if !validProtocolString(m.Pattern) {
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errInvalidMatcherValue)
-		}
-
-		// Only the protocol matcher types are valid in authorization details; the
-		// internal deprecated type is rejected by the default arm like any other
-		// unknown type, so it can never be reached from a token.
-		switch m.Type {
-		case MatcherTypeExact, MatcherTypeURLPattern:
-			if err := tss.validatePattern(m); err != nil {
-				return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
-			}
-		default:
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, ErrUnsupportedMatcherType)
+		// validateProtocolMatcher is the single definition of a valid wire
+		// matcher (length, charset, known type, compilable pattern); the
+		// internal deprecated type is rejected as an unknown type.
+		if err := validateProtocolMatcher(tss, m); err != nil {
+			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
 		}
 
 		vd.topics[i] = m
