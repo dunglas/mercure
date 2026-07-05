@@ -89,7 +89,7 @@ func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code st
 // request.
 func (h *Hub) resourceMetadataURL(r *http.Request) string {
 	if h.publicURL != "" {
-		if base, _, ok := strings.Cut(h.publicURL, defaultHubURL); ok {
+		if base, ok := strings.CutSuffix(h.publicURL, defaultHubURL); ok {
 			return base + protectedResourceMetadataPath
 		}
 	}

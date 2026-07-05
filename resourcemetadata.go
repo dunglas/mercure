@@ -10,6 +10,11 @@ import (
 // hub's OAuth 2.0 protected resource metadata, derived from the hub URL.
 const protectedResourceMetadataPath = "/.well-known/oauth-protected-resource" + defaultHubURL
 
+// ProtectedResourceMetadataPath is the RFC 9728 well-known path the hub serves
+// its protected resource metadata at. It is exported so an embedding server
+// (for example, the Caddy module) can route to it without re-deriving the path.
+const ProtectedResourceMetadataPath = protectedResourceMetadataPath
+
 // protectedResourceMetadata is the subset of OAuth 2.0 Protected Resource
 // Metadata (RFC 9728) the hub advertises. jwks_uri is intentionally omitted:
 // the hub hosts no JWKS endpoint, and a single jwks_uri cannot represent the

@@ -155,6 +155,45 @@ func TestMercureDetailTopicMissingMatchRejected(t *testing.T) {
 	}
 }
 
+// TestMercureDetailEmptyPatternRejected ensures a detail topic with an empty
+// match pattern invalidates the token rather than being accepted as a
+// no-op matcher.
+func TestMercureDetailEmptyPatternRejected(t *testing.T) {
+	t.Parallel()
+
+	tss, err := NewTopicSelectorStore(0)
+	require.NoError(t, err)
+
+	var details []authorizationDetail
+	require.NoError(t, json.Unmarshal([]byte(`[{"type":"mercure","actions":["subscribe"],"topics":[{"match":""}]}]`), &details))
+
+	_, err = validateAuthorizationDetails(tss, details)
+	require.ErrorIs(t, err, errInvalidAuthorizationDetail)
+}
+
+// TestSubscriptionPayloadFastPath ensures the no-payload short-circuit still
+// resolves per-subscription payloads to the correct values.
+func TestSubscriptionPayloadFastPath(t *testing.T) {
+	t.Parallel()
+
+	tss, err := NewTopicSelectorStore(0)
+	require.NoError(t, err)
+
+	// No detail carries a payload: every subscription payload is nil.
+	s := NewSubscriber(nil, tss)
+	s.Claims = detailClaims(t, tss, subscribeDetail(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/a"}))
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/a"}}, nil)
+	require.Len(t, s.SubscriptionPayloads, 1)
+	assert.Nil(t, s.SubscriptionPayloads[0])
+
+	// A detail carries a payload: the matching subscription resolves to it.
+	s2 := NewSubscriber(nil, tss)
+	s2.Claims = detailClaims(t, tss, subscribeDetail(map[string]any{"k": "v"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/a"}))
+	s2.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/a"}}, nil)
+	require.Len(t, s2.SubscriptionPayloads, 1)
+	assert.Equal(t, map[string]any{"k": "v"}, s2.SubscriptionPayloads[0])
+}
+
 // TestCompatModeEmptyResourceIdentifierAcceptsToken ensures a hub started in
 // compatibility mode without a resource identifier (a build without the
 // deprecated_claim tag) does not enforce an empty audience, which would reject

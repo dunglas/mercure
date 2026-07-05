@@ -28,10 +28,6 @@ import (
 
 const (
 	defaultHubURL = "/.well-known/mercure"
-	// protectedResourceMetadataPath mirrors the RFC 9728 well-known location
-	// served by the hub; it lives outside the hub URL prefix, so ServeHTTP
-	// must forward it explicitly.
-	protectedResourceMetadataPath = "/.well-known/oauth-protected-resource" + defaultHubURL
 )
 
 var (
@@ -425,7 +421,7 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != protectedResourceMetadataPath {
+	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != mercure.ProtectedResourceMetadataPath {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 

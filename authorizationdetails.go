@@ -219,20 +219,22 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errPatternTooLong)
 		}
 
+		if m.Pattern == "" {
+			return vd, fmt.Errorf("%w: a topic matcher pattern must not be empty", errInvalidAuthorizationDetail)
+		}
+
 		if !validProtocolString(m.Pattern) {
 			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errInvalidMatcherValue)
 		}
 
-		// Only the protocol matcher types are valid in authorization details;
-		// the internal deprecated type must not be reachable from a token.
+		// Only the protocol matcher types are valid in authorization details; the
+		// internal deprecated type is rejected by the default arm like any other
+		// unknown type, so it can never be reached from a token.
 		switch m.Type {
 		case MatcherTypeExact, MatcherTypeURLPattern:
 			if err := tss.validatePattern(m); err != nil {
 				return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
 			}
-		case deprecatedMatcherTypeName:
-			// The internal deprecated type must never be reachable from a token.
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, ErrUnsupportedMatcherType)
 		default:
 			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, ErrUnsupportedMatcherType)
 		}
@@ -241,6 +243,24 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 	}
 
 	return vd, nil
+}
+
+// hasPayload reports whether any validated detail carries a payload. It is the
+// only case where per-matcher subscription payload resolution can differ from
+// the token-wide fallback, so the subscriber uses it to skip the
+// O(matchers × details) matcher dispatch when no payload is present.
+func (a *mercureAuthz) hasPayload() bool {
+	if a == nil {
+		return false
+	}
+
+	for i := range a.details {
+		if a.details[i].payload != nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 // grants reports whether the token authorizes the given action on the topic.

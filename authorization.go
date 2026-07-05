@@ -22,8 +22,8 @@ type claims struct {
 
 	// authz holds the validated mercure authorization details (and, under the
 	// deprecated_claim tag in compatibility mode, the legacy mercure claim
-	// resolved into the same shape).
-	authz *mercureAuthz `json:"-"`
+	// resolved into the same shape). Unexported, so it is never (un)marshaled.
+	authz *mercureAuthz
 }
 
 type role int
