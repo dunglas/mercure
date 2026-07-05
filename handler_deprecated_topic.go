@@ -64,7 +64,5 @@ func (h *Hub) isKnownMatchType(r *http.Request, _ *mux.RouteMatch) bool {
 		return false
 	}
 
-	t := MatcherType(mt)
-
-	return t == MatcherTypeExact || t == MatcherTypeURLPattern
+	return knownMatcherType(MatcherType(mt))
 }
