@@ -270,7 +270,7 @@ func TestSubscribeTooManyTopics(t *testing.T) {
 	hub := createAnonymousDummy(t)
 
 	q := url.Values{}
-	for i := 0; i <= maxQueryTopics; i++ {
+	for i := 0; i <= maxMatcherCount; i++ {
 		q.Add("match", "https://example.com/foo")
 	}
 
