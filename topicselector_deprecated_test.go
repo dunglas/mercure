@@ -24,7 +24,7 @@ func TestMatchDeprecated(t *testing.T) {
 	assert.False(t, tss.matchMatcher([]string{"foo"}, deprecatedMatcher("bar")))
 	assert.True(t, tss.matchMatcher([]string{"https://example.com/foo/bar"}, deprecatedMatcher("https://example.com/{foo}/bar")))
 	assert.False(t, tss.matchMatcher([]string{"https://example.com/foo/bar/baz"}, deprecatedMatcher("https://example.com/{foo}/bar")))
-	assert.True(t, tss.matchMatcher([]string{"https://example.com/kevin/dunglas"}, deprecatedMatcher("https://example.com/{fistname}/{lastname}")))
+	assert.True(t, tss.matchMatcher([]string{"https://example.com/kevin/dunglas"}, deprecatedMatcher("https://example.com/{firstname}/{lastname}")))
 	assert.True(t, tss.matchMatcher([]string{"https://example.com/foo/bar"}, deprecatedMatcher("*")))
 
 	// A selector that is not a valid URI Template falls back to exact-only.

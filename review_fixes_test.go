@@ -12,6 +12,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestUpdateValidateRejectsControlCharsInID ensures the id and type fields
+// reject all control characters (not only CR/LF/NUL) and invalid UTF-8, so an
+// event id cannot carry a DEL or C1 byte into the Last-Event-ID header.
+func TestUpdateValidateRejectsControlCharsInID(t *testing.T) {
+	t.Parallel()
+
+	const topic = "https://example.com/1"
+
+	require.ErrorIs(t, (&Update{Topic: topic, Event: Event{ID: "a\x7fb"}}).Validate(), ErrInvalidEventID)
+	require.ErrorIs(t, (&Update{Topic: topic, Event: Event{Type: "a\x9fb"}}).Validate(), ErrInvalidEventType)
+	require.ErrorIs(t, (&Update{Topic: topic, Event: Event{ID: "a\xffb"}}).Validate(), ErrInvalidEventID) // invalid UTF-8
+	require.NoError(t, (&Update{Topic: topic, Event: Event{ID: topic, Type: "message"}}).Validate())
+}
+
 // TestPublishTopicWithNULRejected ensures a topic carrying a NUL byte is
 // rejected with 400 before it can reach the shared match cache via canDispatch,
 // where its NUL would collide with the topic-list key separator.
