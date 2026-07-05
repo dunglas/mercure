@@ -20,8 +20,9 @@ const (
 // with a 401 and a bare RFC 6750 Bearer challenge, advertising the protected
 // resource metadata so clients can discover the authorization requirements.
 func (h *Hub) writeBearerChallenge(w http.ResponseWriter, r *http.Request) {
-	h.setWWWAuthenticate(w, r, "")
-	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	// An empty error code makes setWWWAuthenticate omit the error= parameter, so
+	// this is the bare challenge for an unauthenticated request.
+	h.writeBearerError(w, r, "", http.StatusUnauthorized)
 }
 
 // writeBearerError answers with an RFC 6750 error: a WWW-Authenticate challenge
