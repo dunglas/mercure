@@ -3,6 +3,7 @@ package mercure
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"slices"
 	"strings"
@@ -61,14 +62,7 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 	// Iterate parameter names in sorted order so the resulting matcher order —
 	// observable in subscription IDs, the subscription API listing and span
 	// attributes — is deterministic, independent of Go's map iteration order.
-	keys := make([]string, 0, len(query))
-	for key := range query {
-		keys = append(keys, key)
-	}
-
-	slices.Sort(keys)
-
-	for _, key := range keys {
+	for _, key := range slices.Sorted(maps.Keys(query)) {
 		values := query[key]
 		if key == paramTopic {
 			if !deprecated {

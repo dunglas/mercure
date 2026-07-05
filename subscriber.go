@@ -156,6 +156,8 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 		return
 	}
 
+	s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
+
 	// Fast path: per-matcher resolution only matters when some subscribe claim
 	// carries its own payload. Otherwise every matcher resolves to the
 	// token-wide mercure.payload, so skip the O(matchers × claims) matcher
@@ -163,8 +165,6 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 	// would otherwise run up to 100_000 URL Pattern evaluations per request.
 	if !s.hasPerClaimPayload() {
 		fallback := s.claimsPayload()
-
-		s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
 		for i := range s.SubscriptionPayloads {
 			s.SubscriptionPayloads[i] = fallback
 		}
@@ -172,7 +172,6 @@ func (s *Subscriber) resolveSubscriptionPayloads() {
 		return
 	}
 
-	s.SubscriptionPayloads = make([]any, len(s.SubscribedMatchers))
 	for i, m := range s.SubscribedMatchers {
 		s.SubscriptionPayloads[i] = s.resolveSubscriptionPayload(m)
 	}
