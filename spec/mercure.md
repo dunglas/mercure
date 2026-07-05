@@ -120,7 +120,11 @@ The query component of the subscription URL **MUST** be parsed into name/value p
 `application/x-www-form-urlencoded` parsing algorithm of [@!URL] (the algorithm implemented by
 `URLSearchParams` and used by `EventSource`). The reserved-namespace rule and the value
 constraints below apply to the percent-decoded parameter names and values. A parameter name
-given without a value is equivalent to that name with an empty value.
+given without a value is equivalent to that name with an empty value. Clients **MUST**
+percent-encode any character in a matcher name or value that `application/x-www-form-urlencoded`
+serialization would encode — notably `&`, `=`, `+`, `;`, and `%` — as `URLSearchParams`
+does; this keeps parsing unambiguous across implementations (some form-urlencoded parsers treat
+a raw `;` as a delimiter or reject a stray `%`).
 
 The names of topic matcher query parameters are case-sensitive. A request using a parameter name
 in the reserved `match` namespace (a name equal to `match`, or beginning with `match` under an
@@ -327,8 +331,10 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     value, including an empty string.
 *   `id` (optional): the topic's revision identifier; used as the SSE `id` property.
     The provided ID **MUST NOT** start with the `#` character, **MUST NOT** be the reserved
-    value `earliest` (see (#reconciliation)), and **MUST NOT** contain U+000A
-    (LF), U+000D (CR), or U+0000 (NUL). The provided ID **MAY** be a valid IRI. If omitted, the
+    value `earliest` (see (#reconciliation)), and **MUST NOT** contain control characters
+    (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)) — the same constraint as topics
+    (see (#terminology)), since the ID also travels in the `Last-Event-ID` HTTP field.
+    The provided ID **MAY** be a valid IRI. If omitted, the
     hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC9562] or a
     [@DID] **MAY** be used. Alternatively, the hub **MAY**
     generate a relative URI composed of a fragment (starting with `#`). This is convenient to
@@ -336,8 +342,8 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     client-supplied ID and generate its own. The hub **MUST** reject client-supplied IDs
     violating the character constraints above with a 400 HTTP status code.
 *   `type` (optional): the SSE `event` property (a specific event type). The value **MUST NOT**
-    contain U+000A or U+000D; hubs **MUST** reject violating values with a 400 HTTP status
-    code.
+    contain control characters (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)); hubs
+    **MUST** reject violating values with a 400 HTTP status code.
 *   `retry` (optional): the SSE `retry` property (the reconnection time). The value **MUST**
     consist solely of ASCII digits (U+0030–U+0039); hubs **MUST** reject violating values with
     a 400 HTTP status code.
@@ -496,10 +502,13 @@ support this method.
 ## Error Responses
 
 The hub reports authorization failures using the error responses defined in [@!RFC6750]
-section 3. Each error code below is carried as the `error` attribute (`auth-param`) of a
-`WWW-Authenticate: Bearer` challenge, not as a response body field; every 401 response carries
-that header [@!RFC9110], and the challenge **SHOULD** include the `resource_metadata` parameter
-(see (#discovery)) per [@!RFC9728] in all of these cases, not only when no token is presented:
+section 3. For the token-related failures below (missing, invalid, or insufficiently-scoped
+token), the `error` code is carried as the `error` attribute (`auth-param`) of a
+`WWW-Authenticate: Bearer` challenge, not as a response body field; every such 401 carries that
+header [@!RFC9110], and the challenge **SHOULD** include the `resource_metadata` parameter (see
+(#discovery)) per [@!RFC9728], not only when no token is presented. A 400 for a request that is
+malformed independently of the access token (for example, a missing `topic` field or an unknown
+matcher query parameter) need not carry a Bearer challenge:
 
 *   If no access token is presented and the requested operation requires one (see above), the
     hub **MUST** return a 401 "Unauthorized" status code
