@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -24,8 +25,9 @@ var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 // limits (Caddy request_body, Go MaxHeaderBytes).
 const (
 	maxClaimMatchers = 1000 // mercure.subscribe / mercure.publish array
-	maxQueryTopics   = 1000 // "topic" query params on subscribe
 	maxPublishTopics = 1000 // "topic" form fields on publish
+	// Subscribe-side matcher count is capped by maxMatcherCount
+	// (subscribematchers.go).
 )
 
 // Sentinel errors returned by Publish. Callers can branch on them via
@@ -36,6 +38,7 @@ var (
 	ErrInvalidEventType = errors.New(`"type" field contains a forbidden control character`)
 	ErrInvalidTopic     = errors.New("topic contains a forbidden control character or invalid UTF-8")
 	ErrTooManyTopics    = errors.New("too many topics in update")
+	ErrInvalidData      = errors.New(`"data" field is not valid UTF-8`)
 )
 
 // sseFieldForbiddenChars, if copied into SSE id/event fields, would
@@ -81,6 +84,12 @@ func (u *Update) Validate() error {
 
 	if strings.ContainsAny(u.Type, sseFieldForbiddenChars) {
 		return ErrInvalidEventType
+	}
+
+	// The protocol requires field values to be valid UTF-8; ParseForm does not
+	// enforce it, so reject invalid data rather than dispatch it.
+	if !utf8.ValidString(u.Data) {
+		return ErrInvalidData
 	}
 
 	return nil
@@ -260,7 +269,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrReservedTopic):
 			http.Error(w, err.Error(), http.StatusForbidden)
 		case errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
-			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics):
+			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
+			errors.Is(err, ErrInvalidData):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

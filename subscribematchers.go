@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -57,7 +58,18 @@ var (
 func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
 	var matchers []TopicMatcher
 
-	for key, values := range query {
+	// Iterate parameter names in sorted order so the resulting matcher order —
+	// observable in subscription IDs, the subscription API listing and span
+	// attributes — is deterministic, independent of Go's map iteration order.
+	keys := make([]string, 0, len(query))
+	for key := range query {
+		keys = append(keys, key)
+	}
+
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		values := query[key]
 		if key == paramTopic {
 			if !deprecated {
 				return nil, fmt.Errorf("%w: %q (use %q or %q)", errUnknownMatcherParam, key, paramMatch, paramMatch+string(MatcherTypeURLPattern))
@@ -121,10 +133,9 @@ func matcherTypeFromParam(key string) (MatcherType, bool) {
 	switch mt {
 	case MatcherTypeExact, MatcherTypeURLPattern:
 		return mt, true
-	case deprecatedMatcherTypeName:
-		// The internal deprecated type is not addressable from the wire.
-		return "", false
 	default:
+		// Anything else, including the internal deprecated type, is not
+		// addressable from the wire.
 		return "", false
 	}
 }
