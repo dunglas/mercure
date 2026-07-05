@@ -78,7 +78,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 
 	// Reject unknown matcher types with a 400 instead of silently serving an
 	// empty listing. matchType is empty on the deprecated /{topic} routes.
-	if f.matchType != "" && f.matchType != string(MatcherTypeExact) && f.matchType != string(MatcherTypeURLPattern) {
+	if f.matchType != "" && !knownMatcherType(MatcherType(f.matchType)) {
 		return subscriptionFilter{}, ErrUnsupportedMatcherType
 	}
 

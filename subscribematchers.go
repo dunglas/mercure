@@ -130,19 +130,18 @@ func matcherTypeFromParam(key string) (MatcherType, bool) {
 		mt = MatcherTypeExact
 	}
 
-	switch mt {
-	case MatcherTypeExact, MatcherTypeURLPattern:
-		return mt, true
-	default:
-		// Anything else, including the internal deprecated type, is not
-		// addressable from the wire.
-		return "", false
-	}
+	// Anything not in the wire-addressable set (including the internal
+	// deprecated type) is rejected.
+	return mt, knownMatcherType(mt)
 }
 
 // appendMatchers validates each value of one topic matcher query parameter
 // and appends one TopicMatcher per value.
 func (h *Hub) appendMatchers(matchers []TopicMatcher, matcherType MatcherType, values []string) ([]TopicMatcher, error) {
+	// matcherType is already resolved (a known wire type from
+	// matcherTypeFromParam, or the internal deprecated type from the
+	// deprecated-topic path), so the type-membership gate is not repeated here;
+	// only the per-value length, charset and pattern checks apply.
 	for _, v := range values {
 		if len(matchers) >= maxMatcherCount {
 			return nil, errTooManyMatchers
@@ -158,6 +157,8 @@ func (h *Hub) appendMatchers(matchers []TopicMatcher, matcherType MatcherType, v
 
 		m := TopicMatcher{Type: matcherType, Pattern: v}
 		if err := h.topicSelectorStore.validatePattern(m); err != nil {
+			// The compiler error can embed heap internals (CWE-209); hide it
+			// behind a generic sentinel.
 			return nil, fmt.Errorf("%w (%s): %w", errInvalidMatcherPattern, matcherType, err)
 		}
 

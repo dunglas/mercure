@@ -51,3 +51,39 @@ func validProtocolString(s string) bool {
 
 	return utf8.ValidString(s)
 }
+
+// knownMatcherType reports whether mt is a matcher type addressable from the
+// wire (a token, a subscribe query parameter, or a subscription API URL). The
+// internal deprecated type is excluded. This is the single definition of the
+// protocol's matcher-type set; a new type is added here and to the per-type
+// dispatch in TopicSelectorStore.validatePattern and matchMatcher.
+func knownMatcherType(mt MatcherType) bool {
+	switch mt {
+	case MatcherTypeExact, MatcherTypeURLPattern:
+		return true
+	default:
+		return false
+	}
+}
+
+// validateProtocolMatcher enforces the wire constraints on a single topic
+// matcher carried by a token or a subscribe request: pattern length, allowed
+// characters, a known matcher type, and a compilable pattern. It returns the
+// shared sentinels (errPatternTooLong, errInvalidMatcherValue,
+// ErrUnsupportedMatcherType) or the underlying compiler error; callers wrap the
+// result with their own sentinel and HTTP status.
+func validateProtocolMatcher(tss *TopicSelectorStore, m TopicMatcher) error {
+	if len(m.Pattern) > maxPatternLength {
+		return errPatternTooLong
+	}
+
+	if !validProtocolString(m.Pattern) {
+		return errInvalidMatcherValue
+	}
+
+	if !knownMatcherType(m.Type) {
+		return ErrUnsupportedMatcherType
+	}
+
+	return tss.validatePattern(m)
+}
