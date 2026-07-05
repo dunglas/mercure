@@ -125,7 +125,14 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
-	if h.writeTimeout != 0 {
+	// Arm the disconnection timer whenever a write deadline exists, including
+	// when it comes solely from the token's exp (write_timeout disabled):
+	// getWriteDeadline leaves the deadline zero only when neither a write
+	// timeout nor a token exp applies. The protocol requires closing the
+	// connection no later than exp, so relying on a failed write against a past
+	// deadline would otherwise leave an authenticated connection open up to a
+	// heartbeat interval past exp, or indefinitely with heartbeat off.
+	if !rc.writeDeadline.IsZero() {
 		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
 		defer disconnectionTimer.Stop()
 
