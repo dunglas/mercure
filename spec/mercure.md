@@ -66,8 +66,10 @@ appear in all capitals, as shown here.
 
 *   Topic: The unit to which one can subscribe for changes. The topic is identified by a string
     that **MAY** be an IRI [@!RFC3987]. Topic strings **MUST** be valid UTF-8 [@!RFC3629] and
-    **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters or U+007F
-    (DEL). An update is about exactly one topic.
+    **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters, U+007F
+    (DEL), or Unicode format characters (general category `Cf` [@!UNICODE], such as the
+    bidirectional and zero-width controls), which are invisible and enable identifier spoofing.
+    An update is about exactly one topic.
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private; in that case, it **MUST** be dispatched only to subscribers allowed to receive it.
 *   Topic matcher: An expression matched against one or more topics,
@@ -129,17 +131,14 @@ a raw `;` as a delimiter or reject a stray `%`).
 The names of topic matcher query parameters are case-sensitive. A request using a parameter name
 in the reserved `match` namespace (a name equal to `match`, or beginning with `match` under an
 ASCII case-insensitive comparison) that does not correspond to a matcher type defined in
-(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code. A request
-carrying the pre-1.0 `topic` query parameter, which earlier protocol versions used to select
-topics, **MUST** likewise be rejected with a 400 "Bad Request" HTTP status code unless the hub
-runs in a backward-compatibility mode, so that a subscriber built for an earlier version fails
-loudly instead of receiving no updates. This
+(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code. This
 deliberately reserves the whole `match` prefix: unrelated query parameters whose names begin
 with `match` cannot be used on the subscription URL, and a misspelled matcher type fails
 loudly instead of being silently ignored.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
-**MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters or U+007F.
+**MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters, U+007F, or
+Unicode format characters (general category `Cf` [@!UNICODE]).
 A parameter value that is not valid for its matcher type (for example, a `matchURLPattern`
 value that is not a well-formed URL Pattern) is equally invalid. Requests violating any of these
 constraints **MUST** be rejected with a 400 "Bad Request" HTTP status code.
@@ -332,8 +331,9 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
 *   `id` (optional): the topic's revision identifier; used as the SSE `id` property.
     The provided ID **MUST NOT** start with the `#` character, **MUST NOT** be the reserved
     value `earliest` (see (#reconciliation)), and **MUST NOT** contain control characters
-    (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)) — the same constraint as topics
-    (see (#terminology)), since the ID also travels in the `Last-Event-ID` HTTP field.
+    (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)) or Unicode format characters (general
+    category `Cf` [@!UNICODE]) — the same constraint as topics (see (#terminology)), since the
+    ID also travels in the `Last-Event-ID` HTTP field.
     The provided ID **MAY** be a valid IRI. If omitted, the
     hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC9562] or a
     [@DID] **MAY** be used. Alternatively, the hub **MAY**
@@ -342,8 +342,9 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     client-supplied ID and generate its own. The hub **MUST** reject client-supplied IDs
     violating the character constraints above with a 400 HTTP status code.
 *   `type` (optional): the SSE `event` property (a specific event type). The value **MUST NOT**
-    contain control characters (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)); hubs
-    **MUST** reject violating values with a 400 HTTP status code.
+    contain control characters (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)) or Unicode
+    format characters (general category `Cf` [@!UNICODE]); hubs **MUST** reject violating values
+    with a 400 HTTP status code.
 *   `retry` (optional): the SSE `retry` property (the reconnection time). The value **MUST**
     consist solely of ASCII digits (U+0030–U+0039); hubs **MUST** reject violating values with
     a 400 HTTP status code.
