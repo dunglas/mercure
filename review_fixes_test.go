@@ -170,3 +170,16 @@ func TestSubscriberSetMatchers(t *testing.T) {
 	assert.True(t, s.MatchTopics([]string{"https://example.com/foo"}, true))
 	assert.False(t, s.MatchTopics([]string{"https://example.com/bar"}, false))
 }
+
+// TestInvalidBaseURLRejected ensures a non-absolute public URL is rejected at
+// configuration time rather than surfacing as an opaque per-request error.
+func TestInvalidBaseURLRejected(t *testing.T) {
+	t.Parallel()
+
+	tss, err := NewTopicSelectorStore(0)
+	require.NoError(t, err)
+
+	require.ErrorIs(t, tss.setBaseURL("not-a-url"), ErrInvalidBaseURL)
+	require.ErrorIs(t, tss.setBaseURL("/relative/only"), ErrInvalidBaseURL)
+	require.NoError(t, tss.setBaseURL("https://hub.example.com/.well-known/mercure"))
+}
