@@ -3,6 +3,7 @@ package mercure
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -101,6 +102,13 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 // it is rejected at construction instead.
 var ErrConflictingBaseURL = errors.New("topic selector store already configured with a different base URL")
 
+// ErrInvalidBaseURL is returned by setBaseURL (via NewHub) when the configured
+// public URL is not an absolute URL. Relative URL patterns and topics are
+// resolved against it, so an invalid value would make every relative-pattern
+// match fail at request time with an opaque error; it is rejected at
+// construction instead.
+var ErrInvalidBaseURL = errors.New("base URL must be an absolute URL")
+
 // setBaseURL sets the base URL used to resolve relative URL patterns and
 // topics, per the protocol's "the hub MUST use the hub's URL as the base URL"
 // rule. Must be called before the hub starts serving requests: compiled
@@ -113,6 +121,10 @@ func (tss *TopicSelectorStore) setBaseURL(baseURL string) error {
 
 	if tss.baseURL != "" {
 		return fmt.Errorf("%w: %q vs %q", ErrConflictingBaseURL, tss.baseURL, baseURL)
+	}
+
+	if u, err := url.Parse(baseURL); err != nil || !u.IsAbs() || u.Host == "" {
+		return fmt.Errorf("%w: %q", ErrInvalidBaseURL, baseURL)
 	}
 
 	tss.baseURL = baseURL
