@@ -46,6 +46,7 @@ func TestPublishTopicWithNULRejected(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -65,6 +66,7 @@ func TestSubscribeInvalidURLPatternDoesNotLeakInternals(t *testing.T) {
 
 	resp := w.Result()
 	body := w.Body.String()
+
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -97,6 +99,7 @@ func TestSubscribeMatcherClaimMissingMatchRejected(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	resp := w.Result()
+
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
@@ -142,6 +145,7 @@ func TestSubscriptionAPIAuthorizationIgnoresQueryString(t *testing.T) {
 	hub.SubscriptionsHandler(w, req)
 
 	resp := w.Result()
+
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
