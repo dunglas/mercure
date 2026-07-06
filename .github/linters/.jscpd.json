@@ -4,7 +4,6 @@
   "ignore": [
     "**/__snapshots__/**",
     "**/*_test.go",
-    "**/docs/**",
     "**/examples",
     "**/node_modules",
     "**/dist",

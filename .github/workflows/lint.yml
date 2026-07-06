@@ -30,6 +30,11 @@ jobs:
           VALIDATE_BIOME_LINT: false
           VALIDATE_CHECKOV: false
           VALIDATE_GITLEAKS: false
+          # super-linter 8.7 runs jscpd across the whole repository; with the
+          # threshold-0 policy it fails on this codebase's intentional
+          # duplication (build-tag stub pairs, near-identical chart templates),
+          # not on real copy-paste. Copy-paste detection adds little here.
+          VALIDATE_JSCPD: false
           VALIDATE_GO: false
           VALIDATE_GO_MODULES: false
           VALIDATE_GO_RELEASER: false
