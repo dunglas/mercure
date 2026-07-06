@@ -38,7 +38,7 @@ type updateJSON struct {
 }
 
 func (u *Update) MarshalJSON() ([]byte, error) {
-	b, err := json.Marshal(updateJSON{u.Event, u.topics(), u.Private, u.Debug})
+	b, err := json.Marshal(updateJSON{Event: u.Event, Topics: u.topics(), Private: u.Private, Debug: u.Debug})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal update: %w", err)
 	}
