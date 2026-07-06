@@ -189,6 +189,27 @@ func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDe
 	return authz, nil
 }
 
+// validateProtocolMatcher enforces the wire constraints on a single topic
+// matcher carried by a token: pattern length, allowed characters, a known
+// matcher type, and a compilable pattern. It returns the shared sentinels
+// (errPatternTooLong, errInvalidMatcherValue, ErrUnsupportedMatcherType) or the
+// underlying compiler error; callers wrap the result with their own sentinel.
+func validateProtocolMatcher(tss *TopicSelectorStore, m TopicMatcher) error {
+	if len(m.Pattern) > maxPatternLength {
+		return errPatternTooLong
+	}
+
+	if !validProtocolString(m.Pattern) {
+		return errInvalidMatcherValue
+	}
+
+	if !knownMatcherType(m.Type) {
+		return ErrUnsupportedMatcherType
+	}
+
+	return tss.validatePattern(m)
+}
+
 func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (validatedDetail, error) {
 	vd := validatedDetail{payload: d.Payload}
 

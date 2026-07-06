@@ -72,6 +72,17 @@ func (s *Subscriber) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
+// SetMatchers sets the subscribed and allowed-private topic matchers and
+// recomputes the derived subscription slugs and payloads, keeping the parallel
+// SubscribedMatchers / EscapedMatchers / SubscriptionPayloads slices
+// consistent. Transport implementations that reconstruct a Subscriber on
+// another node use it to populate matchers programmatically, instead of
+// relying on the exported fields (whose parallel-slice invariant is not
+// otherwise enforced).
+func (s *Subscriber) SetMatchers(subscribed, allowedPrivate []TopicMatcher) {
+	s.setMatchers(subscribed, allowedPrivate)
+}
+
 func (s *Subscriber) matchesAny(topics []string, matchers []TopicMatcher) bool {
 	for _, m := range matchers {
 		if s.topicSelectorStore.matchMatcher(topics, m) {
@@ -89,17 +100,6 @@ func logMatcherPatterns(matchers []TopicMatcher) []string {
 	}
 
 	return out
-}
-
-// SetMatchers sets the subscribed and allowed-private topic matchers and
-// recomputes the derived subscription slugs and payloads, keeping the parallel
-// SubscribedMatchers / EscapedMatchers / SubscriptionPayloads slices
-// consistent. Transport implementations that reconstruct a Subscriber on
-// another node use it to populate matchers programmatically, instead of
-// relying on the exported fields (whose parallel-slice invariant is not
-// otherwise enforced).
-func (s *Subscriber) SetMatchers(subscribed, allowedPrivate []TopicMatcher) {
-	s.setMatchers(subscribed, allowedPrivate)
 }
 
 // setMatchers sets the subscribed and allowed private topic matchers, and

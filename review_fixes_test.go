@@ -57,6 +57,7 @@ func TestPublishTopicWithNULRejected(t *testing.T) {
 	hub.PublishHandler(w, req)
 
 	resp := w.Result()
+
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -76,6 +77,7 @@ func TestSubscribeInvalidURLPatternDoesNotLeakInternals(t *testing.T) {
 
 	resp := w.Result()
 	body := w.Body.String()
+
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -163,6 +165,7 @@ func TestMercureDetailTopicMissingMatchRejected(t *testing.T) {
 			t.Parallel()
 
 			var details []authorizationDetail
+
 			err := json.Unmarshal([]byte(payload), &details)
 			require.ErrorIs(t, err, errInvalidAuthorizationDetail)
 		})
