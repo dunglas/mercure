@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"errors"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -39,12 +40,15 @@ type TopicMatcher struct {
 }
 
 // validProtocolString reports whether s satisfies the constraints the protocol
-// puts on topics and matcher patterns: valid UTF-8 without control characters —
-// C0 (U+0000–U+001F), DEL (U+007F), or C1 (U+0080–U+009F). NUL rejection also
-// protects the match cache, which joins topics with a NUL separator.
+// puts on topics, matcher patterns and the id/type fields: valid UTF-8 without
+// control characters — C0 (U+0000–U+001F), DEL (U+007F), or C1
+// (U+0080–U+009F) — and without Unicode format characters (category Cf:
+// bidirectional and zero-width controls), which are invisible and enable
+// identifier spoofing (Trojan Source). NUL rejection also protects the match
+// cache, which joins topics with a NUL separator.
 func validProtocolString(s string) bool {
 	for _, r := range s {
-		if r <= 0x1F || (r >= 0x7F && r <= 0x9F) {
+		if r <= 0x1F || (r >= 0x7F && r <= 0x9F) || unicode.Is(unicode.Cf, r) {
 			return false
 		}
 	}

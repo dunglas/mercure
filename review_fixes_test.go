@@ -183,3 +183,17 @@ func TestInvalidBaseURLRejected(t *testing.T) {
 	require.ErrorIs(t, tss.setBaseURL("/relative/only"), ErrInvalidBaseURL)
 	require.NoError(t, tss.setBaseURL("https://hub.example.com/.well-known/mercure"))
 }
+
+// TestValidProtocolStringRejectsFormatChars ensures invisible Unicode format
+// characters (bidirectional / zero-width controls, category Cf) are rejected in
+// topics/matchers/ids -- the Trojan-Source spoofing vector -- while RTL script
+// letters remain valid.
+func TestValidProtocolStringRejectsFormatChars(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, validProtocolString("a\u202eb")) // RIGHT-TO-LEFT OVERRIDE
+	assert.False(t, validProtocolString("a\u200bb")) // ZERO WIDTH SPACE
+	assert.False(t, validProtocolString("a\ufeffb")) // ZERO WIDTH NO-BREAK SPACE
+	assert.True(t, validProtocolString("https://example.com/foo"))
+	assert.True(t, validProtocolString("https://example.com/\u0645\u0631\u062d\u0628\u0627")) // RTL letters are fine
+}
