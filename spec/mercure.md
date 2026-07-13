@@ -668,19 +668,25 @@ identifiers are IRIs (see above), `earliest` cannot collide with a hub-generated
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `lastEventID` query parameter, the hub **MUST** set a
-`Last-Event-ID` header on the HTTP response. The value of this response header **MUST** be:
+`Last-Event-ID` header on the HTTP response.
 
-*   the same identifier as the one provided in the request, if the corresponding event exists
-    in the hub's history and the subscriber would have been authorized to receive it; or
-*   the reserved value `earliest` in every other case (for example, when the hub history is
-    empty, the requested event does not exist, has been discarded, or was a private update
-    the subscriber is not authorized to receive).
+The value of this response header **MUST** be the identifier of the event preceding the first
+event sent to the subscriber, or the reserved value `earliest` if there is no preceding event
+(for example, when the hub history is empty, when the subscriber requests the earliest event,
+or when the requested event does not exist or has been discarded).
 
-The hub **MUST NOT** disclose, via this header, any other identifier. This two-state response
-allows subscribers to detect that data may have been lost (the response value differs from
-the request value) without leaking the identifiers of events the subscriber cannot read, and
-avoids forcing the hub to scan its history backward on each reconnection, which would
-otherwise be a denial-of-service vector.
+Subscribers using the hub as an event store can use the returned identifier as a recovery
+anchor; subscribers that only need to detect data loss can compare it against the requested
+value (a different value indicates that loss may have occurred).
+
+Note: Event identifiers are cursors, and the hub exposes them to subscribers, both through the
+`lastEventID` value provided during discovery and through the `Last-Event-ID` response header.
+The header value can be the identifier of an event immediately preceding one the subscriber is
+not authorized to receive. A subscriber can therefore infer the existence of such an event and,
+when the hub uses time-ordered identifiers (e.g., UUIDv7 [@!RFC9562]), its approximate timing
+and ordering. Operators handling sensitive private updates **SHOULD** generate opaque, random
+event identifiers (e.g., UUIDv4 [@!RFC9562]), or expose an encrypted form of an internal ordered
+identifier, so that the cursor discloses nothing beyond what the subscriber already knows.
 
 The subscriber **SHOULD NOT** assume that no events will be lost (events may be lost, for
 instance, if the hub stores only a limited number of events in its history). In some cases (for
@@ -1224,8 +1230,11 @@ substring test would let an absolute topic addressing the hub's own host (for ex
 When a subscriber reconnects with a `Last-Event-ID` header or `lastEventID` query parameter,
 the same authorization rules apply to replayed events as to live events (see (#reconciliation)
 and (#subscribers)). A subscriber whose authorized scope has shrunk between publication and
-reconnection does not receive private events outside its scope at reconnection time, and the
-identifier of such an event does not appear in the `Last-Event-ID` response header.
+reconnection does not receive private events outside its scope at reconnection time. The
+`Last-Event-ID` response header is a cursor, however, and **MAY** contain the identifier of an
+event the subscriber is not authorized to receive. Operators handling sensitive private updates
+**SHOULD** use opaque, random event identifiers so that this identifier discloses nothing
+beyond the event's existence.
 
 ## Subscriber Identifier Assignment
 
