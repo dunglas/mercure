@@ -3,7 +3,6 @@ title = "The Mercure Protocol"
 abbrev = "Mercure"
 ipr = "trust200902"
 area = "Web and Internet Transport"
-workgroup = "HTTP"
 submissiontype = "IETF"
 
 [seriesInfo]
@@ -57,6 +56,10 @@ This document specifies the subscription and publication interfaces, the topic m
 the OAuth 2.0-based authorization model, reconnection and state reconciliation,
 active-subscription tracking, discovery, and update encryption.
 
+Some normative references of this document are dated snapshots (Review Drafts) of WHATWG Living
+Standards. Conformance is evaluated against the cited snapshots; later changes to those
+standards do not automatically apply to this protocol.
+
 # Terminology
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**,
@@ -65,10 +68,12 @@ are to be interpreted as described in BCP 14 [@!RFC2119] [@!RFC8174] when, and o
 appear in all capitals, as shown here.
 
 *   Topic: The unit to which one can subscribe for changes. The topic is identified by a string
-    that **MAY** be an IRI [@!RFC3987]. Topic strings **MUST** be valid UTF-8 [@!RFC3629] and
+    that can be an IRI [@!RFC3987]. Topic strings **MUST** be valid UTF-8 [@!RFC3629] and
     **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters, U+007F
     (DEL), or Unicode format characters (general category `Cf` [@!UNICODE], such as the
     bidirectional and zero-width controls), which are invisible and enable identifier spoofing.
+    Character classifications are those of the Unicode version cited in [@!UNICODE]; hubs
+    **MAY** also reject characters that later Unicode versions assign to general category `Cf`.
     An update is about exactly one topic.
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private; in that case, it **MUST** be dispatched only to subscribers allowed to receive it.
@@ -130,11 +135,12 @@ a raw `;` as a delimiter or reject a stray `%`).
 
 The names of topic matcher query parameters are case-sensitive. A request using a parameter name
 in the reserved `match` namespace (a name equal to `match`, or beginning with `match` under an
-ASCII case-insensitive comparison) that does not correspond to a matcher type defined in
-(#matcher-types) **MUST** be rejected with a 400 "Bad Request" HTTP status code. This
+ASCII case-insensitive comparison) that does not correspond to a matcher type supported by the
+hub (see (#matcher-types)) **MUST** be rejected with a 400 "Bad Request" HTTP status code. This
 deliberately reserves the whole `match` prefix: unrelated query parameters whose names begin
-with `match` cannot be used on the subscription URL, and a misspelled matcher type fails
-loudly instead of being silently ignored.
+with `match` cannot be used on the subscription URL, and a misspelled matcher type — or a
+registered matcher type the hub does not implement — fails loudly instead of being silently
+ignored.
 
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters, U+007F, or
@@ -153,9 +159,14 @@ Request" HTTP status code. A subscription is created for every topic matcher que
 present in the request. Hubs **MAY** deduplicate subscriptions that have identical matcher type
 and pattern. See (#subscription-events).
 
+Because subscription connections are long-lived, hubs **SHOULD** also apply
+implementation-defined limits to the number of concurrent connections held by a single client
+(for example, per source address or per token subject) and in total, and **MAY** reject further
+connection attempts with a 429 "Too Many Requests" HTTP status code.
+
 The `EventSource` JavaScript interface [@!HTML] **MAY** be used to establish
 the connection. Any other appropriate mechanism, including but not limited to readable streams
-[@W3C.NOTE-streams-api-20161129] and XMLHttpRequest [@xhr] (used by popular polyfills),
+[@streams] and XMLHttpRequest [@xhr] (used by popular polyfills),
 **MAY** also be used.
 
 Web browsers enforce the CORS protocol [@!FETCH] on cross-origin `EventSource` connections.
@@ -175,6 +186,12 @@ to receive it. See (#authorization).
 
 The hub **MUST** send these updates as `text/event-stream`-compliant events
 [@!HTML].
+
+Event streams are long-lived responses and interact poorly with intermediaries that buffer
+responses or terminate idle connections. When no update has been dispatched for an
+implementation-defined period, hubs **SHOULD** send an SSE comment line (a line starting with
+`:` [@!HTML]) as a keep-alive, and deployments **SHOULD** configure intermediaries not to
+buffer event streams.
 
 The `data` property **MUST** contain the topic's new version. It **MAY** be the full resource or
 a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396].
@@ -219,6 +236,15 @@ A topic matcher is an expression matched against topics; its matcher type determ
 expression is interpreted. This document defines two matcher types, `Exact` and `URLPattern`.
 Hubs **MUST** support both.
 
+Additional matcher types can be defined by other specifications and registered in the "Mercure
+Topic Matcher Types" registry (see (#iana-considerations)). Hubs **MAY** support registered
+additional matcher types and **SHOULD** advertise the complete set of matcher types they
+support with the `mercure_matcher_types_supported` metadata member (see
+(#protected-resource-metadata)). Requests and tokens using a matcher type the hub does not
+support are rejected as defined in (#subscription) and (#topic-matcher-list): matcher
+evaluation determines both routing and authorization, so a matcher the hub cannot interpret
+must fail loudly rather than be skipped.
+
 The matcher value `*` is reserved as a wildcard that matches every topic. It is recognized before
 the matcher type is resolved, so it has this meaning regardless of matcher type and regardless of
 whether `matchType` is supplied or defaulted (see (#topic-matcher-list)). As a consequence, a topic
@@ -257,6 +283,9 @@ URL patterns are evaluated per the URL Pattern Living Standard [@!urlpattern]; h
 enable the `ignoreCase` option. Host components remain case-insensitive as defined by URL
 canonicalization [@!RFC3986]; all other components are case-sensitive.
 
+A topic that cannot be parsed as a URL reference against the hub's URL cannot be matched by a
+URL pattern: hubs **MUST** treat its evaluation against any URL pattern as not matching.
+
 The URL Pattern Living Standard compiles patterns to regular expressions internally; crafted
 patterns can therefore trigger catastrophic backtracking. To mitigate denial-of-service attacks
 by clients submitting pathological patterns, hubs **MUST** either use a regular expression
@@ -279,6 +308,9 @@ The matcher type name is `URLPattern`. The corresponding subscribe query paramet
 |----------------|-------------------------------|-------------|--------------|
 | `Exact`        | `match` (or `matchExact`)     | `Exact`     | **MUST**     |
 | `URLPattern`   | `matchURLPattern`             | `URLPattern`| **MUST**     |
+
+This table lists the matcher types defined by this document; the "Mercure Topic Matcher Types"
+registry (see (#iana-considerations)) records additional registered types.
 
 # Publication
 
@@ -303,8 +335,9 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     the reserved hub namespace. To test this, the topic **MUST** be resolved against the hub's URL
     (see (#discovery)) using the URL parser of [@!URL] — the same algorithm and canonicalization
     used for URL Pattern matching (see (#url-pattern)). A topic addresses the reserved namespace
-    when the resolved path component is `/.well-known/mercure` or begins with
-    `/.well-known/mercure/`, regardless of scheme or authority. Before this comparison, the path
+    when the resolved path component equals the path of the hub's URL or begins with that path
+    followed by `/` — for the default hub URL (see (#discovery)), `/.well-known/mercure` and
+    `/.well-known/mercure/...` — regardless of scheme or authority. Before this comparison, the path
     **MUST** have its dot-segments removed and its percent-encoded octets that correspond to
     unreserved characters decoded [@!RFC3986]; otherwise, variants such as
     `/.well-known/%6Dercure/...` or `/.well-known/mercure/../mercure/...` would bypass the check.
@@ -336,7 +369,7 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     ID also travels in the `Last-Event-ID` HTTP field.
     The provided ID **MAY** be a valid IRI. If omitted, the
     hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC9562] or a
-    [@DID] **MAY** be used. Alternatively, the hub **MAY**
+    DID [@DID] **MAY** be used. Alternatively, the hub **MAY**
     generate a relative URI composed of a fragment (starting with `#`). This is convenient to
     return an offset or a sequence that is unique for this hub. The hub **MAY** ignore the
     client-supplied ID and generate its own. The hub **MUST** reject client-supplied IDs
@@ -349,8 +382,11 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     consist solely of ASCII digits (U+0030–U+0039); hubs **MUST** reject violating values with
     a 400 HTTP status code.
 
+To allow future extensions, hubs **MUST** ignore fields they do not recognize.
+
 On success, the hub **MUST** return a 2xx HTTP status code, and the response body **MUST** be
-the `id` generated by the hub for the update. Hubs **SHOULD** use 200 (OK). The status code 201
+the `id` generated by the hub for the update, served with the `text/plain` media type and the
+UTF-8 charset (`Content-Type: text/plain; charset=utf-8`). Hubs **SHOULD** use 200 (OK). The status code 201
 (Created) is **NOT RECOMMENDED**: an update is an ephemeral message rather than a resource
 retrievable at a dereferenceable URL, so the `id` is an event cursor (see (#reconciliation)),
 not a `Location`. The publisher **MUST** be authorized to publish updates; see (#authorization).
@@ -362,15 +398,15 @@ the length of individual fields. Requests exceeding any such limit **MUST** be r
 Example:
 
 ~~~ http
-POST /.well-known/mercure
+POST /.well-known/mercure HTTP/1.1
 Host: example.com
 Content-Type: application/x-www-form-urlencoded
 Authorization: Bearer [snip]
 
 topic=https://example.com/foo&data=the%20content
 
-200 OK
-Content-type: text/plain
+HTTP/1.1 200 OK
+Content-Type: text/plain; charset=utf-8
 
 urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 ~~~
@@ -378,8 +414,9 @@ urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 # Authorization
 
 The hub is an OAuth 2.0 protected resource [@!RFC6749]. To prove that they are authorized,
-publishers **MUST** present an access token to the hub, and subscribers **MUST** present an
-access token to receive updates marked as private. Hubs **MAY** accept unauthenticated
+publishers **MUST** present an access token to the hub (except in the closed-network
+deployments described in the note below), and subscribers **MUST** present
+an access token to receive updates marked as private. Hubs **MAY** accept unauthenticated
 subscribers; such subscribers receive only updates that are not marked as private. Hubs
 **MAY** instead require all subscribers to present an access token, according to their own
 policy. The access token
@@ -438,7 +475,9 @@ Bearer Token Usage specification [@!RFC6750] where applicable:
 When any of these mechanisms is used, the connection **MUST** use an encryption layer such as
 HTTPS.
 
-When more than one mechanism is present, the hub **MUST** select exactly one token using the
+Per [@!RFC6750], clients **MUST NOT** use more than one mechanism to transmit the token in a
+single request. When more than one mechanism is nevertheless present, the hub **MUST** select
+exactly one token using the
 following precedence, from highest to lowest: the `Authorization` HTTP header, then the
 `access_token` query parameter, then the cookie. The token from the selected mechanism **MUST**
 be used and the others **MUST** be ignored. Concretely: if an `Authorization` HTTP header is
@@ -458,23 +497,27 @@ scheme name is matched case-insensitively [@RFC9110].
 Per the `EventSource` specification [@!HTML], web browsers cannot set
 custom HTTP headers on such connections, and the connections can only be established using the
 `GET` HTTP method. However, cookies are supported and can be included even in cross-domain
-requests if [the CORS credentials are
-set](https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsourceinit-withcredentials).
+requests when the CORS credentials mode is enabled through the `withCredentials` attribute of
+`EventSource` [@!HTML].
 This cookie mechanism is a Mercure-specific extension to [@!RFC6750]; hubs that support it
 **SHOULD** advertise it in their protected resource metadata (see (#discovery)).
 
 If the publisher or the subscriber is a web browser, it **SHOULD**, whenever possible, send a
 cookie containing the access token when connecting to the hub. It is **RECOMMENDED** to name the
-cookie `mercureAccessToken`, but a different name **MAY** be used to prevent conflicts when
-several hubs share the same domain.
+cookie `__Secure-mercureAccessToken`: the `__Secure-` name prefix
+[@!I-D.ietf-httpbis-rfc6265bis] makes user agents refuse the cookie over insecure transport
+while — unlike the `__Host-` prefix — remaining compatible with the `Domain` attribute used
+below. A different name **MAY** be used to prevent conflicts when several hubs share the same
+domain.
 
 The cookie **SHOULD** be set during discovery (see (#discovery)) to improve overall security.
 Consequently, if the cookie is set during discovery, the publisher and the hub **MUST** share
 the same registrable domain (eTLD+1). The `Domain` attribute **MAY** be used to allow the
 publisher and the hub to use different subdomains of that registrable domain. See (#discovery).
 
-The cookie **MUST** have the `Secure` and `HttpOnly` attributes set. The cookie **SHOULD** also
-have `SameSite=Strict`; `SameSite=Lax` **MAY** be used if cross-site discovery flows require it.
+The cookie **MUST** have the `Secure` and `HttpOnly` attributes set [@!RFC6265]. The cookie
+**SHOULD** also have `SameSite=Strict` [@!I-D.ietf-httpbis-rfc6265bis]; `SameSite=Lax` **MAY**
+be used if cross-site discovery flows require it.
 The cookie's `Path` attribute **SHOULD** be set to the path of the hub's subscription URL. See
 (#security-considerations).
 
@@ -486,7 +529,7 @@ passed in the `access_token` URI query parameter as defined in [@!RFC6750] secti
 For example, the client makes the following HTTP request using transport-layer security:
 
 ~~~ http
-GET /.well-known/mercure?match=https%3A%2F%2Fexample.com%2Fbooks%2Ffoo&access_token=<token>
+GET /.well-known/mercure?match=https%3A%2F%2Fexample.com%2Fbooks%2Ffoo&access_token=<token> HTTP/1.1
 Host: hub.example.com
 ~~~
 
@@ -522,8 +565,12 @@ matcher query parameter) need not carry a Bearer challenge:
     **MUST** return a 401 status code with `error="invalid_token"`.
 *   If a valid token does not authorize the requested operation, the hub **MUST** return a 403
     "Forbidden" status code with `error="insufficient_scope"`.
-*   If the request is malformed, the hub **MUST** return a 400 "Bad Request" status code with
-    `error="invalid_request"`.
+*   If the request is malformed, the hub **MUST** return a 400 "Bad Request" status code. When
+    the malformed element is the access token or its presentation, the response **MUST** carry
+    a `WWW-Authenticate: Bearer` challenge with `error="invalid_request"` [@!RFC6750]. A 400
+    for a request malformed independently of the access token conveys no [@!RFC6750] error code
+    unless the hub chooses to include such a challenge, since these codes are defined only as
+    challenge parameters.
 
 Returning `invalid_token` for every presented-token failure (rather than distinguishing a bad
 signature from an expired or not-yet-valid token) avoids disclosing why validation failed.
@@ -531,7 +578,9 @@ signature from an expired or not-yet-valid token) avoids disclosing why validati
 ## Token Validation {#token-validation}
 
 Hubs **MUST** validate access tokens as JWT access tokens [@!RFC9068] and in accordance with the
-JSON Web Token Best Current Practices [@!RFC8725]. In particular:
+JSON Web Token Best Current Practices [@!RFC8725]. The requirements below profile those
+documents for hubs rather than replace them; where self-issued tokens deviate from [@!RFC9068],
+the deviation is stated explicitly. In particular:
 
 *   Hubs **MUST** verify that the token header `typ` is `at+jwt`, or the equivalent
     `application/at+jwt`, compared with the `application/` prefix omitted and case-insensitively
@@ -599,8 +648,14 @@ this document. Authorization servers supporting it advertise the value `mercure`
 A `mercure` authorization detail object:
 
 *   **MUST** have a `type` property whose value is the string `mercure`.
-*   **MUST** have an `actions` property: a non-empty JSON array whose values are a subset of
-    `["publish", "subscribe"]` (RFC 9396 `actions` field).
+*   **MUST** have an `actions` property: a non-empty JSON array of strings (RFC 9396 `actions`
+    field). This document defines the actions `publish` and `subscribe`; additional actions can
+    be registered in the "Mercure Actions" registry (see (#iana-considerations)). Hubs **MUST**
+    ignore action values they do not recognize: an unrecognized action grants nothing, and its
+    presence does not invalidate the token. This lets issuers include actions defined by future
+    specifications without breaking deployed hubs; a detail whose `actions` contains no action
+    recognized by the hub simply grants nothing. A non-string entry in `actions` remains a
+    validation failure.
 *   **MUST** have a `topics` property: a non-empty JSON array of topic matcher objects (see
     (#topic-matcher-list)) identifying the topics the actions apply to.
 *   **MAY** have a `payload` property (a JSON object), meaningful only for the `subscribe` action
@@ -679,8 +734,12 @@ A private update for `https://example.com/books/1` is delivered; a private updat
 A topic matcher object appears in the `topics` array of a `mercure` authorization detail (see
 (#authorization-details)). It **MUST** be a JSON object with a `match` property containing the
 topic matcher itself, and **MAY** have an OPTIONAL `matchType` property containing the matcher
-type. The value of `matchType` is case-sensitive and **MUST** be either `Exact` or `URLPattern`
-(see (#matcher-types)). If no `matchType` key is present, the hub **MUST** assume the `Exact`
+type. The value of `matchType` is case-sensitive and **MUST** be the name of a matcher type
+supported by the hub (see (#matcher-types)); this document defines `Exact` and `URLPattern`.
+Unlike unrecognized actions (see (#authorization-details)), a `matchType` the hub does not
+support **MUST** cause the token to be rejected: the grant cannot be evaluated, and skipping it
+would silently alter the effective authorization of the token. If no `matchType` key is
+present, the hub **MUST** assume the `Exact`
 matcher type. A `match` value of `*` is the reserved wildcard and matches every topic regardless
 of `matchType`, including when `matchType` is absent (see (#matcher-types)).
 
@@ -750,16 +809,15 @@ subscribers via subscription events.
 # Reconnection, State Reconciliation, and Event Sourcing {#reconciliation}
 
 The protocol allows reconciliation of state after a reconnection. It can also be used to
-implement an [Event store](https://en.wikipedia.org/wiki/Event_store).
+implement an event store [@EventSourcing].
 
 To allow re-establishment in case of connection loss, events dispatched by the hub **MUST**
 include an `id` property. The value of this property **SHOULD** be an IRI [@!RFC3987]. A UUID
-[@RFC9562] or a [@DID] **MAY** be used.
+[@RFC9562] or a DID [@DID] **MAY** be used.
 
 Per the server-sent events specification, the subscriber tries to reconnect automatically in
 case of connection loss. During reconnection, the subscriber **MUST** send the last received
-event ID in a [Last-Event-ID](https://html.spec.whatwg.org/multipage/iana.html#last-event-id)
-HTTP header.
+event ID in a `Last-Event-ID` HTTP request header [@!HTML].
 
 To fetch any update dispatched between the initial resource generation by the publisher and the
 connection to the hub, the subscriber **MUST** send the event ID provided during discovery
@@ -792,9 +850,11 @@ identifier.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `lastEventID` query parameter, the hub **MUST** set a
-`Last-Event-ID` header on the HTTP response.
+`Mercure-Last-Event-ID` field on the HTTP response. This document defines the
+`Mercure-Last-Event-ID` response field and registers it in (#iana-considerations) rather than
+reusing `Last-Event-ID`, whose registration [@!HTML] defines request semantics only.
 
-The value of this response header **MUST** be the identifier of the event preceding the first
+The value of this response field **MUST** be the identifier of the event preceding the first
 event sent to the subscriber, or the reserved value `earliest` if there is no preceding event
 (for example, when the hub history is empty, when the subscriber requests the earliest event,
 or when the requested event does not exist or has been discarded).
@@ -804,8 +864,9 @@ anchor; subscribers that only need to detect data loss can compare it against th
 value (a different value indicates that loss may have occurred).
 
 Note: Event identifiers are cursors, and the hub exposes them to subscribers, both through the
-`lastEventID` value provided during discovery and through the `Last-Event-ID` response header.
-The header value can be the identifier of an event immediately preceding one the subscriber is
+`lastEventID` value provided during discovery and through the `Mercure-Last-Event-ID` response
+field.
+The field value can be the identifier of an event immediately preceding one the subscriber is
 not authorized to receive. A subscriber can therefore infer the existence of such an event and,
 when the hub uses time-ordered identifiers (e.g., UUIDv7 [@!RFC9562]), its approximate timing
 and ordering. Operators handling sensitive private updates **SHOULD** generate opaque, random
@@ -817,9 +878,9 @@ instance, if the hub stores only a limited number of events in its history). In 
 example, when sending partial updates in the JSON Patch [@RFC6902] format, or when using the
 hub as an event store), lost updates can cause data loss.
 
-To detect data loss, the subscriber **MAY** compare the value of the `Last-Event-ID` response
-HTTP header with the last event ID it requested. In case of data loss, the subscriber **SHOULD**
-re-fetch the original topic.
+To detect data loss, the subscriber **MAY** compare the value of the `Mercure-Last-Event-ID`
+response field with the last event ID it requested. In case of data loss, the subscriber
+**SHOULD** re-fetch the original topic.
 
 Note: Native `EventSource` implementations do not expose HTTP response headers. However,
 polyfills and server-sent events clients in most programming languages do.
@@ -831,7 +892,8 @@ server-sent events format.
 
 Mercure provides a mechanism to track active subscriptions. If the hub supports this optional set
 of features, updates will be published when a subscription is created, or terminated, and a web API
-exposes the list of active subscriptions.
+exposes the list of active subscriptions. Hubs supporting this feature **SHOULD** advertise it
+with the `mercure_subscriptions` metadata member (see (#protected-resource-metadata)).
 
 Variables are templated and expanded following [@!RFC6570].
 
@@ -840,8 +902,10 @@ Variables are templated and expanded following [@!RFC6570].
 If the hub supports the active subscriptions feature, it **MUST** publish an update every time a
 subscription is created or terminated.
 
-The topic of these updates **MUST** be an expansion of
-`/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` with the following variables:
+The topic of these updates **MUST** be the path of the hub's URL followed by an expansion of
+`/subscriptions/{matchType}/{match}/{subscriber}` — for the default hub URL,
+`/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` — with the following
+variables:
 
 *   `{matchType}`: the topic matcher type used for this subscription. The value **MUST** be the
     matcher type name in its canonical case as defined in (#matcher-types) (e.g., `URLPattern`,
@@ -851,8 +915,12 @@ The topic of these updates **MUST** be an expansion of
     **MUST NOT** forge, supply, or override this value through query parameters, headers,
     request bodies, or any other client-controlled channel. The hub **MUST** either generate
     the identifier itself (for example, a random UUID [@RFC9562]) or derive it from
-    information it has cryptographically validated — typically the `sub` claim of the
-    subscriber's access token (after validation per (#token-validation)). Hub-generated
+    information it has cryptographically validated — typically the pair formed by the token's
+    issuer and its `sub` claim (after validation per (#token-validation)). A derivation
+    **MUST** incorporate the issuer (for self-issued tokens, the out-of-band trust
+    relationship under which the signing key is accepted): `sub` alone is unique only within
+    one issuer, and two trusted issuers can assign the same value to different
+    subscribers. Hub-generated
     identifiers have a privacy advantage: they do not disclose the `sub` value to the other
     subscribers authorized for subscription events. The hub **MUST** ensure that the
     identifier is unique among active subscriptions.
@@ -864,11 +932,11 @@ raw matcher or subscriber string as a whole (any `%` characters it already conta
 themselves encoded). Hubs **MUST NOT** double-encode an already-encoded value.
 
 If a subscriber has several subscriptions, the hub **SHOULD** assign the same `{subscriber}`
-value to all of them when it can correlate them (for example, when the same `sub` claim is
-presented across requests).
+value to all of them when it can correlate them (for example, when the same issuer and `sub`
+claim are presented across requests).
 
 `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC9562] or a
-[@DID] **MAY** also be used.
+DID [@DID] **MAY** also be used.
 
 The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld11-20200716] document containing
 at least the following properties:
@@ -914,7 +982,8 @@ For instance, subscribers interested in maintaining a list of active subscriptio
 web API to retrieve them, then use subscription events (see (#subscription-events)) to keep the
 list up to date.
 
-The web API **MUST** expose endpoints following these patterns:
+The web API **MUST** expose endpoints whose paths are the path of the hub's URL followed by
+the patterns below (shown expanded for the default hub URL):
 
 *   `/.well-known/mercure/subscriptions`: the collection of subscriptions.
 *   `/.well-known/mercure/subscriptions/{matchType}/{match}`: the collection of subscriptions
@@ -925,7 +994,8 @@ The web API **MUST** expose endpoints following these patterns:
 To access these URLs, clients **MUST** be authorized according to the rules defined in
 (#authorization). The topic to authorize is the requested URL in relative form: its absolute
 path (for example, `/.well-known/mercure/subscriptions/{matchType}/{match}`), which is the
-same form used for subscription event topics (see (#subscription-events)). The hub **MUST**
+same form used for subscription event topics (see (#subscription-events)); any query component
+of the request URL is not part of the topic. The hub **MUST**
 verify that a `mercure` authorization detail in the access token grants the `subscribe` action
 on this relative topic, evaluated with the matcher rules of (#matcher-types): `Exact` matchers
 are compared byte-for-byte against the relative form, while URL patterns — absolute, or
@@ -968,20 +1038,24 @@ JSON-LD document:
     dispatched yet. This value **SHOULD** be passed back to the hub when subscribing to
     subscription events to prevent data loss.
 
+Active subscription collections can be large. Hubs **MAY** truncate or paginate collection
+responses according to an implementation-defined policy; each returned document **MUST** remain
+valid as described above. Pagination mechanisms are out of scope for this specification.
+
 Because data returned by this web API is volatile, clients **SHOULD** validate that a cached
 response is still fresh before using it.
 
 Examples:
 
 ~~~ http
-GET /.well-known/mercure/subscriptions
+GET /.well-known/mercure/subscriptions HTTP/1.1
 Host: example.com
 
-200 OK
-Content-type: application/ld+json
+HTTP/1.1 200 OK
+Content-Type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-control: must-revalidate
+Cache-Control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
@@ -1021,14 +1095,14 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector
+GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector HTTP/1.1
 Host: example.com
 
-200 OK
-Content-type: application/ld+json
+HTTP/1.1 200 OK
+Content-Type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-control: must-revalidate
+Cache-Control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
@@ -1059,14 +1133,14 @@ Cache-control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6
+GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
 Host: example.com
 
-200 OK
-Content-type: application/ld+json
+HTTP/1.1 200 OK
+Content-Type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-control: must-revalidate
+Cache-Control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
@@ -1087,7 +1161,9 @@ Subscribers parsing JSON-LD documents produced by the hub **SHOULD NOT** automat
 dereference the `@context` URL. The context below is fixed and **MAY** be embedded in client
 implementations or cached locally; this avoids both unnecessary network requests and the risk
 that an attacker able to control responses from the context URL alters the semantics of
-subsequently parsed documents.
+subsequently parsed documents. The context URL serves as a stable identifier: its normative
+definition is the document below, embedded in this specification, and dereferencing the URL is
+never required to implement or use the protocol.
 
 The JSON-LD context available at `https://mercure.rocks/` is the following:
 
@@ -1117,7 +1193,14 @@ The JSON-LD context available at `https://mercure.rocks/` is the following:
 
 The discovery mechanism aims at identifying the URL of one or more hubs designated by the publisher.
 
-The URL of the hub **MUST** be the "well-known" [@!RFC8615] fixed path `/.well-known/mercure`.
+The URL of the hub **SHOULD** be the "well-known" [@!RFC8615] fixed path `/.well-known/mercure`,
+which gives publishers and subscribers a default requiring no configuration. The hub URL
+advertised through discovery is authoritative: it **MAY** be any HTTPS URL, enabling
+deployments behind path prefixes and several hubs sharing an origin. Protected resource
+metadata (see (#protected-resource-metadata)) is derived from the hub URL per [@!RFC9728]
+whatever its path, and the reserved namespace and subscription-event topics follow the hub
+URL's path (see (#publication) and (#subscription-events)). Examples throughout this document
+assume the default hub URL.
 
 If the publisher is a server, it **SHOULD** advertise the URL of one or more hubs to the
 subscriber so that the subscriber can receive live updates. If more than one hub URL is
@@ -1152,11 +1235,11 @@ All these attributes are optional.
 Minimal example:
 
 ~~~ http
-GET /books/foo
+GET /books/foo HTTP/1.1
 Host: example.com
 
-200 OK
-Content-type: application/ld+json
+HTTP/1.1 200 OK
+Content-Type: application/ld+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
 {"@id": "/books/foo", "foo": "bar"}
@@ -1191,6 +1274,13 @@ hub URL `/.well-known/mercure`, the metadata is served at
     advertised as a dedicated metadata member rather than a value of `bearer_methods_supported`,
     whose values are constrained to the [@!RFC6750] methods. This member is omitted when the hub
     does not offer cookie authorization.
+*   `mercure_matcher_types_supported` (optional): a JSON array of strings listing the names of
+    the topic matcher types the hub supports (see (#matcher-types)). When omitted, the
+    supported set is exactly the two types defined by this document, `Exact` and `URLPattern`;
+    the member is only needed when the hub supports registered additional types.
+*   `mercure_subscriptions` (optional): a boolean. When `true`, the hub implements the active
+    subscriptions feature (see (#active-subscriptions)). This member is omitted when the hub
+    does not implement it.
 
 This protocol carries no version identifier: a future incompatible revision is expected to be
 published as a new specification defining its own metadata members or well-known location.
@@ -1232,12 +1322,12 @@ The example below illustrates how a topic URL can return different `Link` header
 the `Accept` header.
 
 ~~~ http
-GET /books/foo
+GET /books/foo HTTP/1.1
 Host: example.com
 Accept: application/ld+json
 
-200 OK
-Content-type: application/ld+json
+HTTP/1.1 200 OK
+Content-Type: application/ld+json
 Link: </books/foo.jsonld>; rel="self"
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
@@ -1245,12 +1335,12 @@ Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ~~~
 
 ~~~ http
-GET /books/foo
+GET /books/foo HTTP/1.1
 Host: example.com
 Accept: text/html
 
-200 OK
-Content-type: text/html
+HTTP/1.1 200 OK
+Content-Type: text/html
 Link: </books/foo.html>; rel="self"
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 
@@ -1264,13 +1354,13 @@ The same technique can be used to return a different `rel=self` URL depending on
 requested by the `Accept-Language` header.
 
 ~~~ http
-GET /books/foo
+GET /books/foo HTTP/1.1
 Host: example.com
 Accept: application/ld+json
 Accept-Language: fr-FR
 
-200 OK
-Content-type: application/ld+json
+HTTP/1.1 200 OK
+Content-Type: application/ld+json
 Content-Language: fr-FR
 Link: </books/foo-fr-FR.jsonld>; rel="self"
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
@@ -1313,8 +1403,9 @@ a future key compromise.
 
 ## Well-Known URIs Registry
 
-A new "well-known" URI as described in (#discovery) has been registered in the "Well-Known URIs"
-registry as described below:
+The "mercure" well-known URI described in (#discovery) is already registered in the
+"Well-Known URIs" registry. IANA is requested to update the reference of the existing
+registration to this document:
 
 *   URI Suffix: mercure
 *   Change Controller: IETF
@@ -1324,8 +1415,9 @@ registry as described below:
 
 ## Link Relation Types Registry
 
-A new "Link Relation Type" as described in (#discovery) has been registered in the "Link Relation
-Type" registry with the following entry:
+The "mercure" link relation type described in (#discovery) is already registered in the "Link
+Relation Types" registry. IANA is requested to update the reference of the existing
+registration to this document:
 
 *   Relation Name: mercure
 *   Description: The Mercure Hub to use to subscribe to updates of this resource.
@@ -1333,7 +1425,7 @@ Type" registry with the following entry:
 
 ## OAuth Protected Resource Metadata Registry
 
-The following value is to be registered in the "OAuth Protected Resource Metadata" registry
+The following values are to be registered in the "OAuth Protected Resource Metadata" registry
 established by [@!RFC9728]:
 
 *   Metadata Name: mercure_cookie
@@ -1342,7 +1434,71 @@ established by [@!RFC9728]:
 *   Change Controller: IESG
 *   Specification Document(s): This specification, (#protected-resource-metadata)
 
+*   Metadata Name: mercure_matcher_types_supported
+*   Metadata Description: JSON array listing the names of the Mercure topic matcher types
+    supported by the hub
+*   Change Controller: IESG
+*   Specification Document(s): This specification, (#protected-resource-metadata)
+
+*   Metadata Name: mercure_subscriptions
+*   Metadata Description: Boolean indicating that the Mercure hub implements the active
+    subscriptions feature
+*   Change Controller: IESG
+*   Specification Document(s): This specification, (#protected-resource-metadata)
+
+## HTTP Field Name Registry
+
+IANA is requested to register the following entry in the "Hypertext Transfer Protocol (HTTP)
+Field Name Registry" defined by [@!RFC9110]:
+
+*   Field Name: Mercure-Last-Event-ID
+*   Status: permanent
+*   Structured Type: N/A
+*   Reference: This specification, (#reconciliation)
+*   Comments: Response field carrying the identifier of the event preceding the first event
+    sent, or the reserved value `earliest`
+
+## Mercure Topic Matcher Types Registry
+
+IANA is requested to establish a "Mercure Topic Matcher Types" registry. New registrations
+follow the Specification Required policy [@!RFC8126].
+
+A matcher type name **MUST** consist of ASCII letters and digits and **MUST** begin with an
+uppercase letter. The name is case-sensitive and is used verbatim as the suffix of the
+`match<MatcherType>` subscribe query parameter (see (#subscription)) and as the `matchType`
+value in authorization details (see (#topic-matcher-list)). The designated experts verify that
+the defining specification states the matching semantics precisely, bounds the evaluation cost
+of a crafted matcher (see (#url-pattern-denial-of-service) for the kind of exposure to
+consider), and does not conflict with the reserved wildcard `*` (see (#matcher-types)).
+
+Initial registrations:
+
+| Matcher Type Name | Reference                             |
+|-------------------|---------------------------------------|
+| `Exact`           | This specification, (#exact-matching) |
+| `URLPattern`      | This specification, (#url-pattern)    |
+
+## Mercure Actions Registry
+
+IANA is requested to establish a "Mercure Actions" registry for the values of the `actions`
+property of `mercure` authorization details (see (#authorization-details)). New registrations
+follow the Specification Required policy [@!RFC8126].
+
+An action name **MUST** consist of lowercase ASCII letters and digits. Hubs ignore actions
+they do not recognize (see (#authorization-details)), so registering a new action does not
+require deployed hubs to change.
+
+Initial registrations:
+
+| Action      | Reference                          |
+|-------------|------------------------------------|
+| `publish`   | This specification, (#publishers)  |
+| `subscribe` | This specification, (#subscribers) |
+
 # Security Considerations
+
+The recommendations of the OAuth 2.0 Security Best Current Practice [@RFC9700] apply to
+deployments of this protocol; this section highlights the considerations specific to Mercure.
 
 The confidentiality of the secret key(s) used to sign access tokens is a primary concern. Such
 keys **MUST** be stored securely and **MUST** be revoked immediately in the event of a breach.
@@ -1352,30 +1508,25 @@ confidentiality **MUST** therefore be ensured: access tokens **MUST** only be tr
 secure connections.
 
 When the client is a web browser, the access token **SHOULD NOT** be exposed to JavaScript, to
-provide resilience against [Cross-site Scripting (XSS) attacks](https://owasp.org/www-community/attacks/xss/).
+provide resilience against cross-site scripting (XSS) attacks [@OWASP-XSS].
 For this reason, `HttpOnly` cookies **SHOULD** be preferred as the authorization mechanism in
 that case.
 
 In the event of a breach, revoking access tokens before their expiration is often difficult.
 Short-lived tokens are therefore strongly **RECOMMENDED**.
 
-The hub's publishing endpoint can be targeted by [Cross-Site Request Forgery (CSRF) attacks](https://owasp.org/www-community/attacks/csrf)
-when the cookie-based authorization mechanism is used. Implementations supporting that
-mechanism **MUST** mitigate such attacks.
-
-The first preventive measure is to set the `SameSite` attribute on the `mercureAccessToken`
-cookie. Because some deployed user agents may not enforce this attribute, hub implementations
-**SHOULD** also use the `Origin` and `Referer` HTTP headers to verify that the source origin
-matches the target origin. If neither header is available, the hub **SHOULD** reject the
-request.
-
-CSRF prevention techniques are described in depth in [OWASP's Cross-Site Request Forgery (CSRF)
-Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
+The hub's publishing endpoint can be targeted by cross-site request forgery (CSRF) attacks
+[@OWASP-CSRF] when the cookie-based authorization mechanism is used. Implementations supporting
+that mechanism **MUST** mitigate such attacks: the `SameSite` cookie attribute recommended in
+(#cookie) is the first line of defense, and because some deployed user agents do not enforce
+it, hubs **SHOULD** also verify that the source origin conveyed by the `Origin` or `Referer`
+HTTP header matches the target origin, rejecting the request when neither header is available.
+CSRF prevention techniques are described in depth in [@OWASP-CSRF-Prevention].
 
 Access tokens **SHOULD NOT** be passed in page URLs (for example, via the `access_token` query
 parameter). Browsers, web servers, and other software may not adequately secure URLs stored in
 browser history, server logs, and other data structures, and an attacker able to read those
-locations could steal the token.
+locations could steal the token [@RFC9700].
 
 ## Token Validation
 
@@ -1399,7 +1550,8 @@ forged field, so this serialization is a security requirement, not only a format
 
 ## Reserved Hub Namespace
 
-The URL path prefix `/.well-known/mercure/` is reserved for resources generated by the hub
+The subtree of the hub URL's path (`/.well-known/mercure/` for the default hub URL) is
+reserved for resources generated by the hub
 itself (see (#publication)). A publisher with broad scope publishing under this prefix could
 forge subscription events (see (#subscription-events)) and mislead other subscribers tracking
 subscription lifecycle. The reserved-namespace test is applied to the topic's path component
@@ -1416,18 +1568,22 @@ When a subscriber reconnects with a `Last-Event-ID` header or `lastEventID` quer
 the same authorization rules apply to replayed events as to live events (see (#reconciliation)
 and (#subscribers)). A subscriber whose authorized scope has shrunk between publication and
 reconnection does not receive private events outside its scope at reconnection time. The
-`Last-Event-ID` response header is a cursor, however, and **MAY** contain the identifier of an
-event the subscriber is not authorized to receive. Operators handling sensitive private updates
+`Mercure-Last-Event-ID` response field is a cursor, however, and **MAY** contain the identifier
+of an event the subscriber is not authorized to receive. Operators handling sensitive private updates
 **SHOULD** use opaque, random event identifiers so that this identifier discloses nothing
 beyond the event's existence.
 
 ## Subscriber Identifier Assignment
 
 The `{subscriber}` identifier in subscription event topic URLs is either generated by the hub
-or derived from information the hub has cryptographically validated, typically the `sub` claim
-of the subscriber's JWS (see (#subscription-events)). Allowing clients to supply, suggest, or
+or derived from information the hub has cryptographically validated, typically the issuer of
+the subscriber's token together with its `sub` claim (see (#subscription-events)). Allowing
+clients to supply, suggest, or
 override this value through any unauthenticated channel would enable spoofing of subscription
-events and hijacking of subscription state belonging to other subscribers. Identifiers derived
+events and hijacking of subscription state belonging to other subscribers. Deriving the
+identifier from `sub` alone would let subscribers of distinct issuers collide with — and
+thereby impersonate — one another, which is why the derivation incorporates the issuer.
+Identifiers derived
 from `sub` additionally disclose that claim's value to every subscriber authorized for the
 corresponding subscription events; hub-generated identifiers avoid that disclosure.
 
@@ -1470,7 +1626,8 @@ Absent limits on request and token size, malicious clients can exhaust hub resou
 implementation-defined limits described elsewhere in this document — on publish request body
 size, individual field length, the number of topic matcher query parameters per request, the
 number of `mercure` authorization details and of entries in their `topics` arrays, individual
-pattern length, and concurrent subscriptions per token — bound this exposure.
+pattern length, concurrent subscriptions per token, and concurrent connections per client and
+in total (see (#subscription)) — bound this exposure.
 
 ## Hub Trust
 
@@ -1512,6 +1669,28 @@ update (for example, a unique `id` checked for replay, or a timestamp) and rejec
 JWE-protected updates are subject to algorithm-selection pitfalls and to replay. The algorithm
 restrictions and freshness guidance in (#encryption) address these.
 
+# Privacy Considerations
+
+The general privacy guidance of [@RFC6973] applies. The following considerations are specific
+to this protocol:
+
+*   Subscription events and the subscription API expose presence information: which subscriber
+    identifiers hold which subscriptions, and when those subscriptions are created and
+    terminated. Hubs restrict this information to authorized subscribers (see
+    (#subscription-events)); token issuers **SHOULD NOT** grant `subscribe` on the
+    subscriptions namespace more broadly than the tracking use case requires.
+*   Payloads embedded in access tokens are broadcast to every subscriber authorized for the
+    corresponding subscription events (see (#payloads) and (#payload-privacy)).
+*   Topic identifiers appear in URLs (subscription query parameters and subscription event
+    topics) and are therefore visible to the hub operator and to any infrastructure that logs
+    URLs. Sensitive information **SHOULD NOT** be encoded in topic strings.
+*   The hub operator observes connection metadata — client addresses, connection times, topic
+    matchers, and update traffic patterns — even when update contents are encrypted. Update
+    encryption (see (#encryption)) bounds what a curious or compromised hub learns to this
+    metadata.
+*   Event identifiers act as cursors that can reveal the existence and approximate timing of
+    updates a subscriber is not authorized to read; see (#authorization-on-event-replay).
+
 # Implementation Status
 
 [RFC Editor Note: Please remove this entire section prior to publication as an RFC.]
@@ -1528,6 +1707,10 @@ allow reviewers and working groups to assign due consideration to documents that
 of running code, which may serve as evidence of valuable experimentation and feedback that have
 made the implemented protocols more mature. It is up to the individual working groups to use this
 information as they see fit."
+
+Note: entries reporting compatibility with revision 5 of this draft predate the OAuth 2.0
+authorization model and the topic matcher types defined by this revision; they interoperate
+only with hubs implementing those earlier revisions.
 
 ## Mercure.rocks Hub
 
@@ -1976,13 +2159,13 @@ Parts of this specification, especially (#discovery) have been adapted from the 
 recommendation [@W3C.REC-websub-20180123]. The editor wishes to thank all the authors of this
 specification.
 
-<reference anchor="urlpattern" target="https://urlpattern.spec.whatwg.org">
+<reference anchor="urlpattern" target="https://urlpattern.spec.whatwg.org/review-drafts/2025-09/">
     <front>
-        <title>URL Pattern Living Standard</title>
+        <title>URL Pattern Living Standard (Review Draft, September 2025)</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
-        <date year="2024"/>
+        <date year="2025" month="September"/>
     </front>
 </reference>
 
@@ -1996,43 +2179,43 @@ specification.
     </front>
 </reference>
 
-<reference anchor="HTML" target="https://html.spec.whatwg.org/multipage/server-sent-events.html">
+<reference anchor="HTML" target="https://html.spec.whatwg.org/review-drafts/2026-01/">
     <front>
-        <title>HTML Living Standard</title>
+        <title>HTML Living Standard (Review Draft, January 2026)</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
-        <date year="2026"/>
+        <date year="2026" month="January"/>
     </front>
 </reference>
 
-<reference anchor="URL" target="https://url.spec.whatwg.org/">
+<reference anchor="URL" target="https://url.spec.whatwg.org/review-drafts/2026-02/">
     <front>
-        <title>URL Living Standard</title>
+        <title>URL Living Standard (Review Draft, February 2026)</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
-        <date year="2026"/>
+        <date year="2026" month="February"/>
     </front>
 </reference>
 
-<reference anchor="xhr" target="https://xhr.spec.whatwg.org/">
+<reference anchor="xhr" target="https://xhr.spec.whatwg.org/review-drafts/2025-08/">
     <front>
-        <title>XMLHttpRequest Living Standard</title>
+        <title>XMLHttpRequest Living Standard (Review Draft, August 2025)</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
-        <date year="2024"/>
+        <date year="2025" month="August"/>
     </front>
 </reference>
 
-<reference anchor="FETCH" target="https://fetch.spec.whatwg.org/">
+<reference anchor="FETCH" target="https://fetch.spec.whatwg.org/review-drafts/2026-06/">
     <front>
-        <title>Fetch Living Standard</title>
+        <title>Fetch Living Standard (Review Draft, June 2026)</title>
         <author>
             <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
         </author>
-        <date year="2026"/>
+        <date year="2026" month="June"/>
     </front>
 </reference>
 
@@ -2046,13 +2229,61 @@ specification.
     </front>
 </reference>
 
-<reference anchor="UNICODE" target="https://www.unicode.org/versions/latest/">
+<reference anchor="UNICODE" target="https://www.unicode.org/versions/Unicode17.0.0/">
     <front>
-        <title>The Unicode Standard</title>
+        <title>The Unicode Standard, Version 17.0.0</title>
         <author>
             <organization>The Unicode Consortium</organization>
         </author>
+        <date year="2025" month="September"/>
+    </front>
+</reference>
+
+<reference anchor="streams" target="https://streams.spec.whatwg.org/">
+    <front>
+        <title>Streams Living Standard</title>
+        <author>
+            <organization>The Web Hypertext Application Technology Working Group (WHATWG)</organization>
+        </author>
+        <date year="2026"/>
+    </front>
+</reference>
+
+<reference anchor="OWASP-XSS" target="https://owasp.org/www-community/attacks/xss/">
+    <front>
+        <title>Cross Site Scripting (XSS)</title>
+        <author>
+            <organization>OWASP Foundation</organization>
+        </author>
         <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="OWASP-CSRF" target="https://owasp.org/www-community/attacks/csrf">
+    <front>
+        <title>Cross Site Request Forgery (CSRF)</title>
+        <author>
+            <organization>OWASP Foundation</organization>
+        </author>
+        <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="OWASP-CSRF-Prevention" target="https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html">
+    <front>
+        <title>Cross-Site Request Forgery Prevention Cheat Sheet</title>
+        <author>
+            <organization>OWASP Foundation</organization>
+        </author>
+        <date year="2024"/>
+    </front>
+</reference>
+
+<reference anchor="EventSourcing" target="https://martinfowler.com/eaaDev/EventSourcing.html">
+    <front>
+        <title>Event Sourcing</title>
+        <author initials="M." surname="Fowler" fullname="Martin Fowler"/>
+        <date year="2005" month="December"/>
     </front>
 </reference>
 
