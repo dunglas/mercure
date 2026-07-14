@@ -19,10 +19,19 @@ paths:
         description: Subscription specification
         url: https://mercure.rocks/spec#subscription
       parameters:
-        - name: topic
+        - name: match
           in: query
-          description: The topic to get updates from, can be a URI template (RFC6570).
-          required: true
+          description: >-
+            Exact topic matcher (the default matcher type). Repeatable.
+            Case-sensitive. At least one matcher parameter is required.
+          schema:
+            type: array
+            items:
+              type: string
+        - name: match_urlpattern
+          in: query
+          description: >-
+            URL Pattern topic matcher (WHATWG URL Pattern). Repeatable.
           schema:
             type: array
             items:
@@ -45,7 +54,7 @@ paths:
         "401":
           $ref: "#/components/responses/401"
         "400":
-          description: Missing topic parameter or invalid URI template.
+          description: Missing or invalid topic matcher parameter.
     post:
       summary: Publish an update
       externalDocs:
@@ -57,10 +66,8 @@ paths:
             schema:
               properties:
                 topic:
-                  description: IRIs of the updated topic. If this key is present several times, the first occurrence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs.
-                  type: array
-                  items:
-                    type: string
+                  description: The IRI of the updated topic. Exactly one topic field is allowed.
+                  type: string
                 data:
                   description: The content of the new version of this topic.
                   type: string
@@ -103,15 +110,22 @@ paths:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
-  "/.well-known/mercure/subscriptions/{topic}":
+  "/.well-known/mercure/subscriptions/{match_type}/{match}":
     get:
-      summary: Active subscriptions for the given topic
+      summary: Active subscriptions for the given topic matcher
       externalDocs:
         description: Subscription API
         url: https://mercure.rocks/spec#subscription-api
       parameters:
         - in: path
-          name: topic
+          name: match_type
+          description: The matcher type (e.g. exact, urlpattern).
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: match
+          description: The percent-encoded topic matcher.
           schema:
             type: string
           required: true
@@ -124,15 +138,22 @@ paths:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
-  "/.well-known/mercure/subscriptions/{topic}/{subscriber}":
+  "/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}":
     get:
-      summary: Active subscription for the given topic and subscriber
+      summary: Active subscription for the given matcher and subscriber
       externalDocs:
         description: Subscription API
         url: https://mercure.rocks/spec#active-subscriptions
       parameters:
         - in: path
-          name: topic
+          name: match_type
+          description: The matcher type (e.g. exact, urlpattern).
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: match
+          description: The percent-encoded topic matcher.
           schema:
             type: string
           required: true
@@ -177,7 +198,7 @@ components:
             $ref: "#/components/schemas/Subscription"
     Subscription:
       type: object
-      required: ["id", "type", "topic", "subscriber", "active"]
+      required: ["id", "type", "match", "match_type", "subscriber", "active"]
       properties:
         "@context":
           type: string
@@ -191,9 +212,12 @@ components:
           type: string
           format: iri-reference
           example: Subscription
-        topic:
+        match:
           type: string
-          example: https://example.com/{selector}
+          example: https://example.com/:selector
+        match_type:
+          type: string
+          example: urlpattern
         subscriber:
           type: string
           example: urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6
