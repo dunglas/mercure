@@ -25,17 +25,17 @@ When the feature is on, the hub publishes a private update each time a subscript
 
 ```text
 # Subscription events
-/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}
+/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}
 ```
 
-`{matchType}`, `{match}`, and `{subscriber}` are percent-encoded values. Subscribe to those topics with relative URL Patterns: the spec lets URL Patterns be relative to the hub URL, which is exactly what you want here:
+`{match_type}`, `{match}`, and `{subscriber}` are percent-encoded values. Subscribe to those topics with relative URL Patterns: the spec lets URL Patterns be relative to the hub URL, which is exactly what you want here:
 
 ```javascript
 // Subscription events
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
-  "matchURLPattern",
-  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
+  "match_urlpattern",
+  "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
 );
 new EventSource(url, { withCredentials: true });
 ```
@@ -46,9 +46,9 @@ Each event's `data` is a JSON-LD document:
 // Subscription events
 {
   "@context": "https://mercure.rocks/",
-  "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+  "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
   "type": "Subscription",
-  "matchType": "URLPattern",
+  "match_type": "urlpattern",
   "match": "https://example.com/:selector",
   "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
   "active": true,
@@ -58,7 +58,7 @@ Each event's `data` is a JSON-LD document:
 
 Fields:
 
-- `match`, `matchType`: the matcher the subscriber registered.
+- `match`, `match_type`: the matcher the subscriber registered.
 - `subscriber`: a hub-assigned identifier for the subscriber, shared by every subscription on the same connection.
 - `active`: `true` for new subscriptions, `false` for terminated ones.
 - `payload`: whatever the subscriber's token carried in the matching `subscribe` detail's `payload` (see [Authorization](authorization.md#subscriber-payloads)).
@@ -78,8 +78,8 @@ A typical "show me everyone subscribed to this document" feature is authorized l
       "actions": ["subscribe"],
       "topics": [
         {
-          "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
-          "matchType": "URLPattern",
+          "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
+          "match_type": "urlpattern",
         },
       ],
       "payload": { "username": "alice" },
@@ -93,8 +93,8 @@ Tighten the matcher if a subscriber should only see presence for a specific docu
 ```jsonc
 // Authorization for subscription events
 {
-  "match": "/.well-known/mercure/subscriptions/:matchType/https%3A%2F%2Fexample.com%2Fdocs%2F42/:subscriber",
-  "matchType": "URLPattern",
+  "match": "/.well-known/mercure/subscriptions/:match_type/https%3A%2F%2Fexample.com%2Fdocs%2F42/:subscriber",
+  "match_type": "urlpattern",
 }
 ```
 
@@ -105,12 +105,12 @@ Once subscription events are enabled, the hub also exposes a JSON-LD API. Use it
 | URL                                                                       | Returns                               |
 | ------------------------------------------------------------------------- | ------------------------------------- |
 | `GET /.well-known/mercure/subscriptions`                                  | All active subscriptions.             |
-| `GET /.well-known/mercure/subscriptions/{matchType}/{match}`              | Subscriptions for a specific matcher. |
-| `GET /.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` | A single subscription.                |
+| `GET /.well-known/mercure/subscriptions/{match_type}/{match}`              | Subscriptions for a specific matcher. |
+| `GET /.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}` | A single subscription.                |
 
 Authorization rules are the same as for events: the request URL must be covered by a `subscribe` grant in the caller's token.
 
-Each response carries `lastEventID`. Pass it to your SSE connection so you don't miss any subscription event between the snapshot and the live stream:
+Each response carries `last_event_id`. Pass it to your SSE connection so you don't miss any subscription event between the snapshot and the live stream:
 
 ```javascript
 // Subscription API
@@ -121,10 +121,10 @@ const snapshot = await fetch(
 
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
-  "matchURLPattern",
-  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
+  "match_urlpattern",
+  "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
 );
-url.searchParams.append("lastEventID", snapshot.lastEventID);
+url.searchParams.append("last_event_id", snapshot.last_event_id);
 
 const es = new EventSource(url, { withCredentials: true });
 // snapshot.subscriptions is the initial list
@@ -139,13 +139,13 @@ The hub returns:
   "@context": "https://mercure.rocks/",
   "id": "/.well-known/mercure/subscriptions",
   "type": "Subscriptions",
-  "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
+  "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
   "subscriptions": [
     {
-      "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268",
+      "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268",
       "type": "Subscription",
       "match": "https://example.com/:selector",
-      "matchType": "URLPattern",
+      "match_type": "urlpattern",
       "subscriber": "urn:uuid:bb3de268",
       "active": true,
       "payload": { "username": "alice" },
@@ -166,7 +166,7 @@ To attach a stable, human-meaningful identity to a subscriber, put it in the `su
 
 A minimal presence panel:
 
-1. On page load, fetch `/.well-known/mercure/subscriptions/{matchType}/{matchOfTheDocument}` to get who's currently here.
+1. On page load, fetch `/.well-known/mercure/subscriptions/{match_type}/{matchOfTheDocument}` to get who's currently here.
 2. Open an SSE connection to subscription events for that topic.
 3. On `active: true`, add the subscriber to the panel; on `active: false`, remove them.
 

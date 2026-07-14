@@ -154,7 +154,7 @@ components:
   schemas:
     Subscriptions:
       type: object
-      required: ["@context", "id", "type", "lastEventID", "subscriptions"]
+      required: ["@context", "id", "type", "last_event_id", "subscriptions"]
       properties:
         "@context":
           type: string
@@ -168,7 +168,7 @@ components:
           type: string
           format: iri-reference
           example: Subscriptions
-        lastEventID:
+        last_event_id:
           type: string
           example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
         subscriptions:
@@ -201,7 +201,7 @@ components:
           type: boolean
         payload:
           type: object
-        lastEventID:
+        last_event_id:
           type: string
           example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
   responses:

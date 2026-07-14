@@ -57,7 +57,7 @@ Yes. Pass several `match*` parameters:
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/announcements");
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://example.com/users/:id/notifications",
 );
 new EventSource(url);
@@ -112,7 +112,7 @@ Prometheus metrics on the admin port, plus the `mercure_subscribers_connected` a
 
 ## What about messages I publish before any subscriber connects?
 
-The hub stores them in its history buffer. A subscriber connecting later can replay them by passing `lastEventID=earliest` (gets everything the hub still has) or a specific event ID (gets everything after it). The open-source hub has unlimited history by default; Cloud tiers cap it at 100-5,000 messages depending on plan. See [Reconnection and history](../concepts/reconnection-and-history.md).
+The hub stores them in its history buffer. A subscriber connecting later can replay them by passing `last_event_id=earliest` (gets everything the hub still has) or a specific event ID (gets everything after it). The open-source hub has unlimited history by default; Cloud tiers cap it at 100-5,000 messages depending on plan. See [Reconnection and history](../concepts/reconnection-and-history.md).
 
 ## How do I get help?
 

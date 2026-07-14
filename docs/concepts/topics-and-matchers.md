@@ -5,9 +5,9 @@ description: "How subscribers select topics in Mercure with the two matcher type
 
 # Topics and matchers
 
-A **topic** is the address of an update. A **matcher** is the rule a subscriber uses to say which topics it cares about. Mercure defines two matcher types, `Exact` and `URLPattern`; every hub supports both. Pick the one that fits the shape of your data.
+A **topic** is the address of an update. A **matcher** is the rule a subscriber uses to say which topics it cares about. Mercure defines two matcher types, `exact` and `urlpattern`; every hub supports both. Pick the one that fits the shape of your data.
 
-> **Upgrading from 0.x?** The subscriber query parameter changed from `topic=` to `match=` (exact) or `matchURLPattern=` (templated), and URI Templates are replaced by [URL Patterns](https://urlpattern.spec.whatwg.org). The Regexp, CEL, and URI Template matcher types are gone. Authorization claims are now `authorization_details` objects, not bare strings. Full details: [Upgrade guide](../UPGRADE.md#10-from-0x).
+> **Upgrading from 0.x?** The subscriber query parameter changed from `topic=` to `match=` (exact) or `match_urlpattern=` (templated), and URI Templates are replaced by [URL Patterns](https://urlpattern.spec.whatwg.org). The Regexp, CEL, and URI Template matcher types are gone. Authorization claims are now `authorization_details` objects, not bare strings. Full details: [Upgrade guide](../UPGRADE.md#10-from-0x).
 
 ## Topics
 
@@ -48,15 +48,15 @@ A subscriber sends one or more `match*` query parameters when opening the SSE co
 
 ```text
 # Subscribing with matchers
-GET /.well-known/mercure?match=https://example.com/books/1&matchURLPattern=https://example.com/users/:id HTTP/2
+GET /.well-known/mercure?match=https://example.com/books/1&match_urlpattern=https://example.com/users/:id HTTP/2
 ```
 
-The parameter name encodes the matcher type: bare `match` selects the default `Exact` type (`matchExact` is the explicit spelling), and `matchURLPattern` selects the `URLPattern` type. Parameter names are **case-sensitive**; any other name under the reserved `match` prefix is rejected with `400 Bad Request`, so a typo fails loudly instead of silently matching nothing. The subscriber receives every update whose topic matches **at least one** of the parameters.
+The parameter name encodes the matcher type: bare `match` selects the default `exact` type (`match_exact` is the explicit spelling), and `match_urlpattern` selects the `urlpattern` type. Parameter names are **case-sensitive**; any other name under the reserved `match` prefix is rejected with `400 Bad Request`, so a typo fails loudly instead of silently matching nothing. The subscriber receives every update whose topic matches **at least one** of the parameters.
 
 | Matcher     | Query parameter              | Use it for                            |
 | ----------- | ---------------------------- | ------------------------------------- |
-| Exact       | `match` (alias `matchExact`) | Specific resources, fixed identifiers |
-| URL Pattern | `matchURLPattern`            | Families of URLs (`/books/:id`)       |
+| Exact       | `match` (alias `match_exact`) | Specific resources, fixed identifiers |
+| URL Pattern | `match_urlpattern`            | Families of URLs (`/books/:id`)       |
 
 ## Exact matching with the `match` parameter
 
@@ -78,13 +78,13 @@ The connection above receives updates published with `topic=https://example.com/
 
 ```javascript
 // URL Pattern matchers
-url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
+url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://example.com/users/:id/orders",
 );
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://example.com/feed/:type(news|alerts)",
 );
 ```
@@ -96,11 +96,11 @@ URL Patterns understand:
 - Regex constraints inside groups: `:type(news|alerts)`
 - Optional segments: `/items{/:tail}?`
 
-Patterns can be **absolute** (`https://example.com/...`) or **relative** to the hub URL (`/.well-known/mercure/subscriptions/:matchType/:match/:subscriber`). Relative patterns are resolved against the hub's `public_url` and are useful for [subscribing to subscription events](active-subscriptions.md), where the hub itself is the publisher. Matching is case-sensitive; `ignoreCase` is never enabled.
+Patterns can be **absolute** (`https://example.com/...`) or **relative** to the hub URL (`/.well-known/mercure/subscriptions/:match_type/:match/:subscriber`). Relative patterns are resolved against the hub's `public_url` and are useful for [subscribing to subscription events](active-subscriptions.md), where the hub itself is the publisher. Matching is case-sensitive; `ignoreCase` is never enabled.
 
 A topic matches a URL Pattern if the URL Pattern accepts the topic string as a URL.
 
-> **URL Pattern playground.** The browser ships `URLPattern` natively. You can prototype patterns in the devtools console: `new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")`.
+> **URL Pattern playground.** The browser ships `urlpattern` natively. You can prototype patterns in the devtools console: `new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")`.
 
 ## Combining matchers
 
@@ -111,7 +111,7 @@ A subscription with several `match*` parameters is a logical OR. There is no way
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/site/announcement");
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://example.com/users/:id/notifications",
 );
 new EventSource(url);
@@ -139,7 +139,7 @@ In an access token, each `mercure` entry of the `authorization_details` claim ho
         { "match": "https://example.com/users/42" },
         {
           "match": "https://example.com/users/42/:resource",
-          "matchType": "URLPattern",
+          "match_type": "urlpattern",
         },
       ],
     },
@@ -148,7 +148,7 @@ In an access token, each `mercure` entry of the `authorization_details` claim ho
 }
 ```
 
-`matchType` is case-sensitive and defaults to `Exact` when omitted. The reserved value `*` (with `matchType: "Exact"` or omitted) means "every topic." Full details and examples in [Authorization](authorization.md).
+`match_type` is case-sensitive and defaults to `exact` when omitted. The reserved value `*` (with `match_type: "exact"` or omitted) means "every topic." Full details and examples in [Authorization](authorization.md).
 
 ## How matching works on the publish side
 

@@ -60,11 +60,11 @@ es.onmessage = (event) => {
 };
 ```
 
-A user with several runs in flight (say, a chat with multiple turns or a dashboard of background agents) opens **one** `EventSource` and uses `matchURLPattern`:
+A user with several runs in flight (say, a chat with multiple turns or a dashboard of background agents) opens **one** `EventSource` and uses `match_urlpattern`:
 
 ```javascript
 // Topics
-url.searchParams.append("matchURLPattern", "https://example.com/runs/:id");
+url.searchParams.append("match_urlpattern", "https://example.com/runs/:id");
 ```
 
 Now every run the user is allowed to see flows over the same connection. The `id` field on each event tells you which run it belongs to. Or set the topic per-event and read it from the SSE `id`.
@@ -180,7 +180,7 @@ Two practical mitigations:
       "topics": [
         {
           "match": "https://example.com/users/42/runs/:runId",
-          "matchType": "URLPattern",
+          "match_type": "urlpattern",
         },
       ],
       "payload": { "username": "alice" },

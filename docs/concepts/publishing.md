@@ -130,7 +130,7 @@ The publisher's access token must carry an `authorization_details` entry whose `
       "type": "mercure",
       "actions": ["publish"],
       "topics": [
-        { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
       ],
     },
   ],

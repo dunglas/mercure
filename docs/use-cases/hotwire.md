@@ -152,7 +152,7 @@ const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/posts/42/comments");
 url.searchParams.append("match", "https://example.com/posts/42/votes");
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://example.com/users/:id/notifications",
 );
 ```

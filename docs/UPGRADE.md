@@ -15,19 +15,19 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 
 | Area                      | 0.x                                                                | 1.0                                                                            |
 | ------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| Matcher types             | URI Template, string, plus exploratory types                       | `Exact` and `URLPattern` only                                                  |
-| Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `matchURLPattern=<pattern>` (case-sensitive)                |
+| Matcher types             | URI Template, string, plus exploratory types                       | `exact` and `urlpattern` only                                                  |
+| Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `match_urlpattern=<pattern>` (case-sensitive)                |
 | Templating language       | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org))                    |
 | Topics per update         | Canonical + alternates                                             | Exactly one                                                                    |
 | Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `aud`, `authorization_details`          |
 | Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries of `type: mercure`                             |
-| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `access_token` param, `mercureAccessToken` cookie                              |
+| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `access_token` param, `mercure_access_token` cookie                              |
 | Auth errors               | `401` / silent drop                                                | RFC 6750: `401 invalid_token`, `403 insufficient_scope`, `400 invalid_request` |
-| Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`          |
+| Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`          |
 
 ### Migrate your subscribers
 
-The query parameter changes from `topic=` to `match=` (exact) or `matchURLPattern=` (templated):
+The query parameter changes from `topic=` to `match=` (exact) or `match_urlpattern=` (templated):
 
 ```javascript
 // Before (0.x)
@@ -36,10 +36,10 @@ url.searchParams.append("topic", "https://example.com/books/{id}");
 
 // After (1.0)
 url.searchParams.append("match", "https://example.com/books/1");
-url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
+url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 ```
 
-- The exact-match parameter is `match` (explicit spelling: `matchExact`); the templated one is `matchURLPattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
+- The exact-match parameter is `match` (explicit spelling: `match_exact`); the templated one is `match_urlpattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
 - Parameter names are **case-sensitive**. Any other name under the `match` prefix is rejected with `400`, so typos fail loudly.
 - The `Regexp`, `CEL`, and `URI Template` matcher types are gone. Rewrite Regexp/CEL filters as URL Patterns or exact topics. URI Templates survive only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`.
 
@@ -72,7 +72,7 @@ The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access toke
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/users/42" },
-        { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
       ],
     },
   ],
@@ -81,14 +81,14 @@ The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access toke
 
 Rules:
 
-- Each entry is `{ "type": "mercure", "actions": [...], "topics": [...] }`. `actions` is a non-empty subset of `["publish", "subscribe"]`; `topics` is a non-empty array of `{ "match", "matchType"? }` objects (bare strings are rejected).
-- `matchType` is **case-sensitive** and defaults to `Exact`. The reserved `{ "match": "*" }` matches every topic.
+- Each entry is `{ "type": "mercure", "actions": [...], "topics": [...] }`. `actions` is a non-empty subset of `["publish", "subscribe"]`; `topics` is a non-empty array of `{ "match", "match_type"? }` objects (bare strings are rejected).
+- `match_type` is **case-sensitive** and defaults to `exact`. The reserved `{ "match": "*" }` matches every topic.
 - A `subscribe` entry may carry a `payload`; the old top-level `mercure.payload` is gone. See [subscriber payloads](concepts/authorization.md#subscriber-payloads).
 - One invalid `mercure` detail rejects the whole token with `401 invalid_token`.
 
 ### Migrate token presentation
 
-- The cookie default name changes from `mercureAuthorization` to `mercureAccessToken` (override with `cookie_name`).
+- The cookie default name changes from `mercureAuthorization` to `mercure_access_token` (override with `cookie_name`).
 - The query parameter changes from `authorization` to `access_token`.
 - The `Authorization: Bearer` header is unchanged. Precedence is header, then query parameter, then cookie.
 
@@ -105,21 +105,21 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 | Before                                                    | After                                                                 |
 | --------------------------------------------------------- | --------------------------------------------------------------------- |
-| `/.well-known/mercure/subscriptions/<topic>/<subscriber>` | `/.well-known/mercure/subscriptions/<matchType>/<match>/<subscriber>` |
-| `"topic": "https://..."` in the JSON-LD                   | `"match": "https://..."` and `"matchType": "URLPattern"`              |
+| `/.well-known/mercure/subscriptions/<topic>/<subscriber>` | `/.well-known/mercure/subscriptions/<match_type>/<match>/<subscriber>` |
+| `"topic": "https://..."` in the JSON-LD                   | `"match": "https://..."` and `"match_type": "urlpattern"`              |
 
-`<matchType>`, `<match>`, and `<subscriber>` must be percent-encoded. The `mercure.subscriber` claim is gone: the hub assigns the subscriber identifier. See [Active subscriptions](concepts/active-subscriptions.md).
+`<match_type>`, `<match>`, and `<subscriber>` must be percent-encoded. The `mercure.subscriber` claim is gone: the hub assigns the subscriber identifier. See [Active subscriptions](concepts/active-subscriptions.md).
 
 ### Find-and-replace checklist
 
-- `?topic=` / `&topic=` in subscriber URLs -> `match=` (or `matchURLPattern=` if templated)
+- `?topic=` / `&topic=` in subscriber URLs -> `match=` (or `match_urlpattern=` if templated)
 - URI Template syntax in subscribe URLs (`{id}`) -> URL Pattern syntax (`:id`)
 - Regexp / CEL subscribe filters -> URL Patterns or exact topics
 - `"mercure": { "publish": [...] }` in issuer code -> `authorization_details` with `actions: ["publish"]`
 - `"mercure": { "subscribe": [...] }` -> `authorization_details` with `actions: ["subscribe"]`
-- `mercureAuthorization` cookie -> `mercureAccessToken`; `authorization=` query param -> `access_token=`
+- `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `access_token=`
 - A second `topic=` on a publish request -> publish to one topic; scope per-user access in the token
-- Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{matchType}` segment
+- Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
 
 ### Hub configuration changes
 
@@ -205,7 +205,7 @@ The default development key changed from `!ChangeMe!` to `!ChangeThisMercureHubJ
 
 ### Mercure 0.14 upgrade notes
 
-The `Last-Event-ID` query parameter was renamed `lastEventID`. Update your clients.
+The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your clients.
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 

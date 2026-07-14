@@ -102,11 +102,11 @@ def generate_report(job_id: str, user_id: str, filters: dict):
     publish(topic, {"type": "done", "url": url}, private=True)
 ```
 
-Each update goes to one per-user topic that embeds the owning user's id. The user's access token authorizes a `subscribe` grant for `https://example.com/users/<their-id>/jobs/:id` (a `URLPattern` scoped to their id), so they receive their own jobs but not anyone else's, even if they guess a `jobId`. See the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-resources).
+Each update goes to one per-user topic that embeds the owning user's id. The user's access token authorizes a `subscribe` grant for `https://example.com/users/<their-id>/jobs/:id` (a `urlpattern` scoped to their id), so they receive their own jobs but not anyone else's, even if they guess a `jobId`. See the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-resources).
 
 ## When the user closes the tab
 
-The browser-side `EventSource` is gone, but the worker keeps running and keeps publishing. The hub buffers updates in its history. When the user opens the page again (perhaps from a "your report is ready" email), the new `EventSource` includes `lastEventID` and the hub replays everything that happened. The user sees the final progress and the download link without polling.
+The browser-side `EventSource` is gone, but the worker keeps running and keeps publishing. The hub buffers updates in its history. When the user opens the page again (perhaps from a "your report is ready" email), the new `EventSource` includes `last_event_id` and the hub replays everything that happened. The user sees the final progress and the download link without polling.
 
 For this to work end to end:
 
@@ -123,7 +123,7 @@ If your app uses client-side routing, keep the `EventSource` alive across route 
 // JobsContext maintains a single EventSource that watches all of the user's in-flight jobs
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   `https://example.com/users/${userId}/jobs/:id`,
 );
 const es = new EventSource(url, { withCredentials: true });

@@ -181,7 +181,7 @@ Mint a JWT for the user when they load the chat page:
 }
 ```
 
-Set it as the `mercureAccessToken` cookie with `Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict`. The browser's `EventSource` picks it up automatically. See [Authorization](../concepts/authorization.md).
+Set it as the `mercure_access_token` cookie with `Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict`. The browser's `EventSource` picks it up automatically. See [Authorization](../concepts/authorization.md).
 
 ## Limits to be aware of
 

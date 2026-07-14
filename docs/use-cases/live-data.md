@@ -33,13 +33,13 @@ The natural topic for a data point is its URL, the same URL that returns its cur
 | Per-device telemetry            | `urn:device:thermostat-01/temperature`                  |
 | Build status by repo and branch | `https://ci.example.com/builds/owner/repo/main`         |
 
-When clients want a _family_ of values, use `matchURLPattern`:
+When clients want a _family_ of values, use `match_urlpattern`:
 
 ```javascript
 // Topic design
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://shop.example.com/products/:id/availability",
 );
 new EventSource(url);
@@ -65,7 +65,7 @@ One connection, every product's availability changes flow over it.
 <script>
   const url = new URL("https://hub.example.com/.well-known/mercure");
   url.searchParams.append(
-    "matchURLPattern",
+    "match_urlpattern",
     "https://prices.example.com/:symbol",
   );
 
@@ -138,19 +138,19 @@ A dashboard that watches dozens of metrics opens **one** `EventSource` and uses 
 // Dashboards: many topics, one connection
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://metrics.example.com/cpu/:host",
 );
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://metrics.example.com/memory/:host",
 );
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://metrics.example.com/disk/:host/:device",
 );
 url.searchParams.append(
-  "matchURLPattern",
+  "match_urlpattern",
   "https://alerts.example.com/:service/firing",
 );
 

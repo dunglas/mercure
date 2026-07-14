@@ -44,10 +44,10 @@ Set `CUSTOM_ID=0` for transports that don't support custom IDs (e.g. Pulsar, see
 
 Tests are organized by spec section:
 
-- Subscribe semantics (`match` and `matchURLPattern`).
+- Subscribe semantics (`match` and `match_urlpattern`).
 - Publish semantics (form fields, single topic, custom IDs).
 - Authorization (OAuth 2.0 access token validation, `authorization_details`, RFC 6750 errors).
-- Reconnection (`Last-Event-ID`, `lastEventID`, `earliest`).
+- Reconnection (`Last-Event-ID`, `last_event_id`, `earliest`).
 - Active subscriptions (events + API).
 
 Run with `--ui` for the interactive Playwright explorer; useful when debugging a specific assertion failure.

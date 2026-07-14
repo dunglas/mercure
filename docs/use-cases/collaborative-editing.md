@@ -29,8 +29,8 @@ const docId = "books/42";
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", `https://docs.example.com/${docId}`);
 url.searchParams.append(
-  "matchURLPattern",
-  `/.well-known/mercure/subscriptions/:matchType/:match/:subscriber`,
+  "match_urlpattern",
+  `/.well-known/mercure/subscriptions/:match_type/:match/:subscriber`,
 );
 
 const es = new EventSource(url, { withCredentials: true });
@@ -111,8 +111,8 @@ Use [subscription events](../concepts/active-subscriptions.md) to show who's con
       "topics": [
         { "match": "https://docs.example.com/books/42" },
         {
-          "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
-          "matchType": "URLPattern",
+          "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
+          "match_type": "urlpattern",
         },
       ],
       "payload": { "name": "Alice", "color": "#ff0066" },
@@ -131,8 +131,8 @@ const peers = new Map();
 
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
-  "matchURLPattern",
-  "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
+  "match_urlpattern",
+  "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
 );
 
 new EventSource(url, { withCredentials: true }).onmessage = (event) => {
@@ -199,11 +199,11 @@ Documents are usually private. Each user's `subscribe` grant should cover only t
         { "match": "https://docs.example.com/books/42" },
         {
           "match": "https://docs.example.com/books/42/cursors/:user",
-          "matchType": "URLPattern",
+          "match_type": "urlpattern",
         },
         {
-          "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
-          "matchType": "URLPattern",
+          "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
+          "match_type": "urlpattern",
         },
       ],
     },

@@ -38,14 +38,14 @@ Host: example.com
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 ```
 
-The subscriber adds the value to its first SSE request as a `lastEventID` query parameter:
+The subscriber adds the value to its first SSE request as a `last_event_id` query parameter:
 
 ```javascript
 // Bootstrapping after page load
 const hub = new URL("https://hub.example.com/.well-known/mercure");
 hub.searchParams.append("match", "https://example.com/books/1");
 hub.searchParams.append(
-  "lastEventID",
+  "last_event_id",
   "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
 );
 new EventSource(hub);
@@ -53,9 +53,9 @@ new EventSource(hub);
 
 The hub replays everything published since that ID, then transitions to live updates. Browsers can't set HTTP headers on the first `EventSource` request, so the query parameter is the only option here. The header (`Last-Event-ID`) is what the browser uses on automatic reconnects.
 
-## The `earliest` Mercure `lastEventID` value
+## The `earliest` Mercure `last_event_id` value
 
-Pass `lastEventID=earliest` to ask the hub for **everything it has** for the subscribed topics. The hub may decline this on policy grounds (it's a heavy request); when it accepts, you get the full history.
+Pass `last_event_id=earliest` to ask the hub for **everything it has** for the subscribed topics. The hub may decline this on policy grounds (it's a heavy request); when it accepts, you get the full history.
 
 This is the right way to seed an event-sourced view from the hub.
 

@@ -30,7 +30,7 @@ A Mercure access token is a JWT access token as defined by [RFC 9068](https://ww
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/users/42/notifications" },
-        { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
       ],
       "payload": { "user": "https://example.com/users/42" },
     },
@@ -51,7 +51,7 @@ The hub enforces, on every token:
 Each entry in `authorization_details` with `"type": "mercure"` grants a set of actions over a set of topic matchers:
 
 - `actions`: a non-empty subset of `["publish", "subscribe"]`.
-- `topics`: a non-empty array of [topic matcher](topics-and-matchers.md) objects `{ "match": "...", "matchType": "Exact" | "URLPattern" }`. Bare strings are rejected; `matchType` is case-sensitive and defaults to `Exact`. A `match` of `*` matches every topic.
+- `topics`: a non-empty array of [topic matcher](topics-and-matchers.md) objects `{ "match": "...", "match_type": "exact" | "urlpattern" }`. Bare strings are rejected; `match_type` is case-sensitive and defaults to `exact`. A `match` of `*` matches every topic.
 - `payload` (optional, `subscribe` only): any JSON value, surfaced through [subscription events](active-subscriptions.md).
 
 One invalid `mercure` detail rejects the whole token (`401 invalid_token`); there is no partial acceptance. Entries with a `type` other than `mercure` are ignored, so a single token can carry authorization details for several resources.
@@ -61,7 +61,7 @@ One invalid `mercure` detail rejects the whole token (`401 invalid_token`); ther
 The hub reads the token from one of three places. Pick the one that matches your client:
 
 1. **`Authorization: Bearer <token>` header (preferred for non-browser clients).** Right for server-side code, mobile apps, and CLI tools: anything that can set custom headers. Browsers can't attach this to an `EventSource`, so it isn't an option there. The `Bearer` scheme name is matched case-insensitively.
-2. **`mercureAccessToken` cookie (preferred for browsers).** Set with `HttpOnly`, `Secure`, and `SameSite`, the cookie keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history, and is the only mechanism `EventSource` natively carries on cross-origin connections. Set it at discovery time so it's already in place when the SSE connection opens.
+2. **`mercure_access_token` cookie (preferred for browsers).** Set with `HttpOnly`, `Secure`, and `SameSite`, the cookie keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history, and is the only mechanism `EventSource` natively carries on cross-origin connections. Set it at discovery time so it's already in place when the SSE connection opens.
 3. **`access_token` query parameter (last resort).** Tokens leak into proxy logs, browser history, and `Referer` headers. Use this only when neither header nor cookie is available.
 
 When a request carries more than one, the hub selects exactly one by precedence: header, then `access_token` query parameter, then cookie. Clients should normally send only one.
@@ -80,7 +80,7 @@ To publish, a token must carry an `authorization_details` entry whose `actions` 
       "type": "mercure",
       "actions": ["publish"],
       "topics": [
-        { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
         { "match": "https://example.com/announcements" },
       ],
     },
@@ -112,7 +112,7 @@ For a private update, the hub checks that a `subscribe` grant covers the update'
       "topics": [
         {
           "match": "https://example.com/users/42/:resource",
-          "matchType": "URLPattern",
+          "match_type": "urlpattern",
         },
         { "match": "https://example.com/announcements" },
       ],
@@ -155,7 +155,7 @@ Mint each subscriber a token whose `subscribe` grant covers only its own space:
       "topics": [
         {
           "match": "https://example.com/users/42/:resource",
-          "matchType": "URLPattern",
+          "match_type": "urlpattern",
         },
       ],
     },
@@ -163,7 +163,7 @@ Mint each subscriber a token whose `subscribe` grant covers only its own space:
 }
 ```
 
-User 42's token matches `https://example.com/users/42/messages/1`; user 99's token does not, so the hub never delivers it. The subscriber's `match*` query parameter can be as broad as `matchURLPattern=https://example.com/users/:id/messages/:mid`: the query selects what the client wants to receive, and the token decides what it is allowed to receive. The narrower of the two wins.
+User 42's token matches `https://example.com/users/42/messages/1`; user 99's token does not, so the hub never delivers it. The subscriber's `match*` query parameter can be as broad as `match_urlpattern=https://example.com/users/:id/messages/:mid`: the query selects what the client wants to receive, and the token decides what it is allowed to receive. The narrower of the two wins.
 
 ## Subscriber payloads
 
@@ -183,7 +183,7 @@ A `subscribe` detail can carry a `payload` (any JSON value). The hub attaches it
       "type": "mercure",
       "actions": ["subscribe"],
       "topics": [
-        { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
       ],
       "payload": { "username": "alice" },
     },
@@ -213,7 +213,7 @@ Set the cookie during discovery, when the user fetches the page or the API resou
 ```http
 # Cookies in detail
 HTTP/1.1 200 OK
-Set-Cookie: mercureAccessToken=<JWT>; Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict
+Set-Cookie: mercure_access_token=<JWT>; Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 ```
 
@@ -224,7 +224,7 @@ Required attributes:
 - `SameSite=Strict` or `Lax`: CSRF protection.
 - `Path=/.well-known/mercure`: limits the cookie to the hub URL.
 
-The default cookie name is `mercureAccessToken`; override it with the `cookie_name` directive when several hubs share a domain. If the publisher and the hub run on different subdomains of the same registrable domain, set `Domain=example.com`. If they're on different domains, you can't use cookies; fall back to the bearer header from a service worker, or to the `access_token` query parameter on a same-origin proxy.
+The default cookie name is `mercure_access_token`; override it with the `cookie_name` directive when several hubs share a domain. If the publisher and the hub run on different subdomains of the same registrable domain, set `Domain=example.com`. If they're on different domains, you can't use cookies; fall back to the bearer header from a service worker, or to the `access_token` query parameter on a same-origin proxy.
 
 `EventSource` does **not** send cookies on cross-origin requests by default. Pass `withCredentials: true` to opt in:
 

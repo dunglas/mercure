@@ -11,9 +11,9 @@ The greatest hits, in roughly the order you're likely to hit them.
 
 The hub returns `401` either with a bare `WWW-Authenticate: Bearer` challenge (no token) or `error="invalid_token"` (a token that failed validation). Causes, in priority order:
 
-1. **No token presented.** Check that the request carries an `Authorization: Bearer` header, an `access_token` query parameter, or the `mercureAccessToken` cookie. For browsers, `EventSource(url, { withCredentials: true })` is required for cross-origin requests.
+1. **No token presented.** Check that the request carries an `Authorization: Bearer` header, an `access_token` query parameter, or the `mercure_access_token` cookie. For browsers, `EventSource(url, { withCredentials: true })` is required for cross-origin requests.
 2. **Missing `typ: at+jwt` header or wrong `aud`.** Access tokens must use the `at+jwt` header type and carry an `aud` matching the hub's `resource_identifier`. A plain `JWT` token, or one minted for a different audience, fails. See [Authorization](../concepts/authorization.md) and the [upgrade guide](../UPGRADE.md#10-from-0x).
-3. **Malformed `authorization_details`.** Each `mercure` entry needs a non-empty `actions` array and a non-empty `topics` array of `{ match, matchType? }` objects. One bad detail rejects the whole token.
+3. **Malformed `authorization_details`.** Each `mercure` entry needs a non-empty `actions` array and a non-empty `topics` array of `{ match, match_type? }` objects. One bad detail rejects the whole token.
 4. **Wrong key or algorithm.** The hub verifies with the configured key + algorithm. If your token is signed with HS256 and the hub is set to RS256, it fails. Check `MERCURE_*_JWT_KEY` and `MERCURE_*_JWT_ALG`.
 5. **Expired `exp`.** `exp` is required. Browsers auto-reconnect with the same token after disconnect; once it expires, every reconnect fails. Mint a fresh token on the application side and update the cookie.
 6. **Special characters in the key.** Shell escaping, YAML parsing, and Kubernetes secret base64-encoding all bite. Verify the key as the hub sees it (`docker exec` and `printenv`).
@@ -33,7 +33,7 @@ The token is valid but no `authorization_details` entry grants `publish` on the 
       "type": "mercure",
       "actions": ["publish"],
       "topics": [
-        { "match": "https://example.com/books/:id", "matchType": "URLPattern" },
+        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
       ],
     },
   ],
@@ -51,7 +51,7 @@ For a `private=on` update, the hub checks that a `subscribe` grant in the subscr
 
 Common shapes of this bug:
 
-- The token's matcher uses `Exact` (the default) but the topic needs a `URLPattern`.
+- The token's matcher uses `exact` (the default) but the topic needs a `urlpattern`.
 - The token's URL Pattern is more restrictive than the subscriber's `match*` query parameter: the subscriber asks for `:id` but is only authorized for `/books/:id`.
 - The subscriber forgot a token entirely (anonymous subscribers receive only public updates).
 

@@ -170,7 +170,7 @@ For a subscriber to open one connection that covers all of their subscriptions a
       "topics": [
         {
           "match": "https://example.com/graphql/subscriptions/:room/42",
-          "matchType": "URLPattern",
+          "match_type": "urlpattern",
         },
       ],
     },

@@ -24,7 +24,7 @@ Pick the matchers you want with [`match*` query parameters](topics-and-matchers.
 // Subscribing from a Browser with EventSource
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/books/1");
-url.searchParams.append("matchURLPattern", "https://example.com/users/:id");
+url.searchParams.append("match_urlpattern", "https://example.com/users/:id");
 
 const es = new EventSource(url);
 es.onmessage = (event) => {
@@ -40,7 +40,7 @@ A few things to know:
 
 - Browsers cap concurrent HTTP/1.1 requests per origin at 6. With HTTP/2 (the default everywhere on HTTPS) the cap is 100 streams negotiated with the server. **Use HTTP/2**: your hub already speaks it.
 - A single `EventSource` connection can carry as many topic subscriptions as you want by passing more `match*` parameters.
-- `EventSource` does not let you set `Authorization` headers. For private subscriptions, use the [`mercureAccessToken` cookie](authorization.md#cookies-in-detail) (recommended) or the `access_token` query parameter (last resort).
+- `EventSource` does not let you set `Authorization` headers. For private subscriptions, use the [`mercure_access_token` cookie](authorization.md#cookies-in-detail) (recommended) or the `access_token` query parameter (last resort).
 
 ### `fetch-event-source` for advanced cases
 

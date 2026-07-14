@@ -5,12 +5,12 @@
 ## Core concepts
 
 - [Introduction to Mercure](https://mercure.rocks/docs/introduction): What Mercure is, what it ships with, and how it differs from WebSockets, Pusher, Ably, WebSub, and Web Push.
-- [Topics and matchers](https://mercure.rocks/docs/concepts/topics-and-matchers): Subscribing with the `match` (Exact) and `matchURLPattern` query parameters, the two matcher types.
+- [Topics and matchers](https://mercure.rocks/docs/concepts/topics-and-matchers): Subscribing with the `match` (Exact) and `match_urlpattern` query parameters, the two matcher types.
 - [Subscribing to Mercure updates](https://mercure.rocks/docs/concepts/subscribing): Open SSE subscriptions from browsers (`EventSource`), Node.js, Go, Python, and other clients.
 - [Publishing real-time updates](https://mercure.rocks/docs/concepts/publishing): POST form-encoded updates with one topic, `private=on`, custom IDs, and types.
 - [Mercure authorization with OAuth 2.0](https://mercure.rocks/docs/concepts/authorization): Mint and present `at+jwt` access tokens with the `authorization_details` claim, plus cookies, JWKS, and RFC 6750 errors.
 - [Discovery](https://mercure.rocks/docs/concepts/discovery): Finding the hub via `Link rel=mercure` and reading its RFC 9728 protected resource metadata.
-- [Reconnection and history](https://mercure.rocks/docs/concepts/reconnection-and-history): `Last-Event-ID`, `lastEventID=earliest`, history buffer sizing, and detecting data loss.
+- [Reconnection and history](https://mercure.rocks/docs/concepts/reconnection-and-history): `Last-Event-ID`, `last_event_id=earliest`, history buffer sizing, and detecting data loss.
 - [Active subscriptions and presence](https://mercure.rocks/docs/concepts/active-subscriptions): Subscription events and the JSON-LD subscription API for presence and live-collab UIs.
 - [End-to-end encryption with JWE](https://mercure.rocks/docs/concepts/encryption): Encrypt update payloads so the Mercure hub itself cannot read them.
 

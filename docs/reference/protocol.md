@@ -17,7 +17,7 @@ This page is a quick orientation, not a substitute. Read the spec for normative 
 - **Subscription**: `GET /.well-known/mercure?match=...` with one or more matcher query parameters.
 - **Publication**: `POST /.well-known/mercure` with form-encoded `topic`, `data`, and friends.
 - **Authorization**: OAuth 2.0 JWT access tokens ([RFC 9068](https://www.rfc-editor.org/rfc/rfc9068)) with an `authorization_details` claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)) granting publish/subscribe per topic matcher; [RFC 6750](https://www.rfc-editor.org/rfc/rfc6750) errors.
-- **Reconnection**: `Last-Event-ID` header and `lastEventID` query parameter for replay.
+- **Reconnection**: `Last-Event-ID` header and `last_event_id` query parameter for replay.
 - **Active subscriptions**: subscription events on a well-known topic family + a JSON-LD API.
 - **Discovery**: `Link: rel="mercure"` headers on the publisher's resources, plus OAuth 2.0 protected resource metadata ([RFC 9728](https://www.rfc-editor.org/rfc/rfc9728)).
 - **Encryption**: JWE for end-to-end privacy.
@@ -26,8 +26,8 @@ This page is a quick orientation, not a substitute. Read the spec for normative 
 
 | Matcher      | Query parameter       | Required of hubs | Reference                                                |
 | ------------ | --------------------- | ---------------- | -------------------------------------------------------- |
-| `Exact`      | `match`, `matchExact` | **MUST**         | exact string comparison                                  |
-| `URLPattern` | `matchURLPattern`     | **MUST**         | [WHATWG URL Pattern](https://urlpattern.spec.whatwg.org) |
+| `exact`      | `match`, `match_exact` | **MUST**         | exact string comparison                                  |
+| `urlpattern` | `match_urlpattern`     | **MUST**         | [WHATWG URL Pattern](https://urlpattern.spec.whatwg.org) |
 
 See [Topics and matchers](../concepts/topics-and-matchers.md) for the developer-facing tour.
 

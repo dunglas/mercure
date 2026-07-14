@@ -52,7 +52,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `anonymous`                                    | Allow subscribers without a token to receive **public** updates.                                                                          | off                  |
 | `publish_origins <origin...>`                  | Origins allowed to publish (cookie-based auth only).                                                                                      |                      |
 | `cors_origins <origin...>`                     | CORS allowed origins. See [CORS](#cors).                                                                                                  |                      |
-| `cookie_name <name>`                           | Cookie that carries the access token for browser clients.                                                                                 | `mercureAccessToken` |
+| `cookie_name <name>`                           | Cookie that carries the access token for browser clients.                                                                                 | `mercure_access_token` |
 | `protocol_version_compatibility <version>`     | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).         | off                  |
 | `subscriptions`                                | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                               | off                  |
 | `heartbeat <duration>`                         | Interval between SSE heartbeat comments. `0s` to disable.                                                                                 | `40s`                |

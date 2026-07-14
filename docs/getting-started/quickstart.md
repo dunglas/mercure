@@ -58,11 +58,11 @@ Save this as `index.html` and open it in your browser:
 </script>
 ```
 
-The `match` query parameter does an exact-match subscription on the topic `https://example.com/books/1`. To subscribe to a family of URLs at once, use `matchURLPattern`:
+The `match` query parameter does an exact-match subscription on the topic `https://example.com/books/1`. To subscribe to a family of URLs at once, use `match_urlpattern`:
 
 ```javascript
 // Subscribe to a Mercure Topic from the Browser
-url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
+url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 ```
 
 URL patterns follow the [WHATWG URL Pattern](https://urlpattern.spec.whatwg.org) syntax. They replace URI templates as the recommended templating language for URL topics. [Topics and matchers](../concepts/topics-and-matchers.md) covers the full set.
