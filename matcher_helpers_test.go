@@ -24,6 +24,19 @@ func stringsToExactMatchers(patterns []string) []TopicMatcher {
 	return out
 }
 
+func stringsToURLPatternMatchers(patterns []string) []TopicMatcher {
+	if patterns == nil {
+		return nil
+	}
+
+	out := make([]TopicMatcher, len(patterns))
+	for i, p := range patterns {
+		out[i] = TopicMatcher{Type: MatcherTypeURLPattern, Pattern: p}
+	}
+
+	return out
+}
+
 func stringsToExactClaims(patterns []string) []matcherClaim {
 	matchers := stringsToExactMatchers(patterns)
 
