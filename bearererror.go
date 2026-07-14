@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -89,9 +90,12 @@ func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code st
 // resource metadata, derived from the public URL when set, otherwise from the
 // request.
 func (h *Hub) resourceMetadataURL(r *http.Request) string {
+	// The metadata is always served at protectedResourceMetadataPath on the
+	// hub's own origin, so derive scheme and host from the configured public
+	// URL when available (whatever its path), falling back to the request.
 	if h.publicURL != "" {
-		if base, ok := strings.CutSuffix(h.publicURL, defaultHubURL); ok {
-			return base + protectedResourceMetadataPath
+		if u, err := url.Parse(h.publicURL); err == nil && u.IsAbs() && u.Host != "" {
+			return u.Scheme + "://" + u.Host + protectedResourceMetadataPath
 		}
 	}
 
