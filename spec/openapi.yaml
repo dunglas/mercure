@@ -95,6 +95,24 @@ paths:
           $ref: "#/components/responses/401"
         "400":
           description: Invalid request
+  "/.well-known/oauth-protected-resource/.well-known/mercure":
+    get:
+      summary: OAuth 2.0 protected resource metadata
+      description: >-
+        RFC 9728 protected resource metadata for the hub, advertising its
+        resource identifier, accepted bearer methods, and (when configured)
+        authorization servers.
+      externalDocs:
+        description: Protected resource metadata
+        url: https://mercure.rocks/spec#protected-resource-metadata
+      security: []
+      responses:
+        "200":
+          description: The protected resource metadata document
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ProtectedResourceMetadata"
   "/.well-known/mercure/subscriptions":
     get:
       summary: Active subscriptions
@@ -228,20 +246,57 @@ components:
         last_event_id:
           type: string
           example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+    ProtectedResourceMetadata:
+      type: object
+      required: ["resource"]
+      properties:
+        resource:
+          type: string
+          format: uri
+          example: https://example.com/.well-known/mercure
+        bearer_methods_supported:
+          type: array
+          items:
+            type: string
+          example: ["header", "query"]
+        authorization_servers:
+          type: array
+          items:
+            type: string
+        authorization_details_types_supported:
+          type: array
+          items:
+            type: string
+          example: ["mercure"]
+        mercure_cookie:
+          type: boolean
+        mercure_subscriptions:
+          type: boolean
   responses:
     "401":
-      description: Not authorized (missing or invalid JWT).
+      description: >-
+        Missing or invalid access token. Carries a `WWW-Authenticate: Bearer`
+        challenge (with `error="invalid_token"` when a token was presented but
+        failed validation) and, per RFC 9728, a `resource_metadata` parameter
+        pointing to the protected resource metadata document.
   securitySchemes:
     Bearer:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-      description: Preferred for server to server
+      bearerFormat: at+jwt
+      description: >-
+        RFC 9068 JWT access token (`typ: at+jwt`) carrying an
+        `authorization_details` claim (RFC 9396) of `type: mercure`, whose
+        entries grant the `publish` and/or `subscribe` actions on topic
+        matchers. Preferred for server to server.
     Cookie:
       type: apiKey
       in: cookie
       name: mercure_access_token
-      description: Preferred for web browsers (the cookie name may change depending on the configuration)
+      description: >-
+        Same access token carried in a cookie (a Mercure extension to
+        RFC 6750). Preferred for web browsers; the cookie name may change
+        depending on the configuration.
 security:
   - Bearer: []
   - Cookie: []
