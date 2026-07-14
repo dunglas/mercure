@@ -127,9 +127,9 @@ func TestSubscriptionsHandler(t *testing.T) {
 	assert.Equal(t, subscriptionsURL, subscriptions.ID)
 	assert.Equal(t, "Subscriptions", subscriptions.Type)
 
-	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
+	last_event_id, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
-	assert.Equal(t, lastEventID, subscriptions.LastEventID)
+	assert.Equal(t, last_event_id, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
 
 	for _, s := range subscribers {
@@ -220,7 +220,7 @@ func TestSubscriptionPayloadFallbackToGlobal(t *testing.T) {
 }
 
 // TestSubscriptionHandlerMatchRoute exercises the
-// /subscriptions/{matchType}/{match}/{subscriber} URL shape.
+// /subscriptions/{match_type}/{match}/{subscriber} URL shape.
 func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	t.Parallel()
 
@@ -230,7 +230,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 
 	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
 	matchers, err := hub.parseMatchers(url.Values{
-		"matchURLPattern": {"https://example.com/:id"},
+		"match_urlpattern": {"https://example.com/:id"},
 	}, false)
 	require.NoError(t, err)
 	sub.setMatchers(matchers, nil)
@@ -257,7 +257,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 
 	assert.Equal(t, "https://example.com/:id", got.Match)
-	assert.Equal(t, "URLPattern", got.MatchType)
+	assert.Equal(t, "urlpattern", got.MatchType)
 	assert.Empty(t, got.Topic, "modern subscriptions must not emit the deprecated `topic` field")
 }
 

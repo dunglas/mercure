@@ -13,13 +13,13 @@ namespace, where the parameter name encodes the matcher type:
 - `match` selects exact, case-sensitive comparison (the default type). Replace
   the 0.x `topic` parameter with `match`; its implicit
   [URI Template (RFC 6570)](https://tools.ietf.org/html/rfc6570) support is
-  removed. `matchExact` is an explicit alias.
+  removed. `match_exact` is an explicit alias.
 - `match<MatcherType>` selects a named matcher type: replace `topicURLPattern`
-  with `matchURLPattern`, e.g. `matchURLPattern=https://example.com/books/:id`
+  with `match_urlpattern`, e.g. `match_urlpattern=https://example.com/books/:id`
   (note `:id`, not `{id}`).
 - Parameter names are case-sensitive; any other name in the reserved `match`
   namespace is rejected with a `400 Bad Request`. The bare `match` mirrors the
-  optional, `Exact`-defaulting `matchType` of authorization details.
+  optional, `Exact`-defaulting `match_type` of authorization details.
 - Relative patterns and topics are resolved against the hub URL: set it with
   the `public_url` directive (Caddyfile) or `WithPublicURL` (Go).
 
@@ -31,13 +31,13 @@ Entries of `mercure.publish` and `mercure.subscribe` use the object form:
 {
   "mercure": {
     "subscribe": [
-      { "match": "https://example.com/books/:id", "matchType": "URLPattern" }
+      { "match": "https://example.com/books/:id", "match_type": "urlpattern" }
     ]
   }
 }
 ```
 
-`matchType` is case-sensitive and defaults to `Exact`. Bare-string entries
+`match_type` is case-sensitive and defaults to `Exact`. Bare-string entries
 (the 0.x form) are rejected with a `401 Unauthorized` unless compatibility
 mode is enabled. The optional per-matcher `payload` value is attached to the
 subscriptions whose matcher it covers, falling back to `mercure.payload`.
@@ -52,8 +52,8 @@ alternate topics.
 ### Subscription API
 
 Subscription URLs move from `/subscriptions/{topic}[/{subscriber}]` to
-`/subscriptions/{matchType}/{match}[/{subscriber}]`, and the JSON-LD documents
-expose `match` and `matchType` fields instead of `topic`.
+`/subscriptions/{match_type}/{match}[/{subscriber}]`, and the JSON-LD documents
+expose `match` and `match_type` fields instead of `topic`.
 
 ### Backward compatibility
 
@@ -141,7 +141,7 @@ The default dev key changed from `!ChangeMe!` to `!ChangeThisMercureHubJWTSecret
 
 ## 0.14
 
-The query parameter allowing you to fetch past events has been renamed `lastEventID`: in your clients, replace all occurrences of the `Last-Event-ID` query parameter with `lastEventID`.
+The query parameter allowing you to fetch past events has been renamed `last_event_id`: in your clients, replace all occurrences of the `Last-Event-ID` query parameter with `last_event_id`.
 
 Publishing public updates in topics not explicitly listed in the `mercure.publish` JWT claim isn't supported anymore.
 To let your publishers publish (public and private updates) in all topics, use the special `*` topic selector:

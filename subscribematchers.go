@@ -15,13 +15,13 @@ const (
 
 	// paramMatch is both the subscribe query parameter selecting the Exact
 	// matcher type and the mux path-variable name for the subscription API
-	// URLs. A "match<MatcherType>" query parameter (e.g. "matchURLPattern")
+	// URLs. A "match_<matcher_type>" query parameter (e.g. "match_urlpattern")
 	// selects that matcher type; bare "match" defaults to Exact, mirroring the
-	// optional matchType of authorization details.
+	// optional match_type of authorization details.
 	paramMatch = "match"
 	// paramMatchType is the mux path-variable name for the matcher type in the
 	// subscription API URLs.
-	paramMatchType = "matchType"
+	paramMatchType = "match_type"
 
 	// paramTopic is the deprecated v8 subscribe query parameter (exact or URI
 	// Template), honored only under WithProtocolVersionCompatibility(8) and the
@@ -49,7 +49,7 @@ var (
 
 // parseMatchers extracts topic matchers from the subscribe query parameters:
 //   - "match" → Exact matching (the default matcher type)
-//   - "match<MatcherType>" (e.g. "matchURLPattern") → that matcher type
+//   - "match_<matcher_type>" (e.g. "match_urlpattern") → that matcher type
 //   - "topic" → the deprecated v8 parameter (exact or URI Template), honored
 //     only in compatibility mode; see appendDeprecatedTopicMatchers.
 //
@@ -66,7 +66,7 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 		values := query[key]
 		if key == paramTopic {
 			if !deprecated {
-				return nil, fmt.Errorf("%w: %q (use %q or %q)", errUnknownMatcherParam, key, paramMatch, paramMatch+string(MatcherTypeURLPattern))
+				return nil, fmt.Errorf("%w: %q (use %q or %q)", errUnknownMatcherParam, key, paramMatch, paramMatch+"_"+string(MatcherTypeURLPattern))
 			}
 
 			m, err := h.appendDeprecatedTopicMatchers(matchers, values)
@@ -109,23 +109,24 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 }
 
 // matcherTypeFromParam maps a subscribe query parameter name to its matcher
-// type. Bare "match" is the Exact default (mirroring the optional matchType of
-// authorization details); "match<MatcherType>" selects that type. The boolean
+// type. Bare "match" is the Exact default (mirroring the optional match_type of
+// authorization details); "match_<matcher_type>" selects that type. The boolean
 // is false when the name is not in the "match" namespace or names an unknown
 // matcher type.
 func matcherTypeFromParam(key string) (MatcherType, bool) {
-	suffix, ok := strings.CutPrefix(key, paramMatch)
+	if key == paramMatch {
+		return MatcherTypeExact, true
+	}
+
+	suffix, ok := strings.CutPrefix(key, paramMatch+"_")
 	if !ok {
 		return "", false
 	}
 
-	mt := MatcherType(suffix)
-	if mt == "" {
-		mt = MatcherTypeExact
-	}
-
 	// Anything not in the wire-addressable set (including the internal
 	// deprecated type) is rejected.
+	mt := MatcherType(suffix)
+
 	return mt, knownMatcherType(mt)
 }
 

@@ -23,7 +23,7 @@ func TestMatcherClaimUnmarshalObject(t *testing.T) {
 	t.Parallel()
 
 	var mc matcherClaim
-	require.NoError(t, json.Unmarshal([]byte(`{"match": "https://example.com/:id", "matchType": "URLPattern"}`), &mc))
+	require.NoError(t, json.Unmarshal([]byte(`{"match": "https://example.com/:id", "match_type": "urlpattern"}`), &mc))
 
 	assert.Equal(t, "https://example.com/:id", mc.Pattern)
 	assert.Equal(t, MatcherTypeURLPattern, mc.Type)
@@ -43,7 +43,7 @@ func TestMatcherClaimUnmarshalObjectWithPayload(t *testing.T) {
 	t.Parallel()
 
 	var mc matcherClaim
-	require.NoError(t, json.Unmarshal([]byte(`{"match": "https://example.com/:id", "matchType": "URLPattern", "payload": {"user": "alice"}}`), &mc))
+	require.NoError(t, json.Unmarshal([]byte(`{"match": "https://example.com/:id", "match_type": "urlpattern", "payload": {"user": "alice"}}`), &mc))
 
 	payloadMap, ok := mc.Payload.(map[string]any)
 	require.True(t, ok)
@@ -56,7 +56,7 @@ func TestMatcherClaimUnmarshalReset(t *testing.T) {
 	t.Parallel()
 
 	var mc matcherClaim
-	require.NoError(t, json.Unmarshal([]byte(`{"match": "a", "matchType": "URLPattern", "payload": 1}`), &mc))
+	require.NoError(t, json.Unmarshal([]byte(`{"match": "a", "match_type": "urlpattern", "payload": 1}`), &mc))
 	require.NoError(t, json.Unmarshal([]byte(`"b"`), &mc))
 
 	assert.Equal(t, "b", mc.Pattern)
@@ -71,7 +71,7 @@ func TestMatcherClaimMarshalRoundTrip(t *testing.T) {
 	in := matcherClaim{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}, Payload: map[string]any{"a": "b"}}
 	b, err := json.Marshal(&in)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"match": "https://example.com/:id", "matchType": "URLPattern", "payload": {"a": "b"}}`, string(b))
+	assert.JSONEq(t, `{"match": "https://example.com/:id", "match_type": "urlpattern", "payload": {"a": "b"}}`, string(b))
 
 	// String form (unresolved)
 	in = matcherClaim{TopicMatcher: TopicMatcher{Pattern: "https://example.com/foo"}}
@@ -98,7 +98,7 @@ func TestResolveMatcherClaims(t *testing.T) {
 	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), errStringClaimRequiresCompat)
 
 	// Unknown matcher types are rejected; type values are case-sensitive.
-	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: "urlpattern", Pattern: "foo"}}}
+	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: "URLPattern", Pattern: "foo"}}}
 	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), ErrUnsupportedMatcherType)
 
 	// Forged internal type is rejected in modern mode.

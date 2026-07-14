@@ -60,7 +60,7 @@ func TestSubscribeInvalidURLPatternDoesNotLeakInternals(t *testing.T) {
 
 	hub := createAnonymousDummy(t)
 
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=%2F%28unclosed", nil)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=%2F%28unclosed", nil)
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
@@ -86,7 +86,7 @@ func TestSubscribeMatcherClaimMissingMatchRejected(t *testing.T) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"mercure": map[string]any{
-			"subscribe": []any{map[string]any{"matchType": "Exact"}},
+			"subscribe": []any{map[string]any{"match_type": "exact"}},
 		},
 	})
 	tokenString, err := token.SignedString([]byte("subscriber"))

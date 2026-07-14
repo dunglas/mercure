@@ -40,7 +40,7 @@
                   <div class="select">
                     <select name="matcherType" id="matcherType">
                       <option value="match">Exact</option>
-                      <option value="matchURLPattern">URL Pattern</option>
+                      <option value="match_urlpattern">URL Pattern</option>
                     </select>
                   </div>
                 </div>
@@ -227,17 +227,17 @@ https://example.com/my-private-topic</textarea
                 <pre><code>{
   "mercure": {
     "subscribe": [
-      { "match": "&lt;topic or pattern&gt;", "matchType": "Exact|URLPattern" }
+      { "match": "&lt;topic or pattern&gt;", "match_type": "exact|urlpattern" }
       // use "*" for all, omit subscribe for public only
     ],
     "publish": [
-      { "match": "&lt;topic or pattern&gt;", "matchType": "Exact|URLPattern" }
+      { "match": "&lt;topic or pattern&gt;", "match_type": "exact|urlpattern" }
       // use "*" for all, omit publish to not allow publishing
     ]
   }
 }</code></pre>
                 <p>
-                  <code>matchType</code> defaults to <code>Exact</code> when
+                  <code>match_type</code> defaults to <code>Exact</code> when
                   omitted.
                 </p>
                 <br />

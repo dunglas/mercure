@@ -42,7 +42,7 @@ type BoltTransport struct {
 	closed           chan struct{}
 	closedOnce       sync.Once
 	lastSeq          uint64
-	lastEventID      string
+	last_event_id    string
 }
 
 // NewBoltTransport creates a new BoltTransport.
@@ -74,7 +74,7 @@ func NewBoltTransport(
 		return nil, &TransportError{err: err}
 	}
 
-	lastEventID, err := getDBLastEventID(db, bucketName)
+	last_event_id, err := getDBLastEventID(db, bucketName)
 	if err != nil {
 		return nil, &TransportError{err: err}
 	}
@@ -87,12 +87,12 @@ func NewBoltTransport(
 		cleanupFrequency: cleanupFrequency,
 		subscribers:      subscriberList,
 		closed:           make(chan struct{}),
-		lastEventID:      lastEventID,
+		last_event_id:    last_event_id,
 	}, nil
 }
 
 func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
-	lastEventID := EarliestLastEventID
+	last_event_id := EarliestLastEventID
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
@@ -101,16 +101,16 @@ func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 		}
 
 		if k, _ := b.Cursor().Last(); k != nil {
-			lastEventID = string(k[8:])
+			last_event_id = string(k[8:])
 		}
 
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("unable to get lastEventID from BoltDB: %w", err)
+		return "", fmt.Errorf("unable to get last_event_id from BoltDB: %w", err)
 	}
 
-	return lastEventID, nil
+	return last_event_id, nil
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
@@ -189,7 +189,7 @@ func (t *BoltTransport) GetSubscribers(_ context.Context) (string, []*Subscriber
 	t.RLock()
 	defer t.RUnlock()
 
-	return t.lastEventID, getSubscribers(t.subscribers), nil
+	return t.last_event_id, getSubscribers(t.subscribers), nil
 }
 
 // Close closes the Transport.
@@ -356,7 +356,7 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		bucket.FillPercent = 1
 
 		t.lastSeq = seq
-		t.lastEventID = updateID
+		t.last_event_id = updateID
 
 		if err := bucket.Put(key, updateJSON); err != nil {
 			return fmt.Errorf("unable to put value in Bolt DB: %w", err)

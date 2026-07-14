@@ -29,7 +29,7 @@ const (
 	// publisherJWTRSA: RS256 object-form JWT signed with fixtures/jwt/RS256.key.
 	// Claims: {"mercure":{"publish":[{"match":"*"}],"subscribe":[
 	//   {"match":"https://example.com/my-private-topic"},
-	//   {"match":"https://example.com/demo/books/:id.jsonld","matchType":"URLPattern"}
+	//   {"match":"https://example.com/demo/books/:id.jsonld","match_type":"urlpattern"}
 	// ],"payload":{"user":"https://example.com/users/dunglas","remoteAddr":"127.0.0.1"}}}
 	publisherJWTRSA = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.ZDg48hUAzGEyiWyw4jl-vVPcdF4Mg9Lk22BKZCPXvHsRrDK9UZW-LaV9sEnJ82v80gHm_4xbgUqREPuN0aD_F16K6TaGHxAkjOggQKWByG-7l77mhUUTa7UQtR6HvHcWcgaswCcs6LBFqnSpQ-BSsHgeRJmlXqq_r3xJrLzezaOlQVqS1rDy1fAIdva3dzYTOwdji7M5a4gSDES-D05TETlOhQp1Cg7yxs2elL13n8j0-BdIbY8SkO1vy3GtHqqHWpj3pB9ks-D_VQwJQuLAOaXJKG5sVKLOG1EsgX_fYRbryWwgZpPO_IjHiL6y0bz5CWjjYBYfqOL3hUYCBQXp2A3J02CctvDHqgmlorxhCaA6GkKV-LXqP2tQNSiOMBl6TjCxQhKnou9lK27W2jsxXD5TRx3jmStJ38J1wT99HRGWOzJ9re3HlwPv1NsgNPn3kJdg9OSwWaxx_PqLbWSoHA09F66e4eMgaxZT_16HzbZZAymy9MsBrcCM7C-JyHnUZ97YjwuGm6MQDtvQWuTkixkSxHCpsv6EmbqJc-4cp9tP5ZeFYcZQTyu2jkQrvNzca-8GunXGftfH-IxckPoTwREd2wywwI3ZcRTKZ0SBd3iq8Jnxdgmu22dgCdrOFkM4lMn5x7rVT_fxUuF5EYTeTxkil1LcmPf17r4eNAImxfU"
 )

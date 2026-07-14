@@ -18,8 +18,8 @@ const (
 	subscriptionsPath = "/subscriptions"
 	subscriptionsURL  = defaultHubURL + subscriptionsPath
 
-	subscriptionMatchURL     = defaultHubURL + subscriptionsPath + "/{matchType}/{match}/{subscriber}"
-	subscriptionsForMatchURL = defaultHubURL + subscriptionsPath + "/{matchType}/{match}"
+	subscriptionMatchURL     = defaultHubURL + subscriptionsPath + "/{match_type}/{match}/{subscriber}"
+	subscriptionsForMatchURL = defaultHubURL + subscriptionsPath + "/{match_type}/{match}"
 )
 
 var jsonldContentType = []string{"application/ld+json"} // nolint:gochecknoglobals
@@ -33,9 +33,9 @@ type subscription struct {
 	Subscriber  string `json:"subscriber"`
 	Topic       string `json:"topic,omitempty"`
 	Match       string `json:"match,omitempty"`
-	MatchType   string `json:"matchType,omitempty"`
+	MatchType   string `json:"match_type,omitempty"`
 	Active      bool   `json:"active"`
-	LastEventID string `json:"lastEventID,omitempty"`
+	LastEventID string `json:"last_event_id,omitempty"`
 	Payload     any    `json:"payload,omitempty"`
 }
 
@@ -43,7 +43,7 @@ type subscriptionCollection struct {
 	Context       string         `json:"@context"`
 	ID            string         `json:"id"`
 	Type          string         `json:"type"`
-	LastEventID   string         `json:"lastEventID"`
+	LastEventID   string         `json:"last_event_id"`
 	Subscriptions []subscription `json:"subscriptions"`
 }
 
@@ -51,11 +51,11 @@ type subscriptionCollection struct {
 // based on the URL path variables of the subscription API request.
 //
 // Either topic is set (deprecated URL /subscriptions/{topic}[/{subscriber}])
-// or matchType+match are set (URL /subscriptions/{matchType}/{match}[/{subscriber}]).
+// or match_type+match are set (URL /subscriptions/{match_type}/{match}[/{subscriber}]).
 type subscriptionFilter struct {
-	topic     string
-	matchType string
-	match     string
+	topic      string
+	match_type string
+	match      string
 }
 
 // filterFromVars builds a subscriptionFilter from mux path variables. Returns
@@ -68,7 +68,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 	for _, seg := range []struct {
 		name string
 		dst  *string
-	}{{paramTopic, &f.topic}, {paramMatch, &f.match}, {paramMatchType, &f.matchType}} {
+	}{{paramTopic, &f.topic}, {paramMatch, &f.match}, {paramMatchType, &f.match_type}} {
 		v, err := url.PathUnescape(vars[seg.name])
 		if err != nil {
 			return subscriptionFilter{}, errors.New("invalid " + seg.name + " segment: " + err.Error()) //nolint:err113
@@ -78,8 +78,8 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 	}
 
 	// Reject unknown matcher types with a 400 instead of silently serving an
-	// empty listing. matchType is empty on the deprecated /{topic} routes.
-	if f.matchType != "" && !knownMatcherType(MatcherType(f.matchType)) {
+	// empty listing. match_type is empty on the deprecated /{topic} routes.
+	if f.match_type != "" && !knownMatcherType(MatcherType(f.match_type)) {
 		return subscriptionFilter{}, ErrUnsupportedMatcherType
 	}
 
@@ -87,7 +87,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
-	span, currentURL, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, currentURL, last_event_id, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -107,7 +107,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		Context:       jsonldContext,
 		ID:            currentURL,
 		Type:          "Subscriptions",
-		LastEventID:   lastEventID,
+		LastEventID:   last_event_id,
 		Subscriptions: make([]subscription, 0),
 	}
 
@@ -131,7 +131,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
-	span, _, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, _, last_event_id, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -161,7 +161,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, subscription := range subscriber.getSubscriptions(filter, jsonldContext, true) {
-			subscription.LastEventID = lastEventID
+			subscription.LastEventID = last_event_id
 
 			j, err := json.MarshalIndent(subscription, "", "  ")
 			if err != nil {
@@ -215,7 +215,7 @@ func (h *Hub) authorizeSubscriptionRequest(ctx context.Context, span trace.Span,
 	return true
 }
 
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, last_event_id string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
 	// The topic to authorize (and the collection id) is the absolute path in
 	// relative form; RequestURI() would append the query string, so a token
@@ -234,7 +234,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 	var err error
 
-	lastEventID, subscribers, err = transport.GetSubscribers(ctx)
+	last_event_id, subscribers, err = transport.GetSubscribers(ctx)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
@@ -244,14 +244,14 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 		recordSpanError(span, err)
 
-		return span, currentURL, lastEventID, subscribers, false
+		return span, currentURL, last_event_id, subscribers, false
 	}
 
 	// ETags are quoted strings (RFC 9110 §8.8.3). DQUOTE is the only etagc-
 	// forbidden byte a publisher-supplied event ID can contain (control
 	// characters are rejected at publication), so escape it; "%" is escaped
 	// first to keep the mapping injective.
-	etag := `"` + etagEscaper.Replace(lastEventID) + `"`
+	etag := `"` + etagEscaper.Replace(last_event_id) + `"`
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
 
@@ -262,5 +262,5 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	header["Content-Type"] = jsonldContentType
 	header["ETag"] = []string{etag}
 
-	return span, currentURL, lastEventID, subscribers, true
+	return span, currentURL, last_event_id, subscribers, true
 }

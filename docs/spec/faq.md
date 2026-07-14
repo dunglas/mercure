@@ -35,7 +35,7 @@ In summary: use the Push API to send notifications to offline users (which will 
 When using HTTP/2+ ([the default for almost all users](https://caniuse.com/#feat=http2)), the maximum number of simultaneous HTTP **streams** is negotiated between the server and the client (default is 100).
 When using HTTP/1.1, this limit is 6.
 
-By using URL Pattern matchers and passing several `match` / `matchURLPattern` parameters, it's possible to subscribe to an unlimited number of topics using a single HTTP connection.
+By using URL Pattern matchers and passing several `match` / `match_urlpattern` parameters, it's possible to subscribe to an unlimited number of topics using a single HTTP connection.
 
 ## How to Use Mercure with GraphQL?
 

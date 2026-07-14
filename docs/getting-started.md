@@ -17,9 +17,9 @@ Subscribing to updates from a web browser or any other platform supporting [Serv
 // The subscriber subscribes to updates for the https://example.com/users/dunglas topic
 // and to any topic matching the https://example.com/books/:id URL Pattern
 const url = new URL("https://localhost/.well-known/mercure");
-url.searchParams.append("matchURLPattern", "https://example.com/books/:id");
+url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 url.searchParams.append("match", "https://example.com/users/dunglas");
-// The URL class is a convenient way to generate URLs such as https://localhost/.well-known/mercure?matchURLPattern=https://example.com/books/:id&match=https://example.com/users/dunglas
+// The URL class is a convenient way to generate URLs such as https://localhost/.well-known/mercure?match_urlpattern=https://example.com/books/:id&match=https://example.com/users/dunglas
 
 const eventSource = new EventSource(url);
 

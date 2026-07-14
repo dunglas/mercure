@@ -324,7 +324,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 
 	if s.RequestLastEventID != "" {
-		header["Last-Event-Id"] = []string{<-s.responseLastEventID}
+		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
 	// Write a comment in the body
@@ -341,7 +341,7 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
 	}
 
 	query := r.URL.Query()
-	if id := query.Get("lastEventID"); id != "" {
+	if id := query.Get("last_event_id"); id != "" {
 		return id
 	}
 
@@ -349,14 +349,14 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
 		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)
 		if h.isBackwardCompatiblyEnabledWith(7) {
 			if infoLevel {
-				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'lastEventID' instead.")
+				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'last_event_id' instead.")
 			}
 
 			if len(legacyEventIDValues) != 0 {
 				return legacyEventIDValues[0]
 			}
 		} else if infoLevel {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID"" query parameter is not supported anymore, use "lastEventID"" instead or enable backward compatibility with version 7 of the protocol.`)
+			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID"" query parameter is not supported anymore, use "last_event_id"" instead or enable backward compatibility with version 7 of the protocol.`)
 		}
 	}
 

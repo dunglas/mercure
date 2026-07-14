@@ -9,18 +9,18 @@ import (
 type LocalTransport struct {
 	sync.RWMutex
 
-	subscribers *SubscriberList
-	lastEventID string
-	closed      chan struct{}
-	closedOnce  sync.Once
+	subscribers   *SubscriberList
+	last_event_id string
+	closed        chan struct{}
+	closedOnce    sync.Once
 }
 
 // NewLocalTransport creates a new LocalTransport.
 func NewLocalTransport(sl *SubscriberList) *LocalTransport {
 	return &LocalTransport{
-		subscribers: sl,
-		closed:      make(chan struct{}),
-		lastEventID: EarliestLastEventID,
+		subscribers:   sl,
+		closed:        make(chan struct{}),
+		last_event_id: EarliestLastEventID,
 	}
 }
 
@@ -39,7 +39,7 @@ func (t *LocalTransport) Dispatch(ctx context.Context, update *Update) error {
 	}
 
 	t.Lock()
-	t.lastEventID = update.ID
+	t.last_event_id = update.ID
 	t.Unlock()
 
 	return nil
@@ -88,7 +88,7 @@ func (t *LocalTransport) GetSubscribers(_ context.Context) (string, []*Subscribe
 	t.RLock()
 	defer t.RUnlock()
 
-	return t.lastEventID, getSubscribers(t.subscribers), nil
+	return t.last_event_id, getSubscribers(t.subscribers), nil
 }
 
 // Close closes the Transport.

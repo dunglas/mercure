@@ -173,7 +173,7 @@ func (tss *TopicSelectorStore) matchMatcher(topics []string, m TopicMatcher) boo
 		// Exact matching is so fast it doesn't need caching.
 		return slices.Contains(topics, m.Pattern)
 	case MatcherTypeURLPattern:
-		return tss.cachedMatch(topics, m, tss.matchURLPattern)
+		return tss.cachedMatch(topics, m, tss.match_urlpattern)
 	case deprecatedMatcherTypeName:
 		return tss.matchDeprecatedMatcher(topics, m)
 	default:
@@ -198,7 +198,7 @@ func (tss *TopicSelectorStore) cachedMatch(topics []string, m TopicMatcher, fn f
 	return r
 }
 
-func (tss *TopicSelectorStore) matchURLPattern(topics []string, pattern string) bool {
+func (tss *TopicSelectorStore) match_urlpattern(topics []string, pattern string) bool {
 	p, err := tss.getOrCompileURLPattern(pattern)
 	if err != nil {
 		return false
