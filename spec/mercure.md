@@ -948,7 +948,7 @@ following properties:
 
 *   `id`: the identifier of this update; **MUST** be the same value as the subscription update's
     topic.
-*   `type`: the fixed value `Subscription`.
+*   `type`: the fixed value `subscription`.
 *   `match_type`: the topic matcher type used for this subscription. The value is case-sensitive
     and **MUST** be the matcher type name in its canonical case as defined in (#matcher-types).
 *   `match`: the topic matcher used for this subscription.
@@ -967,7 +967,7 @@ Example:
 ~~~ json
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-   "type": "Subscription",
+   "type": "subscription",
    "match_type": "urlpattern",
    "match": "https://example.com/:selector",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1012,7 +1012,7 @@ a broader set (for example a `urlpattern` covering the subscriptions namespace, 
 `*`) grants access to the corresponding endpoints. If no detail grants `subscribe` on the
 requested URL, the hub **MUST** answer `403` as defined in (#authorization).
 
-The web API **MUST** set the `Content-Type` HTTP header to `application/json`.
+The web API **MUST** set the `Content-Type` HTTP header to `application/mercure-subscription+json`.
 
 URLs returning a single subscription (following the pattern
 `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`) **MUST** expose the same
@@ -1028,7 +1028,7 @@ Collection endpoints **MUST** return JSON documents containing at least the foll
 properties:
 
 *   `id`: the URL used to retrieve the document.
-*   `type`: the fixed value `Subscriptions`.
+*   `type`: the fixed value `subscriptions`.
 *   `subscriptions`: an array of subscription documents as described in (#subscription-events).
 
 In addition, all endpoints **MUST** set the `last_event_id` property at the root of the returned
@@ -1053,19 +1053,19 @@ GET /.well-known/mercure/subscriptions HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/json
+Content-Type: application/mercure-subscription+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions",
-   "type": "Subscriptions",
+   "type": "subscriptions",
    "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-         "type": "Subscription",
+         "type": "subscription",
          "match_type": "urlpattern",
          "match": "https://example.com/:selector",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1074,7 +1074,7 @@ Cache-Control: must-revalidate
       },
       {
          "id": "/.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
-         "type": "Subscription",
+         "type": "subscription",
          "match": "https://example.com/a-topic",
          "match_type": "exact",
          "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
@@ -1083,7 +1083,7 @@ Cache-Control: must-revalidate
       },
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
-         "type": "Subscription",
+         "type": "subscription",
          "match_type": "urlpattern",
          "match": "https://example.com/:selector",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
@@ -1099,19 +1099,19 @@ GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/json
+Content-Type: application/mercure-subscription+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector",
-   "type": "Subscriptions",
+   "type": "subscriptions",
    "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-         "type": "Subscription",
+         "type": "subscription",
          "match": "https://example.com/:selector",
          "match_type": "urlpattern",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1120,7 +1120,7 @@ Cache-Control: must-revalidate
       },
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
-         "type": "Subscription",
+         "type": "subscription",
          "match": "https://example.com/:selector",
          "match_type": "urlpattern",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
@@ -1136,14 +1136,14 @@ GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/json
+Content-Type: application/mercure-subscription+json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-   "type": "Subscription",
+   "type": "subscription",
    "match": "https://example.com/:selector",
    "match_type": "urlpattern",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1470,6 +1470,54 @@ Initial registrations:
 |-------------|------------------------------------|
 | `publish`   | This specification, (#publishers)  |
 | `subscribe` | This specification, (#subscribers) |
+
+## Media Types Registry
+
+IANA is requested to register the following media type in the "Media Types" registry, per
+[@!RFC6838].
+
+Type name: application
+
+Subtype name: mercure-subscription+json
+
+Required parameters: N/A
+
+Optional parameters: N/A
+
+Encoding considerations: binary; the content is a JSON [@!RFC8259] document encoded in UTF-8.
+
+Security considerations: see (#security-considerations) of this document and Section 12 of
+[@!RFC8259]. Subscription documents can carry the `payload` associated with a subscriber's
+access token; hubs restrict access to them as described in (#subscription-events) and
+(#authorization).
+
+Interoperability considerations: N/A
+
+Published specification: this document, (#subscription-events).
+
+Applications that use this media type: Mercure hubs and clients exchanging active-subscription
+representations.
+
+Fragment identifier considerations: as for `application/json` (none defined), per Section 3.2
+of [@!RFC6839].
+
+Additional information:
+
+- Deprecated alias names for this type: N/A
+- Magic number(s): N/A
+- File extension(s): N/A
+- Macintosh file type code(s): N/A
+
+Person & email address to contact for further information: Kévin Dunglas
+(kevin@les-tilleuls.coop)
+
+Intended usage: COMMON
+
+Restrictions on usage: N/A
+
+Author: Kévin Dunglas
+
+Change controller: IETF
 
 # Security Considerations
 
