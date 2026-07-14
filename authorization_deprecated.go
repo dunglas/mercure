@@ -37,7 +37,7 @@ func (h *Hub) legacyAuthQueryParam(r *http.Request) (string, bool) {
 	}
 
 	q, ok := r.URL.Query()[authorizationParam]
-	if !ok || len(q) != 1 || len(q[0]) < 41 {
+	if !ok || len(q) != 1 || len(q[0]) < minCompactJWSLen {
 		return "", false
 	}
 

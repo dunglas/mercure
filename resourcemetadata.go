@@ -31,6 +31,9 @@ type protectedResourceMetadata struct {
 	// value of bearer_methods_supported, whose values are constrained to the
 	// RFC 6750 methods (a cookie is not one of them).
 	MercureCookie bool `json:"mercure_cookie,omitempty"`
+	// MercureSubscriptions advertises the active subscriptions feature (a
+	// Mercure extension to RFC 9728) when the hub implements it.
+	MercureSubscriptions bool `json:"mercure_subscriptions,omitempty"`
 }
 
 // bearerMethodsSupported lists the RFC 6750 token presentation methods the hub
@@ -52,7 +55,8 @@ func (h *Hub) ProtectedResourceMetadataHandler(w http.ResponseWriter, r *http.Re
 		AuthorizationDetailsTypesSupported: []string{authorizationDetailTypeMercure},
 		// The hub always accepts the access token in a cookie when it
 		// validates tokens (this handler is only served in that case).
-		MercureCookie: true,
+		MercureCookie:        true,
+		MercureSubscriptions: h.subscriptions,
 	}
 
 	if err := json.NewEncoder(w).Encode(metadata); err != nil && h.logger.Enabled(r.Context(), slog.LevelInfo) {
