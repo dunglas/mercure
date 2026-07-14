@@ -45,7 +45,7 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 
 	obj := struct {
 		Match     string      `json:"match"`
-		MatchType MatcherType `json:"matchType,omitempty"`
+		MatchType MatcherType `json:"match_type,omitempty"`
 		Payload   any         `json:"payload,omitempty"`
 	}{mc.Pattern, mc.Type, mc.Payload}
 
@@ -59,8 +59,8 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON handles both string and object formats in JWT claims.
 // String: v8 form, accepted only in backward-compatibility mode.
-// Object: {"match": "pattern", "matchType": "Exact", "payload": {...}};
-// matchType is case-sensitive and defaults to Exact.
+// Object: {"match": "pattern", "match_type": "exact", "payload": {...}};
+// match_type is case-sensitive and defaults to Exact.
 //
 // Always resets every field of the receiver before populating it, so reusing
 // a matcherClaim across decode calls does not leak the previous Type/Payload.
@@ -87,7 +87,7 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 	// explicit empty string: the protocol requires the property to be present.
 	var obj struct {
 		Match     *string     `json:"match"`
-		MatchType MatcherType `json:"matchType"`
+		MatchType MatcherType `json:"match_type"`
 		Payload   any         `json:"payload"`
 	}
 

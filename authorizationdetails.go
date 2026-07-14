@@ -83,18 +83,18 @@ func (ad *authorizationDetail) UnmarshalJSON(data []byte) error {
 }
 
 // detailTopic is one entry of a mercure authorization detail `topics` array.
-// Only the object form {match, matchType?} is accepted; matchType is
+// Only the object form {match, match_type?} is accepted; match_type is
 // case-sensitive and defaults to Exact.
 type detailTopic struct {
 	TopicMatcher
 }
 
-// MarshalJSON emits the object form {match, matchType}. Issuers normally mint
+// MarshalJSON emits the object form {match, match_type}. Issuers normally mint
 // tokens, but the hub round-trips them in tests.
 func (d detailTopic) MarshalJSON() ([]byte, error) {
 	b, err := json.Marshal(struct {
 		Match     string      `json:"match"`
-		MatchType MatcherType `json:"matchType,omitempty"`
+		MatchType MatcherType `json:"match_type,omitempty"`
 	}{d.Pattern, d.Type})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal topic matcher: %w", err)
@@ -117,7 +117,7 @@ func (d *detailTopic) UnmarshalJSON(data []byte) error {
 	// explicit empty string: the protocol requires the property to be present.
 	var obj struct {
 		Match     *string     `json:"match"`
-		MatchType MatcherType `json:"matchType"`
+		MatchType MatcherType `json:"match_type"`
 	}
 
 	if err := json.Unmarshal(data, &obj); err != nil {

@@ -23,7 +23,7 @@ func TestDetailTopicUnmarshal(t *testing.T) {
 	assert.Equal(t, MatcherTypeExact, d.Type)
 	assert.Equal(t, "https://example.com/foo", d.Pattern)
 
-	require.NoError(t, json.Unmarshal([]byte(`{"match":"/books/:id","matchType":"URLPattern"}`), &d))
+	require.NoError(t, json.Unmarshal([]byte(`{"match":"/books/:id","match_type":"urlpattern"}`), &d))
 	assert.Equal(t, MatcherTypeURLPattern, d.Type)
 
 	// Bare strings (the deprecated claim shape) are rejected.
@@ -57,7 +57,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 		"empty actions":  {Type: authorizationDetailTypeMercure, Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}}},
 		"unknown action": {Type: authorizationDetailTypeMercure, Actions: []mercureAction{"delete"}, Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}}},
 		"empty topics":   {Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}},
-		"unknown matchType": {
+		"unknown match_type": {
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish},
 			Topics: []detailTopic{{TopicMatcher{"Regexp", "a"}}},
 		},

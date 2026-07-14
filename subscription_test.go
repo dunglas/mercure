@@ -67,14 +67,14 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 }
 
 // TestSubscriptionsHandlerAuthorizesAgainstPath verifies the subscription API
-// authorizes against the request path only: a query string (here lastEventID)
+// authorizes against the request path only: a query string (here last_event_id)
 // must not break an Exact subscribe grant that covers the path.
 func TestSubscriptionsHandlerAuthorizesAgainstPath(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
 
-	req := httptest.NewRequest(http.MethodGet, subscriptionsURL+"?lastEventID=foo", nil)
+	req := httptest.NewRequest(http.MethodGet, subscriptionsURL+"?last_event_id=foo", nil)
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
 
 	w := httptest.NewRecorder()

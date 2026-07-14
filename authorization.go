@@ -30,9 +30,12 @@ type role int
 
 const (
 	// defaultCookieName is the name of the authorization cookie carrying the
-	// access token. The pre-1.0 name "mercureAuthorization" is accepted as a
-	// fallback only in deprecated_claim builds running in compatibility mode.
-	defaultCookieName = "mercureAccessToken"
+	// access token. Over HTTPS the spec recommends the "__Secure-" prefixed name
+	// "__Secure-mercure_access_token"; this prefix-less default keeps the cookie
+	// usable on plain HTTP (local development). The pre-1.0 name
+	// "mercureAuthorization" is accepted as a fallback only in deprecated_claim
+	// builds running in compatibility mode.
+	defaultCookieName = "mercure_access_token"
 	bearerPrefix      = "Bearer "
 	// authorizationParam is the lowercase name of the legacy authorization
 	// query parameter and the CORS allowed header.

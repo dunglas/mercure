@@ -274,7 +274,7 @@ func WithTopicSelectorStore(tss *TopicSelectorStore) Option {
 	}
 }
 
-// WithCookieName sets the name of the authorization cookie (defaults to "mercureAccessToken").
+// WithCookieName sets the name of the authorization cookie (defaults to "mercure_access_token").
 func WithCookieName(cookieName string) Option {
 	return func(o *opt) error {
 		o.cookieName = cookieName

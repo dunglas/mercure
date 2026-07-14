@@ -71,7 +71,7 @@ func TestSubscribeInvalidURLPatternDoesNotLeakInternals(t *testing.T) {
 
 	hub := createAnonymousDummy(t)
 
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=%2F%28unclosed", nil)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=%2F%28unclosed", nil)
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
@@ -158,7 +158,7 @@ func TestMercureDetailTopicMissingMatchRejected(t *testing.T) {
 	t.Parallel()
 
 	for name, payload := range map[string]string{
-		"missing match": `[{"type":"mercure","actions":["subscribe"],"topics":[{"matchType":"Exact"}]}]`,
+		"missing match": `[{"type":"mercure","actions":["subscribe"],"topics":[{"match_type":"exact"}]}]`,
 		"null topic":    `[{"type":"mercure","actions":["subscribe"],"topics":[null]}]`,
 	} {
 		t.Run(name, func(t *testing.T) {
