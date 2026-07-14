@@ -299,6 +299,9 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The body is the update id; the protocol requires this exact media type.
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
 	if _, err := io.WriteString(w, u.ID); err != nil {
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write publish response", slog.Any("error", err))
