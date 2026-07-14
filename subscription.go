@@ -86,17 +86,19 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 }
 
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
-	span, currentURL, last_event_id, subscribers, ok := h.initSubscription(w, r)
-	defer span.End()
-
-	if !ok {
-		return
-	}
-
+	// Validate the URL shape before authorizing or fetching subscribers, so a
+	// malformed request answers 400 without any response headers being set.
 	filter, err := filterFromVars(mux.Vars(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
+		return
+	}
+
+	span, currentURL, last_event_id, subscribers, ok := h.initSubscription(w, r)
+	defer span.End()
+
+	if !ok {
 		return
 	}
 
@@ -130,14 +132,8 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
-	span, _, last_event_id, subscribers, ok := h.initSubscription(w, r)
-	defer span.End()
-
-	if !ok {
-		return
-	}
-
-	ctx := r.Context()
+	// Validate the URL shape before authorizing or fetching subscribers, so a
+	// malformed request answers 400 without any response headers being set.
 	vars := mux.Vars(r)
 
 	s, err := url.PathUnescape(vars["subscriber"])
@@ -153,6 +149,15 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	span, _, last_event_id, subscribers, ok := h.initSubscription(w, r)
+	defer span.End()
+
+	if !ok {
+		return
+	}
+
+	ctx := r.Context()
 
 	for _, subscriber := range subscribers {
 		if subscriber.ID != s {
@@ -245,15 +250,18 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	// characters are rejected at publication), so escape it; "%" is escaped
 	// first to keep the mapping injective.
 	etag := `"` + etagEscaper.Replace(last_event_id) + `"`
+	// A 304 carries the ETag it would have sent on a 200 (RFC 9110 §15.4.5), so
+	// set it before the conditional check.
+	header := w.Header()
+	header["ETag"] = []string{etag}
+
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
 
 		return span, "", "", nil, false
 	}
 
-	header := w.Header()
 	header["Content-Type"] = jsonldContentType
-	header["ETag"] = []string{etag}
 
 	return span, currentURL, last_event_id, subscribers, true
 }
