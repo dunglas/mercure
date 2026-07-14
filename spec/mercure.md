@@ -29,8 +29,9 @@ organization = "Les-Tilleuls.coop"
 .# Abstract
 
 Mercure provides a common publish-subscribe mechanism for public and private web resources.
-It pushes any web content to web browsers and other clients in a fast, reliable, and
-battery-efficient way. Mercure is especially useful for delivering real-time updates of
+It pushes any web content to web browsers and other clients over a single long-lived HTTP
+connection, avoiding polling and its associated latency and power cost. Mercure is especially
+useful for delivering real-time updates of
 resources served through sites and web APIs to web and mobile applications, and can also
 be used as a general-purpose publish-subscribe system.
 
@@ -79,7 +80,9 @@ appear in all capitals, as shown here.
     private; in that case, it **MUST** be dispatched only to subscribers allowed to receive it.
 *   Topic matcher: An expression matched against one or more topics,
     depending on the matcher type.
-*   Topic matcher type: The type of a matching expression, either exact match or URL pattern.
+*   Topic matcher type: The kind of a matching expression, which determines how the expression is
+    interpreted. This document defines two matcher types, `exact` and `urlpattern`; others can be
+    registered (see (#matcher-types)).
 *   Publisher: An owner of a topic. Notifies the hub when the topic feed has been updated. As in
     almost all pub-sub systems, the publisher is unaware of the subscribers, if any. Other pub-sub
     systems might call the publisher the "source". Typically a site or a web API, but it can also
@@ -111,16 +114,16 @@ features.
 
 The subscriber specifies the topics to receive updates from using topic matcher query
 parameters. The parameter name encodes the matcher type: the bare `match` parameter selects the
-default `Exact` matcher type, and a `match<MatcherType>` parameter selects the named matcher
-type — for example, `matchURLPattern` selects the `URLPattern` matcher type, and `matchExact` is
-the explicit spelling of the default. The `<MatcherType>` suffix **MUST** be the matcher type
-name in its canonical case as defined in (#matcher-types). A request **MAY** contain several such
+default `exact` matcher type, and a `match_<matcher-type>` parameter selects the named matcher
+type — for example, `match_urlpattern` selects the `urlpattern` matcher type, and `match_exact` is
+the explicit spelling of the default. The `<matcher-type>` suffix **MUST** be the matcher type
+name in its canonical form as defined in (#matcher-types). A request **MAY** contain several such
 parameters, in any combination. See (#matcher-types). These parameters select which topics the
 subscriber receives; they do not by themselves grant access to private updates, which is
 governed by the access token (see (#authorization)).
 
 This mirrors the topic matcher list of authorization details (see (#topic-matcher-list)), where
-the `matchType` member is optional and defaults to `Exact`: omitting it there is equivalent to
+the `match_type` member is optional and defaults to `exact`: omitting it there is equivalent to
 using the bare `match` parameter here.
 
 The query component of the subscription URL **MUST** be parsed into name/value pairs using the
@@ -145,7 +148,7 @@ ignored.
 The value of each topic matcher query parameter **MUST** be valid UTF-8 [@!RFC3629] and
 **MUST NOT** contain C0 (U+0000–U+001F) or C1 (U+0080–U+009F) control characters, U+007F, or
 Unicode format characters (general category `Cf` [@!UNICODE]).
-A parameter value that is not valid for its matcher type (for example, a `matchURLPattern`
+A parameter value that is not valid for its matcher type (for example, a `match_urlpattern`
 value that is not a well-formed URL Pattern) is equally invalid. Requests violating any of these
 constraints **MUST** be rejected with a 400 "Bad Request" HTTP status code.
 
@@ -162,7 +165,7 @@ and pattern. See (#subscription-events).
 Because subscription connections are long-lived, hubs **SHOULD** also apply
 implementation-defined limits to the number of concurrent connections held by a single client
 (for example, per source address or per token subject) and in total, and **MAY** reject further
-connection attempts with a 429 "Too Many Requests" HTTP status code.
+connection attempts with a 429 "Too Many Requests" HTTP status code [@!RFC6585].
 
 The `EventSource` JavaScript interface [@!HTML] **MAY** be used to establish
 the connection. Any other appropriate mechanism, including but not limited to readable streams
@@ -217,7 +220,7 @@ Example:
 const url = new URL('https://example.com/.well-known/mercure');
 url.searchParams.append('match', 'https://example.com/foo');
 url.searchParams.append('match', 'bar');
-url.searchParams.append('matchURLPattern', 'https://example.com/bar/:id');
+url.searchParams.append('match_urlpattern', 'https://example.com/bar/:id');
 
 const eventSource = new EventSource(url);
 
@@ -233,7 +236,7 @@ The hub **MAY** apply extra authorization rules not defined in this specificatio
 # Matcher Types
 
 A topic matcher is an expression matched against topics; its matcher type determines how the
-expression is interpreted. This document defines two matcher types, `Exact` and `URLPattern`.
+expression is interpreted. This document defines two matcher types, `exact` and `urlpattern`.
 Hubs **MUST** support both.
 
 Additional matcher types can be defined by other specifications and registered in the "Mercure
@@ -247,7 +250,7 @@ must fail loudly rather than be skipped.
 
 The matcher value `*` is reserved as a wildcard that matches every topic. It is recognized before
 the matcher type is resolved, so it has this meaning regardless of matcher type and regardless of
-whether `matchType` is supplied or defaulted (see (#topic-matcher-list)). As a consequence, a topic
+whether `match_type` is supplied or defaulted (see (#topic-matcher-list)). As a consequence, a topic
 whose value is exactly `*` is not addressable: no matcher can select that single topic without also
 selecting every other. This mirrors the reserved wildcard characters of other publish-subscribe
 systems.
@@ -265,16 +268,16 @@ canonicalizations are Unicode NFC [@!UNICODE] and, for IRIs, IDNA-canonical host
 and percent-encoding normalization [@!RFC3986]. Otherwise, visually identical topics will be
 treated as distinct, and homograph attacks (see (#security-considerations)) become possible.
 
-The matcher type name is `Exact`. It is the default matcher type: the corresponding subscribe
-query parameter is the bare `match` (or, explicitly, `matchExact`), and it is the default
-`matchType` value in authorization details (see (#topic-matcher-list)).
+The matcher type name is `exact`. It is the default matcher type: the corresponding subscribe
+query parameter is the bare `match` (or, explicitly, `match_exact`), and it is the default
+`match_type` value in authorization details (see (#topic-matcher-list)).
 
 ## URL Pattern
 
 The hub **MUST** support using URL patterns [@!urlpattern] as matchers.
 
 URL patterns **MAY** be absolute (e.g., `https://example.com/books/:id`) or relative
-(e.g., `/.well-known/mercure/subscriptions/Exact/:topic/:subscriber`). When evaluating
+(e.g., `/.well-known/mercure/subscriptions/exact/:topic/:subscriber`). When evaluating
 a relative pattern or a relative topic, the hub **MUST** use the hub's URL as the
 base URL. This allows subscribers to match relative topics published by the hub
 itself, such as subscription events (see (#subscription-events)).
@@ -298,16 +301,16 @@ URL patterns whose `protocol` component is a wildcard or capture group can match
 identifiers within this protocol; subscribers **MUST NOT** dereference them as URLs without
 validating the scheme against an allowlist appropriate for the subscriber's environment.
 
-The matcher type name is `URLPattern`. The corresponding subscribe query parameter is
-`matchURLPattern`, and the corresponding `matchType` value in authorization details (see
-(#topic-matcher-list)) is `URLPattern`.
+The matcher type name is `urlpattern`. The corresponding subscribe query parameter is
+`match_urlpattern`, and the corresponding `match_type` value in authorization details (see
+(#topic-matcher-list)) is `urlpattern`.
 
 ## Summary of Matcher Types
 
-| Matcher Type   | Subscribe Query Parameter     | `matchType` | Requirement  |
+| Matcher Type   | Subscribe Query Parameter     | `match_type` | Requirement  |
 |----------------|-------------------------------|-------------|--------------|
-| `Exact`        | `match` (or `matchExact`)     | `Exact`     | **MUST**     |
-| `URLPattern`   | `matchURLPattern`             | `URLPattern`| **MUST**     |
+| `exact`        | `match` (or `match_exact`)     | `exact`     | **MUST**     |
+| `urlpattern`   | `match_urlpattern`             | `urlpattern`| **MUST**     |
 
 This table lists the matcher types defined by this document; the "Mercure Topic Matcher Types"
 registry (see (#iana-considerations)) records additional registered types.
@@ -368,10 +371,10 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     category `Cf` [@!UNICODE]) — the same constraint as topics (see (#terminology)), since the
     ID also travels in the `Last-Event-ID` HTTP field.
     The provided ID **MAY** be a valid IRI. If omitted, the
-    hub **MUST** generate a valid IRI [@!RFC3987]. A UUID [@RFC9562] or a
-    DID [@DID] **MAY** be used. Alternatively, the hub **MAY**
-    generate a relative URI composed of a fragment (starting with `#`). This is convenient to
-    return an offset or a sequence that is unique for this hub. The hub **MAY** ignore the
+    hub **MUST** generate either a valid IRI [@!RFC3987] or a relative reference consisting of a
+    fragment (starting with `#`). A UUID [@RFC9562] or a DID [@DID] **MAY** be used as the IRI; a
+    fragment is convenient to return an offset or a sequence that is unique for this hub. The hub
+    **MAY** ignore the
     client-supplied ID and generate its own. The hub **MUST** reject client-supplied IDs
     violating the character constraints above with a 400 HTTP status code.
 *   `type` (optional): the SSE `event` property (a specific event type). The value **MUST NOT**
@@ -446,7 +449,7 @@ claims a hub requires):
     {
       "type": "mercure",
       "actions": ["subscribe"],
-      "topics": [{"match": "https://example.com/books/:id", "matchType": "URLPattern"}]
+      "topics": [{"match": "https://example.com/books/:id", "match_type": "urlpattern"}]
     }
   ]
 }
@@ -504,7 +507,7 @@ This cookie mechanism is a Mercure-specific extension to [@!RFC6750]; hubs that 
 
 If the publisher or the subscriber is a web browser, it **SHOULD**, whenever possible, send a
 cookie containing the access token when connecting to the hub. It is **RECOMMENDED** to name the
-cookie `__Secure-mercureAccessToken`: the `__Secure-` name prefix
+cookie `__Secure-mercure_access_token`: the `__Secure-` name prefix
 [@!I-D.ietf-httpbis-rfc6265bis] makes user agents refuse the cookie over insecure transport
 while — unlike the `__Host-` prefix — remaining compatible with the `Domain` attribute used
 below. A different name **MAY** be used to prevent conflicts when several hubs share the same
@@ -548,8 +551,8 @@ support this method.
 The hub reports authorization failures using the error responses defined in [@!RFC6750]
 section 3. For the token-related failures below (missing, invalid, or insufficiently-scoped
 token), the `error` code is carried as the `error` attribute (`auth-param`) of a
-`WWW-Authenticate: Bearer` challenge, not as a response body field; every such 401 carries that
-header [@!RFC9110], and the challenge **SHOULD** include the `resource_metadata` parameter (see
+`WWW-Authenticate: Bearer` challenge, not as a response body field; every such 401 or 403 carries
+that header [@!RFC9110], and the challenge **SHOULD** include the `resource_metadata` parameter (see
 (#discovery)) per [@!RFC9728], not only when no token is presented. A 400 for a request that is
 malformed independently of the access token (for example, a missing `topic` field or an unknown
 matcher query parameter) need not carry a Bearer challenge:
@@ -574,6 +577,12 @@ matcher query parameter) need not carry a Bearer challenge:
 
 Returning `invalid_token` for every presented-token failure (rather than distinguishing a bad
 signature from an expired or not-yet-valid token) avoids disclosing why validation failed.
+
+For error responses that are not conveyed through the `WWW-Authenticate: Bearer` challenge (for
+example, a 400 for a request malformed independently of the access token, a 429, or the 403 for
+a publish targeting the reserved namespace), the hub **MAY** return a problem details document
+[@RFC9457] as the response body. The OAuth error codes above remain carried in the challenge and
+are not duplicated in such a body.
 
 ## Token Validation {#token-validation}
 
@@ -670,7 +679,7 @@ details, to the number of entries in each `topics` array, and to the length of i
 patterns. Tokens exceeding any such limit **MUST** be rejected as invalid tokens, with a 401
 status code and `error="invalid_token"` (see (#error-responses)). If any
 `mercure` authorization detail fails to parse or validate (including failures specific to a
-matcher's `matchType`), the hub **MUST** reject the token the same way and **MUST
+matcher's `match_type`), the hub **MUST** reject the token the same way and **MUST
 NOT** act on the basis of the remaining entries; partial acceptance is forbidden because it
 would silently alter the effective authorization of the token. These are defects of the
 presented token, not of the request, so they are reported as `invalid_token` rather than
@@ -708,7 +717,7 @@ long-lived connection, hubs **SHOULD** also impose a maximum connection lifetime
 re-authenticate.
 
 For example, a subscriber may listen to all books via the routing matcher
-`matchURLPattern=https://example.com/books/:id` while its token authorizes reading only specific
+`match_urlpattern=https://example.com/books/:id` while its token authorizes reading only specific
 books:
 
 ~~~ json
@@ -718,8 +727,8 @@ books:
       "type": "mercure",
       "actions": ["subscribe"],
       "topics": [
-        {"match": "https://example.com/books/1", "matchType": "Exact"},
-        {"match": "https://example.com/books/7", "matchType": "Exact"}
+        {"match": "https://example.com/books/1", "match_type": "exact"},
+        {"match": "https://example.com/books/7", "match_type": "exact"}
       ]
     }
   ]
@@ -733,15 +742,15 @@ A private update for `https://example.com/books/1` is delivered; a private updat
 
 A topic matcher object appears in the `topics` array of a `mercure` authorization detail (see
 (#authorization-details)). It **MUST** be a JSON object with a `match` property containing the
-topic matcher itself, and **MAY** have an OPTIONAL `matchType` property containing the matcher
-type. The value of `matchType` is case-sensitive and **MUST** be the name of a matcher type
-supported by the hub (see (#matcher-types)); this document defines `Exact` and `URLPattern`.
-Unlike unrecognized actions (see (#authorization-details)), a `matchType` the hub does not
+topic matcher itself, and **MAY** have an OPTIONAL `match_type` property containing the matcher
+type. The value of `match_type` is case-sensitive and **MUST** be the name of a matcher type
+supported by the hub (see (#matcher-types)); this document defines `exact` and `urlpattern`.
+Unlike unrecognized actions (see (#authorization-details)), a `match_type` the hub does not
 support **MUST** cause the token to be rejected: the grant cannot be evaluated, and skipping it
-would silently alter the effective authorization of the token. If no `matchType` key is
-present, the hub **MUST** assume the `Exact`
+would silently alter the effective authorization of the token. If no `match_type` key is
+present, the hub **MUST** assume the `exact`
 matcher type. A `match` value of `*` is the reserved wildcard and matches every topic regardless
-of `matchType`, including when `matchType` is absent (see (#matcher-types)).
+of `match_type`, including when `match_type` is absent (see (#matcher-types)).
 
 Any entry that is not a JSON object, or that fails to parse or validate as a topic matcher,
 **MUST** cause the token to be rejected with a 401 status code and `error="invalid_token"` as
@@ -754,14 +763,14 @@ API and in subscription events. See (#subscription-events).
 
 A `mercure` authorization detail with the `subscribe` action **MAY** carry a `payload` JSON
 object. The `payload` of the first `subscribe` authorization detail whose `topics` matches the
-subscription's own matcher (the `match` or `match<MatcherType>` query parameter value) **MUST** be
+subscription's own matcher (the `match` or `match_<matcher-type>` query parameter value) **MUST** be
 included under the `payload` key of the JSON object describing the subscription, both in the
 subscription API and in subscription events. A `subscribe` detail whose `topics` contains the `*`
 wildcard matches every subscription and can serve as a default.
 
 Matching here treats the subscription's own matcher string as if it were a topic: for example,
-the `URLPattern` matcher `https://example.com/bar/:id` in a `subscribe` detail matches the
-subscription created by `matchURLPattern=https://example.com/bar/:id`, and an `Exact` matcher
+the `urlpattern` matcher `https://example.com/bar/:id` in a `subscribe` detail matches the
+subscription created by `match_urlpattern=https://example.com/bar/:id`, and an `exact` matcher
 matches a subscription whose matcher string is byte-for-byte identical to it.
 
 Note: Payload selection is order-dependent; the first matching authorization detail wins. Issuers
@@ -788,7 +797,7 @@ Example access token claims carrying payloads:
         {
             "type": "mercure",
             "actions": ["subscribe"],
-            "topics": [{"match": "https://example.com/bar/:id", "matchType": "URLPattern"}],
+            "topics": [{"match": "https://example.com/bar/:id", "match_type": "urlpattern"}],
             "payload": {"custom2": "data available for matching subscriptions"}
         },
         {
@@ -821,18 +830,18 @@ event ID in a `Last-Event-ID` HTTP request header [@!HTML].
 
 To fetch any update dispatched between the initial resource generation by the publisher and the
 connection to the hub, the subscriber **MUST** send the event ID provided during discovery
-either as a `Last-Event-ID` header or as a `lastEventID` query parameter. See (#discovery).
+either as a `Last-Event-ID` header or as a `last_event_id` query parameter. See (#discovery).
 
 `EventSource` implementations may not allow setting HTTP headers on the first connection (before
 a reconnection), and web browser implementations do not allow it.
 
 To work around this, the hub **MUST** also accept the last event ID in a query parameter named
-`lastEventID`.
+`last_event_id`.
 
-If both the `Last-Event-ID` HTTP header and the `lastEventID` query parameter are present, the
+If both the `Last-Event-ID` HTTP header and the `last_event_id` query parameter are present, the
 HTTP header **MUST** take precedence.
 
-If the `Last-Event-ID` HTTP header or the `lastEventID` query parameter is present, the hub
+If the `Last-Event-ID` HTTP header or the `last_event_id` query parameter is present, the hub
 **SHOULD** send all events published after the one bearing this identifier to the subscriber,
 subject to authorization.
 
@@ -849,7 +858,7 @@ identifiers are IRIs or fragments (see above) and publishers are forbidden from 
 identifier.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
-`Last-Event-ID` HTTP header or a `lastEventID` query parameter, the hub **MUST** set a
+`Last-Event-ID` HTTP header or a `last_event_id` query parameter, the hub **MUST** set a
 `Mercure-Last-Event-ID` field on the HTTP response. This document defines the
 `Mercure-Last-Event-ID` response field and registers it in (#iana-considerations) rather than
 reusing `Last-Event-ID`, whose registration [@!HTML] defines request semantics only.
@@ -864,7 +873,7 @@ anchor; subscribers that only need to detect data loss can compare it against th
 value (a different value indicates that loss may have occurred).
 
 Note: Event identifiers are cursors, and the hub exposes them to subscribers, both through the
-`lastEventID` value provided during discovery and through the `Mercure-Last-Event-ID` response
+`last_event_id` value provided during discovery and through the `Mercure-Last-Event-ID` response
 field.
 The field value can be the identifier of an event immediately preceding one the subscriber is
 not authorized to receive. A subscriber can therefore infer the existence of such an event and,
@@ -903,13 +912,13 @@ If the hub supports the active subscriptions feature, it **MUST** publish an upd
 subscription is created or terminated.
 
 The topic of these updates **MUST** be the path of the hub's URL followed by an expansion of
-`/subscriptions/{matchType}/{match}/{subscriber}` — for the default hub URL,
-`/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}` — with the following
+`/subscriptions/{match_type}/{match}/{subscriber}` — for the default hub URL,
+`/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}` — with the following
 variables:
 
-*   `{matchType}`: the topic matcher type used for this subscription. The value **MUST** be the
-    matcher type name in its canonical case as defined in (#matcher-types) (e.g., `URLPattern`,
-    `Exact`). URL path components are case-sensitive.
+*   `{match_type}`: the topic matcher type used for this subscription. The value **MUST** be the
+    matcher type name in its canonical case as defined in (#matcher-types) (e.g., `urlpattern`,
+    `exact`). URL path components are case-sensitive.
 *   `{match}`: the topic matcher used for this subscription
 *   `{subscriber}`: a unique identifier for the subscriber. Subscribers and publishers
     **MUST NOT** forge, supply, or override this value through query parameters, headers,
@@ -946,7 +955,7 @@ at least the following properties:
 *   `id`: the identifier of this update; **MUST** be the same value as the subscription update's
     topic.
 *   `type`: the fixed value `Subscription`.
-*   `matchType`: the topic matcher type used for this subscription. The value is case-sensitive
+*   `match_type`: the topic matcher type used for this subscription. The value is case-sensitive
     and **MUST** be the matcher type name in its canonical case as defined in (#matcher-types).
 *   `match`: the topic matcher used for this subscription.
 *   `subscriber`: the identifier of the subscriber. It **SHOULD** be an IRI.
@@ -963,9 +972,9 @@ Example:
 
 ~~~ json
 {
-   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
-   "matchType": "URLPattern",
+   "match_type": "urlpattern",
    "match": "https://example.com/:selector",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
@@ -986,18 +995,18 @@ The web API **MUST** expose endpoints whose paths are the path of the hub's URL 
 the patterns below (shown expanded for the default hub URL):
 
 *   `/.well-known/mercure/subscriptions`: the collection of subscriptions.
-*   `/.well-known/mercure/subscriptions/{matchType}/{match}`: the collection of subscriptions
+*   `/.well-known/mercure/subscriptions/{match_type}/{match}`: the collection of subscriptions
     for the given topic matcher.
-*   `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`: a specific
+*   `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`: a specific
     subscription.
 
 To access these URLs, clients **MUST** be authorized according to the rules defined in
 (#authorization). The topic to authorize is the requested URL in relative form: its absolute
-path (for example, `/.well-known/mercure/subscriptions/{matchType}/{match}`), which is the
+path (for example, `/.well-known/mercure/subscriptions/{match_type}/{match}`), which is the
 same form used for subscription event topics (see (#subscription-events)); any query component
 of the request URL is not part of the topic. The hub **MUST**
 verify that a `mercure` authorization detail in the access token grants the `subscribe` action
-on this relative topic, evaluated with the matcher rules of (#matcher-types): `Exact` matchers
+on this relative topic, evaluated with the matcher rules of (#matcher-types): `exact` matchers
 are compared byte-for-byte against the relative form, while URL patterns — absolute, or
 relative and then resolved against the hub's URL — are evaluated against it per
 (#url-pattern). Because subscription event topics and subscription API URLs share this
@@ -1005,14 +1014,14 @@ canonical relative form, a single matcher covers both the events and the API res
 describing the same subscriptions. The same matching applies to every endpoint shape above: the
 collection URL `/.well-known/mercure/subscriptions`, the per-matcher collection URL, and the
 single-subscription URL are each matched as a topic, so a token whose `subscribe` matcher selects
-a broader set (for example a `URLPattern` covering the subscriptions namespace, or the reserved
+a broader set (for example a `urlpattern` covering the subscriptions namespace, or the reserved
 `*`) grants access to the corresponding endpoints. If no detail grants `subscribe` on the
 requested URL, the hub **MUST** answer `403` as defined in (#authorization).
 
 The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
 
 URLs returning a single subscription (following the pattern
-`/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`) **MUST** expose the same
+`/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`) **MUST** expose the same
 JSON-LD document as described in (#subscription-events). If the requested subscription does not
 exist, the hub **MUST** return a `404` HTTP status code.
 
@@ -1030,10 +1039,10 @@ properties:
 *   `type`: the fixed value `Subscriptions`.
 *   `subscriptions`: an array of subscription documents as described in (#subscription-events).
 
-In addition, all endpoints **MUST** set the `lastEventID` property at the root of the returned
+In addition, all endpoints **MUST** set the `last_event_id` property at the root of the returned
 JSON-LD document:
 
-*   `lastEventID`: the identifier of the last event dispatched by the hub at the time of this
+*   `last_event_id`: the identifier of the last event dispatched by the hub at the time of this
     request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
     dispatched yet. This value **SHOULD** be passed back to the hub when subscribing to
     subscription events to prevent data loss.
@@ -1061,30 +1070,30 @@ Cache-Control: must-revalidate
    "@context": "https://mercure.rocks/",
    "id": "/.well-known/mercure/subscriptions",
    "type": "Subscriptions",
-   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
+   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
-         "matchType": "URLPattern",
+         "match_type": "urlpattern",
          "match": "https://example.com/:selector",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/Exact/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
+         "id": "/.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample.com%2Fa-topic/urn%3Auuid%3A1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "type": "Subscription",
          "match": "https://example.com/a-topic",
-         "matchType": "Exact",
+         "match_type": "exact",
          "subscriber": "urn:uuid:1e0cba4c-4bcd-44f0-ae8a-7b76f7ef1280",
          "active": true,
          "payload": {"baz": "bat"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
-         "matchType": "URLPattern",
+         "match_type": "urlpattern",
          "match": "https://example.com/:selector",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
@@ -1095,7 +1104,7 @@ Cache-Control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector HTTP/1.1
+GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
@@ -1106,24 +1115,24 @@ Cache-Control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector",
+   "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector",
    "type": "Subscriptions",
-   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
+   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
-         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+         "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "type": "Subscription",
          "match": "https://example.com/:selector",
-         "matchType": "URLPattern",
+         "match_type": "urlpattern",
          "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
          "active": true,
          "payload": {"foo": "bar"}
       },
       {
-         "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
+         "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Aa6c49794-5f74-4723-999c-3a7e33e51d49",
          "type": "Subscription",
          "match": "https://example.com/:selector",
-         "matchType": "URLPattern",
+         "match_type": "urlpattern",
          "subscriber": "urn:uuid:a6c49794-5f74-4723-999c-3a7e33e51d49",
          "active": true,
          "payload": {"foo": "bap"}
@@ -1133,7 +1142,7 @@ Cache-Control: must-revalidate
 ~~~
 
 ~~~ http
-GET /.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
+GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6 HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
@@ -1144,14 +1153,14 @@ Cache-Control: must-revalidate
 
 {
    "@context": "https://mercure.rocks/",
-   "id": "/.well-known/mercure/subscriptions/URLPattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
+   "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
    "match": "https://example.com/:selector",
-   "matchType": "URLPattern",
+   "match_type": "urlpattern",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
    "payload": {"foo": "bar"},
-   "lastEventID": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 }
 ~~~
 
@@ -1177,12 +1186,12 @@ The JSON-LD context available at `https://mercure.rocks/` is the following:
    "Subscription": "mercure:Subscription",
    "Subscriptions": "mercure:Subscriptions",
    "subscriptions": "mercure:subscriptions",
-   "matchType": "mercure:matchType",
+   "match_type": "mercure:match_type",
    "match": "mercure:match",
    "subscriber": "mercure:subscriber",
    "active": "mercure:active",
    "payload": "mercure:payload",
-   "lastEventID": "mercure:lastEventID"
+   "last_event_id": "mercure:last_event_id"
 }
 }
 ~~~
@@ -1223,7 +1232,7 @@ The publisher **MAY** provide the following target attributes in the Link Header
 
 *   `last-event-id`: the identifier of the last event dispatched by the publisher at the time
     the resource was generated. If provided, it **MUST** be passed to the hub through a query
-    parameter named `lastEventID`; this ensures that updates dispatched between the resource
+    parameter named `last_event_id`; this ensures that updates dispatched between the resource
     generation and the connection to the hub are not lost. See (#reconciliation).
 *   `content-type`: the content type of the updates that will be pushed by the hub. If omitted,
     the subscriber **MUST** assume that the content type matches that of the original resource.
@@ -1276,7 +1285,7 @@ hub URL `/.well-known/mercure`, the metadata is served at
     does not offer cookie authorization.
 *   `mercure_matcher_types_supported` (optional): a JSON array of strings listing the names of
     the topic matcher types the hub supports (see (#matcher-types)). When omitted, the
-    supported set is exactly the two types defined by this document, `Exact` and `URLPattern`;
+    supported set is exactly the two types defined by this document, `exact` and `urlpattern`;
     the member is only needed when the hub supports registered additional types.
 *   `mercure_subscriptions` (optional): a boolean. When `true`, the hub implements the active
     subscriptions feature (see (#active-subscriptions)). This member is omitted when the hub
@@ -1399,6 +1408,16 @@ traffic encrypted under them. Publishers handling sensitive data **SHOULD** rota
 periodically and **MAY** use ephemeral key agreement (e.g., `ECDH-ES`) to bound the impact of
 a future key compromise.
 
+# Using HTTP
+
+This protocol follows the guidance of [@RFC9205]. It uses standard HTTP methods, standard status
+codes, and registered media types, and does not overload their semantics. Clients discover a hub
+from `rel=mercure` Web Linking [@!RFC8288] relations (see (#discovery)) rather than a mandated
+well-known location: the fixed path `/.well-known/mercure` is only a **SHOULD** default, and the
+authoritative hub URL advertised through discovery **MAY** be any HTTPS URL. The hub's own
+resources (protected resource metadata and the subscription API) hang off that authoritative URL,
+so the protocol adds no application semantics to a site-wide well-known space it does not own.
+
 # IANA Considerations
 
 ## Well-Known URIs Registry
@@ -1465,7 +1484,7 @@ follow the Specification Required policy [@!RFC8126].
 
 A matcher type name **MUST** consist of ASCII letters and digits and **MUST** begin with an
 uppercase letter. The name is case-sensitive and is used verbatim as the suffix of the
-`match<MatcherType>` subscribe query parameter (see (#subscription)) and as the `matchType`
+`match_<matcher-type>` subscribe query parameter (see (#subscription)) and as the `match_type`
 value in authorization details (see (#topic-matcher-list)). The designated experts verify that
 the defining specification states the matching semantics precisely, bounds the evaluation cost
 of a crafted matcher (see (#url-pattern-denial-of-service) for the kind of exposure to
@@ -1475,8 +1494,8 @@ Initial registrations:
 
 | Matcher Type Name | Reference                             |
 |-------------------|---------------------------------------|
-| `Exact`           | This specification, (#exact-matching) |
-| `URLPattern`      | This specification, (#url-pattern)    |
+| `exact`           | This specification, (#exact-matching) |
+| `urlpattern`      | This specification, (#url-pattern)    |
 
 ## Mercure Actions Registry
 
@@ -1564,7 +1583,7 @@ do the same.
 
 ## Authorization on Event Replay
 
-When a subscriber reconnects with a `Last-Event-ID` header or `lastEventID` query parameter,
+When a subscriber reconnects with a `Last-Event-ID` header or `last_event_id` query parameter,
 the same authorization rules apply to replayed events as to live events (see (#reconciliation)
 and (#subscribers)). A subscriber whose authorized scope has shrunk between publication and
 reconnection does not receive private events outside its scope at reconnection time. The
@@ -2288,3 +2307,20 @@ specification.
 </reference>
 
 {backmatter}
+
+# Changes from Pre-Standardization Deployments
+
+This appendix is non-normative. It summarizes the wire-level differences between this
+specification and the pre-standardization revisions of Mercure still deployed in the wild, to
+help implementers migrate. It complements the version-detection note in (#discovery): a hub that
+publishes no protected resource metadata (see (#protected-resource-metadata)) likely implements
+one of these earlier revisions.
+
+| Aspect | Pre-standardization | This specification |
+|--------|---------------------|--------------------|
+| Authorization grant | `mercure` JWT claim with `publish` and `subscribe` arrays of topic selectors | RFC 9396 `authorization_details` entry with `type` `mercure`, an `actions` array (`publish`, `subscribe`), and a `topics` array (see (#authorization-details)) |
+| Token type | any signed JWT | JWT access token with `typ` `at+jwt` (see (#token-validation)) |
+| Topic matching | raw topic selectors passed as `topic` query parameters | `exact` and `urlpattern` matcher types selected with the `match`/`match_<matcher-type>` query parameters or the `match_type` member (see (#matcher-types)) |
+| Reconnection query parameter | `Last-Event-ID` | `last_event_id` (see (#reconciliation)) |
+| Reconnection response field | `Last-Event-ID` | `Mercure-Last-Event-ID` (see (#reconciliation)) |
+| Authorization cookie | `mercureAuthorization` | `__Secure-mercure_access_token` (see (#cookie)) |
