@@ -1482,8 +1482,8 @@ Field Name Registry" defined by [@!RFC9110]:
 IANA is requested to establish a "Mercure Topic Matcher Types" registry. New registrations
 follow the Specification Required policy [@!RFC8126].
 
-A matcher type name **MUST** consist of ASCII letters and digits and **MUST** begin with an
-uppercase letter. The name is case-sensitive and is used verbatim as the suffix of the
+A matcher type name **MUST** consist of lowercase ASCII letters and digits and **MUST** begin
+with a lowercase letter. The name is case-sensitive and is used verbatim as the suffix of the
 `match_<matcher-type>` subscribe query parameter (see (#subscription)) and as the `match_type`
 value in authorization details (see (#topic-matcher-list)). The designated experts verify that
 the defining specification states the matching semantics precisely, bounds the evaluation cost
