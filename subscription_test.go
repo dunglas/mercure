@@ -123,9 +123,8 @@ func TestSubscriptionsHandler(t *testing.T) {
 	var subscriptions subscriptionCollection
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &subscriptions))
 
-	assert.Equal(t, "https://mercure.rocks/", subscriptions.Context)
 	assert.Equal(t, subscriptionsURL, subscriptions.ID)
-	assert.Equal(t, "Subscriptions", subscriptions.Type)
+	assert.Equal(t, "subscriptions", subscriptions.Type)
 
 	last_event_id, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
@@ -133,7 +132,7 @@ func TestSubscriptionsHandler(t *testing.T) {
 	require.NotEmpty(t, subscribers)
 
 	for _, s := range subscribers {
-		currentSubs := s.getSubscriptions(subscriptionFilter{}, "", true)
+		currentSubs := s.getSubscriptions(subscriptionFilter{}, true)
 		require.NotEmpty(t, currentSubs)
 
 		for _, sub := range currentSubs {
@@ -174,7 +173,7 @@ func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 
 	sub.setMatchers(matchers, nil)
 
-	subs := sub.getSubscriptions(subscriptionFilter{}, "", true)
+	subs := sub.getSubscriptions(subscriptionFilter{}, true)
 	require.Len(t, subs, 2)
 
 	for _, s := range subs {
@@ -211,7 +210,7 @@ func TestSubscriptionPayloadFallbackToGlobal(t *testing.T) {
 
 	sub.setMatchers(matchers, nil)
 
-	subs := sub.getSubscriptions(subscriptionFilter{}, "", true)
+	subs := sub.getSubscriptions(subscriptionFilter{}, true)
 	require.Len(t, subs, 1)
 
 	p, ok := subs[0].Payload.(map[string]any)

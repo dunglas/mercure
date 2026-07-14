@@ -53,9 +53,8 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	var subscriptions subscriptionCollection
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &subscriptions))
 
-	assert.Equal(t, "https://mercure.rocks/", subscriptions.Context)
 	assert.Equal(t, defaultHubURL+subscriptionsPath+"/"+s2EscapedTopic, subscriptions.ID)
-	assert.Equal(t, "Subscriptions", subscriptions.Type)
+	assert.Equal(t, "subscriptions", subscriptions.Type)
 
 	last_event_id, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
@@ -63,7 +62,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	require.NotEmpty(t, subscribers)
 
 	for _, s := range subscribers {
-		for _, sub := range s.getSubscriptions(subscriptionFilter{topic: "https://example.com/bar"}, "", true) {
+		for _, sub := range s.getSubscriptions(subscriptionFilter{topic: "https://example.com/bar"}, true) {
 			require.NotContains(t, "foo", sub.Topic)
 			assert.Contains(t, subscriptions.Subscriptions, sub)
 		}
@@ -108,7 +107,7 @@ func TestSubscriptionHandlerForTopic(t *testing.T) {
 	var subscription subscription
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &subscription))
 
-	expectedSub := s.getSubscriptions(subscriptionFilter{topic: sTopics[1]}, "https://mercure.rocks/", true)[0]
+	expectedSub := s.getSubscriptions(subscriptionFilter{topic: sTopics[1]}, true)[0]
 	expectedSub.LastEventID, _, _ = hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 	assert.Equal(t, expectedSub, subscription)
 

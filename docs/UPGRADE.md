@@ -52,8 +52,14 @@ alternate topics.
 ### Subscription API
 
 Subscription URLs move from `/subscriptions/{topic}[/{subscriber}]` to
-`/subscriptions/{match_type}/{match}[/{subscriber}]`, and the JSON-LD documents
-expose `match` and `match_type` fields instead of `topic`.
+`/subscriptions/{match_type}/{match}[/{subscriber}]`, and the documents expose
+`match` and `match_type` fields instead of `topic`.
+
+Subscription documents are now plain JSON served as
+`application/mercure-subscription+json` (was JSON-LD as `application/ld+json`).
+The `@context` property is gone, and the `type` values are lowercased:
+`"type": "subscription"` and `"type": "subscriptions"` (were `Subscription` and
+`Subscriptions`).
 
 ### Backward compatibility
 
