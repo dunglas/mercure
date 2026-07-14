@@ -20,8 +20,9 @@ const (
 // with a 401 and a bare RFC 6750 Bearer challenge, advertising the protected
 // resource metadata so clients can discover the authorization requirements.
 func (h *Hub) writeBearerChallenge(w http.ResponseWriter, r *http.Request) {
-	h.setWWWAuthenticate(w, r, "")
-	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	// An empty error code makes setWWWAuthenticate omit the error= parameter, so
+	// this is the bare challenge for an unauthenticated request.
+	h.writeBearerError(w, r, "", http.StatusUnauthorized)
 }
 
 // writeBearerError answers with an RFC 6750 error: a WWW-Authenticate challenge
@@ -33,8 +34,9 @@ func (h *Hub) writeBearerError(w http.ResponseWriter, r *http.Request, code stri
 
 // writeAuthError maps an authorization failure to the RFC 6750 response:
 //   - nil error (no token presented) → 401 bare challenge,
-//   - malformed request framing (bad header or query parameter) →
-//     400 invalid_request,
+//   - malformed request framing (bad header/query parameter) or a failed
+//     cookie CSRF check (missing or disallowed Origin/Referer) →
+//     400 invalid_request, since the token itself was never inspected,
 //   - any token defect, including malformed authorization details →
 //     401 invalid_token. Authorization details live inside the token, so
 //     their defects are token-validation failures, and a single error code
@@ -48,15 +50,21 @@ func (h *Hub) writeAuthError(w http.ResponseWriter, r *http.Request, err error) 
 	case err == nil:
 		h.writeBearerChallenge(w, r)
 	case errors.Is(err, ErrInvalidAuthorizationHeader),
-		errors.Is(err, ErrInvalidAuthorizationQuery):
+		errors.Is(err, ErrInvalidAuthorizationQuery),
+		errors.Is(err, ErrNoOrigin),
+		errors.Is(err, ErrOriginNotAllowed):
 		h.writeBearerError(w, r, bearerErrInvalidRequest, http.StatusBadRequest)
 	default:
 		h.writeBearerError(w, r, bearerErrInvalidToken, http.StatusUnauthorized)
 	}
 
+	// Token rejections are client-caused and, during a protocol migration,
+	// actionable (audience mismatch, missing exp, wrong typ, untrusted issuer,
+	// malformed authorization details); surface the reason at info so operators
+	// do not have to enable debug logging to diagnose a failing upgrade.
 	ctx := r.Context()
-	if err != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
-		h.logger.LogAttrs(ctx, slog.LevelDebug, "Authorization error", slog.Any("error", err))
+	if err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
+		h.logger.LogAttrs(ctx, slog.LevelInfo, "Authorization error", slog.Any("error", err))
 	}
 }
 
@@ -82,7 +90,7 @@ func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code st
 // request.
 func (h *Hub) resourceMetadataURL(r *http.Request) string {
 	if h.publicURL != "" {
-		if base, _, ok := strings.Cut(h.publicURL, defaultHubURL); ok {
+		if base, ok := strings.CutSuffix(h.publicURL, defaultHubURL); ok {
 			return base + protectedResourceMetadataPath
 		}
 	}

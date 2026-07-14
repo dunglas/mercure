@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,19 +46,55 @@ type authorizationDetail struct {
 	Payload any             `json:"payload,omitempty"`
 }
 
-// detailTopic is one entry of a mercure authorization detail `topics` array.
-// Only the object form {match, matchType?} is accepted; matchType is
-// case-sensitive and defaults to Exact.
-type detailTopic struct {
-	topicMatcher
+// UnmarshalJSON decodes the type of every entry but the mercure-specific
+// members only for entries of type "mercure". RFC 9396 lets other detail types
+// define their own member shapes (for example a "topics" string), so applying
+// the mercure schema to every entry would reject valid multi-resource tokens;
+// non-mercure entries are ignored during validation.
+func (ad *authorizationDetail) UnmarshalJSON(data []byte) error {
+	var head struct {
+		Type string `json:"type"`
+	}
+
+	if err := json.Unmarshal(data, &head); err != nil {
+		return fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
+	}
+
+	ad.Type = head.Type
+	if head.Type != authorizationDetailTypeMercure {
+		return nil
+	}
+
+	var body struct {
+		Actions []mercureAction `json:"actions"`
+		Topics  []detailTopic   `json:"topics"`
+		Payload any             `json:"payload"`
+	}
+
+	if err := json.Unmarshal(data, &body); err != nil {
+		return fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
+	}
+
+	ad.Actions = body.Actions
+	ad.Topics = body.Topics
+	ad.Payload = body.Payload
+
+	return nil
 }
 
-// MarshalJSON emits the object form {match, matchType}. Issuers normally mint
+// detailTopic is one entry of a mercure authorization detail `topics` array.
+// Only the object form {match, match_type?} is accepted; match_type is
+// case-sensitive and defaults to Exact.
+type detailTopic struct {
+	TopicMatcher
+}
+
+// MarshalJSON emits the object form {match, match_type}. Issuers normally mint
 // tokens, but the hub round-trips them in tests.
 func (d detailTopic) MarshalJSON() ([]byte, error) {
 	b, err := json.Marshal(struct {
 		Match     string      `json:"match"`
-		MatchType MatcherType `json:"matchType,omitempty"`
+		MatchType MatcherType `json:"match_type,omitempty"`
 	}{d.Pattern, d.Type})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal topic matcher: %w", err)
@@ -66,20 +103,32 @@ func (d detailTopic) MarshalJSON() ([]byte, error) {
 	return b, nil
 }
 
-// UnmarshalJSON enforces the object form. A bare string (the deprecated claim
-// shape) is rejected so that legacy tokens do not silently parse as Exact
-// matchers.
+// UnmarshalJSON enforces the object form with a required "match" property. A
+// bare string (the deprecated claim shape) is rejected so that legacy tokens do
+// not silently parse as Exact matchers, and an object without "match" (or a
+// JSON null) invalidates the token instead of becoming an empty-pattern matcher.
 func (d *detailTopic) UnmarshalJSON(data []byte) error {
+	// json.Unmarshal(null) is a silent no-op, so reject null explicitly.
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return fmt.Errorf(`%w: a topic entry must be an object with a "match" property`, errInvalidAuthorizationDetail)
+	}
+
+	// Match is a pointer so an absent property is distinguishable from an
+	// explicit empty string: the protocol requires the property to be present.
 	var obj struct {
-		Match     string      `json:"match"`
-		MatchType MatcherType `json:"matchType"`
+		Match     *string     `json:"match"`
+		MatchType MatcherType `json:"match_type"`
 	}
 
 	if err := json.Unmarshal(data, &obj); err != nil {
 		return fmt.Errorf("%w: topic entries must be objects: %w", errInvalidAuthorizationDetail, err)
 	}
 
-	d.Pattern = obj.Match
+	if obj.Match == nil {
+		return fmt.Errorf(`%w: a topic entry is missing the required "match" property`, errInvalidAuthorizationDetail)
+	}
+
+	d.Pattern = *obj.Match
 	d.Type = obj.MatchType
 
 	if d.Type == "" {
@@ -93,7 +142,7 @@ func (d *detailTopic) UnmarshalJSON(data []byte) error {
 type validatedDetail struct {
 	publish   bool
 	subscribe bool
-	topics    []topicMatcher
+	topics    []TopicMatcher
 	payload   any
 }
 
@@ -140,6 +189,27 @@ func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDe
 	return authz, nil
 }
 
+// validateProtocolMatcher enforces the wire constraints on a single topic
+// matcher carried by a token: pattern length, allowed characters, a known
+// matcher type, and a compilable pattern. It returns the shared sentinels
+// (errPatternTooLong, errInvalidMatcherValue, ErrUnsupportedMatcherType) or the
+// underlying compiler error; callers wrap the result with their own sentinel.
+func validateProtocolMatcher(tss *TopicSelectorStore, m TopicMatcher) error {
+	if len(m.Pattern) > maxPatternLength {
+		return errPatternTooLong
+	}
+
+	if !validProtocolString(m.Pattern) {
+		return errInvalidMatcherValue
+	}
+
+	if !knownMatcherType(m.Type) {
+		return ErrUnsupportedMatcherType
+	}
+
+	return tss.validatePattern(m)
+}
+
 func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (validatedDetail, error) {
 	vd := validatedDetail{payload: d.Payload}
 
@@ -162,36 +232,45 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 		return vd, fmt.Errorf("%w: a mercure detail must declare at least one topic", errInvalidAuthorizationDetail)
 	}
 
-	vd.topics = make([]topicMatcher, len(d.Topics))
+	vd.topics = make([]TopicMatcher, len(d.Topics))
 	for i := range d.Topics {
-		m := d.Topics[i].topicMatcher
+		m := d.Topics[i].TopicMatcher
 
-		if len(m.Pattern) > maxPatternLength {
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errPatternTooLong)
+		// An empty pattern is a meaningless matcher; reject it before the shared
+		// validator, which does not (an empty Exact pattern compiles fine).
+		if m.Pattern == "" {
+			return vd, fmt.Errorf("%w: a topic matcher pattern must not be empty", errInvalidAuthorizationDetail)
 		}
 
-		if !validProtocolString(m.Pattern) {
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, errInvalidMatcherValue)
-		}
-
-		// Only the protocol matcher types are valid in authorization details;
-		// the internal deprecated type must not be reachable from a token.
-		switch m.Type {
-		case MatcherTypeExact, MatcherTypeURLPattern:
-			if err := tss.validatePattern(m); err != nil {
-				return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
-			}
-		case deprecatedMatcherTypeName:
-			// The internal deprecated type must never be reachable from a token.
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, ErrUnsupportedMatcherType)
-		default:
-			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, ErrUnsupportedMatcherType)
+		// validateProtocolMatcher is the single definition of a valid wire
+		// matcher (length, charset, known type, compilable pattern); the
+		// internal deprecated type is rejected as an unknown type.
+		if err := validateProtocolMatcher(tss, m); err != nil {
+			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
 		}
 
 		vd.topics[i] = m
 	}
 
 	return vd, nil
+}
+
+// hasPayload reports whether any validated detail carries a payload. It is the
+// only case where per-matcher subscription payload resolution can differ from
+// the token-wide fallback, so the subscriber uses it to skip the
+// O(matchers × details) matcher dispatch when no payload is present.
+func (a *mercureAuthz) hasPayload() bool {
+	if a == nil {
+		return false
+	}
+
+	for i := range a.details {
+		if a.details[i].payload != nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 // grants reports whether the token authorizes the given action on the topic.
@@ -230,12 +309,12 @@ func (a *mercureAuthz) grantsAll(tss *TopicSelectorStore, action mercureAction, 
 
 // subscribeMatchers returns every topic matcher carried by a subscribe detail,
 // used as the subscriber's allowed private matchers.
-func (a *mercureAuthz) subscribeMatchers() []topicMatcher {
+func (a *mercureAuthz) subscribeMatchers() []TopicMatcher {
 	if a == nil {
 		return nil
 	}
 
-	var matchers []topicMatcher //nolint:prealloc
+	var matchers []TopicMatcher //nolint:prealloc
 
 	for i := range a.details {
 		if !a.details[i].subscribe {
@@ -252,7 +331,7 @@ func (a *mercureAuthz) subscribeMatchers() []topicMatcher {
 // topics match the subscription's own matcher m (the `*` wildcard matches
 // every subscription). The boolean reports whether a matching detail was
 // found, regardless of whether it carried a payload.
-func (a *mercureAuthz) subscribePayload(tss *TopicSelectorStore, m topicMatcher) (any, bool) {
+func (a *mercureAuthz) subscribePayload(tss *TopicSelectorStore, m TopicMatcher) (any, bool) {
 	if a == nil {
 		return nil, false
 	}

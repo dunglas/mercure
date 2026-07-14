@@ -239,7 +239,7 @@ func TestAuthorizeRejectsNonAccessToken(t *testing.T) {
 	token := jwt.New(jwt.SigningMethodHS256) // default typ "JWT"
 	token.Claims = &claims{
 		RegisteredClaims:     subscriberRegisteredClaims(),
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 	s, err := token.SignedString([]byte("subscriber"))
 	require.NoError(t, err)
@@ -264,7 +264,7 @@ func TestAuthorizeAcceptsMixedCaseATJWTType(t *testing.T) {
 		token.Header["typ"] = typ
 		token.Claims = &claims{
 			RegisteredClaims:     subscriberRegisteredClaims(),
-			AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+			AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 		}
 
 		s, err := token.SignedString([]byte("subscriber"))
@@ -289,7 +289,7 @@ func TestAuthorizeRejectsWrongAudience(t *testing.T) {
 			Audience:  jwt.ClaimStrings{"https://other.example.com/.well-known/mercure"},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		},
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -307,7 +307,7 @@ func TestAuthorizeRejectsMissingAudience(t *testing.T) {
 
 	c := &claims{
 		RegisteredClaims:     jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour))},
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -325,7 +325,7 @@ func TestAuthorizeRejectsMissingExpiration(t *testing.T) {
 
 	c := &claims{
 		RegisteredClaims:     jwt.RegisteredClaims{Audience: jwt.ClaimStrings{testResourceIdentifier}},
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -368,7 +368,7 @@ func TestAuthorizeRejectsControlCharInAuthorizationDetail(t *testing.T) {
 
 	c := &claims{
 		RegisteredClaims:     subscriberRegisteredClaims(),
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo\x00bar"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo\x00bar"}),
 	}
 
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -391,7 +391,7 @@ func TestAuthorizeRejectsUntrustedIssuer(t *testing.T) {
 	rc.Issuer = "https://evil.example.com"
 	c := &claims{
 		RegisteredClaims:     rc,
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -412,7 +412,7 @@ func TestAuthorizeAcceptsTrustedIssuer(t *testing.T) {
 	rc.Issuer = "https://auth.example.com"
 	c := &claims{
 		RegisteredClaims:     rc,
-		AuthorizationDetails: subscribeDetailsFromMatchers(nil, topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)

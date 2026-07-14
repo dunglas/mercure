@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func stringsToDeprecatedMatchers(patterns []string) []topicMatcher {
-	out := make([]topicMatcher, len(patterns))
+func stringsToDeprecatedMatchers(patterns []string) []TopicMatcher {
+	out := make([]TopicMatcher, len(patterns))
 	for i, p := range patterns {
-		out[i] = topicMatcher{Type: deprecatedMatcherTypeName, Pattern: p}
+		out[i] = TopicMatcher{Type: deprecatedMatcherTypeName, Pattern: p}
 	}
 
 	return out

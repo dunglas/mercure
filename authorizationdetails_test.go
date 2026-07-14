@@ -23,7 +23,7 @@ func TestDetailTopicUnmarshal(t *testing.T) {
 	assert.Equal(t, MatcherTypeExact, d.Type)
 	assert.Equal(t, "https://example.com/foo", d.Pattern)
 
-	require.NoError(t, json.Unmarshal([]byte(`{"match":"/books/:id","matchType":"URLPattern"}`), &d))
+	require.NoError(t, json.Unmarshal([]byte(`{"match":"/books/:id","match_type":"urlpattern"}`), &d))
 	assert.Equal(t, MatcherTypeURLPattern, d.Type)
 
 	// Bare strings (the deprecated claim shape) are rejected.
@@ -45,7 +45,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 		authz, err := validateAuthorizationDetails(tss, []authorizationDetail{{
 			Type:    authorizationDetailTypeMercure,
 			Actions: []mercureAction{actionSubscribe, actionPublish},
-			Topics:  []detailTopic{{topicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
+			Topics:  []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
 		}})
 		require.NoError(t, err)
 		require.Len(t, authz.details, 1)
@@ -54,20 +54,20 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 	})
 
 	for name, tc := range map[string]authorizationDetail{
-		"empty actions":  {Type: authorizationDetailTypeMercure, Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "a"}}}},
-		"unknown action": {Type: authorizationDetailTypeMercure, Actions: []mercureAction{"delete"}, Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "a"}}}},
+		"empty actions":  {Type: authorizationDetailTypeMercure, Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}}},
+		"unknown action": {Type: authorizationDetailTypeMercure, Actions: []mercureAction{"delete"}, Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}}},
 		"empty topics":   {Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}},
-		"unknown matchType": {
+		"unknown match_type": {
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish},
-			Topics: []detailTopic{{topicMatcher{"Regexp", "a"}}},
+			Topics: []detailTopic{{TopicMatcher{"Regexp", "a"}}},
 		},
 		"forged deprecated type": {
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish},
-			Topics: []detailTopic{{topicMatcher{deprecatedMatcherTypeName, "a"}}},
+			Topics: []detailTopic{{TopicMatcher{deprecatedMatcherTypeName, "a"}}},
 		},
 		"invalid url pattern": {
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
-			Topics: []detailTopic{{topicMatcher{MatcherTypeURLPattern, "https://example.com/[("}}},
+			Topics: []detailTopic{{TopicMatcher{MatcherTypeURLPattern, "https://example.com/[("}}},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 		for i := range details {
 			details[i] = authorizationDetail{
 				Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish},
-				Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "a"}}},
+				Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}},
 			}
 		}
 
@@ -92,7 +92,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 	t.Run("too many topics", func(t *testing.T) {
 		topics := make([]detailTopic, maxDetailTopics+1)
 		for i := range topics {
-			topics[i] = detailTopic{topicMatcher{MatcherTypeExact, "a"}}
+			topics[i] = detailTopic{TopicMatcher{MatcherTypeExact, "a"}}
 		}
 
 		_, err := validateAuthorizationDetails(tss, []authorizationDetail{{
@@ -109,7 +109,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 		mk := func() authorizationDetail {
 			topics := make([]detailTopic, half)
 			for i := range topics {
-				topics[i] = detailTopic{topicMatcher{MatcherTypeExact, "a"}}
+				topics[i] = detailTopic{TopicMatcher{MatcherTypeExact, "a"}}
 			}
 
 			return authorizationDetail{Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}, Topics: topics}
@@ -126,11 +126,11 @@ func TestMercureAuthzGrants(t *testing.T) {
 	authz, err := validateAuthorizationDetails(tss, []authorizationDetail{
 		{
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish},
-			Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "https://example.com/pub"}}},
+			Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/pub"}}},
 		},
 		{
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
-			Topics: []detailTopic{{topicMatcher{MatcherTypeURLPattern, "https://example.com/books/:id"}}},
+			Topics: []detailTopic{{TopicMatcher{MatcherTypeURLPattern, "https://example.com/books/:id"}}},
 		},
 	})
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestMercureAuthzWildcard(t *testing.T) {
 
 	authz, err := validateAuthorizationDetails(tss, []authorizationDetail{{
 		Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish, actionSubscribe},
-		Topics: []detailTopic{{topicMatcher{MatcherTypeExact, "*"}}},
+		Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "*"}}},
 	}})
 	require.NoError(t, err)
 
@@ -167,23 +167,23 @@ func TestMercureAuthzSubscribePayload(t *testing.T) {
 	authz, err := validateAuthorizationDetails(tss, []authorizationDetail{
 		{
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
-			Topics:  []detailTopic{{topicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
+			Topics:  []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
 			Payload: map[string]any{"k": "specific"},
 		},
 		{
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
-			Topics:  []detailTopic{{topicMatcher{MatcherTypeExact, "*"}}},
+			Topics:  []detailTopic{{TopicMatcher{MatcherTypeExact, "*"}}},
 			Payload: map[string]any{"k": "default"},
 		},
 	})
 	require.NoError(t, err)
 
-	p, ok := authz.subscribePayload(tss, topicMatcher{MatcherTypeExact, "https://example.com/foo"})
+	p, ok := authz.subscribePayload(tss, TopicMatcher{MatcherTypeExact, "https://example.com/foo"})
 	require.True(t, ok)
 	assert.Equal(t, map[string]any{"k": "specific"}, p)
 
 	// Falls through to the wildcard default.
-	p, ok = authz.subscribePayload(tss, topicMatcher{MatcherTypeExact, "https://example.com/other"})
+	p, ok = authz.subscribePayload(tss, TopicMatcher{MatcherTypeExact, "https://example.com/other"})
 	require.True(t, ok)
 	assert.Equal(t, map[string]any{"k": "default"}, p)
 

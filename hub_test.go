@@ -484,7 +484,7 @@ func createDummyAuthorizedJWT(r role, topics []string) string {
 func stringsToDetailTopics(patterns []string) []detailTopic {
 	topics := make([]detailTopic, len(patterns))
 	for i, p := range patterns {
-		topics[i] = detailTopic{topicMatcher{Type: MatcherTypeExact, Pattern: p}}
+		topics[i] = detailTopic{TopicMatcher{Type: MatcherTypeExact, Pattern: p}}
 	}
 
 	return topics

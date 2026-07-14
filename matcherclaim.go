@@ -3,6 +3,7 @@
 package mercure
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,11 +15,17 @@ import (
 // WithProtocolVersionCompatibility. Mapped to 401 on the wire.
 var errStringClaimRequiresCompat = errors.New("string-form matcher claims require backward-compatibility mode")
 
+// errMissingMatchProperty is returned when an object-form matcher claim omits
+// the required "match" property (or is JSON null). The protocol requires every
+// topic matcher object to carry a "match" property; a token containing such an
+// entry must be rejected rather than silently treated as an empty pattern.
+var errMissingMatchProperty = errors.New(`topic matcher object is missing the required "match" property`)
+
 // matcherClaim represents a single entry in the mercure.publish or
 // mercure.subscribe JWT claim. It supports both the deprecated string format
 // and the object format.
 type matcherClaim struct {
-	topicMatcher
+	TopicMatcher
 
 	Payload any // Per-subscription payload, nil if not set
 }
@@ -38,7 +45,7 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 
 	obj := struct {
 		Match     string      `json:"match"`
-		MatchType MatcherType `json:"matchType,omitempty"`
+		MatchType MatcherType `json:"match_type,omitempty"`
 		Payload   any         `json:"payload,omitempty"`
 	}{mc.Pattern, mc.Type, mc.Payload}
 
@@ -52,13 +59,20 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON handles both string and object formats in JWT claims.
 // String: v8 form, accepted only in backward-compatibility mode.
-// Object: {"match": "pattern", "matchType": "Exact", "payload": {...}};
-// matchType is case-sensitive and defaults to Exact.
+// Object: {"match": "pattern", "match_type": "exact", "payload": {...}};
+// match_type is case-sensitive and defaults to Exact.
 //
 // Always resets every field of the receiver before populating it, so reusing
 // a matcherClaim across decode calls does not leak the previous Type/Payload.
 func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 	*mc = matcherClaim{}
+
+	// A null entry is neither a v8 string selector nor a valid matcher object;
+	// json.Unmarshal(null) is a silent no-op, so reject it explicitly rather
+	// than accept an empty-pattern matcher.
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		return errMissingMatchProperty
+	}
 
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
@@ -69,9 +83,11 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
+	// Match is a pointer so an absent property is distinguishable from an
+	// explicit empty string: the protocol requires the property to be present.
 	var obj struct {
-		Match     string      `json:"match"`
-		MatchType MatcherType `json:"matchType"`
+		Match     *string     `json:"match"`
+		MatchType MatcherType `json:"match_type"`
 		Payload   any         `json:"payload"`
 	}
 
@@ -79,7 +95,11 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 		return err //nolint:wrapcheck
 	}
 
-	mc.Pattern = obj.Match
+	if obj.Match == nil {
+		return errMissingMatchProperty
+	}
+
+	mc.Pattern = *obj.Match
 	mc.Payload = obj.Payload
 	mc.Type = obj.MatchType
 
@@ -125,7 +145,7 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 				return errStringClaimRequiresCompat
 			}
 		case MatcherTypeExact, MatcherTypeURLPattern:
-			if err := tss.validatePattern(claims[i].topicMatcher); err != nil {
+			if err := tss.validatePattern(claims[i].TopicMatcher); err != nil {
 				return fmt.Errorf("invalid matcher in JWT claim: %w", err)
 			}
 		default:

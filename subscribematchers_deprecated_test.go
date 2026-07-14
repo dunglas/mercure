@@ -33,8 +33,8 @@ func TestParseMatchersURLPatternInCompatMode(t *testing.T) {
 	h := createDeprecatedDummy(t)
 
 	query := url.Values{
-		"matchURLPattern": {"https://example.com/:id"},
-		"topic":           {"https://example.com/{id}"},
+		"match_urlpattern": {"https://example.com/:id"},
+		"topic":            {"https://example.com/{id}"},
 	}
 	matchers, err := h.parseMatchers(query, true)
 	require.NoError(t, err)

@@ -73,7 +73,13 @@ func (h *Hub) resolveLegacyClaims(c *claims) error {
 		return ErrTooManyClaimMatchers
 	}
 
-	deprecated := h.isBackwardCompatiblyEnabledWith(8)
+	// Bare-string v8 claims are only meaningful when the deprecated_topic
+	// matcher code is compiled in: allowsAlternateTopics() is true only then.
+	// Using isBackwardCompatiblyEnabledWith(8) here would be always-true (this
+	// function already returned unless compat is on), so a "*" string claim
+	// would authorize every topic via the wildcard short-circuit even in a
+	// deprecated_claim-only build where the v8 matcher is absent.
+	deprecated := h.allowsAlternateTopics()
 	if err := resolveMatcherClaims(h.topicSelectorStore, mc.Publish, deprecated); err != nil {
 		return err
 	}
@@ -100,7 +106,7 @@ func mercureAuthzFromLegacy(mc mercureClaim) *mercureAuthz {
 	for _, sc := range mc.Subscribe {
 		authz.details = append(authz.details, validatedDetail{
 			subscribe: true,
-			topics:    []topicMatcher{sc.topicMatcher},
+			topics:    []TopicMatcher{sc.TopicMatcher},
 			payload:   sc.Payload,
 		})
 	}
@@ -108,10 +114,10 @@ func mercureAuthzFromLegacy(mc mercureClaim) *mercureAuthz {
 	return authz
 }
 
-func matcherClaimTopics(claims []matcherClaim) []topicMatcher {
-	topics := make([]topicMatcher, len(claims))
+func matcherClaimTopics(claims []matcherClaim) []TopicMatcher {
+	topics := make([]TopicMatcher, len(claims))
 	for i := range claims {
-		topics[i] = claims[i].topicMatcher
+		topics[i] = claims[i].TopicMatcher
 	}
 
 	return topics

@@ -18,8 +18,8 @@ func TestResolveMatcherClaimsDeprecated(t *testing.T) {
 	require.NoError(t, err)
 
 	cs := []matcherClaim{
-		{topicMatcher: topicMatcher{Pattern: "https://example.com/{id}"}},
-		{topicMatcher: topicMatcher{Type: MatcherTypeExact, Pattern: "foo"}},
+		{TopicMatcher: TopicMatcher{Pattern: "https://example.com/{id}"}},
+		{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}},
 	}
 	require.NoError(t, resolveMatcherClaims(tss, cs, true))
 	assert.Equal(t, deprecatedMatcherTypeName, cs[0].Type)
@@ -30,5 +30,5 @@ func TestResolveMatcherClaimsDeprecated(t *testing.T) {
 	assert.Equal(t, deprecatedMatcherTypeName, cs[0].Type)
 
 	// The resolved claim matches via the v8 rules.
-	assert.True(t, tss.matchMatcher([]string{"https://example.com/42"}, cs[0].topicMatcher))
+	assert.True(t, tss.matchMatcher([]string{"https://example.com/42"}, cs[0].TopicMatcher))
 }

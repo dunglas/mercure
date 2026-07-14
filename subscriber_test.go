@@ -62,8 +62,8 @@ func TestLogSubscriber(t *testing.T) {
 
 	log := buf.String()
 	assert.Contains(t, log, `"last_event_id":"123"`)
-	assert.Contains(t, log, `"allowed_private_matchers":["Exact:https://example.com/foo"]`)
-	assert.Contains(t, log, `"subscribed_matchers":["Exact:https://example.com/bar"]`)
+	assert.Contains(t, log, `"allowed_private_matchers":["exact:https://example.com/foo"]`)
+	assert.Contains(t, log, `"subscribed_matchers":["exact:https://example.com/bar"]`)
 }
 
 func TestMatchTopic(t *testing.T) {
@@ -73,10 +73,10 @@ func TestMatchTopic(t *testing.T) {
 	require.NoError(t, err)
 
 	s := NewLocalSubscriber("", slog.Default(), tss)
-	s.setMatchers([]topicMatcher{
+	s.setMatchers([]TopicMatcher{
 		{Type: MatcherTypeExact, Pattern: "https://example.com/no-match"},
 		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/books/:id"},
-	}, []topicMatcher{
+	}, []TopicMatcher{
 		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/users/foo/*"},
 	})
 

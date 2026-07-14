@@ -21,8 +21,8 @@
   //       "actions": ["subscribe"],
   //       "topics": [
   //         { "match": "https://example.com/my-private-topic" },
-  //         { "match": "https://example.com/demo/books/:id.jsonld", "matchType": "URLPattern" },
-  //         { "match": "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber", "matchType": "URLPattern" }
+  //         { "match": "https://example.com/demo/books/:id.jsonld", "match_type": "urlpattern" },
+  //         { "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber", "match_type": "urlpattern" }
   //       ],
   //       "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
   //     }
@@ -176,7 +176,7 @@ foo`;
       .filter((line) => line.length > 0)
       .forEach((pattern) => u.searchParams.append(paramName, pattern));
     if (lastEventId.value) {
-      u.searchParams.append("lastEventID", lastEventId.value);
+      u.searchParams.append("last_event_id", lastEventId.value);
     }
 
     let ol = null;
@@ -256,9 +256,9 @@ foo`;
     );
     subscription.querySelector("div").setAttribute("id", s.id);
     subscription.querySelector(".card-header-title").textContent = s.id;
-    // v9+ subscriptions expose match/matchType; deprecated ones expose topic.
+    // v9+ subscriptions expose match/match_type; deprecated ones expose topic.
     subscription.querySelector(".match").textContent =
-      s.match !== undefined ? `${s.matchType || "Exact"} ${s.match}` : s.topic;
+      s.match !== undefined ? `${s.match_type || "exact"} ${s.match}` : s.topic;
     subscription.querySelector(".subscriber").textContent = s.subscriber;
     subscription.querySelector("code").textContent = JSON.stringify(
       s.payload,
@@ -289,13 +289,13 @@ foo`;
       json.subscriptions.forEach(addSubscription);
 
       // Subscribe to subscription events using a URL-pattern matcher that
-      // covers every {matchType}/{match}/{subscriber} triple.
+      // covers every {match_type}/{match}/{subscriber} triple.
       const u = new URL($settingsForm.hubUrl.value);
       u.searchParams.append(
-        "matchURLPattern",
-        "/.well-known/mercure/subscriptions/:matchType/:match/:subscriber",
+        "match_urlpattern",
+        "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
       );
-      u.searchParams.append("lastEventID", json.lastEventID);
+      u.searchParams.append("last_event_id", json.last_event_id);
 
       subscriptionEventSource = openEventSource(u);
 

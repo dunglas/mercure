@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func exactMatcher(pattern string) topicMatcher {
-	return topicMatcher{Type: MatcherTypeExact, Pattern: pattern}
+func exactMatcher(pattern string) TopicMatcher {
+	return TopicMatcher{Type: MatcherTypeExact, Pattern: pattern}
 }
 
-func urlPatternMatcher(pattern string) topicMatcher {
-	return topicMatcher{Type: MatcherTypeURLPattern, Pattern: pattern}
+func urlPatternMatcher(pattern string) TopicMatcher {
+	return TopicMatcher{Type: MatcherTypeURLPattern, Pattern: pattern}
 }
 
 func TestMatchExact(t *testing.T) {
@@ -57,8 +57,10 @@ func TestMatchURLPattern(t *testing.T) {
 	assert.False(t, tss.matchMatcher([]string{"https://example.com/BOOKS/123"}, urlPatternMatcher("https://example.com/books/:id")))
 	assert.True(t, tss.matchMatcher([]string{"https://EXAMPLE.com/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
 
-	// Match results are cached with a struct key (no collision possible).
+	// Match results are cached with a struct key (no collision possible). The
+	// key is scoped to the base URL patterns were resolved against.
 	_, found := tss.matchCache.GetIfPresent(matchCacheKey{
+		Base:    tss.base(),
 		Type:    MatcherTypeURLPattern,
 		Pattern: "https://example.com/books/:id",
 		Topics:  "https://example.com/books/123",
@@ -68,7 +70,7 @@ func TestMatchURLPattern(t *testing.T) {
 
 // TestMatchURLPatternRelative covers the spec case where both pattern and
 // topic are relative — the shape the hub uses when it dispatches subscription
-// events on `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`
+// events on `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`
 // topics. Relative ↔ relative must match; relative ↔ absolute must not.
 func TestMatchURLPatternRelative(t *testing.T) {
 	t.Parallel()
@@ -77,8 +79,8 @@ func TestMatchURLPatternRelative(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, tss.matchMatcher(
-		[]string{"/.well-known/mercure/subscriptions/Exact/foo/bar"},
-		urlPatternMatcher("/.well-known/mercure/subscriptions/Exact/:match/:subscriber"),
+		[]string{"/.well-known/mercure/subscriptions/exact/foo/bar"},
+		urlPatternMatcher("/.well-known/mercure/subscriptions/exact/:match/:subscriber"),
 	))
 	assert.True(t, tss.matchMatcher([]string{"/books/123"}, urlPatternMatcher("/books/:id")))
 	assert.False(t, tss.matchMatcher([]string{"/authors/123"}, urlPatternMatcher("/books/:id")))
@@ -97,7 +99,7 @@ func TestMatchURLPatternConfiguredBase(t *testing.T) {
 
 	tss, err := NewTopicSelectorStore(0)
 	require.NoError(t, err)
-	tss.setBaseURL("https://hub.example.com")
+	require.NoError(t, tss.setBaseURL("https://hub.example.com"))
 
 	assert.True(t, tss.matchMatcher([]string{"https://hub.example.com/books/123"}, urlPatternMatcher("/books/:id")))
 	assert.True(t, tss.matchMatcher([]string{"/books/123"}, urlPatternMatcher("https://hub.example.com/books/:id")))
@@ -123,5 +125,5 @@ func TestValidatePattern(t *testing.T) {
 	require.Error(t, tss.validatePattern(urlPatternMatcher("{unclosed")))
 
 	// Unknown matcher types are rejected.
-	assert.ErrorIs(t, tss.validatePattern(topicMatcher{Type: "Regexp", Pattern: "fo+"}), ErrUnsupportedMatcherType)
+	assert.ErrorIs(t, tss.validatePattern(TopicMatcher{Type: "Regexp", Pattern: "fo+"}), ErrUnsupportedMatcherType)
 }

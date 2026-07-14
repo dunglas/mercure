@@ -28,10 +28,6 @@ import (
 
 const (
 	defaultHubURL = "/.well-known/mercure"
-	// protectedResourceMetadataPath mirrors the RFC 9728 well-known location
-	// served by the hub; it lives outside the hub URL prefix, so ServeHTTP
-	// must forward it explicitly.
-	protectedResourceMetadataPath = "/.well-known/oauth-protected-resource" + defaultHubURL
 )
 
 var (
@@ -160,7 +156,7 @@ type Mercure struct {
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
 
-	// The name of the authorization cookie. Defaults to "mercureAccessToken".
+	// The name of the authorization cookie. Defaults to "mercure_access_token".
 	CookieName string `json:"cookie_name,omitempty"`
 
 	// The URL at which subscribers reach the hub. Used as the base URL when
@@ -425,7 +421,7 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != protectedResourceMetadataPath {
+	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != mercure.ProtectedResourceMetadataPath {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 

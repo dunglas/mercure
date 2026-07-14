@@ -54,7 +54,7 @@ func TestLegacyClaimRequiresTag(t *testing.T) {
 	signed, err := token.SignedString([]byte("subscriber"))
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?matchURLPattern=https://example.com/books/:id", nil)
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=https://example.com/books/:id", nil)
 	req.Header.Add("Authorization", bearerPrefix+signed)
 
 	w := httptest.NewRecorder()

@@ -578,4 +578,19 @@ func TestNewJWKSetKeyfunc(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `"example.com"`)
 	})
+
+	t.Run("missing file", func(t *testing.T) {
+		_, err := newJWKSetKeyfunc(t.Context(), "file://"+filepath.Join(t.TempDir(), "absent.json"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read JWK Set file")
+	})
+
+	t.Run("invalid JWK Set JSON", func(t *testing.T) {
+		bad := filepath.Join(t.TempDir(), "bad.json")
+		require.NoError(t, os.WriteFile(bad, []byte("not json"), 0o600))
+
+		_, err := newJWKSetKeyfunc(t.Context(), "file://"+bad)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse JWK Set file")
+	})
 }

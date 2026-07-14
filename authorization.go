@@ -22,17 +22,20 @@ type claims struct {
 
 	// authz holds the validated mercure authorization details (and, under the
 	// deprecated_claim tag in compatibility mode, the legacy mercure claim
-	// resolved into the same shape).
-	authz *mercureAuthz `json:"-"`
+	// resolved into the same shape). Unexported, so it is never (un)marshaled.
+	authz *mercureAuthz
 }
 
 type role int
 
 const (
 	// defaultCookieName is the name of the authorization cookie carrying the
-	// access token. The pre-1.0 name "mercureAuthorization" is accepted as a
-	// fallback only in deprecated_claim builds running in compatibility mode.
-	defaultCookieName = "mercureAccessToken"
+	// access token. Over HTTPS the spec recommends the "__Secure-" prefixed name
+	// "__Secure-mercure_access_token"; this prefix-less default keeps the cookie
+	// usable on plain HTTP (local development). The pre-1.0 name
+	// "mercureAuthorization" is accepted as a fallback only in deprecated_claim
+	// builds running in compatibility mode.
+	defaultCookieName = "mercure_access_token"
 	bearerPrefix      = "Bearer "
 	// authorizationParam is the lowercase name of the legacy authorization
 	// query parameter and the CORS allowed header.
@@ -183,10 +186,18 @@ func (h *Hub) jwtParserOptions(algs []string) []jwt.ParserOption {
 		return opts
 	}
 
-	return append(opts,
-		jwt.WithAudience(h.resourceIdentifier),
-		jwt.WithExpirationRequired(),
-	)
+	opts = append(opts, jwt.WithExpirationRequired())
+
+	// Enforce the audience only when a resource identifier is configured.
+	// Compatibility mode on a build without the deprecated_claim tag still
+	// reaches this path (compatClaimsEnabled is a no-op stub there) with an
+	// empty identifier; golang-jwt treats an empty expected audience as a
+	// required claim, so enforcing it would reject every otherwise-valid token.
+	if h.resourceIdentifier != "" {
+		opts = append(opts, jwt.WithAudience(h.resourceIdentifier))
+	}
+
+	return opts
 }
 
 // validateJWT parses and validates an access token, returning its claims with

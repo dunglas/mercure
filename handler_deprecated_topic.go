@@ -37,13 +37,13 @@ func (h *Hub) registerDeprecatedSubscriptionHandlers(r *mux.Router) bool {
 }
 
 // subscriptionsForMatchPrefixLen is the length of the path prefix up to and
-// including the trailing slash before the {matchType} segment, used to
+// including the trailing slash before the {match_type} segment, used to
 // disambiguate the modern 2-segment collection route from the deprecated
 // {topic}/{subscriber} route in isKnownMatchType.
 const subscriptionsForMatchPrefixLen = len(defaultHubURL + subscriptionsPath + "/")
 
 // isKnownMatchType is a mux.MatcherFunc that accepts requests whose
-// {matchType} path segment is a matcher type defined by the protocol. Used
+// {match_type} path segment is a matcher type defined by the protocol. Used
 // to disambiguate the modern 2-segment collection route from the deprecated
 // {topic}/{subscriber} route when backward compatibility is enabled. The
 // path matcher has already accepted the overall shape, so we only need to
@@ -64,7 +64,5 @@ func (h *Hub) isKnownMatchType(r *http.Request, _ *mux.RouteMatch) bool {
 		return false
 	}
 
-	t := MatcherType(mt)
-
-	return t == MatcherTypeExact || t == MatcherTypeURLPattern
+	return knownMatcherType(MatcherType(mt))
 }

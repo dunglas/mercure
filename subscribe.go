@@ -125,7 +125,14 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
-	if h.writeTimeout != 0 {
+	// Arm the disconnection timer whenever a write deadline exists, including
+	// when it comes solely from the token's exp (write_timeout disabled):
+	// getWriteDeadline leaves the deadline zero only when neither a write
+	// timeout nor a token exp applies. The protocol requires closing the
+	// connection no later than exp, so relying on a failed write against a past
+	// deadline would otherwise leave an authenticated connection open up to a
+	// heartbeat interval past exp, or indefinitely with heartbeat off.
+	if !rc.writeDeadline.IsZero() {
 		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
 		defer disconnectionTimer.Stop()
 
@@ -227,13 +234,13 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	matchers, err := h.parseMatchers(r.URL.Query(), deprecated)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.writeMatcherParamError(ctx, w, err)
 		recordSpanError(span, err)
 
 		return nil, nil
 	}
 
-	var privateTopicMatchers []topicMatcher
+	var privateTopicMatchers []TopicMatcher
 	if claims != nil {
 		privateTopicMatchers = claims.authz.subscribeMatchers()
 	}
@@ -309,7 +316,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 
 	if s.RequestLastEventID != "" {
-		header["Last-Event-Id"] = []string{<-s.responseLastEventID}
+		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
 	// Write a comment in the body
@@ -326,7 +333,7 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
 	}
 
 	query := r.URL.Query()
-	if id := query.Get("lastEventID"); id != "" {
+	if id := query.Get("last_event_id"); id != "" {
 		return id
 	}
 
@@ -334,14 +341,14 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
 		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)
 		if h.isBackwardCompatiblyEnabledWith(7) {
 			if infoLevel {
-				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'lastEventID' instead.")
+				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'last_event_id' instead.")
 			}
 
 			if len(legacyEventIDValues) != 0 {
 				return legacyEventIDValues[0]
 			}
 		} else if infoLevel {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID"" query parameter is not supported anymore, use "lastEventID"" instead or enable backward compatibility with version 7 of the protocol.`)
+			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID"" query parameter is not supported anymore, use "last_event_id"" instead or enable backward compatibility with version 7 of the protocol.`)
 		}
 	}
 
@@ -443,4 +450,22 @@ func (h *Hub) handleWriterError(ctx context.Context, err error, message string) 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		h.logger.LogAttrs(ctx, slog.LevelInfo, message, slog.Any("error", err))
 	}
+}
+
+// writeMatcherParamError answers a subscribe-query matcher error with 400. For
+// an invalid pattern it writes a generic message and logs the detail: the
+// underlying URL Pattern compiler can embed internal memory addresses in its
+// error text (CWE-209), which must not reach the client.
+func (h *Hub) writeMatcherParamError(ctx context.Context, w http.ResponseWriter, err error) {
+	if errors.Is(err, errInvalidMatcherPattern) {
+		http.Error(w, errInvalidMatcherPattern.Error(), http.StatusBadRequest)
+
+		if h.logger.Enabled(ctx, slog.LevelDebug) {
+			h.logger.LogAttrs(ctx, slog.LevelDebug, "Invalid topic matcher pattern in subscribe request", slog.Any("error", err))
+		}
+
+		return
+	}
+
+	http.Error(w, err.Error(), http.StatusBadRequest)
 }

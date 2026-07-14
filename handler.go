@@ -111,7 +111,7 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 	// 3-segment route (more specific, registered first).
 	r.HandleFunc(subscriptionMatchURL, h.SubscriptionHandler).Methods(http.MethodGet)
 
-	// The collection route /subscriptions/{matchType}/{match} and the
+	// The collection route /subscriptions/{match_type}/{match} and the
 	// deprecated /subscriptions/{topic}/{subscriber} route have the same
 	// shape. In modern-only mode only the modern route is registered, so
 	// there is no ambiguity and no per-request check is added — this is the

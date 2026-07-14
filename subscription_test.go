@@ -67,14 +67,14 @@ func TestSubscriptionHandlerAccessDenied(t *testing.T) {
 }
 
 // TestSubscriptionsHandlerAuthorizesAgainstPath verifies the subscription API
-// authorizes against the request path only: a query string (here lastEventID)
+// authorizes against the request path only: a query string (here last_event_id)
 // must not break an Exact subscribe grant that covers the path.
 func TestSubscriptionsHandlerAuthorizesAgainstPath(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
 
-	req := httptest.NewRequest(http.MethodGet, subscriptionsURL+"?lastEventID=foo", nil)
+	req := httptest.NewRequest(http.MethodGet, subscriptionsURL+"?last_event_id=foo", nil)
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
 
 	w := httptest.NewRecorder()
@@ -144,9 +144,9 @@ func TestSubscriptionsHandler(t *testing.T) {
 	assert.Equal(t, subscriptionsURL, subscriptions.ID)
 	assert.Equal(t, "Subscriptions", subscriptions.Type)
 
-	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
+	last_event_id, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
-	assert.Equal(t, lastEventID, subscriptions.LastEventID)
+	assert.Equal(t, last_event_id, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
 
 	for _, s := range subscribers {
@@ -177,11 +177,11 @@ func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 
 	sub.Claims = detailClaims(t, hub.topicSelectorStore,
 		// Non-matching detail first — must not be picked.
-		subscribeDetail(map[string]any{"tag": "x"}, topicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}),
+		subscribeDetail(map[string]any{"tag": "x"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}),
 		// This URLPattern detail covers /foo AND /bar → gets picked as "first matching".
-		subscribeDetail(map[string]any{"tag": "urlpattern"}, topicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}),
+		subscribeDetail(map[string]any{"tag": "urlpattern"}, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}),
 		// Exact detail for /bar — would only win if iteration reached it first.
-		subscribeDetail(map[string]any{"tag": "exact-bar"}, topicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/bar"}),
+		subscribeDetail(map[string]any{"tag": "exact-bar"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/bar"}),
 	)
 
 	sub.setMatchers(matchers, nil)
@@ -197,7 +197,7 @@ func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 }
 
 // TestSubscriptionHandlerMatchRoute exercises the
-// /subscriptions/{matchType}/{match}/{subscriber} URL shape.
+// /subscriptions/{match_type}/{match}/{subscriber} URL shape.
 func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	t.Parallel()
 
@@ -207,7 +207,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 
 	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
 	matchers, err := hub.parseMatchers(url.Values{
-		"matchURLPattern": {"https://example.com/:id"},
+		"match_urlpattern": {"https://example.com/:id"},
 	}, false)
 	require.NoError(t, err)
 	sub.setMatchers(matchers, nil)
@@ -234,7 +234,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 
 	assert.Equal(t, "https://example.com/:id", got.Match)
-	assert.Equal(t, "URLPattern", got.MatchType)
+	assert.Equal(t, "urlpattern", got.MatchType)
 	assert.Empty(t, got.Topic, "modern subscriptions must not emit the deprecated `topic` field")
 }
 

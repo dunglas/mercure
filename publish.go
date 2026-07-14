@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -24,23 +25,21 @@ var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 // limits (Caddy request_body, Go MaxHeaderBytes).
 const (
 	maxClaimMatchers = 1000 // mercure.subscribe / mercure.publish array
-	maxQueryTopics   = 1000 // "topic" query params on subscribe
 	maxPublishTopics = 1000 // "topic" form fields on publish
+	// Subscribe-side matcher count is capped by maxMatcherCount
+	// (subscribematchers.go).
 )
 
 // Sentinel errors returned by Publish. Callers can branch on them via
 // errors.Is.
 var (
 	ErrReservedTopic    = errors.New(`topic value resolves into the reserved "/.well-known/mercure" namespace`)
-	ErrInvalidEventID   = errors.New(`"id" field contains a forbidden control character, starts with "#", or is the reserved value "earliest"`)
-	ErrInvalidEventType = errors.New(`"type" field contains a forbidden control character`)
+	ErrInvalidEventID   = errors.New(`"id" field contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
+	ErrInvalidEventType = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
 	ErrInvalidTopic     = errors.New("topic contains a forbidden control character or invalid UTF-8")
 	ErrTooManyTopics    = errors.New("too many topics in update")
+	ErrInvalidData      = errors.New(`"data" field is not valid UTF-8`)
 )
-
-// sseFieldForbiddenChars, if copied into SSE id/event fields, would
-// let a publisher inject arbitrary SSE fields into subscribers' streams.
-const sseFieldForbiddenChars = "\x00\r\n"
 
 // Validate enforces the publish-side input rules that protect subscribers
 // from update forgery and SSE field injection. Hub.Publish calls it, so the
@@ -71,16 +70,25 @@ func (u *Update) Validate() error {
 		}
 	}
 
-	// "#" prefixes are reserved for hub-generated fragment IDs and "earliest"
-	// for the reserved last-event-id value; accepting either from a publisher
-	// would corrupt reconnection cursors.
-	if strings.ContainsAny(u.ID, sseFieldForbiddenChars) ||
+	// The id and type end up on the wire as SSE fields (and the id in the
+	// Last-Event-ID header), so reject all control characters and invalid UTF-8,
+	// not only CR/LF/NUL — matching the topic and matcher rules. "#" prefixes are
+	// reserved for hub-generated fragment IDs and "earliest" for the reserved
+	// last-event-id value; accepting either from a publisher would corrupt
+	// reconnection cursors.
+	if !validProtocolString(u.ID) ||
 		strings.HasPrefix(u.ID, "#") || u.ID == EarliestLastEventID {
 		return ErrInvalidEventID
 	}
 
-	if strings.ContainsAny(u.Type, sseFieldForbiddenChars) {
+	if !validProtocolString(u.Type) {
 		return ErrInvalidEventType
+	}
+
+	// The protocol requires field values to be valid UTF-8; ParseForm does not
+	// enforce it, so reject invalid data rather than dispatch it.
+	if !utf8.ValidString(u.Data) {
+		return ErrInvalidData
 	}
 
 	return nil
@@ -196,6 +204,20 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate topics before they can reach the shared match cache via the
+	// authorization grant check (grantsAll → matchMatcher → cachedMatch), which
+	// keys the cache on the topic list joined with NUL; an unvalidated topic
+	// containing a literal NUL would collide with a legitimate multi-topic key
+	// and poison the entry (CWE-20). Update.Validate() re-checks later, but only
+	// after the grant check has already consulted the cache.
+	for _, t := range topics {
+		if !validProtocolString(t) {
+			http.Error(w, fmt.Errorf("%q: %w", t, ErrInvalidTopic).Error(), http.StatusBadRequest)
+
+			return
+		}
+	}
+
 	var retry uint64
 
 	if retryString := r.PostForm.Get("retry"); retryString != "" {
@@ -246,7 +268,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrReservedTopic):
 			http.Error(w, err.Error(), http.StatusForbidden)
 		case errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
-			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics):
+			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
+			errors.Is(err, ErrInvalidData):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

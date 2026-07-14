@@ -25,7 +25,7 @@ type LocalSubscriber struct {
 const outBufferLength = 1000
 
 // NewLocalSubscriber creates a new subscriber.
-func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *LocalSubscriber {
+func NewLocalSubscriber(last_event_id string, logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *LocalSubscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &LocalSubscriber{
 		Subscriber:          *NewSubscriber(logger, topicSelectorStore),
@@ -35,7 +35,7 @@ func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicSelectorSt
 
 	s.ID = id
 	s.EscapedID = url.QueryEscape(id)
-	s.RequestLastEventID = lastEventID
+	s.RequestLastEventID = last_event_id
 
 	return s
 }
