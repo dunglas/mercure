@@ -302,6 +302,7 @@ func TestPublishHandlerOK(t *testing.T) {
 		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 		assert.Equal(t, "id", string(body))
 
 		synctest.Wait()
