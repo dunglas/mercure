@@ -37,6 +37,11 @@ const (
 	// builds running in compatibility mode.
 	defaultCookieName = "mercure_access_token"
 	bearerPrefix      = "Bearer "
+	// minCompactJWSLen is the shortest plausible length of a JWS in compact
+	// serialization (two dots plus base64url-encoded header, claims and
+	// signature). Anything shorter is garbage and is rejected before signature
+	// verification.
+	minCompactJWSLen = 41
 	// authorizationParam is the lowercase name of the legacy authorization
 	// query parameter and the CORS allowed header.
 	authorizationParam = "authorization"
@@ -94,22 +99,18 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 
 	authorizationHeaders, authorizationHeaderExists := r.Header["Authorization"]
 	if authorizationHeaderExists {
-		// 48 = len(bearerPrefix) + 41, the shortest length a JWS in compact
-		// serialization can plausibly have (two dots plus base64url-encoded
-		// header, claims and signature); anything shorter is garbage and is
-		// rejected before signature verification. The auth scheme is matched
-		// case-insensitively per RFC 9110 §11.1.
-		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < 48 ||
-			!strings.EqualFold(authorizationHeaders[0][:7], bearerPrefix) {
+		// The token must be at least minCompactJWSLen bytes after the prefix.
+		// The auth scheme is matched case-insensitively per RFC 9110 §11.1.
+		if len(authorizationHeaders) != 1 || len(authorizationHeaders[0]) < len(bearerPrefix)+minCompactJWSLen ||
+			!strings.EqualFold(authorizationHeaders[0][:len(bearerPrefix)], bearerPrefix) {
 			return nil, ErrInvalidAuthorizationHeader
 		}
 
-		return h.validateJWT(authorizationHeaders[0][7:], jwtKeyfunc, algs)
+		return h.validateJWT(authorizationHeaders[0][len(bearerPrefix):], jwtKeyfunc, algs)
 	}
 
 	if accessTokens, queryExists := r.URL.Query()["access_token"]; queryExists {
-		// 41 = the same minimal plausible JWS length as above.
-		if len(accessTokens) != 1 || len(accessTokens[0]) < 41 {
+		if len(accessTokens) != 1 || len(accessTokens[0]) < minCompactJWSLen {
 			return nil, ErrInvalidAuthorizationQuery
 		}
 
