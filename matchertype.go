@@ -14,11 +14,11 @@ type MatcherType string
 const (
 	// MatcherTypeExact selects byte-for-byte topic comparison. The reserved
 	// pattern "*" matches every topic.
-	MatcherTypeExact MatcherType = "Exact"
+	MatcherTypeExact MatcherType = "exact"
 
 	// MatcherTypeURLPattern selects matching per the WHATWG URL Pattern
 	// Living Standard, with the hub's public URL as the base URL.
-	MatcherTypeURLPattern MatcherType = "URLPattern"
+	MatcherTypeURLPattern MatcherType = "urlpattern"
 
 	// deprecatedMatcherTypeName tags topic matchers created from the v8
 	// `topic=` query parameter or bare-string JWT claims (exact-or-URI-Template

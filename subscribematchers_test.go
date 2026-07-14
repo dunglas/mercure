@@ -31,8 +31,8 @@ func TestParseMatchersExactExplicit(t *testing.T) {
 
 	h := createDummy(t)
 
-	// "matchExact" is the explicit spelling of the default Exact type.
-	query := url.Values{"matchExact": {"foo"}}
+	// "match_exact" is the explicit spelling of the default Exact type.
+	query := url.Values{"match_exact": {"foo"}}
 	matchers, err := h.parseMatchers(query, false)
 	require.NoError(t, err)
 
@@ -46,7 +46,7 @@ func TestParseMatchersURLPattern(t *testing.T) {
 
 	h := createDummy(t)
 
-	query := url.Values{"matchURLPattern": {"https://example.com/:id"}}
+	query := url.Values{"match_urlpattern": {"https://example.com/:id"}}
 	matchers, err := h.parseMatchers(query, false)
 	require.NoError(t, err)
 
@@ -63,7 +63,7 @@ func TestParseMatchersCaseSensitive(t *testing.T) {
 
 	h := createDummy(t)
 
-	for _, name := range []string{"MATCH", "Match", "matchurlpattern", "MATCHURLPATTERN", "matchExactly", "matchRegexp"} {
+	for _, name := range []string{"MATCH", "Match", "matchurlpattern", "MATCHURLPATTERN", "match_exactly", "matchRegexp"} {
 		_, err := h.parseMatchers(url.Values{name: {"foo"}}, false)
 		assert.ErrorIs(t, err, errUnknownMatcherParam, name)
 	}
@@ -86,7 +86,7 @@ func TestParseMatchersInvalidURLPattern(t *testing.T) {
 
 	h := createDummy(t)
 
-	_, err := h.parseMatchers(url.Values{"matchURLPattern": {"{unclosed"}}, false)
+	_, err := h.parseMatchers(url.Values{"match_urlpattern": {"{unclosed"}}, false)
 	require.Error(t, err)
 }
 
@@ -128,7 +128,7 @@ func TestParseMatchersURLPatternRelativeAccepted(t *testing.T) {
 
 	h := createDummy(t)
 
-	query := url.Values{"matchURLPattern": {"/.well-known/mercure/subscriptions/:matchType/:match/:subscriber"}}
+	query := url.Values{"match_urlpattern": {"/.well-known/mercure/subscriptions/:match_type/:match/:subscriber"}}
 	matchers, err := h.parseMatchers(query, false)
 	require.NoError(t, err)
 	require.Len(t, matchers, 1)
@@ -153,7 +153,7 @@ func TestParseMatchersNonMatcherParamsIgnored(t *testing.T) {
 	query := url.Values{
 		"match":         {"foo"},
 		"authorization": {"jwt"},
-		"lastEventID":   {"id"},
+		"last_event_id": {"id"},
 	}
 
 	matchers, err := h.parseMatchers(query, false)

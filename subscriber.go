@@ -14,7 +14,7 @@ type Subscriber struct {
 	RequestLastEventID string
 
 	// SubscribedMatchers are the topic matchers from the topic and
-	// matchURLPattern query parameters (or from the v8 `topic` parameter,
+	// match_urlpattern query parameters (or from the v8 `topic` parameter,
 	// which resolves to a deprecated matcher under compatibility mode).
 	SubscribedMatchers []TopicMatcher
 	// AllowedPrivateMatchers are the topic matchers from the JWT claims.
@@ -201,21 +201,21 @@ func (s *Subscriber) resolveSubscriptionPayload(m TopicMatcher) any {
 // optionally filtered by path variables from the subscription API. A filter
 // with neither topic nor match set is treated as "no filter".
 func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string, active bool) []subscription {
-	useMatch := filter.match != "" || filter.matchType != ""
+	useMatch := filter.match != "" || filter.match_type != ""
 
 	var subscriptions []subscription //nolint:prealloc
 
 	for k, m := range s.SubscribedMatchers {
 		switch {
 		case useMatch:
-			if filter.match != m.Pattern || filter.matchType != string(m.Type) {
+			if filter.match != m.Pattern || filter.match_type != string(m.Type) {
 				continue
 			}
 		case filter.topic != "":
 			// The deprecated /subscriptions/{topic}[/{subscriber}] route
 			// is addressable only by v8 string-selector subscriptions;
 			// modern subscriptions live exclusively under
-			// /subscriptions/{matchType}/{match}.
+			// /subscriptions/{match_type}/{match}.
 			if m.Type != deprecatedMatcherTypeName || filter.topic != m.Pattern {
 				continue
 			}
@@ -230,7 +230,7 @@ func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string,
 		}
 
 		// Deprecated v8 subscriptions keep emitting the `topic` field (and
-		// no match/matchType) for wire compatibility with v8 consumers.
+		// no match/match_type) for wire compatibility with v8 consumers.
 		if m.Type == deprecatedMatcherTypeName {
 			sub.Topic = m.Pattern
 		} else {

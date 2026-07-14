@@ -70,7 +70,7 @@ func TestMatchURLPattern(t *testing.T) {
 
 // TestMatchURLPatternRelative covers the spec case where both pattern and
 // topic are relative — the shape the hub uses when it dispatches subscription
-// events on `/.well-known/mercure/subscriptions/{matchType}/{match}/{subscriber}`
+// events on `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`
 // topics. Relative ↔ relative must match; relative ↔ absolute must not.
 func TestMatchURLPatternRelative(t *testing.T) {
 	t.Parallel()
@@ -79,8 +79,8 @@ func TestMatchURLPatternRelative(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, tss.matchMatcher(
-		[]string{"/.well-known/mercure/subscriptions/Exact/foo/bar"},
-		urlPatternMatcher("/.well-known/mercure/subscriptions/Exact/:match/:subscriber"),
+		[]string{"/.well-known/mercure/subscriptions/exact/foo/bar"},
+		urlPatternMatcher("/.well-known/mercure/subscriptions/exact/:match/:subscriber"),
 	))
 	assert.True(t, tss.matchMatcher([]string{"/books/123"}, urlPatternMatcher("/books/:id")))
 	assert.False(t, tss.matchMatcher([]string{"/authors/123"}, urlPatternMatcher("/books/:id")))

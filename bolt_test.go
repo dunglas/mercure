@@ -313,10 +313,10 @@ func TestBoltGetSubscribers(t *testing.T) {
 	s2 := NewLocalSubscriber("", transport.logger, &TopicSelectorStore{})
 	require.NoError(t, transport.AddSubscriber(ctx, s2))
 
-	lastEventID, subscribers, err := transport.GetSubscribers(ctx)
+	last_event_id, subscribers, err := transport.GetSubscribers(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, EarliestLastEventID, lastEventID)
+	assert.Equal(t, EarliestLastEventID, last_event_id)
 	assert.Len(t, subscribers, 2)
 	assert.Contains(t, subscribers, &s1.Subscriber)
 	assert.Contains(t, subscribers, &s2.Subscriber)
@@ -355,6 +355,6 @@ func TestBoltLastEventID(t *testing.T) {
 
 	transport := createBoltTransport(t, 0, 0)
 
-	lastEventID, _, _ := transport.GetSubscribers(t.Context())
-	assert.Equal(t, "foo", lastEventID)
+	last_event_id, _, _ := transport.GetSubscribers(t.Context())
+	assert.Equal(t, "foo", last_event_id)
 }
