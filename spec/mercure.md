@@ -943,11 +943,9 @@ themselves encoded). Hubs **MUST NOT** double-encode an already-encoded value.
 `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC9562] or a
 DID [@DID] **MAY** also be used.
 
-The content of the update **MUST** be a JSON-LD [@!W3C.REC-json-ld11-20200716] document containing
-at least the following properties:
+The content of the update **MUST** be a JSON [@!RFC8259] document containing at least the
+following properties:
 
-*   `@context`: the fixed value `https://mercure.rocks/`. `@context` **MAY** be omitted if
-    already defined in a parent node. See (#json-ld-context).
 *   `id`: the identifier of this update; **MUST** be the same value as the subscription update's
     topic.
 *   `type`: the fixed value `Subscription`.
@@ -959,7 +957,7 @@ at least the following properties:
 *   `payload` (optional): the content of the `payload` field associated with this subscription
     in the subscriber's access token (see (#payloads)).
 
-The JSON-LD document **MAY** contain other properties.
+The document **MAY** contain other properties.
 
 To restrict subscription events to authorized subscribers, the subscription update **MUST** be
 marked as `private`.
@@ -1014,29 +1012,27 @@ a broader set (for example a `urlpattern` covering the subscriptions namespace, 
 `*`) grants access to the corresponding endpoints. If no detail grants `subscribe` on the
 requested URL, the hub **MUST** answer `403` as defined in (#authorization).
 
-The web API **MUST** set the `Content-Type` HTTP header to `application/ld+json`.
+The web API **MUST** set the `Content-Type` HTTP header to `application/json`.
 
 URLs returning a single subscription (following the pattern
 `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`) **MUST** expose the same
-JSON-LD document as described in (#subscription-events). If the requested subscription does not
+document as described in (#subscription-events). If the requested subscription does not
 exist, the hub **MUST** return a `404` HTTP status code.
 
-If the requested subscription is no longer active, the hub **MAY** either return the JSON-LD
+If the requested subscription is no longer active, the hub **MAY** either return the
 document with the `active` property set to `false` or return a `404` status code. Likewise,
 collection endpoints **MAY** include terminated subscriptions with `active` set to `false` or
 omit them.
 
-Collection endpoints **MUST** return JSON-LD documents containing at least the following
+Collection endpoints **MUST** return JSON documents containing at least the following
 properties:
 
-*   `@context`: the fixed value `https://mercure.rocks/`. `@context` **MAY** be omitted if
-    already defined in a parent node. See (#json-ld-context).
 *   `id`: the URL used to retrieve the document.
 *   `type`: the fixed value `Subscriptions`.
 *   `subscriptions`: an array of subscription documents as described in (#subscription-events).
 
 In addition, all endpoints **MUST** set the `last_event_id` property at the root of the returned
-JSON-LD document:
+JSON document:
 
 *   `last_event_id`: the identifier of the last event dispatched by the hub at the time of this
     request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
@@ -1057,13 +1053,12 @@ GET /.well-known/mercure/subscriptions HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/ld+json
+Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
-   "@context": "https://mercure.rocks/",
    "id": "/.well-known/mercure/subscriptions",
    "type": "Subscriptions",
    "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
@@ -1104,13 +1099,12 @@ GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/ld+json
+Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
-   "@context": "https://mercure.rocks/",
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector",
    "type": "Subscriptions",
    "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
@@ -1142,13 +1136,12 @@ GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/ld+json
+Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
-   "@context": "https://mercure.rocks/",
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "type": "Subscription",
    "match": "https://example.com/:selector",
@@ -1157,38 +1150,6 @@ Cache-Control: must-revalidate
    "active": true,
    "payload": {"foo": "bar"},
    "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-}
-~~~
-
-# JSON-LD Context
-
-Subscribers parsing JSON-LD documents produced by the hub **SHOULD NOT** automatically
-dereference the `@context` URL. The context below is fixed and **MAY** be embedded in client
-implementations or cached locally; this avoids both unnecessary network requests and the risk
-that an attacker able to control responses from the context URL alters the semantics of
-subsequently parsed documents. The context URL serves as a stable identifier: its normative
-definition is the document below, embedded in this specification, and dereferencing the URL is
-never required to implement or use the protocol.
-
-The JSON-LD context available at `https://mercure.rocks/` is the following:
-
-~~~ json
-{
-"@context": {
-   "@vocab": "_:",
-   "mercure": "https://mercure.rocks/",
-   "id": "@id",
-   "type": "@type",
-   "Subscription": "mercure:Subscription",
-   "Subscriptions": "mercure:Subscriptions",
-   "subscriptions": "mercure:subscriptions",
-   "match_type": "mercure:match_type",
-   "match": "mercure:match",
-   "subscriber": "mercure:subscriber",
-   "active": "mercure:active",
-   "payload": "mercure:payload",
-   "last_event_id": "mercure:last_event_id"
-}
 }
 ~~~
 
