@@ -940,10 +940,6 @@ value of each variable **MUST** be percent-encoded exactly once during expansion
 raw matcher or subscriber string as a whole (any `%` characters it already contains are
 themselves encoded). Hubs **MUST NOT** double-encode an already-encoded value.
 
-If a subscriber has several subscriptions, the hub **SHOULD** assign the same `{subscriber}`
-value to all of them when it can correlate them (for example, when the same issuer and `sub`
-claim are presented across requests).
-
 `{subscriber}` **SHOULD** be an IRI [@!RFC3987]. A UUID [@RFC9562] or a
 DID [@DID] **MAY** also be used.
 
