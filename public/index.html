@@ -222,27 +222,35 @@ https://example.com/my-private-topic</textarea
               <div class="help">
                 <p>
                   Required to publish, or to subscribe to private updates.<br />
-                  Claim structure to use:
+                  RFC 9068 access token (<code>typ: at+jwt</code>) with an
+                  <code>authorization_details</code> claim:
                 </p>
                 <pre><code>{
-  "mercure": {
-    "subscribe": [
-      { "match": "&lt;topic or pattern&gt;", "match_type": "exact|urlpattern" }
-      // use "*" for all, omit subscribe for public only
-    ],
-    "publish": [
-      { "match": "&lt;topic or pattern&gt;", "match_type": "exact|urlpattern" }
-      // use "*" for all, omit publish to not allow publishing
-    ]
-  }
+  "aud": "&lt;the hub's resource identifier&gt;",
+  "exp": 4102444800,
+  "authorization_details": [
+    {
+      "type": "mercure",
+      "actions": ["subscribe"],
+      "topics": [
+        { "match": "&lt;topic or pattern&gt;", "match_type": "exact|urlpattern" }
+        // use "*" for all
+      ]
+    },
+    {
+      "type": "mercure",
+      "actions": ["publish"],
+      "topics": [{ "match": "*" }]
+    }
+  ]
 }</code></pre>
                 <p>
-                  <code>match_type</code> defaults to <code>Exact</code> when
+                  <code>match_type</code> defaults to <code>exact</code> when
                   omitted.
                 </p>
                 <br />
                 <a
-                  href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlt7Im1hdGNoIjoiKiJ9XSwic3Vic2NyaWJlIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifSx7Im1hdGNoIjoiLy53ZWxsLWtub3duL21lcmN1cmUvc3Vic2NyaXB0aW9ucy86bWF0Y2hUeXBlLzptYXRjaC86c3Vic2NyaWJlciIsIm1hdGNoVHlwZSI6IlVSTFBhdHRlcm4ifV0sInBheWxvYWQiOnsicmVtb3RlQWRkciI6IjEyNy4wLjAuMSIsInVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifX19.-I_LuyEjpjZKSfFI-4BstvrLzdCNslsSjHfR5RX0PcM"
+                  href="https://jwt.io/#debugger-io?token=eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJwYXlsb2FkIjp7InVzZXIiOiJodHRwczovL2V4YW1wbGUuY29tL3VzZXJzL2R1bmdsYXMifSwidG9waWNzIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyIsIm1hdGNoX3R5cGUiOiJleGFjdCJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoX3R5cGUiOiJ1cmxwYXR0ZXJuIn0seyJtYXRjaCI6Ii8ud2VsbC1rbm93bi9tZXJjdXJlL3N1YnNjcmlwdGlvbnMvOm1hdGNoX3R5cGUvOm1hdGNoLzpzdWJzY3JpYmVyIiwibWF0Y2hfdHlwZSI6InVybHBhdHRlcm4ifV0sInR5cGUiOiJtZXJjdXJlIn1dLCJleHAiOjQxMDI0NDQ4MDB9.6o_1ACm7fxVqTCYUCMsWh9LeQpYclbPqa2_D6N6WVGw"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="button is-link is-small"

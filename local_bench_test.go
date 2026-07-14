@@ -25,17 +25,20 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		assert.NoError(b, tr.Close(ctx))
 	})
 
+	// URL Pattern matchers exercise the non-trivial matcher path (exact is
+	// O(1)). The matching subscriber carries a "/n/:id" pattern that matches the
+	// published "/n/<random>" topic; no-match patterns use a random prefix that
+	// no published topic shares.
 	top := make([]string, topics)
 	tsMatch := make([]string, topics)
 
 	tsNoMatch := make([]string, topics)
 	for i := range topics {
-		tsNoMatch[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
+		tsNoMatch[i] = fmt.Sprintf("/%d/:id", rand.Int())
 		if topics/2 == i {
-			n1 := rand.Int()
-			n2 := rand.Int()
-			top[i] = fmt.Sprintf("/%d/%d", n1, n2)
-			tsMatch[i] = fmt.Sprintf("/%d/{%d}", n1, n2)
+			n := rand.Int()
+			top[i] = fmt.Sprintf("/%d/%d", n, rand.Int())
+			tsMatch[i] = fmt.Sprintf("/%d/:id", n)
 		} else {
 			top[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
 			tsMatch[i] = tsNoMatch[i]
@@ -48,9 +51,9 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 	for i := range concurrency {
 		s := NewLocalSubscriber("", slog.Default(), tss)
 		if i%100 < matchPct {
-			s.setMatchers(stringsToExactMatchers(tsMatch), stringsToExactMatchers(nil))
+			s.setMatchers(stringsToURLPatternMatchers(tsMatch), nil)
 		} else {
-			s.setMatchers(stringsToExactMatchers(tsNoMatch), stringsToExactMatchers(nil))
+			s.setMatchers(stringsToURLPatternMatchers(tsNoMatch), nil)
 		}
 
 		subscribers[i] = s

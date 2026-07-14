@@ -82,18 +82,19 @@ func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testNam
 
 	tsNoMatch := make([]string, topics)
 	for i := range topics {
-		ts[i] = fmt.Sprintf("/%d/{%d}", rand.Int(), rand.Int())
+		n := rand.Int()
+		ts[i] = fmt.Sprintf("/%d/:id", n)
 
 		tsNoMatch[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
 		if topics/2 == i {
-			// Insert matching topic half-way through matching topic list to simulate match
-			tsMatch[i] = strings.ReplaceAll(strings.ReplaceAll(ts[i], "{", ""), "}", "")
+			// Half-way through, a topic the "/n/:id" pattern actually matches.
+			tsMatch[i] = fmt.Sprintf("/%d/%d", n, rand.Int())
 		} else {
 			tsMatch[i] = tsNoMatch[i]
 		}
 	}
 
-	s.setMatchers(stringsToExactMatchers(ts), stringsToExactMatchers(nil))
+	s.setMatchers(stringsToURLPatternMatchers(ts), nil)
 	b.Cleanup(s.Disconnect)
 
 	ctx, done := context.WithCancel(ctx)

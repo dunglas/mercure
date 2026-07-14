@@ -1,9 +1,8 @@
 /* eslint-env browser */
 
 const type = "https://chat.example.com/Message";
-const { hubURL, messageURITemplate, subscriptionsTopic, username } = JSON.parse(
-  document.getElementById("config").textContent,
-);
+const { hubURL, messagePattern, subscriptionsTopic, presencePattern, username } =
+  JSON.parse(document.getElementById("config").textContent);
 
 document.getElementById("username").textContent = username;
 
@@ -33,11 +32,8 @@ let userList;
     "last_event_id",
     subscriptionCollection.last_event_id,
   );
-  subscribeURL.searchParams.append("topic", messageURITemplate);
-  subscribeURL.searchParams.append(
-    "topic",
-    `${subscriptionsTopic}{/subscriber}`,
-  );
+  subscribeURL.searchParams.append("match_urlpattern", messagePattern);
+  subscribeURL.searchParams.append("match_urlpattern", presencePattern);
 
   const es = new EventSource(subscribeURL, { withCredentials: true });
   es.onmessage = ({ data }) => {
@@ -91,7 +87,7 @@ document.querySelector("form").onsubmit = function (e) {
   e.preventDefault();
 
   const uid = window.crypto.getRandomValues(new Uint8Array(10)).join("");
-  const messageTopic = messageURITemplate.replace("{id}", uid);
+  const messageTopic = messagePattern.replace(":id", uid);
 
   const body = new URLSearchParams({
     data: JSON.stringify({

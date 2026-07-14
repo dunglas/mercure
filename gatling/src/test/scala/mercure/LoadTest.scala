@@ -82,12 +82,14 @@ class LoadTest extends Simulation {
   /** Subscriber test as a function to handle conditional Authorization header
     */
   def subscriberTest() = {
-    var topic = "https://example.com"
+    // Public updates share one exact topic; private updates use random topics
+    // under a URL Pattern.
+    var param = "match=https://example.com"
     if (PrivateUpdates) {
-      topic = topic + "/{id}"
+      param = "match_urlpattern=https://example.com/:id"
     }
 
-    var requestBuilder = sse("Subscribe").get("?topic=" + topic)
+    var requestBuilder = sse("Subscribe").get("?" + param)
 
     if (SubscriberJwt != null) {
       requestBuilder =
