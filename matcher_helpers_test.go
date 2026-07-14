@@ -23,6 +23,19 @@ func stringsToExactMatchers(patterns []string) []TopicMatcher {
 	return out
 }
 
+func stringsToURLPatternMatchers(patterns []string) []TopicMatcher {
+	if patterns == nil {
+		return nil
+	}
+
+	out := make([]TopicMatcher, len(patterns))
+	for i, p := range patterns {
+		out[i] = TopicMatcher{Type: MatcherTypeURLPattern, Pattern: p}
+	}
+
+	return out
+}
+
 // subscribeDetailsFromMatchers builds a single subscribe authorization detail
 // covering the given matchers, with an optional payload.
 func subscribeDetailsFromMatchers(payload any, matchers ...TopicMatcher) []authorizationDetail {
