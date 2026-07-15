@@ -36,6 +36,8 @@ let userList;
   subscribeURL.searchParams.append("match_urlpattern", presencePattern);
 
   const es = new EventSource(subscribeURL, { withCredentials: true });
+
+  // Chat messages arrive as default "message" events.
   es.onmessage = ({ data }) => {
     const update = JSON.parse(data);
 
@@ -44,13 +46,14 @@ let userList;
       return;
     }
 
-    if (update.type === "subscription") {
-      updateUserList(update);
-      return;
-    }
-
     console.warn("Received an unsupported update type", update);
   };
+
+  // Subscription (presence) events carry the reserved "mercure" SSE event type,
+  // so they can be routed without inspecting the payload.
+  es.addEventListener("mercure", ({ data }) => {
+    updateUserList(JSON.parse(data));
+  });
 })();
 
 const updateUserListView = () => {
