@@ -27,10 +27,16 @@ The hub fans the update out to every subscriber whose matchers hit the publicati
 | `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                      |
 | `private` | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.               |
 | `id`      | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't. |
-| `type`    | No       | Custom SSE `event` type. Defaults to `message`.                                                                    |
+| `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`. |
 | `retry`   | No       | Reconnection time hint, in milliseconds.                                                                           |
 
 The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
+
+The hub treats `data` as opaque bytes, so you can push any format the subscriber
+understands: JSON, HTML, plain text, JSON Patch, base64-encoded binary, or an
+event envelope such as [CloudEvents](https://cloudevents.io/). Wrapping the
+payload in an envelope is a publisher/subscriber convention; the hub neither
+requires nor inspects it.
 
 ## Mercure publish examples
 
