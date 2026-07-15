@@ -123,12 +123,8 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 // entry count is already capped by validateJWT).
 func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprecated bool) error {
 	for i := range claims {
-		if len(claims[i].Pattern) > maxPatternLength {
-			return errPatternTooLong
-		}
-
-		if !validProtocolString(claims[i].Pattern) {
-			return errInvalidMatcherValue
+		if err := validateMatcherValue(claims[i].Pattern); err != nil {
+			return err
 		}
 
 		switch claims[i].Type {

@@ -142,12 +142,8 @@ func (h *Hub) appendMatchers(matchers []TopicMatcher, matcherType MatcherType, v
 			return nil, errTooManyMatchers
 		}
 
-		if len(v) > maxPatternLength {
-			return nil, errPatternTooLong
-		}
-
-		if !validProtocolString(v) {
-			return nil, errInvalidMatcherValue
+		if err := validateMatcherValue(v); err != nil {
+			return nil, err
 		}
 
 		m := TopicMatcher{Type: matcherType, Pattern: v}

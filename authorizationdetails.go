@@ -155,6 +155,11 @@ type mercureAuthz struct {
 // authorization_details claim. Non-mercure entries are skipped. Any malformed
 // mercure entry returns errInvalidAuthorizationDetail; the caller rejects the
 // whole token (no partial acceptance).
+//
+// The caps below bound only mercure entries; the total number of entries the
+// token carries (mercure or not) is bounded by the transport's request-size
+// limit (Caddy's request_body directive, Go's MaxHeaderBytes), not an explicit
+// count here, since the whole claim is decoded before this runs.
 func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDetail) (*mercureAuthz, error) {
 	authz := &mercureAuthz{}
 
@@ -195,12 +200,8 @@ func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDe
 // (errPatternTooLong, errInvalidMatcherValue, ErrUnsupportedMatcherType) or the
 // underlying compiler error; callers wrap the result with their own sentinel.
 func validateProtocolMatcher(tss *TopicSelectorStore, m TopicMatcher) error {
-	if len(m.Pattern) > maxPatternLength {
-		return errPatternTooLong
-	}
-
-	if !validProtocolString(m.Pattern) {
-		return errInvalidMatcherValue
+	if err := validateMatcherValue(m.Pattern); err != nil {
+		return err
 	}
 
 	if !knownMatcherType(m.Type) {
@@ -208,6 +209,23 @@ func validateProtocolMatcher(tss *TopicSelectorStore, m TopicMatcher) error {
 	}
 
 	return tss.validatePattern(m)
+}
+
+// validateMatcherValue enforces the length and character constraints every wire
+// matcher pattern shares, independent of matcher type: the single definition of
+// those two checks, reused by the query-parameter, JWT-claim and
+// authorization-details paths. It returns errPatternTooLong or
+// errInvalidMatcherValue.
+func validateMatcherValue(pattern string) error {
+	if len(pattern) > maxPatternLength {
+		return errPatternTooLong
+	}
+
+	if !validProtocolString(pattern) {
+		return errInvalidMatcherValue
+	}
+
+	return nil
 }
 
 func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (validatedDetail, error) {
