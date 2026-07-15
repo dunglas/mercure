@@ -47,13 +47,22 @@ type TopicMatcher struct {
 // identifier spoofing (Trojan Source). NUL rejection also protects the match
 // cache, which joins topics with a NUL separator.
 func validProtocolString(s string) bool {
-	for _, r := range s {
+	// Single pass: DecodeRuneInString flags invalid UTF-8 (RuneError with a
+	// one-byte width) so a separate utf8.ValidString walk is unnecessary.
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == utf8.RuneError && size == 1 {
+			return false
+		}
+
 		if r <= 0x1F || (r >= 0x7F && r <= 0x9F) || unicode.Is(unicode.Cf, r) {
 			return false
 		}
+
+		i += size
 	}
 
-	return utf8.ValidString(s)
+	return true
 }
 
 // knownMatcherType reports whether mt is a matcher type addressable from the
