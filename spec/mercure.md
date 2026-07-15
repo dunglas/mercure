@@ -1033,7 +1033,7 @@ a broader set (for example a `urlpattern` covering the subscriptions namespace, 
 `*`) grants access to the corresponding endpoints. If no detail grants `subscribe` on the
 requested URL, the hub **MUST** answer `403` as defined in (#authorization).
 
-The web API **MUST** set the `Content-Type` HTTP header to `application/mercure+json`.
+The web API **MUST** set the `Content-Type` HTTP header to `application/json`.
 
 URLs returning a single subscription (following the pattern
 `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`) **MUST** expose the same
@@ -1074,7 +1074,7 @@ GET /.well-known/mercure/subscriptions HTTP/1.1
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/mercure+json
+Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
@@ -1120,7 +1120,7 @@ GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/mercure+json
+Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
@@ -1157,7 +1157,7 @@ GET /.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3
 Host: example.com
 
 HTTP/1.1 200 OK
-Content-Type: application/mercure+json
+Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
@@ -1491,54 +1491,6 @@ Initial registrations:
 |-------------|------------------------------------|
 | `publish`   | This specification, (#publishers)  |
 | `subscribe` | This specification, (#subscribers) |
-
-## Media Types Registry
-
-IANA is requested to register the following media type in the "Media Types" registry, per
-[@!RFC6838].
-
-Type name: application
-
-Subtype name: mercure+json
-
-Required parameters: N/A
-
-Optional parameters: N/A
-
-Encoding considerations: binary; the content is a JSON [@!RFC8259] document encoded in UTF-8.
-
-Security considerations: see (#security-considerations) of this document and Section 12 of
-[@!RFC8259]. Documents of this type can carry the `payload` associated with a subscriber's
-access token; hubs restrict access to them as described in (#subscription-events) and
-(#authorization).
-
-Interoperability considerations: N/A
-
-Published specification: this document, (#subscription-events).
-
-Applications that use this media type: Mercure hubs and clients exchanging documents generated
-by the hub, such as active-subscription representations.
-
-Fragment identifier considerations: as for `application/json` (none defined), per Section 3.2
-of [@!RFC6839].
-
-Additional information:
-
-- Deprecated alias names for this type: N/A
-- Magic number(s): N/A
-- File extension(s): N/A
-- Macintosh file type code(s): N/A
-
-Person & email address to contact for further information: Kévin Dunglas
-(kevin@les-tilleuls.coop)
-
-Intended usage: COMMON
-
-Restrictions on usage: N/A
-
-Author: Kévin Dunglas
-
-Change controller: IETF
 
 # Security Considerations
 
