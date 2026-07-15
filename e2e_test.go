@@ -92,9 +92,13 @@ func openSSE(t *testing.T, ctx context.Context, base, query, token string) <-cha
 
 		var data strings.Builder
 
+		var event string
+
 		for sc.Scan() {
 			line := sc.Text()
 			switch {
+			case strings.HasPrefix(line, "event:"):
+				event = strings.TrimPrefix(strings.TrimPrefix(line, "event:"), " ")
 			case strings.HasPrefix(line, "data:"):
 				data.WriteString(strings.TrimPrefix(strings.TrimPrefix(line, "data:"), " "))
 			case line == "":
@@ -104,6 +108,9 @@ func openSSE(t *testing.T, ctx context.Context, base, query, token string) <-cha
 
 				var m map[string]any
 				if json.Unmarshal([]byte(data.String()), &m) == nil {
+					// Surface the SSE event name so tests can assert the framing.
+					m["__event"] = event
+
 					select {
 					case out <- m:
 					case <-ctx.Done():
@@ -112,6 +119,7 @@ func openSSE(t *testing.T, ctx context.Context, base, query, token string) <-cha
 				}
 
 				data.Reset()
+				event = ""
 			}
 		}
 	}()
@@ -244,6 +252,7 @@ func TestE2EPresenceViaSubscriptionEvents(t *testing.T) {
 
 	select {
 	case ev := <-events:
+		require.Equal(t, "mercure", ev["__event"], "subscription events carry the reserved SSE event type")
 		require.Equal(t, "subscription", ev["type"])
 		require.Equal(t, true, ev["active"])
 		require.Equal(t, map[string]any{"username": "alice"}, ev["payload"], "presence event carries the payload")

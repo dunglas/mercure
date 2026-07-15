@@ -567,6 +567,9 @@ func TestPublishHandlerRejectsSSEControlChars(t *testing.T) {
 		{"type", "foo\nid: injected"},
 		{"type", "foo\rdata: injected"},
 		{"type", "foo\x00bar"},
+		// "mercure" is reserved for hub-generated events; a publisher using it
+		// must be rejected (exercises the PublishHandler ErrReservedEventType arm).
+		{"type", "mercure"},
 	}
 
 	for _, tc := range cases {
