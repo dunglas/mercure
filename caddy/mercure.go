@@ -26,9 +26,7 @@ import (
 	"github.com/dunglas/mercure"
 )
 
-const (
-	defaultHubURL = "/.well-known/mercure"
-)
+const defaultHubURL = "/.well-known/mercure"
 
 var (
 	// AllowNoPublish allows not setting the publisher JWT, and then disable the publish endpoint.

@@ -2,7 +2,7 @@ openapi: 3.0.2
 info:
   title: The Mercure protocol
   description: "[Mercure](https://mercure.rocks) is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way."
-  version: 0.3.2
+  version: 1.0.0
   contact:
     name: Kévin Dunglas
     url: https://mercure.rocks
@@ -36,7 +36,7 @@ paths:
             type: array
             items:
               type: string
-        - name: Last-Event-ID
+        - name: last_event_id
           in: query
           description: The last received event id, to retrieve missed events.
           schema:
@@ -93,6 +93,8 @@ paths:
             "text/plain": {}
         "401":
           $ref: "#/components/responses/401"
+        "403":
+          $ref: "#/components/responses/403"
         "400":
           description: Invalid request
   "/.well-known/oauth-protected-resource/.well-known/mercure":
@@ -128,6 +130,8 @@ paths:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
+        "403":
+          $ref: "#/components/responses/403"
   "/.well-known/mercure/subscriptions/{match_type}/{match}":
     get:
       summary: Active subscriptions for the given topic matcher
@@ -156,6 +160,8 @@ paths:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
+        "403":
+          $ref: "#/components/responses/403"
   "/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}":
     get:
       summary: Active subscription for the given matcher and subscriber
@@ -189,6 +195,8 @@ paths:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
+        "403":
+          $ref: "#/components/responses/403"
 components:
   schemas:
     Subscriptions:
@@ -269,6 +277,11 @@ components:
         challenge (with `error="invalid_token"` when a token was presented but
         failed validation) and, per RFC 9728, a `resource_metadata` parameter
         pointing to the protected resource metadata document.
+    "403":
+      description: >-
+        The access token is valid but does not grant the requested action on
+        the topic. Carries a `WWW-Authenticate: Bearer` challenge with
+        `error="insufficient_scope"` (RFC 6750).
   securitySchemes:
     Bearer:
       type: http

@@ -20,6 +20,11 @@ const reservedNamespaceBase = "https://mercure.invalid" + defaultHubURL
 // the hub itself (subscription events), so publishers must not be able to
 // address it.
 //
+// The reserved path is defaultHubURL, the same constant the hub uses to mint
+// subscription-event topics (see Subscriber.getSubscriptions in subscriber.go).
+// If the hub path ever becomes configurable, both must derive from the
+// configured value together, or a publisher could forge subscription events.
+//
 // Resolution uses the WHATWG URL algorithm — the same canonicalization
 // applied when matching topics against URL patterns — so inputs that net/url
 // leaves intact (backslashes in special schemes, mixed-case percent triplets)
