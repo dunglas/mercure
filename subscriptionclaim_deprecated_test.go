@@ -40,7 +40,7 @@ func TestSubscriptionPayloadFallbackToGlobal(t *testing.T) {
 
 	sub.setMatchers(matchers, nil)
 
-	subs := sub.getSubscriptions(subscriptionFilter{}, "", true)
+	subs := sub.getSubscriptions(subscriptionFilter{}, true)
 	require.Len(t, subs, 1)
 
 	p, ok := subs[0].Payload.(map[string]any)
