@@ -358,9 +358,8 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     containing CR or CRLF is received with those sequences normalized to LF; publishers that
     require byte-exact round-tripping (for example, of encrypted payloads) **SHOULD** encode the
     value (for example, with base64) before publication. The value is opaque to the hub: publishers
-    and subscribers **MAY** agree on any format, such as plain text, JSON, or an event envelope like
-    CloudEvents. Only the hub-generated documents described in (#subscription-events) have a format
-    defined by this specification.
+    and subscribers **MAY** agree on any format. Only the hub-generated documents described in
+    (#subscription-events) have a format defined by this specification.
 *   `private` (optional): if this field is present, the update **MUST NOT** be dispatched to
     subscribers not authorized to receive it. See (#authorization). The presence of the field
     name marks the update as private regardless of its value, whether or not a value is
