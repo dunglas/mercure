@@ -44,7 +44,7 @@ let userList;
       return;
     }
 
-    if (update.type === "Subscription") {
+    if (update.type === "subscription") {
       updateUserList(update);
       return;
     }

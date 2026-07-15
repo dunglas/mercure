@@ -121,6 +121,9 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - A second `topic=` on a publish request -> publish to one topic; scope per-user access in the token
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
 
+- JSON-LD subscription documents (`application/ld+json`, `@context`) -> plain JSON served as `application/mercure-subscription+json`
+- `type` values lowercased: `Subscription` -> `subscription`, `Subscriptions` -> `subscriptions`
+
 ### Hub configuration changes
 
 - Set `resource_identifier` (or `public_url`) to the audience your tokens carry; it's required when JWT auth is enabled in modern mode. The official Caddyfile defaults it to `https://localhost/.well-known/mercure`.

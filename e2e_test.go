@@ -153,7 +153,7 @@ func waitForSubscription(t *testing.T, base, collURL, token string) map[string]a
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode, "subscription API status")
-		require.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
+		require.Equal(t, "application/mercure-subscription+json", resp.Header.Get("Content-Type"))
 
 		var doc struct {
 			Subscriptions []map[string]any `json:"subscriptions"`
@@ -244,7 +244,7 @@ func TestE2EPresenceViaSubscriptionEvents(t *testing.T) {
 
 	select {
 	case ev := <-events:
-		require.Equal(t, "Subscription", ev["type"])
+		require.Equal(t, "subscription", ev["type"])
 		require.Equal(t, true, ev["active"])
 		require.Equal(t, map[string]any{"username": "alice"}, ev["payload"], "presence event carries the payload")
 	case <-ctx.Done():

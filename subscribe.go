@@ -395,7 +395,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		return
 	}
 
-	for _, subscription := range s.getSubscriptions(subscriptionFilter{}, jsonldContext, active) {
+	for _, subscription := range s.getSubscriptions(subscriptionFilter{}, active) {
 		j, err := json.MarshalIndent(subscription, "", "  ")
 		if err != nil {
 			panic(err)

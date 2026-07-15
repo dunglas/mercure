@@ -123,7 +123,7 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/ld+json":
+            "application/mercure-subscription+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
@@ -151,7 +151,7 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/ld+json":
+            "application/mercure-subscription+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
@@ -184,7 +184,7 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/ld+json":
+            "application/mercure-subscription+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
@@ -193,20 +193,15 @@ components:
   schemas:
     Subscriptions:
       type: object
-      required: ["@context", "id", "type", "last_event_id", "subscriptions"]
+      required: ["id", "type", "last_event_id", "subscriptions"]
       properties:
-        "@context":
-          type: string
-          format: iri
-          example: https://mercure.rocks/
         id:
           type: string
           format: iri-reference
           example: /.well-known/mercure/subscriptions
         type:
           type: string
-          format: iri-reference
-          example: Subscriptions
+          example: subscriptions
         last_event_id:
           type: string
           example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
@@ -218,18 +213,13 @@ components:
       type: object
       required: ["id", "type", "match", "match_type", "subscriber", "active"]
       properties:
-        "@context":
-          type: string
-          format: iri
-          example: https://mercure.rocks/
         id:
           type: string
           format: iri-reference
           example: /.well-known/mercure/subscriptions
         type:
           type: string
-          format: iri-reference
-          example: Subscription
+          example: subscription
         match:
           type: string
           example: https://example.com/:selector
