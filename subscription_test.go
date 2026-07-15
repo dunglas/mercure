@@ -135,7 +135,7 @@ func TestSubscriptionsHandler(t *testing.T) {
 	hub.SubscriptionsHandler(w, req)
 	res := w.Result()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
-	assert.Equal(t, "application/mercure+json", res.Header.Get("Content-Type"))
+	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
 	require.NoError(t, res.Body.Close())
 
 	// The document is plain JSON: no JSON-LD context must leak back in.

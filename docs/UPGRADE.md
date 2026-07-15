@@ -121,7 +121,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - A second `topic=` on a publish request -> publish to one topic; scope per-user access in the token
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
 
-- JSON-LD subscription documents (`application/ld+json`, `@context`) -> plain JSON served as `application/mercure+json`
+- JSON-LD subscription documents (`application/ld+json`, `@context`) -> plain JSON served as `application/json`
 - `type` values lowercased: `Subscription` -> `subscription`, `Subscriptions` -> `subscriptions`
 - Subscription events now carry the SSE `event: mercure` field (route them with `addEventListener("mercure", ...)`); publishing an update whose `type` is `mercure` is rejected with a `400 Bad Request`
 

@@ -26,7 +26,7 @@ const (
 	reservedEventType = "mercure"
 )
 
-var subscriptionContentType = []string{"application/mercure+json"} // nolint:gochecknoglobals
+var subscriptionContentType = []string{"application/json"} // nolint:gochecknoglobals
 
 var etagEscaper = strings.NewReplacer("%", "%25", `"`, "%22") //nolint:gochecknoglobals
 

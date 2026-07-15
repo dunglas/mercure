@@ -161,7 +161,7 @@ func waitForSubscription(t *testing.T, base, collURL, token string) map[string]a
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode, "subscription API status")
-		require.Equal(t, "application/mercure+json", resp.Header.Get("Content-Type"))
+		require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
 		var doc struct {
 			Subscriptions []map[string]any `json:"subscriptions"`
