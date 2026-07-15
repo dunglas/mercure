@@ -42,9 +42,9 @@ const (
 	// signature). Anything shorter is garbage and is rejected before signature
 	// verification.
 	minCompactJWSLen = 41
-	// authorizationParam is the lowercase name of the legacy authorization
-	// query parameter and the CORS allowed header.
-	authorizationParam = "authorization"
+	// authorizationHeader is the lowercase name of the "Authorization" HTTP
+	// header, used in the CORS allowed-headers list.
+	authorizationHeader = "authorization"
 	// atJWTType is the required JWT access token "typ" header value (RFC 9068).
 	atJWTType = "at+jwt"
 )

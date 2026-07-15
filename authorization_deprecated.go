@@ -15,6 +15,11 @@ var ErrTooManyClaimMatchers = errors.New("too many matchers in mercure claim")
 // fallback only in compatibility mode. The modern name is defaultCookieName.
 const legacyCookieName = "mercureAuthorization"
 
+// legacyAuthorizationParam is the deprecated "authorization" URI query
+// parameter carrying the access token, honored only in compatibility mode. The
+// modern parameter is "access_token".
+const legacyAuthorizationParam = "authorization"
+
 // compatClaimsEnabled reports whether legacy mercure-claim behavior is active:
 // the code is compiled in and the operator enabled compatibility mode.
 func (h *Hub) compatClaimsEnabled() bool {
@@ -36,7 +41,7 @@ func (h *Hub) legacyAuthQueryParam(r *http.Request) (string, bool) {
 		return "", false
 	}
 
-	q, ok := r.URL.Query()[authorizationParam]
+	q, ok := r.URL.Query()[legacyAuthorizationParam]
 	if !ok || len(q) != 1 || len(q[0]) < minCompactJWSLen {
 		return "", false
 	}

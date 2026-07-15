@@ -193,7 +193,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 		corsHandler = cors.New(cors.Options{
 			AllowedOrigins:   h.corsOrigins,
 			AllowCredentials: true,
-			AllowedHeaders:   []string{authorizationParam, "cache-control", "last-event-id"},
+			AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id"},
 		}).Handler(r)
 	} else {
 		corsHandler = r
