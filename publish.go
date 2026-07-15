@@ -240,7 +240,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	private := len(r.PostForm["private"]) != 0
 	if claims != nil && !claims.authz.grantsAll(h.topicSelectorStore, actionPublish, topics) { //nolint:nestif
 		if private {
-			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
+			h.writeBearerError(w, bearerErrInsufficientScope, http.StatusForbidden)
 
 			return
 		}
@@ -255,7 +255,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 				h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: posting public updates to topics not granted to the token is not supported anymore, grant the "*" topic to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
 			}
 
-			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
+			h.writeBearerError(w, bearerErrInsufficientScope, http.StatusForbidden)
 
 			return
 		}

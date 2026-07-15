@@ -55,9 +55,9 @@ type subscriptionCollection struct {
 // Either topic is set (deprecated URL /subscriptions/{topic}[/{subscriber}])
 // or match_type+match are set (URL /subscriptions/{match_type}/{match}[/{subscriber}]).
 type subscriptionFilter struct {
-	topic      string
-	match_type string
-	match      string
+	topic     string
+	matchType string
+	match     string
 }
 
 // filterFromVars builds a subscriptionFilter from mux path variables. Returns
@@ -70,7 +70,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 	for _, seg := range []struct {
 		name string
 		dst  *string
-	}{{paramTopic, &f.topic}, {paramMatch, &f.match}, {paramMatchType, &f.match_type}} {
+	}{{paramTopic, &f.topic}, {paramMatch, &f.match}, {paramMatchType, &f.matchType}} {
 		v, err := url.PathUnescape(vars[seg.name])
 		if err != nil {
 			return subscriptionFilter{}, errors.New("invalid " + seg.name + " segment: " + err.Error()) //nolint:err113
@@ -81,7 +81,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 
 	// Reject unknown matcher types with a 400 instead of silently serving an
 	// empty listing. match_type is empty on the deprecated /{topic} routes.
-	if f.match_type != "" && !knownMatcherType(MatcherType(f.match_type)) {
+	if f.matchType != "" && !knownMatcherType(MatcherType(f.matchType)) {
 		return subscriptionFilter{}, ErrUnsupportedMatcherType
 	}
 
@@ -98,7 +98,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, currentURL, last_event_id, subscribers, ok := h.initSubscription(w, r)
+	span, currentURL, lastEventID, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -110,7 +110,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	subscriptionCollection := subscriptionCollection{
 		ID:            currentURL,
 		Type:          "subscriptions",
-		LastEventID:   last_event_id,
+		LastEventID:   lastEventID,
 		Subscriptions: make([]subscription, 0),
 	}
 
@@ -152,7 +152,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, _, last_event_id, subscribers, ok := h.initSubscription(w, r)
+	span, _, lastEventID, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -167,7 +167,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, subscription := range subscriber.getSubscriptions(filter, true) {
-			subscription.LastEventID = last_event_id
+			subscription.LastEventID = lastEventID
 
 			j, err := json.MarshalIndent(subscription, "", "  ")
 			if err != nil {
@@ -207,7 +207,7 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWrite
 	// subscription resource is identified by its path, so query parameters
 	// (e.g. last_event_id) must not change whether a subscribe grant matches.
 	if !claims.authz.grants(h.topicSelectorStore, actionSubscribe, r.URL.EscapedPath()) {
-		h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
+		h.writeBearerError(w, bearerErrInsufficientScope, http.StatusForbidden)
 
 		return false
 	}
@@ -215,7 +215,7 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWrite
 	return true
 }
 
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, last_event_id string, subscribers []*Subscriber, ok bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
 	// The topic to authorize (and the collection id) is the absolute path in
 	// relative form; RequestURI() would append the query string, so a token
@@ -234,7 +234,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 	var err error
 
-	last_event_id, subscribers, err = transport.GetSubscribers(ctx)
+	lastEventID, subscribers, err = transport.GetSubscribers(ctx)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
@@ -244,14 +244,14 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 		recordSpanError(span, err)
 
-		return span, currentURL, last_event_id, subscribers, false
+		return span, currentURL, lastEventID, subscribers, false
 	}
 
 	// ETags are quoted strings (RFC 9110 §8.8.3). DQUOTE is the only etagc-
 	// forbidden byte a publisher-supplied event ID can contain (control
 	// characters are rejected at publication), so escape it; "%" is escaped
 	// first to keep the mapping injective.
-	etag := `"` + etagEscaper.Replace(last_event_id) + `"`
+	etag := `"` + etagEscaper.Replace(lastEventID) + `"`
 	// A 304 carries the ETag it would have sent on a 200 (RFC 9110 §15.4.5), so
 	// set it before the conditional check.
 	header := w.Header()
@@ -265,5 +265,5 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 	header["Content-Type"] = subscriptionContentType
 
-	return span, currentURL, last_event_id, subscribers, true
+	return span, currentURL, lastEventID, subscribers, true
 }

@@ -399,6 +399,7 @@ type opt struct {
 	protocolVersionCompatibility int
 	publicURL                    string
 	resourceIdentifier           string
+	resourceMetadataURL          string
 	authorizationServers         []string
 }
 
@@ -420,6 +421,10 @@ func (o *opt) configureIdentifiers() error {
 	if o.resourceIdentifier == "" {
 		o.resourceIdentifier = o.publicURL
 	}
+
+	// Build the RFC 9728 metadata URL once, here, rather than on every
+	// unauthenticated request that emits a Bearer challenge.
+	o.resourceMetadataURL = buildResourceMetadataURL(o.publicURL, o.resourceIdentifier)
 
 	// In modern mode, RFC 9068 requires checking the token audience against
 	// the hub's resource identifier; refuse to start a token-validating hub

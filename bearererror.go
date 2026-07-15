@@ -20,16 +20,16 @@ const (
 // writeBearerChallenge answers an unauthenticated request (no token presented)
 // with a 401 and a bare RFC 6750 Bearer challenge, advertising the protected
 // resource metadata so clients can discover the authorization requirements.
-func (h *Hub) writeBearerChallenge(w http.ResponseWriter, r *http.Request) {
+func (h *Hub) writeBearerChallenge(w http.ResponseWriter) {
 	// An empty error code makes setWWWAuthenticate omit the error= parameter, so
 	// this is the bare challenge for an unauthenticated request.
-	h.writeBearerError(w, r, "", http.StatusUnauthorized)
+	h.writeBearerError(w, "", http.StatusUnauthorized)
 }
 
 // writeBearerError answers with an RFC 6750 error: a WWW-Authenticate challenge
 // carrying the error code and the matching status.
-func (h *Hub) writeBearerError(w http.ResponseWriter, r *http.Request, code string, status int) {
-	h.setWWWAuthenticate(w, r, code)
+func (h *Hub) writeBearerError(w http.ResponseWriter, code string, status int) {
+	h.setWWWAuthenticate(w, code)
 	http.Error(w, http.StatusText(status), status)
 }
 
@@ -49,14 +49,14 @@ func (h *Hub) writeBearerError(w http.ResponseWriter, r *http.Request, code stri
 func (h *Hub) writeAuthError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case err == nil:
-		h.writeBearerChallenge(w, r)
+		h.writeBearerChallenge(w)
 	case errors.Is(err, ErrInvalidAuthorizationHeader),
 		errors.Is(err, ErrInvalidAuthorizationQuery),
 		errors.Is(err, ErrNoOrigin),
 		errors.Is(err, ErrOriginNotAllowed):
-		h.writeBearerError(w, r, bearerErrInvalidRequest, http.StatusBadRequest)
+		h.writeBearerError(w, bearerErrInvalidRequest, http.StatusBadRequest)
 	default:
-		h.writeBearerError(w, r, bearerErrInvalidToken, http.StatusUnauthorized)
+		h.writeBearerError(w, bearerErrInvalidToken, http.StatusUnauthorized)
 	}
 
 	// Token rejections are client-caused and, during a protocol migration,
@@ -70,8 +70,8 @@ func (h *Hub) writeAuthError(w http.ResponseWriter, r *http.Request, err error) 
 }
 
 // setWWWAuthenticate writes the RFC 6750 WWW-Authenticate: Bearer header,
-// including the RFC 9728 resource_metadata parameter.
-func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code string) {
+// including the RFC 9728 resource_metadata parameter when the hub can build it.
+func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, code string) {
 	var b strings.Builder
 	b.WriteString("Bearer")
 
@@ -81,28 +81,37 @@ func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code st
 		sep = ", "
 	}
 
-	fmt.Fprintf(&b, `%sresource_metadata=%q`, sep, h.resourceMetadataURL(r))
+	if h.resourceMetadataURL != "" {
+		fmt.Fprintf(&b, `%sresource_metadata=%q`, sep, h.resourceMetadataURL)
+	}
 
 	w.Header().Set("WWW-Authenticate", b.String())
 }
 
-// resourceMetadataURL returns the absolute URL of the hub's RFC 9728 protected
-// resource metadata, derived from the public URL when set, otherwise from the
+// buildResourceMetadataURL returns the absolute URL of the hub's RFC 9728
+// protected resource metadata, or "" when the hub has no configured origin to
+// build it from. It is computed once at configuration time (see
+// opt.configureIdentifiers) and cached, since the value never varies per
 // request.
-func (h *Hub) resourceMetadataURL(r *http.Request) string {
-	// The metadata is always served at protectedResourceMetadataPath on the
-	// hub's own origin, so derive scheme and host from the configured public
-	// URL when available (whatever its path), falling back to the request.
-	if h.publicURL != "" {
-		if u, err := url.Parse(h.publicURL); err == nil && u.IsAbs() && u.Host != "" {
+//
+// RFC 9728 requires an absolute value (a relative reference would be ambiguous
+// to clients), and this URL is echoed into the WWW-Authenticate challenge, so
+// it is derived only from the configured identity — the public URL, then the
+// resource identifier — never from request-supplied Host or X-Forwarded-Proto
+// headers, which a client could forge to point discovery at an attacker-chosen
+// origin. A token-validating hub in modern mode always has an identifier; the
+// empty return is only reached in compatibility mode without one, where the
+// parameter is omitted rather than fabricated from the request.
+func buildResourceMetadataURL(publicURL, resourceIdentifier string) string {
+	for _, identity := range []string{publicURL, resourceIdentifier} {
+		if identity == "" {
+			continue
+		}
+
+		if u, err := url.Parse(identity); err == nil && u.IsAbs() && u.Host != "" {
 			return u.Scheme + "://" + u.Host + protectedResourceMetadataPath
 		}
 	}
 
-	scheme := schemeHTTPS
-	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != schemeHTTPS {
-		scheme = "http"
-	}
-
-	return scheme + "://" + r.Host + protectedResourceMetadataPath
+	return ""
 }
