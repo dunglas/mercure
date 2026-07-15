@@ -19,9 +19,15 @@ const (
 
 	subscriptionMatchURL     = defaultHubURL + subscriptionsPath + "/{match_type}/{match}/{subscriber}"
 	subscriptionsForMatchURL = defaultHubURL + subscriptionsPath + "/{match_type}/{match}"
+
+	// reservedEventType is the SSE "event" field value the hub sets on every
+	// update it generates itself (currently subscription events). Publishers
+	// are forbidden from using it (see Update.Validate) so that a client
+	// listening for it over a shared connection cannot receive forged events.
+	reservedEventType = "mercure"
 )
 
-var subscriptionContentType = []string{"application/mercure-subscription+json"} // nolint:gochecknoglobals
+var subscriptionContentType = []string{"application/mercure+json"} // nolint:gochecknoglobals
 
 var etagEscaper = strings.NewReplacer("%", "%25", `"`, "%22") //nolint:gochecknoglobals
 

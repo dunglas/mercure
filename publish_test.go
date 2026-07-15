@@ -504,6 +504,7 @@ func TestUpdateValidate(t *testing.T) {
 		{"type LF", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
 		{"type CR", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
 		{"type NUL", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
+		{"type reserved mercure", Update{Topic: "https://example.com/books/1", Event: Event{Type: reservedEventType}}, ErrReservedEventType},
 	}
 
 	for _, tc := range cases {

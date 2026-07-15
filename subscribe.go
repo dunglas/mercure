@@ -413,7 +413,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 			Topic:   subscription.ID,
 			Private: true,
 			Debug:   h.debug,
-			Event:   Event{Data: string(j)},
+			Event:   Event{Data: string(j), Type: reservedEventType},
 		}
 
 		if err := h.transport.Dispatch(ctx, u); err != nil && h.logger.Enabled(ctx, slog.LevelError) {

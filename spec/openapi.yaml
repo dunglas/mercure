@@ -105,7 +105,7 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/mercure-subscription+json":
+            "application/mercure+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
@@ -133,7 +133,7 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/mercure-subscription+json":
+            "application/mercure+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
@@ -166,7 +166,7 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/mercure-subscription+json":
+            "application/mercure+json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
