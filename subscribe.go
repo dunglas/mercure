@@ -409,6 +409,12 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 			panic(err)
 		}
 
+		// Dispatched directly, bypassing Hub.Publish/Update.Validate: this is
+		// the only path allowed to set the reserved reservedEventType, and
+		// Validate would reject it. Safe because Topic and Data are hub-built
+		// here (subscription.ID is a hub-constructed path; json.MarshalIndent
+		// escapes control characters), not attacker-controlled. Keep that
+		// invariant if this function changes.
 		u := &Update{
 			Topic:   subscription.ID,
 			Private: true,
