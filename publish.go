@@ -33,12 +33,13 @@ const (
 // Sentinel errors returned by Publish. Callers can branch on them via
 // errors.Is.
 var (
-	ErrReservedTopic    = errors.New(`topic value resolves into the reserved "/.well-known/mercure" namespace`)
-	ErrInvalidEventID   = errors.New(`"id" field contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
-	ErrInvalidEventType = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
-	ErrInvalidTopic     = errors.New("topic contains a forbidden control character or invalid UTF-8")
-	ErrTooManyTopics    = errors.New("too many topics in update")
-	ErrInvalidData      = errors.New(`"data" field is not valid UTF-8`)
+	ErrReservedTopic     = errors.New(`topic value resolves into the reserved "/.well-known/mercure" namespace`)
+	ErrInvalidEventID    = errors.New(`"id" field contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
+	ErrInvalidEventType  = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
+	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
+	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
+	ErrTooManyTopics     = errors.New("too many topics in update")
+	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
 )
 
 // Validate enforces the publish-side input rules that protect subscribers
@@ -83,6 +84,13 @@ func (u *Update) Validate() error {
 
 	if !validProtocolString(u.Type) {
 		return ErrInvalidEventType
+	}
+
+	// "mercure" is reserved for hub-generated events (subscription events set
+	// it as the SSE event name); a publisher using it could inject forged
+	// events into a client listening for that event type.
+	if u.Type == reservedEventType {
+		return ErrReservedEventType
 	}
 
 	// The protocol requires field values to be valid UTF-8; ParseForm does not
@@ -268,6 +276,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, ErrReservedTopic):
 			http.Error(w, err.Error(), http.StatusForbidden)
 		case errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
+			errors.Is(err, ErrReservedEventType),
 			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
 			errors.Is(err, ErrInvalidData):
 			http.Error(w, err.Error(), http.StatusBadRequest)

@@ -108,11 +108,16 @@ Subscription URLs move from `/subscriptions/{topic}[/{subscriber}]` to
 `/subscriptions/{match_type}/{match}[/{subscriber}]`, and the documents expose
 `match` and `match_type` fields instead of `topic`.
 
-Subscription documents are now plain JSON served as
-`application/mercure-subscription+json` (was JSON-LD as `application/ld+json`).
-The `@context` property is gone, and the `type` values are lowercased:
-`"type": "subscription"` and `"type": "subscriptions"` (were `Subscription` and
-`Subscriptions`).
+Subscription documents are now plain JSON served as `application/mercure+json`
+(was JSON-LD as `application/ld+json`). The `@context` property is gone, and the
+`type` values are lowercased: `"type": "subscription"` and
+`"type": "subscriptions"` (were `Subscription` and `Subscriptions`).
+
+Subscription events are pushed with the SSE `event` field set to `mercure`, so a
+client sharing one `EventSource` across data and subscription topics can route
+them with `addEventListener("mercure", ...)`. The `mercure` event type is
+reserved: publish requests whose `type` field equals `mercure` are rejected with
+a `400 Bad Request`.
 
 ### Backward compatibility
 
