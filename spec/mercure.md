@@ -1290,7 +1290,7 @@ embedded link are provided, the header **MUST** be preferred.
 ### Content Negotiation
 
 For practical purposes, the `rel=self` URL **SHOULD** offer a single representation. The hub has
-no way to know which Media Type ([@RFC6838]) or language was requested by the subscriber upon
+no way to know which Media Type ([@!RFC6838]) or language was requested by the subscriber upon
 discovery, and therefore cannot select a representation on its behalf.
 
 Content negotiation can, however, be performed by returning a different `rel=self` URL based on
