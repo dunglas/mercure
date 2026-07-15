@@ -663,9 +663,8 @@ func TestSubscriptionEvents(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 		bodyContent := string(body)
-		assert.Contains(t, bodyContent, `data:   "@context": "https://mercure.rocks/",`)
 		assert.Regexp(t, `(?m)^data:   "id": "/\.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample\.com/.*,$`, bodyContent)
-		assert.Contains(t, bodyContent, `data:   "type": "Subscription",`)
+		assert.Contains(t, bodyContent, `data:   "type": "subscription",`)
 		assert.Contains(t, bodyContent, `data:   "subscriber": "urn:uuid:`)
 		assert.Contains(t, bodyContent, `data:   "match": "https://example.com",`)
 		assert.Contains(t, bodyContent, `data:   "match_type": "exact",`)

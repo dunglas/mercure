@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	jsonldContext     = "https://mercure.rocks/"
 	subscriptionsPath = "/subscriptions"
 	subscriptionsURL  = defaultHubURL + subscriptionsPath
 
@@ -21,12 +20,11 @@ const (
 	subscriptionsForMatchURL = defaultHubURL + subscriptionsPath + "/{match_type}/{match}"
 )
 
-var jsonldContentType = []string{"application/ld+json"} // nolint:gochecknoglobals
+var subscriptionContentType = []string{"application/mercure-subscription+json"} // nolint:gochecknoglobals
 
 var etagEscaper = strings.NewReplacer("%", "%25", `"`, "%22") //nolint:gochecknoglobals
 
 type subscription struct {
-	Context     string `json:"@context,omitempty"`
 	ID          string `json:"id"`
 	Type        string `json:"type"`
 	Subscriber  string `json:"subscriber"`
@@ -39,7 +37,6 @@ type subscription struct {
 }
 
 type subscriptionCollection struct {
-	Context       string         `json:"@context"`
 	ID            string         `json:"id"`
 	Type          string         `json:"type"`
 	LastEventID   string         `json:"last_event_id"`
@@ -105,15 +102,14 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	subscriptionCollection := subscriptionCollection{
-		Context:       jsonldContext,
 		ID:            currentURL,
-		Type:          "Subscriptions",
+		Type:          "subscriptions",
 		LastEventID:   last_event_id,
 		Subscriptions: make([]subscription, 0),
 	}
 
 	for _, subscriber := range subscribers {
-		subscriptionCollection.Subscriptions = append(subscriptionCollection.Subscriptions, subscriber.getSubscriptions(filter, "", true)...)
+		subscriptionCollection.Subscriptions = append(subscriptionCollection.Subscriptions, subscriber.getSubscriptions(filter, true)...)
 	}
 
 	j, err := json.MarshalIndent(subscriptionCollection, "", "  ")
@@ -164,7 +160,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		for _, subscription := range subscriber.getSubscriptions(filter, jsonldContext, true) {
+		for _, subscription := range subscriber.getSubscriptions(filter, true) {
 			subscription.LastEventID = last_event_id
 
 			j, err := json.MarshalIndent(subscription, "", "  ")
@@ -261,7 +257,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 		return span, "", "", nil, false
 	}
 
-	header["Content-Type"] = jsonldContentType
+	header["Content-Type"] = subscriptionContentType
 
 	return span, currentURL, last_event_id, subscribers, true
 }

@@ -200,7 +200,7 @@ func (s *Subscriber) resolveSubscriptionPayload(m TopicMatcher) any {
 // getSubscriptions returns the subscriptions associated to this subscriber,
 // optionally filtered by path variables from the subscription API. A filter
 // with neither topic nor match set is treated as "no filter".
-func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string, active bool) []subscription {
+func (s *Subscriber) getSubscriptions(filter subscriptionFilter, active bool) []subscription {
 	useMatch := filter.match != "" || filter.match_type != ""
 
 	var subscriptions []subscription //nolint:prealloc
@@ -222,9 +222,8 @@ func (s *Subscriber) getSubscriptions(filter subscriptionFilter, context string,
 		}
 
 		sub := subscription{
-			Context:    context,
 			ID:         "/.well-known/mercure/subscriptions/" + s.EscapedMatchers[k] + "/" + s.EscapedID,
-			Type:       "Subscription",
+			Type:       "subscription",
 			Subscriber: s.ID,
 			Active:     active,
 		}
