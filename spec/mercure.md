@@ -108,9 +108,16 @@ appear in all capitals, as shown here.
 The subscriber subscribes to a URL exposed by a hub to receive updates from one or more topics.
 To subscribe, the client opens an HTTPS connection to the hub's subscription URL (advertised by
 the publisher; see (#discovery)) following the Server-Sent Events specification
-[@!HTML]. The `GET` HTTP method **MUST** be used. The connection
-**SHOULD** use HTTP version 2 or higher to leverage multiplexing and other performance-related
-features.
+[@!HTML]. Hubs **MUST** support the `GET` HTTP method, which is the method used by
+`EventSource` clients [@!HTML]. Hubs **MAY** also accept any other safe [@!RFC9110]
+method whose semantics allow the topic matcher parameters to be carried in the request
+body instead of the query component — notably the `QUERY` method [@RFC10008] — so that
+subscribers can send topic matcher lists too large for the URI length limits of
+intermediaries. When the parameters are carried in the request body, they **MUST** be
+encoded as `application/x-www-form-urlencoded` [@!URL], and the reserved-namespace rule
+and value constraints below apply identically to the body-decoded names and values. The
+connection **SHOULD** use HTTP version 2 or higher to leverage multiplexing and other
+performance-related features.
 
 The subscriber specifies the topics to receive updates from using topic matcher query
 parameters. The parameter name encodes the matcher type: the bare `match` parameter selects the
