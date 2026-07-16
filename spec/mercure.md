@@ -1265,12 +1265,10 @@ hub URL `/.well-known/mercure`, the metadata is served at
     member below.
 *   `mercure_cookie` (optional): a string, the name of the cookie in which the hub also accepts
     the access token (a Mercure extension to [@!RFC6750]; see (#cookie)). A client that cannot set
-    an `Authorization` header (a web browser using `EventSource`) presents the token by setting a
-    cookie of this name. Carrying the name rather than a boolean lets such a client authorize
-    without out-of-band knowledge, since the name is hub-configurable. The cookie mechanism is
-    advertised as a dedicated metadata member rather than a value of `bearer_methods_supported`,
-    whose values are constrained to the [@!RFC6750] methods. This member is omitted when the hub
-    does not offer cookie authorization.
+    an `Authorization` header (for example, a web browser using `EventSource`) presents the token
+    by setting a cookie of this name. The cookie mechanism is advertised as a dedicated metadata
+    member rather than a value of `bearer_methods_supported`, whose values are constrained to the
+    [@!RFC6750] methods. This member is omitted when the hub does not offer cookie authorization.
 *   `mercure_matcher_types_supported` (optional): a JSON array of strings listing the names of
     the topic matcher types the hub supports (see (#matcher-types)). When omitted, the
     supported set is exactly the two types defined by this document, `exact` and `urlpattern`;
