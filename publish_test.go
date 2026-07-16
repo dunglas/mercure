@@ -485,6 +485,7 @@ func TestUpdateValidate(t *testing.T) {
 		{"reserved topic exact", Update{Topic: "https://example.com/.well-known/mercure"}, ErrReservedTopic},
 		{"reserved topic percent-encoded", Update{Topic: "https://example.com/.well-known/%6Dercure/subscriptions/foo"}, ErrReservedTopic},
 		{"reserved topic backslashes", Update{Topic: `https://example.com\.well-known\mercure\subscriptions\foo`}, ErrReservedTopic},
+		{"reserved wildcard", Update{Topic: "*"}, ErrReservedWildcard},
 		{"non-reserved mid-path namespace", Update{Topic: "https://example.com/foo/.well-known/mercure/bar"}, nil},
 		{"non-reserved sibling path", Update{Topic: "https://example.com/.well-known/mercure-dashboard"}, nil},
 		{"non-reserved opaque topic", Update{Topic: "urn:example:mercure"}, nil},
@@ -549,7 +550,10 @@ func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
 				assert.NoError(t, resp.Body.Close())
 			})
 
-			assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+			// The reserved namespace is off-limits to every publisher
+			// regardless of grants, so it is a request-validation failure
+			// (400 invalid_request), not an authorization failure.
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		})
 	}
 }

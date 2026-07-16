@@ -14,7 +14,7 @@ namespace, where the parameter name encodes the matcher type:
   the 0.x `topic` parameter with `match`; its implicit
   [URI Template (RFC 6570)](https://tools.ietf.org/html/rfc6570) support is
   removed. `match_exact` is an explicit alias.
-- `match<MatcherType>` selects a named matcher type: replace `topicURLPattern`
+- `match_<matcher_type>` selects a named matcher type: replace `topicURLPattern`
   with `match_urlpattern`, e.g. `match_urlpattern=https://example.com/books/:id`
   (note `:id`, not `{id}`).
 - Parameter names are case-sensitive; any other name in the reserved `match`
@@ -54,7 +54,7 @@ claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)):
 }
 ```
 
-`match_type` is case-sensitive and defaults to `Exact`. A `mercure` detail must
+`match_type` is case-sensitive and defaults to `exact`. A `mercure` detail must
 declare a non-empty `actions` array (a subset of `publish`/`subscribe`) and a
 non-empty `topics` array; an invalid detail rejects the whole token with a
 `401 Unauthorized` and `error="invalid_token"` (the defect is in the presented
