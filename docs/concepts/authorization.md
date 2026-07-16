@@ -22,7 +22,7 @@ A Mercure access token is a JWT access token as defined by [RFC 9068](https://ww
 // payload
 {
   "aud": "https://hub.example.com/.well-known/mercure",
-  "exp": 1767225600,
+  "exp": 4102444800,
   "authorization_details": [
     { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
     {

@@ -103,7 +103,7 @@ Use [subscription events](../concepts/active-subscriptions.md) to show who's con
 // Collaborative Presence with Mercure Subscription Events (header: { "alg": "...", "typ": "at+jwt" })
 {
   "aud": "https://hub.example.com/.well-known/mercure",
-  "exp": 1767225600,
+  "exp": 4102444800,
   "authorization_details": [
     {
       "type": "mercure",
@@ -190,7 +190,7 @@ Documents are usually private. Each user's `subscribe` grant should cover only t
 // Authorization (header: { "alg": "...", "typ": "at+jwt" })
 {
   "aud": "https://hub.example.com/.well-known/mercure",
-  "exp": 1767225600,
+  "exp": 4102444800,
   "authorization_details": [
     {
       "type": "mercure",

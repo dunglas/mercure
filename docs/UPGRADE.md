@@ -64,7 +64,7 @@ The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access toke
 // After (1.0) — header { "alg": "...", "typ": "at+jwt" }
 {
   "aud": "https://hub.example.com/.well-known/mercure",
-  "exp": 1767225600,
+  "exp": 4102444800,
   "authorization_details": [
     { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
     {

@@ -44,7 +44,7 @@ The cookie carries an access token scoped to that user only:
 // Per-User Mercure Notifications (header: { "alg": "...", "typ": "at+jwt" })
 {
   "aud": "https://hub.example.com/.well-known/mercure",
-  "exp": 1767225600,
+  "exp": 4102444800,
   "authorization_details": [
     {
       "type": "mercure",

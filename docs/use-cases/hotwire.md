@@ -124,7 +124,7 @@ For per-user or per-team streams (a kanban board only the team's members can see
 // Private Turbo Streams over Mercure (header: { "alg": "...", "typ": "at+jwt" })
 {
   "aud": "https://hub.example.com/.well-known/mercure",
-  "exp": 1767225600,
+  "exp": 4102444800,
   "authorization_details": [
     {
       "type": "mercure",

@@ -169,7 +169,7 @@ Mint a JWT for the user when they load the chat page:
 // Authorization sketch (header: { "alg": "...", "typ": "at+jwt" })
 {
   "aud": "https://hub.example.com/.well-known/mercure",
-  "exp": 1767225600,
+  "exp": 4102444800,
   "authorization_details": [
     {
       "type": "mercure",
