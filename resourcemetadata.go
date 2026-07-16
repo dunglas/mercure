@@ -26,12 +26,11 @@ type protectedResourceMetadata struct {
 	// AuthorizationDetailsTypesSupported advertises the RFC 9396
 	// authorization detail types the hub understands.
 	AuthorizationDetailsTypesSupported []string `json:"authorization_details_types_supported,omitempty"`
-	// MercureCookie advertises the name of the cookie carrying the access
-	// token, a Mercure extension to RFC 6750. It is a dedicated member rather
-	// than a value of bearer_methods_supported, whose values are constrained to
-	// the RFC 6750 methods (a cookie is not one of them). Carrying the name
-	// rather than a boolean lets a browser client set the right cookie without
-	// out-of-band knowledge, since the name is configurable (WithCookieName).
+	// MercureCookie is the name of the cookie in which the hub accepts the
+	// access token, a Mercure extension to RFC 6750. A browser client, which
+	// cannot set an Authorization header, presents the token by setting a
+	// cookie of this name. It is a dedicated member because bearer_methods_supported
+	// values are constrained to the RFC 6750 methods (a cookie is not one of them).
 	MercureCookie string `json:"mercure_cookie,omitempty"`
 	// MercureSubscriptions advertises the active subscriptions feature (a
 	// Mercure extension to RFC 9728) when the hub implements it.
