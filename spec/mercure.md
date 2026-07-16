@@ -1263,8 +1263,11 @@ hub URL `/.well-known/mercure`, the metadata is served at
     the URI query parameter method [@!RFC9728]. The cookie mechanism is not a [@!RFC6750]
     bearer method, so it is not listed here; it is advertised by the separate `mercure_cookie`
     member below.
-*   `mercure_cookie` (optional): a boolean. When `true`, the hub also accepts the access token in
-    a cookie (a Mercure extension to [@!RFC6750]; see (#cookie)). The cookie mechanism is
+*   `mercure_cookie` (optional): a string, the name of the cookie in which the hub also accepts
+    the access token (a Mercure extension to [@!RFC6750]; see (#cookie)). A client that cannot set
+    an `Authorization` header (a web browser using `EventSource`) presents the token by setting a
+    cookie of this name. Carrying the name rather than a boolean lets such a client authorize
+    without out-of-band knowledge, since the name is hub-configurable. The cookie mechanism is
     advertised as a dedicated metadata member rather than a value of `bearer_methods_supported`,
     whose values are constrained to the [@!RFC6750] methods. This member is omitted when the hub
     does not offer cookie authorization.
@@ -1433,8 +1436,8 @@ The following values are to be registered in the "OAuth Protected Resource Metad
 established by [@!RFC9728]:
 
 *   Metadata Name: mercure_cookie
-*   Metadata Description: Boolean indicating that the Mercure hub also accepts the access
-    token in a cookie
+*   Metadata Description: String naming the cookie in which the Mercure hub also accepts the
+    access token
 *   Change Controller: IESG
 *   Specification Document(s): This specification, (#protected-resource-metadata)
 
