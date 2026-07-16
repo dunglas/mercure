@@ -1,5 +1,5 @@
 ---
-title: "Mercure use cases: AI streaming, real-time uis, and collaboration"
+title: "Mercure use cases: AI streaming, real-time UIs, and collaboration"
 description: "Practical Mercure use cases including LLM token streaming, AI agent progress, live data, collaborative editing, async jobs, and notifications."
 ---
 

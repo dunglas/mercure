@@ -1,9 +1,9 @@
 ---
-title: "Run a Mercure hub service container in GitHub actions"
+title: "Run a Mercure hub service container in GitHub Actions"
 description: "Run a Mercure.rocks Hub as a GitHub Actions service container for integration tests, with healthcheck and JWT publishing."
 ---
 
-# GitHub actions
+# GitHub Actions
 
 Need a Mercure hub for integration tests? Use a [service container](https://docs.github.com/en/actions/using-containerized-services/about-service-containers).
 
@@ -82,11 +82,11 @@ To publish from inside a workflow (notify a Mercure-driven status page when a de
 
 Mint the JWT once with a long-lived `exp` and store it as a repository secret. Rotate it when the underlying signing key rotates.
 
-## Existing Mercure GitHub actions
+## Existing Mercure GitHub Actions
 
 - [`Ilshidur/action-mercure`](https://github.com/Ilshidur/action-mercure) wraps the publish call into a reusable Action.
 
-## Tips for Mercure in GitHub actions workflows
+## Tips for Mercure in GitHub Actions workflows
 
 - **Service containers don't expose Caddy's admin port.** The `2019/mercure/health/ready` endpoint isn't reachable from the job runner. Use the `405` check above for readiness.
 - **Use a fixed port.** `1337` is conventional; pick one that won't collide with other services in your matrix.
