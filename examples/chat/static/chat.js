@@ -1,8 +1,13 @@
 /* eslint-env browser */
 
 const type = "https://chat.example.com/Message";
-const { hubURL, messagePattern, subscriptionsTopic, presencePattern, username } =
-  JSON.parse(document.getElementById("config").textContent);
+const {
+  hubURL,
+  messagePattern,
+  subscriptionsTopic,
+  presencePattern,
+  username,
+} = JSON.parse(document.getElementById("config").textContent);
 
 document.getElementById("username").textContent = username;
 
