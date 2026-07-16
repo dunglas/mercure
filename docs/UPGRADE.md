@@ -14,12 +14,12 @@ namespace, where the parameter name encodes the matcher type:
   the 0.x `topic` parameter with `match`; its implicit
   [URI Template (RFC 6570)](https://tools.ietf.org/html/rfc6570) support is
   removed. `match_exact` is an explicit alias.
-- `match<MatcherType>` selects a named matcher type: replace `topicURLPattern`
+- `match_<matcher_type>` selects a named matcher type: replace `topicURLPattern`
   with `match_urlpattern`, e.g. `match_urlpattern=https://example.com/books/:id`
   (note `:id`, not `{id}`).
 - Parameter names are case-sensitive; any other name in the reserved `match`
   namespace is rejected with a `400 Bad Request`. The bare `match` mirrors the
-  optional, `Exact`-defaulting `match_type` of authorization details.
+  optional, `exact`-defaulting `match_type` of the JWT claim.
 - Relative patterns and topics are resolved against the hub URL: set it with
   the `public_url` directive (Caddyfile) or `WithPublicURL` (Go).
 
@@ -37,7 +37,7 @@ Entries of `mercure.publish` and `mercure.subscribe` use the object form:
 }
 ```
 
-`match_type` is case-sensitive and defaults to `Exact`. Bare-string entries
+`match_type` is case-sensitive and defaults to `exact`. Bare-string entries
 (the 0.x form) are rejected with a `401 Unauthorized` unless compatibility
 mode is enabled. The optional per-matcher `payload` value is attached to the
 subscriptions whose matcher it covers, falling back to `mercure.payload`.
