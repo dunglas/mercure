@@ -95,6 +95,27 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 	require.NoError(t, res.Body.Close())
 }
 
+func TestETagValue(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct{ in, want string }{
+		"plain":     {"urn:uuid:1", "urn:uuid:1"},
+		"space":     {"a b", "a%20b"},
+		"dquote":    {`a"b`, "a%22b"},
+		"percent":   {"a%b", "a%25b"},
+		"control":   {"a\nb", "a%0Ab"},
+		"del":       {"a\x7fb", "a%7Fb"},
+		"high byte": {"a\xc3\xa9", "a\xc3\xa9"}, // obs-text stays verbatim
+		"empty":     {"", ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, etagValue(tc.in))
+		})
+	}
+}
+
 func TestSubscriptionsHandler(t *testing.T) {
 	t.Parallel()
 

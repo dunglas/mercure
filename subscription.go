@@ -29,7 +29,28 @@ const (
 
 var subscriptionContentType = []string{"application/mercure+json"} // nolint:gochecknoglobals
 
-var etagEscaper = strings.NewReplacer("%", "%25", `"`, "%22") //nolint:gochecknoglobals
+// etagValue encodes lastEventID as the content of an RFC 9110 §8.8.3
+// entity-tag. Bytes outside etagc (SP, DQUOTE, C0/C1 controls, DEL) are
+// percent-encoded so the header stays syntactically valid even for legacy IDs
+// persisted before publish-time validation rejected them. "%" is its own escape
+// marker, so it is encoded too, keeping the mapping injective.
+func etagValue(lastEventID string) string {
+	var b strings.Builder
+
+	for i := range len(lastEventID) {
+		if c := lastEventID[i]; c < 0x21 || c == '"' || c == '%' || c == 0x7f {
+			const hex = "0123456789ABCDEF"
+
+			b.WriteByte('%')
+			b.WriteByte(hex[c>>4])
+			b.WriteByte(hex[c&0x0f])
+		} else {
+			b.WriteByte(lastEventID[i])
+		}
+	}
+
+	return b.String()
+}
 
 type subscription struct {
 	ID          string `json:"id"`
@@ -254,11 +275,10 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 		return span, currentURL, last_event_id, subscribers, false
 	}
 
-	// ETags are quoted strings (RFC 9110 §8.8.3). DQUOTE is the only etagc-
-	// forbidden byte a publisher-supplied event ID can contain (control
-	// characters are rejected at publication), so escape it; "%" is escaped
-	// first to keep the mapping injective.
-	etag := `"` + etagEscaper.Replace(last_event_id) + `"`
+	// ETags are entity-tags (RFC 9110 §8.8.3): DQUOTE-wrapped etagc bytes.
+	// etagValue percent-encodes anything outside etagc so the header is valid
+	// even for legacy IDs that predate publish-time validation.
+	etag := `"` + etagValue(last_event_id) + `"`
 	// A 304 carries the ETag it would have sent on a 200 (RFC 9110 §15.4.5), so
 	// set it before the conditional check.
 	header := w.Header()
