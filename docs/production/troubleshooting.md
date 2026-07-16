@@ -119,7 +119,7 @@ If your JWT has an `exp` claim, the hub closes the connection at that time. The 
 Two fixes:
 
 - **Refresh the token before it expires.** Have your origin mint a fresh token; update the cookie. Next reconnect picks it up.
-- **Don't set `exp`.** Open-ended connections; use only when the threat model genuinely accepts indefinite tokens.
+- **Use a longer `exp` if you must.** RFC 9068 access tokens require `exp`, so it can't be omitted; widen the window only when the threat model genuinely accepts long-lived tokens.
 
 In practice, refreshing is the right answer for almost all cases.
 
