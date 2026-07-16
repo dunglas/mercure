@@ -34,6 +34,7 @@ const (
 // errors.Is.
 var (
 	ErrReservedTopic     = errors.New(`topic value resolves into the reserved "/.well-known/mercure" namespace`)
+	ErrReservedWildcard  = errors.New(`topic value "*" is reserved for the wildcard matcher and cannot be published`)
 	ErrInvalidEventID    = errors.New(`"id" field contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
 	ErrInvalidEventType  = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
@@ -68,6 +69,13 @@ func (u *Update) Validate() error {
 
 		if addressesReservedNamespace(t) {
 			return fmt.Errorf("%q: %w", t, ErrReservedTopic)
+		}
+
+		// "*" is the reserved wildcard matcher pattern, so a topic literally
+		// equal to "*" is not addressable by an Exact subscription; reject it
+		// at publication rather than dispatch an unreachable update.
+		if t == "*" {
+			return fmt.Errorf("%q: %w", t, ErrReservedWildcard)
 		}
 	}
 
@@ -289,9 +297,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// Validation, dispatch, logging and metrics live in Hub.Publish.
 	if err := h.Publish(dispatchCtx, u); err != nil {
 		switch {
-		case errors.Is(err, ErrReservedTopic):
-			http.Error(w, err.Error(), http.StatusForbidden)
-		case errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
+		case errors.Is(err, ErrReservedTopic), errors.Is(err, ErrReservedWildcard),
+			errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
 			errors.Is(err, ErrReservedEventType),
 			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
 			errors.Is(err, ErrInvalidData):
