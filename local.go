@@ -9,18 +9,18 @@ import (
 type LocalTransport struct {
 	sync.RWMutex
 
-	subscribers   *SubscriberList
-	lastEventID   string
-	closed        chan struct{}
-	closedOnce    sync.Once
+	subscribers *SubscriberList
+	lastEventID string
+	closed      chan struct{}
+	closedOnce  sync.Once
 }
 
 // NewLocalTransport creates a new LocalTransport.
 func NewLocalTransport(sl *SubscriberList) *LocalTransport {
 	return &LocalTransport{
-		subscribers:   sl,
-		closed:        make(chan struct{}),
-		lastEventID:   EarliestLastEventID,
+		subscribers: sl,
+		closed:      make(chan struct{}),
+		lastEventID: EarliestLastEventID,
 	}
 }
 

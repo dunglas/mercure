@@ -56,9 +56,9 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	assert.Equal(t, defaultHubURL+subscriptionsPath+"/"+s2EscapedTopic, subscriptions.ID)
 	assert.Equal(t, "subscriptions", subscriptions.Type)
 
-	last_event_id, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
+	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
-	assert.Equal(t, last_event_id, subscriptions.LastEventID)
+	assert.Equal(t, lastEventID, subscriptions.LastEventID)
 	require.NotEmpty(t, subscribers)
 
 	for _, s := range subscribers {

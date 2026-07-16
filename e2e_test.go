@@ -69,7 +69,7 @@ func e2eHub(t *testing.T) *Hub {
 
 // openSSE connects to the subscribe endpoint and streams decoded "data" JSON
 // payloads to the returned channel until ctx is done.
-func openSSE(t *testing.T, ctx context.Context, base, query, token string) <-chan map[string]any {
+func openSSE(ctx context.Context, t *testing.T, base, query, token string) <-chan map[string]any {
 	t.Helper()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/.well-known/mercure?"+query, nil)
@@ -77,7 +77,7 @@ func openSSE(t *testing.T, ctx context.Context, base, query, token string) <-cha
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "text/event-stream")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:bodyclose // closed in the streaming goroutine below
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "subscribe status")
 
@@ -119,6 +119,7 @@ func openSSE(t *testing.T, ctx context.Context, base, query, token string) <-cha
 				}
 
 				data.Reset()
+
 				event = ""
 			}
 		}
@@ -142,6 +143,7 @@ func e2ePublish(t *testing.T, base, token, topic, data string, private bool) {
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
+
 	defer resp.Body.Close()
 
 	require.Equal(t, http.StatusOK, resp.StatusCode, "publish status")
@@ -184,6 +186,7 @@ func waitForSubscription(t *testing.T, base, collURL, token string) map[string]a
 
 func TestE2EMessageDeliveryAndSubscriptionAPI(t *testing.T) {
 	h := e2eHub(t)
+
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
@@ -205,7 +208,7 @@ func TestE2EMessageDeliveryAndSubscriptionAPI(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
 	defer cancel()
 
-	msgs := openSSE(t, ctx, srv.URL, "match_urlpattern="+url.QueryEscape(msgPattern), subToken)
+	msgs := openSSE(ctx, t, srv.URL, "match_urlpattern="+url.QueryEscape(msgPattern), subToken)
 
 	// Confirm registration via the subscription API (also checks the payload).
 	sub := waitForSubscription(t, srv.URL, collURL, subToken)
@@ -226,6 +229,7 @@ func TestE2EMessageDeliveryAndSubscriptionAPI(t *testing.T) {
 
 func TestE2EPresenceViaSubscriptionEvents(t *testing.T) {
 	h := e2eHub(t)
+
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
@@ -241,14 +245,15 @@ func TestE2EPresenceViaSubscriptionEvents(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
 	defer cancel()
 
-	events := openSSE(t, ctx, srv.URL, "match_urlpattern="+url.QueryEscape(presencePattern), watcherToken)
+	events := openSSE(ctx, t, srv.URL, "match_urlpattern="+url.QueryEscape(presencePattern), watcherToken)
+
 	time.Sleep(200 * time.Millisecond) // let the watcher register
 
 	// A user joins: subscribing creates a subscription event carrying the payload.
 	aToken := e2eToken(t, "subscribe",
 		[]map[string]any{{"match": msgPattern, "match_type": "urlpattern"}},
 		map[string]any{"username": "alice"})
-	_ = openSSE(t, ctx, srv.URL, "match_urlpattern="+enc, aToken)
+	_ = openSSE(ctx, t, srv.URL, "match_urlpattern="+enc, aToken)
 
 	select {
 	case ev := <-events:
