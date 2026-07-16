@@ -348,7 +348,7 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
 				return legacyEventIDValues[0]
 			}
 		} else if infoLevel {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID"" query parameter is not supported anymore, use "last_event_id"" instead or enable backward compatibility with version 7 of the protocol.`)
+			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID" query parameter is not supported anymore, use "last_event_id" instead or enable backward compatibility with version 7 of the protocol.`)
 		}
 	}
 
