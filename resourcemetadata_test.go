@@ -31,10 +31,29 @@ func TestProtectedResourceMetadata(t *testing.T) {
 
 	assert.Equal(t, "https://example.com/.well-known/mercure", metadata.Resource)
 	assert.Equal(t, []string{"header", "query"}, metadata.BearerMethodsSupported)
-	assert.True(t, metadata.MercureCookie)
+	assert.Equal(t, defaultCookieName, metadata.MercureCookie)
 	assert.False(t, metadata.MercureSubscriptions)
 	assert.Equal(t, []string{"https://as.example.com"}, metadata.AuthorizationServers)
 	assert.Equal(t, []string{authorizationDetailTypeMercure}, metadata.AuthorizationDetailsTypesSupported)
+}
+
+func TestProtectedResourceMetadataAdvertisesCustomCookieName(t *testing.T) {
+	hub := createDummy(t,
+		WithResourceIdentifier("https://example.com/.well-known/mercure"),
+		WithCookieName("__Secure-custom"),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, protectedResourceMetadataPath, nil)
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	var metadata protectedResourceMetadata
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&metadata))
+
+	assert.Equal(t, "__Secure-custom", metadata.MercureCookie)
 }
 
 func TestProtectedResourceMetadataAdvertisesSubscriptions(t *testing.T) {

@@ -26,11 +26,13 @@ type protectedResourceMetadata struct {
 	// AuthorizationDetailsTypesSupported advertises the RFC 9396
 	// authorization detail types the hub understands.
 	AuthorizationDetailsTypesSupported []string `json:"authorization_details_types_supported,omitempty"`
-	// MercureCookie advertises the cookie token-presentation mechanism, a
-	// Mercure extension to RFC 6750. It is a dedicated member rather than a
-	// value of bearer_methods_supported, whose values are constrained to the
-	// RFC 6750 methods (a cookie is not one of them).
-	MercureCookie bool `json:"mercure_cookie,omitempty"`
+	// MercureCookie advertises the name of the cookie carrying the access
+	// token, a Mercure extension to RFC 6750. It is a dedicated member rather
+	// than a value of bearer_methods_supported, whose values are constrained to
+	// the RFC 6750 methods (a cookie is not one of them). Carrying the name
+	// rather than a boolean lets a browser client set the right cookie without
+	// out-of-band knowledge, since the name is configurable (WithCookieName).
+	MercureCookie string `json:"mercure_cookie,omitempty"`
 	// MercureSubscriptions advertises the active subscriptions feature (a
 	// Mercure extension to RFC 9728) when the hub implements it.
 	MercureSubscriptions bool `json:"mercure_subscriptions,omitempty"`
@@ -54,8 +56,9 @@ func (h *Hub) ProtectedResourceMetadataHandler(w http.ResponseWriter, r *http.Re
 		AuthorizationServers:               h.authorizationServers,
 		AuthorizationDetailsTypesSupported: []string{authorizationDetailTypeMercure},
 		// The hub always accepts the access token in a cookie when it
-		// validates tokens (this handler is only served in that case).
-		MercureCookie:        true,
+		// validates tokens (this handler is only served in that case);
+		// advertise the configured cookie name.
+		MercureCookie:        h.cookieName,
 		MercureSubscriptions: h.subscriptions,
 	}
 
