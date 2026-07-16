@@ -12,8 +12,8 @@ github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dunglas/go-urlpattern v0.0.0-20260421141449-cbab7cf1e16d h1:Mw8vvAx2b5bjIrQIJaVTO25vJY5DMBUO/hJGNLIl+6g=
-github.com/dunglas/go-urlpattern v0.0.0-20260421141449-cbab7cf1e16d/go.mod h1:9qyjDljBPOWyWCGz7vo3Ek7cdnoG/DVk0Ucle7gWVS8=
+github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526 h1:biCci7wlx/ChMqOkoUw6FPrhEZYRpulBZ+fO4Geo5Xs=
+github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526/go.mod h1:9qyjDljBPOWyWCGz7vo3Ek7cdnoG/DVk0Ucle7gWVS8=
 github.com/dunglas/skipfilter v1.0.0 h1:JG9SgGg4n6BlFwuTYzb9RIqjH7PfwszvWehanrYWPF4=
 github.com/dunglas/skipfilter v1.0.0/go.mod h1:ryhr8j7CAHSjzeN7wI6YEuwoArQ3OQmRqWWVCEAfb9w=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=

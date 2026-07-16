@@ -8,7 +8,7 @@ retract (
 )
 
 require (
-	github.com/dunglas/go-urlpattern v0.0.0-20260421141449-cbab7cf1e16d
+	github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526
 	github.com/dunglas/skipfilter v1.0.0
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
