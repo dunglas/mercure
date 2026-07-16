@@ -37,8 +37,8 @@ MESSAGE_PATTERN = os.environ.get(
 # The collection of subscription events for the message subscription, per the
 # /.well-known/mercure/subscriptions/{match_type}/{match} scheme: the match is
 # the message pattern, percent-encoded exactly once.
-SUBSCRIPTIONS_TOPIC = (
-    "/.well-known/mercure/subscriptions/urlpattern/" + quote(MESSAGE_PATTERN, safe="")
+SUBSCRIPTIONS_TOPIC = "/.well-known/mercure/subscriptions/urlpattern/" + quote(
+    MESSAGE_PATTERN, safe=""
 )
 # Per-subscriber presence events live one segment deeper.
 PRESENCE_PATTERN = SUBSCRIPTIONS_TOPIC + "/:subscriber"

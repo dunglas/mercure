@@ -53,8 +53,8 @@ GET /.well-known/mercure?match=https://example.com/books/1&match_urlpattern=http
 
 The parameter name encodes the matcher type: bare `match` selects the default `exact` type (`match_exact` is the explicit spelling), and `match_urlpattern` selects the `urlpattern` type. Parameter names are **case-sensitive**; any other name under the reserved `match` prefix is rejected with `400 Bad Request`, so a typo fails loudly instead of silently matching nothing. The subscriber receives every update whose topic matches **at least one** of the parameters.
 
-| Matcher     | Query parameter              | Use it for                            |
-| ----------- | ---------------------------- | ------------------------------------- |
+| Matcher     | Query parameter               | Use it for                            |
+| ----------- | ----------------------------- | ------------------------------------- |
 | Exact       | `match` (alias `match_exact`) | Specific resources, fixed identifiers |
 | URL Pattern | `match_urlpattern`            | Families of URLs (`/books/:id`)       |
 

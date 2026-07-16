@@ -33,7 +33,10 @@ The token is valid but no `authorization_details` entry grants `publish` on the 
       "type": "mercure",
       "actions": ["publish"],
       "topics": [
-        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
+        {
+          "match": "https://example.com/books/:id",
+          "match_type": "urlpattern",
+        },
       ],
     },
   ],

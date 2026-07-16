@@ -30,7 +30,10 @@ A Mercure access token is a JWT access token as defined by [RFC 9068](https://ww
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/users/42/notifications" },
-        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
+        {
+          "match": "https://example.com/books/:id",
+          "match_type": "urlpattern",
+        },
       ],
       "payload": { "user": "https://example.com/users/42" },
     },
@@ -80,7 +83,10 @@ To publish, a token must carry an `authorization_details` entry whose `actions` 
       "type": "mercure",
       "actions": ["publish"],
       "topics": [
-        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
+        {
+          "match": "https://example.com/books/:id",
+          "match_type": "urlpattern",
+        },
         { "match": "https://example.com/announcements" },
       ],
     },
@@ -183,7 +189,10 @@ A `subscribe` detail can carry a `payload` (any JSON value). The hub attaches it
       "type": "mercure",
       "actions": ["subscribe"],
       "topics": [
-        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
+        {
+          "match": "https://example.com/books/:id",
+          "match_type": "urlpattern",
+        },
       ],
       "payload": { "username": "alice" },
     },

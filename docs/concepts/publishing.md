@@ -21,14 +21,14 @@ The hub fans the update out to every subscriber whose matchers hit the publicati
 
 ## Mercure publish form fields
 
-| Field     | Required | Description                                                                                                        |
-| --------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| `topic`   | Yes      | Identifier of the topic. Exactly one per publication; sending several `topic` fields returns `400`.                |
-| `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                      |
-| `private` | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.               |
-| `id`      | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't. |
+| Field     | Required | Description                                                                                                                  |
+| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `topic`   | Yes      | Identifier of the topic. Exactly one per publication; sending several `topic` fields returns `400`.                          |
+| `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                                |
+| `private` | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.                         |
+| `id`      | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't.           |
 | `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`. |
-| `retry`   | No       | Reconnection time hint, in milliseconds.                                                                           |
+| `retry`   | No       | Reconnection time hint, in milliseconds.                                                                                     |
 
 The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
 
@@ -136,7 +136,10 @@ The publisher's access token must carry an `authorization_details` entry whose `
       "type": "mercure",
       "actions": ["publish"],
       "topics": [
-        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
+        {
+          "match": "https://example.com/books/:id",
+          "match_type": "urlpattern",
+        },
       ],
     },
   ],

@@ -102,9 +102,9 @@ Tighten the matcher if a subscriber should only see presence for a specific docu
 
 Once subscription events are enabled, the hub also exposes a JSON-LD API. Use it to fetch the _current_ set of subscriptions when a client connects, then keep it in sync via subscription events.
 
-| URL                                                                       | Returns                               |
-| ------------------------------------------------------------------------- | ------------------------------------- |
-| `GET /.well-known/mercure/subscriptions`                                  | All active subscriptions.             |
+| URL                                                                        | Returns                               |
+| -------------------------------------------------------------------------- | ------------------------------------- |
+| `GET /.well-known/mercure/subscriptions`                                   | All active subscriptions.             |
 | `GET /.well-known/mercure/subscriptions/{match_type}/{match}`              | Subscriptions for a specific matcher. |
 | `GET /.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}` | A single subscription.                |
 

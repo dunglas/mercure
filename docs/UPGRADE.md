@@ -16,14 +16,14 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | Area                      | 0.x                                                                | 1.0                                                                            |
 | ------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
 | Matcher types             | URI Template, string, plus exploratory types                       | `exact` and `urlpattern` only                                                  |
-| Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `match_urlpattern=<pattern>` (case-sensitive)                |
+| Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `match_urlpattern=<pattern>` (case-sensitive)               |
 | Templating language       | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org))                    |
 | Topics per update         | Canonical + alternates                                             | Exactly one                                                                    |
 | Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `aud`, `authorization_details`          |
 | Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries of `type: mercure`                             |
-| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `access_token` param, `mercure_access_token` cookie                              |
+| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `access_token` param, `mercure_access_token` cookie                            |
 | Auth errors               | `401` / silent drop                                                | RFC 6750: `401 invalid_token`, `403 insufficient_scope`, `400 invalid_request` |
-| Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`          |
+| Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`         |
 
 ### Migrate your subscribers
 
@@ -72,7 +72,10 @@ The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access toke
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/users/42" },
-        { "match": "https://example.com/books/:id", "match_type": "urlpattern" },
+        {
+          "match": "https://example.com/books/:id",
+          "match_type": "urlpattern",
+        },
       ],
     },
   ],
@@ -103,8 +106,8 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 ### Migrate the subscription API and events
 
-| Before                                                    | After                                                                 |
-| --------------------------------------------------------- | --------------------------------------------------------------------- |
+| Before                                                    | After                                                                  |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
 | `/.well-known/mercure/subscriptions/<topic>/<subscriber>` | `/.well-known/mercure/subscriptions/<match_type>/<match>/<subscriber>` |
 | `"topic": "https://..."` in the JSON-LD                   | `"match": "https://..."` and `"match_type": "urlpattern"`              |
 

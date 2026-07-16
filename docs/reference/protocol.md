@@ -24,8 +24,8 @@ This page is a quick orientation, not a substitute. Read the spec for normative 
 
 ## Matcher types
 
-| Matcher      | Query parameter       | Required of hubs | Reference                                                |
-| ------------ | --------------------- | ---------------- | -------------------------------------------------------- |
+| Matcher      | Query parameter        | Required of hubs | Reference                                                |
+| ------------ | ---------------------- | ---------------- | -------------------------------------------------------- |
 | `exact`      | `match`, `match_exact` | **MUST**         | exact string comparison                                  |
 | `urlpattern` | `match_urlpattern`     | **MUST**         | [WHATWG URL Pattern](https://urlpattern.spec.whatwg.org) |
 
