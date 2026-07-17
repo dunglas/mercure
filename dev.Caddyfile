@@ -10,6 +10,7 @@
 		format filter {
 			fields {
 				request>uri query {
+					replace access_token REDACTED
 					replace authorization REDACTED
 				}
 			}
@@ -23,6 +24,8 @@
 		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
 		# Subscriber JWT key
 		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+		# OAuth 2.0 resource identifier (access token audience)
+		resource_identifier {$MERCURE_RESOURCE_IDENTIFIER:https://localhost/.well-known/mercure}
 		# Permissive configuration for the development environment
 		cors_origins *
 		publish_origins *

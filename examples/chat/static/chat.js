@@ -1,9 +1,13 @@
 /* eslint-env browser */
 
 const type = "https://chat.example.com/Message";
-const { hubURL, messageURITemplate, subscriptionsTopic, username } = JSON.parse(
-  document.getElementById("config").textContent,
-);
+const {
+  hubURL,
+  messagePattern,
+  subscriptionsTopic,
+  presencePattern,
+  username,
+} = JSON.parse(document.getElementById("config").textContent);
 
 document.getElementById("username").textContent = username;
 
@@ -30,16 +34,15 @@ let userList;
 
   const subscribeURL = new URL(hubURL);
   subscribeURL.searchParams.append(
-    "lastEventID",
-    subscriptionCollection.lastEventID,
+    "last_event_id",
+    subscriptionCollection.last_event_id,
   );
-  subscribeURL.searchParams.append("topic", messageURITemplate);
-  subscribeURL.searchParams.append(
-    "topic",
-    `${subscriptionsTopic}{/subscriber}`,
-  );
+  subscribeURL.searchParams.append("match_urlpattern", messagePattern);
+  subscribeURL.searchParams.append("match_urlpattern", presencePattern);
 
   const es = new EventSource(subscribeURL, { withCredentials: true });
+
+  // Chat messages arrive as default "message" events.
   es.onmessage = ({ data }) => {
     const update = JSON.parse(data);
 
@@ -48,13 +51,14 @@ let userList;
       return;
     }
 
-    if (update.type === "Subscription") {
-      updateUserList(update);
-      return;
-    }
-
     console.warn("Received an unsupported update type", update);
   };
+
+  // Subscription (presence) events carry the reserved "mercure" SSE event type,
+  // so they can be routed without inspecting the payload.
+  es.addEventListener("mercure", ({ data }) => {
+    updateUserList(JSON.parse(data));
+  });
 })();
 
 const updateUserListView = () => {
@@ -91,7 +95,7 @@ document.querySelector("form").onsubmit = function (e) {
   e.preventDefault();
 
   const uid = window.crypto.getRandomValues(new Uint8Array(10)).join("");
-  const messageTopic = messageURITemplate.replace("{id}", uid);
+  const messageTopic = messagePattern.replace(":id", uid);
 
   const body = new URLSearchParams({
     data: JSON.stringify({

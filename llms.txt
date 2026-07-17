@@ -1,0 +1,67 @@
+# Mercure.rocks
+
+> Mercure is an open real-time protocol that pushes updates from a server to connected clients over plain HTTP and Server-Sent Events. The Mercure.rocks Hub is the production-ready, AGPL-3.0 reference implementation, with OAuth 2.0 authorization (RFC 9068 access tokens, RFC 9396 authorization_details, RFC 6750 errors, RFC 9728 discovery), reconnection, replay, and two topic matcher types (Exact and URL Pattern). Use it for LLM token streaming, AI agent state sync, live dashboards, collaborative editing, async job progress, in-app notifications, and any case where a server has fresh data to push to web, mobile, or server clients.
+
+## Core concepts
+
+- [Introduction to Mercure](https://mercure.rocks/docs/introduction): What Mercure is, what it ships with, and how it differs from WebSockets, Pusher, Ably, WebSub, and Web Push.
+- [Topics and matchers](https://mercure.rocks/docs/concepts/topics-and-matchers): Subscribing with the `match` (Exact) and `match_urlpattern` query parameters, the two matcher types.
+- [Subscribing to Mercure updates](https://mercure.rocks/docs/concepts/subscribing): Open SSE subscriptions from browsers (`EventSource`), Node.js, Go, Python, and other clients.
+- [Publishing real-time updates](https://mercure.rocks/docs/concepts/publishing): POST form-encoded updates with one topic, `private=on`, custom IDs, and types.
+- [Mercure authorization with OAuth 2.0](https://mercure.rocks/docs/concepts/authorization): Mint and present `at+jwt` access tokens with the `authorization_details` claim, plus cookies, JWKS, and RFC 6750 errors.
+- [Discovery](https://mercure.rocks/docs/concepts/discovery): Finding the hub via `Link rel=mercure` and reading its RFC 9728 protected resource metadata.
+- [Reconnection and history](https://mercure.rocks/docs/concepts/reconnection-and-history): `Last-Event-ID`, `last_event_id=earliest`, history buffer sizing, and detecting data loss.
+- [Active subscriptions and presence](https://mercure.rocks/docs/concepts/active-subscriptions): Subscription events and the JSON-LD subscription API for presence and live-collab UIs.
+- [End-to-end encryption with JWE](https://mercure.rocks/docs/concepts/encryption): Encrypt update payloads so the Mercure hub itself cannot read them.
+
+## Setup and deployment
+
+- [Mercure quickstart](https://mercure.rocks/docs/getting-started/quickstart): Run the hub with Docker, subscribe with `EventSource`, publish with `curl`, in five minutes.
+- [Install the Mercure hub](https://mercure.rocks/docs/getting-started/installation): Docker, Docker Compose, Helm, prebuilt binaries, Arch Linux, custom Caddy builds.
+- [Mercure hub configuration](https://mercure.rocks/docs/deployment/configuration): Caddyfile directives, environment variables, `resource_identifier`, `authorization_servers`, transports, CORS, JWKS.
+- [Run Mercure with Docker](https://mercure.rocks/docs/deployment/docker): Official Docker image, Compose, healthchecks, rootless deployment.
+- [Deploy Mercure on Kubernetes](https://mercure.rocks/docs/deployment/kubernetes): Helm chart, SSE-aware probes, rolling updates, rootless security context.
+- [Mercure behind a reverse proxy](https://mercure.rocks/docs/deployment/reverse-proxy): NGINX, Traefik, Caddy, HAProxy, AWS ALB, and Cloudflare with SSE-friendly settings.
+- [Mercure in GitHub Actions](https://mercure.rocks/docs/deployment/github-actions): Run a Mercure hub as a service container for integration tests.
+
+## AI and LLM use cases
+
+- [LLM token streaming with Mercure](https://mercure.rocks/docs/use-cases/llm-token-streaming): Stream OpenAI, Anthropic, or local-model tokens to the browser without a WebSocket gateway.
+- [AI agent progress streaming](https://mercure.rocks/docs/use-cases/ai-agent-progress): Push tool calls, step transitions, and structured agent state to the UI in real time.
+
+## Application use cases
+
+- [Real-time dashboards and live data](https://mercure.rocks/docs/use-cases/live-data): Stock tickers, IoT telemetry, availability counters, observability dashboards.
+- [Collaborative editing on Mercure](https://mercure.rocks/docs/use-cases/collaborative-editing): Multi-user editing with Yjs, Automerge, or Loro CRDTs.
+- [Async jobs and background progress](https://mercure.rocks/docs/use-cases/async-jobs): Notify users when long-running jobs progress or complete.
+- [In-app notifications and badges](https://mercure.rocks/docs/use-cases/notifications): Per-user notifications, broadcast announcements, multi-tab consistency.
+- [Hotwire Turbo Streams over Mercure](https://mercure.rocks/docs/use-cases/hotwire): Push HTML fragments to the browser with Hotwire and Mercure.
+- [GraphQL subscriptions over Mercure](https://mercure.rocks/docs/use-cases/graphql): Back GraphQL subscriptions with Mercure topics and SSE.
+
+## Production
+
+- [Mercure high availability](https://mercure.rocks/docs/production/high-availability): Self-Hosted Redis, PostgreSQL, Kafka, and Pulsar transports for multi-node Mercure.
+- [Rolling updates and graceful shutdown](https://mercure.rocks/docs/production/rolling-updates): Drain SSE connections cleanly during deploys.
+- [Health checks and monitoring](https://mercure.rocks/docs/production/health-monitoring): Transport-aware probes, Prometheus metrics, alerts, dashboards.
+- [Tracing](https://mercure.rocks/docs/production/tracing): OpenTelemetry spans for publish, subscribe, and history operations.
+- [Load testing the Mercure hub](https://mercure.rocks/docs/production/load-testing): Gatling-based load test for capacity and bottleneck analysis.
+- [Debugging the Mercure hub](https://mercure.rocks/docs/production/debugging): pprof CPU, heap, goroutine, and trace profiles.
+- [Mercure troubleshooting](https://mercure.rocks/docs/production/troubleshooting): 401, 403, CORS, dropped connections, and other common Mercure issues.
+
+## Reference
+
+- [Mercure protocol specification](https://mercure.rocks/spec/mercure): The IETF Internet-Draft canonical protocol specification.
+- [Mercure protocol overview](https://mercure.rocks/docs/reference/protocol): Quick orientation to subscriptions, publications, authorization, replay, and matchers.
+- [Mercure FAQ](https://mercure.rocks/docs/reference/faq): Comparisons with WebSockets, Pusher, Ably, WebSub, Web Push, plus connection limits and history.
+- [Mercure hub license](https://mercure.rocks/docs/reference/license): AGPL-3.0 reference hub, open protocol specification, commercial Self-Hosted licensing.
+- [Mercure 1.0 upgrade guide](https://mercure.rocks/docs/upgrade): Migration from Mercure 0.x to 1.0: two matcher types, OAuth 2.0 access tokens, RFC 6750 errors, new subscription API.
+
+## Ecosystem
+
+- [Awesome Mercure](https://mercure.rocks/docs/ecosystem/awesome): Libraries, framework integrations, demos, and learning resources.
+- [Mercure conformance tests](https://mercure.rocks/docs/ecosystem/conformance-tests): Playwright-based test suite to validate any Mercure hub implementation.
+
+## Optional
+
+- [Mercure.rocks pricing](https://mercure.rocks/pricing): Open-source vs. managed Cloud vs. Self-Hosted Mercure tiers.
+- [Mercure GitHub repository](https://github.com/dunglas/mercure): Source code, releases, and issue tracker for the reference Mercure.rocks Hub.

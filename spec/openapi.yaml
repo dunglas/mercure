@@ -2,7 +2,7 @@ openapi: 3.0.2
 info:
   title: The Mercure protocol
   description: "[Mercure](https://mercure.rocks) is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way."
-  version: 0.3.2
+  version: 1.0.0
   contact:
     name: Kévin Dunglas
     url: https://mercure.rocks
@@ -19,15 +19,24 @@ paths:
         description: Subscription specification
         url: https://mercure.rocks/spec#subscription
       parameters:
-        - name: topic
+        - name: match
           in: query
-          description: The topic to get updates from, can be a URI template (RFC6570).
-          required: true
+          description: >-
+            Exact topic matcher (the default matcher type). Repeatable.
+            Case-sensitive. At least one matcher parameter is required.
           schema:
             type: array
             items:
               type: string
-        - name: Last-Event-ID
+        - name: match_urlpattern
+          in: query
+          description: >-
+            URL Pattern topic matcher (WHATWG URL Pattern). Repeatable.
+          schema:
+            type: array
+            items:
+              type: string
+        - name: last_event_id
           in: query
           description: The last received event id, to retrieve missed events.
           schema:
@@ -45,7 +54,7 @@ paths:
         "401":
           $ref: "#/components/responses/401"
         "400":
-          description: Missing topic parameter or invalid URI template.
+          description: Missing or invalid topic matcher parameter.
     post:
       summary: Publish an update
       externalDocs:
@@ -57,10 +66,8 @@ paths:
             schema:
               properties:
                 topic:
-                  description: IRIs of the updated topic. If this key is present several times, the first occurrence is considered to be the canonical URL of the topic, and other ones are considered to be alternate URLs.
-                  type: array
-                  items:
-                    type: string
+                  description: The IRI of the updated topic. Exactly one topic field is allowed.
+                  type: string
                 data:
                   description: The content of the new version of this topic.
                   type: string
@@ -86,8 +93,28 @@ paths:
             "text/plain": {}
         "401":
           $ref: "#/components/responses/401"
+        "403":
+          $ref: "#/components/responses/403"
         "400":
           description: Invalid request
+  "/.well-known/oauth-protected-resource/.well-known/mercure":
+    get:
+      summary: OAuth 2.0 protected resource metadata
+      description: >-
+        RFC 9728 protected resource metadata for the hub, advertising its
+        resource identifier, accepted bearer methods, and (when configured)
+        authorization servers.
+      externalDocs:
+        description: Protected resource metadata
+        url: https://mercure.rocks/spec#protected-resource-metadata
+      security: []
+      responses:
+        "200":
+          description: The protected resource metadata document
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ProtectedResourceMetadata"
   "/.well-known/mercure/subscriptions":
     get:
       summary: Active subscriptions
@@ -98,20 +125,29 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/ld+json":
+            "application/json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
-  "/.well-known/mercure/subscriptions/{topic}":
+        "403":
+          $ref: "#/components/responses/403"
+  "/.well-known/mercure/subscriptions/{match_type}/{match}":
     get:
-      summary: Active subscriptions for the given topic
+      summary: Active subscriptions for the given topic matcher
       externalDocs:
         description: Subscription API
         url: https://mercure.rocks/spec#subscription-api
       parameters:
         - in: path
-          name: topic
+          name: match_type
+          description: The matcher type (e.g. exact, urlpattern).
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: match
+          description: The percent-encoded topic matcher.
           schema:
             type: string
           required: true
@@ -119,20 +155,29 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/ld+json":
+            "application/json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
-  "/.well-known/mercure/subscriptions/{topic}/{subscriber}":
+        "403":
+          $ref: "#/components/responses/403"
+  "/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}":
     get:
-      summary: Active subscription for the given topic and subscriber
+      summary: Active subscription for the given matcher and subscriber
       externalDocs:
         description: Subscription API
         url: https://mercure.rocks/spec#active-subscriptions
       parameters:
         - in: path
-          name: topic
+          name: match_type
+          description: The matcher type (e.g. exact, urlpattern).
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: match
+          description: The percent-encoded topic matcher.
           schema:
             type: string
           required: true
@@ -145,30 +190,27 @@ paths:
         "200":
           description: The list of active subscriptions
           content:
-            "application/ld+json":
+            "application/json":
               schema:
                 $ref: "#/components/schemas/Subscriptions"
         "401":
           $ref: "#/components/responses/401"
+        "403":
+          $ref: "#/components/responses/403"
 components:
   schemas:
     Subscriptions:
       type: object
-      required: ["@context", "id", "type", "lastEventID", "subscriptions"]
+      required: ["id", "type", "last_event_id", "subscriptions"]
       properties:
-        "@context":
-          type: string
-          format: iri
-          example: https://mercure.rocks/
         id:
           type: string
           format: iri-reference
           example: /.well-known/mercure/subscriptions
         type:
           type: string
-          format: iri-reference
-          example: Subscriptions
-        lastEventID:
+          example: subscriptions
+        last_event_id:
           type: string
           example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
         subscriptions:
@@ -177,23 +219,21 @@ components:
             $ref: "#/components/schemas/Subscription"
     Subscription:
       type: object
-      required: ["id", "type", "topic", "subscriber", "active"]
+      required: ["id", "type", "match", "match_type", "subscriber", "active"]
       properties:
-        "@context":
-          type: string
-          format: iri
-          example: https://mercure.rocks/
         id:
           type: string
           format: iri-reference
           example: /.well-known/mercure/subscriptions
         type:
           type: string
-          format: iri-reference
-          example: Subscription
-        topic:
+          example: subscription
+        match:
           type: string
-          example: https://example.com/{selector}
+          example: https://example.com/:selector
+        match_type:
+          type: string
+          example: urlpattern
         subscriber:
           type: string
           example: urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6
@@ -201,23 +241,65 @@ components:
           type: boolean
         payload:
           type: object
-        lastEventID:
+        last_event_id:
           type: string
           example: urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb
+    ProtectedResourceMetadata:
+      type: object
+      required: ["resource"]
+      properties:
+        resource:
+          type: string
+          format: uri
+          example: https://example.com/.well-known/mercure
+        bearer_methods_supported:
+          type: array
+          items:
+            type: string
+          example: ["header", "query"]
+        authorization_servers:
+          type: array
+          items:
+            type: string
+        authorization_details_types_supported:
+          type: array
+          items:
+            type: string
+          example: ["mercure"]
+        mercure_cookie:
+          type: boolean
+        mercure_subscriptions:
+          type: boolean
   responses:
     "401":
-      description: Not authorized (missing or invalid JWT).
+      description: >-
+        Missing or invalid access token. Carries a `WWW-Authenticate: Bearer`
+        challenge (with `error="invalid_token"` when a token was presented but
+        failed validation) and, per RFC 9728, a `resource_metadata` parameter
+        pointing to the protected resource metadata document.
+    "403":
+      description: >-
+        The access token is valid but does not grant the requested action on
+        the topic. Carries a `WWW-Authenticate: Bearer` challenge with
+        `error="insufficient_scope"` (RFC 6750).
   securitySchemes:
     Bearer:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-      description: Preferred for server to server
+      bearerFormat: at+jwt
+      description: >-
+        RFC 9068 JWT access token (`typ: at+jwt`) carrying an
+        `authorization_details` claim (RFC 9396) of `type: mercure`, whose
+        entries grant the `publish` and/or `subscribe` actions on topic
+        matchers. Preferred for server to server.
     Cookie:
       type: apiKey
       in: cookie
-      name: mercureAuthorization
-      description: Preferred for web browsers (the cookie name may change depending on the configuration)
+      name: mercure_access_token
+      description: >-
+        Same access token carried in a cookie (a Mercure extension to
+        RFC 6750). Preferred for web browsers; the cookie name may change
+        depending on the configuration.
 security:
   - Bearer: []
   - Cookie: []

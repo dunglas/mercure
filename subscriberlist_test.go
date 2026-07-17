@@ -25,22 +25,22 @@ func TestDecode(t *testing.T) {
 }
 
 func BenchmarkSubscriberList(b *testing.B) {
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 
 	l := NewSubscriberList(DefaultSubscriberListCacheSize)
 	logger := slog.Default()
 
 	for i := range 100 {
-		s := NewLocalSubscriber("", logger, tss)
+		s := NewLocalSubscriber("", logger, tms)
 		t := fmt.Sprintf("https://example.com/%d", i%10)
-		s.SetTopics([]string{"https://example.org/foo", t}, []string{"https://example.net/bar", t})
+		s.setMatchers(stringsToExactMatchers([]string{"https://example.org/foo", t}), stringsToExactMatchers([]string{"https://example.net/bar", t}))
 
 		l.Add(s)
 	}
 
 	for b.Loop() {
-		assert.NotEmpty(b, l.MatchAny(&Update{Topics: []string{"https://example.org/foo"}}))
-		assert.Empty(b, l.MatchAny(&Update{Topics: []string{"https://example.org/baz"}}))
-		assert.NotEmpty(b, l.MatchAny(&Update{Topics: []string{"https://example.com/8"}, Private: false}))
+		assert.NotEmpty(b, l.MatchAny(&Update{Topic: "https://example.org/foo"}))
+		assert.Empty(b, l.MatchAny(&Update{Topic: "https://example.org/baz"}))
+		assert.NotEmpty(b, l.MatchAny(&Update{Topic: "https://example.com/8", Private: false}))
 	}
 }

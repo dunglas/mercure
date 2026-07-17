@@ -106,7 +106,7 @@ func SetFlags(fs *pflag.FlagSet, v *viper.Viper) {
 	fs.BoolP("use-forwarded-headers", "f", false, "enable headers forwarding")
 	fs.BoolP("demo", "D", false, "enable the demo mode")
 	fs.BoolP("subscriptions", "s", false, "dispatch updates when subscriptions are created or terminated")
-	fs.Int("tcsz", DefaultTopicSelectorStoreCacheSize, "size of the topic selector store cache")
+	fs.Int("tcsz", DefaultTopicMatcherStoreCacheSize, "size of the topic matcher store cache")
 
 	fs.Bool("metrics-enabled", false, "enable metrics")
 	fs.String("metrics-addr", "127.0.0.1:9764", "metrics HTTP server address")
@@ -160,14 +160,14 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 
 	options = append(options, WithLogger(slog.New(mercureHandler{slog.NewTextHandler(os.Stderr, loggerOpts)})))
 
-	var tss *TopicSelectorStore
+	var tms *TopicMatcherStore
 
 	tcsz := v.GetInt("tcsz")
 	if tcsz == 0 {
-		tcsz = DefaultTopicSelectorStoreCacheSize
+		tcsz = DefaultTopicMatcherStoreCacheSize
 	}
 
-	tss, err = NewTopicSelectorStore(tcsz)
+	tms, err = NewTopicMatcherStore(tcsz)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithMetrics(NewPrometheusMetrics(nil)))
 	}
 
-	options = append(options, WithTopicSelectorStore(tss))
+	options = append(options, WithTopicMatcherStore(tms))
 	if v.GetBool("allow_anonymous") {
 		options = append(options, WithAnonymous())
 	}

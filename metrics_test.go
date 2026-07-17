@@ -14,16 +14,16 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 
 	m := NewPrometheusMetrics(nil)
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 
-	s1 := NewLocalSubscriber("", logger, tss)
-	s1.SetTopics([]string{"topic1", "topic2"}, nil)
+	s1 := NewLocalSubscriber("", logger, tms)
+	s1.setMatchers(stringsToExactMatchers([]string{"topic1", "topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertGaugeValue(t, 1.0, m.subscribers)
 
-	s2 := NewLocalSubscriber("", logger, tss)
-	s2.SetTopics([]string{"topic2"}, nil)
+	s2 := NewLocalSubscriber("", logger, tms)
+	s2.setMatchers(stringsToExactMatchers([]string{"topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertGaugeValue(t, 2.0, m.subscribers)
 
@@ -39,16 +39,16 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 
 	m := NewPrometheusMetrics(nil)
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 
-	s1 := NewLocalSubscriber("", logger, tss)
-	s1.SetTopics([]string{"topic1", "topic2"}, nil)
+	s1 := NewLocalSubscriber("", logger, tms)
+	s1.setMatchers(stringsToExactMatchers([]string{"topic1", "topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal)
 
-	s2 := NewLocalSubscriber("", logger, tss)
-	s2.SetTopics([]string{"topic2"}, nil)
+	s2 := NewLocalSubscriber("", logger, tms)
+	s2.setMatchers(stringsToExactMatchers([]string{"topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertCounterValue(t, 2.0, m.subscribersTotal)
 
@@ -64,16 +64,16 @@ func TestTotalOfHandledUpdates(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
 	m.UpdatePublished(&Update{
-		Topics: []string{"topic1", "topic2"},
+		Topic: "topic1",
 	})
 	m.UpdatePublished(&Update{
-		Topics: []string{"topic2", "topic3"},
+		Topic: "topic2",
 	})
 	m.UpdatePublished(&Update{
-		Topics: []string{"topic2"},
+		Topic: "topic2",
 	})
 	m.UpdatePublished(&Update{
-		Topics: []string{"topic3"},
+		Topic: "topic3",
 	})
 
 	assertCounterValue(t, 4.0, m.updatesTotal)

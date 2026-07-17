@@ -77,17 +77,36 @@ class LoadTest extends Simulation {
   var PrivateUpdates =
     Properties.envOrElse("PRIVATE_UPDATES", "false").toBoolean
 
+  /** Override the subscribe matcher query parameter, e.g.
+    * "match=https://example.com" (exact) or
+    * "match_urlpattern=https://example.com/:id" (URL Pattern). Lets a run
+    * target a specific matcher type without editing this file; defaults to a
+    * value derived from PRIVATE_UPDATES.
+    */
+  val SubscribeParam = Properties.envOrElse("SUBSCRIBE_PARAM", null)
+
+  /** Override the published topic. Must stay matchable by the subscriber's
+    * matcher, otherwise the delivery check times out. Defaults to a value
+    * derived from PRIVATE_UPDATES.
+    */
+  val PublishTopic = Properties.envOrElse("PUBLISH_TOPIC", null)
+
   val rnd = new scala.util.Random
 
   /** Subscriber test as a function to handle conditional Authorization header
     */
   def subscriberTest() = {
-    var topic = "https://example.com"
+    // Public updates share one exact topic; private updates use random topics
+    // under a URL Pattern. SUBSCRIBE_PARAM overrides both.
+    var param = "match=https://example.com"
     if (PrivateUpdates) {
-      topic = topic + "/{id}"
+      param = "match_urlpattern=https://example.com/:id"
+    }
+    if (SubscribeParam != null) {
+      param = SubscribeParam
     }
 
-    var requestBuilder = sse("Subscribe").get("?topic=" + topic)
+    var requestBuilder = sse("Subscribe").get("?" + param)
 
     if (SubscriberJwt != null) {
       requestBuilder =
@@ -107,6 +126,9 @@ class LoadTest extends Simulation {
   var topic = "https://example.com"
   if (PrivateUpdates) {
     topic = topic + "/" + rnd.nextInt()
+  }
+  if (PublishTopic != null) {
+    topic = PublishTopic
   }
 
   var data = Map("topic" -> topic, "data" -> "Hi")

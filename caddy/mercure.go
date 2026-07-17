@@ -37,7 +37,7 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
-	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
+	ErrCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
@@ -81,15 +81,6 @@ type JWTConfig struct {
 	Alg string `json:"alg,omitempty"`
 }
 
-type TopicSelectorCacheConfig struct {
-	// Deprecated: use Size instead.
-	MaxEntriesPerShard int `json:"max_entries_per_shard,omitempty"`
-	// Deprecated: no longer used.
-	ShardCount uint64 `json:"shard_count,omitempty"`
-	// Size is the maximum number of entries in the cache.
-	Size int `json:"size,omitempty"`
-}
-
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 type Mercure struct {
 	deprecatedTransport
@@ -124,11 +115,21 @@ type Mercure struct {
 	// JWK Set URL to use for publishers.
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
+	// Allowed JWS algorithms for publisher tokens validated via the JWK Set
+	// (RFC 8725: the algorithm is never taken from the token header). When
+	// omitted in modern mode, the hub applies its default allowlist of
+	// asymmetric algorithms.
+	PublisherJWKSAlgorithms []string `json:"publisher_jwks_algorithms,omitempty"`
+
 	// JWT key and signing algorithm to use for subscribers.
 	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitzero"`
 
 	// JWK Set URL to use for subscribers.
 	SubscriberJWKSURL string `json:"subscriber_jwks_url,omitempty"`
+
+	// Allowed JWS algorithms for subscriber tokens validated via the JWK Set.
+	// See PublisherJWKSAlgorithms.
+	SubscriberJWKSAlgorithms []string `json:"subscriber_jwks_algorithms,omitempty"`
 
 	// Origins allowed to publish updates
 	PublishOrigins []string `json:"publish_origins,omitempty"`
@@ -136,18 +137,28 @@ type Mercure struct {
 	// Allowed CORS origins.
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
-	// Deprecated: not used anymore.
-	CacheShardSize *int64 `json:"cache_shard_size,omitempty"`
-
-	// Triggers use of topic selector cache and avoidance of select priority queue.
-	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
+	// Maximum number of entries in the topic matcher cache. 0 or negative
+	// disables the cache. Defaults to DefaultTopicMatcherStoreCacheSize.
+	TopicMatcherCacheSize *int `json:"topic_matcher_cache_size,omitempty"`
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
 
-	// The name of the authorization cookie. Defaults to "mercureAuthorization".
+	// The name of the authorization cookie. Defaults to "mercure_access_token".
 	CookieName string `json:"cookie_name,omitempty"`
 
-	// The version of the Mercure protocol to be backward compatible with (only version 7 is supported)
+	// The URL at which subscribers reach the hub. Used as the base URL when
+	// matching relative URL patterns and topics.
+	PublicURL string `json:"public_url,omitempty"`
+
+	// The hub's OAuth 2.0 resource identifier (the `aud` value access tokens
+	// must carry). Defaults to the public URL when unset.
+	ResourceIdentifier string `json:"resource_identifier,omitempty"`
+
+	// OAuth 2.0 authorization server issuer identifiers advertised in the
+	// hub's protected resource metadata.
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
+
+	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
 	// The transport configuration.
@@ -182,26 +193,12 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		return err
 	}
 
-	cacheSize := mercure.DefaultTopicSelectorStoreCacheSize
-
-	if m.TopicSelectorCache != nil {
-		switch {
-		case m.TopicSelectorCache.Size > 0:
-			cacheSize = m.TopicSelectorCache.Size
-		case m.TopicSelectorCache.MaxEntriesPerShard > 0:
-			// Backward compat: convert old per-shard config
-			shardCount := m.TopicSelectorCache.ShardCount
-			if shardCount == 0 {
-				shardCount = 256
-			}
-
-			cacheSize = m.TopicSelectorCache.MaxEntriesPerShard * int(shardCount)
-		case m.TopicSelectorCache.MaxEntriesPerShard < 0:
-			cacheSize = 0
-		}
+	cacheSize := mercure.DefaultTopicMatcherStoreCacheSize
+	if m.TopicMatcherCacheSize != nil {
+		cacheSize = *m.TopicMatcherCacheSize
 	}
 
-	tss, err := mercure.NewTopicSelectorStore(cacheSize)
+	tms, err := mercure.NewTopicMatcherStore(cacheSize)
 	if err != nil {
 		return err
 	}
@@ -239,10 +236,19 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
-		mercure.WithTopicSelectorStore(tss),
+		mercure.WithTopicMatcherStore(tms),
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
+		mercure.WithPublicURL(m.PublicURL),
+	}
+
+	if m.ResourceIdentifier != "" {
+		opts = append(opts, mercure.WithResourceIdentifier(m.ResourceIdentifier))
+	}
+
+	if len(m.AuthorizationServers) > 0 {
+		opts = append(opts, mercure.WithAuthorizationServers(m.AuthorizationServers))
 	}
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
@@ -256,6 +262,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		}
 
 		opts = append(opts, mercure.WithPublisherJWTKeyFunc(k.Keyfunc))
+
+		if len(m.PublisherJWKSAlgorithms) > 0 {
+			opts = append(opts, mercure.WithPublisherJWTAlgorithms(m.PublisherJWKSAlgorithms))
+		}
 	} else if m.PublisherJWT.Key != "" {
 		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
 	}
@@ -267,6 +277,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		}
 
 		opts = append(opts, mercure.WithSubscriberJWTKeyFunc(k.Keyfunc))
+
+		if len(m.SubscriberJWKSAlgorithms) > 0 {
+			opts = append(opts, mercure.WithSubscriberJWTAlgorithms(m.SubscriberJWKSAlgorithms))
+		}
 	} else if m.SubscriberJWT.Key != "" {
 		opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
 	}
@@ -380,7 +394,7 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) {
+	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != mercure.ProtectedResourceMetadataPath {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
@@ -437,6 +451,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.PublisherJWKSURL = d.Val()
 
+			case "publisher_jwks_algorithms":
+				m.PublisherJWKSAlgorithms = d.RemainingArgs()
+				if len(m.PublisherJWKSAlgorithms) == 0 {
+					return d.ArgErr()
+				}
+
 			case "publisher_jwt":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -453,6 +473,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				m.SubscriberJWKSURL = d.Val()
+
+			case "subscriber_jwks_algorithms":
+				m.SubscriberJWKSAlgorithms = d.RemainingArgs()
+				if len(m.SubscriberJWKSAlgorithms) == 0 {
+					return d.ArgErr()
+				}
 
 			case "subscriber_jwt":
 				if !d.NextArg() {
@@ -503,7 +529,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.assignDeprecatedTransportURL(d.Val())
 
-			case "topic_selector_cache":
+			case "topic_matcher_cache":
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
@@ -513,7 +539,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.WrapErr(err)
 				}
 
-				m.TopicSelectorCache = &TopicSelectorCacheConfig{Size: size}
+				m.TopicMatcherCacheSize = &size
 			case "subscriber_list_cache_size":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -537,6 +563,26 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.CookieName = d.Val()
 
+			case "public_url":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.PublicURL = d.Val()
+
+			case "resource_identifier":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.ResourceIdentifier = d.Val()
+
+			case "authorization_servers":
+				m.AuthorizationServers = d.RemainingArgs()
+				if len(m.AuthorizationServers) == 0 {
+					return d.ArgErr()
+				}
+
 			case "protocol_version_compatibility":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -547,7 +593,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.WrapErr(err)
 				}
 
-				if v != 7 {
+				if v != 7 && v != 8 {
 					return d.WrapErr(ErrCompatibility)
 				}
 

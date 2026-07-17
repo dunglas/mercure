@@ -153,7 +153,7 @@ func TestServe(t *testing.T) {
 	wgConnected.Add(2)
 
 	wgTested.Go(func() {
-		resp, err := client.Get(testURL + "?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1")
+		resp, err := client.Get(testURL + "?match=https%3A%2F%2Fexample.com%2Ffoo%2F1")
 		require.NoError(t, err)
 		wgConnected.Done()
 
@@ -168,7 +168,7 @@ data: hello
 	})
 
 	wgTested.Go(func() {
-		resp, err := client.Get(testURL + "?topic=https%3A%2F%2Fexample.com%2Falt%2F1")
+		resp, err := client.Get(testURL + "?match=https%3A%2F%2Fexample.com%2Falt%2F1")
 		require.NoError(t, err)
 		wgConnected.Done()
 
@@ -176,7 +176,7 @@ data: hello
 		require.NoError(t, resp.Body.Close())
 
 		assert.Equal(t, []byte(`:
-id: first
+id: second
 data: hello
 
 `), body)
@@ -184,14 +184,17 @@ data: hello
 
 	wgConnected.Wait()
 
-	body := url.Values{"topic": {"https://example.com/foo/1", "https://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
-	req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+	// One update per topic: the modern protocol allows a single topic per update.
+	for i, topic := range []string{"https://example.com/foo/1", "https://example.com/alt/1"} {
+		body := url.Values{"topic": {topic}, "data": {"hello"}, "id": {[]string{"first", "second"}[i]}}
+		req, _ := http.NewRequest(http.MethodPost, testURL, strings.NewReader(body.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
 
-	resp2, err := client.Do(req)
-	require.NoError(t, err)
-	require.NoError(t, resp2.Body.Close())
+		resp2, err := client.Do(req)
+		require.NoError(t, err)
+		require.NoError(t, resp2.Body.Close())
+	}
 
 	require.NoError(t, h.server.Shutdown(t.Context()))
 	wgTested.Wait()
@@ -225,7 +228,7 @@ func TestClientClosesThenReconnects(t *testing.T) {
 
 	subscribe := func(expectedBodyData string) {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, testURL+"?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, testURL+"?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -365,15 +368,19 @@ func TestMetricsCollect(t *testing.T) {
 	server.newSubscriber("https://example.com/alt/1", false)
 	server.waitSubscribers()
 
-	body := url.Values{"topic": {"https://example.com/foo/1", "https://example.com/alt/1"}, "data": {"hello"}, "id": {"first"}}
+	// One update per topic: the modern protocol allows a single topic per update.
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {"hello"}, "id": {"first"}}
 	server.publish(body)
 
-	body = url.Values{"topic": {"https://example.com/foo/1"}, "data": {"second hello"}, "id": {"second"}}
+	body = url.Values{"topic": {"https://example.com/alt/1"}, "data": {"hello"}, "id": {"second"}}
+	server.publish(body)
+
+	body = url.Values{"topic": {"https://example.com/foo/1"}, "data": {"second hello"}, "id": {"third"}}
 	server.publish(body)
 
 	server.assertMetric("mercure_subscribers_connected 3")
 	server.assertMetric("mercure_subscribers_total 4")
-	server.assertMetric("mercure_updates_total 2")
+	server.assertMetric("mercure_updates_total 3")
 }
 
 func TestMetricsVersionIsAccessible(t *testing.T) {
@@ -450,7 +457,7 @@ func (s *testServer) newSubscriber(topic string, keepAlive bool) {
 	s.wgConnected.Add(1)
 
 	s.wgTested.Go(func() {
-		resp, err := s.client.Get(testURL + "?topic=" + url.QueryEscape(topic))
+		resp, err := s.client.Get(testURL + "?match=" + url.QueryEscape(topic))
 		require.NoError(s.t, err)
 
 		s.wgConnected.Done()

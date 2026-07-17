@@ -1,0 +1,83 @@
+package mercure
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+// Test helpers that wrap a slice of topic strings into Exact-matcher
+// topicMatchers. Used by tests that don't specifically exercise the
+// deprecated topic path.
+
+func stringsToExactMatchers(patterns []string) []TopicMatcher {
+	if patterns == nil {
+		return nil
+	}
+
+	out := make([]TopicMatcher, len(patterns))
+	for i, p := range patterns {
+		out[i] = TopicMatcher{Type: MatcherTypeExact, Pattern: p}
+	}
+
+	return out
+}
+
+func stringsToURLPatternMatchers(patterns []string) []TopicMatcher {
+	if patterns == nil {
+		return nil
+	}
+
+	out := make([]TopicMatcher, len(patterns))
+	for i, p := range patterns {
+		out[i] = TopicMatcher{Type: MatcherTypeURLPattern, Pattern: p}
+	}
+
+	return out
+}
+
+// subscribeDetailsFromMatchers builds a single subscribe authorization detail
+// covering the given matchers, with an optional payload.
+func subscribeDetailsFromMatchers(payload any, matchers ...TopicMatcher) []authorizationDetail {
+	topics := make([]detailTopic, len(matchers))
+	for i, m := range matchers {
+		topics[i] = detailTopic{m}
+	}
+
+	return []authorizationDetail{{
+		Type:    authorizationDetailTypeMercure,
+		Actions: []mercureAction{actionSubscribe},
+		Topics:  topics,
+		Payload: payload,
+	}}
+}
+
+// createDummySubscriberJWTWithDetails mints a subscriber access token granting
+// the subscribe action on the given matchers, carrying the given payload.
+func createDummySubscriberJWTWithDetails(tb testing.TB, payload any, matchers ...TopicMatcher) string {
+	tb.Helper()
+
+	return mintAccessToken([]byte("subscriber"), testResourceIdentifier, subscribeDetailsFromMatchers(payload, matchers...))
+}
+
+// subscribeDetail builds a subscribe authorization detail covering a single
+// matcher, with an optional payload.
+func subscribeDetail(payload any, m TopicMatcher) authorizationDetail {
+	return authorizationDetail{
+		Type:    authorizationDetailTypeMercure,
+		Actions: []mercureAction{actionSubscribe},
+		Topics:  []detailTopic{{m}},
+		Payload: payload,
+	}
+}
+
+// detailClaims builds a *claims with the given authorization details validated
+// into its authz, for tests that set Subscriber.Claims directly.
+func detailClaims(tb testing.TB, tms *TopicMatcherStore, details ...authorizationDetail) *claims {
+	tb.Helper()
+
+	authz, err := validateAuthorizationDetails(tms, details)
+	require.NoError(tb, err)
+
+	return &claims{AuthorizationDetails: details, authz: authz}
+}

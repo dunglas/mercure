@@ -107,7 +107,7 @@ func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("unable to get lastEventID from BoltDB: %w", err)
+		return "", fmt.Errorf("unable to get last_event_id from BoltDB: %w", err)
 	}
 
 	return lastEventID, nil
@@ -123,7 +123,8 @@ func (t *BoltTransport) Dispatch(ctx context.Context, update *Update) error {
 
 	update.AssignUUID()
 
-	updateJSON, err := json.Marshal(*update)
+	// Marshal through the pointer so Update's custom MarshalJSON applies.
+	updateJSON, err := json.Marshal(update)
 	if err != nil {
 		return fmt.Errorf("error when marshaling update: %w", err)
 	}

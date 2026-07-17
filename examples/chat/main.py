@@ -23,19 +23,25 @@ Environment variables:
 """
 
 import os
+from urllib.parse import quote
 
 import jwt
 from flask import Flask, abort, make_response, render_template, request
-from uritemplate import expand
 
 HUB_URL = os.environ.get("HUB_URL", "https://localhost/.well-known/mercure")
 JWT_KEY = os.environ.get("JWT_KEY", "!ChangeThisMercureHubJWTSecretKey!")
-MESSAGE_URI_TEMPLATE = os.environ.get(
-    "MESSAGE_URI_TEMPLATE", "https://chat.example.com/messages/{id}"
+MESSAGE_PATTERN = os.environ.get(
+    "MESSAGE_PATTERN", "https://chat.example.com/messages/:id"
 )
 
-SUBSCRIPTIONS_TEMPLATE = "/.well-known/mercure/subscriptions/{topic}{/subscriber}"
-SUBSCRIPTIONS_TOPIC = expand(SUBSCRIPTIONS_TEMPLATE, topic=MESSAGE_URI_TEMPLATE)
+# The collection of subscription events for the message subscription, per the
+# /.well-known/mercure/subscriptions/{match_type}/{match} scheme: the match is
+# the message pattern, percent-encoded exactly once.
+SUBSCRIPTIONS_TOPIC = "/.well-known/mercure/subscriptions/urlpattern/" + quote(
+    MESSAGE_PATTERN, safe=""
+)
+# Per-subscriber presence events live one segment deeper.
+PRESENCE_PATTERN = SUBSCRIPTIONS_TOPIC + "/:subscriber"
 
 app = Flask(__name__)
 
@@ -53,14 +59,29 @@ def chat():
 
     token = jwt.encode(
         {
-            "mercure": {
-                "subscribe": [MESSAGE_URI_TEMPLATE, SUBSCRIPTIONS_TEMPLATE],
-                "publish": [MESSAGE_URI_TEMPLATE],
-                "payload": {"username": username},
-            }
+            "aud": HUB_URL,
+            "exp": 4102444800,
+            "authorization_details": [
+                {
+                    "type": "mercure",
+                    "actions": ["publish"],
+                    "topics": [{"match": MESSAGE_PATTERN, "match_type": "urlpattern"}],
+                },
+                {
+                    "type": "mercure",
+                    "actions": ["subscribe"],
+                    "topics": [
+                        {"match": MESSAGE_PATTERN, "match_type": "urlpattern"},
+                        {"match": SUBSCRIPTIONS_TOPIC, "match_type": "exact"},
+                        {"match": PRESENCE_PATTERN, "match_type": "urlpattern"},
+                    ],
+                    "payload": {"username": username},
+                },
+            ],
         },
         JWT_KEY,
         algorithm="HS256",
+        headers={"typ": "at+jwt"},
     )
 
     resp = make_response(
@@ -68,14 +89,15 @@ def chat():
             "chat.html",
             config={
                 "hubURL": HUB_URL,
-                "messageURITemplate": MESSAGE_URI_TEMPLATE,
+                "messagePattern": MESSAGE_PATTERN,
                 "subscriptionsTopic": SUBSCRIPTIONS_TOPIC,
+                "presencePattern": PRESENCE_PATTERN,
                 "username": username,
             },
         )
     )
     resp.set_cookie(
-        "mercureAuthorization",
+        "mercure_access_token",
         token,
         httponly=True,
         path="/.well-known/mercure",

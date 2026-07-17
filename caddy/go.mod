@@ -13,6 +13,7 @@ require (
 	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/caddyserver/caddy/v2 v2.11.4
 	github.com/dunglas/mercure v0.24.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -55,6 +56,7 @@ require (
 	github.com/dgraph-io/ristretto v0.2.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20240924180020-3414d57e47da // indirect
 	github.com/dlclark/regexp2/v2 v2.1.1 // indirect
+	github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526 // indirect
 	github.com/dunglas/skipfilter v1.0.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -68,7 +70,6 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gofrs/uuid/v5 v5.4.0 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/cel-go v0.28.1 // indirect
@@ -103,6 +104,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/nlnwa/whatwg-url v0.6.2 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/pires/go-proxyproto v0.12.0 // indirect

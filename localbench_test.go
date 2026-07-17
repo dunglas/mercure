@@ -1,0 +1,100 @@
+package mercure
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"math/rand"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func BenchmarkLocalTransport(b *testing.B) {
+	subscribeBenchmarkHelper(b, subBenchLocalTransport)
+}
+
+func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, testName string) {
+	b.Helper()
+
+	tr := NewLocalTransport(NewSubscriberList(1_000))
+	ctx := b.Context()
+
+	b.Cleanup(func() {
+		assert.NoError(b, tr.Close(ctx))
+	})
+
+	// URL Pattern matchers exercise the non-trivial matcher path (exact is
+	// O(1)). The matching subscriber carries a "/n/:id" pattern that matches the
+	// published "/n/<random>" topic; no-match patterns use a random prefix that
+	// no published topic shares.
+	top := make([]string, topics)
+	tsMatch := make([]string, topics)
+
+	tsNoMatch := make([]string, topics)
+	for i := range topics {
+		tsNoMatch[i] = fmt.Sprintf("/%d/:id", rand.Int())
+		if topics/2 == i {
+			n := rand.Int()
+			top[i] = fmt.Sprintf("/%d/%d", n, rand.Int())
+			tsMatch[i] = fmt.Sprintf("/%d/:id", n)
+		} else {
+			top[i] = fmt.Sprintf("/%d/%d", rand.Int(), rand.Int())
+			tsMatch[i] = tsNoMatch[i]
+		}
+	}
+
+	tms := &TopicMatcherStore{}
+
+	subscribers := make([]*LocalSubscriber, concurrency)
+	for i := range concurrency {
+		s := NewLocalSubscriber("", slog.Default(), tms)
+		if i%100 < matchPct {
+			s.setMatchers(stringsToURLPatternMatchers(tsMatch), nil)
+		} else {
+			s.setMatchers(stringsToURLPatternMatchers(tsNoMatch), nil)
+		}
+
+		subscribers[i] = s
+		require.NoError(b, tr.AddSubscriber(ctx, s))
+	}
+
+	ctx, done := context.WithCancel(ctx)
+	b.Cleanup(done)
+
+	for i := range concurrency {
+		go func() {
+			for {
+				select {
+				case _, ok := <-subscribers[i].Receive():
+					if !ok {
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+
+	b.SetParallelism(concurrency)
+	b.Run(testName, func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			for i := 0; pb.Next(); i++ {
+				require.NoError(b, tr.Dispatch(ctx, testUpdate(&Update{}, top...)))
+			}
+		})
+	})
+}
+
+/*
+These are example commands that can be used to run subsets of this test for analysis.
+Omission of any environment variable causes the test to enumerate a few meaningful options.
+
+SUB_TEST_CONCURRENCY=20000 \
+	SUB_TEST_TOPICS=20 \
+	SUB_TEST_MATCHPCT=50 \
+	go test -bench=. -run=BenchmarkLocalTransport -cpuprofile profile.out -benchmem
+go tool pprof --pdf _dist/bin profile.out > profile.pdf
+*/

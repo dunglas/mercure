@@ -156,7 +156,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 	r := mux.NewRouter()
 	h.registerSubscriptionHandlers(r)
 
-	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead, methodQuery)
 	r.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
 
 	csp := "default-src 'self'"
@@ -193,7 +193,8 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 		corsHandler = cors.New(cors.Options{
 			AllowedOrigins:   h.corsOrigins,
 			AllowCredentials: true,
-			AllowedHeaders:   []string{"authorization", "cache-control", "last-event-id"},
+			AllowedMethods:   []string{http.MethodGet, http.MethodHead, http.MethodPost, methodQuery},
+			AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id"},
 		}).Handler(r)
 	} else {
 		corsHandler = r
