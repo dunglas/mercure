@@ -31,7 +31,7 @@ const DefaultSubscriberListCacheSize = 100_000
 
 func NewSubscriberList(cacheSize int) *SubscriberList {
 	return &SubscriberList{
-		skipfilter: skipfilter.New[*LocalSubscriber, string](func(s *LocalSubscriber, filter string) bool {
+		skipfilter: skipfilter.New(func(s *LocalSubscriber, filter string) bool {
 			return s.MatchTopics(decode(filter))
 		}, cacheSize),
 	}

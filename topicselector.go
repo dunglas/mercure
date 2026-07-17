@@ -65,7 +65,7 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 		return &TopicSelectorStore{}, nil
 	}
 
-	matchCache, err := otter.New[matchCacheKey, bool](&otter.Options[matchCacheKey, bool]{
+	matchCache, err := otter.New(&otter.Options[matchCacheKey, bool]{
 		MaximumSize: cacheSize,
 	})
 	if err != nil {
@@ -78,14 +78,14 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 	// stream distinct patterns until OOM.
 	auxSize := max(cacheSize/10, 1)
 
-	templateCache, err := otter.New[string, *regexp.Regexp](&otter.Options[string, *regexp.Regexp]{
+	templateCache, err := otter.New(&otter.Options[string, *regexp.Regexp]{
 		MaximumSize: auxSize,
 	})
 	if err != nil {
 		return nil, err //nolint:wrapcheck
 	}
 
-	urlPatterns, err := otter.New[string, *urlpattern.URLPattern](&otter.Options[string, *urlpattern.URLPattern]{
+	urlPatterns, err := otter.New(&otter.Options[string, *urlpattern.URLPattern]{
 		MaximumSize: auxSize,
 	})
 	if err != nil {

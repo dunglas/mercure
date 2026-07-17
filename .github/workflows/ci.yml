@@ -45,6 +45,14 @@ jobs:
           args: --timeout=30m --config ../.golangci.yml
           working-directory: caddy
 
+      # infertypeargs is a gopls-only analyzer, unavailable in golangci-lint.
+      - name: gopls infertypeargs
+        run: |
+          go install golang.org/x/tools/gopls@latest
+          out=$(gopls check -severity=hint $(git ls-files ':!:caddy/**' '*.go'))
+          echo "$out"
+          ! echo "$out" | grep -q "unnecessary type arguments"
+
   test:
     strategy:
       matrix:
