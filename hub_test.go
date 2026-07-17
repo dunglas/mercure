@@ -165,8 +165,6 @@ func TestWithProtocolVersionCompatibility(t *testing.T) {
 func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 	t.Parallel()
 
-	op := &opt{}
-
 	testCases := []struct {
 		version int
 		ok      bool
@@ -185,9 +183,9 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 			o := WithProtocolVersionCompatibility(tc.version)
 
 			if tc.ok {
-				require.NoError(t, o(op))
+				require.NoError(t, o(&opt{}))
 			} else {
-				require.Error(t, o(op))
+				require.Error(t, o(&opt{}))
 			}
 		})
 	}
