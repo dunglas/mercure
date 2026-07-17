@@ -59,6 +59,42 @@ await fetchEventSource(url, {
 
 This is the right choice for React Native, server-side runtimes, and any case where the native `EventSource` is too constrained.
 
+## Subscribing with the QUERY method
+
+Each `match*` parameter adds to the subscription URL. A subscriber watching hundreds of topics can hit the URL length limits that browsers, proxies, and CDNs enforce (commonly 4 to 8 KB), and the request fails before it reaches the hub.
+
+To avoid this, the hub also accepts the [`QUERY` HTTP method](https://www.rfc-editor.org/rfc/rfc10008.html) on the subscription URL. `QUERY` is safe and idempotent like `GET`, but carries the topic matcher parameters in the request body instead of the query string. The body **must** be encoded as `application/x-www-form-urlencoded`, exactly as the query string would be:
+
+```http
+# Subscribing with the QUERY method
+QUERY /.well-known/mercure HTTP/2
+Host: hub.example.com
+Accept: text/event-stream
+Content-Type: application/x-www-form-urlencoded
+
+match=https://example.com/books/1&match_urlpattern=https://example.com/users/:id
+```
+
+`EventSource` only issues `GET` requests, so it can't use `QUERY`. Reach for a `fetch`-based client:
+
+```javascript
+// Subscribing with the QUERY method
+import { fetchEventSource } from "@microsoft/fetch-event-source";
+
+const body = new URLSearchParams();
+body.append("match", "https://example.com/books/1");
+body.append("match_urlpattern", "https://example.com/users/:id");
+
+await fetchEventSource("https://hub.example.com/.well-known/mercure", {
+  method: "QUERY",
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  body,
+  onmessage: (event) => /* ... */,
+});
+```
+
+Everything else stays the same: the matcher names and values follow the [same rules](topics-and-matchers.md) as query parameters, and the hub streams the same Server-Sent Events. Stick with `GET` unless your topic list is large enough to risk the URL limit.
+
 ## Closing the Mercure EventSource connection
 
 `EventSource` keeps the TCP connection open until you close it. In single-page apps the connection survives component unmounts and route changes if you don't tear it down explicitly:

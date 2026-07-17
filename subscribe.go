@@ -4,14 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
+
+// methodQuery is the safe, idempotent HTTP QUERY method (RFC 9110 semantics,
+// defined in RFC 10008). Subscribers use it to send the topic matcher list in
+// the request body instead of the URL, avoiding query-string length limits.
+const methodQuery = "QUERY"
 
 type subscriberContextKeyType struct{}
 
@@ -207,7 +215,15 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	ctx, span := startSpan(ctx, "mercure.subscribe", trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
-	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r), h.logger, h.topicSelectorStore)
+	values, err := h.subscribeValues(r)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		recordSpanError(span, err)
+
+		return nil, nil
+	}
+
+	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r, values), h.logger, h.topicSelectorStore)
 
 	var claims *claims
 
@@ -232,7 +248,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	deprecated := h.isBackwardCompatiblyEnabledWith(8)
 
-	matchers, err := h.parseMatchers(r.URL.Query(), deprecated)
+	matchers, err := h.parseMatchers(values, deprecated)
 	if err != nil {
 		h.writeMatcherParamError(ctx, w, err)
 		recordSpanError(span, err)
@@ -326,13 +342,40 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	}
 }
 
+// subscribeValues returns the subscription parameters. For GET and HEAD they
+// come from the URL query; for QUERY the application/x-www-form-urlencoded
+// request body is parsed and merged on top, so a subscriber can pass topics
+// either way. Body size is bounded upstream (e.g. Caddy's request_body
+// directive), as for the publish endpoint.
+func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
+	values := r.URL.Query()
+	if r.Method != methodQuery {
+		return values, nil
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading QUERY request body: %w", err)
+	}
+
+	bodyValues, err := url.ParseQuery(string(body))
+	if err != nil {
+		return nil, fmt.Errorf("parsing QUERY request body: %w", err)
+	}
+
+	for k, vs := range bodyValues {
+		values[k] = append(values[k], vs...)
+	}
+
+	return values, nil
+}
+
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
-func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
+func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query url.Values) string {
 	if id := r.Header.Get("Last-Event-ID"); id != "" {
 		return id
 	}
 
-	query := r.URL.Query()
 	if id := query.Get("last_event_id"); id != "" {
 		return id
 	}

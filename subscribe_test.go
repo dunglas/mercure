@@ -393,6 +393,44 @@ func TestSubscribeAddSubscriberError(t *testing.T) {
 	assert.Equal(t, http.StatusText(http.StatusServiceUnavailable)+"\n", w.Body.String())
 }
 
+func TestSubscribeQueryMethod(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+	ctx := t.Context()
+
+	go func() {
+		s := hub.transport.(*LocalTransport)
+
+		var ready bool
+
+		for !ready {
+			s.RLock()
+			ready = s.subscribers.Len() == 1
+			s.RUnlock()
+		}
+
+		_ = hub.transport.Dispatch(ctx, &Update{
+			Topic: "https://example.com/books/1",
+			Event: Event{Data: "Hello World", ID: "b"},
+		})
+	}()
+
+	reqCtx, cancel := context.WithCancel(t.Context())
+	// Topics travel in the QUERY request body instead of the URL.
+	body := url.Values{"match": {"https://example.com/books/1"}}.Encode()
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body)).WithContext(reqCtx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nid: b\ndata: Hello World\n\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+}
+
 func subscribe(tb testing.TB, numberOfSubscribers int) {
 	tb.Helper()
 

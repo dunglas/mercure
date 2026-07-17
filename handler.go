@@ -42,7 +42,7 @@ func (h *Hub) initHandler() {
 	h.registerSubscriptionHandlers(router)
 
 	if h.subscriberJWTKeyFunc != nil || h.anonymous {
-		router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead)
+		router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead, methodQuery)
 	}
 
 	if h.publisherJWTKeyFunc != nil {
@@ -65,10 +65,14 @@ func (h *Hub) initHandler() {
 		ContentSecurityPolicy: csp,
 	})
 
-	if len(h.corsOrigins) == 0 {
-		h.handler = secureMiddleware.Handler(router)
+	h.handler = secureMiddleware.Handler(h.corsHandler(router))
+}
 
-		return
+// corsHandler wraps the router with CORS when origins are configured,
+// otherwise returns it unchanged.
+func (h *Hub) corsHandler(router http.Handler) http.Handler {
+	if len(h.corsOrigins) == 0 {
+		return router
 	}
 
 	// The protocol forbids combining a wildcard Access-Control-Allow-Origin
@@ -78,14 +82,13 @@ func (h *Hub) initHandler() {
 	// a header pair that can never work.
 	allowCredentials := !slices.Contains(h.corsOrigins, "*")
 
-	h.handler = secureMiddleware.Handler(
-		cors.New(cors.Options{
-			AllowedOrigins:   h.corsOrigins,
-			AllowCredentials: allowCredentials,
-			AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id"},
-			Debug:            h.debug,
-		}).Handler(router),
-	)
+	return cors.New(cors.Options{
+		AllowedOrigins:   h.corsOrigins,
+		AllowCredentials: allowCredentials,
+		AllowedMethods:   []string{http.MethodGet, http.MethodHead, http.MethodPost, methodQuery},
+		AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id"},
+		Debug:            h.debug,
+	}).Handler(router)
 }
 
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
