@@ -7,7 +7,7 @@ description: "Common Mercure questions: comparisons with WebSockets, Pusher, Abl
 
 ## What's the difference between Mercure and WebSockets?
 
-Mercure is a high-level protocol; WebSocket is a low-level transport. Mercure ships with authorization, reconnection, replay, and presence built in: features you'd otherwise design from scratch on top of WebSocket.
+Mercure is a high-level protocol; WebSocket is a low-level transport. Mercure ships with authorization, reconnection, replay, and presence built-in: features you'd otherwise design from scratch on top of WebSocket.
 
 WebSocket is also [hard to scale on HTTP/2+](https://www.infoq.com/articles/websocket-and-http2-coexist) and [hard to secure](https://gravitational.com/blog/kubernetes-websocket-upgrade-security-vulnerability/). Mercure rides on plain HTTP/2 (or 3), so it inherits the multiplexing and security properties of the underlying transport.
 
@@ -104,7 +104,7 @@ If you're thinking about running the hub itself on serverless: the hub holds lon
 
 ## What's the Mercure hub delivery latency?
 
-End to end, the median publish-to-deliver latency on a single-node hub is sub-millisecond plus your network. With multi-node Self-Hosted transports, expect single-digit milliseconds added by the transport.
+End-to-end, the median publish-to-deliver latency on a single-node hub is sub-millisecond plus your network. With multi-node Self-Hosted transports, expect single-digit milliseconds added by the transport.
 
 ## How do I monitor it?
 

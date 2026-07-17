@@ -63,7 +63,7 @@ One invalid `mercure` detail rejects the whole token (`401 invalid_token`); ther
 
 The hub reads the token from one of three places. Pick the one that matches your client:
 
-1. **`Authorization: Bearer <token>` header (preferred for non-browser clients).** Right for server-side code, mobile apps, and CLI tools: anything that can set custom headers. Browsers can't attach this to an `EventSource`, so it isn't an option there. The `Bearer` scheme name is matched case-insensitively.
+1. **`Authorization: Bearer <token>` header (preferred for non-browser clients).** Right for server-side code, mobile apps, and command-line tools: anything that can set custom headers. Browsers can't attach this to an `EventSource`, so it isn't an option there. The `Bearer` scheme name is matched case-insensitively.
 2. **`mercure_access_token` cookie (preferred for browsers).** Set with `HttpOnly`, `Secure`, and `SameSite`, the cookie keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history, and is the only mechanism `EventSource` natively carries on cross-origin connections. Set it at discovery time so it's already in place when the SSE connection opens.
 3. **`access_token` query parameter (last resort).** Tokens leak into proxy logs, browser history, and `Referer` headers. Use this only when neither header nor cookie is available.
 

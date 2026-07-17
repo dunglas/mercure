@@ -194,7 +194,7 @@ It's off by default. Without it, the hub doesn't publish subscription events and
 
 If you're running [Self-Hosted Mercure](https://mercure.rocks/pricing) and see license errors:
 
-- Check `MERCURE_LICENSE` is set and the value isn't truncated (long keys are easy to truncate when copy-pasting).
+- Check `MERCURE_LICENSE` is set and the value isn't truncated (long keys are easy to truncate when copypasting).
 - The check runs in-process; no callback to a license server. License errors are about the value of the env var, not network reachability.
 - Connection cap exceeded: `429 Too Many Requests` to publishers, refusal of new subscribers. Upgrade your tier or shed connections.
 

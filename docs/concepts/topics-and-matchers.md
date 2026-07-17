@@ -22,7 +22,7 @@ Topics are arbitrary strings. Anything works:
 
 URLs (more precisely, [URIs](https://www.rfc-editor.org/rfc/rfc3986)) are the web's native identifier standard. Using them as Mercure topics is a best practice for the same reasons REST uses URIs to name resources:
 
-- **Resources already have URLs.** If your application exposes `https://example.com/books/42`, that URL already identifies the book. Reusing it as the Mercure topic means subscribers and publishers reference the same thing in the same way, end to end.
+- **Resources already have URLs.** If your application exposes `https://example.com/books/42`, that URL already identifies the book. Reusing it as the Mercure topic means subscribers and publishers reference the same thing in the same way, end-to-end.
 - **Globally unique by construction.** A URL is unique within its domain and unique across domains. You don't need to coordinate a separate naming scheme between services.
 - **Hypermedia-friendly.** URLs compose with `Link: rel="self"`, `JSON-LD` `@id`, Atom `<id>`, ActivityPub, OpenAPI, and every other web standard that already names things by URL. The same URL drops into a `fetch()`, an `<a href>`, a Mercure `match=`, and a database join.
 - **Tooling understands them.** Browsers, log aggregators, IDEs, and the URL Pattern matcher all parse and validate URLs out of the box. Path-based routing and per-segment matching come for free.
@@ -93,7 +93,7 @@ URL Patterns understand:
 
 - Named groups: `:id`
 - Wildcards: `*`
-- Regex constraints inside groups: `:type(news|alerts)`
+- Regular expression constraints inside groups: `:type(news|alerts)`
 - Optional segments: `/items{/:tail}?`
 
 Patterns can be **absolute** (`https://example.com/...`) or **relative** to the hub URL (`/.well-known/mercure/subscriptions/:match_type/:match/:subscriber`). Relative patterns are resolved against the hub's `public_url` and are useful for [subscribing to subscription events](active-subscriptions.md), where the hub itself is the publisher. Matching is case-sensitive; `ignoreCase` is never enabled.

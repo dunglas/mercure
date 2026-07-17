@@ -40,7 +40,7 @@ requires nor inspects it.
 
 ## Mercure publish examples
 
-### Publishing to Mercure with curl
+### Publishing to Mercure with `curl`
 
 ```console
 # Publishing to Mercure with curl

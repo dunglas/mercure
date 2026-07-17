@@ -34,7 +34,7 @@ Why this works:
 
 - The browser holds **one** `EventSource` connection to the hub. It receives every token of every chat turn over that connection, regardless of how many models or backends you use.
 - The origin server doesn't have to keep the browser's HTTP connection open. It calls the hub and goes back to its event loop. This makes serverless inference (Lambda, Cloud Run, Workers) trivial.
-- Reconnection is built in. If the browser drops mid-stream, `EventSource` reconnects with `Last-Event-ID` and the hub resends any tokens it still has buffered.
+- Reconnection is built-in. If the browser drops mid-stream, `EventSource` reconnects with `Last-Event-ID` and the hub resends any tokens it still has buffered.
 
 ## Subscriber: the browser
 
@@ -115,7 +115,7 @@ The publish call is a single `POST`; it returns as soon as the hub accepts the u
 
 ## Why not just stream the response from the origin?
 
-`POST /chat` could return `text/event-stream` directly. That works too, but it has tradeoffs Mercure avoids:
+`POST /chat` could return `text/event-stream` directly. That works too, but it has trade-offs Mercure avoids:
 
 - **Connection stickiness.** A streaming response keeps the origin worker tied to that one client until the stream finishes. With Mercure, the origin worker publishes and exits; the hub holds the long connection.
 - **Multi-tab.** With Mercure, a user with three tabs open sees the same stream in all three. With direct streaming, you'd have to fan it out yourself.

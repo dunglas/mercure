@@ -67,7 +67,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 
 URL patterns follow the [WHATWG URL Pattern](https://urlpattern.spec.whatwg.org) syntax. They replace URI templates as the recommended templating language for URL topics. [Topics and matchers](../concepts/topics-and-matchers.md) covers the full set.
 
-## Publish a Mercure update with curl
+## Publish a Mercure update with `curl`
 
 In another terminal:
 

@@ -49,7 +49,7 @@ The reference test suite is published in the [`conformance-tests/`](https://gith
 
 ## Mercure protocol versioning
 
-The protocol is versioned via the IETF draft number. The reference hub follows semver and ships breaking changes only at major versions. The current major is **1.0**, aligned with the two-matcher, OAuth 2.0 authorization model described in the spec.
+The protocol is versioned via the IETF draft number. The reference hub follows SemVer and ships breaking changes only at major versions. The current major is **1.0**, aligned with the two-matcher, OAuth 2.0 authorization model described in the spec.
 
 If you're upgrading from a previous version, see the [upgrade guide](../UPGRADE.md).
 

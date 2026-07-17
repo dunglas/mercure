@@ -26,12 +26,12 @@ Whatever produces the value (a database trigger, a webhook handler, an MQTT brid
 
 The natural topic for a data point is its URL, the same URL that returns its current value as JSON.
 
-| Domain                          | Topic                                                   |
-| ------------------------------- | ------------------------------------------------------- |
-| Per-product availability        | `https://shop.example.com/products/42/availability`     |
-| Per-room occupancy              | `https://office.example.com/rooms/auditorium/occupancy` |
-| Per-device telemetry            | `urn:device:thermostat-01/temperature`                  |
-| Build status by repo and branch | `https://ci.example.com/builds/owner/repo/main`         |
+| Domain                                | Topic                                                   |
+| ------------------------------------- | ------------------------------------------------------- |
+| Per-product availability              | `https://shop.example.com/products/42/availability`     |
+| Per-room occupancy                    | `https://office.example.com/rooms/auditorium/occupancy` |
+| Per-device telemetry                  | `urn:device:thermostat-01/temperature`                  |
+| Build status by repository and branch | `https://ci.example.com/builds/owner/repo/main`         |
 
 When clients want a _family_ of values, use `match_urlpattern`:
 

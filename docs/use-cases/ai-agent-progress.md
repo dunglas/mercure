@@ -141,7 +141,7 @@ USER_TOPIC = f"https://example.com/users/{user_id}/runs/{run_id}"
 publish(topic=USER_TOPIC, data=event, private=True)
 ```
 
-Each update goes to one topic that embeds the owning user's id. Only that user is authorized for their own run space, so even if someone guesses the run ID they can't subscribe to it.
+Each update goes to one topic that embeds the owning user's ID. Only that user is authorized for their own run space, so even if someone guesses the run ID they can't subscribe to it.
 
 This is the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-resources) applied to agent runs.
 
@@ -189,7 +189,7 @@ Two practical mitigations:
 }
 ```
 
-The hub assigns each connection a random `urn:uuid:` subscriber id; clients can't choose it. For a stable per-user identity across the user's tabs (convenient if you also want to surface presence, see [Active subscriptions](../concepts/active-subscriptions.md)), put it in the `subscribe` grant's `payload`. For instance, "Alice is watching this run" pills on a shared dashboard.
+The hub assigns each connection a random `urn:uuid:` subscriber ID; clients can't choose it. For a stable per-user identity across the user's tabs (convenient if you also want to surface presence, see [Active subscriptions](../concepts/active-subscriptions.md)), put it in the `subscribe` grant's `payload`. For instance, "Alice is watching this run" pills on a shared dashboard.
 
 ## When this is overkill
 

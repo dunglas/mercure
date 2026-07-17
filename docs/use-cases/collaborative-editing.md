@@ -121,7 +121,7 @@ Use [subscription events](../concepts/active-subscriptions.md) to show who's con
 }
 ```
 
-The hub assigns each connection a random `urn:uuid:` subscriber id. For a stable identity in presence, surface the `payload` (here `name` and `color`) rather than relying on a client-chosen subscriber id.
+The hub assigns each connection a random `urn:uuid:` subscriber ID. For a stable identity in presence, surface the `payload` (here `name` and `color`) rather than relying on a client-chosen subscriber ID.
 
 When subscriptions on the document topic open or close, the hub broadcasts an event including that payload. The UI maintains a list of "people here":
 

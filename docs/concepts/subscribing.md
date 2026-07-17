@@ -14,7 +14,7 @@ Host: hub.example.com
 Accept: text/event-stream
 ```
 
-Pick the matchers you want with [`match*` query parameters](topics-and-matchers.md). The rest of this page covers the client side.
+Pick the matchers you want with [`match*` query parameters](topics-and-matchers.md). The rest of this page covers the client-side.
 
 ## Subscribing from a browser with EventSource
 
@@ -136,7 +136,7 @@ Fields:
 
 ## Discovering the Mercure hub via link header
 
-The publisher of a resource can advertise its hub via a `Link` header so clients don't need to hard-code it:
+The publisher of a resource can advertise its hub via a `Link` header so clients don't need to hardcode it:
 
 ```http
 # Discovering the Mercure Hub via Link Header

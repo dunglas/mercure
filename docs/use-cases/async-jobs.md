@@ -102,13 +102,13 @@ def generate_report(job_id: str, user_id: str, filters: dict):
     publish(topic, {"type": "done", "url": url}, private=True)
 ```
 
-Each update goes to one per-user topic that embeds the owning user's id. The user's access token authorizes a `subscribe` grant for `https://example.com/users/<their-id>/jobs/:id` (a `urlpattern` scoped to their id), so they receive their own jobs but not anyone else's, even if they guess a `jobId`. See the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-resources).
+Each update goes to one per-user topic that embeds the owning user's ID. The user's access token authorizes a `subscribe` grant for `https://example.com/users/<their-id>/jobs/:id` (a `urlpattern` scoped to their ID), so they receive their own jobs but not anyone else's, even if they guess a `jobId`. See the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-resources).
 
 ## When the user closes the tab
 
 The browser-side `EventSource` is gone, but the worker keeps running and keeps publishing. The hub buffers updates in its history. When the user opens the page again (perhaps from a "your report is ready" email), the new `EventSource` includes `last_event_id` and the hub replays everything that happened. The user sees the final progress and the download link without polling.
 
-For this to work end to end:
+For this to work end-to-end:
 
 - The hub's history buffer must hold long enough to cover the longest expected job. With the open-source build and BoltDB, history is bounded by disk size (a generous default). Cloud tiers cap it at 100-5,000 messages depending on plan.
 - The page that re-subscribes must know the `jobId`. Persist it (cookie, local DB) when you submit the job.

@@ -17,7 +17,7 @@ helm install mercure mercure/mercure \
 
 For real deployments, store the keys in a Kubernetes `Secret` and point the chart at it with `existingSecret` (the chart reads `publisher-jwt-key` and `subscriber-jwt-key` from the named secret) instead of passing keys on the command line.
 
-Default values produce a single-replica deployment with BoltDB, a `ClusterIP` service, and SSE-aware rolling-update settings. The full list of values lives in the [chart README](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md).
+Default values produce a single-replica deployment with BoltDB, a `ClusterIP` service, and SSE-aware rolling-update settings. The full list of values lives in the [chart documentation](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md).
 
 ## What the chart sets up for you
 
