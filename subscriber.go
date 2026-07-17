@@ -22,7 +22,7 @@ type Subscriber struct {
 	// EscapedMatchers are precomputed "escapedType/escapedPattern" slugs for
 	// subscription URLs.
 	EscapedMatchers []string
-	// SubscriptionPayloads holds the JSON-LD `payload` resolved per
+	// SubscriptionPayloads holds the `payload` resolved per
 	// subscribed matcher at registration time, indexed parallel to
 	// SubscribedMatchers. Precomputing lets the subscription API render
 	// payloads for subscribers a transport reconstructed from its
