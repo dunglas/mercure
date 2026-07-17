@@ -12,10 +12,10 @@ import (
 func TestMatchDeprecatedStub(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
 	// Without the deprecated_topic build tag, v8 matchers never match.
 	m := TopicMatcher{Type: deprecatedMatcherTypeName, Pattern: "foo"}
-	assert.False(t, tss.matchMatcher([]string{"foo"}, m))
+	assert.False(t, tms.matchMatcher([]string{"foo"}, m))
 }

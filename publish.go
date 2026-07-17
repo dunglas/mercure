@@ -212,7 +212,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Reject oversized topic lists before running canDispatch — otherwise
-	// an authenticated publisher could force O(topics × selectors)
+	// an authenticated publisher could force O(topics × matchers)
 	// matching work on every request before being rejected by validate.
 	if len(topics) > maxPublishTopics {
 		http.Error(w, ErrTooManyTopics.Error(), http.StatusBadRequest)
@@ -246,7 +246,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	private := len(r.PostForm["private"]) != 0
-	if claims != nil && !claims.authz.grantsAll(h.topicSelectorStore, actionPublish, topics) { //nolint:nestif
+	if claims != nil && !claims.authz.grantsAll(h.topicMatcherStore, actionPublish, topics) { //nolint:nestif
 		if private {
 			h.writeBearerError(w, bearerErrInsufficientScope, http.StatusForbidden)
 

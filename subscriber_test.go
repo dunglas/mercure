@@ -15,7 +15,7 @@ func TestDispatch(t *testing.T) {
 
 	ctx := t.Context()
 	topic := "https://example.com"
-	s := NewLocalSubscriber("1", slog.Default(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("1", slog.Default(), &TopicMatcherStore{})
 	s.setMatchers(stringsToExactMatchers([]string{topic}), nil)
 
 	defer s.Disconnect()
@@ -40,7 +40,7 @@ func TestDispatch(t *testing.T) {
 func TestDisconnect(t *testing.T) {
 	t.Parallel()
 
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 	s.Disconnect()
 	// can be called two times without crashing
 	s.Disconnect()
@@ -55,7 +55,7 @@ func TestLogSubscriber(t *testing.T) {
 
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
-	s := NewLocalSubscriber("123", logger, &TopicSelectorStore{})
+	s := NewLocalSubscriber("123", logger, &TopicMatcherStore{})
 	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/bar"}), stringsToExactMatchers([]string{"https://example.com/foo"}))
 
 	logger.Info("test", slog.Any("subscriber", s))
@@ -69,10 +69,10 @@ func TestLogSubscriber(t *testing.T) {
 func TestMatchTopic(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
-	s := NewLocalSubscriber("", slog.Default(), tss)
+	s := NewLocalSubscriber("", slog.Default(), tms)
 	s.setMatchers([]TopicMatcher{
 		{Type: MatcherTypeExact, Pattern: "https://example.com/no-match"},
 		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/books/:id"},
@@ -94,7 +94,7 @@ func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 
 	ctx := t.Context()
 
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 	s.Ready(ctx)
 
 	for i := 0; i <= outBufferLength; i++ {

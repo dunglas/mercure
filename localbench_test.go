@@ -45,11 +45,11 @@ func subBenchLocalTransport(b *testing.B, topics, concurrency, matchPct int, tes
 		}
 	}
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 
 	subscribers := make([]*LocalSubscriber, concurrency)
 	for i := range concurrency {
-		s := NewLocalSubscriber("", slog.Default(), tss)
+		s := NewLocalSubscriber("", slog.Default(), tms)
 		if i%100 < matchPct {
 			s.setMatchers(stringsToURLPatternMatchers(tsMatch), nil)
 		} else {

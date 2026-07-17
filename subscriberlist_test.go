@@ -25,13 +25,13 @@ func TestDecode(t *testing.T) {
 }
 
 func BenchmarkSubscriberList(b *testing.B) {
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 
 	l := NewSubscriberList(DefaultSubscriberListCacheSize)
 	logger := slog.Default()
 
 	for i := range 100 {
-		s := NewLocalSubscriber("", logger, tss)
+		s := NewLocalSubscriber("", logger, tms)
 		t := fmt.Sprintf("https://example.com/%d", i%10)
 		s.setMatchers(stringsToExactMatchers([]string{"https://example.org/foo", t}), stringsToExactMatchers([]string{"https://example.net/bar", t}))
 

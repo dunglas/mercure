@@ -25,10 +25,10 @@ func stringsToDeprecatedMatchers(patterns []string) []TopicMatcher {
 func TestMatchAlternateTopics(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
-	s := NewLocalSubscriber("", slog.Default(), tss)
+	s := NewLocalSubscriber("", slog.Default(), tms)
 	s.setMatchers(
 		stringsToDeprecatedMatchers([]string{"https://example.com/no-match", "https://example.com/books/{id}"}),
 		stringsToDeprecatedMatchers([]string{"https://example.com/users/foo/{?topic}"}),

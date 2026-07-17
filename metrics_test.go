@@ -14,15 +14,15 @@ func TestNumberOfRunningSubscribers(t *testing.T) {
 
 	m := NewPrometheusMetrics(nil)
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 
-	s1 := NewLocalSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tms)
 	s1.setMatchers(stringsToExactMatchers([]string{"topic1", "topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertGaugeValue(t, 1.0, m.subscribers)
 
-	s2 := NewLocalSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tms)
 	s2.setMatchers(stringsToExactMatchers([]string{"topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertGaugeValue(t, 2.0, m.subscribers)
@@ -39,15 +39,15 @@ func TestTotalNumberOfHandledSubscribers(t *testing.T) {
 
 	m := NewPrometheusMetrics(nil)
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 
-	s1 := NewLocalSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tms)
 	s1.setMatchers(stringsToExactMatchers([]string{"topic1", "topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s1)
 	assertCounterValue(t, 1.0, m.subscribersTotal)
 
-	s2 := NewLocalSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tms)
 	s2.setMatchers(stringsToExactMatchers([]string{"topic2"}), stringsToExactMatchers(nil))
 	m.SubscriberConnected(s2)
 	assertCounterValue(t, 2.0, m.subscribersTotal)

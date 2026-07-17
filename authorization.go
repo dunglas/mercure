@@ -243,7 +243,7 @@ func (h *Hub) validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc, algs []st
 		return nil, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, c.Issuer)
 	}
 
-	authz, err := validateAuthorizationDetails(h.topicSelectorStore, c.AuthorizationDetails)
+	authz, err := validateAuthorizationDetails(h.topicMatcherStore, c.AuthorizationDetails)
 	if err != nil {
 		return nil, err
 	}

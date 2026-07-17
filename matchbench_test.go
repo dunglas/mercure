@@ -11,7 +11,7 @@ func BenchmarkMatchMatcher(b *testing.B) {
 
 	topics := []string{"https://example.com/books/1"}
 
-	cached, err := NewTopicSelectorStore(DefaultTopicSelectorStoreCacheSize)
+	cached, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -20,14 +20,14 @@ func BenchmarkMatchMatcher(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	nocache := &TopicSelectorStore{}
+	nocache := &TopicMatcherStore{}
 	if err := nocache.setBaseURL(base); err != nil {
 		b.Fatal(err)
 	}
 
 	cases := []struct {
 		name  string
-		store *TopicSelectorStore
+		store *TopicMatcherStore
 		m     TopicMatcher
 	}{
 		{"exact-hit", cached, TopicMatcher{MatcherTypeExact, "https://example.com/books/1"}},

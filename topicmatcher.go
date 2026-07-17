@@ -12,11 +12,11 @@ import (
 	"github.com/maypok86/otter/v2"
 )
 
-// DefaultTopicSelectorStoreCacheSize bounds the (matcher_type, pattern, topics)
+// DefaultTopicMatcherStoreCacheSize bounds the (matcher_type, pattern, topics)
 // -> bool match cache. At ~100 B/entry, 100_000 keeps the cache under ~10 MB.
-// Raise it via the `topic_selector_cache <N>` Caddyfile directive for hubs
+// Raise it via the `topic_matcher_cache <N>` Caddyfile directive for hubs
 // handling a much larger topic / matcher universe.
-const DefaultTopicSelectorStoreCacheSize = 100_000
+const DefaultTopicMatcherStoreCacheSize = 100_000
 
 // topicsKeySeparator joins the topics of an update into a single cache-key
 // field. It is a NUL byte, which the publish and subscribe handlers reject in
@@ -46,10 +46,10 @@ type matchCacheKey struct {
 	Topics  string
 }
 
-// TopicSelectorStore caches match results and compiled patterns. The match
+// TopicMatcherStore caches match results and compiled patterns. The match
 // cache is a single unsharded otter instance; otter v2 is designed for high
 // concurrency.
-type TopicSelectorStore struct {
+type TopicMatcherStore struct {
 	matchCache    *otter.Cache[matchCacheKey, bool]
 	templateCache *otter.Cache[string, *regexp.Regexp]
 	urlPatterns   *otter.Cache[string, *urlpattern.URLPattern]
@@ -57,12 +57,12 @@ type TopicSelectorStore struct {
 	baseURL string
 }
 
-// NewTopicSelectorStore creates a TopicSelectorStore.
+// NewTopicMatcherStore creates a TopicMatcherStore.
 // If cacheSize > 0, match results, compiled templates and compiled URL
 // patterns are cached; otherwise nothing is memoised.
-func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
+func NewTopicMatcherStore(cacheSize int) (*TopicMatcherStore, error) {
 	if cacheSize <= 0 {
-		return &TopicSelectorStore{}, nil
+		return &TopicMatcherStore{}, nil
 	}
 
 	matchCache, err := otter.New(&otter.Options[matchCacheKey, bool]{
@@ -92,7 +92,7 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 		return nil, err //nolint:wrapcheck
 	}
 
-	return &TopicSelectorStore{matchCache: matchCache, templateCache: templateCache, urlPatterns: urlPatterns}, nil
+	return &TopicMatcherStore{matchCache: matchCache, templateCache: templateCache, urlPatterns: urlPatterns}, nil
 }
 
 // ErrConflictingBaseURL is returned by setBaseURL (via NewHub) when a store
@@ -100,7 +100,7 @@ func NewTopicSelectorStore(cacheSize int) (*TopicSelectorStore, error) {
 // public URL. The base URL is immutable configuration; sharing a store across
 // hubs that disagree on it would silently corrupt relative-pattern matching, so
 // it is rejected at construction instead.
-var ErrConflictingBaseURL = errors.New("topic selector store already configured with a different base URL")
+var ErrConflictingBaseURL = errors.New("topic matcher store already configured with a different base URL")
 
 // ErrInvalidBaseURL is returned by setBaseURL (via NewHub) when the configured
 // public URL is not an absolute URL. Relative URL patterns and topics are
@@ -114,44 +114,44 @@ var ErrInvalidBaseURL = errors.New("base URL must be an absolute URL")
 // rule. Must be called before the hub starts serving requests: compiled
 // patterns embed the base. Setting the same value again, or an empty value, is
 // a no-op; changing an already-set base URL is rejected.
-func (tss *TopicSelectorStore) setBaseURL(baseURL string) error {
-	if baseURL == "" || baseURL == tss.baseURL {
+func (tms *TopicMatcherStore) setBaseURL(baseURL string) error {
+	if baseURL == "" || baseURL == tms.baseURL {
 		return nil
 	}
 
-	if tss.baseURL != "" {
-		return fmt.Errorf("%w: %q vs %q", ErrConflictingBaseURL, tss.baseURL, baseURL)
+	if tms.baseURL != "" {
+		return fmt.Errorf("%w: %q vs %q", ErrConflictingBaseURL, tms.baseURL, baseURL)
 	}
 
 	if u, err := url.Parse(baseURL); err != nil || !u.IsAbs() || u.Host == "" {
 		return fmt.Errorf("%w: %q", ErrInvalidBaseURL, baseURL)
 	}
 
-	tss.baseURL = baseURL
+	tms.baseURL = baseURL
 
 	return nil
 }
 
 // base returns the configured base URL, falling back to a synthetic origin —
 // only relative ↔ relative and absolute ↔ absolute matches work in that case.
-func (tss *TopicSelectorStore) base() string {
-	if tss.baseURL == "" {
+func (tms *TopicMatcherStore) base() string {
+	if tms.baseURL == "" {
 		return urlPatternFallbackBase
 	}
 
-	return tss.baseURL
+	return tms.baseURL
 }
 
 // validatePattern compiles the pattern up front so invalid patterns surface
 // as a 400 / 401 instead of silently matching nothing.
-func (tss *TopicSelectorStore) validatePattern(m TopicMatcher) error {
+func (tms *TopicMatcherStore) validatePattern(m TopicMatcher) error {
 	switch m.Type {
 	case MatcherTypeExact, deprecatedMatcherTypeName:
 		// Any string is a valid exact pattern; v8 selectors that are not
 		// valid URI Templates fall back to exact comparison.
 		return nil
 	case MatcherTypeURLPattern:
-		_, err := tss.getOrCompileURLPattern(m.Pattern)
+		_, err := tms.getOrCompileURLPattern(m.Pattern)
 
 		return err
 	default:
@@ -161,7 +161,7 @@ func (tss *TopicSelectorStore) validatePattern(m TopicMatcher) error {
 
 // matchMatcher dispatches matching per matcher type, caching results of
 // non-trivial matchers per (type, pattern, topic-set).
-func (tss *TopicSelectorStore) matchMatcher(topics []string, m TopicMatcher) bool {
+func (tms *TopicMatcherStore) matchMatcher(topics []string, m TopicMatcher) bool {
 	// "*" is the reserved wildcard: it matches every topic regardless of
 	// matcher type, so a topic literally equal to "*" is not addressable.
 	if m.Pattern == "*" {
@@ -173,52 +173,52 @@ func (tss *TopicSelectorStore) matchMatcher(topics []string, m TopicMatcher) boo
 		// Exact matching is so fast it doesn't need caching.
 		return slices.Contains(topics, m.Pattern)
 	case MatcherTypeURLPattern:
-		return tss.cachedMatch(topics, m, tss.matchURLPattern)
+		return tms.cachedMatch(topics, m, tms.matchURLPattern)
 	case deprecatedMatcherTypeName:
-		return tss.matchDeprecatedMatcher(topics, m)
+		return tms.matchDeprecatedMatcher(topics, m)
 	default:
 		return false
 	}
 }
 
 // cachedMatch runs fn through the match cache.
-func (tss *TopicSelectorStore) cachedMatch(topics []string, m TopicMatcher, fn func([]string, string) bool) bool {
-	if tss.matchCache == nil {
+func (tms *TopicMatcherStore) cachedMatch(topics []string, m TopicMatcher, fn func([]string, string) bool) bool {
+	if tms.matchCache == nil {
 		return fn(topics, m.Pattern)
 	}
 
-	k := matchCacheKey{Base: tss.base(), Type: m.Type, Pattern: m.Pattern, Topics: strings.Join(topics, topicsKeySeparator)}
-	if v, ok := tss.matchCache.GetIfPresent(k); ok {
+	k := matchCacheKey{Base: tms.base(), Type: m.Type, Pattern: m.Pattern, Topics: strings.Join(topics, topicsKeySeparator)}
+	if v, ok := tms.matchCache.GetIfPresent(k); ok {
 		return v
 	}
 
 	r := fn(topics, m.Pattern)
-	tss.matchCache.Set(k, r)
+	tms.matchCache.Set(k, r)
 
 	return r
 }
 
-func (tss *TopicSelectorStore) matchURLPattern(topics []string, pattern string) bool {
-	p, err := tss.getOrCompileURLPattern(pattern)
+func (tms *TopicMatcherStore) matchURLPattern(topics []string, pattern string) bool {
+	p, err := tms.getOrCompileURLPattern(pattern)
 	if err != nil {
 		return false
 	}
 
-	base := tss.base()
+	base := tms.base()
 
 	return slices.ContainsFunc(topics, func(t string) bool { return p.Test(t, base) })
 }
 
-func (tss *TopicSelectorStore) getOrCompileURLPattern(pattern string) (*urlpattern.URLPattern, error) {
-	base := tss.base()
+func (tms *TopicMatcherStore) getOrCompileURLPattern(pattern string) (*urlpattern.URLPattern, error) {
+	base := tms.base()
 	// Compiled patterns embed the base URL, so the cache key must include it:
 	// a store shared across hubs with different base URLs would otherwise reuse
 	// a pattern compiled against the wrong base. The base is a URL and cannot
 	// contain NUL, so it is an unambiguous key prefix.
 	key := base + topicsKeySeparator + pattern
 
-	if tss.urlPatterns != nil {
-		if cached, ok := tss.urlPatterns.GetIfPresent(key); ok {
+	if tms.urlPatterns != nil {
+		if cached, ok := tms.urlPatterns.GetIfPresent(key); ok {
 			return cached, nil
 		}
 	}
@@ -229,8 +229,8 @@ func (tss *TopicSelectorStore) getOrCompileURLPattern(pattern string) (*urlpatte
 		return nil, fmt.Errorf("invalid URL pattern: %w", err)
 	}
 
-	if tss.urlPatterns != nil {
-		tss.urlPatterns.Set(key, p)
+	if tms.urlPatterns != nil {
+		tms.urlPatterns.Set(key, p)
 	}
 
 	return p, nil

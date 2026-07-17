@@ -8,13 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestTSS(tb testing.TB) *TopicSelectorStore {
+func newTestTSS(tb testing.TB) *TopicMatcherStore {
 	tb.Helper()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(tb, err)
 
-	return tss
+	return tms
 }
 
 func TestDetailTopicUnmarshal(t *testing.T) {
@@ -31,10 +31,10 @@ func TestDetailTopicUnmarshal(t *testing.T) {
 }
 
 func TestValidateAuthorizationDetails(t *testing.T) {
-	tss := newTestTSS(t)
+	tms := newTestTSS(t)
 
 	t.Run("skips non-mercure entries", func(t *testing.T) {
-		authz, err := validateAuthorizationDetails(tss, []authorizationDetail{
+		authz, err := validateAuthorizationDetails(tms, []authorizationDetail{
 			{Type: "payment_initiation"},
 		})
 		require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 	})
 
 	t.Run("valid detail", func(t *testing.T) {
-		authz, err := validateAuthorizationDetails(tss, []authorizationDetail{{
+		authz, err := validateAuthorizationDetails(tms, []authorizationDetail{{
 			Type:    authorizationDetailTypeMercure,
 			Actions: []mercureAction{actionSubscribe, actionPublish},
 			Topics:  []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
@@ -71,7 +71,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := validateAuthorizationDetails(tss, []authorizationDetail{tc})
+			_, err := validateAuthorizationDetails(tms, []authorizationDetail{tc})
 			require.ErrorIs(t, err, errInvalidAuthorizationDetail)
 		})
 	}
@@ -85,7 +85,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 			}
 		}
 
-		_, err := validateAuthorizationDetails(tss, details)
+		_, err := validateAuthorizationDetails(tms, details)
 		require.ErrorIs(t, err, errInvalidAuthorizationDetail)
 	})
 
@@ -95,7 +95,7 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 			topics[i] = detailTopic{TopicMatcher{MatcherTypeExact, "a"}}
 		}
 
-		_, err := validateAuthorizationDetails(tss, []authorizationDetail{{
+		_, err := validateAuthorizationDetails(tms, []authorizationDetail{{
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}, Topics: topics,
 		}})
 		require.ErrorIs(t, err, errInvalidAuthorizationDetail)
@@ -115,15 +115,15 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 			return authorizationDetail{Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}, Topics: topics}
 		}
 
-		_, err := validateAuthorizationDetails(tss, []authorizationDetail{mk(), mk()})
+		_, err := validateAuthorizationDetails(tms, []authorizationDetail{mk(), mk()})
 		require.ErrorIs(t, err, errInvalidAuthorizationDetail)
 	})
 }
 
 func TestMercureAuthzGrants(t *testing.T) {
-	tss := newTestTSS(t)
+	tms := newTestTSS(t)
 
-	authz, err := validateAuthorizationDetails(tss, []authorizationDetail{
+	authz, err := validateAuthorizationDetails(tms, []authorizationDetail{
 		{
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish},
 			Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/pub"}}},
@@ -135,36 +135,36 @@ func TestMercureAuthzGrants(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.True(t, authz.grants(tss, actionPublish, "https://example.com/pub"))
-	assert.False(t, authz.grants(tss, actionSubscribe, "https://example.com/pub"))
-	assert.True(t, authz.grants(tss, actionSubscribe, "https://example.com/books/42"))
-	assert.False(t, authz.grants(tss, actionPublish, "https://example.com/books/42"))
+	assert.True(t, authz.grants(tms, actionPublish, "https://example.com/pub"))
+	assert.False(t, authz.grants(tms, actionSubscribe, "https://example.com/pub"))
+	assert.True(t, authz.grants(tms, actionSubscribe, "https://example.com/books/42"))
+	assert.False(t, authz.grants(tms, actionPublish, "https://example.com/books/42"))
 
-	assert.True(t, authz.grantsAll(tss, actionSubscribe, []string{"https://example.com/books/1", "https://example.com/books/2"}))
-	assert.False(t, authz.grantsAll(tss, actionSubscribe, []string{"https://example.com/books/1", "https://example.com/other"}))
+	assert.True(t, authz.grantsAll(tms, actionSubscribe, []string{"https://example.com/books/1", "https://example.com/books/2"}))
+	assert.False(t, authz.grantsAll(tms, actionSubscribe, []string{"https://example.com/books/1", "https://example.com/other"}))
 
 	// nil receiver grants nothing.
 	var nilAuthz *mercureAuthz
-	assert.False(t, nilAuthz.grants(tss, actionPublish, "x"))
+	assert.False(t, nilAuthz.grants(tms, actionPublish, "x"))
 }
 
 func TestMercureAuthzWildcard(t *testing.T) {
-	tss := newTestTSS(t)
+	tms := newTestTSS(t)
 
-	authz, err := validateAuthorizationDetails(tss, []authorizationDetail{{
+	authz, err := validateAuthorizationDetails(tms, []authorizationDetail{{
 		Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish, actionSubscribe},
 		Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "*"}}},
 	}})
 	require.NoError(t, err)
 
-	assert.True(t, authz.grants(tss, actionPublish, "anything"))
-	assert.True(t, authz.grants(tss, actionSubscribe, "https://example.com/x"))
+	assert.True(t, authz.grants(tms, actionPublish, "anything"))
+	assert.True(t, authz.grants(tms, actionSubscribe, "https://example.com/x"))
 }
 
 func TestMercureAuthzSubscribePayload(t *testing.T) {
-	tss := newTestTSS(t)
+	tms := newTestTSS(t)
 
-	authz, err := validateAuthorizationDetails(tss, []authorizationDetail{
+	authz, err := validateAuthorizationDetails(tms, []authorizationDetail{
 		{
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionSubscribe},
 			Topics:  []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
@@ -178,12 +178,12 @@ func TestMercureAuthzSubscribePayload(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	p, ok := authz.subscribePayload(tss, TopicMatcher{MatcherTypeExact, "https://example.com/foo"})
+	p, ok := authz.subscribePayload(tms, TopicMatcher{MatcherTypeExact, "https://example.com/foo"})
 	require.True(t, ok)
 	assert.Equal(t, map[string]any{"k": "specific"}, p)
 
 	// Falls through to the wildcard default.
-	p, ok = authz.subscribePayload(tss, TopicMatcher{MatcherTypeExact, "https://example.com/other"})
+	p, ok = authz.subscribePayload(tms, TopicMatcher{MatcherTypeExact, "https://example.com/other"})
 	require.True(t, ok)
 	assert.Equal(t, map[string]any{"k": "default"}, p)
 

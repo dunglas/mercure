@@ -50,7 +50,7 @@ func e2eToken(t *testing.T, action string, topics []map[string]any, payload any)
 func e2eHub(t *testing.T) *Hub {
 	t.Helper()
 
-	tss, err := NewTopicSelectorStore(DefaultTopicSelectorStoreCacheSize)
+	tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
 	require.NoError(t, err)
 
 	h, err := NewHub(t.Context(),
@@ -59,7 +59,7 @@ func e2eHub(t *testing.T) *Hub {
 		WithResourceIdentifier(e2eAud),
 		WithPublicURL(e2eAud),
 		WithSubscriptions(),
-		WithTopicSelectorStore(tss),
+		WithTopicMatcherStore(tms),
 		WithTransport(NewLocalTransport(NewSubscriberList(1000))),
 	)
 	require.NoError(t, err)

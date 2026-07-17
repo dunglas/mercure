@@ -1214,7 +1214,7 @@ func BenchmarkSubscribe(b *testing.B) {
 func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Duration) *Hub {
 	tb.Helper()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(tb, err)
 
 	h, err := NewHub(ctx,
@@ -1222,7 +1222,7 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 		WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 		WithResourceIdentifier(testResourceIdentifier),
-		WithTopicSelectorStore(tss),
+		WithTopicMatcherStore(tms),
 		WithWriteTimeout(writeTimeout),
 	)
 	require.NoError(tb, err)

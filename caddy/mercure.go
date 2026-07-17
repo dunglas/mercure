@@ -81,15 +81,6 @@ type JWTConfig struct {
 	Alg string `json:"alg,omitempty"`
 }
 
-type TopicSelectorCacheConfig struct {
-	// Deprecated: use Size instead.
-	MaxEntriesPerShard int `json:"max_entries_per_shard,omitempty"`
-	// Deprecated: no longer used.
-	ShardCount uint64 `json:"shard_count,omitempty"`
-	// Size is the maximum number of entries in the cache.
-	Size int `json:"size,omitempty"`
-}
-
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 type Mercure struct {
 	deprecatedTransport
@@ -146,11 +137,9 @@ type Mercure struct {
 	// Allowed CORS origins.
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
-	// Deprecated: not used anymore.
-	CacheShardSize *int64 `json:"cache_shard_size,omitempty"`
-
-	// Triggers use of topic selector cache and avoidance of select priority queue.
-	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
+	// Maximum number of entries in the topic matcher cache. 0 or negative
+	// disables the cache. Defaults to DefaultTopicMatcherStoreCacheSize.
+	TopicMatcherCacheSize *int `json:"topic_matcher_cache_size,omitempty"`
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
 
@@ -204,26 +193,12 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		return err
 	}
 
-	cacheSize := mercure.DefaultTopicSelectorStoreCacheSize
-
-	if m.TopicSelectorCache != nil {
-		switch {
-		case m.TopicSelectorCache.Size > 0:
-			cacheSize = m.TopicSelectorCache.Size
-		case m.TopicSelectorCache.MaxEntriesPerShard > 0:
-			// Backward compat: convert old per-shard config
-			shardCount := m.TopicSelectorCache.ShardCount
-			if shardCount == 0 {
-				shardCount = 256
-			}
-
-			cacheSize = m.TopicSelectorCache.MaxEntriesPerShard * int(shardCount)
-		case m.TopicSelectorCache.MaxEntriesPerShard < 0:
-			cacheSize = 0
-		}
+	cacheSize := mercure.DefaultTopicMatcherStoreCacheSize
+	if m.TopicMatcherCacheSize != nil {
+		cacheSize = *m.TopicMatcherCacheSize
 	}
 
-	tss, err := mercure.NewTopicSelectorStore(cacheSize)
+	tms, err := mercure.NewTopicMatcherStore(cacheSize)
 	if err != nil {
 		return err
 	}
@@ -261,7 +236,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
-		mercure.WithTopicSelectorStore(tss),
+		mercure.WithTopicMatcherStore(tms),
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
@@ -554,7 +529,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.assignDeprecatedTransportURL(d.Val())
 
-			case "topic_selector_cache":
+			case "topic_matcher_cache":
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
@@ -564,7 +539,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.WrapErr(err)
 				}
 
-				m.TopicSelectorCache = &TopicSelectorCacheConfig{Size: size}
+				m.TopicMatcherCacheSize = &size
 			case "subscriber_list_cache_size":
 				if !d.NextArg() {
 					return d.ArgErr()

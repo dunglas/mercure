@@ -69,7 +69,7 @@ Connections themselves are cheap. What scales the cost:
 
 - **Publish rate x number of matching subscribers per topic.** A 1-publish-per-second feed to 100k subscribers is far heavier than 1k publishes per second to 100 subscribers each.
 - **Dispatch timeout.** Slow subscribers blocking dispatch eat goroutines until `dispatch_timeout` cuts them off.
-- **Matcher complexity.** Exact matchers are O(1); URL Pattern matchers cost time per evaluation. Use `topic_selector_cache` for repeated patterns.
+- **Matcher complexity.** Exact matchers are O(1); URL Pattern matchers cost time per evaluation. Use `topic_matcher_cache` for repeated patterns.
 - **History writes.** BoltDB syncs to disk; write throughput is bounded by your storage. The Postgres transport is faster on bursty writes; Redis is the fastest.
 
 ## Common Mercure hub bottlenecks
@@ -77,7 +77,7 @@ Connections themselves are cheap. What scales the cost:
 | Symptom                               | Probable cause                                                                                                |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `accept: too many open files` in logs | `ulimit -n` too low. Set `100000` or higher on the host.                                                      |
-| CPU spent in matcher evaluation       | URL Pattern matchers; raise `topic_selector_cache`.                                                           |
+| CPU spent in matcher evaluation       | URL Pattern matchers; raise `topic_matcher_cache`.                                                            |
 | Dispatch latency rising under load    | Slow subscribers; lower `dispatch_timeout` to bound the impact.                                               |
 | Memory growth that doesn't plateau    | Goroutine leak; capture a `pprof` heap and goroutine snapshot ([Debugging](debugging.md)) and file an issue.  |
 | Test plateaus before the box does     | Backpressure from the hub's listener; check `net.core.somaxconn` and `net.ipv4.tcp_max_syn_backlog` on Linux. |

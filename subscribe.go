@@ -223,7 +223,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		return nil, nil
 	}
 
-	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r, values), h.logger, h.topicSelectorStore)
+	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r, values), h.logger, h.topicMatcherStore)
 
 	var claims *claims
 

@@ -111,9 +111,9 @@ func TestAuthorizeAuthorizationHeader(t *testing.T) {
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
-	assert.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
-	assert.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "bar"))
-	assert.False(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "baz"))
+	assert.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
+	assert.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "bar"))
+	assert.False(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "baz"))
 }
 
 func TestAuthorizeAuthorizationHeaderLowercaseScheme(t *testing.T) {
@@ -127,7 +127,7 @@ func TestAuthorizeAuthorizationHeaderLowercaseScheme(t *testing.T) {
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
-	assert.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
+	assert.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
 }
 
 func TestAuthorizeAccessTokenQueryTooShort(t *testing.T) {
@@ -157,7 +157,7 @@ func TestAuthorizeAccessTokenQuery(t *testing.T) {
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
-	assert.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
+	assert.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
 }
 
 // The deprecated "authorization" query parameter is ignored in modern mode,
@@ -187,7 +187,7 @@ func TestAuthorizeCookie(t *testing.T) {
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
-	assert.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
+	assert.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
 }
 
 // A modern hub does not honor the pre-1.0 "mercureAuthorization" cookie name,
@@ -422,5 +422,5 @@ func TestAuthorizeAcceptsTrustedIssuer(t *testing.T) {
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
-	require.True(t, claims.authz.grants(h.topicSelectorStore, actionSubscribe, "foo"))
+	require.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
 }

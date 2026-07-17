@@ -38,9 +38,9 @@ type TransportSubscribers interface {
 	GetSubscribers(ctx context.Context) (string, []*Subscriber, error)
 }
 
-// TransportTopicSelectorStore provides a method to pass the TopicSelectorStore to the transport.
-type TransportTopicSelectorStore interface {
-	SetTopicSelectorStore(store *TopicSelectorStore)
+// TransportTopicMatcherStore provides a method to pass the TopicMatcherStore to the transport.
+type TransportTopicMatcherStore interface {
+	SetTopicMatcherStore(store *TopicMatcherStore)
 }
 
 // TransportHealthChecker may be implemented by transports that support health checking.

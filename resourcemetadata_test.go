@@ -93,10 +93,10 @@ func TestProtectedResourceMetadataDefaultsToPublicURL(t *testing.T) {
 }
 
 func TestProtectedResourceMetadataNotRegisteredWhenAnonymousWithoutKeys(t *testing.T) {
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
-	hub, err := NewHub(t.Context(), WithAnonymous(), WithTopicSelectorStore(tss))
+	hub, err := NewHub(t.Context(), WithAnonymous(), WithTopicMatcherStore(tms))
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, protectedResourceMetadataPath, nil)

@@ -23,7 +23,7 @@ func TestPublish(t *testing.T) {
 		hub := createDummy(t)
 
 		topics := []string{"https://example.com/books/1"}
-		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
@@ -184,7 +184,7 @@ func TestPublishHandlerInvalidRetry(t *testing.T) {
 `, w.Body.String())
 }
 
-func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
+func TestPublishHandlerNotAuthorizedTopicMatcher(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
@@ -210,7 +210,7 @@ func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
-func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
+func TestPublishHandlerEmptyTopicMatcher(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
@@ -265,7 +265,7 @@ func TestPublishHandlerOK(t *testing.T) {
 		hub := createDummy(t)
 
 		topics := []string{"https://example.com/books/1"}
-		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
@@ -339,7 +339,7 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		h := createDummy(t)
 
-		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 		s.setMatchers(stringsToExactMatchers([]string{"https://example.com/books/1"}), nil)
 
 		require.NoError(t, h.transport.AddSubscriber(t.Context(), s))

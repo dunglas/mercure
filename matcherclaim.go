@@ -121,7 +121,7 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 // attacker-shaped afterwards, so the same maxPatternLength cap and
 // control-character rejection the query parser enforces also apply here (the
 // entry count is already capped by validateJWT).
-func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprecated bool) error {
+func resolveMatcherClaims(tms *TopicMatcherStore, claims []matcherClaim, deprecated bool) error {
 	for i := range claims {
 		if err := validateMatcherValue(claims[i].Pattern); err != nil {
 			return err
@@ -141,7 +141,7 @@ func resolveMatcherClaims(tss *TopicSelectorStore, claims []matcherClaim, deprec
 				return errStringClaimRequiresCompat
 			}
 		case MatcherTypeExact, MatcherTypeURLPattern:
-			if err := tss.validatePattern(claims[i].TopicMatcher); err != nil {
+			if err := tms.validatePattern(claims[i].TopicMatcher); err != nil {
 				return fmt.Errorf("invalid matcher in JWT claim: %w", err)
 			}
 		default:

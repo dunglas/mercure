@@ -85,7 +85,7 @@ func TestMatcherClaimMarshalRoundTrip(t *testing.T) {
 func TestResolveMatcherClaims(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
 	// Object-form claims with valid types resolve in modern mode.
@@ -93,21 +93,21 @@ func TestResolveMatcherClaims(t *testing.T) {
 		{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}},
 		{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}},
 	}
-	require.NoError(t, resolveMatcherClaims(tss, cs, false))
+	require.NoError(t, resolveMatcherClaims(tms, cs, false))
 
 	// Bare-string claims are rejected in modern mode.
 	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Pattern: "foo"}}}
-	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), errStringClaimRequiresCompat)
+	require.ErrorIs(t, resolveMatcherClaims(tms, cs, false), errStringClaimRequiresCompat)
 
 	// Unknown matcher types are rejected; type values are case-sensitive.
 	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: "URLPattern", Pattern: "foo"}}}
-	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), ErrUnsupportedMatcherType)
+	require.ErrorIs(t, resolveMatcherClaims(tms, cs, false), ErrUnsupportedMatcherType)
 
 	// Forged internal type is rejected in modern mode.
 	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: deprecatedMatcherTypeName, Pattern: "foo"}}}
-	require.ErrorIs(t, resolveMatcherClaims(tss, cs, false), errStringClaimRequiresCompat)
+	require.ErrorIs(t, resolveMatcherClaims(tms, cs, false), errStringClaimRequiresCompat)
 
 	// Invalid URLPattern pattern is rejected.
 	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "{unclosed"}}}
-	assert.Error(t, resolveMatcherClaims(tss, cs, false))
+	assert.Error(t, resolveMatcherClaims(tms, cs, false))
 }

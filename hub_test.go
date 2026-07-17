@@ -393,7 +393,7 @@ func waitSubscribers(tb testing.TB, transport *LocalTransport, n int) {
 func createDummy(tb testing.TB, options ...Option) *Hub {
 	tb.Helper()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(tb, err)
 
 	options = append(
@@ -401,7 +401,7 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 			WithResourceIdentifier(testResourceIdentifier),
-			WithTopicSelectorStore(tss),
+			WithTopicMatcherStore(tms),
 		},
 		options...,
 	)
@@ -443,7 +443,7 @@ func TestNewHubDerivesPatternBaseFromResourceIdentifier(t *testing.T) {
 
 	h, err := NewHub(t.Context(), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
-	assert.Equal(t, testResourceIdentifier, h.topicSelectorStore.baseURL)
+	assert.Equal(t, testResourceIdentifier, h.topicMatcherStore.baseURL)
 	assert.Equal(t, testResourceIdentifier, h.publicURL)
 }
 

@@ -87,25 +87,25 @@ func TestSubscribeInvalidURLPatternDoesNotLeakInternals(t *testing.T) {
 	assert.NotContains(t, body, "tokenizer")
 }
 
-// TestSharedStoreConflictingBaseURLRejected ensures a TopicSelectorStore shared
+// TestSharedStoreConflictingBaseURLRejected ensures a TopicMatcherStore shared
 // across hubs configured with different public URLs is rejected at
 // construction instead of silently corrupting relative-pattern matching.
 func TestSharedStoreConflictingBaseURLRejected(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(DefaultTopicSelectorStoreCacheSize)
+	tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
 	require.NoError(t, err)
 
 	_, err = NewHub(t.Context(),
 		WithAnonymous(),
-		WithTopicSelectorStore(tss),
+		WithTopicMatcherStore(tms),
 		WithPublicURL("https://a.example.com/.well-known/mercure"),
 	)
 	require.NoError(t, err)
 
 	_, err = NewHub(t.Context(),
 		WithAnonymous(),
-		WithTopicSelectorStore(tss),
+		WithTopicMatcherStore(tms),
 		WithPublicURL("https://b.example.com/.well-known/mercure"),
 	)
 	require.ErrorIs(t, err, ErrConflictingBaseURL)
@@ -117,10 +117,10 @@ func TestSharedStoreConflictingBaseURLRejected(t *testing.T) {
 func TestSubscriberSetMatchers(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
-	s := NewSubscriber(nil, tss)
+	s := NewSubscriber(nil, tms)
 	s.SetMatchers(
 		[]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/foo"}},
 		[]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/foo"}},
@@ -138,7 +138,7 @@ func TestSubscriberSetMatchers(t *testing.T) {
 func TestNonMercureAuthorizationDetailIgnored(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
 	var details []authorizationDetail
@@ -147,9 +147,9 @@ func TestNonMercureAuthorizationDetailIgnored(t *testing.T) {
 		{"type":"mercure","actions":["subscribe"],"topics":[{"match":"https://example.com/foo"}]}
 	]`), &details))
 
-	authz, err := validateAuthorizationDetails(tss, details)
+	authz, err := validateAuthorizationDetails(tms, details)
 	require.NoError(t, err)
-	assert.True(t, authz.grants(tss, actionSubscribe, "https://example.com/foo"))
+	assert.True(t, authz.grants(tms, actionSubscribe, "https://example.com/foo"))
 }
 
 // TestMercureDetailTopicMissingMatchRejected ensures a mercure detail topic
@@ -178,13 +178,13 @@ func TestMercureDetailTopicMissingMatchRejected(t *testing.T) {
 func TestMercureDetailEmptyPatternRejected(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
 	var details []authorizationDetail
 	require.NoError(t, json.Unmarshal([]byte(`[{"type":"mercure","actions":["subscribe"],"topics":[{"match":""}]}]`), &details))
 
-	_, err = validateAuthorizationDetails(tss, details)
+	_, err = validateAuthorizationDetails(tms, details)
 	require.ErrorIs(t, err, errInvalidAuthorizationDetail)
 }
 
@@ -193,19 +193,19 @@ func TestMercureDetailEmptyPatternRejected(t *testing.T) {
 func TestSubscriptionPayloadFastPath(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
 	// No detail carries a payload: every subscription payload is nil.
-	s := NewSubscriber(nil, tss)
-	s.Claims = detailClaims(t, tss, subscribeDetail(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/a"}))
+	s := NewSubscriber(nil, tms)
+	s.Claims = detailClaims(t, tms, subscribeDetail(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/a"}))
 	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/a"}}, nil)
 	require.Len(t, s.SubscriptionPayloads, 1)
 	assert.Nil(t, s.SubscriptionPayloads[0])
 
 	// A detail carries a payload: the matching subscription resolves to it.
-	s2 := NewSubscriber(nil, tss)
-	s2.Claims = detailClaims(t, tss, subscribeDetail(map[string]any{"k": "v"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/a"}))
+	s2 := NewSubscriber(nil, tms)
+	s2.Claims = detailClaims(t, tms, subscribeDetail(map[string]any{"k": "v"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://example.com/a"}))
 	s2.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/a"}}, nil)
 	require.Len(t, s2.SubscriptionPayloads, 1)
 	assert.Equal(t, map[string]any{"k": "v"}, s2.SubscriptionPayloads[0])
@@ -218,13 +218,13 @@ func TestSubscriptionPayloadFastPath(t *testing.T) {
 func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
 	h, err := NewHub(t.Context(),
 		WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 		WithProtocolVersionCompatibility(7),
-		WithTopicSelectorStore(tss),
+		WithTopicMatcherStore(tms),
 	)
 	require.NoError(t, err)
 	require.Empty(t, h.resourceIdentifier)
@@ -246,12 +246,12 @@ func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
 func TestInvalidBaseURLRejected(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
-	require.ErrorIs(t, tss.setBaseURL("not-a-url"), ErrInvalidBaseURL)
-	require.ErrorIs(t, tss.setBaseURL("/relative/only"), ErrInvalidBaseURL)
-	require.NoError(t, tss.setBaseURL("https://hub.example.com/.well-known/mercure"))
+	require.ErrorIs(t, tms.setBaseURL("not-a-url"), ErrInvalidBaseURL)
+	require.ErrorIs(t, tms.setBaseURL("/relative/only"), ErrInvalidBaseURL)
+	require.NoError(t, tms.setBaseURL("https://hub.example.com/.well-known/mercure"))
 }
 
 // TestValidProtocolStringRejectsFormatChars ensures invisible Unicode format

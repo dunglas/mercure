@@ -22,15 +22,15 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	t.Parallel()
 
 	hub := createDeprecatedDummy(t)
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	ctx := t.Context()
 	logger := slog.Default()
 
-	s1 := NewLocalSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tms)
 	s1.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/foo"}), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s1))
 
-	s2 := NewLocalSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tms)
 	s2.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/bar"}), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s2))
 
@@ -75,16 +75,16 @@ func TestSubscriptionHandlerForTopic(t *testing.T) {
 	t.Parallel()
 
 	hub := createDeprecatedDummy(t)
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	ctx := t.Context()
 	logger := slog.Default()
 
-	otherS := NewLocalSubscriber("", logger, tss)
+	otherS := NewLocalSubscriber("", logger, tms)
 	otherS.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/other"}), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, otherS))
 
 	sTopics := []string{"https://example.com/other", "https://example.com/{foo}"}
-	s := NewLocalSubscriber("", logger, tss)
+	s := NewLocalSubscriber("", logger, tms)
 	s.setMatchers(stringsToDeprecatedMatchers(sTopics), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s))
 

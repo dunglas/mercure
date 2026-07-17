@@ -228,7 +228,7 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWrite
 	// Authorize against the request path only, not the full request URI: the
 	// subscription resource is identified by its path, so query parameters
 	// (e.g. last_event_id) must not change whether a subscribe grant matches.
-	if !claims.authz.grants(h.topicSelectorStore, actionSubscribe, r.URL.EscapedPath()) {
+	if !claims.authz.grants(h.topicMatcherStore, actionSubscribe, r.URL.EscapedPath()) {
 		h.writeBearerError(w, bearerErrInsufficientScope, http.StatusForbidden)
 
 		return false

@@ -265,10 +265,10 @@ func WithTransport(t Transport) Option {
 	}
 }
 
-// WithTopicSelectorStore sets the TopicSelectorStore instance to use.
-func WithTopicSelectorStore(tss *TopicSelectorStore) Option {
+// WithTopicMatcherStore sets the TopicMatcherStore instance to use.
+func WithTopicMatcherStore(tms *TopicMatcherStore) Option {
 	return func(o *opt) error {
-		o.topicSelectorStore = tss
+		o.topicMatcherStore = tms
 
 		return nil
 	}
@@ -375,7 +375,7 @@ func WithSubscriberJWTAlgorithms(algorithms []string) Option {
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
 	transport                    Transport
-	topicSelectorStore           *TopicSelectorStore
+	topicMatcherStore            *TopicMatcherStore
 	anonymous                    bool
 	debug                        bool
 	subscriptions                bool
@@ -414,7 +414,7 @@ func (o *opt) configureIdentifiers() error {
 		o.publicURL = o.resourceIdentifier
 	}
 
-	if err := o.topicSelectorStore.setBaseURL(o.publicURL); err != nil {
+	if err := o.topicMatcherStore.setBaseURL(o.publicURL); err != nil {
 		return err
 	}
 
@@ -505,13 +505,13 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.logger = slog.New(mercureHandler{slog.Default().Handler()})
 	}
 
-	if opt.topicSelectorStore == nil {
-		tss, err := NewTopicSelectorStore(DefaultTopicSelectorStoreCacheSize)
+	if opt.topicMatcherStore == nil {
+		tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
 		if err != nil {
 			return nil, err
 		}
 
-		opt.topicSelectorStore = tss
+		opt.topicMatcherStore = tms
 	}
 
 	if err := opt.configureIdentifiers(); err != nil {
@@ -522,8 +522,8 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.transport = NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize))
 	}
 
-	if ttss, ok := opt.transport.(TransportTopicSelectorStore); ok {
-		ttss.SetTopicSelectorStore(opt.topicSelectorStore)
+	if ttss, ok := opt.transport.(TransportTopicMatcherStore); ok {
+		ttss.SetTopicMatcherStore(opt.topicMatcherStore)
 	}
 
 	if opt.metrics == nil {

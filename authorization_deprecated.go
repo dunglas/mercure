@@ -85,11 +85,11 @@ func (h *Hub) resolveLegacyClaims(c *claims) error {
 	// would authorize every topic via the wildcard short-circuit even in a
 	// deprecated_claim-only build where the v8 matcher is absent.
 	deprecated := h.allowsAlternateTopics()
-	if err := resolveMatcherClaims(h.topicSelectorStore, mc.Publish, deprecated); err != nil {
+	if err := resolveMatcherClaims(h.topicMatcherStore, mc.Publish, deprecated); err != nil {
 		return err
 	}
 
-	if err := resolveMatcherClaims(h.topicSelectorStore, mc.Subscribe, deprecated); err != nil {
+	if err := resolveMatcherClaims(h.topicMatcherStore, mc.Subscribe, deprecated); err != nil {
 		return err
 	}
 

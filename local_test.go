@@ -26,7 +26,7 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 		err := transport.Dispatch(ctx, u)
 		require.NoError(t, err)
 
-		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 		s.setMatchers(stringsToExactMatchers([]string{u.Topic}), stringsToExactMatchers(nil))
 		require.NoError(t, transport.AddSubscriber(ctx, s))
 
@@ -53,7 +53,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/foo"}), stringsToExactMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
@@ -74,13 +74,13 @@ func TestLocalTransportClosed(t *testing.T) {
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 
-	s := NewLocalSubscriber("", logger, tss)
+	s := NewLocalSubscriber("", logger, tms)
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 	require.NoError(t, transport.Close(ctx))
-	assert.Equal(t, transport.AddSubscriber(ctx, NewLocalSubscriber("", logger, tss)), ErrClosedTransport)
+	assert.Equal(t, transport.AddSubscriber(ctx, NewLocalSubscriber("", logger, tms)), ErrClosedTransport)
 	assert.Equal(t, transport.Dispatch(ctx, &Update{}), ErrClosedTransport)
 
 	_, ok := <-s.Receive()
@@ -97,13 +97,13 @@ func TestLiveCleanDisconnectedSubscribers(t *testing.T) {
 		assert.NoError(t, transport.Close(ctx))
 	})
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 
-	s1 := NewLocalSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tms)
 	require.NoError(t, transport.AddSubscriber(ctx, s1))
 
-	s2 := NewLocalSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tms)
 	require.NoError(t, transport.AddSubscriber(ctx, s2))
 
 	assert.Equal(t, 2, transport.subscribers.Len())
@@ -129,7 +129,7 @@ func TestLiveReading(t *testing.T) {
 
 	assert.Implements(t, (*Transport)(nil), transport)
 
-	s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
 	s.setMatchers(stringsToExactMatchers([]string{"https://example.com"}), stringsToExactMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
@@ -152,13 +152,13 @@ func TestLocalTransportGetSubscribers(t *testing.T) {
 
 	require.NotNil(t, transport)
 
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 
-	s1 := NewLocalSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tms)
 	require.NoError(t, transport.AddSubscriber(ctx, s1))
 
-	s2 := NewLocalSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tms)
 	require.NoError(t, transport.AddSubscriber(ctx, s2))
 
 	lastEventID, subscribers, err := transport.GetSubscribers(ctx)

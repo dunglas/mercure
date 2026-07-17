@@ -69,7 +69,7 @@ func validProtocolString(s string) bool {
 // wire (a token, a subscribe query parameter, or a subscription API URL). The
 // internal deprecated type is excluded. This is the single definition of the
 // protocol's matcher-type set; a new type is added here and to the per-type
-// dispatch in TopicSelectorStore.validatePattern and matchMatcher.
+// dispatch in TopicMatcherStore.validatePattern and matchMatcher.
 func knownMatcherType(mt MatcherType) bool {
 	switch mt {
 	case MatcherTypeExact, MatcherTypeURLPattern:

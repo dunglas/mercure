@@ -137,15 +137,15 @@ func TestSubscriptionsHandler(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
-	tss := &TopicSelectorStore{}
+	tms := &TopicMatcherStore{}
 	logger := slog.Default()
 	ctx := t.Context()
 
-	s1 := NewLocalSubscriber("", logger, tss)
+	s1 := NewLocalSubscriber("", logger, tms)
 	s1.setMatchers(stringsToExactMatchers([]string{"https://example.com/foo"}), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s1))
 
-	s2 := NewLocalSubscriber("", logger, tss)
+	s2 := NewLocalSubscriber("", logger, tms)
 	s2.setMatchers(stringsToExactMatchers([]string{"https://example.com/bar"}), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s2))
 
@@ -193,13 +193,13 @@ func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 	hub := createDummy(t)
 	logger := slog.Default()
 
-	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
+	sub := NewLocalSubscriber("", logger, hub.topicMatcherStore)
 	matchers, err := hub.parseMatchers(url.Values{
 		"match": {"https://example.com/foo", "https://example.com/bar"},
 	}, false)
 	require.NoError(t, err)
 
-	sub.Claims = detailClaims(t, hub.topicSelectorStore,
+	sub.Claims = detailClaims(t, hub.topicMatcherStore,
 		// Non-matching detail first — must not be picked.
 		subscribeDetail(map[string]any{"tag": "x"}, TopicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}),
 		// This URLPattern detail covers /foo AND /bar → gets picked as "first matching".
@@ -229,7 +229,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.Default()
 
-	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
+	sub := NewLocalSubscriber("", logger, hub.topicMatcherStore)
 	matchers, err := hub.parseMatchers(url.Values{
 		"match_urlpattern": {"https://example.com/:id"},
 	}, false)

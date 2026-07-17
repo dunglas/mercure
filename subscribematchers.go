@@ -147,7 +147,7 @@ func (h *Hub) appendMatchers(matchers []TopicMatcher, matcherType MatcherType, v
 		}
 
 		m := TopicMatcher{Type: matcherType, Pattern: v}
-		if err := h.topicSelectorStore.validatePattern(m); err != nil {
+		if err := h.topicMatcherStore.validatePattern(m); err != nil {
 			// The compiler error can embed heap internals (CWE-209); hide it
 			// behind a generic sentinel.
 			return nil, fmt.Errorf("%w (%s): %w", errInvalidMatcherPattern, matcherType, err)

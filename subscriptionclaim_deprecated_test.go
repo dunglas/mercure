@@ -20,7 +20,7 @@ func TestSubscriptionPayloadFallbackToGlobal(t *testing.T) {
 	hub := createDummy(t)
 	logger := slog.Default()
 
-	sub := NewLocalSubscriber("", logger, hub.topicSelectorStore)
+	sub := NewLocalSubscriber("", logger, hub.topicMatcherStore)
 	matchers, err := hub.parseMatchers(url.Values{
 		"match": {"https://example.com/foo"},
 	}, false)

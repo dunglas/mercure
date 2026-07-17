@@ -108,7 +108,6 @@ Metrics live on the admin API at `/metrics`. The hub exposes Caddy's built-in me
 | `mercure_subscribers_total`       | Total subscribers seen.                  |
 | `mercure_updates_total`           | Total updates dispatched.                |
 | `mercure_updates_failed_total`    | Updates that failed dispatch.            |
-| `mercure_topic_selector_cache_*`  | Topic selector cache hits/misses.        |
 | `mercure_subscriber_list_cache_*` | Subscriber list cache stats.             |
 
 Plus standard Caddy metrics: request counts, latencies, in-flight requests, certificate expiry. See the [Caddy metrics docs](https://caddyserver.com/docs/metrics).

@@ -14,21 +14,21 @@ import (
 func TestResolveMatcherClaimsDeprecated(t *testing.T) {
 	t.Parallel()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
 	cs := []matcherClaim{
 		{TopicMatcher: TopicMatcher{Pattern: "https://example.com/{id}"}},
 		{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}},
 	}
-	require.NoError(t, resolveMatcherClaims(tss, cs, true))
+	require.NoError(t, resolveMatcherClaims(tms, cs, true))
 	assert.Equal(t, deprecatedMatcherTypeName, cs[0].Type)
 	assert.Equal(t, MatcherTypeExact, cs[1].Type)
 
 	// Idempotent: resolving again keeps the deprecated binding.
-	require.NoError(t, resolveMatcherClaims(tss, cs, true))
+	require.NoError(t, resolveMatcherClaims(tms, cs, true))
 	assert.Equal(t, deprecatedMatcherTypeName, cs[0].Type)
 
 	// The resolved claim matches via the v8 rules.
-	assert.True(t, tss.matchMatcher([]string{"https://example.com/42"}, cs[0].TopicMatcher))
+	assert.True(t, tms.matchMatcher([]string{"https://example.com/42"}, cs[0].TopicMatcher))
 }

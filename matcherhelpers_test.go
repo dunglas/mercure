@@ -73,10 +73,10 @@ func subscribeDetail(payload any, m TopicMatcher) authorizationDetail {
 
 // detailClaims builds a *claims with the given authorization details validated
 // into its authz, for tests that set Subscriber.Claims directly.
-func detailClaims(tb testing.TB, tss *TopicSelectorStore, details ...authorizationDetail) *claims {
+func detailClaims(tb testing.TB, tms *TopicMatcherStore, details ...authorizationDetail) *claims {
 	tb.Helper()
 
-	authz, err := validateAuthorizationDetails(tss, details)
+	authz, err := validateAuthorizationDetails(tms, details)
 	require.NoError(tb, err)
 
 	return &claims{AuthorizationDetails: details, authz: authz}

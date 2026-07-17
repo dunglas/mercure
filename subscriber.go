@@ -30,14 +30,14 @@ type Subscriber struct {
 	// deserialized object.
 	SubscriptionPayloads []any
 
-	logger             *slog.Logger
-	topicSelectorStore *TopicSelectorStore
+	logger            *slog.Logger
+	topicMatcherStore *TopicMatcherStore
 }
 
-func NewSubscriber(logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *Subscriber {
+func NewSubscriber(logger *slog.Logger, topicMatcherStore *TopicMatcherStore) *Subscriber {
 	return &Subscriber{
-		logger:             logger,
-		topicSelectorStore: topicSelectorStore,
+		logger:            logger,
+		topicMatcherStore: topicMatcherStore,
 	}
 }
 
@@ -85,7 +85,7 @@ func (s *Subscriber) SetMatchers(subscribed, allowedPrivate []TopicMatcher) {
 
 func (s *Subscriber) matchesAny(topics []string, matchers []TopicMatcher) bool {
 	for _, m := range matchers {
-		if s.topicSelectorStore.matchMatcher(topics, m) {
+		if s.topicMatcherStore.matchMatcher(topics, m) {
 			return true
 		}
 	}
@@ -190,7 +190,7 @@ func (s *Subscriber) resolveSubscriptionPayload(m TopicMatcher) any {
 	// match the subscription's matcher wins. A matching detail with no payload
 	// falls through to the legacy mercure.payload fallback (compatibility
 	// mode only; nil otherwise).
-	if p, ok := s.Claims.authz.subscribePayload(s.topicSelectorStore, m); ok && p != nil {
+	if p, ok := s.Claims.authz.subscribePayload(s.topicMatcherStore, m); ok && p != nil {
 		return p
 	}
 

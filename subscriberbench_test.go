@@ -75,7 +75,7 @@ func parseIntsEnvVar(s string) (res []int) {
 func subBenchSubscriber(b *testing.B, topics, concurrency, matchPct int, testName string) {
 	b.Helper()
 
-	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", slog.Default(), &TopicSelectorStore{})
+	s := NewLocalSubscriber("0e249241-6432-4ce1-b9b9-5d170163c253", slog.Default(), &TopicMatcherStore{})
 	ts := make([]string, topics)
 	tsMatch := make([]string, topics)
 	ctx := b.Context()

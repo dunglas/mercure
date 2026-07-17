@@ -160,7 +160,7 @@ type mercureAuthz struct {
 // token carries (mercure or not) is bounded by the transport's request-size
 // limit (Caddy's request_body directive, Go's MaxHeaderBytes), not an explicit
 // count here, since the whole claim is decoded before this runs.
-func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDetail) (*mercureAuthz, error) {
+func validateAuthorizationDetails(tms *TopicMatcherStore, raw []authorizationDetail) (*mercureAuthz, error) {
 	authz := &mercureAuthz{}
 
 	var count, totalTopics int
@@ -183,7 +183,7 @@ func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDe
 			return nil, fmt.Errorf("%w: too many topics across mercure authorization details (max %d)", errInvalidAuthorizationDetail, maxDetailTopics)
 		}
 
-		vd, err := validateMercureDetail(tss, raw[i])
+		vd, err := validateMercureDetail(tms, raw[i])
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +199,7 @@ func validateAuthorizationDetails(tss *TopicSelectorStore, raw []authorizationDe
 // matcher type, and a compilable pattern. It returns the shared sentinels
 // (errPatternTooLong, errInvalidMatcherValue, ErrUnsupportedMatcherType) or the
 // underlying compiler error; callers wrap the result with their own sentinel.
-func validateProtocolMatcher(tss *TopicSelectorStore, m TopicMatcher) error {
+func validateProtocolMatcher(tms *TopicMatcherStore, m TopicMatcher) error {
 	if err := validateMatcherValue(m.Pattern); err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func validateProtocolMatcher(tss *TopicSelectorStore, m TopicMatcher) error {
 		return ErrUnsupportedMatcherType
 	}
 
-	return tss.validatePattern(m)
+	return tms.validatePattern(m)
 }
 
 // validateMatcherValue enforces the length and character constraints every wire
@@ -228,7 +228,7 @@ func validateMatcherValue(pattern string) error {
 	return nil
 }
 
-func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (validatedDetail, error) {
+func validateMercureDetail(tms *TopicMatcherStore, d authorizationDetail) (validatedDetail, error) {
 	vd := validatedDetail{payload: d.Payload}
 
 	if len(d.Actions) == 0 {
@@ -263,7 +263,7 @@ func validateMercureDetail(tss *TopicSelectorStore, d authorizationDetail) (vali
 		// validateProtocolMatcher is the single definition of a valid wire
 		// matcher (length, charset, known type, compilable pattern); the
 		// internal deprecated type is rejected as an unknown type.
-		if err := validateProtocolMatcher(tss, m); err != nil {
+		if err := validateProtocolMatcher(tms, m); err != nil {
 			return vd, fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
 		}
 
@@ -292,7 +292,7 @@ func (a *mercureAuthz) hasPayload() bool {
 }
 
 // grants reports whether the token authorizes the given action on the topic.
-func (a *mercureAuthz) grants(tss *TopicSelectorStore, action mercureAction, topic string) bool {
+func (a *mercureAuthz) grants(tms *TopicMatcherStore, action mercureAction, topic string) bool {
 	if a == nil {
 		return false
 	}
@@ -305,7 +305,7 @@ func (a *mercureAuthz) grants(tss *TopicSelectorStore, action mercureAction, top
 		}
 
 		for _, m := range a.details[i].topics {
-			if tss.matchMatcher(single, m) {
+			if tms.matchMatcher(single, m) {
 				return true
 			}
 		}
@@ -315,9 +315,9 @@ func (a *mercureAuthz) grants(tss *TopicSelectorStore, action mercureAction, top
 }
 
 // grantsAll reports whether the token authorizes the action on every topic.
-func (a *mercureAuthz) grantsAll(tss *TopicSelectorStore, action mercureAction, topics []string) bool {
+func (a *mercureAuthz) grantsAll(tms *TopicMatcherStore, action mercureAction, topics []string) bool {
 	for _, t := range topics {
-		if !a.grants(tss, action, t) {
+		if !a.grants(tms, action, t) {
 			return false
 		}
 	}
@@ -349,7 +349,7 @@ func (a *mercureAuthz) subscribeMatchers() []TopicMatcher {
 // topics match the subscription's own matcher m (the `*` wildcard matches
 // every subscription). The boolean reports whether a matching detail was
 // found, regardless of whether it carried a payload.
-func (a *mercureAuthz) subscribePayload(tss *TopicSelectorStore, m TopicMatcher) (any, bool) {
+func (a *mercureAuthz) subscribePayload(tms *TopicMatcherStore, m TopicMatcher) (any, bool) {
 	if a == nil {
 		return nil, false
 	}
@@ -364,7 +364,7 @@ func (a *mercureAuthz) subscribePayload(tss *TopicSelectorStore, m TopicMatcher)
 		for _, tm := range a.details[i].topics {
 			// matchMatcher already treats the "*" wildcard as matching every
 			// pattern, so no separate wildcard check is needed here.
-			if tss.matchMatcher(pattern, tm) {
+			if tms.matchMatcher(pattern, tm) {
 				return a.details[i].payload, true
 			}
 		}
