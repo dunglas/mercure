@@ -29,10 +29,11 @@ const (
 var subscriptionContentType = []string{"application/json"} // nolint:gochecknoglobals
 
 // etagValue encodes lastEventID as the content of an RFC 9110 §8.8.3
-// entity-tag. Bytes outside etagc (SP, DQUOTE, C0/C1 controls, DEL) are
-// percent-encoded so the header stays syntactically valid even for legacy IDs
-// persisted before publish-time validation rejected them. "%" is its own escape
-// marker, so it is encoded too, keeping the mapping injective.
+// entity-tag. Publish-time validation forbids control characters but still
+// permits SP, DQUOTE and other non-etagc bytes, so those are percent-encoded to
+// keep the header syntactically valid (a raw DQUOTE would break the wrapper).
+// "%" is its own escape marker, so it is encoded too, keeping the mapping
+// injective.
 func etagValue(lastEventID string) string {
 	var b strings.Builder
 
@@ -269,8 +270,8 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	}
 
 	// ETags are entity-tags (RFC 9110 §8.8.3): DQUOTE-wrapped etagc bytes.
-	// etagValue percent-encodes anything outside etagc so the header is valid
-	// even for legacy IDs that predate publish-time validation.
+	// etagValue percent-encodes anything outside etagc (SP, DQUOTE, ...) that
+	// publish-time validation still permits, so the header stays valid.
 	etag := `"` + etagValue(lastEventID) + `"`
 	// A 304 carries the ETag it would have sent on a 200 (RFC 9110 §15.4.5), so
 	// set it before the conditional check.
