@@ -22,14 +22,14 @@
   //       "topics": [
   //         { "match": "https://example.com/my-private-topic" },
   //         { "match": "https://example.com/demo/books/:id.jsonld", "match_type": "urlpattern" },
-  //         { "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber", "match_type": "urlpattern" }
+  //         { "match": "/.well-known/mercure/subscriptions{/:matchType}?{/:match}?{/:subscriber}?", "match_type": "urlpattern" }
   //       ],
   //       "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
   //     }
   //   ]
   // }
   const defaultJwt =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJwYXlsb2FkIjp7InJlbW90ZUFkZHIiOiIxMjcuMC4wLjEiLCJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIn0sInRvcGljcyI6W3sibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL215LXByaXZhdGUtdG9waWMifSx7Im1hdGNoIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9kZW1vL2Jvb2tzLzppZC5qc29ubGQiLCJtYXRjaFR5cGUiOiJVUkxQYXR0ZXJuIn0seyJtYXRjaCI6Ii8ud2VsbC1rbm93bi9tZXJjdXJlL3N1YnNjcmlwdGlvbnMvOm1hdGNoVHlwZS86bWF0Y2gvOnN1YnNjcmliZXIiLCJtYXRjaFR5cGUiOiJVUkxQYXR0ZXJuIn1dLCJ0eXBlIjoibWVyY3VyZSJ9XSwiZXhwIjo0MTAyNDQ0ODAwfQ.0QQwiX8GLRjDDDy4fq5nWt2bYqmu2Jo3LaVvn0azotE";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJwYXlsb2FkIjp7InJlbW90ZUFkZHIiOiIxMjcuMC4wLjEiLCJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIn0sInRvcGljcyI6W3sibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL215LXByaXZhdGUtdG9waWMifSx7Im1hdGNoIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9kZW1vL2Jvb2tzLzppZC5qc29ubGQiLCJtYXRjaF90eXBlIjoidXJscGF0dGVybiJ9LHsibWF0Y2giOiIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey86bWF0Y2hUeXBlfT97LzptYXRjaH0_ey86c3Vic2NyaWJlcn0_IiwibWF0Y2hfdHlwZSI6InVybHBhdHRlcm4ifV0sInR5cGUiOiJtZXJjdXJlIn1dLCJleHAiOjQxMDI0NDQ4MDB9.ZgpUCyCES-GCIP4_U6T5m0FJ4sN38QNDG4LAVhgSh1g";
 
   const $updates = document.getElementById("updates");
   const $subscriptions = document.getElementById("subscriptions");
@@ -143,16 +143,16 @@ foo`;
     }
   };
 
-  // openEventSource builds an EventSource-like object using the polyfill.
-  // Cookie auth goes through withCredentials; header auth goes through the
-  // Authorization header (unsupported by native EventSource in browsers).
+  // lastEventIdQueryParameterName: the hub reads last_event_id, not the
+  // polyfill's default lastEventId, so reconnects would replay from the start.
   const openEventSource = (url) => {
+    const opts = { lastEventIdQueryParameterName: "last_event_id" };
     if ($settingsForm.authorization.value === "header") {
-      return new EventSourcePolyfill(url, {
-        headers: { Authorization: `Bearer ${$settingsForm.jwt.value}` },
-      });
+      opts.headers = { Authorization: `Bearer ${$settingsForm.jwt.value}` };
+    } else {
+      opts.withCredentials = true;
     }
-    return new EventSourcePolyfill(url, { withCredentials: true });
+    return new EventSourcePolyfill(url, opts);
   };
 
   // Subscribe
@@ -250,6 +250,11 @@ foo`;
   let subscriptionEventSource;
 
   const addSubscription = (s) => {
+    // Idempotent: replays re-deliver the same id.
+    if (document.getElementById(s.id)) {
+      return;
+    }
+
     const subscription = document.importNode(
       $subscriptionTemplate.content,
       true,
@@ -288,8 +293,7 @@ foo`;
 
       json.subscriptions.forEach(addSubscription);
 
-      // Subscribe to subscription events using a URL-pattern matcher that
-      // covers every {match_type}/{match}/{subscriber} triple.
+      // Stream changes since the snapshot, so nothing is missed in between.
       const u = new URL($settingsForm.hubUrl.value);
       u.searchParams.append(
         "match_urlpattern",
@@ -299,7 +303,8 @@ foo`;
 
       subscriptionEventSource = openEventSource(u);
 
-      subscriptionEventSource.onmessage = function (e) {
+      // Subscription updates use the "mercure" SSE event type, not the default.
+      subscriptionEventSource.addEventListener("mercure", function (e) {
         const s = JSON.parse(e.data);
 
         if (s.active) {
@@ -307,8 +312,8 @@ foo`;
           return;
         }
 
-        document.getElementById(s.id).remove();
-      };
+        document.getElementById(s.id)?.remove();
+      });
       const unsubscribeBtn = $subscriptionsForm.elements.unsubscribe;
       subscriptionEventSource.onerror = error;
       unsubscribeBtn.disabled = false;

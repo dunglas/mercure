@@ -134,13 +134,29 @@ Browsers wait at least that many milliseconds before reconnecting after a discon
 
 This catches people. If you need to read the `Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library: `fetch-event-source` exposes it; native `EventSource` does not. Most server-side SSE clients also expose it.
 
+## Header-based polyfills send the cursor as a query parameter
+
+A polyfill that lets you attach an `Authorization` header (for example `event-source-polyfill`, needed for [authorization](authorization.md) with a header instead of a cookie) can't use the native `Last-Event-ID` request header. It sends the resumption cursor as a query parameter instead, defaulting the name to `lastEventId`. The hub reads `last_event_id` (or the header), so that default is ignored: every reconnect resumes from the ID you set on the first request and replays a growing backlog.
+
+Set the parameter name to `last_event_id`:
+
+```javascript
+new EventSourcePolyfill(url, {
+  headers: { Authorization: `Bearer ${token}` },
+  lastEventIdQueryParameterName: "last_event_id",
+});
+```
+
+The polyfill then overwrites `last_event_id` with the last received ID on each reconnect, and the hub resumes from the right place.
+
 ## Common Mercure reconnect issues
 
-| Symptom                                  | Cause                                                                                     |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Reconnects in a tight loop               | Token expired; mint a fresh one before reconnecting.                                      |
-| Replay returns nothing                   | Event ID isn't in the hub's history (evicted, or hub doesn't have it yet).                |
-| Reconnect storm after a deploy           | The hub didn't drain gracefully. See [Rolling updates](../production/rolling-updates.md). |
-| Connections silently die after N minutes | Idle proxy timeout; lower `heartbeat` or extend the proxy's read timeout.                 |
+| Symptom                                  | Cause                                                                                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Reconnects in a tight loop               | Token expired; mint a fresh one before reconnecting.                                                                          |
+| Reconnect replays the same events        | Header-based polyfill uses its default `lastEventId` query parameter; set `lastEventIdQueryParameterName` to `last_event_id`. |
+| Replay returns nothing                   | Event ID isn't in the hub's history (evicted, or hub doesn't have it yet).                                                    |
+| Reconnect storm after a deploy           | The hub didn't drain gracefully. See [Rolling updates](../production/rolling-updates.md).                                     |
+| Connections silently die after N minutes | Idle proxy timeout; lower `heartbeat` or extend the proxy's read timeout.                                                     |
 
 [Troubleshooting](../production/troubleshooting.md) covers more.
