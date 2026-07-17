@@ -305,7 +305,7 @@ func (a *mercureAuthz) grants(tms *TopicMatcherStore, action mercureAction, topi
 		}
 
 		for _, m := range a.details[i].topics {
-			if tms.matchMatcher(single, m) {
+			if tms.matches(single, m) {
 				return true
 			}
 		}
@@ -362,9 +362,9 @@ func (a *mercureAuthz) subscribePayload(tms *TopicMatcherStore, m TopicMatcher) 
 		}
 
 		for _, tm := range a.details[i].topics {
-			// matchMatcher already treats the "*" wildcard as matching every
+			// matches already treats the "*" wildcard as matching every
 			// pattern, so no separate wildcard check is needed here.
-			if tms.matchMatcher(pattern, tm) {
+			if tms.matches(pattern, tm) {
 				return a.details[i].payload, true
 			}
 		}

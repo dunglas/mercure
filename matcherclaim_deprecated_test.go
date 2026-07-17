@@ -30,5 +30,5 @@ func TestResolveMatcherClaimsDeprecated(t *testing.T) {
 	assert.Equal(t, deprecatedMatcherTypeName, cs[0].Type)
 
 	// The resolved claim matches via the v8 rules.
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/42"}, cs[0].TopicMatcher))
+	assert.True(t, tms.matches([]string{"https://example.com/42"}, cs[0].TopicMatcher))
 }

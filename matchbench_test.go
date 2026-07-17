@@ -3,9 +3,9 @@ package mercure
 import "testing"
 
 // BenchmarkMatchMatcher exercises the per-matcher hot path (Subscriber.Match ->
-// matchesAny -> matchMatcher) for each matcher type, isolating the cost the new
+// matchesAny -> matches) for each matcher type, isolating the cost the new
 // two-matcher implementation adds over a plain exact comparison. Branch-only:
-// main has no matchMatcher.
+// main has no matches.
 func BenchmarkMatchMatcher(b *testing.B) {
 	const base = "https://example.com"
 
@@ -44,7 +44,7 @@ func BenchmarkMatchMatcher(b *testing.B) {
 
 			var ok bool
 			for range b.N {
-				ok = c.store.matchMatcher(topics, c.m)
+				ok = c.store.matches(topics, c.m)
 			}
 
 			runtimeSink = ok

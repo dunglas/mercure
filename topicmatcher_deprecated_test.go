@@ -20,15 +20,15 @@ func TestMatchDeprecated(t *testing.T) {
 	require.NoError(t, err)
 
 	// v8 rules: exact comparison first, then URI Template fallback.
-	assert.True(t, tms.matchMatcher([]string{"foo"}, deprecatedMatcher("foo")))
-	assert.False(t, tms.matchMatcher([]string{"foo"}, deprecatedMatcher("bar")))
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/foo/bar"}, deprecatedMatcher("https://example.com/{foo}/bar")))
-	assert.False(t, tms.matchMatcher([]string{"https://example.com/foo/bar/baz"}, deprecatedMatcher("https://example.com/{foo}/bar")))
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/kevin/dunglas"}, deprecatedMatcher("https://example.com/{firstname}/{lastname}")))
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/foo/bar"}, deprecatedMatcher("*")))
+	assert.True(t, tms.matches([]string{"foo"}, deprecatedMatcher("foo")))
+	assert.False(t, tms.matches([]string{"foo"}, deprecatedMatcher("bar")))
+	assert.True(t, tms.matches([]string{"https://example.com/foo/bar"}, deprecatedMatcher("https://example.com/{foo}/bar")))
+	assert.False(t, tms.matches([]string{"https://example.com/foo/bar/baz"}, deprecatedMatcher("https://example.com/{foo}/bar")))
+	assert.True(t, tms.matches([]string{"https://example.com/kevin/dunglas"}, deprecatedMatcher("https://example.com/{firstname}/{lastname}")))
+	assert.True(t, tms.matches([]string{"https://example.com/foo/bar"}, deprecatedMatcher("*")))
 
 	// A selector that is not a valid URI Template falls back to exact-only.
-	assert.False(t, tms.matchMatcher([]string{"foo"}, deprecatedMatcher("{invalid")))
+	assert.False(t, tms.matches([]string{"foo"}, deprecatedMatcher("{invalid")))
 
 	// Template match results are cached, scoped to the resolution base URL.
 	_, found := tms.matchCache.GetIfPresent(matchCacheKey{

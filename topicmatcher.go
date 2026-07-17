@@ -159,9 +159,9 @@ func (tms *TopicMatcherStore) validatePattern(m TopicMatcher) error {
 	}
 }
 
-// matchMatcher dispatches matching per matcher type, caching results of
+// matches dispatches matching per matcher type, caching results of
 // non-trivial matchers per (type, pattern, topic-set).
-func (tms *TopicMatcherStore) matchMatcher(topics []string, m TopicMatcher) bool {
+func (tms *TopicMatcherStore) matches(topics []string, m TopicMatcher) bool {
 	// "*" is the reserved wildcard: it matches every topic regardless of
 	// matcher type, so a topic literally equal to "*" is not addressable.
 	if m.Pattern == "*" {
@@ -175,7 +175,7 @@ func (tms *TopicMatcherStore) matchMatcher(topics []string, m TopicMatcher) bool
 	case MatcherTypeURLPattern:
 		return tms.cachedMatch(topics, m, tms.matchURLPattern)
 	case deprecatedMatcherTypeName:
-		return tms.matchDeprecatedMatcher(topics, m)
+		return tms.matchDeprecated(topics, m)
 	default:
 		return false
 	}

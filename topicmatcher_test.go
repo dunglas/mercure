@@ -21,16 +21,16 @@ func TestMatchExact(t *testing.T) {
 	tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
 	require.NoError(t, err)
 
-	assert.True(t, tms.matchMatcher([]string{"foo"}, exactMatcher("foo")))
-	assert.False(t, tms.matchMatcher([]string{"foo"}, exactMatcher("bar")))
-	assert.False(t, tms.matchMatcher([]string{"foo"}, exactMatcher("FOO")))
-	assert.True(t, tms.matchMatcher([]string{"bar", "foo"}, exactMatcher("foo")))
+	assert.True(t, tms.matches([]string{"foo"}, exactMatcher("foo")))
+	assert.False(t, tms.matches([]string{"foo"}, exactMatcher("bar")))
+	assert.False(t, tms.matches([]string{"foo"}, exactMatcher("FOO")))
+	assert.True(t, tms.matches([]string{"bar", "foo"}, exactMatcher("foo")))
 
 	// The reserved wildcard always matches.
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/foo/bar"}, exactMatcher("*")))
+	assert.True(t, tms.matches([]string{"https://example.com/foo/bar"}, exactMatcher("*")))
 
 	// Exact patterns are never interpreted as templates.
-	assert.False(t, tms.matchMatcher([]string{"https://example.com/foo/bar"}, exactMatcher("https://example.com/{foo}/bar")))
+	assert.False(t, tms.matches([]string{"https://example.com/foo/bar"}, exactMatcher("https://example.com/{foo}/bar")))
 }
 
 func TestMatchURLPattern(t *testing.T) {
@@ -40,22 +40,22 @@ func TestMatchURLPattern(t *testing.T) {
 	require.NoError(t, err)
 
 	// Named group matching
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
-	assert.False(t, tms.matchMatcher([]string{"https://example.com/authors/123"}, urlPatternMatcher("https://example.com/books/:id")))
+	assert.True(t, tms.matches([]string{"https://example.com/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
+	assert.False(t, tms.matches([]string{"https://example.com/authors/123"}, urlPatternMatcher("https://example.com/books/:id")))
 
 	// Wildcard path
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/a/b/c"}, urlPatternMatcher("https://example.com/*")))
+	assert.True(t, tms.matches([]string{"https://example.com/a/b/c"}, urlPatternMatcher("https://example.com/*")))
 
 	// Multiple named groups
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/users/42/posts/99"}, urlPatternMatcher("https://example.com/users/:uid/posts/:pid")))
-	assert.False(t, tms.matchMatcher([]string{"https://example.com/users/42"}, urlPatternMatcher("https://example.com/users/:uid/posts/:pid")))
+	assert.True(t, tms.matches([]string{"https://example.com/users/42/posts/99"}, urlPatternMatcher("https://example.com/users/:uid/posts/:pid")))
+	assert.False(t, tms.matches([]string{"https://example.com/users/42"}, urlPatternMatcher("https://example.com/users/:uid/posts/:pid")))
 
 	// Multiple topics — at least one matches
-	assert.True(t, tms.matchMatcher([]string{"https://example.com/authors/123", "https://example.com/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
+	assert.True(t, tms.matches([]string{"https://example.com/authors/123", "https://example.com/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
 
 	// Case sensitivity: paths are case-sensitive, hosts are not (RFC 3986).
-	assert.False(t, tms.matchMatcher([]string{"https://example.com/BOOKS/123"}, urlPatternMatcher("https://example.com/books/:id")))
-	assert.True(t, tms.matchMatcher([]string{"https://EXAMPLE.com/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
+	assert.False(t, tms.matches([]string{"https://example.com/BOOKS/123"}, urlPatternMatcher("https://example.com/books/:id")))
+	assert.True(t, tms.matches([]string{"https://EXAMPLE.com/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
 
 	// Match results are cached with a struct key (no collision possible). The
 	// key is scoped to the base URL patterns were resolved against.
@@ -78,17 +78,17 @@ func TestMatchURLPatternRelative(t *testing.T) {
 	tms, err := NewTopicMatcherStore(0)
 	require.NoError(t, err)
 
-	assert.True(t, tms.matchMatcher(
+	assert.True(t, tms.matches(
 		[]string{"/.well-known/mercure/subscriptions/exact/foo/bar"},
 		urlPatternMatcher("/.well-known/mercure/subscriptions/exact/:match/:subscriber"),
 	))
-	assert.True(t, tms.matchMatcher([]string{"/books/123"}, urlPatternMatcher("/books/:id")))
-	assert.False(t, tms.matchMatcher([]string{"/authors/123"}, urlPatternMatcher("/books/:id")))
+	assert.True(t, tms.matches([]string{"/books/123"}, urlPatternMatcher("/books/:id")))
+	assert.False(t, tms.matches([]string{"/authors/123"}, urlPatternMatcher("/books/:id")))
 
 	// A relative pattern is anchored at the hub origin: an absolute topic on
 	// a different origin must not match, and vice versa.
-	assert.False(t, tms.matchMatcher([]string{"https://example.com/books/123"}, urlPatternMatcher("/books/:id")))
-	assert.False(t, tms.matchMatcher([]string{"/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
+	assert.False(t, tms.matches([]string{"https://example.com/books/123"}, urlPatternMatcher("/books/:id")))
+	assert.False(t, tms.matches([]string{"/books/123"}, urlPatternMatcher("https://example.com/books/:id")))
 }
 
 // TestMatchURLPatternConfiguredBase exercises the case the synthetic fallback
@@ -101,9 +101,9 @@ func TestMatchURLPatternConfiguredBase(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tms.setBaseURL("https://hub.example.com"))
 
-	assert.True(t, tms.matchMatcher([]string{"https://hub.example.com/books/123"}, urlPatternMatcher("/books/:id")))
-	assert.True(t, tms.matchMatcher([]string{"/books/123"}, urlPatternMatcher("https://hub.example.com/books/:id")))
-	assert.False(t, tms.matchMatcher([]string{"https://other.example.com/books/123"}, urlPatternMatcher("/books/:id")))
+	assert.True(t, tms.matches([]string{"https://hub.example.com/books/123"}, urlPatternMatcher("/books/:id")))
+	assert.True(t, tms.matches([]string{"/books/123"}, urlPatternMatcher("https://hub.example.com/books/:id")))
+	assert.False(t, tms.matches([]string{"https://other.example.com/books/123"}, urlPatternMatcher("/books/:id")))
 }
 
 func TestValidatePattern(t *testing.T) {

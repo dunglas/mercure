@@ -221,7 +221,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate topics before they can reach the shared match cache via the
-	// authorization grant check (grantsAll → matchMatcher → cachedMatch), which
+	// authorization grant check (grantsAll → matches → cachedMatch), which
 	// keys the cache on the topic list joined with NUL; an unvalidated topic
 	// containing a literal NUL would collide with a legitimate multi-topic key
 	// and poison the entry (CWE-20). Update.Validate() re-checks later, but only

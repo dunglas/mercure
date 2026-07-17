@@ -85,7 +85,7 @@ func (s *Subscriber) SetMatchers(subscribed, allowedPrivate []TopicMatcher) {
 
 func (s *Subscriber) matchesAny(topics []string, matchers []TopicMatcher) bool {
 	for _, m := range matchers {
-		if s.topicMatcherStore.matchMatcher(topics, m) {
+		if s.topicMatcherStore.matches(topics, m) {
 			return true
 		}
 	}
