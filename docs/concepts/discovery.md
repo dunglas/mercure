@@ -39,7 +39,9 @@ https://hub.example.com/.well-known/oauth-protected-resource/.well-known/mercure
 {
   "resource": "https://hub.example.com/.well-known/mercure",
   "bearer_methods_supported": ["header"],
-  "authorization_details_types_supported": ["https://mercure.rocks/authorization-detail"],
+  "authorization_details_types_supported": [
+    "https://mercure.rocks/authorization-detail"
+  ],
   "authorization_servers": ["https://auth.example.com"],
   "mercure_cookie": "mercure_access_token"
 }

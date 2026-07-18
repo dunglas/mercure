@@ -92,7 +92,11 @@ The bearer token is an OAuth 2.0 access token signed with the dev key above (hea
   "aud": "https://localhost/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
-    { "type": "https://mercure.rocks/authorization-detail", "actions": ["publish"], "topics": [{ "match": "*" }] },
+    {
+      "type": "https://mercure.rocks/authorization-detail",
+      "actions": ["publish"],
+      "topics": [{ "match": "*" }],
+    },
     {
       "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],

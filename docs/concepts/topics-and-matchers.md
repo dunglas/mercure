@@ -143,7 +143,11 @@ In an access token, each `mercure` entry of the `authorization_details` claim ho
         },
       ],
     },
-    { "type": "https://mercure.rocks/authorization-detail", "actions": ["publish"], "topics": [{ "match": "*" }] },
+    {
+      "type": "https://mercure.rocks/authorization-detail",
+      "actions": ["publish"],
+      "topics": [{ "match": "*" }],
+    },
   ],
 }
 ```
