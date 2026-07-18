@@ -19,9 +19,9 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `match_urlpattern=<pattern>` (case-sensitive)               |
 | Templating language       | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org))                    |
 | Topics per update         | Canonical + alternates                                             | Exactly one                                                                    |
-| Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `aud`, `authorization_details`          |
-| Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries of `type: mercure`                             |
-| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `access_token` param, `mercure_access_token` cookie                            |
+| Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `iss`, `aud`, `authorization_details`   |
+| Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries with the Mercure `type` URI (see below)        |
+| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `mercure_access_token` cookie; no query parameter (RFC 9700)                   |
 | Auth errors               | `401` / silent drop                                                | RFC 6750: `401 invalid_token`, `403 insufficient_scope`, `400 invalid_request` |
 | Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`         |
 
@@ -45,7 +45,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 
 ### Migrate your tokens
 
-The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access token](concepts/authorization.md): a `typ: at+jwt` header, an `aud` claim holding the hub's resource identifier, a required `exp`, and an `authorization_details` array.
+The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access token](concepts/authorization.md): a `typ: at+jwt` header, an `iss` claim matching one of the hub's trusted issuers, an `aud` claim holding the hub's resource identifier, a required `exp`, and an `authorization_details` array. [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) also requires issuers to populate `sub`, `client_id`, `iat`, and `jti`.
 
 ```jsonc
 // Before (0.x)
@@ -63,12 +63,13 @@ The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access toke
 ```jsonc
 // After (1.0) — header { "alg": "...", "typ": "at+jwt" }
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
-    { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
+    { "type": "https://mercure.rocks/authorization-detail", "actions": ["publish"], "topics": [{ "match": "*" }] },
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/users/42" },
@@ -84,16 +85,16 @@ The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access toke
 
 Rules:
 
-- Each entry is `{ "type": "mercure", "actions": [...], "topics": [...] }`. `actions` is a non-empty subset of `["publish", "subscribe"]`; `topics` is a non-empty array of `{ "match", "match_type"? }` objects (bare strings are rejected).
+- Each entry is `{ "type": "https://mercure.rocks/authorization-detail", "actions": [...], "topics": [...] }`. `actions` is a non-empty subset of `["publish", "subscribe"]`; `topics` is a non-empty array of `{ "match", "match_type"? }` objects (bare strings are rejected).
 - `match_type` is **case-sensitive** and defaults to `exact`. The reserved `{ "match": "*" }` matches every topic.
 - A `subscribe` entry may carry a `payload`; the old top-level `mercure.payload` is gone. See [subscriber payloads](concepts/authorization.md#subscriber-payloads).
-- One invalid `mercure` detail rejects the whole token with `401 invalid_token`.
+- One invalid Mercure detail rejects the whole token with `401 invalid_token`.
 
 ### Migrate token presentation
 
 - The cookie default name changes from `mercureAuthorization` to `mercure_access_token` (override with `cookie_name`).
-- The query parameter changes from `authorization` to `access_token`.
-- The `Authorization: Bearer` header is unchanged. Precedence is header, then query parameter, then cookie.
+- The `authorization` query parameter is gone and has no replacement: [RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids access tokens in URLs. Browsers that can't set headers use the cookie; everything else (including `fetch()` with a readable stream) uses the `Authorization` header.
+- The `Authorization: Bearer` header is unchanged and takes precedence over the cookie.
 
 ### Migrate to RFC 6750 errors
 
@@ -120,7 +121,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - `Regexp` / CEL subscribe filters -> URL Patterns or exact topics
 - `"mercure": { "publish": [...] }` in issuer code -> `authorization_details` with `actions: ["publish"]`
 - `"mercure": { "subscribe": [...] }` -> `authorization_details` with `actions: ["subscribe"]`
-- `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `access_token=`
+- `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
 - A second `topic=` on a publish request -> publish to one topic; scope per-user access in the token
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
 
@@ -131,8 +132,9 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 ### Hub configuration changes
 
 - Set `resource_identifier` (or `public_url`) to the audience your tokens carry; it's required when JWT auth is enabled in modern mode. The official Caddyfile defaults it to `https://localhost/.well-known/mercure`.
-- Optionally advertise issuers with `authorization_servers` (see [Discovery](concepts/discovery.md)).
-- Redact the `access_token` query parameter from logs.
+- Set `trusted_issuers` to the `iss` value your self-issued tokens carry; it's required when JWT auth is enabled in modern mode. The official Caddyfile defaults it to `https://localhost`.
+- Optionally advertise issuers with `authorization_servers` (see [Discovery](concepts/discovery.md)); they're trusted issuers too.
+- Keep redacting the legacy `authorization` and `access_token` query parameters from logs; old clients may still send them.
 - `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`. The legacy non-Caddy server is removed.
 
 ### Compatibility mode

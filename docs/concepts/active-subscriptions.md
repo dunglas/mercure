@@ -74,7 +74,7 @@ A typical "show me everyone subscribed to this document" feature is authorized l
 {
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         {

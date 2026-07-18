@@ -51,7 +51,6 @@ func (h *Hub) writeAuthError(w http.ResponseWriter, r *http.Request, err error) 
 	case err == nil:
 		h.writeBearerChallenge(w)
 	case errors.Is(err, ErrInvalidAuthorizationHeader),
-		errors.Is(err, ErrInvalidAuthorizationQuery),
 		errors.Is(err, ErrNoOrigin),
 		errors.Is(err, ErrOriginNotAllowed):
 		h.writeBearerError(w, bearerErrInvalidRequest, http.StatusBadRequest)

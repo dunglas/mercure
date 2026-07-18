@@ -18,6 +18,7 @@ hub.example.com {
     publisher_jwt       {env.MERCURE_PUBLISHER_JWT_KEY}
     subscriber_jwt      {env.MERCURE_SUBSCRIBER_JWT_KEY}
     resource_identifier https://hub.example.com/.well-known/mercure
+    trusted_issuers     https://example.com
     cors_origins        https://example.com
   }
 
@@ -26,6 +27,8 @@ hub.example.com {
 ```
 
 `resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). It defaults to `public_url`; set one of them whenever the hub validates tokens.
+
+`trusted_issuers` lists the values accepted in the token `iss` claim: the stable identifier of your app when it signs tokens itself (typically its URL). When an OAuth 2.0 authorization server mints the tokens, use `authorization_servers` instead (its entries are trusted issuers too). One of the two is required whenever the hub validates tokens.
 
 Caddy provisions a Let's Encrypt certificate for `hub.example.com` automatically. To disable HTTPS (when behind a reverse proxy that terminates TLS), prefix the site address with `http://`:
 
@@ -48,7 +51,8 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `subscriber_jwks_url <url>`                | JWK Set URL for subscriber token validation.                                                                                              |                        |
 | `public_url <url>`                         | Canonical hub URL. Resolves relative URL Patterns and topics, and is the default `resource_identifier`.                                   |                        |
 | `resource_identifier <id>`                 | OAuth 2.0 resource identifier (token `aud`). Required when JWT auth is enabled in modern mode. See [Discovery](../concepts/discovery.md). | `public_url`           |
-| `authorization_servers <url...>`           | Issuer identifiers advertised in the [protected resource metadata](../concepts/discovery.md).                                             |                        |
+| `authorization_servers <url...>`           | Authorization server issuer identifiers, trusted and advertised in the [protected resource metadata](../concepts/discovery.md).           |                        |
+| `trusted_issuers <id...>`                  | Additional issuer identifiers accepted in the token `iss` claim (self-issued tokens).                                                     |                        |
 | `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                          | off                    |
 | `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                      |                        |
 | `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                  |                        |
@@ -78,6 +82,7 @@ The Docker image and the official Caddyfile read these:
 | `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber signing key.                                                                |             |
 | `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`     |
 | `MERCURE_RESOURCE_IDENTIFIER`   | Sets `resource_identifier` (the token `aud`).                                          |             |
+| `MERCURE_TRUSTED_ISSUERS`       | Sets `trusted_issuers` (the token `iss`).                                              |             |
 | `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |             |
 | `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |             |
 | `CADDY_EXTRA_CONFIG`            | [Snippets / named routes](https://caddyserver.com/docs/caddyfile/concepts#snippets).   |             |
@@ -168,7 +173,7 @@ mercure {
 
 ## Keeping tokens out of logs
 
-When a client passes the access token in the `access_token` query parameter, redact it from access logs. The official Caddyfile does this with a log field filter:
+The hub accepts no token in the URL ([RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids it), but misconfigured or legacy clients may still send one there. Redact the known parameter names from access logs; the official Caddyfile does this with a log field filter:
 
 ```caddyfile
 # Keeping tokens out of logs
@@ -177,6 +182,7 @@ log {
     fields {
       request>uri query {
         replace access_token REDACTED
+        replace authorization REDACTED
       }
     }
   }

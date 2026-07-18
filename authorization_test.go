@@ -28,6 +28,7 @@ func signSubscriberToken(tb testing.TB, c *claims) string {
 
 func subscriberRegisteredClaims() jwt.RegisteredClaims {
 	return jwt.RegisteredClaims{
+		Issuer:    testIssuer,
 		Audience:  jwt.ClaimStrings{testResourceIdentifier},
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 	}
@@ -130,22 +131,9 @@ func TestAuthorizeAuthorizationHeaderLowercaseScheme(t *testing.T) {
 	assert.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
 }
 
-func TestAuthorizeAccessTokenQueryTooShort(t *testing.T) {
-	t.Parallel()
-
-	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
-	query := r.URL.Query()
-	query.Set("access_token", "x")
-	r.URL.RawQuery = query.Encode()
-
-	h := createDummy(t)
-
-	claims, err := h.authorize(r, false)
-	require.ErrorIs(t, err, ErrInvalidAuthorizationQuery)
-	require.Nil(t, claims)
-}
-
-func TestAuthorizeAccessTokenQuery(t *testing.T) {
+// The RFC 6750 "access_token" query parameter is not a supported mechanism
+// (RFC 9700 §4.3.2): a valid token passed this way falls through to anonymous.
+func TestAuthorizeAccessTokenQueryIgnored(t *testing.T) {
 	t.Parallel()
 
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
@@ -153,11 +141,11 @@ func TestAuthorizeAccessTokenQuery(t *testing.T) {
 	query.Set("access_token", createDummyAuthorizedJWT(roleSubscriber, []string{"foo"}))
 	r.URL.RawQuery = query.Encode()
 
-	h := createDummy(t)
+	h := createAnonymousDummy(t)
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
-	assert.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
+	require.Nil(t, claims)
 }
 
 // The deprecated "authorization" query parameter is ignored in modern mode,

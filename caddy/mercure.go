@@ -158,6 +158,10 @@ type Mercure struct {
 	// hub's protected resource metadata.
 	AuthorizationServers []string `json:"authorization_servers,omitempty"`
 
+	// Issuer identifiers accepted in the token iss claim in addition to the
+	// authorization servers, for self-issued tokens (RFC 9068).
+	TrustedIssuers []string `json:"trusted_issuers,omitempty"`
+
 	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
@@ -249,6 +253,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	if len(m.AuthorizationServers) > 0 {
 		opts = append(opts, mercure.WithAuthorizationServers(m.AuthorizationServers))
+	}
+
+	if len(m.TrustedIssuers) > 0 {
+		opts = append(opts, mercure.WithTrustedIssuers(m.TrustedIssuers))
 	}
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
@@ -580,6 +588,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 			case "authorization_servers":
 				m.AuthorizationServers = d.RemainingArgs()
 				if len(m.AuthorizationServers) == 0 {
+					return d.ArgErr()
+				}
+
+			case "trusted_issuers":
+				m.TrustedIssuers = d.RemainingArgs()
+				if len(m.TrustedIssuers) == 0 {
 					return d.ArgErr()
 				}
 

@@ -144,7 +144,7 @@ func TestNonMercureAuthorizationDetailIgnored(t *testing.T) {
 	var details []authorizationDetail
 	require.NoError(t, json.Unmarshal([]byte(`[
 		{"type":"tenant","topics":"acme","actions":{"read":true}},
-		{"type":"mercure","actions":["subscribe"],"topics":[{"match":"https://example.com/foo"}]}
+		{"type":"https://mercure.rocks/authorization-detail","actions":["subscribe"],"topics":[{"match":"https://example.com/foo"}]}
 	]`), &details))
 
 	authz, err := validateAuthorizationDetails(tms, details)
@@ -158,8 +158,8 @@ func TestMercureDetailTopicMissingMatchRejected(t *testing.T) {
 	t.Parallel()
 
 	for name, payload := range map[string]string{
-		"missing match": `[{"type":"mercure","actions":["subscribe"],"topics":[{"match_type":"exact"}]}]`,
-		"null topic":    `[{"type":"mercure","actions":["subscribe"],"topics":[null]}]`,
+		"missing match": `[{"type":"https://mercure.rocks/authorization-detail","actions":["subscribe"],"topics":[{"match_type":"exact"}]}]`,
+		"null topic":    `[{"type":"https://mercure.rocks/authorization-detail","actions":["subscribe"],"topics":[null]}]`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -182,7 +182,7 @@ func TestMercureDetailEmptyPatternRejected(t *testing.T) {
 	require.NoError(t, err)
 
 	var details []authorizationDetail
-	require.NoError(t, json.Unmarshal([]byte(`[{"type":"mercure","actions":["subscribe"],"topics":[{"match":""}]}]`), &details))
+	require.NoError(t, json.Unmarshal([]byte(`[{"type":"https://mercure.rocks/authorization-detail","actions":["subscribe"],"topics":[{"match":""}]}]`), &details))
 
 	_, err = validateAuthorizationDetails(tms, details)
 	require.ErrorIs(t, err, errInvalidAuthorizationDetail)

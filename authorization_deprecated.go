@@ -16,8 +16,8 @@ var ErrTooManyClaimMatchers = errors.New("too many matchers in mercure claim")
 const legacyCookieName = "mercureAuthorization"
 
 // legacyAuthorizationParam is the deprecated "authorization" URI query
-// parameter carrying the access token, honored only in compatibility mode. The
-// modern parameter is "access_token".
+// parameter carrying the access token, honored only in compatibility mode.
+// Modern mode accepts no query parameter (RFC 9700 §4.3.2).
 const legacyAuthorizationParam = "authorization"
 
 // compatClaimsEnabled reports whether legacy mercure-claim behavior is active:
@@ -34,8 +34,8 @@ func (h *Hub) requireATJWT() bool {
 }
 
 // legacyAuthQueryParam returns the token carried by the deprecated
-// "authorization" query parameter when compatibility mode is enabled. The
-// modern parameter is "access_token".
+// "authorization" query parameter when compatibility mode is enabled. Modern
+// mode accepts no query parameter (RFC 9700 §4.3.2).
 func (h *Hub) legacyAuthQueryParam(r *http.Request) (string, bool) {
 	if !h.compatClaimsEnabled() {
 		return "", false

@@ -57,8 +57,6 @@ const (
 var (
 	// ErrInvalidAuthorizationHeader is returned when the Authorization header is invalid.
 	ErrInvalidAuthorizationHeader = errors.New(`invalid "Authorization" HTTP header`)
-	// ErrInvalidAuthorizationQuery is returned when the access token query parameter is invalid.
-	ErrInvalidAuthorizationQuery = errors.New(`invalid "access_token" query parameter`)
 	// ErrNoOrigin is returned when the cookie authorization mechanism is used and no Origin nor Referer headers are presents.
 	ErrNoOrigin = errors.New(`an "Origin" or a "Referer" HTTP header must be present to use the cookie-based authorization mechanism`)
 	// ErrOriginNotAllowed is returned when the Origin is not allowed to post updates.
@@ -109,16 +107,10 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 		return h.validateJWT(authorizationHeaders[0][len(bearerPrefix):], jwtKeyfunc, algs)
 	}
 
-	if accessTokens, queryExists := r.URL.Query()["access_token"]; queryExists {
-		if len(accessTokens) != 1 || len(accessTokens[0]) < minCompactJWSLen {
-			return nil, ErrInvalidAuthorizationQuery
-		}
-
-		return h.validateJWT(accessTokens[0], jwtKeyfunc, algs)
-	}
-
 	// The deprecated "authorization" query parameter is honored only in
-	// deprecated_claim builds running in compatibility mode.
+	// deprecated_claim builds running in compatibility mode. The RFC 6750
+	// "access_token" query parameter is not accepted: RFC 9700 §4.3.2 forbids
+	// passing access tokens in the URI query string.
 	if token, ok := h.legacyAuthQueryParam(r); ok {
 		return h.validateJWT(token, jwtKeyfunc, algs)
 	}
@@ -233,13 +225,13 @@ func (h *Hub) validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc, algs []st
 		}
 	}
 
-	// RFC 9068 §4: when the hub advertises authorization servers, the token's
-	// issuer must be one of them, so a token signed by a key the hub trusts for
-	// one issuer cannot be replayed under another. Self-issued deployments (no
-	// authorization server configured) do not constrain iss. Relaxed in
-	// compatibility mode.
-	if !h.compatClaimsEnabled() && len(h.authorizationServers) > 0 &&
-		!slices.Contains(h.authorizationServers, c.Issuer) {
+	// RFC 9068 §4: the token's issuer must exactly match a trusted issuer — an
+	// authorization server or a self-issuing publisher declared with
+	// WithTrustedIssuers — so a token signed by a key the hub trusts for one
+	// issuer cannot be replayed under another. Relaxed in compatibility mode.
+	if !h.compatClaimsEnabled() &&
+		!slices.Contains(h.authorizationServers, c.Issuer) &&
+		!slices.Contains(h.trustedIssuers, c.Issuer) {
 		return nil, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, c.Issuer)
 	}
 

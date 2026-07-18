@@ -25,6 +25,10 @@ const (
 	// caddyResourceIdentifier is the access-token audience the test Caddyfiles
 	// configure via `resource_identifier`.
 	caddyResourceIdentifier = "https://example.com/.well-known/mercure"
+
+	// caddyTrustedIssuer is the access-token issuer the test Caddyfiles
+	// configure via `trusted_issuers`.
+	caddyTrustedIssuer = "https://example.com"
 )
 
 // RFC 9068 access tokens used by the non-deprecated tests, minted at package
@@ -44,11 +48,12 @@ var (
 func topicMatch(match string) map[string]any { return map[string]any{"match": match} }
 
 func actionDetail(action string, topics ...map[string]any) map[string]any {
-	return map[string]any{"type": "mercure", "actions": []string{action}, "topics": topics}
+	return map[string]any{"type": "https://mercure.rocks/authorization-detail", "actions": []string{action}, "topics": topics}
 }
 
 func newAccessTokenClaims(details ...map[string]any) jwt.MapClaims {
 	return jwt.MapClaims{
+		"iss":                   caddyTrustedIssuer,
 		"aud":                   caddyResourceIdentifier,
 		"exp":                   time.Now().Add(time.Hour).Unix(),
 		"authorization_details": details,
@@ -124,6 +129,7 @@ localhost:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			%[1]s
 		}
 
@@ -137,6 +143,7 @@ example.com:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			%[1]s
 		}
 
@@ -218,6 +225,7 @@ func TestJWTPlaceholders(t *testing.T) {
 				anonymous
 				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
 				resource_identifier https://example.com/.well-known/mercure
+				trusted_issuers https://example.com
 				transport local
 			}
 
@@ -287,6 +295,7 @@ func TestSubscriptionAPI(t *testing.T) {
 				subscriptions
 				publisher_jwt !ChangeMe!
 				resource_identifier https://example.com/.well-known/mercure
+				trusted_issuers https://example.com
 			}
 
 			respond 404
@@ -314,6 +323,7 @@ func TestCookieName(t *testing.T) {
 				publisher_jwt !ChangeMe!
 				subscriber_jwt !ChangeMe!
 				resource_identifier https://example.com/.well-known/mercure
+				trusted_issuers https://example.com
 				cookie_name foo
 				publish_origins http://localhost:9080
 			}
@@ -385,6 +395,7 @@ func TestProtectedResourceMetadata(t *testing.T) {
 				publisher_jwt !ChangeMe!
 				subscriber_jwt !ChangeMe!
 				resource_identifier https://example.com/.well-known/mercure
+				trusted_issuers https://example.com
 				authorization_servers https://as.example.com
 			}
 
@@ -427,6 +438,7 @@ func TestAllowNoPublish(t *testing.T) {
 			mercure {
 				subscriber_jwt !ChangeMe!
 				resource_identifier https://example.com/.well-known/mercure
+				trusted_issuers https://example.com
 			}
 
 			respond 404
@@ -459,6 +471,7 @@ localhost:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			transport bolt {
 				path test.db
 				bucket_name foo

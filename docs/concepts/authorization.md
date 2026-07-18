@@ -7,7 +7,7 @@ description: "Mint, present, and validate OAuth 2.0 JWT access tokens for Mercur
 
 The Mercure hub is an [OAuth 2.0](https://www.rfc-editor.org/rfc/rfc6749) protected resource. Clients present a **JWT access token** ([RFC 9068](https://www.rfc-editor.org/rfc/rfc9068)); the token's `authorization_details` claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)) says which topics it may publish to and subscribe to. The hub validates every token; your application (or your authorization server) mints them.
 
-> **Upgrading from 0.x?** The bespoke `mercure` claim is gone. Tokens are now standard OAuth 2.0 access tokens: a `typ: at+jwt` header, an `aud` claim, and an `authorization_details` array of `mercure` entries. The legacy `mercure` claim is accepted only by a hub built with the `deprecated_claim` tag and running `protocol_version_compatibility 8`. See the [upgrade guide](../UPGRADE.md#10-from-0x).
+> **Upgrading from 0.x?** The bespoke `mercure` claim is gone. Tokens are now standard OAuth 2.0 access tokens: a `typ: at+jwt` header, `iss` and `aud` claims, and an `authorization_details` array of Mercure entries. The legacy `mercure` claim is accepted only by a hub built with the `deprecated_claim` tag and running `protocol_version_compatibility 8`. See the [upgrade guide](../UPGRADE.md#10-from-0x).
 
 ## The access token
 
@@ -21,12 +21,13 @@ A Mercure access token is a JWT access token as defined by [RFC 9068](https://ww
 ```jsonc
 // payload
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
-    { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
+    { "type": "https://mercure.rocks/authorization-detail", "actions": ["publish"], "topics": [{ "match": "*" }] },
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/users/42/notifications" },
@@ -44,30 +45,31 @@ A Mercure access token is a JWT access token as defined by [RFC 9068](https://ww
 The hub enforces, on every token:
 
 - **`typ: at+jwt` header.** Tokens minted for other purposes (an OpenID Connect ID token, for example) are rejected.
+- **`iss` claim.** It must exactly match one of the hub's trusted issuers: the `trusted_issuers` directive (your app's stable identifier when tokens are self-issued) or an entry of `authorization_servers` (see [Discovery](discovery.md)).
 - **`aud` claim.** It must contain the hub's resource identifier (configured with `resource_identifier`, defaulting to `public_url`). `aud` may be a string or an array.
 - **`exp` claim.** Required. The hub rejects expired tokens, including on the first request. `nbf` is enforced when present.
 - **Signature** with the configured key (`publisher_jwt` / `subscriber_jwt`, or a JWKS; see below). The algorithm comes from hub configuration, never from the token, so `alg=none` and algorithm-confusion attacks are blocked.
-- **`iss` claim** when the hub advertises authorization servers (see [Discovery](discovery.md)).
+
+[RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) also requires issuers to populate `sub`, `client_id`, `iat`, and `jti`; include them so any RFC 9068 validator accepts your tokens. The hub uses `sub` to derive subscriber identifiers for [subscription events](active-subscriptions.md).
 
 ### Authorization details
 
-Each entry in `authorization_details` with `"type": "mercure"` grants a set of actions over a set of topic matchers:
+Each entry in `authorization_details` with `"type": "https://mercure.rocks/authorization-detail"` grants a set of actions over a set of topic matchers:
 
 - `actions`: a non-empty subset of `["publish", "subscribe"]`.
 - `topics`: a non-empty array of [topic matcher](topics-and-matchers.md) objects `{ "match": "...", "match_type": "exact" | "urlpattern" }`. Bare strings are rejected; `match_type` is case-sensitive and defaults to `exact`. A `match` of `*` matches every topic.
 - `payload` (optional, `subscribe` only): any JSON value, surfaced through [subscription events](active-subscriptions.md).
 
-One invalid `mercure` detail rejects the whole token (`401 invalid_token`); there is no partial acceptance. Entries with a `type` other than `mercure` are ignored, so a single token can carry authorization details for several resources.
+One invalid Mercure detail rejects the whole token (`401 invalid_token`); there is no partial acceptance. Entries with another `type` are ignored, so a single token can carry authorization details for several resources.
 
-## Three ways to send the token
+## Two ways to send the token
 
-The hub reads the token from one of three places. Pick the one that matches your client:
+The hub reads the token from one of two places. Pick the one that matches your client:
 
-1. **`Authorization: Bearer <token>` header (preferred for non-browser clients).** Right for server-side code, mobile apps, and command-line tools: anything that can set custom headers. Browsers can't attach this to an `EventSource`, so it isn't an option there. The `Bearer` scheme name is matched case-insensitively.
-2. **`mercure_access_token` cookie (preferred for browsers).** Set with `HttpOnly`, `Secure`, and `SameSite`, the cookie keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history, and is the only mechanism `EventSource` natively carries on cross-origin connections. Set it at discovery time so it's already in place when the SSE connection opens.
-3. **`access_token` query parameter (last resort).** Tokens leak into proxy logs, browser history, and `Referer` headers. Use this only when neither header nor cookie is available.
+1. **`Authorization: Bearer <token>` header (preferred).** Right for server-side code, mobile apps, command-line tools, and browser code using `fetch()`: anything that can set custom headers. In the browser, consume the SSE stream through the `fetch()` response body when you need a per-tab or per-connection token, or when the hub lives on another domain — cases a cookie can't cover. The `Bearer` scheme name is matched case-insensitively.
+2. **`mercure_access_token` cookie (for `EventSource`).** Browsers can't attach headers to an `EventSource`; a cookie set with `HttpOnly`, `Secure`, and `SameSite` keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history, and rides along automatically. Set it at discovery time so it's already in place when the SSE connection opens.
 
-When a request carries more than one, the hub selects exactly one by precedence: header, then `access_token` query parameter, then cookie. Clients should normally send only one.
+There is no query-parameter mechanism: [RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids passing access tokens in URLs, where they leak into proxy logs, browser history, and `Referer` headers. When a request carries both a header and a cookie, the header wins and the cookie is ignored.
 
 The hub never accepts tokens over plain HTTP. Whichever method you pick, **HTTPS is mandatory** for any non-anonymous request.
 
@@ -80,7 +82,7 @@ To publish, a token must carry an `authorization_details` entry whose `actions` 
 {
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["publish"],
       "topics": [
         {
@@ -113,7 +115,7 @@ For a private update, the hub checks that a `subscribe` grant covers the update'
 {
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         {
@@ -156,7 +158,7 @@ Mint each subscriber a token whose `subscribe` grant covers only its own space:
 {
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         {
@@ -180,13 +182,13 @@ A `subscribe` detail can carry a `payload` (any JSON value). The hub attaches it
 {
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [{ "match": "https://example.com/users/42" }],
       "payload": { "username": "alice", "ip": "10.0.0.1" },
     },
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         {
@@ -233,7 +235,7 @@ Required attributes:
 - `SameSite=Strict` or `Lax`: CSRF protection.
 - `Path=/.well-known/mercure`: limits the cookie to the hub URL.
 
-The default cookie name is `mercure_access_token`; override it with the `cookie_name` directive when several hubs share a domain. If the publisher and the hub run on different subdomains of the same registrable domain, set `Domain=example.com`. If they're on different domains, you can't use cookies; fall back to the bearer header from a service worker, or to the `access_token` query parameter on a same-origin proxy.
+The default cookie name is `mercure_access_token`; override it with the `cookie_name` directive when several hubs share a domain. If the publisher and the hub run on different subdomains of the same registrable domain, set `Domain=example.com`. If they're on different domains, you can't use cookies; consume the stream with `fetch()` and an `Authorization` header instead.
 
 `EventSource` does **not** send cookies on cross-origin requests by default. Pass `withCredentials: true` to opt in:
 
@@ -284,12 +286,12 @@ Asymmetric keys keep the signing key off the hub entirely, which is useful when 
 
 ## Common authorization errors
 
-| Symptom                                    | Cause                                                                                                           |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `401 invalid_token` on subscribe           | Expired token, missing/wrong `aud`, missing `typ: at+jwt`, malformed `authorization_details`, wrong signing key |
-| `401` with a bare `Bearer` challenge       | No token presented on an operation that requires one                                                            |
-| `403 insufficient_scope` on publish        | No `publish` grant covers the topic                                                                             |
-| Subscriber never receives a private update | No `subscribe` grant covers the update's topic                                                                  |
-| Browser doesn't send the cookie            | Missing `withCredentials: true`, wrong `Domain`/`Path`, or cross-origin without CORS credentials                |
+| Symptom                                    | Cause                                                                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `401 invalid_token` on subscribe           | Expired token, missing/wrong `iss` or `aud`, missing `typ: at+jwt`, malformed `authorization_details`, wrong signing key |
+| `401` with a bare `Bearer` challenge       | No token presented on an operation that requires one                                                                     |
+| `403 insufficient_scope` on publish        | No `publish` grant covers the topic                                                                                      |
+| Subscriber never receives a private update | No `subscribe` grant covers the update's topic                                                                           |
+| Browser doesn't send the cookie            | Missing `withCredentials: true`, wrong `Domain`/`Path`, or cross-origin without CORS credentials                         |
 
 [Troubleshooting](../production/troubleshooting.md) covers each of these in more detail.

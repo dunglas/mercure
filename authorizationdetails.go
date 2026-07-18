@@ -20,8 +20,8 @@ const (
 )
 
 // authorizationDetailTypeMercure is the RFC 9396 authorization detail type
-// defined by this protocol.
-const authorizationDetailTypeMercure = "mercure"
+// defined by this protocol, a collision-resistant URI per RFC 9396 §2.1.
+const authorizationDetailTypeMercure = "https://mercure.rocks/authorization-detail"
 
 // mercureAction is a value of the `actions` array of a mercure authorization
 // detail.
