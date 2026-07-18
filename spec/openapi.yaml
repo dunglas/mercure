@@ -256,7 +256,7 @@ components:
           type: array
           items:
             type: string
-          example: ["header", "query"]
+          example: ["header"]
         authorization_servers:
           type: array
           items:
@@ -265,9 +265,10 @@ components:
           type: array
           items:
             type: string
-          example: ["mercure"]
+          example: ["https://mercure.rocks/authorization-detail"]
         mercure_cookie:
-          type: boolean
+          type: string
+          example: __Secure-mercure_access_token
         mercure_subscriptions:
           type: boolean
   responses:

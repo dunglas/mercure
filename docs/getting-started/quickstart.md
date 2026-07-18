@@ -18,6 +18,7 @@ docker run -p 8080:80 \
   -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
   -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
   -e MERCURE_RESOURCE_IDENTIFIER='https://localhost/.well-known/mercure' \
+  -e MERCURE_TRUSTED_ISSUERS='https://localhost' \
   -e MERCURE_EXTRA_DIRECTIVES='anonymous
 cors_origins *
 demo' \
@@ -30,6 +31,7 @@ What that command does:
 
 - `MERCURE_*_JWT_KEY`: the secret used to verify access tokens. Don't ship this value to production; the [installation guide](installation.md) covers proper key management.
 - `MERCURE_RESOURCE_IDENTIFIER`: the OAuth 2.0 audience tokens must carry in their `aud` claim. The demo token below uses this exact value.
+- `MERCURE_TRUSTED_ISSUERS`: the issuer tokens must carry in their `iss` claim. The demo token below uses this exact value.
 - `anonymous`: lets clients subscribe to public topics without a token (handy in dev, off by default in prod).
 - `cors_origins *`: allow any origin to connect (you'll want to restrict this).
 - `demo`: turns on the in-browser debugger at <http://localhost:8080/.well-known/mercure/ui/>.
@@ -74,7 +76,7 @@ In another terminal:
 ```console
 # Publish a Mercure Update with curl
 curl -X POST http://localhost:8080/.well-known/mercure \
-  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJ0b3BpY3MiOlt7Im1hdGNoIjoiKiJ9XSwidHlwZSI6Im1lcmN1cmUifV0sImV4cCI6NDEwMjQ0NDgwMH0.AIQorI3mpd1OEJXqqgnnuTid7QDJgQFfkv8pNb4cDR0' \
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJodHRwczovL21lcmN1cmUucm9ja3MvYXV0aG9yaXphdGlvbi1kZXRhaWwifSx7ImFjdGlvbnMiOlsic3Vic2NyaWJlIl0sInRvcGljcyI6W3sibWF0Y2giOiIqIn1dLCJ0eXBlIjoiaHR0cHM6Ly9tZXJjdXJlLnJvY2tzL2F1dGhvcml6YXRpb24tZGV0YWlsIn1dLCJleHAiOjQxMDI0NDQ4MDAsImlzcyI6Imh0dHBzOi8vbG9jYWxob3N0In0.VO0-PRjJ2MGOrMk2HxlrBv217pB7hyLxLIQUGgSfyXs' \
   -d 'topic=https://example.com/books/1' \
   -d 'data={"status": "checked out"}'
 ```
@@ -86,12 +88,17 @@ The bearer token is an OAuth 2.0 access token signed with the dev key above (hea
 ```jsonc
 // Publish a Mercure Update with curl
 {
+  "iss": "https://localhost",
   "aud": "https://localhost/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
-    { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
+      "actions": ["publish"],
+      "topics": [{ "match": "*" }],
+    },
+    {
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [{ "match": "*" }],
     },
@@ -99,7 +106,7 @@ The bearer token is an OAuth 2.0 access token signed with the dev key above (hea
 }
 ```
 
-The `aud` matches the hub's `resource_identifier`, the `typ` header is `at+jwt`, and the `publish` grant covers every topic. Generate your own at [jwt.io](https://jwt.io). Details in [Authorization](../concepts/authorization.md).
+The `iss` matches the hub's `trusted_issuers`, the `aud` matches its `resource_identifier`, the `typ` header is `at+jwt`, and the `publish` grant covers every topic. Generate your own at [jwt.io](https://jwt.io). Details in [Authorization](../concepts/authorization.md).
 
 ## Closing the Mercure EventSource connection
 

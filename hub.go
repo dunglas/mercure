@@ -34,6 +34,11 @@ var ErrMissingResourceIdentifier = errors.New("a resource identifier (or public 
 // URL without a fragment component.
 var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be an absolute URL without a fragment (RFC 9728)")
 
+// ErrMissingTrustedIssuers is returned when the hub validates access tokens in
+// modern mode but no trusted issuer is configured: the protocol requires the
+// token iss claim to exactly match a trusted issuer (RFC 9068 §4).
+var ErrMissingTrustedIssuers = errors.New("at least one trusted issuer is required when JWT authentication is enabled; set WithTrustedIssuers or WithAuthorizationServers, or enable compatibility mode")
+
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
 
@@ -334,14 +339,28 @@ func WithResourceIdentifier(resourceIdentifier string) Option {
 // WithAuthorizationServers sets the OAuth 2.0 authorization server issuer
 // identifiers advertised in the hub's protected resource metadata (RFC 9728).
 //
-// When set, the token issuer (iss) check applies to both publisher and
-// subscriber tokens: a token whose iss is not one of these identifiers is
-// rejected. A self-issued token (for example a publisher signing with a key
-// shared out of band) must therefore carry a matching iss, or this option must
-// be left unset.
+// These identifiers are trusted issuers: a token whose iss claim matches one
+// of them is accepted (RFC 9068 §4). For self-issued tokens (a key shared out
+// of band, no authorization server), declare the issuer with WithTrustedIssuers
+// instead.
 func WithAuthorizationServers(authorizationServers []string) Option {
 	return func(o *opt) error {
 		o.authorizationServers = authorizationServers
+
+		return nil
+	}
+}
+
+// WithTrustedIssuers sets the issuer identifiers accepted in the token iss
+// claim in addition to the authorization servers (RFC 9068 §4). Use it for
+// self-issued tokens: each self-issuing publisher uses a stable identifier
+// (for example, its own URL) bound out of band to the signing key configured
+// with WithPublisherJWT, WithSubscriberJWT, or the key-function options.
+// Unlike WithAuthorizationServers, these issuers are not advertised in the
+// hub's protected resource metadata.
+func WithTrustedIssuers(trustedIssuers []string) Option {
+	return func(o *opt) error {
+		o.trustedIssuers = trustedIssuers
 
 		return nil
 	}
@@ -401,6 +420,7 @@ type opt struct {
 	resourceIdentifier           string
 	resourceMetadataURL          string
 	authorizationServers         []string
+	trustedIssuers               []string
 }
 
 // configureIdentifiers wires the public URL, the URL Pattern base, and the
@@ -432,6 +452,14 @@ func (o *opt) configureIdentifiers() error {
 	if o.resourceIdentifier == "" && o.protocolVersionCompatibility == 0 &&
 		(o.publisherJWTKeyFunc != nil || o.subscriberJWTKeyFunc != nil) {
 		return ErrMissingResourceIdentifier
+	}
+
+	// Same for the token issuer: the iss claim must exactly match a trusted
+	// issuer, so a token-validating hub needs at least one.
+	if len(o.authorizationServers) == 0 && len(o.trustedIssuers) == 0 &&
+		o.protocolVersionCompatibility == 0 &&
+		(o.publisherJWTKeyFunc != nil || o.subscriberJWTKeyFunc != nil) {
+		return ErrMissingTrustedIssuers
 	}
 
 	return o.applyModernDefaults()

@@ -28,6 +28,7 @@ localhost:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			transport local
 		}
 
@@ -75,6 +76,7 @@ localhost:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			transport local
 		}
 
@@ -104,6 +106,7 @@ localhost:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			transport local
 		}
 
@@ -152,6 +155,7 @@ localhost:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			transport local
 		}
 
@@ -231,6 +235,7 @@ localhost:9080 {
 			anonymous
 			publisher_jwt !ChangeMe!
 			resource_identifier https://example.com/.well-known/mercure
+			trusted_issuers https://example.com
 			transport local
 		}
 

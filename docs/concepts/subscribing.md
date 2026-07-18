@@ -40,7 +40,7 @@ A few things to know:
 
 - Browsers cap concurrent HTTP/1.1 requests per origin at 6. With HTTP/2 (the default everywhere on HTTPS) the cap is 100 streams negotiated with the server. **Use HTTP/2**: your hub already speaks it.
 - A single `EventSource` connection can carry as many topic subscriptions as you want by passing more `match*` parameters.
-- `EventSource` does not let you set `Authorization` headers. For private subscriptions, use the [`mercure_access_token` cookie](authorization.md#cookies-in-detail) (recommended) or the `access_token` query parameter (last resort).
+- `EventSource` does not let you set `Authorization` headers. For private subscriptions, use the [`mercure_access_token` cookie](authorization.md#cookies-in-detail), or consume the stream with `fetch()` and an `Authorization` header when a cookie can't work (per-tab tokens, cross-domain hub).
 
 ### `fetch-event-source` for advanced cases
 

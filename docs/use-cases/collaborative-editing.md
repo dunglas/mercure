@@ -102,11 +102,12 @@ Use [subscription events](../concepts/active-subscriptions.md) to show who's con
 ```jsonc
 // Collaborative Presence with Mercure Subscription Events (header: { "alg": "...", "typ": "at+jwt" })
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://docs.example.com/books/42" },
@@ -189,11 +190,12 @@ Documents are usually private. Each user's `subscribe` grant should cover only t
 ```jsonc
 // Authorization (header: { "alg": "...", "typ": "at+jwt" })
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://docs.example.com/books/42" },

@@ -7,10 +7,15 @@ HUB_URL = os.environ.get("HUB_URL", "https://localhost/.well-known/mercure")
 
 token = jwt.encode(
     {
+        "iss": os.environ.get("ISSUER", "https://localhost"),
         "aud": HUB_URL,
         "exp": 4102444800,
         "authorization_details": [
-            {"type": "mercure", "actions": ["subscribe"], "topics": [{"match": "*"}]}
+            {
+                "type": "https://mercure.rocks/authorization-detail",
+                "actions": ["subscribe"],
+                "topics": [{"match": "*"}],
+            }
         ],
     },
     os.environ.get("JWT_KEY", "!ChangeThisMercureHubJWTSecretKey!"),

@@ -133,7 +133,7 @@ The publisher's access token must carry an `authorization_details` entry whose `
 {
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["publish"],
       "topics": [
         {

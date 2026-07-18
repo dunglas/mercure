@@ -123,11 +123,12 @@ For per-user or per-team streams (a kanban board only the team's members can see
 ```jsonc
 // Private Turbo Streams over Mercure (header: { "alg": "...", "typ": "at+jwt" })
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/teams/acme/board" },

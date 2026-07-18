@@ -24,17 +24,19 @@ import (
 const (
 	e2eKey = "e2e-secret"
 	e2eAud = "https://hub.example/.well-known/mercure"
+	e2eIss = "https://app.example"
 )
 
 func e2eToken(t *testing.T, action string, topics []map[string]any, payload any) string {
 	t.Helper()
 
-	detail := map[string]any{"type": "mercure", "actions": []string{action}, "topics": topics}
+	detail := map[string]any{"type": authorizationDetailTypeMercure, "actions": []string{action}, "topics": topics}
 	if payload != nil {
 		detail["payload"] = payload
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"iss":                   e2eIss,
 		"aud":                   e2eAud,
 		"exp":                   4102444800,
 		"authorization_details": []any{detail},
@@ -57,6 +59,7 @@ func e2eHub(t *testing.T) *Hub {
 		WithPublisherJWT([]byte(e2eKey), "HS256"),
 		WithSubscriberJWT([]byte(e2eKey), "HS256"),
 		WithResourceIdentifier(e2eAud),
+		WithTrustedIssuers([]string{e2eIss}),
 		WithPublicURL(e2eAud),
 		WithSubscriptions(),
 		WithTopicMatcherStore(tms),

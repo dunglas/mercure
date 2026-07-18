@@ -54,6 +54,7 @@ func TestNewHubWithConfig(t *testing.T) {
 		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
 		WithResourceIdentifier(testResourceIdentifier),
+		WithTrustedIssuers([]string{testIssuer}),
 	)
 	require.NotNil(t, h)
 	require.NoError(t, err)
@@ -351,7 +352,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(t.Context(), WithPublisherJWT([]byte(""), "HS256"), WithResourceIdentifier(testResourceIdentifier))
+	h, err := NewHub(t.Context(), WithPublisherJWT([]byte(""), "HS256"), WithResourceIdentifier(testResourceIdentifier), WithTrustedIssuers([]string{testIssuer}))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -401,6 +402,7 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 			WithResourceIdentifier(testResourceIdentifier),
+			WithTrustedIssuers([]string{testIssuer}),
 			WithTopicMatcherStore(tms),
 		},
 		options...,
@@ -455,6 +457,7 @@ func TestNewHubDefaultJWTAlgorithms(t *testing.T) {
 
 	h, err := NewHub(t.Context(),
 		WithResourceIdentifier(testResourceIdentifier),
+		WithTrustedIssuers([]string{testIssuer}),
 		WithSubscriberJWTKeyFunc(func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }),
 	)
 	require.NoError(t, err)
@@ -493,6 +496,10 @@ func TestCompatModeDefaultJWTAlgorithms(t *testing.T) {
 }
 
 const testResourceIdentifier = "https://example.com/.well-known/mercure"
+
+// testIssuer is the trusted issuer identifier minted access tokens carry and
+// that createDummy configures the hub with.
+const testIssuer = "https://example.com"
 
 func createDummyAuthorizedJWT(r role, topics []string) string {
 	return createDummyAuthorizedJWTWithPayload(r, topics, struct {
@@ -543,14 +550,16 @@ func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) s
 	return mintAccessToken(key, testResourceIdentifier, details)
 }
 
-// mintAccessToken signs an RFC 9068 access token (typ at+jwt, audience set,
-// exp in one hour) carrying the given authorization details.
+// mintAccessToken signs an RFC 9068 access token (typ at+jwt, trusted issuer,
+// audience set, exp in one hour) carrying the given authorization details.
 func mintAccessToken(key []byte, audience string, details []authorizationDetail) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    testIssuer,
 			Audience:  jwt.ClaimStrings{audience},
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		},
 		AuthorizationDetails: details,

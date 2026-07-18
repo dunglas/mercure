@@ -168,11 +168,12 @@ Mint a JWT for the user when they load the chat page:
 ```jsonc
 // Authorization sketch (header: { "alg": "...", "typ": "at+jwt" })
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [{ "match": "https://example.com/conversations/42" }],
       "payload": { "user": "https://example.com/users/42" },

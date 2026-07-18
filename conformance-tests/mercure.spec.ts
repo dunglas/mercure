@@ -165,10 +165,10 @@ test.describe("Publish update", () => {
             method: "POST",
             headers: {
               // RFC 9068 access token (typ at+jwt, aud the hub resource
-              // identifier) granting publish and subscribe on every topic via
-              // an authorization_details claim.
+              // identifier, iss the trusted issuer) granting publish and
+              // subscribe on every topic via an authorization_details claim.
               Authorization:
-                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJ0b3BpY3MiOlt7Im1hdGNoIjoiKiJ9XSwidHlwZSI6Im1lcmN1cmUifV0sImV4cCI6NDEwMjQ0NDgwMH0.AIQorI3mpd1OEJXqqgnnuTid7QDJgQFfkv8pNb4cDR0",
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3QiLCJhdXRob3JpemF0aW9uX2RldGFpbHMiOlt7InR5cGUiOiJodHRwczovL21lcmN1cmUucm9ja3MvYXV0aG9yaXphdGlvbi1kZXRhaWwiLCJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV19LHsidHlwZSI6Imh0dHBzOi8vbWVyY3VyZS5yb2Nrcy9hdXRob3JpemF0aW9uLWRldGFpbCIsImFjdGlvbnMiOlsic3Vic2NyaWJlIl0sInRvcGljcyI6W3sibWF0Y2giOiIqIn1dfV0sImV4cCI6NDEwMjQ0NDgwMH0.z_S8IP5WZsCK8h3pcq0PB5zvJE0OdTrGA70khAYJQy4",
             },
             body: event,
           });

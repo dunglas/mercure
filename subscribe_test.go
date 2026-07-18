@@ -1179,6 +1179,7 @@ func TestSubscribeExpires(t *testing.T) {
 	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    testIssuer,
 			Audience:  jwt.ClaimStrings{testResourceIdentifier},
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
 		},
@@ -1222,6 +1223,7 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 		WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
 		WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
 		WithResourceIdentifier(testResourceIdentifier),
+		WithTrustedIssuers([]string{testIssuer}),
 		WithTopicMatcherStore(tms),
 		WithWriteTimeout(writeTimeout),
 	)

@@ -43,11 +43,12 @@ The cookie carries an access token scoped to that user only:
 ```jsonc
 // Per-User Mercure Notifications (header: { "alg": "...", "typ": "at+jwt" })
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         { "match": "https://example.com/users/42/notifications" },
@@ -158,7 +159,7 @@ Notifications often carry personal data. A few rules:
 
 - Always mark notification updates `private=on`.
 - Authorize per-user: never use a wildcard subscriber matcher for notifications.
-- Don't leak the topic's path in URLs that could end up in logs (avoid the `access_token` query parameter; use cookies).
+- Don't leak the topic's path in URLs that could end up in logs (the hub accepts no `access_token` query parameter; use cookies or the `Authorization` header).
 - Consider [end-to-end encryption](../concepts/encryption.md) if the hub operator should not see the content.
 
 ## Next steps for Mercure notifications

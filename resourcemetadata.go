@@ -38,11 +38,12 @@ type protectedResourceMetadata struct {
 }
 
 // bearerMethodsSupported lists the RFC 6750 token presentation methods the hub
-// accepts. The cookie mechanism is not an RFC 6750 method, so it is advertised
-// through the dedicated "mercure_cookie" member instead.
+// accepts. "query" is not accepted (RFC 9700 §4.3.2), and the cookie mechanism
+// is not an RFC 6750 method, so it is advertised through the dedicated
+// "mercure_cookie" member instead.
 //
 //nolint:gochecknoglobals
-var bearerMethodsSupported = []string{"header", "query"}
+var bearerMethodsSupported = []string{"header"}
 
 // ProtectedResourceMetadataHandler serves the hub's RFC 9728 protected
 // resource metadata document.

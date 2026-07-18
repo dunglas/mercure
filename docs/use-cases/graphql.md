@@ -161,11 +161,12 @@ For a subscriber to open one connection that covers all of their subscriptions a
 ```jsonc
 // Authorization (header: { "alg": "...", "typ": "at+jwt" })
 {
+  "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
   "exp": 4102444800,
   "authorization_details": [
     {
-      "type": "mercure",
+      "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
       "topics": [
         {
