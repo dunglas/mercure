@@ -37,8 +37,8 @@ var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be a
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
 
-// defaultJWTAlgorithms is the signature-algorithm allowlist applied in modern
-// mode when a JWT key function is configured without an explicit list (the
+// defaultJWTAlgorithms is the signature-algorithm allowlist applied, in every
+// mode, when a JWT key function is configured without an explicit list (the
 // JWKS path). It contains only asymmetric algorithms: allowing an HMAC
 // algorithm next to public keys would enable algorithm-confusion attacks.
 //
@@ -437,10 +437,25 @@ func (o *opt) configureIdentifiers() error {
 	return o.applyModernDefaults()
 }
 
-// applyModernDefaults enforces the modern-mode (non-compatibility) config
-// rules: an RFC 9728-shaped resource identifier and an explicit JWS
-// algorithm allowlist for every configured key function.
+// applyModernDefaults enforces the config invariants: an explicit JWS
+// algorithm allowlist for every configured key function (in every mode) and,
+// in modern mode only, an RFC 9728-shaped resource identifier.
 func (o *opt) applyModernDefaults() error {
+	// The protocol requires an explicit signature-algorithm allowlist that is
+	// never derived from the token. Key functions configured without one (the
+	// JWKS path) get the documented default: asymmetric algorithms only, so a
+	// public JWK can never be reinterpreted as an HMAC secret. This holds in
+	// compatibility mode too: a relaxed protocol version must never relax the
+	// algorithm allowlist. Operators pinning a symmetric algorithm on a bare
+	// key function opt in explicitly via WithPublisher/SubscriberJWTAlgorithms.
+	if o.publisherJWTKeyFunc != nil && len(o.publisherJWTAlgorithms) == 0 {
+		o.publisherJWTAlgorithms = defaultJWTAlgorithms
+	}
+
+	if o.subscriberJWTKeyFunc != nil && len(o.subscriberJWTAlgorithms) == 0 {
+		o.subscriberJWTAlgorithms = defaultJWTAlgorithms
+	}
+
 	if o.protocolVersionCompatibility != 0 {
 		return nil
 	}
@@ -457,18 +472,6 @@ func (o *opt) applyModernDefaults() error {
 		if u.Scheme != schemeHTTPS {
 			o.logger.Warn(`The resource identifier does not use the "https" scheme; strict RFC 9728 clients will ignore the hub's protected resource metadata.`)
 		}
-	}
-
-	// The protocol requires an explicit signature-algorithm allowlist that is
-	// never derived from the token. Key functions configured without one (the
-	// JWKS path) get the documented default: asymmetric algorithms only, so a
-	// public JWK can never be reinterpreted as an HMAC secret.
-	if o.publisherJWTKeyFunc != nil && len(o.publisherJWTAlgorithms) == 0 {
-		o.publisherJWTAlgorithms = defaultJWTAlgorithms
-	}
-
-	if o.subscriberJWTKeyFunc != nil && len(o.subscriberJWTAlgorithms) == 0 {
-		o.subscriberJWTAlgorithms = defaultJWTAlgorithms
 	}
 
 	return nil
