@@ -385,7 +385,7 @@ func TestAuthorizeRejectsUntrustedIssuer(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, c))
 
-	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}))
+	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}), WithTrustedIssuers(nil))
 
 	claims, err := h.authorize(r, false)
 	require.ErrorIs(t, err, ErrInvalidJWT)
@@ -406,7 +406,7 @@ func TestAuthorizeAcceptsTrustedIssuer(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, c))
 
-	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}))
+	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}), WithTrustedIssuers(nil))
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)

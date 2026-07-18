@@ -11,7 +11,7 @@ The greatest hits, in roughly the order you're likely to hit them.
 
 The hub returns `401` either with a bare `WWW-Authenticate: Bearer` challenge (no token) or `error="invalid_token"` (a token that failed validation). Causes, in priority order:
 
-1. **No token presented.** Check that the request carries an `Authorization: Bearer` header or the `mercure_access_token` cookie (the `access_token` query parameter is not accepted). For browsers, `EventSource(url, { withCredentials: true })` is required for cross-origin requests.
+1. **No token presented.** Check that the request carries an `Authorization: Bearer` header or the `__Secure-mercure_access_token` cookie (the `access_token` query parameter is not accepted). For browsers, `EventSource(url, { withCredentials: true })` is required for cross-origin requests.
 2. **Missing `typ: at+jwt` header, wrong `iss`, or wrong `aud`.** Access tokens must use the `at+jwt` header type, carry an `iss` matching one of the hub's `trusted_issuers` (or `authorization_servers`), and an `aud` matching its `resource_identifier`. A plain `JWT` token, or one minted for a different issuer or audience, fails. See [Authorization](../concepts/authorization.md) and the [upgrade guide](../UPGRADE.md#10-from-0x).
 3. **Malformed `authorization_details`.** Each `mercure` entry needs a non-empty `actions` array and a non-empty `topics` array of `{ match, match_type? }` objects. One bad detail rejects the whole token.
 4. **Wrong key or algorithm.** The hub verifies with the configured key + algorithm. If your token is signed with HS256 and the hub is set to RS256, it fails. Check `MERCURE_*_JWT_KEY` and `MERCURE_*_JWT_ALG`.

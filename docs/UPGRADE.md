@@ -21,7 +21,7 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | Topics per update         | Canonical + alternates                                             | Exactly one                                                                    |
 | Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `iss`, `aud`, `authorization_details`   |
 | Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries with the Mercure `type` URI (see below)        |
-| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `mercure_access_token` cookie; no query parameter (RFC 9700)                   |
+| Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `__Secure-mercure_access_token` cookie; no query parameter (RFC 9700)          |
 | Auth errors               | `401` / silent drop                                                | RFC 6750: `401 invalid_token`, `403 insufficient_scope`, `400 invalid_request` |
 | Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`         |
 
@@ -96,7 +96,7 @@ Rules:
 
 ### Migrate token presentation
 
-- The cookie default name changes from `mercureAuthorization` to `mercure_access_token` (override with `cookie_name`).
+- The cookie default name changes from `mercureAuthorization` to `__Secure-mercure_access_token` (override with `cookie_name`; use a prefix-less name for plain-HTTP development).
 - The `authorization` query parameter is gone and has no replacement: [RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids access tokens in URLs. Browsers that can't set headers use the cookie; everything else (including `fetch()` with a readable stream) uses the `Authorization` header.
 - The `Authorization: Bearer` header is unchanged and takes precedence over the cookie.
 

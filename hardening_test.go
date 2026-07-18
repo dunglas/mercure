@@ -63,6 +63,74 @@ func TestPublishTopicWithNULRejected(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
+// The protocol requires rejecting requests exceeding the hub's body-size
+// limit with a 413 status code.
+func TestPublishBodyOverLimitRejectedWith413(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithMaxRequestBodySize(1024))
+	token := mintAccessToken([]byte("publisher"), testResourceIdentifier, publishAllDetails())
+
+	form := url.Values{}
+	form.Add("topic", "https://example.com/books/1")
+	form.Add("data", strings.Repeat("x", 2048))
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+token)
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+}
+
+func TestQuerySubscribeBodyOverLimitRejectedWith413(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithMaxRequestBodySize(1024))
+
+	body := "match=" + strings.Repeat("a", 2048)
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body))
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+}
+
+// A zero size disables the in-hub limit (delegation to a reverse proxy).
+func TestMaxRequestBodySizeZeroDisablesLimit(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithMaxRequestBodySize(0))
+	token := mintAccessToken([]byte("publisher"), testResourceIdentifier, publishAllDetails())
+
+	form := url.Values{}
+	form.Add("topic", "https://example.com/books/1")
+	form.Add("data", strings.Repeat("x", int(DefaultMaxRequestBodySize)+1))
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+token)
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
 // TestSubscribeInvalidURLPatternDoesNotLeakInternals ensures the 400 body for
 // an uncompilable URL Pattern is a generic message, never the go-urlpattern
 // error text (which can embed a live heap pointer, CWE-209).

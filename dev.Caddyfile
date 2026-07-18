@@ -29,6 +29,8 @@
 		# Trusted issuer (access token iss claim)
 		trusted_issuers {$MERCURE_TRUSTED_ISSUERS:https://localhost}
 		# Permissive configuration for the development environment
+		# Prefix-less cookie name so the demo also works over plain HTTP
+		cookie_name mercure_access_token
 		cors_origins *
 		publish_origins *
 		demo

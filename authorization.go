@@ -30,12 +30,12 @@ type role int
 
 const (
 	// defaultCookieName is the name of the authorization cookie carrying the
-	// access token. Over HTTPS the spec recommends the "__Secure-" prefixed name
-	// "__Secure-mercure_access_token"; this prefix-less default keeps the cookie
-	// usable on plain HTTP (local development). The pre-1.0 name
-	// "mercureAuthorization" is accepted as a fallback only in deprecated_claim
-	// builds running in compatibility mode.
-	defaultCookieName = "mercure_access_token"
+	// access token: the spec-recommended "__Secure-" prefixed name, which user
+	// agents refuse over insecure transport. Plain-HTTP deployments (local
+	// development) must configure a prefix-less name with WithCookieName. The
+	// pre-1.0 name "mercureAuthorization" is accepted as a fallback only in
+	// deprecated_claim builds running in compatibility mode.
+	defaultCookieName = "__Secure-mercure_access_token"
 	bearerPrefix      = "Bearer "
 	// minCompactJWSLen is the shortest plausible length of a JWS in compact
 	// serialization (two dots plus base64url-encoded header, claims and

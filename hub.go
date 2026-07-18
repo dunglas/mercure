@@ -19,6 +19,10 @@ const (
 	DefaultWriteTimeout    = 600 * time.Second
 	DefaultDispatchTimeout = 5 * time.Second
 	DefaultHeartbeat       = 40 * time.Second
+
+	// DefaultMaxRequestBodySize bounds the publish and QUERY subscribe request
+	// bodies; larger requests are rejected with a 413 as the protocol requires.
+	DefaultMaxRequestBodySize int64 = 1 << 20 // 1 MiB
 )
 
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
@@ -38,6 +42,13 @@ var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be a
 // modern mode but no trusted issuer is configured: the protocol requires the
 // token iss claim to exactly match a trusted issuer (RFC 9068 §4).
 var ErrMissingTrustedIssuers = errors.New("at least one trusted issuer is required when JWT authentication is enabled; set WithTrustedIssuers or WithAuthorizationServers, or enable compatibility mode")
+
+// ErrTooManyTrustedIssuers is returned when more than one trusted issuer is
+// configured in modern mode. Keys are configured per role, not per issuer, so
+// several trusted issuers would share the same key material and a token signed
+// for one issuer could be replayed under another — the spec requires verifying
+// a token only with the keys associated with its iss claim.
+var ErrTooManyTrustedIssuers = errors.New("only one trusted issuer is supported; set a single issuer with WithTrustedIssuers or WithAuthorizationServers")
 
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
@@ -134,10 +145,23 @@ func WithDispatchTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithHeartbeat sets the frequency of the heartbeat, disabled by default.
+// WithHeartbeat sets the frequency of the SSE keep-alive comments, defaults
+// to 40s, set to 0 to disable.
 func WithHeartbeat(interval time.Duration) Option {
 	return func(o *opt) error {
 		o.heartbeat = interval
+
+		return nil
+	}
+}
+
+// WithMaxRequestBodySize bounds the size, in bytes, of publish and QUERY
+// subscribe request bodies; larger requests are rejected with a 413 status
+// code. Defaults to DefaultMaxRequestBodySize, set to 0 to disable the
+// in-hub limit (for example, when a reverse proxy already enforces one).
+func WithMaxRequestBodySize(size int64) Option {
+	return func(o *opt) error {
+		o.maxRequestBodySize = size
 
 		return nil
 	}
@@ -279,7 +303,10 @@ func WithTopicMatcherStore(tms *TopicMatcherStore) Option {
 	}
 }
 
-// WithCookieName sets the name of the authorization cookie (defaults to "mercure_access_token").
+// WithCookieName sets the name of the authorization cookie (defaults to
+// "__Secure-mercure_access_token"). The default "__Secure-" prefix makes user
+// agents refuse the cookie over insecure transport; plain-HTTP deployments
+// (local development) must configure a prefix-less name.
 func WithCookieName(cookieName string) Option {
 	return func(o *opt) error {
 		o.cookieName = cookieName
@@ -343,6 +370,10 @@ func WithResourceIdentifier(resourceIdentifier string) Option {
 // of them is accepted (RFC 9068 §4). For self-issued tokens (a key shared out
 // of band, no authorization server), declare the issuer with WithTrustedIssuers
 // instead.
+//
+// In modern mode a single trusted issuer is supported across this option and
+// WithTrustedIssuers combined: keys are configured per role, not per issuer,
+// so several issuers would share key material (see ErrTooManyTrustedIssuers).
 func WithAuthorizationServers(authorizationServers []string) Option {
 	return func(o *opt) error {
 		o.authorizationServers = authorizationServers
@@ -358,6 +389,11 @@ func WithAuthorizationServers(authorizationServers []string) Option {
 // with WithPublisherJWT, WithSubscriberJWT, or the key-function options.
 // Unlike WithAuthorizationServers, these issuers are not advertised in the
 // hub's protected resource metadata.
+//
+// In modern mode a single trusted issuer is supported across this option and
+// WithAuthorizationServers combined: keys are configured per role, not per
+// issuer, so several issuers would share key material (see
+// ErrTooManyTrustedIssuers).
 func WithTrustedIssuers(trustedIssuers []string) Option {
 	return func(o *opt) error {
 		o.trustedIssuers = trustedIssuers
@@ -404,6 +440,7 @@ type opt struct {
 	writeTimeout                 time.Duration
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
+	maxRequestBodySize           int64
 	publisherJWTKeyFunc          jwt.Keyfunc
 	subscriberJWTKeyFunc         jwt.Keyfunc
 	publisherJWTAlgorithms       []string
@@ -455,11 +492,19 @@ func (o *opt) configureIdentifiers() error {
 	}
 
 	// Same for the token issuer: the iss claim must exactly match a trusted
-	// issuer, so a token-validating hub needs at least one.
-	if len(o.authorizationServers) == 0 && len(o.trustedIssuers) == 0 &&
-		o.protocolVersionCompatibility == 0 &&
+	// issuer, so a token-validating hub needs at least one. It also needs at
+	// most one: keys are configured per role, not per issuer, so a second
+	// issuer would share the first one's key material and tokens could be
+	// replayed across issuer identities (see ErrTooManyTrustedIssuers).
+	if o.protocolVersionCompatibility == 0 &&
 		(o.publisherJWTKeyFunc != nil || o.subscriberJWTKeyFunc != nil) {
-		return ErrMissingTrustedIssuers
+		switch len(o.authorizationServers) + len(o.trustedIssuers) {
+		case 0:
+			return ErrMissingTrustedIssuers
+		case 1:
+		default:
+			return ErrTooManyTrustedIssuers
+		}
 	}
 
 	return o.applyModernDefaults()
@@ -521,9 +566,10 @@ type Hub struct {
 // NewHub creates a new Hub instance.
 func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 	opt := &opt{
-		writeTimeout:    DefaultWriteTimeout,
-		dispatchTimeout: DefaultDispatchTimeout,
-		heartbeat:       DefaultHeartbeat,
+		writeTimeout:       DefaultWriteTimeout,
+		dispatchTimeout:    DefaultDispatchTimeout,
+		heartbeat:          DefaultHeartbeat,
+		maxRequestBodySize: DefaultMaxRequestBodySize,
 	}
 
 	for _, o := range options {
@@ -578,4 +624,13 @@ func (h *Hub) Stop(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// limitRequestBody bounds the request body per WithMaxRequestBodySize; the
+// protocol requires rejecting larger requests with a 413 status code, which
+// handlers detect through the *http.MaxBytesError read failure.
+func (h *Hub) limitRequestBody(w http.ResponseWriter, r *http.Request) {
+	if h.maxRequestBodySize > 0 {
+		r.Body = http.MaxBytesReader(w, r.Body, h.maxRequestBodySize)
+	}
 }

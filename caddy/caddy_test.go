@@ -395,7 +395,6 @@ func TestProtectedResourceMetadata(t *testing.T) {
 				publisher_jwt !ChangeMe!
 				subscriber_jwt !ChangeMe!
 				resource_identifier https://example.com/.well-known/mercure
-				trusted_issuers https://example.com
 				authorization_servers https://as.example.com
 			}
 
@@ -416,6 +415,43 @@ func TestProtectedResourceMetadata(t *testing.T) {
 
 	assert.Contains(t, string(b), `"resource":"https://example.com/.well-known/mercure"`)
 	assert.Contains(t, string(b), `"authorization_servers":["https://as.example.com"]`)
+}
+
+// The protocol requires rejecting requests exceeding the body-size limit with
+// a 413 status code.
+func TestMaxRequestBodySize(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				publisher_jwt !ChangeMe!
+				subscriber_jwt !ChangeMe!
+				resource_identifier https://example.com/.well-known/mercure
+				trusted_issuers https://example.com
+				max_request_body_size 1KB
+				transport local
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {strings.Repeat("x", 2048)}}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	require.NoError(t, err)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+publisherJWT)
+
+	resp := tester.AssertResponseCode(req, http.StatusRequestEntityTooLarge)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestAllowNoPublish(t *testing.T) {

@@ -14,6 +14,9 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	hub := createDummy(t,
 		WithResourceIdentifier("https://example.com/.well-known/mercure"),
 		WithAuthorizationServers([]string{"https://as.example.com"}),
+		// createDummy declares a trusted issuer; clear it, a single issuer is
+		// supported across both options (ErrTooManyTrustedIssuers).
+		WithTrustedIssuers(nil),
 	)
 
 	req := httptest.NewRequest(http.MethodGet, protectedResourceMetadataPath, nil)
