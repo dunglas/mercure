@@ -122,6 +122,8 @@ Or use the [Caddy download page](https://caddyserver.com/download?package=github
 
 Mercure is also a Go library. See [pkg.go.dev/github.com/dunglas/mercure](https://pkg.go.dev/github.com/dunglas/mercure). You'd typically reach for it when you want to ship a hub as part of a larger Go binary; for everything else the standalone server is simpler.
 
+A hub built without a publisher key leaves the publish endpoint unauthenticated (the protocol's closed-network deployment mode): such a hub must never be reachable from untrusted networks. The Caddy module refuses this configuration unless the embedding application opts in with `AllowNoPublish`.
+
 ## Verify the Mercure hub installation
 
 ```console

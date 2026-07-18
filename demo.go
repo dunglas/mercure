@@ -7,6 +7,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -19,7 +20,7 @@ var uiContent embed.FS
 
 // Demo exposes INSECURE Demo endpoints to test discovery and authorization mechanisms.
 // Add a query parameter named "body" to define the content to return in the response's body.
-// Add a query parameter named "jwt" set a "mercure_access_token" cookie containing this token.
+// Add a query parameter named "jwt" to set the authorization cookie (see WithCookieName) containing this token.
 // The Content-Type header will automatically be set according to the URL's extension.
 func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 	// JSON-LD is the preferred format
@@ -45,12 +46,16 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Secure / HttpOnly are conditional on TLS so the demo keeps working
-	// when served over plain HTTP locally; gosec wants them unconditional.
+	// when served over plain HTTP locally (with a prefix-less cookie name);
+	// gosec wants them unconditional. A "__Secure-" prefixed name requires
+	// the Secure attribute regardless, or user agents drop the cookie.
+	secure := r.TLS != nil || strings.HasPrefix(h.cookieName, "__Secure-")
+
 	cookie := &http.Cookie{ //nolint:gosec
 		Name:     h.cookieName,
 		Path:     defaultHubURL,
 		Value:    jwt,
-		Secure:   r.TLS != nil,
+		Secure:   secure,
 		HttpOnly: r.TLS != nil,
 		SameSite: http.SameSiteStrictMode,
 	}

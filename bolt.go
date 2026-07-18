@@ -157,7 +157,7 @@ func (t *BoltTransport) AddSubscriber(ctx context.Context, s *LocalSubscriber) e
 	toSeq := t.lastSeq
 	t.Unlock()
 
-	if s.RequestLastEventID != "" {
+	if s.RequestLastEventIDSet {
 		if err := t.dispatchHistory(ctx, s, toSeq); err != nil {
 			return err
 		}

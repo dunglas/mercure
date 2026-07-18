@@ -13,6 +13,7 @@ require (
 	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/caddyserver/caddy/v2 v2.11.4
 	github.com/dunglas/mercure v0.24.2
+	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
 )
@@ -58,7 +59,6 @@ require (
 	github.com/dlclark/regexp2/v2 v2.1.1 // indirect
 	github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526 // indirect
 	github.com/dunglas/skipfilter v1.0.0 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect

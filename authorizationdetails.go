@@ -242,7 +242,9 @@ func validateMercureDetail(tms *TopicMatcherStore, d authorizationDetail) (valid
 		case actionSubscribe:
 			vd.subscribe = true
 		default:
-			return vd, fmt.Errorf("%w: unsupported action %q", errInvalidAuthorizationDetail, a)
+			// The spec requires ignoring unrecognized actions so issuers can use
+			// actions registered by future specifications: the action grants
+			// nothing, but its presence does not invalidate the token.
 		}
 	}
 

@@ -43,7 +43,7 @@ https://hub.example.com/.well-known/oauth-protected-resource/.well-known/mercure
     "https://mercure.rocks/authorization-detail"
   ],
   "authorization_servers": ["https://auth.example.com"],
-  "mercure_cookie": "mercure_access_token"
+  "mercure_cookie": "__Secure-mercure_access_token"
 }
 ```
 

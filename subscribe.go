@@ -215,15 +215,27 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	ctx, span := startSpan(ctx, "mercure.subscribe", trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
+	h.limitRequestBody(w, r)
+
 	values, err := h.subscribeValues(r)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		status := http.StatusBadRequest
+
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			status = http.StatusRequestEntityTooLarge
+		}
+
+		http.Error(w, http.StatusText(status), status)
 		recordSpanError(span, err)
 
 		return nil, nil
 	}
 
-	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r, values), h.logger, h.topicMatcherStore)
+	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
+
+	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
+	s.RequestLastEventIDSet = lastEventIDSet
 
 	var claims *claims
 
@@ -331,7 +343,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 
-	if s.RequestLastEventID != "" {
+	if s.RequestLastEventIDSet {
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
@@ -345,8 +357,8 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 // subscribeValues returns the subscription parameters. For GET and HEAD they
 // come from the URL query; for QUERY the application/x-www-form-urlencoded
 // request body is parsed and merged on top, so a subscriber can pass topics
-// either way. Body size is bounded upstream (e.g. Caddy's request_body
-// directive), as for the publish endpoint.
+// either way. Body size is bounded by limitRequestBody, as for the publish
+// endpoint.
 func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
 	values := r.URL.Query()
 	if r.Method != methodQuery {
@@ -370,15 +382,23 @@ func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
 	return values, nil
 }
 
-// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
-func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query url.Values) string {
+// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP
+// header with a fallback on the query parameter. The second return value
+// reports whether either was present at all, even with an empty value: the
+// protocol requires answering with a Mercure-Last-Event-ID response field
+// whenever one was.
+func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query url.Values) (string, bool) {
 	if id := r.Header.Get("Last-Event-ID"); id != "" {
-		return id
+		return id, true
 	}
 
+	_, headerPresent := r.Header["Last-Event-Id"]
+
 	if id := query.Get("last_event_id"); id != "" {
-		return id
+		return id, true
 	}
+
+	_, queryPresent := query["last_event_id"]
 
 	if legacyEventIDValues, present := query["Last-Event-ID"]; present { //nolint:nestif
 		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)
@@ -388,14 +408,14 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query ur
 			}
 
 			if len(legacyEventIDValues) != 0 {
-				return legacyEventIDValues[0]
+				return legacyEventIDValues[0], true
 			}
 		} else if infoLevel {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID" query parameter is not supported anymore, use "last_event_id" instead or enable backward compatibility with version 7 of the protocol.`)
 		}
 	}
 
-	return ""
+	return "", headerPresent || queryPresent
 }
 
 // Write sends the given string to the client.

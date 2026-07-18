@@ -53,10 +53,33 @@ func TestValidateAuthorizationDetails(t *testing.T) {
 		assert.True(t, authz.details[0].subscribe)
 	})
 
+	t.Run("ignores unrecognized actions", func(t *testing.T) {
+		authz, err := validateAuthorizationDetails(tms, []authorizationDetail{{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{"delete", actionSubscribe},
+			Topics:  []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
+		}})
+		require.NoError(t, err)
+		require.Len(t, authz.details, 1)
+		assert.False(t, authz.details[0].publish)
+		assert.True(t, authz.details[0].subscribe)
+	})
+
+	t.Run("detail with only unrecognized actions grants nothing", func(t *testing.T) {
+		authz, err := validateAuthorizationDetails(tms, []authorizationDetail{{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{"delete"},
+			Topics:  []detailTopic{{TopicMatcher{MatcherTypeExact, "https://example.com/foo"}}},
+		}})
+		require.NoError(t, err)
+		require.Len(t, authz.details, 1)
+		assert.False(t, authz.details[0].publish)
+		assert.False(t, authz.details[0].subscribe)
+	})
+
 	for name, tc := range map[string]authorizationDetail{
-		"empty actions":  {Type: authorizationDetailTypeMercure, Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}}},
-		"unknown action": {Type: authorizationDetailTypeMercure, Actions: []mercureAction{"delete"}, Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}}},
-		"empty topics":   {Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}},
+		"empty actions": {Type: authorizationDetailTypeMercure, Topics: []detailTopic{{TopicMatcher{MatcherTypeExact, "a"}}}},
+		"empty topics":  {Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish}},
 		"unknown match_type": {
 			Type: authorizationDetailTypeMercure, Actions: []mercureAction{actionPublish},
 			Topics: []detailTopic{{TopicMatcher{"Regexp", "a"}}},

@@ -75,7 +75,7 @@ One invalid Mercure detail rejects the whole token (`401 invalid_token`); there 
 The hub reads the token from one of two places. Pick the one that matches your client:
 
 1. **`Authorization: Bearer <token>` header (preferred).** Right for server-side code, mobile apps, command-line tools, and browser code using `fetch()`: anything that can set custom headers. In the browser, consume the SSE stream through the `fetch()` response body when you need a per-tab or per-connection token, or when the hub lives on another domain — cases a cookie can't cover. The `Bearer` scheme name is matched case-insensitively.
-2. **`mercure_access_token` cookie (for `EventSource`).** Browsers can't attach headers to an `EventSource`; a cookie set with `HttpOnly`, `Secure`, and `SameSite` keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history, and rides along automatically. Set it at discovery time so it's already in place when the SSE connection opens.
+2. **`__Secure-mercure_access_token` cookie (for `EventSource`).** Browsers can't attach headers to an `EventSource`; a cookie set with `HttpOnly`, `Secure`, and `SameSite` keeps the token out of JavaScript (no XSS exfiltration), out of URL bars and history, and rides along automatically. Set it at discovery time so it's already in place when the SSE connection opens.
 
 There is no query-parameter mechanism: [RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids passing access tokens in URLs, where they leak into proxy logs, browser history, and `Referer` headers. When a request carries both a header and a cookie, the header wins and the cookie is ignored.
 
@@ -232,7 +232,7 @@ Set the cookie during discovery, when the user fetches the page or the API resou
 ```http
 # Cookies in detail
 HTTP/1.1 200 OK
-Set-Cookie: mercure_access_token=<JWT>; Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict
+Set-Cookie: __Secure-mercure_access_token=<JWT>; Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 ```
 
@@ -243,7 +243,7 @@ Required attributes:
 - `SameSite=Strict` or `Lax`: CSRF protection.
 - `Path=/.well-known/mercure`: limits the cookie to the hub URL.
 
-The default cookie name is `mercure_access_token`; override it with the `cookie_name` directive when several hubs share a domain. If the publisher and the hub run on different subdomains of the same registrable domain, set `Domain=example.com`. If they're on different domains, you can't use cookies; consume the stream with `fetch()` and an `Authorization` header instead.
+The default cookie name is `__Secure-mercure_access_token`; the `__Secure-` prefix makes browsers refuse it over insecure transport. Override it with the `cookie_name` directive when several hubs share a domain, or with a prefix-less name for plain-HTTP local development. If the publisher and the hub run on different subdomains of the same registrable domain, set `Domain=example.com`. If they're on different domains, you can't use cookies; consume the stream with `fetch()` and an `Authorization` header instead.
 
 `EventSource` does **not** send cookies on cross-origin requests by default. Pass `withCredentials: true` to opt in:
 

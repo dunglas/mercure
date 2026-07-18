@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyevents"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/dunglas/mercure"
+	"github.com/dustin/go-humanize"
 )
 
 const defaultHubURL = "/.well-known/mercure"
@@ -109,6 +111,11 @@ type Mercure struct {
 	// Frequency of the heartbeat, defaults to 40s.
 	Heartbeat *caddy.Duration `json:"heartbeat,omitempty"`
 
+	// Maximum size in bytes of publish and QUERY subscribe request bodies;
+	// larger requests are rejected with a 413 status code. Defaults to 1MiB,
+	// set to 0 to disable the in-hub limit.
+	MaxRequestBodySize *int64 `json:"max_request_body_size,omitempty"`
+
 	// JWT key and signing algorithm to use for publishers.
 	PublisherJWT JWTConfig `json:"publisher_jwt,omitzero"`
 
@@ -143,7 +150,9 @@ type Mercure struct {
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
 
-	// The name of the authorization cookie. Defaults to "mercure_access_token".
+	// The name of the authorization cookie. Defaults to
+	// "__Secure-mercure_access_token"; plain-HTTP deployments must configure a
+	// prefix-less name.
 	CookieName string `json:"cookie_name,omitempty"`
 
 	// The URL at which subscribers reach the hub. Used as the base URL when
@@ -321,6 +330,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithHeartbeat(time.Duration(*d)))
 	}
 
+	if s := m.MaxRequestBodySize; s != nil {
+		opts = append(opts, mercure.WithMaxRequestBodySize(*s))
+	}
+
 	if len(m.PublishOrigins) > 0 {
 		opts = append(opts, mercure.WithPublishOrigins(m.PublishOrigins))
 	}
@@ -451,6 +464,19 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				if m.Heartbeat, err = parseDurationParameter(d); err != nil {
 					return err
 				}
+
+			case "max_request_body_size":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				size, err := humanize.ParseBytes(d.Val())
+				if err != nil || size > math.MaxInt64 {
+					return d.Errf("invalid max_request_body_size %q", d.Val())
+				}
+
+				s := int64(size)
+				m.MaxRequestBodySize = &s
 
 			case "publisher_jwks_url":
 				if !d.NextArg() {

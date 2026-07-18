@@ -1134,6 +1134,52 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 	})
 }
 
+// A present-but-empty last_event_id still gets a Mercure-Last-Event-ID
+// response field, as the protocol requires whenever the parameter is present.
+func TestEmptyLastEventIDGetsResponseHeader(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		hub := createAnonymousDummy(t)
+		transport, _ := hub.transport.(*LocalTransport)
+
+		ctx := t.Context()
+
+		go func() {
+			ctx, cancel := context.WithCancel(ctx)
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo&last_event_id=", nil).WithContext(ctx)
+
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\nid: e1\ndata: d\n\n",
+				tb:                 t,
+				cancel:             cancel,
+			}
+
+			hub.SubscribeHandler(w, req)
+			assert.Equal(t, EarliestLastEventID, w.Header().Get("Mercure-Last-Event-ID"))
+		}()
+
+		for {
+			transport.RLock()
+			done := transport.subscribers.Len() == 1
+			transport.RUnlock()
+
+			if done {
+				break
+			}
+		}
+
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topic: "https://example.com/foo",
+			Event: Event{ID: "e1", Data: "d"},
+		}))
+
+		synctest.Wait()
+	})
+}
+
 func TestSubscribeHeartbeat(t *testing.T) {
 	hub := createAnonymousDummy(t, WithHeartbeat(5*time.Millisecond))
 	s, _ := hub.transport.(*LocalTransport)

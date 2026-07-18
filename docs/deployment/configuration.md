@@ -43,30 +43,31 @@ Setting the port to 80 also disables HTTPS implicitly.
 
 ## Mercure directives
 
-| Directive                                  | Description                                                                                                                               | Default                |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| `publisher_jwt <key> [<algorithm>]`        | JWT key + algorithm for publishers. Supports [Caddy placeholders](https://caddyserver.com/docs/conventions#placeholders).                 |                        |
-| `subscriber_jwt <key> [<algorithm>]`       | JWT key + algorithm for subscribers.                                                                                                      |                        |
-| `publisher_jwks_url <url>`                 | JWK Set URL for publisher token validation. Takes precedence over `publisher_jwt`. Accepts `file://` URLs.                                |                        |
-| `subscriber_jwks_url <url>`                | JWK Set URL for subscriber token validation.                                                                                              |                        |
-| `public_url <url>`                         | Canonical hub URL. Resolves relative URL Patterns and topics, and is the default `resource_identifier`.                                   |                        |
-| `resource_identifier <id>`                 | OAuth 2.0 resource identifier (token `aud`). Required when JWT auth is enabled in modern mode. See [Discovery](../concepts/discovery.md). | `public_url`           |
-| `authorization_servers <url...>`           | Authorization server issuer identifiers, trusted and advertised in the [protected resource metadata](../concepts/discovery.md).           |                        |
-| `trusted_issuers <id...>`                  | Additional issuer identifiers accepted in the token `iss` claim (self-issued tokens).                                                     |                        |
-| `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                          | off                    |
-| `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                      |                        |
-| `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                  |                        |
-| `cookie_name <name>`                       | Cookie that carries the access token for browser clients.                                                                                 | `mercure_access_token` |
-| `protocol_version_compatibility <version>` | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).         | off                    |
-| `subscriptions`                            | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                               | off                    |
-| `heartbeat <duration>`                     | Interval between SSE heartbeat comments. `0s` to disable.                                                                                 | `40s`                  |
-| `transport <name> [{ <options...> }]`      | Transport configuration. See [Transports](#mercure-hub-transports).                                                                       | `bolt`                 |
-| `dispatch_timeout <duration>`              | Max time to dispatch one update to one subscriber. `0s` disables.                                                                         | `5s`                   |
-| `write_timeout <duration>`                 | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                          | `600s`                 |
-| `topic_matcher_cache <maxEntries>`         | Cache for topic matcher evaluations. `0` or negative disables it.                                                                         | `100000`               |
-| `subscriber_list_cache_size <maxSize>`     | Subscriber list cache size. `0` for unbounded.                                                                                            | `100000`               |
-| `demo`                                     | Enable the debug UI **and** demo endpoints. Dev only.                                                                                     | off                    |
-| `ui`                                       | Enable the debug UI without the demo endpoints.                                                                                           | off                    |
+| Directive                                  | Description                                                                                                                               | Default                         |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `publisher_jwt <key> [<algorithm>]`        | JWT key + algorithm for publishers. Supports [Caddy placeholders](https://caddyserver.com/docs/conventions#placeholders).                 |                                 |
+| `subscriber_jwt <key> [<algorithm>]`       | JWT key + algorithm for subscribers.                                                                                                      |                                 |
+| `publisher_jwks_url <url>`                 | JWK Set URL for publisher token validation. Takes precedence over `publisher_jwt`. Accepts `file://` URLs.                                |                                 |
+| `subscriber_jwks_url <url>`                | JWK Set URL for subscriber token validation.                                                                                              |                                 |
+| `public_url <url>`                         | Canonical hub URL. Resolves relative URL Patterns and topics, and is the default `resource_identifier`.                                   |                                 |
+| `resource_identifier <id>`                 | OAuth 2.0 resource identifier (token `aud`). Required when JWT auth is enabled in modern mode. See [Discovery](../concepts/discovery.md). | `public_url`                    |
+| `authorization_servers <url...>`           | Authorization server issuer identifiers, trusted and advertised in the [protected resource metadata](../concepts/discovery.md).           |                                 |
+| `trusted_issuers <id...>`                  | Additional issuer identifiers accepted in the token `iss` claim (self-issued tokens).                                                     |                                 |
+| `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                          | off                             |
+| `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                      |                                 |
+| `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                  |                                 |
+| `cookie_name <name>`                       | Cookie that carries the access token for browser clients. Use a name without the `__Secure-` prefix for plain-HTTP development.           | `__Secure-mercure_access_token` |
+| `protocol_version_compatibility <version>` | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).         | off                             |
+| `subscriptions`                            | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                               | off                             |
+| `heartbeat <duration>`                     | Interval between SSE heartbeat comments. `0s` to disable.                                                                                 | `40s`                           |
+| `max_request_body_size <size>`             | Maximum size of publish and QUERY subscribe request bodies (e.g. `512KB`); larger requests get a `413`. `0` delegates to a reverse proxy. | `1MiB`                          |
+| `transport <name> [{ <options...> }]`      | Transport configuration. See [Transports](#mercure-hub-transports).                                                                       | `bolt`                          |
+| `dispatch_timeout <duration>`              | Max time to dispatch one update to one subscriber. `0s` disables.                                                                         | `5s`                            |
+| `write_timeout <duration>`                 | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                          | `600s`                          |
+| `topic_matcher_cache <maxEntries>`         | Cache for topic matcher evaluations. `0` or negative disables it.                                                                         | `100000`                        |
+| `subscriber_list_cache_size <maxSize>`     | Subscriber list cache size. `0` for unbounded.                                                                                            | `100000`                        |
+| `demo`                                     | Enable the debug UI **and** demo endpoints. Dev only.                                                                                     | off                             |
+| `ui`                                       | Enable the debug UI without the demo endpoints.                                                                                           | off                             |
 
 The directives marked dev-only (`demo`, `ui`, `anonymous`) are off by default in production. Don't enable them on a hub that serves real users.
 
@@ -140,6 +141,8 @@ mercure {
 ```
 
 `*` is allowed only if the hub is fully anonymous (no JWT, no cookie). Browsers refuse credentialed requests from a wildcard origin.
+
+Avoid listing the literal `null` origin: browsers send `Origin: null` for sandboxed iframes, `data:` URLs, and local files, so allowlisting it would send credentialed responses to any such opaque context.
 
 If your app and hub run on the same registrable domain (e.g. `example.com` and `hub.example.com`), the hub can be reached without CORS at all by going through a reverse proxy that mounts the hub on the app's origin. See [Reverse proxies](reverse-proxy.md).
 

@@ -12,6 +12,11 @@ type Subscriber struct {
 	EscapedID          string
 	Claims             *claims
 	RequestLastEventID string
+	// RequestLastEventIDSet reports whether the request carried a
+	// Last-Event-ID header or a last_event_id query parameter at all, even
+	// with an empty value: the protocol requires answering with a
+	// Mercure-Last-Event-ID response field whenever one was present.
+	RequestLastEventIDSet bool
 
 	// SubscribedMatchers are the topic matchers from the topic and
 	// match_urlpattern query parameters (or from the v8 `topic` parameter,

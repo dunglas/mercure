@@ -58,7 +58,7 @@ func (t *LocalTransport) AddSubscriber(ctx context.Context, s *LocalSubscriber) 
 
 	t.subscribers.Add(s)
 
-	if s.RequestLastEventID != "" {
+	if s.RequestLastEventIDSet {
 		s.HistoryDispatched(EarliestLastEventID)
 	}
 

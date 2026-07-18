@@ -189,8 +189,17 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if r.ParseForm() != nil { //nolint:gosec // body size can be limited using Caddy's request_body directive
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	h.limitRequestBody(w, r)
+
+	if err := r.ParseForm(); err != nil {
+		status := http.StatusBadRequest
+
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			status = http.StatusRequestEntityTooLarge
+		}
+
+		http.Error(w, http.StatusText(status), status)
 
 		return
 	}

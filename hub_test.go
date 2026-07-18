@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -435,6 +436,31 @@ func TestNewHubInvalidResourceIdentifier(t *testing.T) {
 	for _, ri := range []string{"foo", "/relative", "https://example.com/x#frag"} {
 		_, err := NewHub(t.Context(), WithResourceIdentifier(ri))
 		require.ErrorIs(t, err, ErrInvalidResourceIdentifier, ri)
+	}
+}
+
+// Keys are configured per role, not per issuer: a token-validating hub
+// accepts exactly one trusted issuer across WithTrustedIssuers and
+// WithAuthorizationServers.
+func TestNewHubRejectsMultipleTrustedIssuers(t *testing.T) {
+	t.Parallel()
+
+	base := []Option{
+		WithPublisherJWT([]byte("publisher"), "HS256"),
+		WithResourceIdentifier(testResourceIdentifier),
+	}
+
+	for name, opts := range map[string][]Option{
+		"two trusted issuers":       {WithTrustedIssuers([]string{"https://a.example.com", "https://b.example.com"})},
+		"issuer plus auth server":   {WithTrustedIssuers([]string{"https://a.example.com"}), WithAuthorizationServers([]string{"https://as.example.com"})},
+		"two authorization servers": {WithAuthorizationServers([]string{"https://a.example.com", "https://b.example.com"})},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewHub(t.Context(), append(slices.Clone(base), opts...)...)
+			require.ErrorIs(t, err, ErrTooManyTrustedIssuers)
+		})
 	}
 }
 
