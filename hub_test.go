@@ -470,6 +470,28 @@ func TestNewHubDefaultJWTAlgorithms(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidJWT)
 }
 
+// TestCompatModeDefaultJWTAlgorithms ensures the asymmetric-only default
+// allowlist is applied to a bare key function in compatibility mode too: a
+// relaxed protocol version must not reopen the algorithm-confusion hole.
+func TestCompatModeDefaultJWTAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(),
+		WithProtocolVersionCompatibility(7),
+		WithSubscriberJWTKeyFunc(func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, defaultJWTAlgorithms, h.subscriberJWTAlgorithms)
+
+	// An HS256 token is rejected at parse time even though the key function
+	// would return the matching secret: the algorithm is not in the allowlist.
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"foo"}))
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+}
+
 const testResourceIdentifier = "https://example.com/.well-known/mercure"
 
 func createDummyAuthorizedJWT(r role, topics []string) string {
