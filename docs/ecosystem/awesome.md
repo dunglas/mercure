@@ -67,13 +67,12 @@
 
 - 📺 [API Updates in Real Time w. Mercure.rocks](https://www.youtube.com/watch?v=odNsxoHSkT4)
 - 📺 [Building async public APIs using HTTP/2+ and the Mercure protocol](https://www.youtube.com/watch?v=IUx47Tx0O8E)
-- 📺 [Real-time Notifications with Symfony and Mercure (Basics)](https://www.youtube.com/watch?v=kYNC47V7R_0)
-- 📺 [Real-time Chat App with Symfony and Mercure](https://www.youtube.com/watch?v=wnr2A4aKnPU)
 - [Official Push and Real-Time Capabilities for Symfony and API Platform using Mercure (Symfony blog)](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
-- [Tech Workshop: Mercure by Kévin Dunglas at SensioLabs (SensioLabs)](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
-- [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
-- [Using Mercure on Stackhero](https://www.stackhero.io/services/Mercure-Hub/documentations)
+- [Real-time with Mercure and FrankenPHP (Will Vincent)](https://willvincent.com/2025/11/29/real-time-with-mercure-and-frankenphp/)
+- [Add Realtime Push Capabilities in Symfony With Mercure (Twilio)](https://www.twilio.com/en-us/blog/developers/community/add-realtime-push-capabilities-symfony-mercure)
+- [Tech Workshop: Mercure by Kévin Dunglas at SensioLabs (SensioLabs, archived)](https://web.archive.org/web/20240916221517/https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
 - [Mercure - install and run](https://mysiar.github.io/dev/2020/04/12/mercure-part1.html)
+- [Real-time messages with Mercure using Laravel (archived)](https://web.archive.org/web/20191212051423/https://thedevopsguide.com/real-time-notifications-with-mercure/)
 
 ### French 🇫🇷
 
