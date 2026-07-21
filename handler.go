@@ -87,7 +87,10 @@ func (h *Hub) corsHandler(router http.Handler) http.Handler {
 		AllowCredentials: allowCredentials,
 		AllowedMethods:   []string{http.MethodGet, http.MethodHead, http.MethodPost, methodQuery},
 		AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id"},
-		Debug:            h.debug,
+		// Exposed so cross-origin subscribers can read the subscription API's
+		// rel="mercure" Link header, which carries the last-event-id cursor.
+		ExposedHeaders: []string{"Link"},
+		Debug:          h.debug,
 	}).Handler(router)
 }
 

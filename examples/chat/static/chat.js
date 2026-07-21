@@ -21,6 +21,10 @@ let userList;
   const resp = await fetch(new URL(subscriptionsTopic, hubURL), {
     credentials: "include",
   });
+  // The cursor is carried by the rel="mercure" Link header, not the body.
+  const lastEventId = (resp.headers.get("Link") ?? "").match(
+    /rel="mercure".*?last-event-id="([^"]*)"/,
+  )?.[1];
   const subscriptionCollection = await resp.json();
   userList = new Map(
     subscriptionCollection.subscriptions
@@ -33,10 +37,7 @@ let userList;
   updateUserListView();
 
   const subscribeURL = new URL(hubURL);
-  subscribeURL.searchParams.append(
-    "last_event_id",
-    subscriptionCollection.last_event_id,
-  );
+  if (lastEventId) subscribeURL.searchParams.append("last_event_id", lastEventId);
   subscribeURL.searchParams.append("match_urlpattern", messagePattern);
   subscribeURL.searchParams.append("match_urlpattern", presencePattern);
 

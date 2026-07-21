@@ -895,9 +895,10 @@ Subscribers using the hub as an event store can use the returned identifier as a
 anchor; subscribers that only need to detect data loss can compare it against the requested
 value (a different value indicates that loss may have occurred).
 
-Note: Event identifiers are cursors, and the hub exposes them to subscribers, both through the
-`last_event_id` value provided during discovery and through the `Mercure-Last-Event-ID` response
-field.
+Note: Event identifiers are cursors, and the hub exposes them to subscribers through the
+`last-event-id` attribute of the `rel="mercure"` Link header provided during discovery
+(see (#discovery)) and by the subscription API (see (#subscription-api)), and through the
+`Mercure-Last-Event-ID` response field.
 The field value can be the identifier of an event immediately preceding one the subscriber is
 not authorized to receive. A subscriber can therefore infer the existence of such an event and,
 when the hub uses time-ordered identifiers (e.g., UUIDv7 [@RFC9562]), its approximate timing
@@ -1048,7 +1049,10 @@ a broader set (for example a `urlpattern` covering the subscriptions namespace, 
 `*`) grants access to the corresponding endpoints. If no detail grants `subscribe` on the
 requested URL, the hub **MUST** answer `403` as defined in (#authorization).
 
-The web API **MUST** set the `Content-Type` HTTP header to `application/json`.
+The web API **MUST** set the `Content-Type` HTTP header to `application/json`. When the hub
+serves cross-origin subscribers, it **MUST** expose the `Link` response header to them (for
+example, through the `Access-Control-Expose-Headers` header [@!FETCH]) so they can read the
+`last-event-id` attribute defined below; see (#subscription).
 
 URLs returning a single subscription (following the pattern
 `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`) **MUST** expose the same
@@ -1067,13 +1071,16 @@ properties:
 *   `type`: the fixed value `subscriptions`.
 *   `subscriptions`: an array of subscription documents as described in (#subscription-events).
 
-In addition, all endpoints **MUST** set the `last_event_id` property at the root of the returned
-JSON document:
+In addition, every endpoint **MUST** carry the reconciliation cursor on the `rel="mercure"` Link
+header [@!RFC8288] it sends, as a `last-event-id` target attribute — the same mechanism used at
+discovery (see (#discovery)), rather than a property of the JSON body:
 
-*   `last_event_id`: the identifier of the last event dispatched by the hub at the time of this
+*   `last-event-id`: the identifier of the last event dispatched by the hub at the time of this
     request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
-    dispatched yet. This value **SHOULD** be passed back to the hub when subscribing to
-    subscription events to prevent data loss.
+    dispatched yet. This value **SHOULD** be passed back to the hub, as the `last_event_id` query
+    parameter (see (#reconciliation)), when subscribing to subscription events to prevent data
+    loss. Carrying it on the Link header lets a single-subscription response body be exactly the
+    subscription event document of (#subscription-events), as required above.
 
 Active subscription collections can be large. Hubs **MAY** truncate or paginate collection
 responses according to an implementation-defined policy; each returned document **MUST** remain
@@ -1090,14 +1097,13 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions",
    "type": "subscriptions",
-   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1136,14 +1142,13 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector",
    "type": "subscriptions",
-   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1173,7 +1178,7 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
@@ -1184,8 +1189,7 @@ Cache-Control: must-revalidate
    "match_type": "urlpattern",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
-   "payload": {"foo": "bar"},
-   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+   "payload": {"foo": "bar"}
 }
 ~~~
 

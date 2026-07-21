@@ -195,6 +195,7 @@ func (h *Hub) chainHandlers() http.Handler { //nolint:funlen
 			AllowCredentials: true,
 			AllowedMethods:   []string{http.MethodGet, http.MethodHead, http.MethodPost, methodQuery},
 			AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id"},
+			ExposedHeaders:   []string{"Link"},
 		}).Handler(r)
 	} else {
 		corsHandler = r

@@ -52,22 +52,41 @@ func etagValue(lastEventID string) string {
 	return b.String()
 }
 
+// linkQuote escapes a value for an RFC 8288 Link header quoted-string. Only
+// DQUOTE and backslash need escaping; publish-time validation already forbids
+// control characters in event identifiers (see etagValue).
+func linkQuote(v string) string {
+	if !strings.ContainsAny(v, `"\`) {
+		return v
+	}
+
+	var b strings.Builder
+
+	for i := range len(v) {
+		if c := v[i]; c == '"' || c == '\\' {
+			b.WriteByte('\\')
+		}
+
+		b.WriteByte(v[i])
+	}
+
+	return b.String()
+}
+
 type subscription struct {
-	ID          string `json:"id"`
-	Type        string `json:"type"`
-	Subscriber  string `json:"subscriber"`
-	Topic       string `json:"topic,omitempty"`
-	Match       string `json:"match,omitempty"`
-	MatchType   string `json:"match_type,omitempty"`
-	Active      bool   `json:"active"`
-	LastEventID string `json:"last_event_id,omitempty"`
-	Payload     any    `json:"payload,omitempty"`
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Subscriber string `json:"subscriber"`
+	Topic      string `json:"topic,omitempty"`
+	Match      string `json:"match,omitempty"`
+	MatchType  string `json:"match_type,omitempty"`
+	Active     bool   `json:"active"`
+	Payload    any    `json:"payload,omitempty"`
 }
 
 type subscriptionCollection struct {
 	ID            string         `json:"id"`
 	Type          string         `json:"type"`
-	LastEventID   string         `json:"last_event_id"`
 	Subscriptions []subscription `json:"subscriptions"`
 }
 
@@ -120,7 +139,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, currentURL, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, currentURL, _, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -132,7 +151,6 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	subscriptionCollection := subscriptionCollection{
 		ID:            currentURL,
 		Type:          "subscriptions",
-		LastEventID:   lastEventID,
 		Subscriptions: make([]subscription, 0),
 	}
 
@@ -174,7 +192,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, _, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, _, _, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -189,8 +207,6 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, subscription := range subscriber.getSubscriptions(filter, true) {
-			subscription.LastEventID = lastEventID
-
 			j, err := json.MarshalIndent(subscription, "", "  ")
 			if err != nil {
 				panic(err)
@@ -285,6 +301,10 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	}
 
 	header["Content-Type"] = subscriptionContentType
+	// The reconciliation cursor is carried as the last-event-id attribute of the
+	// rel="mercure" Link header, mirroring discovery, rather than a JSON body
+	// property. Subscribers pass it back as the last_event_id query parameter.
+	header["Link"] = []string{hubLink + `; last-event-id="` + linkQuote(lastEventID) + `"`}
 
 	return span, currentURL, lastEventID, subscribers, true
 }
