@@ -174,7 +174,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	var claims *claims
 
-	if h.publisherJWTKeyFunc != nil {
+	if h.publisherConfigured {
 		var err error
 
 		claims, err = h.authorize(r, true)

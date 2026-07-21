@@ -41,18 +41,18 @@ func (h *Hub) initHandler() {
 
 	h.registerSubscriptionHandlers(router)
 
-	if h.subscriberJWTKeyFunc != nil || h.anonymous {
+	if h.subscriberConfigured || h.anonymous {
 		router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead, methodQuery)
 	}
 
-	if h.publisherJWTKeyFunc != nil {
+	if h.publisherConfigured {
 		router.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
 	}
 
 	// Advertise OAuth 2.0 protected resource metadata (RFC 9728) only when the
 	// hub validates access tokens; a pure-anonymous hub is not a protected
 	// resource.
-	if h.publisherJWTKeyFunc != nil || h.subscriberJWTKeyFunc != nil {
+	if h.publisherConfigured || h.subscriberConfigured {
 		router.HandleFunc(protectedResourceMetadataPath, h.ProtectedResourceMetadataHandler).Methods(http.MethodGet, http.MethodHead)
 	}
 

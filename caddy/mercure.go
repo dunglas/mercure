@@ -83,6 +83,41 @@ type JWTConfig struct {
 	Alg string `json:"alg,omitempty"`
 }
 
+// IssuerConfig binds a trusted issuer to its per-role verification material.
+type IssuerConfig struct {
+	// Identifier is the exact token iss claim value (RFC 9068 §4).
+	Identifier string `json:"identifier,omitempty"`
+
+	// AuthorizationServer advertises this issuer in the hub's RFC 9728
+	// protected resource metadata. Leave false for self-issued tokens.
+	AuthorizationServer bool `json:"authorization_server,omitempty"`
+
+	// Publisher verifies publisher tokens from this issuer.
+	Publisher VerifierConfig `json:"publisher,omitzero"`
+
+	// Subscriber verifies subscriber tokens from this issuer.
+	Subscriber VerifierConfig `json:"subscriber,omitzero"`
+}
+
+// VerifierConfig configures how one role's tokens are verified: either a static
+// key (JWT) or a JWK Set (JWKSURL). The two are mutually exclusive.
+type VerifierConfig struct {
+	// JWT is a static key and its signing algorithm.
+	JWT JWTConfig `json:"jwt,omitzero"`
+
+	// JWKSURL is a JWK Set URL (the RFC 8414 jwks_uri member).
+	JWKSURL string `json:"jwks_uri,omitempty"`
+
+	// JWKSAlgorithms pins the allowed JWS algorithms for the JWK Set path
+	// (RFC 8725). Defaults to the hub's asymmetric allowlist when empty.
+	JWKSAlgorithms []string `json:"jwks_algorithms,omitempty"`
+}
+
+// isSet reports whether the verifier declares any material.
+func (v VerifierConfig) isSet() bool {
+	return v.JWT.Key != "" || v.JWKSURL != ""
+}
+
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 type Mercure struct {
 	deprecatedTransport
@@ -116,27 +151,25 @@ type Mercure struct {
 	// set to 0 to disable the in-hub limit.
 	MaxRequestBodySize *int64 `json:"max_request_body_size,omitempty"`
 
-	// JWT key and signing algorithm to use for publishers.
+	// Issuers binds each trusted issuer (RFC 9068 §4) to its own verification
+	// material, so key material is never pooled across issuers.
+	Issuers []IssuerConfig `json:"issuers,omitempty"`
+
+	// Deprecated: use Issuers. Static publisher key and signing algorithm,
+	// mapped to a single implicit issuer (usable only in compatibility mode).
 	PublisherJWT JWTConfig `json:"publisher_jwt,omitzero"`
 
-	// JWK Set URL to use for publishers.
+	// Deprecated: use Issuers. Publisher JWK Set URL, mapped to a single
+	// implicit issuer (usable only in compatibility mode).
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
-	// Allowed JWS algorithms for publisher tokens validated via the JWK Set
-	// (RFC 8725: the algorithm is never taken from the token header). When
-	// omitted in modern mode, the hub applies its default allowlist of
-	// asymmetric algorithms.
-	PublisherJWKSAlgorithms []string `json:"publisher_jwks_algorithms,omitempty"`
-
-	// JWT key and signing algorithm to use for subscribers.
+	// Deprecated: use Issuers. Static subscriber key and signing algorithm,
+	// mapped to a single implicit issuer (usable only in compatibility mode).
 	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitzero"`
 
-	// JWK Set URL to use for subscribers.
+	// Deprecated: use Issuers. Subscriber JWK Set URL, mapped to a single
+	// implicit issuer (usable only in compatibility mode).
 	SubscriberJWKSURL string `json:"subscriber_jwks_url,omitempty"`
-
-	// Allowed JWS algorithms for subscriber tokens validated via the JWK Set.
-	// See PublisherJWKSAlgorithms.
-	SubscriberJWKSAlgorithms []string `json:"subscriber_jwks_algorithms,omitempty"`
 
 	// Origins allowed to publish updates
 	PublishOrigins []string `json:"publish_origins,omitempty"`
@@ -260,46 +293,17 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithResourceIdentifier(m.ResourceIdentifier))
 	}
 
-	if len(m.AuthorizationServers) > 0 {
-		opts = append(opts, mercure.WithAuthorizationServers(m.AuthorizationServers))
-	}
-
-	if len(m.TrustedIssuers) > 0 {
-		opts = append(opts, mercure.WithTrustedIssuers(m.TrustedIssuers))
-	}
-
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
 		opts = append(opts, mercure.WithDebug())
 	}
 
-	if m.PublisherJWKSURL != "" {
-		k, err := newJWKSetKeyfunc(ctx, m.PublisherJWKSURL)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve publisher JWK Set: %w", err)
-		}
-
-		opts = append(opts, mercure.WithPublisherJWTKeyFunc(k.Keyfunc))
-
-		if len(m.PublisherJWKSAlgorithms) > 0 {
-			opts = append(opts, mercure.WithPublisherJWTAlgorithms(m.PublisherJWKSAlgorithms))
-		}
-	} else if m.PublisherJWT.Key != "" {
-		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
+	issuers, err := m.buildIssuers(ctx)
+	if err != nil {
+		return err
 	}
 
-	if m.SubscriberJWKSURL != "" {
-		k, err := newJWKSetKeyfunc(ctx, m.SubscriberJWKSURL)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve subscriber JWK Set: %w", err)
-		}
-
-		opts = append(opts, mercure.WithSubscriberJWTKeyFunc(k.Keyfunc))
-
-		if len(m.SubscriberJWKSAlgorithms) > 0 {
-			opts = append(opts, mercure.WithSubscriberJWTAlgorithms(m.SubscriberJWKSAlgorithms))
-		}
-	} else if m.SubscriberJWT.Key != "" {
-		opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
+	if len(issuers) > 0 {
+		opts = append(opts, mercure.WithIssuers(issuers))
 	}
 
 	if m.Anonymous {
@@ -485,12 +489,6 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.PublisherJWKSURL = d.Val()
 
-			case "publisher_jwks_algorithms":
-				m.PublisherJWKSAlgorithms = d.RemainingArgs()
-				if len(m.PublisherJWKSAlgorithms) == 0 {
-					return d.ArgErr()
-				}
-
 			case "publisher_jwt":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -507,12 +505,6 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				m.SubscriberJWKSURL = d.Val()
-
-			case "subscriber_jwks_algorithms":
-				m.SubscriberJWKSAlgorithms = d.RemainingArgs()
-				if len(m.SubscriberJWKSAlgorithms) == 0 {
-					return d.ArgErr()
-				}
 
 			case "subscriber_jwt":
 				if !d.NextArg() {
@@ -611,17 +603,13 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.ResourceIdentifier = d.Val()
 
-			case "authorization_servers":
-				m.AuthorizationServers = d.RemainingArgs()
-				if len(m.AuthorizationServers) == 0 {
-					return d.ArgErr()
+			case "issuer":
+				ic, err := parseIssuerBlock(d)
+				if err != nil {
+					return err
 				}
 
-			case "trusted_issuers":
-				m.TrustedIssuers = d.RemainingArgs()
-				if len(m.TrustedIssuers) == 0 {
-					return d.ArgErr()
-				}
+				m.Issuers = append(m.Issuers, ic)
 
 			case "protocol_version_compatibility":
 				if !d.NextArg() {
@@ -647,38 +635,208 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	return nil
 }
 
+// parseIssuerBlock parses an "issuer <identifier> { ... }" Caddyfile block.
+func parseIssuerBlock(d *caddyfile.Dispenser) (IssuerConfig, error) {
+	var ic IssuerConfig
+
+	if !d.NextArg() {
+		return ic, d.ArgErr() //nolint:wrapcheck
+	}
+
+	ic.Identifier = d.Val()
+
+	for d.NextBlock(1) {
+		switch d.Val() {
+		case "authorization_server":
+			ic.AuthorizationServer = true
+
+		case "publisher":
+			v, err := parseVerifierBlock(d)
+			if err != nil {
+				return ic, err
+			}
+
+			ic.Publisher = v
+
+		case "subscriber":
+			v, err := parseVerifierBlock(d)
+			if err != nil {
+				return ic, err
+			}
+
+			ic.Subscriber = v
+
+		default:
+			return ic, d.Errf("unknown issuer directive %q", d.Val()) //nolint:wrapcheck
+		}
+	}
+
+	return ic, nil
+}
+
+// parseVerifierBlock parses a "publisher"/"subscriber" verifier subblock. The
+// "jwt" and "jwks_uri" directives are mutually exclusive.
+func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
+	var v VerifierConfig
+
+	for d.NextBlock(2) {
+		switch d.Val() {
+		case "jwt":
+			if v.JWKSURL != "" {
+				return v, d.Err(`"jwt" and "jwks_uri" are mutually exclusive`) //nolint:wrapcheck
+			}
+
+			if !d.NextArg() {
+				return v, d.ArgErr() //nolint:wrapcheck
+			}
+
+			v.JWT.Key = d.Val()
+			if d.NextArg() {
+				v.JWT.Alg = d.Val()
+			}
+
+		case "jwks_uri":
+			if v.JWT.Key != "" {
+				return v, d.Err(`"jwt" and "jwks_uri" are mutually exclusive`) //nolint:wrapcheck
+			}
+
+			if !d.NextArg() {
+				return v, d.ArgErr() //nolint:wrapcheck
+			}
+
+			v.JWKSURL = d.Val()
+			v.JWKSAlgorithms = d.RemainingArgs()
+
+		default:
+			return v, d.Errf("unknown verifier directive %q", d.Val()) //nolint:wrapcheck
+		}
+	}
+
+	return v, nil
+}
+
+// normalizeJWT applies Caddy placeholder replacement to a static-key verifier
+// and defaults its algorithm to HS256. It is a no-op when a JWK Set URL is used
+// or no key is configured.
+func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL string) {
+	if jwksURL != "" {
+		return
+	}
+
+	c.Key = repl.ReplaceKnown(c.Key, "")
+	if c.Key == "" {
+		return
+	}
+
+	c.Alg = repl.ReplaceKnown(c.Alg, "HS256")
+	if c.Alg == "" {
+		c.Alg = "HS256"
+	}
+}
+
 func (m *Mercure) populateJWTConfig() error {
 	repl := caddy.NewReplacer()
 
-	if m.PublisherJWKSURL == "" {
-		m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
+	normalizeJWT(repl, &m.PublisherJWT, m.PublisherJWKSURL)
+	normalizeJWT(repl, &m.SubscriberJWT, m.SubscriberJWKSURL)
 
-		if m.PublisherJWT.Key != "" {
-			m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
-			if m.PublisherJWT.Alg == "" {
-				m.PublisherJWT.Alg = "HS256"
-			}
-		} else if !AllowNoPublish {
-			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
+	hasPublisher := m.PublisherJWT.Key != "" || m.PublisherJWKSURL != ""
+	hasSubscriber := m.SubscriberJWT.Key != "" || m.SubscriberJWKSURL != ""
+
+	for i := range m.Issuers {
+		iss := &m.Issuers[i]
+		normalizeJWT(repl, &iss.Publisher.JWT, iss.Publisher.JWKSURL)
+		normalizeJWT(repl, &iss.Subscriber.JWT, iss.Subscriber.JWKSURL)
+
+		if iss.Publisher.isSet() {
+			hasPublisher = true
+		}
+
+		if iss.Subscriber.isSet() {
+			hasSubscriber = true
 		}
 	}
 
-	if m.SubscriberJWKSURL == "" {
-		m.SubscriberJWT.Key = repl.ReplaceKnown(m.SubscriberJWT.Key, "")
-		m.SubscriberJWT.Alg = repl.ReplaceKnown(m.SubscriberJWT.Alg, "HS256")
+	if !hasPublisher && !AllowNoPublish {
+		return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
+	}
 
-		if m.SubscriberJWT.Key == "" {
-			if !m.Anonymous {
-				return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
-			}
-		}
-
-		if m.SubscriberJWT.Alg == "" {
-			m.SubscriberJWT.Alg = "HS256"
-		}
+	if !hasSubscriber && !m.Anonymous {
+		return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
 	}
 
 	return nil
+}
+
+// buildVerifier turns a configured VerifierConfig into a mercure.Verifier. A
+// JWK Set URL takes precedence over a static key. It is only called for a
+// VerifierConfig that isSet reports as configured.
+func (m *Mercure) buildVerifier(ctx context.Context, c VerifierConfig, role string) (mercure.Verifier, error) { //nolint:ireturn
+	if c.JWKSURL != "" {
+		k, err := newJWKSetKeyfunc(ctx, c.JWKSURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve %s JWK Set: %w", role, err)
+		}
+
+		return mercure.KeyFunc{Keyfunc: k.Keyfunc, Algorithms: c.JWKSAlgorithms}, nil
+	}
+
+	return mercure.Static{Key: []byte(c.JWT.Key), Algorithm: c.JWT.Alg}, nil
+}
+
+// buildIssuer builds one mercure.Issuer, skipping the verifier for an
+// unconfigured role.
+func (m *Mercure) buildIssuer(ctx context.Context, id string, authServer bool, pub, sub VerifierConfig) (mercure.Issuer, error) {
+	issuer := mercure.Issuer{Identifier: id, AuthorizationServer: authServer}
+
+	if pub.isSet() {
+		v, err := m.buildVerifier(ctx, pub, "publisher")
+		if err != nil {
+			return issuer, err
+		}
+
+		issuer.Publisher = v
+	}
+
+	if sub.isSet() {
+		v, err := m.buildVerifier(ctx, sub, "subscriber")
+		if err != nil {
+			return issuer, err
+		}
+
+		issuer.Subscriber = v
+	}
+
+	return issuer, nil
+}
+
+// buildIssuers assembles the hub's issuer bindings from the explicit issuer
+// blocks and the deprecated top-level directives (a single implicit issuer).
+func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
+	issuers := make([]mercure.Issuer, 0, len(m.Issuers)+1)
+
+	for _, ic := range m.Issuers {
+		issuer, err := m.buildIssuer(ctx, ic.Identifier, ic.AuthorizationServer, ic.Publisher, ic.Subscriber)
+		if err != nil {
+			return nil, err
+		}
+
+		issuers = append(issuers, issuer)
+	}
+
+	legacyPub := VerifierConfig{JWT: m.PublisherJWT, JWKSURL: m.PublisherJWKSURL}
+	legacySub := VerifierConfig{JWT: m.SubscriberJWT, JWKSURL: m.SubscriberJWKSURL}
+
+	if legacyPub.isSet() || legacySub.isSet() {
+		issuer, err := m.buildIssuer(ctx, "", false, legacyPub, legacySub)
+		if err != nil {
+			return nil, err
+		}
+
+		issuers = append(issuers, issuer)
+	}
+
+	return issuers, nil
 }
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.

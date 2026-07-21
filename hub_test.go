@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -52,10 +51,12 @@ func TestNewHubWithConfig(t *testing.T) {
 
 	h, err := NewHub(
 		t.Context(),
-		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
-		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Publisher:  Static{Key: []byte("foo"), Algorithm: jwt.SigningMethodHS256.Name},
+			Subscriber: Static{Key: []byte("bar"), Algorithm: jwt.SigningMethodHS256.Name},
+		}}),
 		WithResourceIdentifier(testResourceIdentifier),
-		WithTrustedIssuers([]string{testIssuer}),
 	)
 	require.NotNil(t, h)
 	require.NoError(t, err)
@@ -193,24 +194,53 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 	}
 }
 
-func TestWithPublisherJWTKeyFunc(t *testing.T) {
+func TestWithIssuers(t *testing.T) {
 	t.Parallel()
 
 	op := &opt{}
 
-	o := WithPublisherJWTKeyFunc(func(_ *jwt.Token) (any, error) { return []byte{}, nil })
+	o := WithIssuers([]Issuer{{
+		Identifier:          testIssuer,
+		AuthorizationServer: true,
+		Publisher:           KeyFunc{Keyfunc: func(_ *jwt.Token) (any, error) { return []byte{}, nil }},
+		Subscriber:          Static{Key: []byte("subscriber"), Algorithm: "HS256"},
+	}})
 	require.NoError(t, o(op))
-	require.NotNil(t, op.publisherJWTKeyFunc)
+
+	iv, ok := op.issuers[testIssuer]
+	require.True(t, ok)
+	assert.NotNil(t, iv.publisher.keyfunc)
+	assert.NotNil(t, iv.subscriber.keyfunc)
+	assert.True(t, op.publisherConfigured)
+	assert.True(t, op.subscriberConfigured)
+	assert.Equal(t, []string{testIssuer}, op.authorizationServers)
+	// A KeyFunc without an explicit allowlist gets the asymmetric default.
+	assert.Equal(t, defaultJWTAlgorithms, iv.publisher.algorithms)
+	assert.Equal(t, []string{"HS256"}, iv.subscriber.algorithms)
 }
 
-func TestWithSubscriberJWTKeyFunc(t *testing.T) {
+func TestWithIssuersRejectsDuplicate(t *testing.T) {
 	t.Parallel()
 
-	op := &opt{}
+	o := WithIssuers([]Issuer{
+		{Identifier: testIssuer, Subscriber: Static{Key: []byte("s"), Algorithm: "HS256"}},
+		{Identifier: testIssuer, Subscriber: Static{Key: []byte("s"), Algorithm: "HS256"}},
+	})
+	require.ErrorIs(t, o(&opt{}), ErrDuplicateIssuer)
+}
 
-	o := WithSubscriberJWTKeyFunc(func(_ *jwt.Token) (any, error) { return []byte{}, nil })
-	require.NoError(t, o(op))
-	require.NotNil(t, op.subscriberJWTKeyFunc)
+func TestWithIssuersRejectsMissingKey(t *testing.T) {
+	t.Parallel()
+
+	o := WithIssuers([]Issuer{{Identifier: testIssuer}})
+	require.ErrorIs(t, o(&opt{}), ErrIssuerMissingKey)
+}
+
+func TestWithIssuersRejectsMissingAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	o := WithIssuers([]Issuer{{Identifier: testIssuer, Subscriber: Static{Key: []byte("s")}}})
+	require.ErrorIs(t, o(&opt{}), ErrMissingAlgorithm)
 }
 
 func TestWithDebug(t *testing.T) {
@@ -353,7 +383,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(t.Context(), WithPublisherJWT([]byte(""), "HS256"), WithResourceIdentifier(testResourceIdentifier), WithTrustedIssuers([]string{testIssuer}))
+	h, err := NewHub(t.Context(), WithIssuers([]Issuer{{Identifier: testIssuer, Publisher: Static{Key: []byte(""), Algorithm: "HS256"}}}), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -400,10 +430,8 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 
 	options = append(
 		[]Option{
-			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
-			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
+			testIssuerOption(),
 			WithResourceIdentifier(testResourceIdentifier),
-			WithTrustedIssuers([]string{testIssuer}),
 			WithTopicMatcherStore(tms),
 		},
 		options...,
@@ -439,29 +467,30 @@ func TestNewHubInvalidResourceIdentifier(t *testing.T) {
 	}
 }
 
-// Keys are configured per role, not per issuer: a token-validating hub
-// accepts exactly one trusted issuer across WithTrustedIssuers and
-// WithAuthorizationServers.
-func TestNewHubRejectsMultipleTrustedIssuers(t *testing.T) {
+// A token-validating hub in modern mode now accepts several issuers, each with
+// its own key material.
+func TestNewHubAcceptsMultipleIssuers(t *testing.T) {
 	t.Parallel()
 
-	base := []Option{
-		WithPublisherJWT([]byte("publisher"), "HS256"),
+	_, err := NewHub(t.Context(),
 		WithResourceIdentifier(testResourceIdentifier),
-	}
+		WithIssuers([]Issuer{
+			{Identifier: "https://a.example.com", Publisher: Static{Key: []byte("a"), Algorithm: "HS256"}},
+			{Identifier: "https://b.example.com", Publisher: Static{Key: []byte("b"), Algorithm: "HS256"}},
+		}),
+	)
+	require.NoError(t, err)
+}
 
-	for name, opts := range map[string][]Option{
-		"two trusted issuers":       {WithTrustedIssuers([]string{"https://a.example.com", "https://b.example.com"})},
-		"issuer plus auth server":   {WithTrustedIssuers([]string{"https://a.example.com"}), WithAuthorizationServers([]string{"https://as.example.com"})},
-		"two authorization servers": {WithAuthorizationServers([]string{"https://a.example.com", "https://b.example.com"})},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+// A modern-mode issuer must have a non-empty identifier to match the iss claim.
+func TestNewHubRejectsEmptyIssuerIdentifier(t *testing.T) {
+	t.Parallel()
 
-			_, err := NewHub(t.Context(), append(slices.Clone(base), opts...)...)
-			require.ErrorIs(t, err, ErrTooManyTrustedIssuers)
-		})
-	}
+	_, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithIssuers([]Issuer{{Subscriber: Static{Key: []byte("s"), Algorithm: "HS256"}}}),
+	)
+	require.ErrorIs(t, err, ErrMissingIssuerIdentifier)
 }
 
 // A resource identifier that is the full hub URL doubles as the URL Pattern
@@ -483,12 +512,14 @@ func TestNewHubDefaultJWTAlgorithms(t *testing.T) {
 
 	h, err := NewHub(t.Context(),
 		WithResourceIdentifier(testResourceIdentifier),
-		WithTrustedIssuers([]string{testIssuer}),
-		WithSubscriberJWTKeyFunc(func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: KeyFunc{Keyfunc: func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }},
+		}}),
 	)
 	require.NoError(t, err)
-	assert.Equal(t, defaultJWTAlgorithms, h.subscriberJWTAlgorithms)
-	assert.Empty(t, h.publisherJWTAlgorithms)
+	assert.Equal(t, defaultJWTAlgorithms, h.issuers[testIssuer].subscriber.algorithms)
+	assert.Empty(t, h.issuers[testIssuer].publisher.algorithms)
 
 	// An HS256 token is rejected even though the key function would return
 	// the right secret: the algorithm is not in the default allowlist.
@@ -507,10 +538,13 @@ func TestCompatModeDefaultJWTAlgorithms(t *testing.T) {
 
 	h, err := NewHub(t.Context(),
 		WithProtocolVersionCompatibility(7),
-		WithSubscriberJWTKeyFunc(func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: KeyFunc{Keyfunc: func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }},
+		}}),
 	)
 	require.NoError(t, err)
-	assert.Equal(t, defaultJWTAlgorithms, h.subscriberJWTAlgorithms)
+	assert.Equal(t, defaultJWTAlgorithms, h.issuers[testIssuer].subscriber.algorithms)
 
 	// An HS256 token is rejected at parse time even though the key function
 	// would return the matching secret: the algorithm is not in the allowlist.
@@ -526,6 +560,17 @@ const testResourceIdentifier = "https://example.com/.well-known/mercure"
 // testIssuer is the trusted issuer identifier minted access tokens carry and
 // that createDummy configures the hub with.
 const testIssuer = "https://example.com"
+
+// testIssuerOption returns the default single-issuer test configuration: the
+// trusted issuer testIssuer with static HMAC keys for both roles ("publisher"
+// and "subscriber").
+func testIssuerOption() Option {
+	return WithIssuers([]Issuer{{
+		Identifier: testIssuer,
+		Publisher:  Static{Key: []byte("publisher"), Algorithm: "HS256"},
+		Subscriber: Static{Key: []byte("subscriber"), Algorithm: "HS256"},
+	}})
+}
 
 func createDummyAuthorizedJWT(r role, topics []string) string {
 	return createDummyAuthorizedJWTWithPayload(r, topics, struct {

@@ -15,10 +15,15 @@ The most idiomatic way to configure it is a [`Caddyfile`](https://caddyserver.co
 # Caddyfile
 hub.example.com {
   mercure {
-    publisher_jwt       {env.MERCURE_PUBLISHER_JWT_KEY}
-    subscriber_jwt      {env.MERCURE_SUBSCRIBER_JWT_KEY}
+    issuer https://example.com {
+      publisher {
+        jwt {env.MERCURE_PUBLISHER_JWT_KEY}
+      }
+      subscriber {
+        jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
+      }
+    }
     resource_identifier https://hub.example.com/.well-known/mercure
-    trusted_issuers     https://example.com
     cors_origins        https://example.com
   }
 
@@ -26,9 +31,13 @@ hub.example.com {
 }
 ```
 
-`resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). It defaults to `public_url`; set one of them whenever the hub validates tokens.
+Each `issuer` binds a trusted issuer (the value accepted in the token `iss` claim, RFC 9068 §4) to its own verification material, so a token is verified only with the key(s) of the issuer it claims. Repeat the block to trust several issuers with distinct keys.
 
-`trusted_issuers` lists the values accepted in the token `iss` claim: the stable identifier of your app when it signs tokens itself (typically its URL). When an OAuth 2.0 authorization server mints the tokens, use `authorization_servers` instead (its entries are trusted issuers too). One of the two is required whenever the hub validates tokens.
+The identifier is the stable identifier of whoever signs the tokens: your app's URL when it signs them itself, or the authorization server's issuer identifier. Add `authorization_server` inside the block to advertise that issuer in the [protected resource metadata](../concepts/discovery.md).
+
+Inside `publisher`/`subscriber`, use `jwt <key> [<algorithm>]` for a shared secret or public key, or `jwks_uri <url> [<algorithm>...]` for a JWK Set. The two are mutually exclusive.
+
+`resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). It defaults to `public_url`; set one of them whenever the hub validates tokens.
 
 Caddy provisions a Let's Encrypt certificate for `hub.example.com` automatically. To disable HTTPS (when behind a reverse proxy that terminates TLS), prefix the site address with `http://`:
 
@@ -45,14 +54,9 @@ Setting the port to 80 also disables HTTPS implicitly.
 
 | Directive                                  | Description                                                                                                                               | Default                         |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `publisher_jwt <key> [<algorithm>]`        | JWT key + algorithm for publishers. Supports [Caddy placeholders](https://caddyserver.com/docs/conventions#placeholders).                 |                                 |
-| `subscriber_jwt <key> [<algorithm>]`       | JWT key + algorithm for subscribers.                                                                                                      |                                 |
-| `publisher_jwks_url <url>`                 | JWK Set URL for publisher token validation. Takes precedence over `publisher_jwt`. Accepts `file://` URLs.                                |                                 |
-| `subscriber_jwks_url <url>`                | JWK Set URL for subscriber token validation.                                                                                              |                                 |
+| `issuer <id> { … }`                        | Bind a trusted issuer to its verification material. Repeatable. See [issuer blocks](#issuer-blocks).                                      |                                 |
 | `public_url <url>`                         | Canonical hub URL. Resolves relative URL Patterns and topics, and is the default `resource_identifier`.                                   |                                 |
 | `resource_identifier <id>`                 | OAuth 2.0 resource identifier (token `aud`). Required when JWT auth is enabled in modern mode. See [Discovery](../concepts/discovery.md). | `public_url`                    |
-| `authorization_servers <url...>`           | Authorization server issuer identifiers, trusted and advertised in the [protected resource metadata](../concepts/discovery.md).           |                                 |
-| `trusted_issuers <id...>`                  | Additional issuer identifiers accepted in the token `iss` claim (self-issued tokens).                                                     |                                 |
 | `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                          | off                             |
 | `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                      |                                 |
 | `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                  |                                 |
@@ -71,6 +75,40 @@ Setting the port to 80 also disables HTTPS implicitly.
 
 The directives marked dev-only (`demo`, `ui`, `anonymous`) are off by default in production. Don't enable them on a hub that serves real users.
 
+### Issuer blocks
+
+An `issuer` block binds a trusted issuer to its own verification material:
+
+```caddyfile
+issuer https://issuer-a.example {
+  authorization_server            # advertise in the protected resource metadata
+  publisher {
+    jwt !ChangeThisSecret! HS256  # shared secret or PEM public key + algorithm
+  }
+  subscriber {
+    jwks_uri https://issuer-a.example/jwks RS256  # JWK Set URL + allowed algorithms
+  }
+}
+
+issuer https://issuer-b.example {
+  publisher  { jwks_uri https://issuer-b.example/jwks }
+  subscriber { jwks_uri https://issuer-b.example/jwks }
+}
+```
+
+| Sub-directive                     | Description                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `authorization_server`            | Advertise this issuer in the [protected resource metadata](../concepts/discovery.md). Off by default.  |
+| `publisher { … }`                 | Verification material for publisher tokens. Omit to reject publishing for this issuer.                  |
+| `subscriber { … }`                | Verification material for subscriber tokens. Omit to reject subscribing for this issuer.               |
+| `jwt <key> [<algorithm>]`         | Shared secret or PEM public key, plus algorithm (defaults to `HS256`). Supports Caddy placeholders.    |
+| `jwks_uri <url> [<algorithm>...]` | JWK Set URL and its allowed algorithms (defaults to the asymmetric allowlist). Accepts `file://` URLs.  |
+
+`jwt` and `jwks_uri` are mutually exclusive within a `publisher`/`subscriber` block.
+
+> [!WARNING]
+> The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` are deprecated. They map to a single implicit issuer and only work in [compatibility mode](../UPGRADE.md); modern mode requires an `issuer` block.
+
 ## Mercure hub environment variables
 
 The Docker image and the official Caddyfile read these:
@@ -83,7 +121,7 @@ The Docker image and the official Caddyfile read these:
 | `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber signing key.                                                                |             |
 | `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`     |
 | `MERCURE_RESOURCE_IDENTIFIER`   | Sets `resource_identifier` (the token `aud`).                                          |             |
-| `MERCURE_TRUSTED_ISSUERS`       | Sets `trusted_issuers` (the token `iss`).                                              |             |
+| `MERCURE_TRUSTED_ISSUERS`       | Sets the `issuer` block identifier (the token `iss`).                                  |             |
 | `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |             |
 | `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |             |
 | `CADDY_EXTRA_CONFIG`            | [Snippets / named routes](https://caddyserver.com/docs/caddyfile/concepts#snippets).   |             |
@@ -153,14 +191,17 @@ When tokens are minted by an external IdP (Keycloak, Cognito, Auth0):
 ```caddyfile
 # JWT validation via JWKS
 mercure {
-  publisher_jwks_url https://idp.example.com/.well-known/jwks.json
-  subscriber_jwks_url https://idp.example.com/.well-known/jwks.json
+  issuer https://idp.example.com {
+    authorization_server
+    publisher  { jwks_uri https://idp.example.com/.well-known/jwks.json }
+    subscriber { jwks_uri https://idp.example.com/.well-known/jwks.json }
+  }
 }
 ```
 
 The hub fetches and caches the keys, validates each token's `kid` against them, and rotates automatically when the IdP rotates. Token issuance stays with the IdP; the hub only verifies.
 
-`publisher_jwks_url` / `subscriber_jwks_url` also accept `file://` URLs, read once at provision time, for keys mounted as files.
+`jwks_uri` also accepts `file://` URLs, read once at provision time, for keys mounted as files. Append algorithms to pin the allowlist (e.g. `jwks_uri <url> RS256 ES256`); it defaults to the asymmetric algorithms.
 
 ## OAuth 2.0 protected resource metadata
 
@@ -169,8 +210,12 @@ When the hub validates tokens, it serves [protected resource metadata](../concep
 ```caddyfile
 # OAuth 2.0 protected resource metadata
 mercure {
-  resource_identifier   https://hub.example.com/.well-known/mercure
-  authorization_servers https://auth.example.com
+  resource_identifier https://hub.example.com/.well-known/mercure
+  issuer https://auth.example.com {
+    authorization_server
+    publisher  { jwks_uri https://auth.example.com/jwks }
+    subscriber { jwks_uri https://auth.example.com/jwks }
+  }
 }
 ```
 

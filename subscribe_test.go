@@ -255,10 +255,19 @@ func TestSubscribeJWTAlgorithmsPinned(t *testing.T) {
 	// keyfunc that does not by itself pin the algorithm.
 	kf := func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }
 
-	hub := createAnonymousDummy(t,
-		WithSubscriberJWTKeyFunc(kf),
-		WithSubscriberJWTAlgorithms([]string{jwt.SigningMethodRS256.Name}),
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	hub, err := NewHub(t.Context(),
+		WithAnonymous(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: KeyFunc{Keyfunc: kf, Algorithms: []string{jwt.SigningMethodRS256.Name}},
+		}}),
+		WithTopicMatcherStore(tms),
 	)
+	require.NoError(t, err)
 
 	// HS256 token: outside the RS256 allowlist.
 	token := mintAccessToken([]byte("subscriber"), testResourceIdentifier, []authorizationDetail{{
@@ -1266,10 +1275,12 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 
 	h, err := NewHub(ctx,
 		WithAnonymous(),
-		WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
-		WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Publisher:  Static{Key: []byte("publisher"), Algorithm: jwt.SigningMethodHS256.Name},
+			Subscriber: Static{Key: []byte("subscriber"), Algorithm: jwt.SigningMethodHS256.Name},
+		}}),
 		WithResourceIdentifier(testResourceIdentifier),
-		WithTrustedIssuers([]string{testIssuer}),
 		WithTopicMatcherStore(tms),
 		WithWriteTimeout(writeTimeout),
 	)

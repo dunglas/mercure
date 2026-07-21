@@ -106,7 +106,7 @@ The bearer token is an OAuth 2.0 access token signed with the dev key above (hea
 }
 ```
 
-The `iss` matches the hub's `trusted_issuers`, the `aud` matches its `resource_identifier`, the `typ` header is `at+jwt`, and the `publish` grant covers every topic. Generate your own at [jwt.io](https://jwt.io). Details in [Authorization](../concepts/authorization.md).
+The `iss` matches one of the hub's trusted issuers (an `issuer` block), the `aud` matches its `resource_identifier`, the `typ` header is `at+jwt`, and the `publish` grant covers every topic. Generate your own at [jwt.io](https://jwt.io). Details in [Authorization](../concepts/authorization.md).
 
 ## Closing the Mercure EventSource connection
 

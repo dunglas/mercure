@@ -53,10 +53,10 @@ A Mercure access token is a JWT access token as defined by [RFC 9068](https://ww
 The hub enforces, on every token:
 
 - **`typ: at+jwt` header.** Tokens minted for other purposes (an OpenID Connect ID token, for example) are rejected.
-- **`iss` claim.** It must exactly match one of the hub's trusted issuers: the `trusted_issuers` directive (your app's stable identifier when tokens are self-issued) or an entry of `authorization_servers` (see [Discovery](discovery.md)).
+- **`iss` claim.** It must exactly match one of the hub's trusted issuers, each declared with an `issuer` block (see [Discovery](discovery.md)). Add `authorization_server` inside a block to advertise that issuer.
 - **`aud` claim.** It must contain the hub's resource identifier (configured with `resource_identifier`, defaulting to `public_url`). `aud` may be a string or an array.
 - **`exp` claim.** Required. The hub rejects expired tokens, including on the first request. `nbf` is enforced when present.
-- **Signature** with the configured key (`publisher_jwt` / `subscriber_jwt`, or a JWKS; see below). The algorithm comes from hub configuration, never from the token, so `alg=none` and algorithm-confusion attacks are blocked.
+- **Signature** with the issuer's configured key (its `publisher`/`subscriber` verifier; see below). The token is verified only with the key(s) bound to its `iss`, so keys are never pooled across issuers. The algorithm comes from hub configuration, never from the token, so `alg=none` and algorithm-confusion attacks are blocked.
 
 [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) also requires issuers to populate `sub`, `client_id`, `iat`, and `jti`; include them so any RFC 9068 validator accepts your tokens. The hub uses `sub` to derive subscriber identifiers for [subscription events](active-subscriptions.md).
 
@@ -271,8 +271,11 @@ When an identity provider or authorization server (Keycloak, Cognito, Auth0) iss
 ```caddyfile
 # Validating with JWKS
 mercure {
-  publisher_jwks_url https://idp.example.com/.well-known/jwks.json
-  subscriber_jwks_url https://idp.example.com/.well-known/jwks.json
+  issuer https://idp.example.com {
+    authorization_server
+    publisher  { jwks_uri https://idp.example.com/.well-known/jwks.json }
+    subscriber { jwks_uri https://idp.example.com/.well-known/jwks.json }
+  }
 }
 ```
 
@@ -285,8 +288,10 @@ The default algorithm is HS256 (symmetric HMAC). For asymmetric verification (th
 ```caddyfile
 # Verifying tokens with RSA and ECDSA keys
 mercure {
-  publisher_jwt {env.PUBLISHER_PUBLIC_KEY} RS256
-  subscriber_jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256
+  issuer https://example.com {
+    publisher  { jwt {env.PUBLISHER_PUBLIC_KEY} RS256 }
+    subscriber { jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256 }
+  }
 }
 ```
 

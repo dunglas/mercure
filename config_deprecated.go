@@ -215,6 +215,11 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 		options = append(options, WithHeartbeat(d))
 	}
 
+	// The legacy environment/config-file keys map to a single implicit issuer
+	// (empty identifier), usable only in compatibility mode where the iss claim
+	// is not checked.
+	var issuer Issuer
+
 	if k = v.GetString("publisher_jwt_key"); k == "" {
 		k = v.GetString("jwt_key")
 	}
@@ -227,7 +232,7 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 			}
 		}
 
-		options = append(options, WithPublisherJWT([]byte(k), alg))
+		issuer.Publisher = Static{Key: []byte(k), Algorithm: alg}
 	}
 
 	if k = v.GetString("subscriber_jwt_key"); k == "" {
@@ -242,7 +247,11 @@ func NewHubFromViper(v *viper.Viper) (*Hub, error) { //nolint:funlen,gocognit
 			}
 		}
 
-		options = append(options, WithSubscriberJWT([]byte(k), alg))
+		issuer.Subscriber = Static{Key: []byte(k), Algorithm: alg}
+	}
+
+	if issuer.Publisher != nil || issuer.Subscriber != nil {
+		options = append(options, WithIssuers([]Issuer{issuer}))
 	}
 
 	if h := v.GetStringSlice("acme_hosts"); len(h) > 0 {

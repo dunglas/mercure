@@ -13,10 +13,14 @@ import (
 func TestProtectedResourceMetadata(t *testing.T) {
 	hub := createDummy(t,
 		WithResourceIdentifier("https://example.com/.well-known/mercure"),
-		WithAuthorizationServers([]string{"https://as.example.com"}),
-		// createDummy declares a trusted issuer; clear it, a single issuer is
-		// supported across both options (ErrTooManyTrustedIssuers).
-		WithTrustedIssuers(nil),
+		// createDummy declares testIssuer as a plain trusted issuer (not
+		// advertised); add an authorization server, the only issuer listed in
+		// the metadata.
+		WithIssuers([]Issuer{{
+			Identifier:          "https://as.example.com",
+			AuthorizationServer: true,
+			Subscriber:          Static{Key: []byte("subscriber"), Algorithm: "HS256"},
+		}}),
 	)
 
 	req := httptest.NewRequest(http.MethodGet, protectedResourceMetadataPath, nil)

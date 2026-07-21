@@ -127,9 +127,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
 			resource_identifier https://example.com/.well-known/mercure
-			trusted_issuers https://example.com
 			%[1]s
 		}
 
@@ -141,9 +144,12 @@ example.com:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
 			resource_identifier https://example.com/.well-known/mercure
-			trusted_issuers https://example.com
 			%[1]s
 		}
 
@@ -223,9 +229,12 @@ func TestJWTPlaceholders(t *testing.T) {
 		route {
 			mercure {
 				anonymous
-				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+				issuer https://example.com {
+					publisher {
+						jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+					}
+				}
 				resource_identifier https://example.com/.well-known/mercure
-				trusted_issuers https://example.com
 				transport local
 			}
 
@@ -293,9 +302,12 @@ func TestSubscriptionAPI(t *testing.T) {
 			mercure {
 				anonymous
 				subscriptions
-				publisher_jwt !ChangeMe!
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+				}
 				resource_identifier https://example.com/.well-known/mercure
-				trusted_issuers https://example.com
 			}
 
 			respond 404
@@ -320,10 +332,15 @@ func TestCookieName(t *testing.T) {
 	localhost:9080 {
 		route {
 			mercure {
-				publisher_jwt !ChangeMe!
-				subscriber_jwt !ChangeMe!
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
 				resource_identifier https://example.com/.well-known/mercure
-				trusted_issuers https://example.com
 				cookie_name foo
 				publish_origins http://localhost:9080
 			}
@@ -392,10 +409,16 @@ func TestProtectedResourceMetadata(t *testing.T) {
 	localhost:9080 {
 		route {
 			mercure {
-				publisher_jwt !ChangeMe!
-				subscriber_jwt !ChangeMe!
+				issuer https://as.example.com {
+					authorization_server
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
 				resource_identifier https://example.com/.well-known/mercure
-				authorization_servers https://as.example.com
 			}
 
 			respond 404
@@ -431,10 +454,15 @@ func TestMaxRequestBodySize(t *testing.T) {
 	localhost:9080 {
 		route {
 			mercure {
-				publisher_jwt !ChangeMe!
-				subscriber_jwt !ChangeMe!
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
 				resource_identifier https://example.com/.well-known/mercure
-				trusted_issuers https://example.com
 				max_request_body_size 1KB
 				transport local
 			}
@@ -472,9 +500,12 @@ func TestAllowNoPublish(t *testing.T) {
 	localhost:9080 {
 		route {
 			mercure {
-				subscriber_jwt !ChangeMe!
+				issuer https://example.com {
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
 				resource_identifier https://example.com/.well-known/mercure
-				trusted_issuers https://example.com
 			}
 
 			respond 404
@@ -505,9 +536,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
 			resource_identifier https://example.com/.well-known/mercure
-			trusted_issuers https://example.com
 			transport bolt {
 				path test.db
 				bucket_name foo
@@ -642,4 +676,72 @@ func TestNewJWKSetKeyfunc(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse JWK Set file")
 	})
+}
+
+// TestMultiIssuerPublish exercises per-issuer key binding through the Caddy
+// module: two issuers with distinct keys, each verified only with its own key.
+func TestMultiIssuerPublish(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				issuer https://a.example {
+					publisher {
+						jwt key-a
+					}
+				}
+				issuer https://b.example {
+					publisher {
+						jwt key-b
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
+				transport local
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	mint := func(key []byte, iss string) string {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"iss":                   iss,
+			"aud":                   caddyResourceIdentifier,
+			"exp":                   time.Now().Add(time.Hour).Unix(),
+			"authorization_details": []map[string]any{actionDetail("publish", topicMatch("*"))},
+		})
+		token.Header["typ"] = "at+jwt"
+
+		s, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		return s
+	}
+
+	publish := func(tokenStr string) *http.Request {
+		body := url.Values{"topic": {"https://example.com/foo"}, "data": {"hi"}}
+		req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+		require.NoError(t, err)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", bearerPrefix+tokenStr)
+
+		return req
+	}
+
+	// Issuer A signed with key A is accepted.
+	resp := tester.AssertResponseCode(publish(mint([]byte("key-a"), "https://a.example")), http.StatusOK)
+	require.NoError(t, resp.Body.Close())
+
+	// Issuer A signed with key B is rejected: keys are not pooled across issuers.
+	resp = tester.AssertResponseCode(publish(mint([]byte("key-b"), "https://a.example")), http.StatusUnauthorized)
+	require.NoError(t, resp.Body.Close())
 }

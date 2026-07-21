@@ -20,21 +20,27 @@
 	encode zstd gzip
 
 	mercure {
-		# Publisher JWT key
-		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
-		# Subscriber JWT key
-		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+		# Trusted issuer: binds the iss claim access tokens must carry (RFC 9068)
+		# to its verification keys. The localhost default suits local development
+		# only. In production set MERCURE_TRUSTED_ISSUERS to the stable identifier
+		# of your token issuer (your app's URL for self-issued tokens). Add
+		# `authorization_server` inside the block to advertise it in the protected
+		# resource metadata, or add more `issuer` blocks via MERCURE_EXTRA_DIRECTIVES.
+		issuer {$MERCURE_TRUSTED_ISSUERS:https://localhost} {
+			# Publisher JWT key
+			publisher {
+				jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+			}
+			# Subscriber JWT key
+			subscriber {
+				jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+			}
+		}
 		# OAuth 2.0 resource identifier: the audience (aud) access tokens must carry.
 		# The localhost default suits local development only. In production set
 		# MERCURE_RESOURCE_IDENTIFIER to your hub's public URL (matching SERVER_NAME
 		# and the audience your issuer mints), otherwise every real token is rejected.
 		resource_identifier {$MERCURE_RESOURCE_IDENTIFIER:https://localhost/.well-known/mercure}
-		# Trusted issuer: the iss claim access tokens must carry (RFC 9068).
-		# The localhost default suits local development only. In production set
-		# MERCURE_TRUSTED_ISSUERS to the stable identifier of your token issuer
-		# (your app's URL for self-issued tokens), or configure
-		# authorization_servers when an OAuth 2.0 authorization server is used.
-		trusted_issuers {$MERCURE_TRUSTED_ISSUERS:https://localhost}
 		# Extra directives
 		{$MERCURE_EXTRA_DIRECTIVES}
 	}

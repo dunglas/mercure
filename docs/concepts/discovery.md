@@ -52,10 +52,10 @@ Members:
 - `resource`: the hub's resource identifier. This is the value a token's `aud` claim must contain (see [Authorization](authorization.md)).
 - `bearer_methods_supported`: the [RFC 6750](https://www.rfc-editor.org/rfc/rfc6750) presentation methods the hub accepts: `header` (the `Authorization` header). The `access_token` query parameter is not accepted ([RFC 9700](https://www.rfc-editor.org/rfc/rfc9700)).
 - `authorization_details_types_supported`: always contains `https://mercure.rocks/authorization-detail`, the [RFC 9396](https://www.rfc-editor.org/rfc/rfc9396) authorization detail type this hub understands.
-- `authorization_servers` (optional): the issuer identifiers of the authorization servers that mint tokens for this hub. A client uses these to locate the server, run an OAuth 2.0 flow, and obtain an access token. Configure them with the `authorization_servers` directive.
+- `authorization_servers` (optional): the issuer identifiers of the authorization servers that mint tokens for this hub. A client uses these to locate the server, run an OAuth 2.0 flow, and obtain an access token. Advertise an issuer by adding `authorization_server` inside its `issuer` block.
 - `mercure_cookie` (optional): the name of the cookie in which the hub also accepts the token. A cookie is not an RFC 6750 method, so it has its own member rather than appearing in `bearer_methods_supported`.
 
-The hub serves this document only when it validates tokens (a pure-anonymous hub has nothing to advertise). The `jwks_uri` member is intentionally omitted: the hub hosts no JWKS endpoint, and the separate publisher and subscriber key sets can't be expressed as one `jwks_uri`. To validate tokens against an external key set, point the hub at it with `publisher_jwks_url` / `subscriber_jwks_url` (see [Configuration](../deployment/configuration.md#jwt-validation-via-jwks)).
+The hub serves this document only when it validates tokens (a pure-anonymous hub has nothing to advertise). The `jwks_uri` member is intentionally omitted: the hub hosts no JWKS endpoint, and the separate publisher and subscriber key sets can't be expressed as one `jwks_uri`. To validate tokens against an external key set, point an issuer's verifier at it with `jwks_uri` (see [Configuration](../deployment/configuration.md#jwt-validation-via-jwks)).
 
 ## How the pieces fit together
 

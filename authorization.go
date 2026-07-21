@@ -82,19 +82,6 @@ func (w wildcard) match(s string) bool {
 // authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
 func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //nolint:funlen
-	var (
-		jwtKeyfunc jwt.Keyfunc
-		algs       []string
-	)
-
-	if publish {
-		jwtKeyfunc = h.publisherJWTKeyFunc
-		algs = h.publisherJWTAlgorithms
-	} else {
-		jwtKeyfunc = h.subscriberJWTKeyFunc
-		algs = h.subscriberJWTAlgorithms
-	}
-
 	authorizationHeaders, authorizationHeaderExists := r.Header["Authorization"]
 	if authorizationHeaderExists {
 		// The token must be at least minCompactJWSLen bytes after the prefix.
@@ -104,7 +91,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 			return nil, ErrInvalidAuthorizationHeader
 		}
 
-		return h.validateJWT(authorizationHeaders[0][len(bearerPrefix):], jwtKeyfunc, algs)
+		return h.validateJWT(authorizationHeaders[0][len(bearerPrefix):], publish)
 	}
 
 	// The deprecated "authorization" query parameter is honored only in
@@ -112,7 +99,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	// "access_token" query parameter is not accepted: RFC 9700 §4.3.2 forbids
 	// passing access tokens in the URI query string.
 	if token, ok := h.legacyAuthQueryParam(r); ok {
-		return h.validateJWT(token, jwtKeyfunc, algs)
+		return h.validateJWT(token, publish)
 	}
 
 	cookie, err := h.readCookie(r)
@@ -123,7 +110,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 
 	// CSRF attacks cannot occur when using safe methods
 	if r.Method != http.MethodPost {
-		return h.validateJWT(cookie.Value, jwtKeyfunc, algs)
+		return h.validateJWT(cookie.Value, publish)
 	}
 
 	origin := r.Header.Get("Origin")
@@ -143,16 +130,16 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	}
 
 	if h.publishOriginsAll {
-		return h.validateJWT(cookie.Value, jwtKeyfunc, algs)
+		return h.validateJWT(cookie.Value, publish)
 	}
 
 	if slices.Contains(h.publishOrigins, origin) {
-		return h.validateJWT(cookie.Value, jwtKeyfunc, algs)
+		return h.validateJWT(cookie.Value, publish)
 	}
 
 	for _, allowedOrigin := range h.publishWOrigins {
 		if allowedOrigin.match(origin) {
-			return h.validateJWT(cookie.Value, jwtKeyfunc, algs)
+			return h.validateJWT(cookie.Value, publish)
 		}
 	}
 
@@ -164,10 +151,9 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 // exp. In compatibility mode (deprecated_claim builds with
 // WithProtocolVersionCompatibility) these checks are relaxed. The accepted
 // algorithms are pinned here (RFC 8725) so the algorithm can never be taken
-// from the token header: a single-key configuration pins its one algorithm,
-// the JWKS path pins whatever WithPublisher/SubscriberJWTAlgorithms declares,
-// and NewHub fills defaultJWTAlgorithms in modern mode when nothing is
-// declared, so algs is only empty in compatibility mode.
+// from the token header: they come from the selected issuer's Verifier (a
+// Static pins its one algorithm, a KeyFunc its allowlist, defaulting to the
+// asymmetric algorithms), so algs is only empty in compatibility mode.
 func (h *Hub) jwtParserOptions(algs []string) []jwt.ParserOption {
 	var opts []jwt.ParserOption
 
@@ -193,10 +179,49 @@ func (h *Hub) jwtParserOptions(algs []string) []jwt.ParserOption {
 	return opts
 }
 
+// selectVerifier picks the issuer-specific verifier for a token, using the
+// token's unverified iss claim as a selection hint only. An unverified iss can
+// only select among the issuer bindings established by trusted configuration;
+// it never introduces a key source. Compatibility mode does not check the iss
+// claim, so it falls back to the sole configured issuer.
+func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, error) {
+	var pre claims
+	if _, _, err := jwt.NewParser().ParseUnverified(encodedToken, &pre); err != nil {
+		return roleVerifier{}, fmt.Errorf("%w: %w", ErrInvalidJWT, err)
+	}
+
+	iv, ok := h.issuers[pre.Issuer]
+	if !ok {
+		if !h.compatClaimsEnabled() || len(h.issuers) != 1 {
+			return roleVerifier{}, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, pre.Issuer)
+		}
+
+		for _, v := range h.issuers {
+			iv = v
+		}
+	}
+
+	rv := iv.subscriber
+	if publish {
+		rv = iv.publisher
+	}
+
+	if rv.keyfunc == nil {
+		return roleVerifier{}, fmt.Errorf("%w: no verifier configured for this role", ErrInvalidJWT)
+	}
+
+	return rv, nil
+}
+
 // validateJWT parses and validates an access token, returning its claims with
 // the mercure authorization details resolved into c.authz.
-func (h *Hub) validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc, algs []string) (*claims, error) {
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, jwtKeyfunc, h.jwtParserOptions(algs)...)
+func (h *Hub) validateJWT(encodedToken string, publish bool) (*claims, error) {
+	rv, err := h.selectVerifier(encodedToken, publish)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, rv.keyfunc, h.jwtParserOptions(rv.algorithms)...)
 	if err != nil {
 		// Signature, audience, expiration and algorithm failures are all
 		// invalid-token conditions; classify them as such for RFC 6750.
@@ -225,14 +250,15 @@ func (h *Hub) validateJWT(encodedToken string, jwtKeyfunc jwt.Keyfunc, algs []st
 		}
 	}
 
-	// RFC 9068 §4: the token's issuer must exactly match a trusted issuer — an
-	// authorization server or a self-issuing publisher declared with
-	// WithTrustedIssuers — so a token signed by a key the hub trusts for one
-	// issuer cannot be replayed under another. Relaxed in compatibility mode.
-	if !h.compatClaimsEnabled() &&
-		!slices.Contains(h.authorizationServers, c.Issuer) &&
-		!slices.Contains(h.trustedIssuers, c.Issuer) {
-		return nil, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, c.Issuer)
+	// RFC 9068 §4: the verified issuer must be one of the configured issuers, so
+	// a token signed by a key the hub trusts for one issuer cannot be replayed
+	// under another. selectVerifier already keyed the verification on the
+	// unverified iss; re-check the verified claim as defense in depth. Relaxed
+	// in compatibility mode.
+	if !h.compatClaimsEnabled() {
+		if _, ok := h.issuers[c.Issuer]; !ok {
+			return nil, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, c.Issuer)
+		}
 	}
 
 	authz, err := validateAuthorizationDetails(h.topicMatcherStore, c.AuthorizationDetails)
