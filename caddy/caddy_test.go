@@ -37,15 +37,15 @@ const (
 //nolint:gochecknoglobals
 var (
 	// publisherJWT grants publish on every topic (HS256, key "!ChangeMe!").
-	publisherJWT = mustMintHMACToken(actionDetail("publish", topicMatch("*")))
+	publisherJWT = mustMintHMACToken(actionDetail("publish", topicMatch()))
 	// subscriberJWT grants subscribe on every topic (HS256, key "!ChangeMe!").
-	subscriberJWT = mustMintHMACToken(actionDetail("subscribe", topicMatch("*")))
+	subscriberJWT = mustMintHMACToken(actionDetail("subscribe", topicMatch()))
 	// publisherJWTRSA grants publish on every topic, signed with
 	// fixtures/jwt/RS256.key, to exercise RS256 verification.
-	publisherJWTRSA = mustMintRSAToken(actionDetail("publish", topicMatch("*")))
+	publisherJWTRSA = mustMintRSAToken(actionDetail("publish", topicMatch()))
 )
 
-func topicMatch(match string) map[string]any { return map[string]any{"match": match} }
+func topicMatch() map[string]any { return map[string]any{"match": "*"} }
 
 func actionDetail(action string, topics ...map[string]any) map[string]any {
 	return map[string]any{"type": "https://mercure.rocks/authorization-detail", "actions": []string{action}, "topics": topics}
@@ -717,7 +717,7 @@ func TestMultiIssuerPublish(t *testing.T) {
 			"iss":                   iss,
 			"aud":                   caddyResourceIdentifier,
 			"exp":                   time.Now().Add(time.Hour).Unix(),
-			"authorization_details": []map[string]any{actionDetail("publish", topicMatch("*"))},
+			"authorization_details": []map[string]any{actionDetail("publish", topicMatch())},
 		})
 		token.Header["typ"] = "at+jwt"
 

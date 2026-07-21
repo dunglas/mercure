@@ -96,13 +96,13 @@ issuer https://issuer-b.example {
 }
 ```
 
-| Sub-directive                     | Description                                                                                             |
+| Sub-directive                     | Description                                                                                            |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `authorization_server`            | Advertise this issuer in the [protected resource metadata](../concepts/discovery.md). Off by default.  |
-| `publisher { … }`                 | Verification material for publisher tokens. Omit to reject publishing for this issuer.                  |
+| `publisher { … }`                 | Verification material for publisher tokens. Omit to reject publishing for this issuer.                 |
 | `subscriber { … }`                | Verification material for subscriber tokens. Omit to reject subscribing for this issuer.               |
 | `jwt <key> [<algorithm>]`         | Shared secret or PEM public key, plus algorithm (defaults to `HS256`). Supports Caddy placeholders.    |
-| `jwks_uri <url> [<algorithm>...]` | JWK Set URL and its allowed algorithms (defaults to the asymmetric allowlist). Accepts `file://` URLs.  |
+| `jwks_uri <url> [<algorithm>...]` | JWK Set URL and its allowed algorithms (defaults to the asymmetric allowlist). Accepts `file://` URLs. |
 
 `jwt` and `jwks_uri` are mutually exclusive within a `publisher`/`subscriber` block.
 
