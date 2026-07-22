@@ -19,11 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testAddr        = "127.0.0.1:4242"
-	testMetricsAddr = "127.0.0.1:4243"
-)
-
 func TestMain(m *testing.M) {
 	flag.Parse()
 
