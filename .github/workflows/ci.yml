@@ -13,7 +13,7 @@ permissions:
 
 env:
   GOTOOLCHAIN: local
-  GOFLAGS: "-tags=deprecated_server,deprecated_transport,deprecated_topic,deprecated_claim,nobadger,nomysql,nopgx"
+  GOFLAGS: "-tags=deprecated_transport,deprecated_topic,deprecated_claim,nobadger,nomysql,nopgx"
 
 jobs:
   golangci:
@@ -82,7 +82,7 @@ jobs:
         run: go test -race -covermode atomic -coverprofile=profile.cov -coverpkg=github.com/dunglas/mercure ./...
 
       - name: Test (without the deprecated_topic and deprecated_claim tags)
-        run: go test -tags=deprecated_server,deprecated_transport,nobadger,nomysql,nopgx ./...
+        run: go test -tags=deprecated_transport,nobadger,nomysql,nopgx ./...
         env:
           GOFLAGS: ""
 

@@ -101,21 +101,6 @@ jobs:
           subject-digest: ${{ steps.caddy_image.outputs.digest }}
           push-to-registry: true
 
-      - name: Inspect legacy Docker image
-        id: legacy_image
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "dunglas/mercure:legacy-${GITHUB_REF_NAME}")
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
-
-      - name: Attest legacy Docker image
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
-        with:
-          subject-name: docker.io/dunglas/mercure
-          subject-digest: ${{ steps.legacy_image.outputs.digest }}
-          push-to-registry: true
-
       - name: Display version
         run: dist/caddy_linux_amd64_v1/mercure version
 

@@ -1285,7 +1285,6 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 		WithWriteTimeout(writeTimeout),
 	)
 	require.NoError(tb, err)
-	setDeprecatedOptions(tb, h)
 
 	return h
 }
