@@ -138,7 +138,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - Set `resource_identifier` (or `public_url`) to the audience your tokens carry; it's required when JWT auth is enabled in modern mode. The official Caddyfile defaults it to `https://localhost/.well-known/mercure`.
 - Declare your token issuer with an `issuer <id> { ... }` block binding the `iss` value your tokens carry to its `publisher`/`subscriber` verifier (`jwt` or `jwks_uri`); it's required when JWT auth is enabled in modern mode. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys.
 - The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode; migrate them into an `issuer` block for modern mode.
-- Keep redacting the legacy `authorization` and `access_token` query parameters from logs; old clients may still send them.
+- The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
 - `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`. The legacy non-Caddy server is removed.
 
 ### Compatibility mode
@@ -149,6 +149,32 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt` / `aud`.
 
 Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
+
+#### Restore the removed Caddyfile directives
+
+The official Caddyfile dropped two directives that only serve 0.x clients. Add them back to your Caddyfile when running compatibility mode.
+
+0.x clients pass tokens in the `authorization` and `access_token` query parameters, so keep them out of logs by restoring the log filter inside the site block:
+
+```caddyfile
+log {
+  format filter {
+    fields {
+      request>uri query {
+        replace access_token REDACTED
+        replace authorization REDACTED
+      }
+    }
+  }
+}
+```
+
+The deprecated `/healthz` endpoint (superseded by the `/mercure/health/ready` and `/mercure/health/live` admin API endpoints):
+
+```caddyfile
+log_skip /healthz
+respond /healthz 200
+```
 
 ### Go API changes
 
