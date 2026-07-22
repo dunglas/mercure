@@ -92,6 +92,7 @@ Kubernetes: `>=1.23.0-0`
 | service.annotations | object | `{}` |  |
 | service.nodePort | string | `nil` | Set this, to pin the external nodePort in case `service.type` is `NodePort`. |
 | service.port | int | `80` | Service port. |
+| service.portName | string | `http` | Service port name. |
 | service.targetPort | int | `80` | Service target port. |
 | service.type | string | `"ClusterIP"` | Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types). |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |
