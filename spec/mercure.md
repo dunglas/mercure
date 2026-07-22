@@ -15,6 +15,7 @@ status = "standard"
 initials="K."
 surname="Dunglas"
 fullname="Kévin Dunglas"
+role="editor"
 abbrev = "Les-Tilleuls.coop"
 organization = "Les-Tilleuls.coop"
   [author.address]
@@ -326,7 +327,7 @@ registry (see (#iana-considerations)) records additional registered types.
 # Publication
 
 The publisher sends updates by issuing `POST` HTTPS requests to the hub URL. When it receives an
-update, the hub dispatches it to subscribers using the established server-sent events connections.
+update, the hub dispatches it to subscribers using the established Server-Sent Events connections.
 
 The hub **MAY** also dispatch the update using other protocols such as WebSub
 [@W3C.REC-websub-20180123] or ActivityPub [@W3C.REC-activitypub-20180123].
@@ -523,7 +524,7 @@ by the access token, as defined in [@!RFC6750]. As with every HTTP authenticatio
 scheme name is matched case-insensitively [@RFC9110].
 
 In a web browser, the `fetch()` API [@!FETCH] can set this header and consume the
-server-sent event stream through the response body's readable stream [@streams]; this is the
+Server-Sent Events stream through the response body's readable stream [@streams]; this is the
 **RECOMMENDED** mechanism when the token must be scoped to a single connection or browsing
 context (for example, several tabs each holding a different token), or when the hub and the
 web application do not share the same registrable domain — situations a cookie cannot
@@ -680,8 +681,8 @@ A Mercure authorization detail object:
 
 *   **MUST** have a `type` property whose value is the string
     `https://mercure.rocks/authorization-detail`, compared byte by byte.
-*   **MUST** have an `actions` property: a non-empty JSON array of strings (RFC 9396 `actions`
-    field). This document defines the actions `publish` and `subscribe`; additional actions can
+*   **MUST** have an `actions` property: a non-empty JSON array of strings (the `actions`
+    field of [@!RFC9396]). This document defines the actions `publish` and `subscribe`; additional actions can
     be registered in the "Mercure Actions" registry (see (#iana-considerations)). Hubs **MUST**
     ignore action values they do not recognize: an unrecognized action grants nothing, and its
     presence does not invalidate the token. This lets issuers include actions defined by future
@@ -847,7 +848,7 @@ To allow re-establishment in case of connection loss, events dispatched by the h
 include an `id` property. The value of this property **SHOULD** be an IRI [@!RFC3987]. A UUID
 [@RFC9562] or a DID [@DID] **MAY** be used.
 
-Per the server-sent events specification, the subscriber tries to reconnect automatically in
+Per the Server-Sent Events specification, the subscriber tries to reconnect automatically in
 case of connection loss. During reconnection, the subscriber **MUST** send the last received
 event ID in a `Last-Event-ID` HTTP request header [@!HTML].
 
@@ -916,10 +917,10 @@ response field with the last event ID it requested. In case of data loss, the su
 **SHOULD** re-fetch the original topic.
 
 Note: Native `EventSource` implementations do not expose HTTP response headers. However,
-polyfills and server-sent events clients in most programming languages do.
+polyfills and Server-Sent Events clients in most programming languages do.
 
 The hub **MAY** also specify the reconnection time using the `retry` key, as defined by the
-server-sent events format.
+Server-Sent Events format.
 
 # Active Subscriptions
 
@@ -1882,7 +1883,7 @@ Symfony Mercure Component, available at <https://symfony.com/doc/current/compone
 
 Brief Description:
 
-This a publisher library written in PHP. It also provides support for Mercure in the Symfony web
+This is a publisher library written in PHP. It also provides support for Mercure in the Symfony web
 framework.
 
 Level of Maturity:
@@ -1921,8 +1922,8 @@ API Platform, available at <https://api-platform.com/docs/core/mercure/>
 
 Brief Description:
 
-The API Platform framework, allows to create async APIs implementing the Mercure protocol and to
-generate clients for these APIs.
+The API Platform framework lets developers create async APIs implementing the Mercure protocol
+and generate clients for these APIs.
 
 Level of Maturity:
 
