@@ -159,6 +159,9 @@ spec:
               name: mercure-config
             - mountPath: /tmp
               name: mercure-tmp
+          {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
@@ -230,3 +233,6 @@ spec:
           emptyDir: {}
         - name: mercure-tmp
           emptyDir: {}
+      {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

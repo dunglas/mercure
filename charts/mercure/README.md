@@ -40,6 +40,8 @@ Kubernetes: `>=1.23.0-0`
 | existingSecret | string | `""` | Allows to pass an existing secret name, the above values will be used if empty. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
 | extraEnvs | list | `[]` | Additional environment variables to set |
+| extraVolumes | list | `[]` | Additional volumes to set |
+| extraVolumeMounts | list | `[]` | Additional volume mounts to set |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
 | globalOptions | string | `""` | Inject global options in the Caddyfile. |
 | healthCheck | object | `{"enabled":true,"liveness":{"failureThreshold":3,"initialDelaySeconds":15,"periodSeconds":10,"timeoutSeconds":5},"readiness":{"failureThreshold":2,"initialDelaySeconds":5,"periodSeconds":5,"timeoutSeconds":3}}` | Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port instead of /healthz on the HTTP port. |
