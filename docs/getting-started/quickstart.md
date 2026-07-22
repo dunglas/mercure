@@ -17,10 +17,10 @@ docker run -p 8080:80 \
   -e SERVER_NAME=':80' \
   -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
   -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-  -e MERCURE_RESOURCE_IDENTIFIER='https://localhost/.well-known/mercure' \
   -e MERCURE_TRUSTED_ISSUERS='https://localhost' \
   -e MERCURE_EXTRA_DIRECTIVES='anonymous
 cors_origins *
+resource_identifier https://localhost/.well-known/mercure
 demo' \
   dunglas/mercure
 ```
@@ -30,10 +30,10 @@ The hub is now serving on `http://localhost:8080`.
 What that command does:
 
 - `MERCURE_*_JWT_KEY`: the secret used to verify access tokens. Don't ship this value to production; the [installation guide](installation.md) covers proper key management.
-- `MERCURE_RESOURCE_IDENTIFIER`: the OAuth 2.0 audience tokens must carry in their `aud` claim. The demo token below uses this exact value.
 - `MERCURE_TRUSTED_ISSUERS`: the issuer tokens must carry in their `iss` claim. The demo token below uses this exact value.
 - `anonymous`: lets clients subscribe to public topics without a token (handy in dev, off by default in prod).
 - `cors_origins *`: allow any origin to connect (you'll want to restrict this).
+- `resource_identifier`: the OAuth 2.0 audience tokens must carry in their `aud` claim, and the value the demo token below uses. The hub derives this from the request by default; `SERVER_NAME=':80'` here is a catch-all address, so it is pinned to a stable value.
 - `demo`: turns on the in-browser debugger at <http://localhost:8080/.well-known/mercure/ui/>.
 
 > **Pro tip.** Don't want to manage a hub? [Mercure Cloud](https://mercure.rocks/pricing) has a free tier sized for prototyping. Same protocol, no infrastructure to run.

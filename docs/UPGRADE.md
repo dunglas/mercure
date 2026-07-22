@@ -135,7 +135,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 ### Hub configuration changes
 
-- Set `resource_identifier` (or `public_url`) to the audience your tokens carry; it's required when JWT auth is enabled in modern mode. The official Caddyfile defaults it to `https://localhost/.well-known/mercure`.
+- The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity.
 - Declare your token issuer with an `issuer <id> { ... }` block binding the `iss` value your tokens carry to its `publisher`/`subscriber` verifier (`jwt` or `jwks_uri`); it's required when JWT auth is enabled in modern mode. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys.
 - The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode; migrate them into an `issuer` block for modern mode.
 - The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
@@ -154,14 +154,13 @@ Official binaries and Docker images ship with both tags, so you can run `protoco
 
 The official Caddyfile dropped two directives that only serve 0.x clients. Add them back to your Caddyfile when running compatibility mode.
 
-0.x clients pass tokens in the `authorization` and `access_token` query parameters, so keep them out of logs by restoring the log filter inside the site block:
+0.x clients pass the token in the `authorization` query parameter, so keep it out of logs by restoring the log filter inside the site block:
 
 ```caddyfile
 log {
   format filter {
     fields {
       request>uri query {
-        replace access_token REDACTED
         replace authorization REDACTED
       }
     }
@@ -180,7 +179,7 @@ respond /healthz 200
 
 - `Update.Topics` becomes `Update.Topic` (a single topic).
 - `canReceive` / `canDispatch` are replaced by the internal authorization-detail grant logic.
-- `NewHub` requires a resource identifier (set `WithResourceIdentifier` or `WithPublicURL`) when JWT auth is enabled in modern mode.
+- `NewHub` no longer requires a resource identifier: it derives the identity from each request, resolving the origin from `NewRequestOriginContext` when an embedding server sets it, else from the request's scheme and `Host`. `WithResourceIdentifier` still pins one static value; a value ending in `/.well-known/mercure` also sets the URL Pattern base. `WithPublicURLs` restricts the hub to an allowlist of public URLs (scheme and host), returning `421` for an unlisted origin.
 
 ---
 

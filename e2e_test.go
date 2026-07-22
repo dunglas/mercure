@@ -62,7 +62,6 @@ func e2eHub(t *testing.T) *Hub {
 			Subscriber: Static{Key: []byte(e2eKey), Algorithm: "HS256"},
 		}}),
 		WithResourceIdentifier(e2eAud),
-		WithPublicURL(e2eAud),
 		WithSubscriptions(),
 		WithTopicMatcherStore(tms),
 		WithTransport(NewLocalTransport(NewSubscriberList(1000))),

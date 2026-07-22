@@ -82,6 +82,11 @@ func (w wildcard) match(s string) bool {
 // authorize validates the JWT that may be provided through an "Authorization" HTTP header or an authorization cookie.
 // It returns the claims contained in the token if it exists and is valid, nil if no token is provided (anonymous mode), and an error if the token is not valid.
 func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //nolint:funlen
+	// The expected audience is the hub's per-request resource identifier, so a
+	// token minted for the public URL the client contacted is accepted while one
+	// minted for a different host is rejected (RFC 9068).
+	expectedAudience, _ := h.requestIdentity(r)
+
 	authorizationHeaders, authorizationHeaderExists := r.Header["Authorization"]
 	if authorizationHeaderExists {
 		// The token must be at least minCompactJWSLen bytes after the prefix.
@@ -91,7 +96,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 			return nil, ErrInvalidAuthorizationHeader
 		}
 
-		return h.validateJWT(authorizationHeaders[0][len(bearerPrefix):], publish)
+		return h.validateJWT(authorizationHeaders[0][len(bearerPrefix):], publish, expectedAudience)
 	}
 
 	// The deprecated "authorization" query parameter is honored only in
@@ -99,7 +104,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	// "access_token" query parameter is not accepted: RFC 9700 §4.3.2 forbids
 	// passing access tokens in the URI query string.
 	if token, ok := h.legacyAuthQueryParam(r); ok {
-		return h.validateJWT(token, publish)
+		return h.validateJWT(token, publish, expectedAudience)
 	}
 
 	cookie, err := h.readCookie(r)
@@ -110,7 +115,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 
 	// CSRF attacks cannot occur when using safe methods
 	if r.Method != http.MethodPost {
-		return h.validateJWT(cookie.Value, publish)
+		return h.validateJWT(cookie.Value, publish, expectedAudience)
 	}
 
 	origin := r.Header.Get("Origin")
@@ -130,16 +135,16 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	}
 
 	if h.publishOriginsAll {
-		return h.validateJWT(cookie.Value, publish)
+		return h.validateJWT(cookie.Value, publish, expectedAudience)
 	}
 
 	if slices.Contains(h.publishOrigins, origin) {
-		return h.validateJWT(cookie.Value, publish)
+		return h.validateJWT(cookie.Value, publish, expectedAudience)
 	}
 
 	for _, allowedOrigin := range h.publishWOrigins {
 		if allowedOrigin.match(origin) {
-			return h.validateJWT(cookie.Value, publish)
+			return h.validateJWT(cookie.Value, publish, expectedAudience)
 		}
 	}
 
@@ -147,14 +152,14 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 }
 
 // jwtParserOptions returns the RFC 9068 parser checks enforced in modern mode:
-// a required audience matching the hub's resource identifier and a required
-// exp. In compatibility mode (deprecated_claim builds with
+// a required audience matching the hub's per-request resource identifier
+// (expectedAudience) and a required exp. In compatibility mode (deprecated_claim builds with
 // WithProtocolVersionCompatibility) these checks are relaxed. The accepted
 // algorithms are pinned here (RFC 8725) so the algorithm can never be taken
 // from the token header: they come from the selected issuer's Verifier (a
 // Static pins its one algorithm, a KeyFunc its allowlist, defaulting to the
 // asymmetric algorithms), so algs is only empty in compatibility mode.
-func (h *Hub) jwtParserOptions(algs []string) []jwt.ParserOption {
+func (h *Hub) jwtParserOptions(algs []string, expectedAudience string) []jwt.ParserOption {
 	var opts []jwt.ParserOption
 
 	if len(algs) > 0 {
@@ -167,13 +172,15 @@ func (h *Hub) jwtParserOptions(algs []string) []jwt.ParserOption {
 
 	opts = append(opts, jwt.WithExpirationRequired())
 
-	// Enforce the audience only when a resource identifier is configured.
-	// Compatibility mode on a build without the deprecated_claim tag still
-	// reaches this path (compatClaimsEnabled is a no-op stub there) with an
-	// empty identifier; golang-jwt treats an empty expected audience as a
-	// required claim, so enforcing it would reject every otherwise-valid token.
-	if h.resourceIdentifier != "" {
-		opts = append(opts, jwt.WithAudience(h.resourceIdentifier))
+	// Enforce the audience only when the hub has one (the statically configured
+	// resource identifier, or the per-request identity derived from the public
+	// URL the client contacted). Compatibility mode on a build without the
+	// deprecated_claim tag still reaches this path (compatClaimsEnabled is a
+	// no-op stub there) with an empty audience; golang-jwt treats an empty
+	// expected audience as a required claim, so enforcing it would reject every
+	// otherwise-valid token.
+	if expectedAudience != "" {
+		opts = append(opts, jwt.WithAudience(expectedAudience))
 	}
 
 	return opts
@@ -215,13 +222,13 @@ func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, e
 
 // validateJWT parses and validates an access token, returning its claims with
 // the mercure authorization details resolved into c.authz.
-func (h *Hub) validateJWT(encodedToken string, publish bool) (*claims, error) {
+func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience string) (*claims, error) {
 	rv, err := h.selectVerifier(encodedToken, publish)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, rv.keyfunc, h.jwtParserOptions(rv.algorithms)...)
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, rv.keyfunc, h.jwtParserOptions(rv.algorithms, expectedAudience)...)
 	if err != nil {
 		// Signature, audience, expiration and algorithm failures are all
 		// invalid-token conditions; classify them as such for RFC 6750.

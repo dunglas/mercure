@@ -37,7 +37,9 @@ The identifier is the stable identifier of whoever signs the tokens: your app's 
 
 Inside `publisher`/`subscriber`, use `jwt <key> [<algorithm>]` for a shared secret or public key, or `jwks_uri <url> [<algorithm>...]` for a JWK Set. The two are mutually exclusive.
 
-`resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). It defaults to `public_url`; set one of them whenever the hub validates tokens.
+`resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). Leave it unset and the hub derives it from each request (the public URL the client contacted), so a hub reachable through several domains needs no configuration; set it only to pin one canonical audience shared across every domain.
+
+`resource_identifier` and `public_urls` answer different questions and are independent: `resource_identifier` sets the token audience, while `public_urls` restricts which origins the hub answers on (rejecting others with `421`). A single `resource_identifier` is what lets one token work across several public URLs, since a per-request-derived audience is specific to the host the client contacted.
 
 Caddy provisions a Let's Encrypt certificate for `hub.example.com` automatically. To disable HTTPS (when behind a reverse proxy that terminates TLS), prefix the site address with `http://`:
 
@@ -55,8 +57,8 @@ Setting the port to 80 also disables HTTPS implicitly.
 | Directive                                  | Description                                                                                                                               | Default                         |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
 | `issuer <id> { … }`                        | Bind a trusted issuer to its verification material. Repeatable. See [issuer blocks](#issuer-blocks).                                      |                                 |
-| `public_url <url>`                         | Canonical hub URL. Resolves relative URL Patterns and topics, and is the default `resource_identifier`.                                   |                                 |
-| `resource_identifier <id>`                 | OAuth 2.0 resource identifier (token `aud`). Required when JWT auth is enabled in modern mode. See [Discovery](../concepts/discovery.md). | `public_url`                    |
+| `resource_identifier <id>`                 | Pin the OAuth 2.0 resource identifier (token `aud`); unset, it is derived per request. See [Discovery](../concepts/discovery.md).         | derived per request             |
+| `public_urls <url...>`                     | Public URLs the hub answers on (scheme pinned); an unlisted origin gets `421 Misdirected Request`. Set it on a catch-all site.            | site host matching              |
 | `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                          | off                             |
 | `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                      |                                 |
 | `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                  |                                 |
@@ -120,7 +122,6 @@ The Docker image and the official Caddyfile read these:
 | `MERCURE_PUBLISHER_JWT_ALG`     | Publisher algorithm.                                                                   | `HS256`     |
 | `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber signing key.                                                                |             |
 | `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`     |
-| `MERCURE_RESOURCE_IDENTIFIER`   | Sets `resource_identifier` (the token `aud`).                                          |             |
 | `MERCURE_TRUSTED_ISSUERS`       | Sets the `issuer` block identifier (the token `iss`).                                  |             |
 | `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |             |
 | `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |             |
@@ -221,7 +222,7 @@ mercure {
 
 ## Keeping tokens out of logs
 
-The hub accepts no token in the URL ([RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids it), but misconfigured or legacy clients may still send one there. Redact the known parameter names from access logs; the official Caddyfile does this with a log field filter:
+The hub accepts no token in the URL ([RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids it), so modern clients never put one there. Only 0.x clients did, in the `authorization` query parameter, and only in [compatibility mode](../UPGRADE.md#compatibility-mode). If you run compatibility mode, redact it from access logs with a log field filter:
 
 ```caddyfile
 # Keeping tokens out of logs
@@ -229,7 +230,6 @@ log {
   format filter {
     fields {
       request>uri query {
-        replace access_token REDACTED
         replace authorization REDACTED
       }
     }

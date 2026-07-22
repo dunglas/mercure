@@ -50,8 +50,10 @@ var bearerMethodsSupported = []string{"header"}
 func (h *Hub) ProtectedResourceMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	identifier, _ := h.requestIdentity(r)
+
 	metadata := protectedResourceMetadata{
-		Resource:                           h.resourceIdentifier,
+		Resource:                           identifier,
 		BearerMethodsSupported:             bearerMethodsSupported,
 		AuthorizationServers:               h.authorizationServers,
 		AuthorizationDetailsTypesSupported: []string{authorizationDetailTypeMercure},

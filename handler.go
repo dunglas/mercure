@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
@@ -95,6 +96,19 @@ func (h *Hub) corsHandler(router http.Handler) http.Handler {
 }
 
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Reject a request whose origin is not in the public-URL allowlist before
+	// deriving any identity from it (see requestIdentity). The origin is the one
+	// an embedding server resolved (the Caddy module, from Caddy's trusted
+	// placeholders), else the request's own scheme and Host.
+	if len(h.allowedOrigins) > 0 {
+		scheme, host := h.requestOrigin(r)
+		if !slices.Contains(h.allowedOrigins, strings.ToLower(scheme+"://"+host)) {
+			http.Error(w, http.StatusText(http.StatusMisdirectedRequest), http.StatusMisdirectedRequest)
+
+			return
+		}
+	}
+
 	h.handler.ServeHTTP(w, r)
 }
 

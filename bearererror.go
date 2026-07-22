@@ -20,16 +20,16 @@ const (
 // writeBearerChallenge answers an unauthenticated request (no token presented)
 // with a 401 and a bare RFC 6750 Bearer challenge, advertising the protected
 // resource metadata so clients can discover the authorization requirements.
-func (h *Hub) writeBearerChallenge(w http.ResponseWriter) {
+func (h *Hub) writeBearerChallenge(w http.ResponseWriter, r *http.Request) {
 	// An empty error code makes setWWWAuthenticate omit the error= parameter, so
 	// this is the bare challenge for an unauthenticated request.
-	h.writeBearerError(w, "", http.StatusUnauthorized)
+	h.writeBearerError(w, r, "", http.StatusUnauthorized)
 }
 
 // writeBearerError answers with an RFC 6750 error: a WWW-Authenticate challenge
 // carrying the error code and the matching status.
-func (h *Hub) writeBearerError(w http.ResponseWriter, code string, status int) {
-	h.setWWWAuthenticate(w, code)
+func (h *Hub) writeBearerError(w http.ResponseWriter, r *http.Request, code string, status int) {
+	h.setWWWAuthenticate(w, r, code)
 	http.Error(w, http.StatusText(status), status)
 }
 
@@ -49,13 +49,13 @@ func (h *Hub) writeBearerError(w http.ResponseWriter, code string, status int) {
 func (h *Hub) writeAuthError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case err == nil:
-		h.writeBearerChallenge(w)
+		h.writeBearerChallenge(w, r)
 	case errors.Is(err, ErrInvalidAuthorizationHeader),
 		errors.Is(err, ErrNoOrigin),
 		errors.Is(err, ErrOriginNotAllowed):
-		h.writeBearerError(w, bearerErrInvalidRequest, http.StatusBadRequest)
+		h.writeBearerError(w, r, bearerErrInvalidRequest, http.StatusBadRequest)
 	default:
-		h.writeBearerError(w, bearerErrInvalidToken, http.StatusUnauthorized)
+		h.writeBearerError(w, r, bearerErrInvalidToken, http.StatusUnauthorized)
 	}
 
 	// Token rejections are client-caused and, during a protocol migration,
@@ -70,7 +70,7 @@ func (h *Hub) writeAuthError(w http.ResponseWriter, r *http.Request, err error) 
 
 // setWWWAuthenticate writes the RFC 6750 WWW-Authenticate: Bearer header,
 // including the RFC 9728 resource_metadata parameter when the hub can build it.
-func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, code string) {
+func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code string) {
 	var b strings.Builder
 	b.WriteString("Bearer")
 
@@ -80,36 +80,52 @@ func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, code string) {
 		sep = ", "
 	}
 
-	if h.resourceMetadataURL != "" {
-		fmt.Fprintf(&b, `%sresource_metadata=%q`, sep, h.resourceMetadataURL)
+	if _, metadataURL := h.requestIdentity(r); metadataURL != "" {
+		fmt.Fprintf(&b, `%sresource_metadata=%q`, sep, metadataURL)
 	}
 
 	w.Header().Set("WWW-Authenticate", b.String())
 }
 
-// buildResourceMetadataURL returns the absolute URL of the hub's RFC 9728
-// protected resource metadata, or "" when the hub has no configured origin to
-// build it from. It is computed once at configuration time (see
-// opt.configureIdentifiers) and cached, since the value never varies per
-// request.
+// requestIdentity returns the hub's OAuth 2.0 resource identifier (RFC 9068
+// `aud`) and its RFC 9728 protected resource metadata URL for r. A statically
+// configured resource identifier wins and is returned with its precomputed
+// metadata URL. Otherwise the identity is derived from the request origin
+// resolved by the embedding server (see NewRequestOriginContext), so a hub
+// reachable through several public URLs presents each caller the identity of
+// the host it contacted without any per-host configuration.
 //
-// RFC 9728 requires an absolute value (a relative reference would be ambiguous
-// to clients), and this URL is echoed into the WWW-Authenticate challenge, so
-// it is derived only from the configured identity — the public URL, then the
-// resource identifier — never from request-supplied Host or X-Forwarded-Proto
-// headers, which a client could forge to point discovery at an attacker-chosen
-// origin. A token-validating hub in modern mode always has an identifier; the
-// empty return is only reached in compatibility mode without one, where the
-// parameter is omitted rather than fabricated from the request.
-func buildResourceMetadataURL(publicURL, resourceIdentifier string) string {
-	for _, identity := range []string{publicURL, resourceIdentifier} {
-		if identity == "" {
-			continue
-		}
+// The derived origin is trusted only because the embedding server validated it
+// (the Caddy module reads Caddy's request placeholders, gated by the site's
+// host matching and the optional public_urls allowlist) — a raw Host or
+// X-Forwarded-Proto header could otherwise point discovery at an attacker
+// origin. Returns empty strings when no identifier is configured and no origin
+// is available (only reached in compatibility mode without an identifier).
+func (h *Hub) requestIdentity(r *http.Request) (identifier, metadataURL string) {
+	if h.resourceIdentifier != "" {
+		return h.resourceIdentifier, h.resourceMetadataURL
+	}
 
-		if u, err := url.Parse(identity); err == nil && u.IsAbs() && u.Host != "" {
-			return u.Scheme + "://" + u.Host + protectedResourceMetadataPath
-		}
+	scheme, host := h.requestOrigin(r)
+	if host == "" {
+		return "", ""
+	}
+
+	origin := scheme + "://" + host
+
+	return origin + defaultHubURL, origin + protectedResourceMetadataPath
+}
+
+// buildResourceMetadataURL returns the absolute URL of the hub's RFC 9728
+// protected resource metadata for a statically configured resource identifier,
+// or "" when the identifier is not a usable absolute URL. RFC 9728 requires an
+// absolute value (a relative reference would be ambiguous to clients). When no
+// identifier is configured the hub derives this URL per request instead (see
+// requestIdentity), so this is computed once at configuration time only for the
+// static override.
+func buildResourceMetadataURL(resourceIdentifier string) string {
+	if u, err := url.Parse(resourceIdentifier); err == nil && u.IsAbs() && u.Host != "" {
+		return u.Scheme + "://" + u.Host + protectedResourceMetadataPath
 	}
 
 	return ""

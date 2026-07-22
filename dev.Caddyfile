@@ -20,8 +20,9 @@
 				jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
 			}
 		}
-		# OAuth 2.0 resource identifier (access token audience)
-		resource_identifier {$MERCURE_RESOURCE_IDENTIFIER:https://localhost/.well-known/mercure}
+		# The resource identifier (access token audience) and metadata are derived
+		# from each request; served over HTTPS by default, that is
+		# https://localhost/.well-known/mercure here.
 		# Permissive configuration for the development environment
 		# Prefix-less cookie name so the demo also works over plain HTTP
 		cookie_name mercure_access_token

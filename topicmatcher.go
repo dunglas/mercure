@@ -29,8 +29,9 @@ const topicsKeySeparator = "\x00"
 // identity-preserving against any consistent base, so subscription events
 // (which use relative topics) match correctly even without configuration.
 // Cross-mode matching (a relative pattern against an absolute topic on the
-// hub URL or vice versa) requires the real public URL — set it with
-// WithPublicURL (Go) or `public_url` (Caddyfile).
+// hub URL or vice versa) requires a real base URL — configure a resource
+// identifier ending in "/.well-known/mercure" (WithResourceIdentifier /
+// `resource_identifier`), which then doubles as the base.
 const urlPatternFallbackBase = "http://mercure.invalid"
 
 // matchCacheKey is the comparable struct used as the match-cache key. The

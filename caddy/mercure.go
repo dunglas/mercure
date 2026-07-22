@@ -188,12 +188,17 @@ type Mercure struct {
 	// prefix-less name.
 	CookieName string `json:"cookie_name,omitempty"`
 
-	// The URL at which subscribers reach the hub. Used as the base URL when
-	// matching relative URL patterns and topics.
-	PublicURL string `json:"public_url,omitempty"`
+	// Public URLs the hub answers on. When set, a request whose origin (scheme
+	// and host) is not listed is rejected with 421 Misdirected Request, pinning
+	// the scheme too. Leave empty to rely on the site's own host matching; set
+	// it for a catch-all site block that would otherwise let a client pick the
+	// derived public URL.
+	PublicURLs []string `json:"public_urls,omitempty"`
 
-	// The hub's OAuth 2.0 resource identifier (the `aud` value access tokens
-	// must carry). Defaults to the public URL when unset.
+	// Pins the hub's OAuth 2.0 resource identifier (the `aud` value access
+	// tokens must carry) to a single value. When unset, the hub derives it from
+	// each request (the public URL the client contacted), so several public
+	// URLs work without configuration; set it to force one canonical audience.
 	ResourceIdentifier string `json:"resource_identifier,omitempty"`
 
 	// OAuth 2.0 authorization server issuer identifiers advertised in the
@@ -286,11 +291,14 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
-		mercure.WithPublicURL(m.PublicURL),
 	}
 
 	if m.ResourceIdentifier != "" {
 		opts = append(opts, mercure.WithResourceIdentifier(m.ResourceIdentifier))
+	}
+
+	if len(m.PublicURLs) > 0 {
+		opts = append(opts, mercure.WithPublicURLs(m.PublicURLs))
 	}
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
@@ -423,7 +431,20 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
-	m.hub.ServeHTTP(w, r)
+	// Resolve the public origin from Caddy's request placeholders so it honors
+	// the trusted_proxies configuration rather than raw forwarded headers. The
+	// hub derives its OAuth resource identifier and RFC 9728 metadata URL from
+	// it (a hub reachable through several public URLs needs no configuration),
+	// and enforces the public_urls allowlist against this trusted origin.
+	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer) //nolint:forcetypeassert
+	host, _ := repl.GetString("http.request.hostport")
+	scheme, _ := repl.GetString("http.request.scheme")
+
+	// Pass the origin out-of-band via the context, never by mutating r.URL: the
+	// demo handler builds its rel="self" Link from r.URL.String(), which must
+	// stay a relative path. Writing scheme/host onto r.URL would corrupt that
+	// Link (and diverge under trusted_proxies).
+	m.hub.ServeHTTP(w, r.WithContext(mercure.NewRequestOriginContext(r.Context(), scheme, host)))
 
 	return nil
 }
@@ -589,12 +610,11 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.CookieName = d.Val()
 
-			case "public_url":
-				if !d.NextArg() {
+			case "public_urls":
+				m.PublicURLs = d.RemainingArgs()
+				if len(m.PublicURLs) == 0 {
 					return d.ArgErr()
 				}
-
-				m.PublicURL = d.Val()
 
 			case "resource_identifier":
 				if !d.NextArg() {

@@ -28,15 +28,14 @@ const (
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
 var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
-// ErrMissingResourceIdentifier is returned when the hub validates access
-// tokens in modern mode but no resource identifier (nor public URL) is set:
-// RFC 9068 requires the token audience to be checked against it.
-var ErrMissingResourceIdentifier = errors.New("a resource identifier (or public URL) is required when JWT authentication is enabled; set WithResourceIdentifier or WithPublicURL, or enable compatibility mode")
-
 // ErrInvalidResourceIdentifier is returned when the configured resource
 // identifier is not an RFC 9728 protected resource identifier: an absolute
 // URL without a fragment component.
 var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be an absolute URL without a fragment (RFC 9728)")
+
+// ErrInvalidPublicURL is returned when a public URL in the allowlist is not an
+// absolute URL with a scheme and a host.
+var ErrInvalidPublicURL = errors.New("a public URL must be an absolute URL with a scheme and a host")
 
 // ErrMissingIssuerIdentifier is returned when an issuer is configured in modern
 // mode with an empty identifier: the token iss claim is matched against it, so
@@ -238,6 +237,32 @@ func WithAllowedHosts(hosts []string) Option {
 	}
 }
 
+// WithPublicURLs restricts the hub to the given public URLs, pinning their
+// scheme as well as their host. A request whose derived origin (scheme + host)
+// is not one of them is rejected with 421 Misdirected Request, and the hub
+// never derives an identity from an unlisted origin. This is the safety gate
+// for a catch-all site block, where the fronting server does not already
+// constrain the Host. Each value is an absolute URL; only its scheme and host
+// (with optional port) are significant.
+func WithPublicURLs(urls []string) Option {
+	return func(o *opt) error {
+		origins := make([]string, 0, len(urls))
+
+		for _, raw := range urls {
+			u, err := url.Parse(raw)
+			if err != nil || !u.IsAbs() || u.Host == "" {
+				return fmt.Errorf("%w: %q", ErrInvalidPublicURL, raw)
+			}
+
+			origins = append(origins, strings.ToLower(u.Scheme+"://"+u.Host))
+		}
+
+		o.allowedOrigins = origins
+
+		return nil
+	}
+}
+
 func validateOrigins(origins []string) error {
 	for _, origin := range origins {
 		switch origin {
@@ -355,28 +380,14 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	}
 }
 
-// WithPublicURL sets the URL at which subscribers reach the hub. This is the
-// full hub URL, including the "/.well-known/mercure" path (e.g.
-// "https://example.com/.well-known/mercure"), not just the origin.
-//
-// It is used as the base URL when matching relative URL patterns and topics,
-// per the protocol's "the hub MUST use the hub's URL as the base URL" rule
-// (without it, only relative ↔ relative and absolute ↔ absolute matches work);
-// as the default resource identifier (RFC 9068 aud) when WithResourceIdentifier
-// is unset; and to derive the protected resource metadata URL. Omitting the
-// "/.well-known/mercure" suffix degrades that derivation to a request-based
-// fallback.
-func WithPublicURL(publicURL string) Option {
-	return func(o *opt) error {
-		o.publicURL = publicURL
-
-		return nil
-	}
-}
-
-// WithResourceIdentifier sets the hub's OAuth 2.0 resource identifier (RFC 9068
-// `aud` value, advertised through RFC 9728 protected resource metadata). It
-// defaults to the public URL when unset.
+// WithResourceIdentifier pins the hub's OAuth 2.0 resource identifier (RFC 9068
+// `aud` value, advertised through RFC 9728 protected resource metadata) to a
+// single static value. When unset, the hub derives the identifier from each
+// request (the public URL the client contacted), so a hub reachable through
+// several public URLs needs no configuration; set this only to force one
+// canonical audience shared across every URL. A value ending in
+// "/.well-known/mercure" also becomes the base URL for matching relative URL
+// patterns and topics.
 func WithResourceIdentifier(resourceIdentifier string) Option {
 	return func(o *opt) error {
 		o.resourceIdentifier = resourceIdentifier
@@ -410,9 +421,9 @@ type opt struct {
 	publishOrigins               []string
 	publishWOrigins              []wildcard
 	corsOrigins                  []string
+	allowedOrigins               []string
 	cookieName                   string
 	protocolVersionCompatibility int
-	publicURL                    string
 	resourceIdentifier           string
 	resourceMetadataURL          string
 	authorizationServers         []string
@@ -431,35 +442,25 @@ type issuerVerifier struct {
 	subscriber roleVerifier
 }
 
-// configureIdentifiers wires the public URL, the URL Pattern base, and the
-// resource identifier defaults, then applies the modern-mode rules.
+// configureIdentifiers wires the URL Pattern base and the statically
+// configured resource identifier, then applies the modern-mode rules. When no
+// resource identifier is configured the hub derives its identity from each
+// request instead (see requestIdentity).
 func (o *opt) configureIdentifiers() error {
-	// When only the resource identifier is configured and it is a full hub
-	// URL, it is the hub URL: use it as the URL Pattern base so relative
-	// patterns and topics resolve per the protocol without requiring the
-	// public URL to be configured twice.
-	if o.publicURL == "" && strings.HasSuffix(o.resourceIdentifier, defaultHubURL) {
-		o.publicURL = o.resourceIdentifier
+	// A configured resource identifier that is a full hub URL doubles as the
+	// URL Pattern base, so relative patterns and topics resolve per the
+	// protocol without configuring the base twice. Without one, the base stays
+	// the synthetic fallback (see urlPatternFallbackBase).
+	if strings.HasSuffix(o.resourceIdentifier, defaultHubURL) {
+		if err := o.topicMatcherStore.setBaseURL(o.resourceIdentifier); err != nil {
+			return err
+		}
 	}
 
-	if err := o.topicMatcherStore.setBaseURL(o.publicURL); err != nil {
-		return err
-	}
-
-	if o.resourceIdentifier == "" {
-		o.resourceIdentifier = o.publicURL
-	}
-
-	// Build the RFC 9728 metadata URL once, here, rather than on every
-	// unauthenticated request that emits a Bearer challenge.
-	o.resourceMetadataURL = buildResourceMetadataURL(o.publicURL, o.resourceIdentifier)
-
-	// In modern mode, RFC 9068 requires checking the token audience against
-	// the hub's resource identifier; refuse to start a token-validating hub
-	// that cannot perform that check.
-	if o.resourceIdentifier == "" && o.protocolVersionCompatibility == 0 &&
-		(o.publisherConfigured || o.subscriberConfigured) {
-		return ErrMissingResourceIdentifier
+	// Build the RFC 9728 metadata URL once for the static override; when none
+	// is configured the hub derives it per request.
+	if o.resourceIdentifier != "" {
+		o.resourceMetadataURL = buildResourceMetadataURL(o.resourceIdentifier)
 	}
 
 	// In modern mode the token iss claim must exactly match a trusted issuer,

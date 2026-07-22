@@ -482,6 +482,54 @@ func TestMaxRequestBodySize(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 }
 
+// On a catch-all site block, public_urls rejects an unlisted origin with 421;
+// an allowed origin reaches the hub, which derives its identity from that host.
+func TestPublicURLs(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	:9080 {
+		route {
+			mercure {
+				issuer https://as.example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				public_urls http://good.example.com
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	metadataPath := "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure"
+
+	req, _ := http.NewRequest(http.MethodGet, metadataPath, nil)
+	req.Host = "bad.example.com"
+	resp := tester.AssertResponseCode(req, http.StatusMisdirectedRequest)
+	require.NoError(t, resp.Body.Close())
+
+	req, _ = http.NewRequest(http.MethodGet, metadataPath, nil)
+	req.Host = "good.example.com"
+	resp = tester.AssertResponseCode(req, http.StatusOK)
+
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), `"resource":"http://good.example.com/.well-known/mercure"`)
+}
+
 func TestAllowNoPublish(t *testing.T) {
 	AllowNoPublish = true
 

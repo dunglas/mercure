@@ -96,7 +96,7 @@ URL Patterns understand:
 - Regular expression constraints inside groups: `:type(news|alerts)`
 - Optional segments: `/items{/:tail}?`
 
-Patterns can be **absolute** (`https://example.com/...`) or **relative** to the hub URL (`/.well-known/mercure/subscriptions/:match_type/:match/:subscriber`). Relative patterns are resolved against the hub's `public_url` and are useful for [subscribing to subscription events](active-subscriptions.md), where the hub itself is the publisher. Matching is case-sensitive; `ignoreCase` is never enabled.
+Patterns can be **absolute** (`https://example.com/...`) or **relative** to the hub URL (`/.well-known/mercure/subscriptions/:match_type/:match/:subscriber`). Relative patterns are resolved against the hub's base URL (a `resource_identifier` ending in `/.well-known/mercure`, otherwise a synthetic base) and are useful for [subscribing to subscription events](active-subscriptions.md), where the hub itself is the publisher. Matching is case-sensitive; `ignoreCase` is never enabled.
 
 A topic matches a URL Pattern if the URL Pattern accepts the topic string as a URL.
 
