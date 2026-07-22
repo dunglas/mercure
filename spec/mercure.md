@@ -1071,22 +1071,22 @@ properties:
 *   `type`: the fixed value `subscriptions`.
 *   `subscriptions`: an array of subscription documents as described in (#subscription-events).
 
-In addition, every endpoint **MUST** carry the reconciliation cursor on the `rel="mercure"` Link
-header [@!RFC8288] it sends, as a `last-event-id` target attribute — the same mechanism used at
-discovery (see (#discovery)), rather than a property of the JSON body:
+In addition, every endpoint **MUST** carry the reconciliation cursor as a `last-event-id` target
+attribute on the `rel="mercure"` Link header [@!RFC8288], following the same mechanism as
+discovery (see (#discovery)):
 
 *   `last-event-id`: the identifier of the last event dispatched by the hub at the time of this
     request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
-    dispatched yet. This value **SHOULD** be passed back to the hub, as the `last_event_id` query
-    parameter (see (#reconciliation)), when subscribing to subscription events to prevent data
-    loss. Carrying it on the Link header lets a single-subscription response body be exactly the
-    subscription event document of (#subscription-events), as required above.
+    dispatched yet. This value **SHOULD** be passed back to the hub as the `last_event_id` query
+    parameter (see (#reconciliation)) when subscribing to subscription events, to prevent data
+    loss. Because the cursor is carried on the Link header, a single-subscription response body
+    is the subscription event document of (#subscription-events) without modification.
 
-Subscription events form a homogeneous stream — they are always delivered under the reserved
+Subscription events are a homogeneous stream: they are always delivered under the reserved
 `mercure` event type with a JSON body (see (#subscription-events)). For consistency with
-discovery (see (#discovery)) and to save the subscriber from assuming these values, the hub
-**SHOULD** also set the `type` and `content-type` attributes on the same `rel="mercure"` Link
-header, with the values `mercure` and `application/json` respectively.
+discovery (see (#discovery)), the hub **SHOULD** also set the `type` and `content-type`
+attributes on the same `rel="mercure"` Link header, with the values `mercure` and
+`application/json` respectively.
 
 Active subscription collections can be large. Hubs **MAY** truncate or paginate collection
 responses according to an implementation-defined policy; each returned document **MUST** remain
@@ -1243,21 +1243,21 @@ The publisher **MAY** provide the following target attributes in the Link Header
     pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396]. Because the
     `data` field of a Server-Sent Event carries no content type of its own, this attribute lets a
     subscriber process the payload without content sniffing.
-*   `type`: the Server-Sent Events event type (the SSE `event` field, see (#subscription)) the
-    updates pushed for this resource will carry. A subscriber using the `EventSource` interface
-    [@!HTML] can register a listener for this type; if omitted, the subscriber **MUST** assume
-    the default event type (the events delivered to the `EventSource` `message` handler). It is
+*   `type`: the Server-Sent Events `event` field value (see (#subscription)) that the updates
+    pushed for this resource will carry. A subscriber using the `EventSource` interface [@!HTML]
+    can register a listener for this type; if omitted, the subscriber **MUST** assume the default
+    event type (the events delivered to the `EventSource` `message` handler). It is
     subject to the same character constraints as the publication `type` field (see
     (#publication)). A publisher advertising its own resource **MUST NOT** use the reserved
-    `mercure` type, which the hub generates for subscription events; the hub itself does advertise
-    `mercure` on the subscription API, where the stream is exactly those events (see
-    (#subscription-api) and (#subscription-events)).
+    `mercure` type, which the hub generates for subscription events; the hub advertises `mercure`
+    on the subscription API, where the stream consists of those events (see (#subscription-api)
+    and (#subscription-events)).
 
 The `content-type` and `type` attributes each describe a single, homogeneous update stream: a
 publisher whose updates for a resource use more than one content type, or more than one event
 type, **MUST** omit the corresponding attribute, and the subscriber then determines that value
-from each individual update. These attributes are hints for the common case; they never alter
-routing, which is governed solely by topic matchers (see (#subscription)).
+from each individual update. These attributes are hints; they do not affect routing, which is
+governed solely by topic matchers (see (#subscription)).
 
 All these attributes are optional.
 
