@@ -506,7 +506,6 @@ func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
-	deprecatedHub
 	*opt
 
 	handler http.Handler

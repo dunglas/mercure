@@ -440,8 +440,6 @@ func createDummy(tb testing.TB, options ...Option) *Hub {
 	h, err := NewHub(tb.Context(), options...)
 	require.NoError(tb, err)
 
-	setDeprecatedOptions(tb, h)
-
 	return h
 }
 

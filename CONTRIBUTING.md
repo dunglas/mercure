@@ -52,13 +52,6 @@ To test the Caddy module:
 
 Go to `https://localhost` and enjoy!
 
-To test the legacy server:
-
-    cd cmd/mercure
-    go run -tags=deprecated_transport,deprecated_server main.go
-
-Go to `http://localhost:3000` and enjoy!
-
 When you send a PR, make sure that:
 
 - You add valid test cases.
