@@ -289,6 +289,11 @@ foo`;
         opt,
       );
       if (!resp.ok) throw new Error(resp.statusText);
+      // The snapshot cursor is carried by the rel="mercure" Link header's
+      // last-event-id attribute, not the JSON body.
+      const lastEventId = (resp.headers.get("Link") ?? "").match(
+        /rel="mercure".*?last-event-id="([^"]*)"/,
+      )?.[1];
       const json = await resp.json();
 
       json.subscriptions.forEach(addSubscription);
@@ -299,7 +304,7 @@ foo`;
         "match_urlpattern",
         "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
       );
-      u.searchParams.append("last_event_id", json.last_event_id);
+      if (lastEventId) u.searchParams.append("last_event_id", lastEventId);
 
       subscriptionEventSource = openEventSource(u);
 

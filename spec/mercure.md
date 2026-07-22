@@ -895,9 +895,10 @@ Subscribers using the hub as an event store can use the returned identifier as a
 anchor; subscribers that only need to detect data loss can compare it against the requested
 value (a different value indicates that loss may have occurred).
 
-Note: Event identifiers are cursors, and the hub exposes them to subscribers, both through the
-`last_event_id` value provided during discovery and through the `Mercure-Last-Event-ID` response
-field.
+Note: Event identifiers are cursors, and the hub exposes them to subscribers through the
+`last-event-id` attribute of the `rel="mercure"` Link header provided during discovery
+(see (#discovery)) and by the subscription API (see (#subscription-api)), and through the
+`Mercure-Last-Event-ID` response field.
 The field value can be the identifier of an event immediately preceding one the subscriber is
 not authorized to receive. A subscriber can therefore infer the existence of such an event and,
 when the hub uses time-ordered identifiers (e.g., UUIDv7 [@RFC9562]), its approximate timing
@@ -1048,7 +1049,10 @@ a broader set (for example a `urlpattern` covering the subscriptions namespace, 
 `*`) grants access to the corresponding endpoints. If no detail grants `subscribe` on the
 requested URL, the hub **MUST** answer `403` as defined in (#authorization).
 
-The web API **MUST** set the `Content-Type` HTTP header to `application/json`.
+The web API **MUST** set the `Content-Type` HTTP header to `application/json`. When the hub
+serves cross-origin subscribers, it **MUST** expose the `Link` response header to them (for
+example, through the `Access-Control-Expose-Headers` header [@!FETCH]) so they can read the
+`last-event-id` attribute defined below; see (#subscription).
 
 URLs returning a single subscription (following the pattern
 `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`) **MUST** expose the same
@@ -1067,13 +1071,20 @@ properties:
 *   `type`: the fixed value `subscriptions`.
 *   `subscriptions`: an array of subscription documents as described in (#subscription-events).
 
-In addition, all endpoints **MUST** set the `last_event_id` property at the root of the returned
-JSON document:
+In addition, every endpoint **MUST** carry the reconciliation cursor as a `last-event-id` target
+attribute on the `rel="mercure"` Link header [@!RFC8288], following the same mechanism as
+discovery (see (#discovery)). The value is the identifier of the last event dispatched by the hub
+at the time of this request (see (#reconciliation)), or `earliest` if no events have been
+dispatched yet. It **SHOULD** be passed back to the hub as the `last_event_id` query parameter
+(see (#reconciliation)) when subscribing to subscription events, to prevent data loss. Because
+the cursor is carried on the Link header, a single-subscription response body is the subscription
+event document of (#subscription-events) without modification.
 
-*   `last_event_id`: the identifier of the last event dispatched by the hub at the time of this
-    request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
-    dispatched yet. This value **SHOULD** be passed back to the hub when subscribing to
-    subscription events to prevent data loss.
+Subscription events are a homogeneous stream: they are always delivered under the reserved
+`mercure` event type with a JSON body (see (#subscription-events)). For consistency with
+discovery (see (#discovery)), the hub **SHOULD** also set the `type` and `content-type`
+attributes on the same `rel="mercure"` Link header, with the values `mercure` and
+`application/json` respectively.
 
 Active subscription collections can be large. Hubs **MAY** truncate or paginate collection
 responses according to an implementation-defined policy; each returned document **MUST** remain
@@ -1090,14 +1101,13 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions",
    "type": "subscriptions",
-   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1136,14 +1146,13 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector",
    "type": "subscriptions",
-   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
    "subscriptions": [
       {
          "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
@@ -1173,7 +1182,7 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
@@ -1184,8 +1193,7 @@ Cache-Control: must-revalidate
    "match_type": "urlpattern",
    "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
    "active": true,
-   "payload": {"foo": "bar"},
-   "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+   "payload": {"foo": "bar"}
 }
 ~~~
 
@@ -1230,7 +1238,24 @@ The publisher **MAY** provide the following target attributes in the Link Header
 *   `content-type`: the content type of the updates that will be pushed by the hub. If omitted,
     the subscriber **MUST** assume that the content type matches that of the original resource.
     The `content-type` attribute is especially useful to indicate that partial updates will be
-    pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396].
+    pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396]. Because the
+    `data` field of a Server-Sent Event carries no content type of its own, this attribute lets a
+    subscriber process the payload without content sniffing.
+*   `type`: the Server-Sent Events `event` field value (see (#subscription)) that the updates
+    pushed for this resource will carry. A subscriber using the `EventSource` interface [@!HTML]
+    can register a listener for this type; if omitted, the subscriber **MUST** assume the default
+    event type (the events delivered to the `EventSource` `message` handler). It is
+    subject to the same character constraints as the publication `type` field (see
+    (#publication)). A publisher advertising its own resource **MUST NOT** use the reserved
+    `mercure` type, which the hub generates for subscription events; the hub advertises `mercure`
+    on the subscription API, where the stream consists of those events (see (#subscription-api)
+    and (#subscription-events)).
+
+The `content-type` and `type` attributes each describe a single, homogeneous update stream: a
+publisher whose updates for a resource use more than one content type, or more than one event
+type, **MUST** omit the corresponding attribute, and the subscriber then determines that value
+from each individual update. These attributes are hints; they do not affect routing, which is
+governed solely by topic matchers (see (#subscription)).
 
 All these attributes are optional.
 

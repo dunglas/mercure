@@ -52,22 +52,41 @@ func etagValue(lastEventID string) string {
 	return b.String()
 }
 
+// linkQuote escapes a value for an RFC 8288 Link header quoted-string. Only
+// DQUOTE and backslash need escaping; publish-time validation already forbids
+// control characters in event identifiers (see etagValue).
+func linkQuote(v string) string {
+	if !strings.ContainsAny(v, `"\`) {
+		return v
+	}
+
+	var b strings.Builder
+
+	for i := range len(v) {
+		if c := v[i]; c == '"' || c == '\\' {
+			b.WriteByte('\\')
+		}
+
+		b.WriteByte(v[i])
+	}
+
+	return b.String()
+}
+
 type subscription struct {
-	ID          string `json:"id"`
-	Type        string `json:"type"`
-	Subscriber  string `json:"subscriber"`
-	Topic       string `json:"topic,omitempty"`
-	Match       string `json:"match,omitempty"`
-	MatchType   string `json:"match_type,omitempty"`
-	Active      bool   `json:"active"`
-	LastEventID string `json:"last_event_id,omitempty"`
-	Payload     any    `json:"payload,omitempty"`
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Subscriber string `json:"subscriber"`
+	Topic      string `json:"topic,omitempty"`
+	Match      string `json:"match,omitempty"`
+	MatchType  string `json:"match_type,omitempty"`
+	Active     bool   `json:"active"`
+	Payload    any    `json:"payload,omitempty"`
 }
 
 type subscriptionCollection struct {
 	ID            string         `json:"id"`
 	Type          string         `json:"type"`
-	LastEventID   string         `json:"last_event_id"`
 	Subscriptions []subscription `json:"subscriptions"`
 }
 
@@ -120,7 +139,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, currentURL, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, currentURL, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -132,7 +151,6 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	subscriptionCollection := subscriptionCollection{
 		ID:            currentURL,
 		Type:          "subscriptions",
-		LastEventID:   lastEventID,
 		Subscriptions: make([]subscription, 0),
 	}
 
@@ -174,7 +192,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, _, lastEventID, subscribers, ok := h.initSubscription(w, r)
+	span, _, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -189,8 +207,6 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, subscription := range subscriber.getSubscriptions(filter, true) {
-			subscription.LastEventID = lastEventID
-
 			j, err := json.MarshalIndent(subscription, "", "  ")
 			if err != nil {
 				panic(err)
@@ -237,7 +253,7 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWrite
 	return true
 }
 
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
 	// The topic to authorize (and the collection id) is the absolute path in
 	// relative form; RequestURI() would append the query string (e.g.
@@ -246,7 +262,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	currentURL = r.URL.EscapedPath()
 
 	if !h.authorizeSubscriptionRequest(span, w, r) {
-		return span, "", "", nil, false
+		return span, "", nil, false
 	}
 
 	transport, isSubTransport := h.transport.(TransportSubscribers)
@@ -254,9 +270,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 		panic("The transport isn't an instance of hub.TransportSubscribers")
 	}
 
-	var err error
-
-	lastEventID, subscribers, err = transport.GetSubscribers(ctx)
+	lastEventID, subscribers, err := transport.GetSubscribers(ctx)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
@@ -266,7 +280,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 		recordSpanError(span, err)
 
-		return span, currentURL, lastEventID, subscribers, false
+		return span, currentURL, subscribers, false
 	}
 
 	// ETags are entity-tags (RFC 9110 §8.8.3): DQUOTE-wrapped etagc bytes.
@@ -281,10 +295,19 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
 
-		return span, "", "", nil, false
+		return span, "", nil, false
 	}
 
 	header["Content-Type"] = subscriptionContentType
+	// The reconciliation cursor is carried as the last-event-id attribute of the
+	// rel="mercure" Link header, mirroring discovery, rather than a JSON body
+	// property. Subscribers pass it back as the last_event_id query parameter.
+	// Subscription events are a homogeneous stream (reserved "mercure" type, JSON
+	// body), so the type and content-type attributes are advertised too.
+	header["Link"] = []string{hubLink +
+		`; last-event-id="` + linkQuote(lastEventID) +
+		`"; type="` + reservedEventType +
+		`"; content-type="` + subscriptionContentType[0] + `"`}
 
-	return span, currentURL, lastEventID, subscribers, true
+	return span, currentURL, subscribers, true
 }

@@ -58,7 +58,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 
 	lastEventID, subscribers, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 
-	assert.Equal(t, lastEventID, subscriptions.LastEventID)
+	assert.Equal(t, hubLink+`; last-event-id="`+lastEventID+`"; type="mercure"; content-type="application/json"`, res.Header.Get("Link"))
 	require.NotEmpty(t, subscribers)
 
 	for _, s := range subscribers {
@@ -108,8 +108,10 @@ func TestSubscriptionHandlerForTopic(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &subscription))
 
 	expectedSub := s.getSubscriptions(subscriptionFilter{topic: sTopics[1]}, true)[0]
-	expectedSub.LastEventID, _, _ = hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
 	assert.Equal(t, expectedSub, subscription)
+
+	lastEventID, _, _ := hub.transport.(TransportSubscribers).GetSubscribers(t.Context())
+	assert.Equal(t, hubLink+`; last-event-id="`+lastEventID+`"; type="mercure"; content-type="application/json"`, res.Header.Get("Link"))
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/notexist/"+s.EscapedID, nil)
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}"})})

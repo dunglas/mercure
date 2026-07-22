@@ -110,28 +110,36 @@ Once subscription events are enabled, the hub also exposes a JSON-LD API. Use it
 
 Authorization rules are the same as for events: the request URL must be covered by a `subscribe` grant in the caller's token.
 
-Each response carries `last_event_id`. Pass it to your SSE connection so you don't miss any subscription event between the snapshot and the live stream:
+Each response carries the reconciliation cursor as the `last-event-id` attribute of its `rel="mercure"` [`Link` header](reconnection-and-history.md#bootstrapping-after-page-load), the same mechanism used at discovery time. Pass it to your SSE connection so you don't miss any subscription event between the snapshot and the live stream:
 
 ```javascript
 // Subscription API
-const snapshot = await fetch(
+const resp = await fetch(
   "https://hub.example.com/.well-known/mercure/subscriptions",
   { credentials: "include" },
-).then((r) => r.json());
+);
+const lastEventId = resp.headers
+  .get("Link")
+  .match(/rel="mercure".*?last-event-id="([^"]*)"/)?.[1];
+const snapshot = await resp.json();
 
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "match_urlpattern",
   "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
 );
-url.searchParams.append("last_event_id", snapshot.last_event_id);
+if (lastEventId) url.searchParams.append("last_event_id", lastEventId);
 
 const es = new EventSource(url, { withCredentials: true });
 // snapshot.subscriptions is the initial list
 // es.onmessage applies deltas as subscribers come and go
 ```
 
-The hub returns:
+The hub returns the cursor in the `Link` header and the subscriptions in the body:
+
+```http
+Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
+```
 
 ```jsonc
 // Subscription API
@@ -139,7 +147,6 @@ The hub returns:
   "@context": "https://mercure.rocks/",
   "id": "/.well-known/mercure/subscriptions",
   "type": "Subscriptions",
-  "last_event_id": "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb",
   "subscriptions": [
     {
       "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268",
