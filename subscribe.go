@@ -239,7 +239,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	var claims *claims
 
-	if h.subscriberJWTKeyFunc != nil { //nolint:nestif
+	if h.subscriberConfigured { //nolint:nestif
 		var err error
 
 		claims, err = h.authorize(r, false)

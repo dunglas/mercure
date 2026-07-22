@@ -38,17 +38,22 @@ var ErrMissingResourceIdentifier = errors.New("a resource identifier (or public 
 // URL without a fragment component.
 var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be an absolute URL without a fragment (RFC 9728)")
 
-// ErrMissingTrustedIssuers is returned when the hub validates access tokens in
-// modern mode but no trusted issuer is configured: the protocol requires the
-// token iss claim to exactly match a trusted issuer (RFC 9068 §4).
-var ErrMissingTrustedIssuers = errors.New("at least one trusted issuer is required when JWT authentication is enabled; set WithTrustedIssuers or WithAuthorizationServers, or enable compatibility mode")
+// ErrMissingIssuerIdentifier is returned when an issuer is configured in modern
+// mode with an empty identifier: the token iss claim is matched against it, so
+// it must be set.
+var ErrMissingIssuerIdentifier = errors.New("an issuer identifier is required in modern mode")
 
-// ErrTooManyTrustedIssuers is returned when more than one trusted issuer is
-// configured in modern mode. Keys are configured per role, not per issuer, so
-// several trusted issuers would share the same key material and a token signed
-// for one issuer could be replayed under another — the spec requires verifying
-// a token only with the keys associated with its iss claim.
-var ErrTooManyTrustedIssuers = errors.New("only one trusted issuer is supported; set a single issuer with WithTrustedIssuers or WithAuthorizationServers")
+// ErrDuplicateIssuer is returned when the same issuer identifier is configured
+// more than once.
+var ErrDuplicateIssuer = errors.New("duplicate issuer identifier")
+
+// ErrIssuerMissingKey is returned when an issuer has no verifier for either
+// role, so no token could ever be verified for it.
+var ErrIssuerMissingKey = errors.New("an issuer must configure a publisher or subscriber verifier")
+
+// ErrMissingAlgorithm is returned when a Static verifier is configured without
+// a signing algorithm.
+var ErrMissingAlgorithm = errors.New("a Static verifier requires a signing algorithm")
 
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
@@ -167,43 +172,60 @@ func WithMaxRequestBodySize(size int64) Option {
 	}
 }
 
-// WithPublisherJWTKeyFunc sets the function to use to parse and verify the publisher JWT.
-func WithPublisherJWTKeyFunc(keyfunc jwt.Keyfunc) Option {
+// WithIssuers configures access-token verification, binding each trusted issuer
+// (RFC 9068 §4) to its own verification material. It replaces the former
+// per-role options: a token is verified only with the key(s) associated with
+// its iss claim, so key material is never pooled across issuers.
+//
+// Each Issuer provides a Publisher and/or Subscriber Verifier (a nil Verifier
+// means that role is not accepted for the issuer). Setting AuthorizationServer
+// advertises the issuer in the hub's RFC 9728 protected resource metadata; a
+// self-issued issuer (a key shared out of band) leaves it false.
+func WithIssuers(issuers []Issuer) Option {
 	return func(o *opt) error {
-		o.publisherJWTKeyFunc = keyfunc
+		if o.issuers == nil {
+			o.issuers = make(map[string]issuerVerifier, len(issuers))
+		}
+
+		for _, iss := range issuers {
+			if _, ok := o.issuers[iss.Identifier]; ok {
+				return fmt.Errorf("%w: %q", ErrDuplicateIssuer, iss.Identifier)
+			}
+
+			var iv issuerVerifier
+
+			if iss.Publisher != nil {
+				kf, algs, err := iss.Publisher.buildKeyfunc()
+				if err != nil {
+					return err
+				}
+
+				iv.publisher = roleVerifier{keyfunc: kf, algorithms: algs}
+				o.publisherConfigured = true
+			}
+
+			if iss.Subscriber != nil {
+				kf, algs, err := iss.Subscriber.buildKeyfunc()
+				if err != nil {
+					return err
+				}
+
+				iv.subscriber = roleVerifier{keyfunc: kf, algorithms: algs}
+				o.subscriberConfigured = true
+			}
+
+			if iv.publisher.keyfunc == nil && iv.subscriber.keyfunc == nil {
+				return fmt.Errorf("%w: %q", ErrIssuerMissingKey, iss.Identifier)
+			}
+
+			o.issuers[iss.Identifier] = iv
+
+			if iss.AuthorizationServer {
+				o.authorizationServers = append(o.authorizationServers, iss.Identifier)
+			}
+		}
 
 		return nil
-	}
-}
-
-// WithSubscriberJWTKeyFunc sets the function to use to parse and verify the subscriber JWT.
-func WithSubscriberJWTKeyFunc(keyfunc jwt.Keyfunc) Option {
-	return func(o *opt) error {
-		o.subscriberJWTKeyFunc = keyfunc
-
-		return nil
-	}
-}
-
-// WithPublisherJWT sets the JWT key and the signing algorithm to use for publishers.
-func WithPublisherJWT(key []byte, alg string) Option {
-	return func(o *opt) error {
-		keyfunc, err := createJWTKeyfunc(key, alg)
-		o.publisherJWTKeyFunc = keyfunc
-		o.publisherJWTAlgorithms = []string{alg}
-
-		return err
-	}
-}
-
-// WithSubscriberJWT sets the JWT key and the signing algorithm to use for subscribers.
-func WithSubscriberJWT(key []byte, alg string) Option {
-	return func(o *opt) error {
-		keyfunc, err := createJWTKeyfunc(key, alg)
-		o.subscriberJWTKeyFunc = keyfunc
-		o.subscriberJWTAlgorithms = []string{alg}
-
-		return err
 	}
 }
 
@@ -363,68 +385,6 @@ func WithResourceIdentifier(resourceIdentifier string) Option {
 	}
 }
 
-// WithAuthorizationServers sets the OAuth 2.0 authorization server issuer
-// identifiers advertised in the hub's protected resource metadata (RFC 9728).
-//
-// These identifiers are trusted issuers: a token whose iss claim matches one
-// of them is accepted (RFC 9068 §4). For self-issued tokens (a key shared out
-// of band, no authorization server), declare the issuer with WithTrustedIssuers
-// instead.
-//
-// In modern mode a single trusted issuer is supported across this option and
-// WithTrustedIssuers combined: keys are configured per role, not per issuer,
-// so several issuers would share key material (see ErrTooManyTrustedIssuers).
-func WithAuthorizationServers(authorizationServers []string) Option {
-	return func(o *opt) error {
-		o.authorizationServers = authorizationServers
-
-		return nil
-	}
-}
-
-// WithTrustedIssuers sets the issuer identifiers accepted in the token iss
-// claim in addition to the authorization servers (RFC 9068 §4). Use it for
-// self-issued tokens: each self-issuing publisher uses a stable identifier
-// (for example, its own URL) bound out of band to the signing key configured
-// with WithPublisherJWT, WithSubscriberJWT, or the key-function options.
-// Unlike WithAuthorizationServers, these issuers are not advertised in the
-// hub's protected resource metadata.
-//
-// In modern mode a single trusted issuer is supported across this option and
-// WithAuthorizationServers combined: keys are configured per role, not per
-// issuer, so several issuers would share key material (see
-// ErrTooManyTrustedIssuers).
-func WithTrustedIssuers(trustedIssuers []string) Option {
-	return func(o *opt) error {
-		o.trustedIssuers = trustedIssuers
-
-		return nil
-	}
-}
-
-// WithPublisherJWTAlgorithms pins the JWS algorithms accepted for publisher
-// access tokens. WithPublisherJWT already pins its single algorithm; this
-// option is for the WithPublisherJWTKeyFunc / JWKS path, where the algorithm
-// would otherwise be taken from the token header. Setting it makes the parser
-// reject any token whose alg is not in the list (RFC 8725).
-func WithPublisherJWTAlgorithms(algorithms []string) Option {
-	return func(o *opt) error {
-		o.publisherJWTAlgorithms = algorithms
-
-		return nil
-	}
-}
-
-// WithSubscriberJWTAlgorithms pins the JWS algorithms accepted for subscriber
-// access tokens. See WithPublisherJWTAlgorithms.
-func WithSubscriberJWTAlgorithms(algorithms []string) Option {
-	return func(o *opt) error {
-		o.subscriberJWTAlgorithms = algorithms
-
-		return nil
-	}
-}
-
 // opt contains the available options.
 //
 // If you change this, also update the Caddy module and the documentation.
@@ -441,10 +401,9 @@ type opt struct {
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
 	maxRequestBodySize           int64
-	publisherJWTKeyFunc          jwt.Keyfunc
-	subscriberJWTKeyFunc         jwt.Keyfunc
-	publisherJWTAlgorithms       []string
-	subscriberJWTAlgorithms      []string
+	issuers                      map[string]issuerVerifier
+	publisherConfigured          bool
+	subscriberConfigured         bool
 	metrics                      Metrics
 	allowedHosts                 []string
 	publishOriginsAll            bool
@@ -457,7 +416,19 @@ type opt struct {
 	resourceIdentifier           string
 	resourceMetadataURL          string
 	authorizationServers         []string
-	trustedIssuers               []string
+}
+
+// roleVerifier holds the verification material for one role of one issuer.
+type roleVerifier struct {
+	keyfunc    jwt.Keyfunc
+	algorithms []string
+}
+
+// issuerVerifier binds an issuer to its per-role verification material. A role
+// with a nil keyfunc is not accepted for the issuer.
+type issuerVerifier struct {
+	publisher  roleVerifier
+	subscriber roleVerifier
 }
 
 // configureIdentifiers wires the public URL, the URL Pattern base, and the
@@ -487,48 +458,27 @@ func (o *opt) configureIdentifiers() error {
 	// the hub's resource identifier; refuse to start a token-validating hub
 	// that cannot perform that check.
 	if o.resourceIdentifier == "" && o.protocolVersionCompatibility == 0 &&
-		(o.publisherJWTKeyFunc != nil || o.subscriberJWTKeyFunc != nil) {
+		(o.publisherConfigured || o.subscriberConfigured) {
 		return ErrMissingResourceIdentifier
 	}
 
-	// Same for the token issuer: the iss claim must exactly match a trusted
-	// issuer, so a token-validating hub needs at least one. It also needs at
-	// most one: keys are configured per role, not per issuer, so a second
-	// issuer would share the first one's key material and tokens could be
-	// replayed across issuer identities (see ErrTooManyTrustedIssuers).
-	if o.protocolVersionCompatibility == 0 &&
-		(o.publisherJWTKeyFunc != nil || o.subscriberJWTKeyFunc != nil) {
-		switch len(o.authorizationServers) + len(o.trustedIssuers) {
-		case 0:
-			return ErrMissingTrustedIssuers
-		case 1:
-		default:
-			return ErrTooManyTrustedIssuers
+	// In modern mode the token iss claim must exactly match a trusted issuer,
+	// so every configured issuer needs a non-empty identifier to match against.
+	// (Configuring a verifier always creates an issuer, so no separate
+	// "missing issuer" case exists.)
+	if o.protocolVersionCompatibility == 0 && (o.publisherConfigured || o.subscriberConfigured) {
+		if _, ok := o.issuers[""]; ok {
+			return ErrMissingIssuerIdentifier
 		}
 	}
 
 	return o.applyModernDefaults()
 }
 
-// applyModernDefaults enforces the config invariants: an explicit JWS
-// algorithm allowlist for every configured key function (in every mode) and,
-// in modern mode only, an RFC 9728-shaped resource identifier.
+// applyModernDefaults enforces the modern-mode invariant of an RFC 9728-shaped
+// resource identifier. The JWS algorithm allowlist is pinned per issuer when
+// the verifiers are built (see WithIssuers and buildKeyfunc).
 func (o *opt) applyModernDefaults() error {
-	// The protocol requires an explicit signature-algorithm allowlist that is
-	// never derived from the token. Key functions configured without one (the
-	// JWKS path) get the documented default: asymmetric algorithms only, so a
-	// public JWK can never be reinterpreted as an HMAC secret. This holds in
-	// compatibility mode too: a relaxed protocol version must never relax the
-	// algorithm allowlist. Operators pinning a symmetric algorithm on a bare
-	// key function opt in explicitly via WithPublisher/SubscriberJWTAlgorithms.
-	if o.publisherJWTKeyFunc != nil && len(o.publisherJWTAlgorithms) == 0 {
-		o.publisherJWTAlgorithms = defaultJWTAlgorithms
-	}
-
-	if o.subscriberJWTKeyFunc != nil && len(o.subscriberJWTAlgorithms) == 0 {
-		o.subscriberJWTAlgorithms = defaultJWTAlgorithms
-	}
-
 	if o.protocolVersionCompatibility != 0 {
 		return nil
 	}

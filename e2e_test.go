@@ -56,10 +56,12 @@ func e2eHub(t *testing.T) *Hub {
 	require.NoError(t, err)
 
 	h, err := NewHub(t.Context(),
-		WithPublisherJWT([]byte(e2eKey), "HS256"),
-		WithSubscriberJWT([]byte(e2eKey), "HS256"),
+		WithIssuers([]Issuer{{
+			Identifier: e2eIss,
+			Publisher:  Static{Key: []byte(e2eKey), Algorithm: "HS256"},
+			Subscriber: Static{Key: []byte(e2eKey), Algorithm: "HS256"},
+		}}),
 		WithResourceIdentifier(e2eAud),
-		WithTrustedIssuers([]string{e2eIss}),
 		WithPublicURL(e2eAud),
 		WithSubscriptions(),
 		WithTopicMatcherStore(tms),

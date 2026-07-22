@@ -13,8 +13,11 @@ func Example() {
 
 	h, err := mercure.NewHub(
 		ctx,
-		mercure.WithPublisherJWT([]byte("!ChangeMe!"), "HS256"),
-		mercure.WithSubscriberJWT([]byte("!ChangeMe!"), "HS256"),
+		mercure.WithIssuers([]mercure.Issuer{{
+			Identifier: "https://example.com",
+			Publisher:  mercure.Static{Key: []byte("!ChangeMe!"), Algorithm: "HS256"},
+			Subscriber: mercure.Static{Key: []byte("!ChangeMe!"), Algorithm: "HS256"},
+		}}),
 		mercure.WithPublicURL("https://example.com/.well-known/mercure"),
 	)
 	if err != nil {

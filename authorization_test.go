@@ -385,7 +385,7 @@ func TestAuthorizeRejectsUntrustedIssuer(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, c))
 
-	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}), WithTrustedIssuers(nil))
+	h := createDummy(t, WithIssuers([]Issuer{{Identifier: "https://auth.example.com", AuthorizationServer: true, Subscriber: Static{Key: []byte("subscriber"), Algorithm: "HS256"}}}))
 
 	claims, err := h.authorize(r, false)
 	require.ErrorIs(t, err, ErrInvalidJWT)
@@ -406,9 +406,112 @@ func TestAuthorizeAcceptsTrustedIssuer(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, c))
 
-	h := createDummy(t, WithAuthorizationServers([]string{"https://auth.example.com"}), WithTrustedIssuers(nil))
+	h := createDummy(t, WithIssuers([]Issuer{{Identifier: "https://auth.example.com", AuthorizationServer: true, Subscriber: Static{Key: []byte("subscriber"), Algorithm: "HS256"}}}))
 
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
 	require.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
+}
+
+// signTokenHS256 signs a subscribe token for the given issuer with the given
+// HMAC key.
+func signTokenHS256(tb testing.TB, key []byte, issuer string) string {
+	tb.Helper()
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	token.Header["typ"] = atJWTType
+	token.Claims = &claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    issuer,
+			Audience:  jwt.ClaimStrings{testResourceIdentifier},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
+	}
+
+	s, err := token.SignedString(key)
+	require.NoError(tb, err)
+
+	return s
+}
+
+// TestMultiIssuerVerification binds two issuers to distinct keys and checks
+// that each token is verified only with the key of its own issuer (#1302).
+func TestMultiIssuerVerification(t *testing.T) {
+	t.Parallel()
+
+	const issuerA, issuerB = "https://a.example", "https://b.example"
+
+	keyA, keyB := []byte("key-a"), []byte("key-b")
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithTopicMatcherStore(tms),
+		WithIssuers([]Issuer{
+			{Identifier: issuerA, Subscriber: Static{Key: keyA, Algorithm: "HS256"}},
+			{Identifier: issuerB, Subscriber: Static{Key: keyB, Algorithm: "HS256"}},
+		}),
+	)
+	require.NoError(t, err)
+
+	for name, tc := range map[string]struct {
+		key     []byte
+		issuer  string
+		wantErr bool
+	}{
+		"issuer A, signature A": {keyA, issuerA, false},
+		"issuer B, signature B": {keyB, issuerB, false},
+		"issuer A, signature B": {keyB, issuerA, true},
+		"issuer B, signature A": {keyA, issuerB, true},
+		"unknown issuer":        {keyA, "https://c.example", true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+			r.Header.Add("Authorization", bearerPrefix+signTokenHS256(t, tc.key, tc.issuer))
+
+			claims, err := h.authorize(r, false)
+			if tc.wantErr {
+				require.ErrorIs(t, err, ErrInvalidJWT)
+				require.Nil(t, claims)
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.True(t, claims.authz.grants(h.topicMatcherStore, actionSubscribe, "foo"))
+		})
+	}
+}
+
+// A role with no verifier for an issuer rejects that role's tokens even when
+// the signature is valid.
+func TestMultiIssuerRoleWithoutVerifier(t *testing.T) {
+	t.Parallel()
+
+	const issuer = "https://a.example"
+
+	key := []byte("key-a")
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithTopicMatcherStore(tms),
+		WithIssuers([]Issuer{{Identifier: issuer, Subscriber: Static{Key: key, Algorithm: "HS256"}}}),
+	)
+	require.NoError(t, err)
+
+	r, _ := http.NewRequest(http.MethodPost, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+signTokenHS256(t, key, issuer))
+
+	// The issuer has no publisher verifier: a publish token is rejected.
+	claims, err := h.authorize(r, true)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.Nil(t, claims)
 }

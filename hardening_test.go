@@ -290,9 +290,11 @@ func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
 	require.NoError(t, err)
 
 	h, err := NewHub(t.Context(),
-		WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: Static{Key: []byte("subscriber"), Algorithm: jwt.SigningMethodHS256.Name},
+		}}),
 		WithProtocolVersionCompatibility(7),
-		WithTrustedIssuers([]string{testIssuer}),
 		WithTopicMatcherStore(tms),
 	)
 	require.NoError(t, err)

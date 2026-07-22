@@ -30,7 +30,7 @@ from flask import Flask, abort, make_response, render_template, request
 
 HUB_URL = os.environ.get("HUB_URL", "https://localhost/.well-known/mercure")
 # The issuer identifier of this app, bound to the signing key in the hub's
-# trusted_issuers directive (defaults to https://localhost in the Caddyfile).
+# issuer block (defaults to https://localhost in the Caddyfile).
 ISSUER = os.environ.get("ISSUER", "https://localhost")
 JWT_KEY = os.environ.get("JWT_KEY", "!ChangeThisMercureHubJWTSecretKey!")
 MESSAGE_PATTERN = os.environ.get(

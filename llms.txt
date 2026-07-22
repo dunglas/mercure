@@ -18,7 +18,7 @@
 
 - [Mercure quickstart](https://mercure.rocks/docs/getting-started/quickstart): Run the hub with Docker, subscribe with `EventSource`, publish with `curl`, in five minutes.
 - [Install the Mercure hub](https://mercure.rocks/docs/getting-started/installation): Docker, Docker Compose, Helm, prebuilt binaries, Arch Linux, custom Caddy builds.
-- [Mercure hub configuration](https://mercure.rocks/docs/deployment/configuration): Caddyfile directives, environment variables, `resource_identifier`, `authorization_servers`, transports, CORS, JWKS.
+- [Mercure hub configuration](https://mercure.rocks/docs/deployment/configuration): Caddyfile directives, environment variables, `resource_identifier`, `issuer` blocks, transports, CORS, JWKS.
 - [Run Mercure with Docker](https://mercure.rocks/docs/deployment/docker): Official Docker image, Compose, healthchecks, rootless deployment.
 - [Deploy Mercure on Kubernetes](https://mercure.rocks/docs/deployment/kubernetes): Helm chart, SSE-aware probes, rolling updates, rootless security context.
 - [Mercure behind a reverse proxy](https://mercure.rocks/docs/deployment/reverse-proxy): NGINX, Traefik, Caddy, HAProxy, AWS ALB, and Cloudflare with SSE-friendly settings.

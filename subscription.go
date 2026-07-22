@@ -210,7 +210,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 // authorizeSubscriptionRequest checks the subscriber token against the
 // subscription API URL, writing the HTTP error response on failure.
 func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWriter, r *http.Request) bool {
-	if h.subscriberJWTKeyFunc == nil {
+	if !h.subscriberConfigured {
 		return true
 	}
 
