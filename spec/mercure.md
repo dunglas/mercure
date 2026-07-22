@@ -1073,14 +1073,12 @@ properties:
 
 In addition, every endpoint **MUST** carry the reconciliation cursor as a `last-event-id` target
 attribute on the `rel="mercure"` Link header [@!RFC8288], following the same mechanism as
-discovery (see (#discovery)):
-
-*   `last-event-id`: the identifier of the last event dispatched by the hub at the time of this
-    request (see (#reconciliation)). The value **MUST** be `earliest` if no events have been
-    dispatched yet. This value **SHOULD** be passed back to the hub as the `last_event_id` query
-    parameter (see (#reconciliation)) when subscribing to subscription events, to prevent data
-    loss. Because the cursor is carried on the Link header, a single-subscription response body
-    is the subscription event document of (#subscription-events) without modification.
+discovery (see (#discovery)). The value is the identifier of the last event dispatched by the hub
+at the time of this request (see (#reconciliation)), or `earliest` if no events have been
+dispatched yet. It **SHOULD** be passed back to the hub as the `last_event_id` query parameter
+(see (#reconciliation)) when subscribing to subscription events, to prevent data loss. Because
+the cursor is carried on the Link header, a single-subscription response body is the subscription
+event document of (#subscription-events) without modification.
 
 Subscription events are a homogeneous stream: they are always delivered under the reserved
 `mercure` event type with a JSON body (see (#subscription-events)). For consistency with
