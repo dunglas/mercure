@@ -101,6 +101,12 @@
       "description": "Additional environment variables to set",
       "type": "array"
     },
+    "extraVolumeMounts": {
+      "type": "array"
+    },
+    "extraVolumes": {
+      "type": "array"
+    },
     "fullnameOverride": {
       "description": "A name to substitute for the full names of resources.",
       "type": "string"
