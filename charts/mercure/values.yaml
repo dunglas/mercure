@@ -190,6 +190,7 @@ service:
   # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
   nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
   annotations: {}
+  portName: http
 
 ingress:
   # -- Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/).

@@ -500,6 +500,9 @@
           "maximum": 65535,
           "minimum": 1
         },
+        "portName": {
+          "type": "string"
+        },
         "targetPort": {
           "description": "Service target port.",
           "type": [
