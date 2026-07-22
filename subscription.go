@@ -139,7 +139,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, currentURL, _, subscribers, ok := h.initSubscription(w, r)
+	span, currentURL, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -192,7 +192,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, _, _, subscribers, ok := h.initSubscription(w, r)
+	span, _, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
 
 	if !ok {
@@ -253,7 +253,7 @@ func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWrite
 	return true
 }
 
-func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL, lastEventID string, subscribers []*Subscriber, ok bool) {
+func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span trace.Span, currentURL string, subscribers []*Subscriber, ok bool) {
 	ctx, span := startSpan(r.Context(), "mercure.subscriptions", trace.WithSpanKind(trace.SpanKindInternal))
 	// The topic to authorize (and the collection id) is the absolute path in
 	// relative form; RequestURI() would append the query string (e.g.
@@ -262,7 +262,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	currentURL = r.URL.EscapedPath()
 
 	if !h.authorizeSubscriptionRequest(span, w, r) {
-		return span, "", "", nil, false
+		return span, "", nil, false
 	}
 
 	transport, isSubTransport := h.transport.(TransportSubscribers)
@@ -270,9 +270,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 		panic("The transport isn't an instance of hub.TransportSubscribers")
 	}
 
-	var err error
-
-	lastEventID, subscribers, err = transport.GetSubscribers(ctx)
+	lastEventID, subscribers, err := transport.GetSubscribers(ctx)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
@@ -282,7 +280,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 
 		recordSpanError(span, err)
 
-		return span, currentURL, lastEventID, subscribers, false
+		return span, currentURL, subscribers, false
 	}
 
 	// ETags are entity-tags (RFC 9110 §8.8.3): DQUOTE-wrapped etagc bytes.
@@ -297,7 +295,7 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
 
-		return span, "", "", nil, false
+		return span, "", nil, false
 	}
 
 	header["Content-Type"] = subscriptionContentType
@@ -311,5 +309,5 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 		`"; type="` + reservedEventType +
 		`"; content-type="` + subscriptionContentType[0] + `"`}
 
-	return span, currentURL, lastEventID, subscribers, true
+	return span, currentURL, subscribers, true
 }

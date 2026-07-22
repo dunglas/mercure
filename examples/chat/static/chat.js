@@ -37,7 +37,8 @@ let userList;
   updateUserListView();
 
   const subscribeURL = new URL(hubURL);
-  if (lastEventId) subscribeURL.searchParams.append("last_event_id", lastEventId);
+  if (lastEventId)
+    subscribeURL.searchParams.append("last_event_id", lastEventId);
   subscribeURL.searchParams.append("match_urlpattern", messagePattern);
   subscribeURL.searchParams.append("match_urlpattern", presencePattern);
 
