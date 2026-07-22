@@ -172,7 +172,7 @@ func TestSubscriptionsHandler(t *testing.T) {
 
 	// The reconciliation cursor is carried by the rel="mercure" Link header, not
 	// a JSON body property.
-	assert.Equal(t, hubLink+`; last-event-id="`+lastEventID+`"`, res.Header.Get("Link"))
+	assert.Equal(t, hubLink+`; last-event-id="`+lastEventID+`"; type="mercure"; content-type="application/json"`, res.Header.Get("Link"))
 	assert.NotContains(t, w.Body.String(), "last_event_id")
 	require.NotEmpty(t, subscribers)
 
@@ -255,7 +255,7 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	router.ServeHTTP(w, req)
 	res := w.Result()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
-	assert.Equal(t, hubLink+`; last-event-id="`+EarliestLastEventID+`"`, res.Header.Get("Link"))
+	assert.Equal(t, hubLink+`; last-event-id="`+EarliestLastEventID+`"; type="mercure"; content-type="application/json"`, res.Header.Get("Link"))
 	require.NoError(t, res.Body.Close())
 
 	var got subscription

@@ -1082,6 +1082,12 @@ discovery (see (#discovery)), rather than a property of the JSON body:
     loss. Carrying it on the Link header lets a single-subscription response body be exactly the
     subscription event document of (#subscription-events), as required above.
 
+Subscription events form a homogeneous stream — they are always delivered under the reserved
+`mercure` event type with a JSON body (see (#subscription-events)). For consistency with
+discovery (see (#discovery)) and to save the subscriber from assuming these values, the hub
+**SHOULD** also set the `type` and `content-type` attributes on the same `rel="mercure"` Link
+header, with the values `mercure` and `application/json` respectively.
+
 Active subscription collections can be large. Hubs **MAY** truncate or paginate collection
 responses according to an implementation-defined policy; each returned document **MUST** remain
 valid as described above. Pagination mechanisms are out of scope for this specification.
@@ -1097,7 +1103,7 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
@@ -1142,7 +1148,7 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
@@ -1178,7 +1184,7 @@ Host: example.com
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
 Cache-Control: must-revalidate
 
@@ -1234,7 +1240,24 @@ The publisher **MAY** provide the following target attributes in the Link Header
 *   `content-type`: the content type of the updates that will be pushed by the hub. If omitted,
     the subscriber **MUST** assume that the content type matches that of the original resource.
     The `content-type` attribute is especially useful to indicate that partial updates will be
-    pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396].
+    pushed, in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396]. Because the
+    `data` field of a Server-Sent Event carries no content type of its own, this attribute lets a
+    subscriber process the payload without content sniffing.
+*   `type`: the Server-Sent Events event type (the SSE `event` field, see (#subscription)) the
+    updates pushed for this resource will carry. A subscriber using the `EventSource` interface
+    [@!HTML] can register a listener for this type; if omitted, the subscriber **MUST** assume
+    the default event type (the events delivered to the `EventSource` `message` handler). It is
+    subject to the same character constraints as the publication `type` field (see
+    (#publication)). A publisher advertising its own resource **MUST NOT** use the reserved
+    `mercure` type, which the hub generates for subscription events; the hub itself does advertise
+    `mercure` on the subscription API, where the stream is exactly those events (see
+    (#subscription-api) and (#subscription-events)).
+
+The `content-type` and `type` attributes each describe a single, homogeneous update stream: a
+publisher whose updates for a resource use more than one content type, or more than one event
+type, **MUST** omit the corresponding attribute, and the subscriber then determines that value
+from each individual update. These attributes are hints for the common case; they never alter
+routing, which is governed solely by topic matchers (see (#subscription)).
 
 All these attributes are optional.
 

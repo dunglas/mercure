@@ -138,7 +138,7 @@ const es = new EventSource(url, { withCredentials: true });
 The hub returns the cursor in the `Link` header and the subscriptions in the body:
 
 ```http
-Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
+Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ```
 
 ```jsonc

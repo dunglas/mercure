@@ -304,7 +304,12 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	// The reconciliation cursor is carried as the last-event-id attribute of the
 	// rel="mercure" Link header, mirroring discovery, rather than a JSON body
 	// property. Subscribers pass it back as the last_event_id query parameter.
-	header["Link"] = []string{hubLink + `; last-event-id="` + linkQuote(lastEventID) + `"`}
+	// Subscription events are a homogeneous stream (reserved "mercure" type, JSON
+	// body), so the type and content-type attributes are advertised too.
+	header["Link"] = []string{hubLink +
+		`; last-event-id="` + linkQuote(lastEventID) +
+		`"; type="` + reservedEventType +
+		`"; content-type="` + subscriptionContentType[0] + `"`}
 
 	return span, currentURL, lastEventID, subscribers, true
 }
