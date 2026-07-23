@@ -137,7 +137,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 - Set `resource_identifier` (or `public_url`) to the audience your tokens carry; it's required when JWT auth is enabled in modern mode. The official Caddyfile defaults it to `https://localhost/.well-known/mercure`.
 - Declare your token issuer with an `issuer <id> { ... }` block binding the `iss` value your tokens carry to its `publisher`/`subscriber` verifier (`jwt` or `jwks_uri`); it's required when JWT auth is enabled in modern mode. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys.
-- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode; migrate them into an `issuer` block for modern mode.
+- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. When one is set without `protocol_version_compatibility`, the hub enables `protocol_version_compatibility 8` automatically and logs a warning; migrate them into an `issuer` block for modern mode.
 - The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
 - `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`. The legacy non-Caddy server is removed.
 
