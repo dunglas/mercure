@@ -203,6 +203,40 @@ extraDirectives: |
 
 The license is checked in-process; no callback to a license server.
 
+## Storing the Redis password securely
+
+The chart writes `globalOptions` into a ConfigMap (`templates/configmap.yaml`), while `extraDirectives`, the JWT keys, and the license live in a Secret. A `storage redis { ... password "..." ... }` block placed in `globalOptions` therefore exposes the password to anyone with `get configmap` on the namespace.
+
+Keep the password out of the ConfigMap with Caddy's `{env.NAME}` placeholder, sourcing the value from a Secret:
+
+```console
+# Redis password Secret
+kubectl create secret generic mercure-redis \
+  --from-literal=password='<your Redis password>'
+```
+
+```yaml
+# values.yaml
+globalOptions: |
+  storage redis {
+      host redis.example.com
+      port 6380
+      username default
+      password "{env.REDIS_PASSWORD}"
+      tls_enabled true
+  }
+extraEnvs:
+  - name: REDIS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: mercure-redis
+        key: password
+```
+
+Caddy expands `{env.REDIS_PASSWORD}` when it loads the configuration, so the module receives the substituted value and the ConfigMap holds only the block's structure. The same placeholder works inside `extraDirectives` if you prefer a single env var over embedding the password twice.
+
+Env vars sourced from a Secret are injected at pod start: updating the Secret does not reach running pods. Rotate the password with `kubectl rollout restart deployment/mercure` or a secret-reloader controller.
+
 ## Next steps for Mercure on Kubernetes
 
 - [Configuration](configuration.md): directives and env vars.
