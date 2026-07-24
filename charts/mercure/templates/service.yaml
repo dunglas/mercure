@@ -15,7 +15,7 @@ spec:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
-      name: http
+      name: {{ .Values.service.portName }}
       {{- if .Values.service.nodePort }}
       nodePort: {{ .Values.service.nodePort }}
       {{- end }}
@@ -30,11 +30,10 @@ metadata:
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
     app.kubernetes.io/component: metrics
-  {{- with .Values.service.annotations }}
+  {{- with .Values.metricsService.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-
 spec:
   type: ClusterIP
   ports:

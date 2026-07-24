@@ -40,6 +40,8 @@ Kubernetes: `>=1.23.0-0`
 | existingSecret | string | `""` | Allows to pass an existing secret name, the above values will be used if empty. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
 | extraEnvs | list | `[]` | Additional environment variables to set |
+| extraVolumes | list | `[]` | Additional volumes to set |
+| extraVolumeMounts | list | `[]` | Additional volume mounts to set |
 | fullnameOverride | string | `""` | A name to substitute for the full names of resources. |
 | globalOptions | string | `""` | Inject global options in the Caddyfile. |
 | healthCheck | object | `{"enabled":true,"liveness":{"failureThreshold":3,"initialDelaySeconds":15,"periodSeconds":10,"timeoutSeconds":5},"readiness":{"failureThreshold":2,"initialDelaySeconds":5,"periodSeconds":5,"timeoutSeconds":3}}` | Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port instead of /healthz on the HTTP port. |
@@ -69,6 +71,7 @@ Kubernetes: `>=1.23.0-0`
 | metrics.serviceMonitor.relabelings | list | `[]` | RelabelConfigs to apply to samples before scraping (target relabeling). |
 | metrics.serviceMonitor.scrapeTimeout | string | `""` | Timeout after which the scrape is ended |
 | metrics.serviceMonitor.selector | object | `{}` | Additional labels that can be used so ServiceMonitor will be discovered by Prometheus |
+| metricsService.annotations | object | `{}` | Annotations to be added to the metrics service. |
 | nameOverride | string | `""` | A name in place of the chart name for `app:` labels. |
 | networkPolicy | object | Disabled by default. | [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) for the hub pods. When enabled with no ingress/egress rules, all traffic to/from the hub pods is denied. Supply rules to allow what you need. |
 | networkPolicy.egress | list | `[]` | Egress rules (allowed outbound traffic). Pass-through to `spec.egress`. Allow at least DNS (UDP/TCP 53 to kube-system) plus the transport port. |
@@ -89,9 +92,10 @@ Kubernetes: `>=1.23.0-0`
 | replicaCount | int | `1` | The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster). |
 | resources | object | No requests or limits. | Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details. |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1000,"runAsNonRoot":true,"runAsUser":1000}` | Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container). Defaults satisfy the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted): rootless UID/GID 1000, no caps, no privilege escalation, read-only rootfs. Binding to :80 relies on `net.ipv4.ip_unprivileged_port_start=0`, set by containerd 1.5+ and cri-o. On older runtimes, set `service.targetPort` to an unprivileged port (e.g. `8080`). Override with `{}` to opt out. |
-| service.annotations | object | `{}` |  |
+| service.annotations | object | `{}` | Annotations to be added to the service. |
 | service.nodePort | string | `nil` | Set this, to pin the external nodePort in case `service.type` is `NodePort`. |
 | service.port | int | `80` | Service port. |
+| service.portName | string | `http` | Service port name. |
 | service.targetPort | int | `80` | Service target port. |
 | service.type | string | `"ClusterIP"` | Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types). |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |

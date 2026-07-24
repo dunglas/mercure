@@ -98,13 +98,13 @@ spec:
                   key: global-options
             - name: CADDY_EXTRA_CONFIG
               valueFrom:
-                secretKeyRef:
-                  name: {{ include "mercure.secretName" . }}
+                configMapKeyRef:
+                  name: {{ include "mercure.fullname" . }}
                   key: caddy-extra-config
             - name: CADDY_SERVER_EXTRA_DIRECTIVES
               valueFrom:
-                secretKeyRef:
-                  name: {{ include "mercure.secretName" . }}
+                configMapKeyRef:
+                  name: {{ include "mercure.fullname" . }}
                   key: caddy-extra-directives
             {{- if .Values.transportUrl }}
             - name: MERCURE_TRANSPORT_URL
@@ -135,8 +135,8 @@ spec:
                   key: subscriber-jwt-alg
             - name: MERCURE_EXTRA_DIRECTIVES
               valueFrom:
-                secretKeyRef:
-                  name: {{ include "mercure.secretName" . }}
+                configMapKeyRef:
+                  name: {{ include "mercure.fullname" . }}
                   key: extra-directives
             - name: MERCURE_LICENSE
               valueFrom:
@@ -159,6 +159,9 @@ spec:
               name: mercure-config
             - mountPath: /tmp
               name: mercure-tmp
+          {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
@@ -230,3 +233,6 @@ spec:
           emptyDir: {}
         - name: mercure-tmp
           emptyDir: {}
+      {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
