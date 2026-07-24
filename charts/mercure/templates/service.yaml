@@ -30,6 +30,10 @@ metadata:
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
     app.kubernetes.io/component: metrics
+  {{- with .Values.metricsService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: ClusterIP
   ports:

@@ -342,6 +342,15 @@
         }
       }
     },
+    "metricsService": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations to be added to the metrics service.",
+          "type": "object"
+        }
+      }
+    },
     "nameOverride": {
       "description": "A name in place of the chart name for `app:` labels.",
       "type": "string"
@@ -491,6 +500,7 @@
       "type": "object",
       "properties": {
         "annotations": {
+          "description": "Annotations to be added to the service.",
           "type": "object"
         },
         "nodePort": {
