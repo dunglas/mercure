@@ -189,9 +189,9 @@ service:
   targetPort: 80  # @schema type:[integer, string];minimum:1;maximum:65535
   # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
   nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
+  # -- Service port name.
+  portName: http  # @schema minLength:1
   annotations: {}
-  portName: http
-
 ingress:
   # -- Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/).
   enabled: false
@@ -440,6 +440,8 @@ persistence:
   # -- If defined, PVC must be created manually before volume will be bound
   existingClaim: ""
 
-extraVolumes: []
+# -- Additional volumes to set.
+extraVolumes: []  # @schema type:[array]
 
-extraVolumeMounts: []
+# -- Additional volume mounts to set.
+extraVolumeMounts: []  # @schema type:[array]
