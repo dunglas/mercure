@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyevents"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"github.com/dunglas/mercure"
+	"github.com/dustin/go-humanize"
 )
 
 const defaultHubURL = "/.well-known/mercure"
@@ -37,7 +39,7 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
-	ErrCompatibility = errors.New("compatibility mode only supports protocol version 7")
+	ErrCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
@@ -81,13 +83,39 @@ type JWTConfig struct {
 	Alg string `json:"alg,omitempty"`
 }
 
-type TopicSelectorCacheConfig struct {
-	// Deprecated: use Size instead.
-	MaxEntriesPerShard int `json:"max_entries_per_shard,omitempty"`
-	// Deprecated: no longer used.
-	ShardCount uint64 `json:"shard_count,omitempty"`
-	// Size is the maximum number of entries in the cache.
-	Size int `json:"size,omitempty"`
+// IssuerConfig binds a trusted issuer to its per-role verification material.
+type IssuerConfig struct {
+	// Identifier is the exact token iss claim value (RFC 9068 §4).
+	Identifier string `json:"identifier,omitempty"`
+
+	// AuthorizationServer advertises this issuer in the hub's RFC 9728
+	// protected resource metadata. Leave false for self-issued tokens.
+	AuthorizationServer bool `json:"authorization_server,omitempty"`
+
+	// Publisher verifies publisher tokens from this issuer.
+	Publisher VerifierConfig `json:"publisher,omitzero"`
+
+	// Subscriber verifies subscriber tokens from this issuer.
+	Subscriber VerifierConfig `json:"subscriber,omitzero"`
+}
+
+// VerifierConfig configures how one role's tokens are verified: either a static
+// key (JWT) or a JWK Set (JWKSURL). The two are mutually exclusive.
+type VerifierConfig struct {
+	// JWT is a static key and its signing algorithm.
+	JWT JWTConfig `json:"jwt,omitzero"`
+
+	// JWKSURL is a JWK Set URL (the RFC 8414 jwks_uri member).
+	JWKSURL string `json:"jwks_uri,omitempty"`
+
+	// JWKSAlgorithms pins the allowed JWS algorithms for the JWK Set path
+	// (RFC 8725). Defaults to the hub's asymmetric allowlist when empty.
+	JWKSAlgorithms []string `json:"jwks_algorithms,omitempty"`
+}
+
+// isSet reports whether the verifier declares any material.
+func (v VerifierConfig) isSet() bool {
+	return v.JWT.Key != "" || v.JWKSURL != ""
 }
 
 // Mercure implements a Mercure hub as a Caddy module. Mercure is a protocol allowing to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
@@ -118,16 +146,29 @@ type Mercure struct {
 	// Frequency of the heartbeat, defaults to 40s.
 	Heartbeat *caddy.Duration `json:"heartbeat,omitempty"`
 
-	// JWT key and signing algorithm to use for publishers.
+	// Maximum size in bytes of publish and QUERY subscribe request bodies;
+	// larger requests are rejected with a 413 status code. Defaults to 1MiB,
+	// set to 0 to disable the in-hub limit.
+	MaxRequestBodySize *int64 `json:"max_request_body_size,omitempty"`
+
+	// Issuers binds each trusted issuer (RFC 9068 §4) to its own verification
+	// material, so key material is never pooled across issuers.
+	Issuers []IssuerConfig `json:"issuers,omitempty"`
+
+	// Deprecated: use Issuers. Static publisher key and signing algorithm,
+	// mapped to a single implicit issuer (usable only in compatibility mode).
 	PublisherJWT JWTConfig `json:"publisher_jwt,omitzero"`
 
-	// JWK Set URL to use for publishers.
+	// Deprecated: use Issuers. Publisher JWK Set URL, mapped to a single
+	// implicit issuer (usable only in compatibility mode).
 	PublisherJWKSURL string `json:"publisher_jwks_url,omitempty"`
 
-	// JWT key and signing algorithm to use for subscribers.
+	// Deprecated: use Issuers. Static subscriber key and signing algorithm,
+	// mapped to a single implicit issuer (usable only in compatibility mode).
 	SubscriberJWT JWTConfig `json:"subscriber_jwt,omitzero"`
 
-	// JWK Set URL to use for subscribers.
+	// Deprecated: use Issuers. Subscriber JWK Set URL, mapped to a single
+	// implicit issuer (usable only in compatibility mode).
 	SubscriberJWKSURL string `json:"subscriber_jwks_url,omitempty"`
 
 	// Origins allowed to publish updates
@@ -136,18 +177,34 @@ type Mercure struct {
 	// Allowed CORS origins.
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
-	// Deprecated: not used anymore.
-	CacheShardSize *int64 `json:"cache_shard_size,omitempty"`
-
-	// Triggers use of topic selector cache and avoidance of select priority queue.
-	TopicSelectorCache *TopicSelectorCacheConfig `json:"cache,omitempty"`
+	// Maximum number of entries in the topic matcher cache. 0 or negative
+	// disables the cache. Defaults to DefaultTopicMatcherStoreCacheSize.
+	TopicMatcherCacheSize *int `json:"topic_matcher_cache_size,omitempty"`
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
 
-	// The name of the authorization cookie. Defaults to "mercureAuthorization".
+	// The name of the authorization cookie. Defaults to
+	// "__Secure-mercure_access_token"; plain-HTTP deployments must configure a
+	// prefix-less name.
 	CookieName string `json:"cookie_name,omitempty"`
 
-	// The version of the Mercure protocol to be backward compatible with (only version 7 is supported)
+	// The URL at which subscribers reach the hub. Used as the base URL when
+	// matching relative URL patterns and topics.
+	PublicURL string `json:"public_url,omitempty"`
+
+	// The hub's OAuth 2.0 resource identifier (the `aud` value access tokens
+	// must carry). Defaults to the public URL when unset.
+	ResourceIdentifier string `json:"resource_identifier,omitempty"`
+
+	// OAuth 2.0 authorization server issuer identifiers advertised in the
+	// hub's protected resource metadata.
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
+
+	// Issuer identifiers accepted in the token iss claim in addition to the
+	// authorization servers, for self-issued tokens (RFC 9068).
+	TrustedIssuers []string `json:"trusted_issuers,omitempty"`
+
+	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 
 	// The transport configuration.
@@ -182,26 +239,12 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		return err
 	}
 
-	cacheSize := mercure.DefaultTopicSelectorStoreCacheSize
-
-	if m.TopicSelectorCache != nil {
-		switch {
-		case m.TopicSelectorCache.Size > 0:
-			cacheSize = m.TopicSelectorCache.Size
-		case m.TopicSelectorCache.MaxEntriesPerShard > 0:
-			// Backward compat: convert old per-shard config
-			shardCount := m.TopicSelectorCache.ShardCount
-			if shardCount == 0 {
-				shardCount = 256
-			}
-
-			cacheSize = m.TopicSelectorCache.MaxEntriesPerShard * int(shardCount)
-		case m.TopicSelectorCache.MaxEntriesPerShard < 0:
-			cacheSize = 0
-		}
+	cacheSize := mercure.DefaultTopicMatcherStoreCacheSize
+	if m.TopicMatcherCacheSize != nil {
+		cacheSize = *m.TopicMatcherCacheSize
 	}
 
-	tss, err := mercure.NewTopicSelectorStore(cacheSize)
+	tms, err := mercure.NewTopicMatcherStore(cacheSize)
 	if err != nil {
 		return err
 	}
@@ -239,36 +282,28 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	opts := []mercure.Option{
 		mercure.WithLogger(m.logger),
-		mercure.WithTopicSelectorStore(tss),
+		mercure.WithTopicMatcherStore(tms),
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
+		mercure.WithPublicURL(m.PublicURL),
+	}
+
+	if m.ResourceIdentifier != "" {
+		opts = append(opts, mercure.WithResourceIdentifier(m.ResourceIdentifier))
 	}
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
 		opts = append(opts, mercure.WithDebug())
 	}
 
-	if m.PublisherJWKSURL != "" {
-		k, err := newJWKSetKeyfunc(ctx, m.PublisherJWKSURL)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve publisher JWK Set: %w", err)
-		}
-
-		opts = append(opts, mercure.WithPublisherJWTKeyFunc(k.Keyfunc))
-	} else if m.PublisherJWT.Key != "" {
-		opts = append(opts, mercure.WithPublisherJWT([]byte(m.PublisherJWT.Key), m.PublisherJWT.Alg))
+	issuers, err := m.buildIssuers(ctx)
+	if err != nil {
+		return err
 	}
 
-	if m.SubscriberJWKSURL != "" {
-		k, err := newJWKSetKeyfunc(ctx, m.SubscriberJWKSURL)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve subscriber JWK Set: %w", err)
-		}
-
-		opts = append(opts, mercure.WithSubscriberJWTKeyFunc(k.Keyfunc))
-	} else if m.SubscriberJWT.Key != "" {
-		opts = append(opts, mercure.WithSubscriberJWT([]byte(m.SubscriberJWT.Key), m.SubscriberJWT.Alg))
+	if len(issuers) > 0 {
+		opts = append(opts, mercure.WithIssuers(issuers))
 	}
 
 	if m.Anonymous {
@@ -297,6 +332,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	if d := m.Heartbeat; d != nil {
 		opts = append(opts, mercure.WithHeartbeat(time.Duration(*d)))
+	}
+
+	if s := m.MaxRequestBodySize; s != nil {
+		opts = append(opts, mercure.WithMaxRequestBodySize(*s))
 	}
 
 	if len(m.PublishOrigins) > 0 {
@@ -380,7 +419,7 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) {
+	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != mercure.ProtectedResourceMetadataPath {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
@@ -429,6 +468,19 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				if m.Heartbeat, err = parseDurationParameter(d); err != nil {
 					return err
 				}
+
+			case "max_request_body_size":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				size, err := humanize.ParseBytes(d.Val())
+				if err != nil || size > math.MaxInt64 {
+					return d.Errf("invalid max_request_body_size %q", d.Val())
+				}
+
+				s := int64(size)
+				m.MaxRequestBodySize = &s
 
 			case "publisher_jwks_url":
 				if !d.NextArg() {
@@ -503,7 +555,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.assignDeprecatedTransportURL(d.Val())
 
-			case "topic_selector_cache":
+			case "topic_matcher_cache":
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
@@ -513,7 +565,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.WrapErr(err)
 				}
 
-				m.TopicSelectorCache = &TopicSelectorCacheConfig{Size: size}
+				m.TopicMatcherCacheSize = &size
 			case "subscriber_list_cache_size":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -537,6 +589,28 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.CookieName = d.Val()
 
+			case "public_url":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.PublicURL = d.Val()
+
+			case "resource_identifier":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				m.ResourceIdentifier = d.Val()
+
+			case "issuer":
+				ic, err := parseIssuerBlock(d)
+				if err != nil {
+					return err
+				}
+
+				m.Issuers = append(m.Issuers, ic)
+
 			case "protocol_version_compatibility":
 				if !d.NextArg() {
 					return d.ArgErr()
@@ -547,7 +621,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return d.WrapErr(err)
 				}
 
-				if v != 7 {
+				if v != 7 && v != 8 {
 					return d.WrapErr(ErrCompatibility)
 				}
 
@@ -561,38 +635,208 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	return nil
 }
 
+// parseIssuerBlock parses an "issuer <identifier> { ... }" Caddyfile block.
+func parseIssuerBlock(d *caddyfile.Dispenser) (IssuerConfig, error) {
+	var ic IssuerConfig
+
+	if !d.NextArg() {
+		return ic, d.ArgErr() //nolint:wrapcheck
+	}
+
+	ic.Identifier = d.Val()
+
+	for d.NextBlock(1) {
+		switch d.Val() {
+		case "authorization_server":
+			ic.AuthorizationServer = true
+
+		case "publisher":
+			v, err := parseVerifierBlock(d)
+			if err != nil {
+				return ic, err
+			}
+
+			ic.Publisher = v
+
+		case "subscriber":
+			v, err := parseVerifierBlock(d)
+			if err != nil {
+				return ic, err
+			}
+
+			ic.Subscriber = v
+
+		default:
+			return ic, d.Errf("unknown issuer directive %q", d.Val()) //nolint:wrapcheck
+		}
+	}
+
+	return ic, nil
+}
+
+// parseVerifierBlock parses a "publisher"/"subscriber" verifier subblock. The
+// "jwt" and "jwks_uri" directives are mutually exclusive.
+func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
+	var v VerifierConfig
+
+	for d.NextBlock(2) {
+		switch d.Val() {
+		case "jwt":
+			if v.JWKSURL != "" {
+				return v, d.Err(`"jwt" and "jwks_uri" are mutually exclusive`) //nolint:wrapcheck
+			}
+
+			if !d.NextArg() {
+				return v, d.ArgErr() //nolint:wrapcheck
+			}
+
+			v.JWT.Key = d.Val()
+			if d.NextArg() {
+				v.JWT.Alg = d.Val()
+			}
+
+		case "jwks_uri":
+			if v.JWT.Key != "" {
+				return v, d.Err(`"jwt" and "jwks_uri" are mutually exclusive`) //nolint:wrapcheck
+			}
+
+			if !d.NextArg() {
+				return v, d.ArgErr() //nolint:wrapcheck
+			}
+
+			v.JWKSURL = d.Val()
+			v.JWKSAlgorithms = d.RemainingArgs()
+
+		default:
+			return v, d.Errf("unknown verifier directive %q", d.Val()) //nolint:wrapcheck
+		}
+	}
+
+	return v, nil
+}
+
+// normalizeJWT applies Caddy placeholder replacement to a static-key verifier
+// and defaults its algorithm to HS256. It is a no-op when a JWK Set URL is used
+// or no key is configured.
+func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL string) {
+	if jwksURL != "" {
+		return
+	}
+
+	c.Key = repl.ReplaceKnown(c.Key, "")
+	if c.Key == "" {
+		return
+	}
+
+	c.Alg = repl.ReplaceKnown(c.Alg, "HS256")
+	if c.Alg == "" {
+		c.Alg = "HS256"
+	}
+}
+
 func (m *Mercure) populateJWTConfig() error {
 	repl := caddy.NewReplacer()
 
-	if m.PublisherJWKSURL == "" {
-		m.PublisherJWT.Key = repl.ReplaceKnown(m.PublisherJWT.Key, "")
+	normalizeJWT(repl, &m.PublisherJWT, m.PublisherJWKSURL)
+	normalizeJWT(repl, &m.SubscriberJWT, m.SubscriberJWKSURL)
 
-		if m.PublisherJWT.Key != "" {
-			m.PublisherJWT.Alg = repl.ReplaceKnown(m.PublisherJWT.Alg, "HS256")
-			if m.PublisherJWT.Alg == "" {
-				m.PublisherJWT.Alg = "HS256"
-			}
-		} else if !AllowNoPublish {
-			return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
+	hasPublisher := m.PublisherJWT.Key != "" || m.PublisherJWKSURL != ""
+	hasSubscriber := m.SubscriberJWT.Key != "" || m.SubscriberJWKSURL != ""
+
+	for i := range m.Issuers {
+		iss := &m.Issuers[i]
+		normalizeJWT(repl, &iss.Publisher.JWT, iss.Publisher.JWKSURL)
+		normalizeJWT(repl, &iss.Subscriber.JWT, iss.Subscriber.JWKSURL)
+
+		if iss.Publisher.isSet() {
+			hasPublisher = true
+		}
+
+		if iss.Subscriber.isSet() {
+			hasSubscriber = true
 		}
 	}
 
-	if m.SubscriberJWKSURL == "" {
-		m.SubscriberJWT.Key = repl.ReplaceKnown(m.SubscriberJWT.Key, "")
-		m.SubscriberJWT.Alg = repl.ReplaceKnown(m.SubscriberJWT.Alg, "HS256")
+	if !hasPublisher && !AllowNoPublish {
+		return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
+	}
 
-		if m.SubscriberJWT.Key == "" {
-			if !m.Anonymous {
-				return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
-			}
-		}
-
-		if m.SubscriberJWT.Alg == "" {
-			m.SubscriberJWT.Alg = "HS256"
-		}
+	if !hasSubscriber && !m.Anonymous {
+		return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
 	}
 
 	return nil
+}
+
+// buildVerifier turns a configured VerifierConfig into a mercure.Verifier. A
+// JWK Set URL takes precedence over a static key. It is only called for a
+// VerifierConfig that isSet reports as configured.
+func (m *Mercure) buildVerifier(ctx context.Context, c VerifierConfig, role string) (mercure.Verifier, error) { //nolint:ireturn
+	if c.JWKSURL != "" {
+		k, err := newJWKSetKeyfunc(ctx, c.JWKSURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve %s JWK Set: %w", role, err)
+		}
+
+		return mercure.KeyFunc{Keyfunc: k.Keyfunc, Algorithms: c.JWKSAlgorithms}, nil
+	}
+
+	return mercure.Static{Key: []byte(c.JWT.Key), Algorithm: c.JWT.Alg}, nil
+}
+
+// buildIssuer builds one mercure.Issuer, skipping the verifier for an
+// unconfigured role.
+func (m *Mercure) buildIssuer(ctx context.Context, id string, authServer bool, pub, sub VerifierConfig) (mercure.Issuer, error) {
+	issuer := mercure.Issuer{Identifier: id, AuthorizationServer: authServer}
+
+	if pub.isSet() {
+		v, err := m.buildVerifier(ctx, pub, "publisher")
+		if err != nil {
+			return issuer, err
+		}
+
+		issuer.Publisher = v
+	}
+
+	if sub.isSet() {
+		v, err := m.buildVerifier(ctx, sub, "subscriber")
+		if err != nil {
+			return issuer, err
+		}
+
+		issuer.Subscriber = v
+	}
+
+	return issuer, nil
+}
+
+// buildIssuers assembles the hub's issuer bindings from the explicit issuer
+// blocks and the deprecated top-level directives (a single implicit issuer).
+func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
+	issuers := make([]mercure.Issuer, 0, len(m.Issuers)+1)
+
+	for _, ic := range m.Issuers {
+		issuer, err := m.buildIssuer(ctx, ic.Identifier, ic.AuthorizationServer, ic.Publisher, ic.Subscriber)
+		if err != nil {
+			return nil, err
+		}
+
+		issuers = append(issuers, issuer)
+	}
+
+	legacyPub := VerifierConfig{JWT: m.PublisherJWT, JWKSURL: m.PublisherJWKSURL}
+	legacySub := VerifierConfig{JWT: m.SubscriberJWT, JWKSURL: m.SubscriberJWKSURL}
+
+	if legacyPub.isSet() || legacySub.isSet() {
+		issuer, err := m.buildIssuer(ctx, "", false, legacyPub, legacySub)
+		if err != nil {
+			return nil, err
+		}
+
+		issuers = append(issuers, issuer)
+	}
+
+	return issuers, nil
 }
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.

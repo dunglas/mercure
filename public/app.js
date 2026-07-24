@@ -7,8 +7,29 @@
   const origin = window.location.origin;
   const defaultTopic = document.URL + "demo/books/1.jsonld";
   const placeholderTopic = "https://example.com/my-private-topic";
+
+  // RFC 9068 access token (typ: at+jwt, aud: the hub resource identifier).
+  // Signed with `!ChangeThisMercureHubJWTSecretKey!`.
+  //
+  // {
+  //   "aud": "https://localhost/.well-known/mercure",
+  //   "exp": 4102444800,
+  //   "authorization_details": [
+  //     { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
+  //     {
+  //       "type": "mercure",
+  //       "actions": ["subscribe"],
+  //       "topics": [
+  //         { "match": "https://example.com/my-private-topic" },
+  //         { "match": "https://example.com/demo/books/:id.jsonld", "match_type": "urlpattern" },
+  //         { "match": "/.well-known/mercure/subscriptions{/:matchType}?{/:match}?{/:subscriber}?", "match_type": "urlpattern" }
+  //       ],
+  //       "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
+  //     }
+  //   ]
+  // }
   const defaultJwt =
-    "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJwYXlsb2FkIjp7InJlbW90ZUFkZHIiOiIxMjcuMC4wLjEiLCJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIn0sInRvcGljcyI6W3sibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL215LXByaXZhdGUtdG9waWMifSx7Im1hdGNoIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9kZW1vL2Jvb2tzLzppZC5qc29ubGQiLCJtYXRjaF90eXBlIjoidXJscGF0dGVybiJ9LHsibWF0Y2giOiIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey86bWF0Y2hUeXBlfT97LzptYXRjaH0_ey86c3Vic2NyaWJlcn0_IiwibWF0Y2hfdHlwZSI6InVybHBhdHRlcm4ifV0sInR5cGUiOiJtZXJjdXJlIn1dLCJleHAiOjQxMDI0NDQ4MDB9.ZgpUCyCES-GCIP4_U6T5m0FJ4sN38QNDG4LAVhgSh1g";
 
   const $updates = document.getElementById("updates");
   const $subscriptions = document.getElementById("subscriptions");
@@ -80,8 +101,8 @@
     );
 
     document.getElementById("subscribeTopicsExamples").textContent =
-      `${document.URL}demo/novels/{id}.jsonld
-${defaultTopic}
+      `${defaultTopic}
+${document.URL}demo/novels/:id.jsonld   (URL Pattern)
 foo`;
   });
 
@@ -122,6 +143,18 @@ foo`;
     }
   };
 
+  // lastEventIdQueryParameterName: the hub reads last_event_id, not the
+  // polyfill's default lastEventId, so reconnects would replay from the start.
+  const openEventSource = (url) => {
+    const opts = { lastEventIdQueryParameterName: "last_event_id" };
+    if ($settingsForm.authorization.value === "header") {
+      opts.headers = { Authorization: `Bearer ${$settingsForm.jwt.value}` };
+    } else {
+      opts.withCredentials = true;
+    }
+    return new EventSourcePolyfill(url, opts);
+  };
+
   // Subscribe
   const $updateTemplate = document.getElementById("update");
   let updateEventSource;
@@ -132,24 +165,22 @@ foo`;
     $updates.textContent = "No updates pushed yet.";
 
     const {
-      elements: { topics, lastEventId },
+      elements: { topics, matcherType, lastEventId },
     } = this;
 
-    const topicList = topics.value.split("\n");
+    const paramName = matcherType.value;
     const u = new URL($settingsForm.hubUrl.value);
-    topicList.forEach((topic) => u.searchParams.append("topic", topic));
+    topics.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .forEach((pattern) => u.searchParams.append(paramName, pattern));
     if (lastEventId.value) {
-      u.searchParams.append("lastEventID", lastEventId.value);
+      u.searchParams.append("last_event_id", lastEventId.value);
     }
 
     let ol = null;
-    if ($settingsForm.authorization.value === "header") {
-      updateEventSource = new EventSourcePolyfill(u, {
-        headers: {
-          Authorization: `Bearer ${$settingsForm.jwt.value}`,
-        },
-      });
-    } else updateEventSource = new EventSource(u);
+    updateEventSource = openEventSource(u);
 
     updateEventSource.onmessage = function (e) {
       if (!ol) {
@@ -165,8 +196,9 @@ foo`;
       li.querySelector("pre").textContent = e.data;
       ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
     };
+    const unsubscribeBtn = this.elements.unsubscribe;
     updateEventSource.onerror = error;
-    this.elements.unsubscribe.disabled = false;
+    unsubscribeBtn.disabled = false;
   };
   $subscribeForm.elements.unsubscribe.onclick = function (e) {
     e.preventDefault();
@@ -183,24 +215,31 @@ foo`;
       elements: { topics, data, priv, id, type, retry },
     } = this;
 
-    const body = new URLSearchParams({
-      data: data.value,
-      id: id.value,
-      type: type.value,
-      retry: retry.value,
-    });
-
-    topics.value.split("\n").forEach((topic) => body.append("topic", topic));
-    priv.checked && body.append("private", "on");
-
-    const opt = { method: "POST", body };
-    if ($settingsForm.authorization.value === "header") {
-      opt.headers = { Authorization: `Bearer ${$settingsForm.jwt.value}` };
-    }
+    // An update has exactly one topic: publish one update per line.
+    const topicList = topics.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
     try {
-      const resp = await fetch($settingsForm.hubUrl.value, opt);
-      if (!resp.ok) throw new Error(resp.statusText);
+      for (const topic of topicList) {
+        const body = new URLSearchParams({
+          topic,
+          data: data.value,
+          id: id.value,
+          type: type.value,
+          retry: retry.value,
+        });
+        priv.checked && body.append("private", "on");
+
+        const opt = { method: "POST", body };
+        if ($settingsForm.authorization.value === "header") {
+          opt.headers = { Authorization: `Bearer ${$settingsForm.jwt.value}` };
+        }
+
+        const resp = await fetch($settingsForm.hubUrl.value, opt);
+        if (!resp.ok) throw new Error(resp.statusText);
+      }
     } catch (e) {
       error(e);
     }
@@ -211,13 +250,20 @@ foo`;
   let subscriptionEventSource;
 
   const addSubscription = (s) => {
+    // Idempotent: replays re-deliver the same id.
+    if (document.getElementById(s.id)) {
+      return;
+    }
+
     const subscription = document.importNode(
       $subscriptionTemplate.content,
       true,
     );
     subscription.querySelector("div").setAttribute("id", s.id);
     subscription.querySelector(".card-header-title").textContent = s.id;
-    subscription.querySelector(".topic").textContent = s.topic;
+    // v9+ subscriptions expose match/match_type; deprecated ones expose topic.
+    subscription.querySelector(".match").textContent =
+      s.match !== undefined ? `${s.match_type || "exact"} ${s.match}` : s.topic;
     subscription.querySelector(".subscriber").textContent = s.subscriber;
     subscription.querySelector("code").textContent = JSON.stringify(
       s.payload,
@@ -243,21 +289,27 @@ foo`;
         opt,
       );
       if (!resp.ok) throw new Error(resp.statusText);
+      // The snapshot cursor is carried by the rel="mercure" Link header's
+      // last-event-id attribute, not the JSON body.
+      const lastEventId = (resp.headers.get("Link") ?? "").match(
+        /rel="mercure".*?last-event-id="([^"]*)"/,
+      )?.[1];
       const json = await resp.json();
 
       json.subscriptions.forEach(addSubscription);
 
+      // Stream changes since the snapshot, so nothing is missed in between.
       const u = new URL($settingsForm.hubUrl.value);
       u.searchParams.append(
-        "topic",
-        "/.well-known/mercure/subscriptions{/topic}{/subscriber}",
+        "match_urlpattern",
+        "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
       );
-      u.searchParams.append("lastEventID", json.lastEventID);
+      if (lastEventId) u.searchParams.append("last_event_id", lastEventId);
 
-      if (opt) subscriptionEventSource = new EventSourcePolyfill(u, opt);
-      else subscriptionEventSource = new EventSource(u);
+      subscriptionEventSource = openEventSource(u);
 
-      subscriptionEventSource.onmessage = function (e) {
+      // Subscription updates use the "mercure" SSE event type, not the default.
+      subscriptionEventSource.addEventListener("mercure", function (e) {
         const s = JSON.parse(e.data);
 
         if (s.active) {
@@ -265,11 +317,11 @@ foo`;
           return;
         }
 
-        document.getElementById(s.id).remove();
-      };
+        document.getElementById(s.id)?.remove();
+      });
+      const unsubscribeBtn = $subscriptionsForm.elements.unsubscribe;
       subscriptionEventSource.onerror = error;
-
-      $subscriptionsForm.elements.unsubscribe.disabled = false;
+      unsubscribeBtn.disabled = false;
     } catch (e) {
       error(e);
     }

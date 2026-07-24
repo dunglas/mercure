@@ -19,11 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testAddr        = "127.0.0.1:4242"
-	testMetricsAddr = "127.0.0.1:4243"
-)
-
 func TestMain(m *testing.M) {
 	flag.Parse()
 
@@ -51,8 +46,12 @@ func TestNewHubWithConfig(t *testing.T) {
 
 	h, err := NewHub(
 		t.Context(),
-		WithPublisherJWT([]byte("foo"), jwt.SigningMethodHS256.Name),
-		WithSubscriberJWT([]byte("bar"), jwt.SigningMethodHS256.Name),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Publisher:  Static{Key: []byte("foo"), Algorithm: jwt.SigningMethodHS256.Name},
+			Subscriber: Static{Key: []byte("bar"), Algorithm: jwt.SigningMethodHS256.Name},
+		}}),
+		WithResourceIdentifier(testResourceIdentifier),
 	)
 	require.NotNil(t, h)
 	require.NoError(t, err)
@@ -77,8 +76,8 @@ func TestStop(t *testing.T) {
 			}
 
 			assert.NoError(t, hub.transport.Dispatch(ctx, &Update{
-				Topics: []string{"https://example.com/foo"},
-				Event:  Event{Data: "Hello World"},
+				Topic: "https://example.com/foo",
+				Event: Event{Data: "Hello World"},
 			}))
 
 			assert.NoError(t, hub.Stop(ctx))
@@ -86,7 +85,7 @@ func TestStop(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)
@@ -131,7 +130,7 @@ func TestContextCancellation(t *testing.T) {
 
 		for range 2 {
 			go func() {
-				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
 
 				w := newSubscribeRecorder()
 				hub.SubscribeHandler(w, req)
@@ -164,8 +163,6 @@ func TestWithProtocolVersionCompatibility(t *testing.T) {
 func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 	t.Parallel()
 
-	op := &opt{}
-
 	testCases := []struct {
 		version int
 		ok      bool
@@ -173,7 +170,8 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 		{5, false},
 		{6, false},
 		{7, true},
-		{8, false},
+		{8, true},
+		{9, false},
 	}
 
 	for _, tc := range testCases {
@@ -183,32 +181,61 @@ func TestWithProtocolVersionCompatibilityVersions(t *testing.T) {
 			o := WithProtocolVersionCompatibility(tc.version)
 
 			if tc.ok {
-				require.NoError(t, o(op))
+				require.NoError(t, o(&opt{}))
 			} else {
-				require.Error(t, o(op))
+				require.Error(t, o(&opt{}))
 			}
 		})
 	}
 }
 
-func TestWithPublisherJWTKeyFunc(t *testing.T) {
+func TestWithIssuers(t *testing.T) {
 	t.Parallel()
 
 	op := &opt{}
 
-	o := WithPublisherJWTKeyFunc(func(_ *jwt.Token) (any, error) { return []byte{}, nil })
+	o := WithIssuers([]Issuer{{
+		Identifier:          testIssuer,
+		AuthorizationServer: true,
+		Publisher:           KeyFunc{Keyfunc: func(_ *jwt.Token) (any, error) { return []byte{}, nil }},
+		Subscriber:          Static{Key: []byte("subscriber"), Algorithm: "HS256"},
+	}})
 	require.NoError(t, o(op))
-	require.NotNil(t, op.publisherJWTKeyFunc)
+
+	iv, ok := op.issuers[testIssuer]
+	require.True(t, ok)
+	assert.NotNil(t, iv.publisher.keyfunc)
+	assert.NotNil(t, iv.subscriber.keyfunc)
+	assert.True(t, op.publisherConfigured)
+	assert.True(t, op.subscriberConfigured)
+	assert.Equal(t, []string{testIssuer}, op.authorizationServers)
+	// A KeyFunc without an explicit allowlist gets the asymmetric default.
+	assert.Equal(t, defaultJWTAlgorithms, iv.publisher.algorithms)
+	assert.Equal(t, []string{"HS256"}, iv.subscriber.algorithms)
 }
 
-func TestWithSubscriberJWTKeyFunc(t *testing.T) {
+func TestWithIssuersRejectsDuplicate(t *testing.T) {
 	t.Parallel()
 
-	op := &opt{}
+	o := WithIssuers([]Issuer{
+		{Identifier: testIssuer, Subscriber: Static{Key: []byte("s"), Algorithm: "HS256"}},
+		{Identifier: testIssuer, Subscriber: Static{Key: []byte("s"), Algorithm: "HS256"}},
+	})
+	require.ErrorIs(t, o(&opt{}), ErrDuplicateIssuer)
+}
 
-	o := WithSubscriberJWTKeyFunc(func(_ *jwt.Token) (any, error) { return []byte{}, nil })
-	require.NoError(t, o(op))
-	require.NotNil(t, op.subscriberJWTKeyFunc)
+func TestWithIssuersRejectsMissingKey(t *testing.T) {
+	t.Parallel()
+
+	o := WithIssuers([]Issuer{{Identifier: testIssuer}})
+	require.ErrorIs(t, o(&opt{}), ErrIssuerMissingKey)
+}
+
+func TestWithIssuersRejectsMissingAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	o := WithIssuers([]Issuer{{Identifier: testIssuer, Subscriber: Static{Key: []byte("s")}}})
+	require.ErrorIs(t, o(&opt{}), ErrMissingAlgorithm)
 }
 
 func TestWithDebug(t *testing.T) {
@@ -351,7 +378,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(t.Context(), WithPublisherJWT([]byte(""), "HS256"))
+	h, err := NewHub(t.Context(), WithIssuers([]Issuer{{Identifier: testIssuer, Publisher: Static{Key: []byte(""), Algorithm: "HS256"}}}), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -393,22 +420,20 @@ func waitSubscribers(tb testing.TB, transport *LocalTransport, n int) {
 func createDummy(tb testing.TB, options ...Option) *Hub {
 	tb.Helper()
 
-	tss, err := NewTopicSelectorStore(0)
+	tms, err := NewTopicMatcherStore(0)
 	require.NoError(tb, err)
 
 	options = append(
 		[]Option{
-			WithPublisherJWT([]byte("publisher"), jwt.SigningMethodHS256.Name),
-			WithSubscriberJWT([]byte("subscriber"), jwt.SigningMethodHS256.Name),
-			WithTopicSelectorStore(tss),
+			testIssuerOption(),
+			WithResourceIdentifier(testResourceIdentifier),
+			WithTopicMatcherStore(tms),
 		},
 		options...,
 	)
 
 	h, err := NewHub(tb.Context(), options...)
 	require.NoError(tb, err)
-
-	setDeprecatedOptions(tb, h)
 
 	return h
 }
@@ -424,32 +449,184 @@ func createAnonymousDummy(tb testing.TB, options ...Option) *Hub {
 	return createDummy(tb, options...)
 }
 
+// testResourceIdentifier is the audience minted access tokens carry and that
+// createDummy configures the hub with.
+func TestNewHubInvalidResourceIdentifier(t *testing.T) {
+	t.Parallel()
+
+	for _, ri := range []string{"foo", "/relative", "https://example.com/x#frag"} {
+		_, err := NewHub(t.Context(), WithResourceIdentifier(ri))
+		require.ErrorIs(t, err, ErrInvalidResourceIdentifier, ri)
+	}
+}
+
+// A token-validating hub in modern mode now accepts several issuers, each with
+// its own key material.
+func TestNewHubAcceptsMultipleIssuers(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithIssuers([]Issuer{
+			{Identifier: "https://a.example.com", Publisher: Static{Key: []byte("a"), Algorithm: "HS256"}},
+			{Identifier: "https://b.example.com", Publisher: Static{Key: []byte("b"), Algorithm: "HS256"}},
+		}),
+	)
+	require.NoError(t, err)
+}
+
+// A modern-mode issuer must have a non-empty identifier to match the iss claim.
+func TestNewHubRejectsEmptyIssuerIdentifier(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithIssuers([]Issuer{{Subscriber: Static{Key: []byte("s"), Algorithm: "HS256"}}}),
+	)
+	require.ErrorIs(t, err, ErrMissingIssuerIdentifier)
+}
+
+// A resource identifier that is the full hub URL doubles as the URL Pattern
+// base when no public URL is configured.
+func TestNewHubDerivesPatternBaseFromResourceIdentifier(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(), WithResourceIdentifier(testResourceIdentifier))
+	require.NoError(t, err)
+	assert.Equal(t, testResourceIdentifier, h.topicMatcherStore.baseURL)
+	assert.Equal(t, testResourceIdentifier, h.publicURL)
+}
+
+// A key function configured without an explicit algorithm allowlist gets the
+// default asymmetric list in modern mode, so an HMAC token cannot abuse a
+// public key set (algorithm confusion).
+func TestNewHubDefaultJWTAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: KeyFunc{Keyfunc: func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }},
+		}}),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, defaultJWTAlgorithms, h.issuers[testIssuer].subscriber.algorithms)
+	assert.Empty(t, h.issuers[testIssuer].publisher.algorithms)
+
+	// An HS256 token is rejected even though the key function would return
+	// the right secret: the algorithm is not in the default allowlist.
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"foo"}))
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+}
+
+// TestCompatModeDefaultJWTAlgorithms ensures the asymmetric-only default
+// allowlist is applied to a bare key function in compatibility mode too: a
+// relaxed protocol version must not reopen the algorithm-confusion hole.
+func TestCompatModeDefaultJWTAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	h, err := NewHub(t.Context(),
+		WithProtocolVersionCompatibility(7),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: KeyFunc{Keyfunc: func(*jwt.Token) (any, error) { return []byte("subscriber"), nil }},
+		}}),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, defaultJWTAlgorithms, h.issuers[testIssuer].subscriber.algorithms)
+
+	// An HS256 token is rejected at parse time even though the key function
+	// would return the matching secret: the algorithm is not in the allowlist.
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(roleSubscriber, []string{"foo"}))
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+}
+
+const testResourceIdentifier = "https://example.com/.well-known/mercure"
+
+// testIssuer is the trusted issuer identifier minted access tokens carry and
+// that createDummy configures the hub with.
+const testIssuer = "https://example.com"
+
+// testIssuerOption returns the default single-issuer test configuration: the
+// trusted issuer testIssuer with static HMAC keys for both roles ("publisher"
+// and "subscriber").
+func testIssuerOption() Option {
+	return WithIssuers([]Issuer{{
+		Identifier: testIssuer,
+		Publisher:  Static{Key: []byte("publisher"), Algorithm: "HS256"},
+		Subscriber: Static{Key: []byte("subscriber"), Algorithm: "HS256"},
+	}})
+}
+
 func createDummyAuthorizedJWT(r role, topics []string) string {
 	return createDummyAuthorizedJWTWithPayload(r, topics, struct {
 		Foo string `json:"foo"`
 	}{Foo: "bar"})
 }
 
-func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) string {
-	token := jwt.New(jwt.SigningMethodHS256)
+// stringsToDetailTopics wraps topic strings into Exact detailTopics.
+func stringsToDetailTopics(patterns []string) []detailTopic {
+	topics := make([]detailTopic, len(patterns))
+	for i, p := range patterns {
+		topics[i] = detailTopic{TopicMatcher{Type: MatcherTypeExact, Pattern: p}}
+	}
 
-	var key []byte
+	return topics
+}
+
+func createDummyAuthorizedJWTWithPayload(r role, topics []string, payload any) string {
+	var (
+		action mercureAction
+		key    []byte
+	)
 
 	switch r {
 	case rolePublisher:
-		token.Claims = &claims{Mercure: mercureClaim{Publish: topics}, RegisteredClaims: jwt.RegisteredClaims{}}
-		key = []byte("publisher")
-
+		action, key = actionPublish, []byte("publisher")
 	case roleSubscriber:
-		token.Claims = &claims{
-			Mercure: mercureClaim{
-				Subscribe: topics,
-				Payload:   payload,
-			},
-			RegisteredClaims: jwt.RegisteredClaims{},
+		action, key = actionSubscribe, []byte("subscriber")
+	}
+
+	// An empty topic list means "grant nothing": a mercure detail must carry
+	// at least one topic, so emit no authorization details at all.
+	var details []authorizationDetail
+
+	if len(topics) > 0 {
+		detail := authorizationDetail{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{action},
+			Topics:  stringsToDetailTopics(topics),
+		}
+		if r == roleSubscriber {
+			detail.Payload = payload
 		}
 
-		key = []byte("subscriber")
+		details = []authorizationDetail{detail}
+	}
+
+	return mintAccessToken(key, testResourceIdentifier, details)
+}
+
+// mintAccessToken signs an RFC 9068 access token (typ at+jwt, trusted issuer,
+// audience set, exp in one hour) carrying the given authorization details.
+func mintAccessToken(key []byte, audience string, details []authorizationDetail) string {
+	token := jwt.New(jwt.SigningMethodHS256)
+	token.Header["typ"] = atJWTType
+	token.Claims = &claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    testIssuer,
+			Audience:  jwt.ClaimStrings{audience},
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+		AuthorizationDetails: details,
 	}
 
 	tokenString, _ := token.SignedString(key)

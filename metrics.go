@@ -6,8 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const metricsPath = "/metrics"
-
 type Metrics interface {
 	// SubscriberConnected collects metrics about subscriber connections.
 	SubscriberConnected(s *LocalSubscriber)

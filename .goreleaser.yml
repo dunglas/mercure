@@ -21,6 +21,8 @@ builds:
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
     tags:
       - deprecated_transport
+      - deprecated_topic
+      - deprecated_claim
       - nobadger
       - nomysql
       - nopgx
@@ -40,26 +42,6 @@ builds:
     ignore:
       - goos: windows
         goarch: arm
-  # Legacy build
-  - id: legacy
-    dir: cmd/mercure
-    ldflags:
-      - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .ShortCommit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
-    tags:
-      - deprecated_transport
-      - deprecated_server
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - "386"
-      - amd64
-      - arm
-      - arm64
-    ignore:
-      - goos: windows
-        goarch: arm
 archives:
   - ids:
       - caddy
@@ -76,23 +58,6 @@ archives:
       - README.md
       - Caddyfile
       - dev.Caddyfile
-    format_overrides:
-      - goos: windows
-        formats: [zip]
-  - id: legacy
-    ids:
-      - legacy
-    name_template: >-
-      {{ .ProjectName }}-legacy_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
-    files:
-      - COPYRIGHT
-      - LICENSE
-      - README.md
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -130,14 +95,6 @@ dockers:
     extra_files:
       - Caddyfile
       - dev.Caddyfile
-  - ids:
-      - legacy
-    dockerfile: Dockerfile.legacy
-    image_templates:
-      - "dunglas/mercure:legacy-{{ .Tag }}"
-      - "{{ if not .Prerelease }}dunglas/mercure:legacy-v{{ .Major }}{{ end }}"
-      - "{{ if not .Prerelease }}dunglas/mercure:legacy-v{{ .Major }}.{{ .Minor }}{{ end }}"
-      - "{{ if not .Prerelease }}dunglas/mercure:legacy-latest{{ end }}"
 docker_manifests:
   - name_template: dunglas/mercure:{{ .Tag }}
     image_templates:

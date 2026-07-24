@@ -4,14 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
+
+// methodQuery is the safe, idempotent HTTP QUERY method (RFC 9110 semantics,
+// defined in RFC 10008). Subscribers use it to send the topic matcher list in
+// the request body instead of the URL, avoiding query-string length limits.
+const methodQuery = "QUERY"
 
 type subscriberContextKeyType struct{}
 
@@ -125,7 +133,14 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
-	if h.writeTimeout != 0 {
+	// Arm the disconnection timer whenever a write deadline exists, including
+	// when it comes solely from the token's exp (write_timeout disabled):
+	// getWriteDeadline leaves the deadline zero only when neither a write
+	// timeout nor a token exp applies. The protocol requires closing the
+	// connection no later than exp, so relying on a failed write against a past
+	// deadline would otherwise leave an authenticated connection open up to a
+	// heartbeat interval past exp, or indefinitely with heartbeat off.
+	if !rc.writeDeadline.IsZero() {
 		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
 		defer disconnectionTimer.Stop()
 
@@ -200,28 +215,40 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	ctx, span := startSpan(ctx, "mercure.subscribe", trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
-	s := NewLocalSubscriber(h.retrieveLastEventID(ctx, r), h.logger, h.topicSelectorStore)
+	h.limitRequestBody(w, r)
 
-	var (
-		privateTopics []string
-		claims        *claims
-	)
+	values, err := h.subscribeValues(r)
+	if err != nil {
+		status := http.StatusBadRequest
 
-	if h.subscriberJWTKeyFunc != nil { //nolint:nestif
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			status = http.StatusRequestEntityTooLarge
+		}
+
+		http.Error(w, http.StatusText(status), status)
+		recordSpanError(span, err)
+
+		return nil, nil
+	}
+
+	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
+
+	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
+	s.RequestLastEventIDSet = lastEventIDSet
+
+	var claims *claims
+
+	if h.subscriberConfigured { //nolint:nestif
 		var err error
 
 		claims, err = h.authorize(r, false)
 		if claims != nil {
 			s.Claims = claims
-			privateTopics = claims.Mercure.Subscribe
 		}
 
 		if err != nil || (claims == nil && !h.anonymous) {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-
-			if h.logger.Enabled(ctx, slog.LevelDebug) {
-				h.logger.LogAttrs(ctx, slog.LevelDebug, "Subscriber unauthorized", slog.Any("error", err))
-			}
+			h.writeAuthError(w, r, err)
 
 			if err != nil {
 				recordSpanError(span, err)
@@ -231,25 +258,27 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		}
 	}
 
-	topics := r.URL.Query()["topic"]
-	if len(topics) == 0 {
-		http.Error(w, `Missing "topic" parameter.`, http.StatusBadRequest)
+	deprecated := h.isBackwardCompatiblyEnabledWith(8)
+
+	matchers, err := h.parseMatchers(values, deprecated)
+	if err != nil {
+		h.writeMatcherParamError(ctx, w, err)
+		recordSpanError(span, err)
 
 		return nil, nil
 	}
 
-	if len(topics) > maxQueryTopics {
-		http.Error(w, `Too many "topic" parameters.`, http.StatusBadRequest)
-
-		return nil, nil
+	var privateTopicMatchers []TopicMatcher
+	if claims != nil {
+		privateTopicMatchers = claims.authz.subscribeMatchers()
 	}
 
-	s.SetTopics(topics, privateTopics)
+	s.setMatchers(matchers, privateTopicMatchers)
 
 	if span.IsRecording() {
 		span.SetAttributes(
 			attribute.String("mercure.subscriber.id", s.ID),
-			attribute.StringSlice("mercure.topics", topics),
+			attribute.StringSlice("mercure.topics", logMatcherPatterns(matchers)),
 		)
 	}
 
@@ -275,7 +304,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("payload", claims.Mercure.Payload))
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("payload", s.SubscriptionPayloads))
 		} else {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber")
 		}
@@ -314,8 +343,8 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 
-	if s.RequestLastEventID != "" {
-		header["Last-Event-Id"] = []string{<-s.responseLastEventID}
+	if s.RequestLastEventIDSet {
+		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
 	// Write a comment in the body
@@ -325,33 +354,68 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	}
 }
 
-// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP header with a fallback on the query parameter.
-func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request) string {
-	if id := r.Header.Get("Last-Event-ID"); id != "" {
-		return id
+// subscribeValues returns the subscription parameters. For GET and HEAD they
+// come from the URL query; for QUERY the application/x-www-form-urlencoded
+// request body is parsed and merged on top, so a subscriber can pass topics
+// either way. Body size is bounded by limitRequestBody, as for the publish
+// endpoint.
+func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
+	values := r.URL.Query()
+	if r.Method != methodQuery {
+		return values, nil
 	}
 
-	query := r.URL.Query()
-	if id := query.Get("lastEventID"); id != "" {
-		return id
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading QUERY request body: %w", err)
 	}
+
+	bodyValues, err := url.ParseQuery(string(body))
+	if err != nil {
+		return nil, fmt.Errorf("parsing QUERY request body: %w", err)
+	}
+
+	for k, vs := range bodyValues {
+		values[k] = append(values[k], vs...)
+	}
+
+	return values, nil
+}
+
+// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP
+// header with a fallback on the query parameter. The second return value
+// reports whether either was present at all, even with an empty value: the
+// protocol requires answering with a Mercure-Last-Event-ID response field
+// whenever one was.
+func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query url.Values) (string, bool) {
+	if id := r.Header.Get("Last-Event-ID"); id != "" {
+		return id, true
+	}
+
+	_, headerPresent := r.Header["Last-Event-Id"]
+
+	if id := query.Get("last_event_id"); id != "" {
+		return id, true
+	}
+
+	_, queryPresent := query["last_event_id"]
 
 	if legacyEventIDValues, present := query["Last-Event-ID"]; present { //nolint:nestif
 		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)
 		if h.isBackwardCompatiblyEnabledWith(7) {
 			if infoLevel {
-				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'lastEventID' instead.")
+				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'last_event_id' instead.")
 			}
 
 			if len(legacyEventIDValues) != 0 {
-				return legacyEventIDValues[0]
+				return legacyEventIDValues[0], true
 			}
 		} else if infoLevel {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID"" query parameter is not supported anymore, use "lastEventID"" instead or enable backward compatibility with version 7 of the protocol.`)
+			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID" query parameter is not supported anymore, use "last_event_id" instead or enable backward compatibility with version 7 of the protocol.`)
 		}
 	}
 
-	return ""
+	return "", headerPresent || queryPresent
 }
 
 // Write sends the given string to the client.
@@ -394,17 +458,23 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		return
 	}
 
-	for _, subscription := range s.getSubscriptions("", jsonldContext, active) {
+	for _, subscription := range s.getSubscriptions(subscriptionFilter{}, active) {
 		j, err := json.MarshalIndent(subscription, "", "  ")
 		if err != nil {
 			panic(err)
 		}
 
+		// Dispatched directly, bypassing Hub.Publish/Update.Validate: this is
+		// the only path allowed to set the reserved reservedEventType, and
+		// Validate would reject it. Safe because Topic and Data are hub-built
+		// here (subscription.ID is a hub-constructed path; json.MarshalIndent
+		// escapes control characters), not attacker-controlled. Keep that
+		// invariant if this function changes.
 		u := &Update{
-			Topics:  []string{subscription.ID},
+			Topic:   subscription.ID,
 			Private: true,
 			Debug:   h.debug,
-			Event:   Event{Data: string(j)},
+			Event:   Event{Data: string(j), Type: reservedEventType},
 		}
 
 		if err := h.transport.Dispatch(ctx, u); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
@@ -449,4 +519,22 @@ func (h *Hub) handleWriterError(ctx context.Context, err error, message string) 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		h.logger.LogAttrs(ctx, slog.LevelInfo, message, slog.Any("error", err))
 	}
+}
+
+// writeMatcherParamError answers a subscribe-query matcher error with 400. For
+// an invalid pattern it writes a generic message and logs the detail: the
+// underlying URL Pattern compiler can embed internal memory addresses in its
+// error text (CWE-209), which must not reach the client.
+func (h *Hub) writeMatcherParamError(ctx context.Context, w http.ResponseWriter, err error) {
+	if errors.Is(err, errInvalidMatcherPattern) {
+		http.Error(w, errInvalidMatcherPattern.Error(), http.StatusBadRequest)
+
+		if h.logger.Enabled(ctx, slog.LevelDebug) {
+			h.logger.LogAttrs(ctx, slog.LevelDebug, "Invalid topic matcher pattern in subscribe request", slog.Any("error", err))
+		}
+
+		return
+	}
+
+	http.Error(w, err.Error(), http.StatusBadRequest)
 }

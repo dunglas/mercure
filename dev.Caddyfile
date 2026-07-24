@@ -6,24 +6,25 @@
 {$CADDY_EXTRA_CONFIG}
 
 {$SERVER_NAME:localhost} {
-	log {
-		format filter {
-			fields {
-				request>uri query {
-					replace authorization REDACTED
-				}
-			}
-		}
-	}
-
 	encode zstd gzip
 
 	mercure {
-		# Publisher JWT key
-		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
-		# Subscriber JWT key
-		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+		# Trusted issuer (access token iss claim) bound to its verification keys
+		issuer {$MERCURE_TRUSTED_ISSUERS:https://localhost} {
+			# Publisher JWT key
+			publisher {
+				jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+			}
+			# Subscriber JWT key
+			subscriber {
+				jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
+			}
+		}
+		# OAuth 2.0 resource identifier (access token audience)
+		resource_identifier {$MERCURE_RESOURCE_IDENTIFIER:https://localhost/.well-known/mercure}
 		# Permissive configuration for the development environment
+		# Prefix-less cookie name so the demo also works over plain HTTP
+		cookie_name mercure_access_token
 		cors_origins *
 		publish_origins *
 		demo
@@ -39,7 +40,5 @@
 
 	respond /robots.txt `User-agent: *
 	Disallow: /`
-	# Deprecated: use the /mercure/health/ready and /mercure/health/live admin API endpoints for transport-aware health checks
-	respond /healthz 200
 	respond "Not Found" 404
 }

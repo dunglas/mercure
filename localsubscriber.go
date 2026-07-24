@@ -3,7 +3,6 @@ package mercure
 import (
 	"context"
 	"log/slog"
-	"net/url"
 	"sync"
 	"sync/atomic"
 
@@ -25,17 +24,18 @@ type LocalSubscriber struct {
 const outBufferLength = 1000
 
 // NewLocalSubscriber creates a new subscriber.
-func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicSelectorStore *TopicSelectorStore) *LocalSubscriber {
+func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicMatcherStore *TopicMatcherStore) *LocalSubscriber {
 	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
 	s := &LocalSubscriber{
-		Subscriber:          *NewSubscriber(logger, topicSelectorStore),
+		Subscriber:          *NewSubscriber(logger, topicMatcherStore),
 		responseLastEventID: make(chan string, 1),
 		out:                 make(chan *Update, outBufferLength),
 	}
 
 	s.ID = id
-	s.EscapedID = url.QueryEscape(id)
+	s.EscapedID = escapeSubscriptionSegment(id)
 	s.RequestLastEventID = lastEventID
+	s.RequestLastEventIDSet = lastEventID != ""
 
 	return s
 }

@@ -43,7 +43,7 @@ jobs:
 
       - name: Login to Docker Hub
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -63,7 +63,7 @@ jobs:
           echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7.2.2
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           version: latest
           args: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'build --single-target --snapshot' }} --clean --timeout 60m
@@ -99,21 +99,6 @@ jobs:
           # on the first '/' to find the registry. We only push to Docker Hub.
           subject-name: docker.io/dunglas/mercure
           subject-digest: ${{ steps.caddy_image.outputs.digest }}
-          push-to-registry: true
-
-      - name: Inspect legacy Docker image
-        id: legacy_image
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "dunglas/mercure:legacy-${GITHUB_REF_NAME}")
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
-
-      - name: Attest legacy Docker image
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
-        with:
-          subject-name: docker.io/dunglas/mercure
-          subject-digest: ${{ steps.legacy_image.outputs.digest }}
           push-to-registry: true
 
       - name: Display version

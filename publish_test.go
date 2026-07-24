@@ -23,9 +23,8 @@ func TestPublish(t *testing.T) {
 		hub := createDummy(t)
 
 		topics := []string{"https://example.com/books/1"}
-		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.SetTopics(topics, topics)
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
+		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
+		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -35,7 +34,7 @@ func TestPublish(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, s.SubscribedMatchers[0].Pattern, u.Topic)
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -45,7 +44,7 @@ func TestPublish(t *testing.T) {
 				ID:   "id",
 				Data: "Hello!",
 			},
-			Topics:  s.SubscribedTopics,
+			Topic:   s.SubscribedMatchers[0].Pattern,
 			Private: true,
 		}))
 
@@ -185,7 +184,7 @@ func TestPublishHandlerInvalidRetry(t *testing.T) {
 `, w.Body.String())
 }
 
-func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
+func TestPublishHandlerNotAuthorizedTopicMatcher(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
@@ -208,10 +207,10 @@ func TestPublishHandlerNotAuthorizedTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
-func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
+func TestPublishHandlerEmptyTopicMatcher(t *testing.T) {
 	t.Parallel()
 
 	hub := createDummy(t)
@@ -232,7 +231,7 @@ func TestPublishHandlerEmptyTopicSelector(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestPublishHandlerLegacyAuthorization(t *testing.T) {
@@ -266,9 +265,8 @@ func TestPublishHandlerOK(t *testing.T) {
 		hub := createDummy(t)
 
 		topics := []string{"https://example.com/books/1"}
-		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.SetTopics(topics, topics)
-		s.Claims = &claims{Mercure: mercureClaim{Subscribe: topics}}
+		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
+		s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(topics))
 
 		require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
 
@@ -277,7 +275,7 @@ func TestPublishHandlerOK(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedTopics, u.Topics)
+			assert.Equal(t, s.SubscribedMatchers[0].Pattern, u.Topic)
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -290,7 +288,7 @@ func TestPublishHandlerOK(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, s.SubscribedTopics))
+		req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, topics))
 
 		w := httptest.NewRecorder()
 		hub.PublishHandler(w, req)
@@ -304,6 +302,7 @@ func TestPublishHandlerOK(t *testing.T) {
 		body, _ := io.ReadAll(resp.Body)
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 		assert.Equal(t, "id", string(body))
 
 		synctest.Wait()
@@ -340,8 +339,8 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		h := createDummy(t)
 
-		s := NewLocalSubscriber("", slog.Default(), &TopicSelectorStore{})
-		s.SetTopics([]string{"https://example.com/books/1"}, s.SubscribedTopics)
+		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
+		s.setMatchers(stringsToExactMatchers([]string{"https://example.com/books/1"}), nil)
 
 		require.NoError(t, h.transport.AddSubscriber(t.Context(), s))
 
@@ -477,15 +476,31 @@ func TestUpdateValidate(t *testing.T) {
 		update Update
 		want   error
 	}{
-		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topics: []string{"https://example.com/books/1"}}, nil},
-		{"empty", Update{}, nil},
-		{"reserved topic", Update{Topics: []string{"https://example.com/.well-known/mercure/subscriptions/foo"}}, ErrReservedTopic},
-		{"id LF", Update{Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
-		{"id CR", Update{Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
-		{"id NUL", Update{Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
-		{"type LF", Update{Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
-		{"type CR", Update{Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
-		{"type NUL", Update{Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
+		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topic: "https://example.com/books/1"}, nil},
+		// The empty topic resolves to the hub URL itself, which is reserved.
+		{"empty", Update{}, ErrReservedTopic},
+		{"reserved topic", Update{Topic: "https://example.com/.well-known/mercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic relative", Update{Topic: "mercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic absolute path", Update{Topic: "/.well-known/mercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic exact", Update{Topic: "https://example.com/.well-known/mercure"}, ErrReservedTopic},
+		{"reserved topic percent-encoded", Update{Topic: "https://example.com/.well-known/%6Dercure/subscriptions/foo"}, ErrReservedTopic},
+		{"reserved topic backslashes", Update{Topic: `https://example.com\.well-known\mercure\subscriptions\foo`}, ErrReservedTopic},
+		{"reserved wildcard", Update{Topic: "*"}, ErrReservedWildcard},
+		{"non-reserved mid-path namespace", Update{Topic: "https://example.com/foo/.well-known/mercure/bar"}, nil},
+		{"non-reserved sibling path", Update{Topic: "https://example.com/.well-known/mercure-dashboard"}, nil},
+		{"non-reserved opaque topic", Update{Topic: "urn:example:mercure"}, nil},
+		{"id starts with #", Update{Topic: "https://example.com/books/1", Event: Event{ID: "#42"}}, ErrInvalidEventID},
+		{"id earliest", Update{Topic: "https://example.com/books/1", Event: Event{ID: EarliestLastEventID}}, ErrInvalidEventID},
+		{"topic NUL", Update{Topic: "https://example.com/foo\x00bar"}, ErrInvalidTopic},
+		{"topic C0", Update{Topic: "https://example.com/foo\nbar"}, ErrInvalidTopic},
+		{"topic invalid UTF-8", Update{Topic: "https://example.com/\xff"}, ErrInvalidTopic},
+		{"id LF", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
+		{"id CR", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
+		{"id NUL", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
+		{"type LF", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
+		{"type CR", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
+		{"type NUL", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
+		{"type reserved mercure", Update{Topic: "https://example.com/books/1", Event: Event{Type: reservedEventType}}, ErrReservedEventType},
 	}
 
 	for _, tc := range cases {
@@ -504,25 +519,14 @@ func TestUpdateValidate(t *testing.T) {
 	}
 }
 
-func TestUpdateValidateTooManyTopics(t *testing.T) {
-	t.Parallel()
-
-	topics := make([]string, maxPublishTopics+1)
-	for i := range topics {
-		topics[i] = "https://example.com/books/1"
-	}
-
-	err := (&Update{Topics: topics}).Validate()
-	assert.ErrorIs(t, err, ErrTooManyTopics)
-}
-
 func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
 	t.Parallel()
 
 	for _, topic := range []string{
 		"/.well-known/mercure/subscriptions/foo",
 		"https://example.com/.well-known/mercure/subscriptions/foo",
-		"foo/.well-known/mercure/bar",
+		"mercure/subscriptions/foo", // relative, resolves into the namespace
+		"https://example.com/.well-known/%6Dercure/subscriptions/foo",
 	} {
 		t.Run(topic, func(t *testing.T) {
 			t.Parallel()
@@ -546,7 +550,10 @@ func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
 				assert.NoError(t, resp.Body.Close())
 			})
 
-			assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+			// The reserved namespace is off-limits to every publisher
+			// regardless of grants, so it is a request-validation failure
+			// (400 invalid_request), not an authorization failure.
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 		})
 	}
 }
@@ -564,6 +571,9 @@ func TestPublishHandlerRejectsSSEControlChars(t *testing.T) {
 		{"type", "foo\nid: injected"},
 		{"type", "foo\rdata: injected"},
 		{"type", "foo\x00bar"},
+		// "mercure" is reserved for hub-generated events; a publisher using it
+		// must be rejected (exercises the PublishHandler ErrReservedEventType arm).
+		{"type", "mercure"},
 	}
 
 	for _, tc := range cases {
@@ -650,5 +660,6 @@ func TestPublishHandlerTooManyClaimMatchers(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
+	// Too many topics in a single authorization detail → invalid_token.
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }

@@ -47,8 +47,8 @@ func TestPublishEmitsSpans(t *testing.T) {
 	hub := createAnonymousDummy(t)
 
 	require.NoError(t, hub.Publish(ctx, &Update{
-		Topics: []string{"https://example.com/books/1"},
-		Event:  Event{Data: "hello"},
+		Topic: "https://example.com/books/1",
+		Event: Event{Data: "hello"},
 	}))
 
 	assert.Contains(t, endedSpanNames(sr), "mercure.publish")
@@ -62,7 +62,7 @@ func TestSubscribeEmitsSpan(t *testing.T) {
 	reqCtx, cancel := context.WithCancel(ctx)
 	req := httptest.NewRequest(
 		http.MethodGet,
-		defaultHubURL+"?topic=https://example.com/books/1",
+		defaultHubURL+"?match=https://example.com/books/1",
 		nil,
 	).WithContext(reqCtx)
 
@@ -102,15 +102,15 @@ func TestBoltHistoryEmitsSpan(t *testing.T) {
 	topics := []string{"https://example.com/books/1"}
 	for i := 1; i <= 3; i++ {
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Event:  Event{ID: strconv.Itoa(i)},
-			Topics: topics,
+			Event: Event{ID: strconv.Itoa(i)},
+			Topic: topics[0],
 		}))
 	}
 
 	// A subscriber with a RequestLastEventID forces AddSubscriber to replay
 	// history, which is the span we want to verify.
-	s := NewLocalSubscriber("1", transport.logger, &TopicSelectorStore{})
-	s.SetTopics(topics, nil)
+	s := NewLocalSubscriber("1", transport.logger, &TopicMatcherStore{})
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
