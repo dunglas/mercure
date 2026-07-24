@@ -191,7 +191,13 @@ service:
   nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
   # -- Service port name.
   portName: http  # @schema minLength:1
+  # -- Annotations to be added to the service.
   annotations: {}
+
+metricsService:
+  # -- Annotations to be added to the metrics service.
+  annotations: {}
+
 ingress:
   # -- Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/).
   enabled: false
