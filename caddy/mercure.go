@@ -265,6 +265,16 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
 
+	// The deprecated top-level JWT directives map to an implicit issuer that is
+	// only usable in compatibility mode. Enable it automatically so these
+	// directives keep working instead of failing at provision, and warn to
+	// steer users toward an issuer block. Requires a binary built with the
+	// deprecated_claim tag to actually accept 0.x tokens.
+	if m.ProtocolVersionCompatibility == 0 && m.hasLegacyVerifiers() {
+		m.ProtocolVersionCompatibility = 8
+		m.logger.Warn("Deprecated top-level JWT directives detected; enabling protocol_version_compatibility 8. Migrate them into an issuer block to run in modern mode.")
+	}
+
 	var transport mercure.Transport
 	if transport, err = m.createTransportDeprecated(); err != nil {
 		return err
@@ -830,6 +840,20 @@ func (m *Mercure) buildIssuer(ctx context.Context, id string, authServer bool, p
 	return issuer, nil
 }
 
+// legacyVerifiers returns the publisher and subscriber verifiers configured
+// through the deprecated top-level directives (the single implicit issuer).
+func (m *Mercure) legacyVerifiers() (VerifierConfig, VerifierConfig) {
+	return VerifierConfig{JWT: m.PublisherJWT, JWKSURL: m.PublisherJWKSURL},
+		VerifierConfig{JWT: m.SubscriberJWT, JWKSURL: m.SubscriberJWKSURL}
+}
+
+// hasLegacyVerifiers reports whether any deprecated top-level JWT directive is set.
+func (m *Mercure) hasLegacyVerifiers() bool {
+	pub, sub := m.legacyVerifiers()
+
+	return pub.isSet() || sub.isSet()
+}
+
 // buildIssuers assembles the hub's issuer bindings from the explicit issuer
 // blocks and the deprecated top-level directives (a single implicit issuer).
 func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
@@ -844,8 +868,7 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 		issuers = append(issuers, issuer)
 	}
 
-	legacyPub := VerifierConfig{JWT: m.PublisherJWT, JWKSURL: m.PublisherJWKSURL}
-	legacySub := VerifierConfig{JWT: m.SubscriberJWT, JWKSURL: m.SubscriberJWKSURL}
+	legacyPub, legacySub := m.legacyVerifiers()
 
 	if legacyPub.isSet() || legacySub.isSet() {
 		issuer, err := m.buildIssuer(ctx, "", false, legacyPub, legacySub)
