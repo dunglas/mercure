@@ -167,14 +167,14 @@ func TestSharedStoreConflictingBaseURLRejected(t *testing.T) {
 	_, err = NewHub(t.Context(),
 		WithAnonymous(),
 		WithTopicMatcherStore(tms),
-		WithPublicURL("https://a.example.com/.well-known/mercure"),
+		WithResourceIdentifier("https://a.example.com/.well-known/mercure"),
 	)
 	require.NoError(t, err)
 
 	_, err = NewHub(t.Context(),
 		WithAnonymous(),
 		WithTopicMatcherStore(tms),
-		WithPublicURL("https://b.example.com/.well-known/mercure"),
+		WithResourceIdentifier("https://b.example.com/.well-known/mercure"),
 	)
 	require.ErrorIs(t, err, ErrConflictingBaseURL)
 }

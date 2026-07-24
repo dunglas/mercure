@@ -487,14 +487,13 @@ func TestNewHubRejectsEmptyIssuerIdentifier(t *testing.T) {
 }
 
 // A resource identifier that is the full hub URL doubles as the URL Pattern
-// base when no public URL is configured.
+// base.
 func TestNewHubDerivesPatternBaseFromResourceIdentifier(t *testing.T) {
 	t.Parallel()
 
 	h, err := NewHub(t.Context(), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
 	assert.Equal(t, testResourceIdentifier, h.topicMatcherStore.baseURL)
-	assert.Equal(t, testResourceIdentifier, h.publicURL)
 }
 
 // A key function configured without an explicit algorithm allowlist gets the
