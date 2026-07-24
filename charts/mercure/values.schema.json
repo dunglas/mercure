@@ -102,9 +102,11 @@
       "type": "array"
     },
     "extraVolumeMounts": {
+      "description": "Additional volume mounts to set.",
       "type": "array"
     },
     "extraVolumes": {
+      "description": "Additional volumes to set.",
       "type": "array"
     },
     "fullnameOverride": {
@@ -507,7 +509,9 @@
           "minimum": 1
         },
         "portName": {
-          "type": "string"
+          "description": "Service port name.",
+          "type": "string",
+          "minLength": 1
         },
         "targetPort": {
           "description": "Service target port.",
