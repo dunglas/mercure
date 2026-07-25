@@ -1,7 +1,7 @@
 package mercure
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/dunglas/skipfilter"
@@ -38,8 +38,6 @@ func NewSubscriberList(cacheSize int) *SubscriberList {
 }
 
 func encode(topics []string, private bool) string {
-	sort.Strings(topics)
-
 	parts := make([]string, len(topics)+1)
 	if private {
 		parts[0] = "1"
@@ -50,6 +48,13 @@ func encode(topics []string, private bool) string {
 	for i, t := range topics {
 		parts[i+1] = replacer.Replace(t)
 	}
+
+	// Sort the escaped copies, never the caller's slice: Update.topics() can
+	// return the Update's own backing array, and reordering it would change
+	// what MarshalJSON, LogValue and SpanAttributes report, and race with any
+	// concurrent reader. The key only has to be one canonical string per topic
+	// set, which sorting the escaped forms gives just as well.
+	slices.Sort(parts[1:])
 
 	return strings.Join(parts, string(delim))
 }
