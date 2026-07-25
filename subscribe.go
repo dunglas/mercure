@@ -195,11 +195,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// An update counts as activity, so push the heartbeat back. Go 1.23
+			// made timer channels unbuffered and has Reset discard any pending
+			// value, so Reset alone is enough: no Stop-and-drain dance.
 			if heartbeatTimer != nil {
-				if !heartbeatTimer.Stop() {
-					<-heartbeatTimer.C
-				}
-
 				heartbeatTimer.Reset(h.heartbeat)
 			}
 

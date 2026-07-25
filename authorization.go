@@ -257,11 +257,14 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 		}
 	}
 
-	// RFC 9068 §4: the verified issuer must be one of the configured issuers, so
-	// a token signed by a key the hub trusts for one issuer cannot be replayed
-	// under another. selectVerifier already keyed the verification on the
-	// unverified iss; re-check the verified claim as defense in depth. Relaxed
-	// in compatibility mode.
+	// RFC 9068 §4: the verified issuer must be one of the configured issuers.
+	// What actually prevents a token signed for one trusted issuer from being
+	// accepted under another is selectVerifier, which looks the issuer up before
+	// choosing a keyfunc and rejects an unknown one; both parses decode the same
+	// payload, so this lookup cannot fail today. It is kept as a guard on that
+	// invariant: should selectVerifier ever widen which issuer it falls back to,
+	// this is what still refuses the token. Relaxed in compatibility mode, whose
+	// fallback to the sole configured issuer is deliberate.
 	if !h.compatClaimsEnabled() {
 		if _, ok := h.issuers[c.Issuer]; !ok {
 			return nil, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, c.Issuer)

@@ -124,9 +124,6 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 		return
 	}
 
-	r.UseEncodedPath()
-	r.SkipClean(true)
-
 	// 3-segment route (more specific, registered first).
 	r.HandleFunc(subscriptionMatchURL, h.SubscriptionHandler).Methods(http.MethodGet)
 
