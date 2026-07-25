@@ -257,14 +257,8 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
 
-	// The deprecated top-level JWT directives map to an implicit issuer that is
-	// only usable in compatibility mode. Enable it automatically so these
-	// directives keep working instead of failing at provision, and warn to
-	// steer users toward an issuer block. Requires a binary built with the
-	// deprecated_claim tag to actually accept 0.x tokens.
-	if m.ProtocolVersionCompatibility == 0 && m.hasLegacyVerifiers() {
-		m.ProtocolVersionCompatibility = 8
-		m.logger.Warn("Deprecated top-level JWT directives detected; enabling protocol_version_compatibility 8. Migrate them into an issuer block to run in modern mode.")
+	if err := m.checkLegacyVerifiers(); err != nil {
+		return err
 	}
 
 	var transport mercure.Transport
@@ -897,6 +891,21 @@ func (m *Mercure) hasLegacyVerifiers() bool {
 	pub, sub := m.legacyVerifiers()
 
 	return pub.isSet() || sub.isSet()
+}
+
+// checkLegacyVerifiers refuses the deprecated top-level JWT directives unless
+// compatibility mode was asked for by name. They map to an implicit issuer with
+// no identifier, which only that mode accepts, and turning it on does more than
+// accept the legacy token format: it also drops the required exp, the audience
+// check, the at+jwt typ check and the verified-issuer check, and it re-accepts
+// the access token in the URL query string. Losing those should be a decision
+// the operator wrote down, not something a leftover directive switches on.
+func (m *Mercure) checkLegacyVerifiers() error {
+	if m.ProtocolVersionCompatibility != 0 || !m.hasLegacyVerifiers() {
+		return nil
+	}
+
+	return errors.New(`the "publisher_jwt", "subscriber_jwt", "publisher_jwks_url" and "subscriber_jwks_url" directives work only in compatibility mode, which relaxes access-token validation: move them into an "issuer" block for modern mode, or set "protocol_version_compatibility 8" to opt in explicitly`) //nolint:err113
 }
 
 // buildIssuers assembles the hub's issuer bindings from the explicit issuer

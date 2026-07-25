@@ -904,3 +904,51 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 	assert.Equal(t, []string{"*"}, m.CORSOrigins)
 	assert.Len(t, m.Issuers, 1)
 }
+
+// Compatibility mode relaxes access-token validation, so a leftover deprecated
+// JWT directive must not switch it on by itself.
+func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		mercure       Mercure
+		wantRejection bool
+	}{
+		{
+			name:          "legacy publisher key without compatibility mode",
+			mercure:       Mercure{PublisherJWT: JWTConfig{Key: "!ChangeMe!"}},
+			wantRejection: true,
+		},
+		{
+			name:          "legacy subscriber JWK Set without compatibility mode",
+			mercure:       Mercure{SubscriberJWKSURL: "https://example.com/jwks.json"},
+			wantRejection: true,
+		},
+		{
+			name:    "legacy publisher key with compatibility mode",
+			mercure: Mercure{PublisherJWT: JWTConfig{Key: "!ChangeMe!"}, ProtocolVersionCompatibility: 8},
+		},
+		{
+			name: "issuer block only",
+			mercure: Mercure{Issuers: []IssuerConfig{{
+				Identifier: "https://example.com",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: "!ChangeMe!"}},
+			}}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tc.mercure.checkLegacyVerifiers()
+			if !tc.wantRejection {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.ErrorContains(t, err, "work only in compatibility mode")
+			assert.ErrorContains(t, err, "protocol_version_compatibility 8")
+		})
+	}
+}

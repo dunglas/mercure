@@ -138,7 +138,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 - The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity.
 - Declare your token issuer with an `issuer <id> { ... }` block binding the `iss` value your tokens carry to its `publisher`/`subscriber` verifier (`jwt` or `jwks_uri`); it's required when JWT auth is enabled in modern mode. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys.
-- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. When one is set without `protocol_version_compatibility`, the hub enables `protocol_version_compatibility 8` automatically and logs a warning; migrate them into an `issuer` block for modern mode.
+- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
 - The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
 - `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`. The legacy non-Caddy server is removed.
 - An unrecognized directive inside the `mercure` block is now a configuration error instead of being ignored. A typo previously disabled whatever it was meant to configure, silently, so check your `MERCURE_EXTRA_DIRECTIVES` if the hub refuses to start after the upgrade.
@@ -148,7 +148,9 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 0.x behaviors are gated behind two build tags, honored only with `protocol_version_compatibility 8`:
 
 - `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, alternate topics, the `/subscriptions/{topic}` routes.
-- `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt` / `aud`.
+- `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt`, `aud`, `exp` or a matching `iss`.
+
+Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
 Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
 
