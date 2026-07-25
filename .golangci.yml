@@ -1,8 +1,12 @@
 version: "2"
 run:
   tests: true
+  # Match the tags the released binaries are built with (see .goreleaser.yml),
+  # so the code that ships is the code that gets linted.
   build-tags:
     - deprecated_transport
+    - deprecated_topic
+    - deprecated_claim
     - nobadger
     - nomysql
     - nopgx
@@ -59,6 +63,11 @@ linters:
           - godox
           - noctx
           - wrapcheck
+          # A deprecated test variant deliberately mirrors its modern
+          # counterpart, so that the two protocol versions are covered by the
+          # same scenario. Same reasoning as the disabled jscpd check in
+          # .github/workflows/lint.yml.
+          - dupl
         path: _test\.go
     paths:
       - third_party$

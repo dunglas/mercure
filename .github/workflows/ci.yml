@@ -45,6 +45,15 @@ jobs:
           args: --timeout=30m --config ../.golangci.yml
           working-directory: caddy
 
+      # The config pins the tags the release is built with, so the build-tag
+      # variants selected by !deprecated_topic / !deprecated_claim would never
+      # be linted. Mirror the reduced-tag test run below.
+      - name: golangci-lint (without the deprecated_topic and deprecated_claim tags)
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: latest
+          args: --timeout=30m --build-tags deprecated_transport,nobadger,nomysql,nopgx
+
       # infertypeargs is a gopls-only analyzer, unavailable in golangci-lint.
       - name: gopls infertypeargs
         run: |
