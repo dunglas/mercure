@@ -807,7 +807,7 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 		wantAlg string
 		wantErr string
 	}{
-		{name: "raw secret without algorithm defaults to HS256", key: "!ChangeMe!", wantAlg: "HS256"},
+		{name: "raw secret without algorithm defaults to HS256", key: "!ChangeMe!", wantAlg: defaultJWTAlgorithm},
 		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
 		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
 		{
@@ -818,7 +818,7 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 		{
 			name:    "PEM key with an HMAC algorithm",
 			key:     pem,
-			alg:     "HS256",
+			alg:     defaultJWTAlgorithm,
 			wantErr: "an HMAC algorithm would use the public key as a shared secret",
 		},
 	} {

@@ -751,6 +751,10 @@ func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
 // that (public) key could mint valid tokens.
 const pemPrefix = "-----BEGIN"
 
+// defaultJWTAlgorithm is assumed for a raw shared secret whose algorithm is not
+// stated. A PEM-encoded key gets no default (see normalizeJWT).
+const defaultJWTAlgorithm = "HS256"
+
 // normalizeJWT applies Caddy placeholder replacement to a static-key verifier
 // and defaults its algorithm to HS256 for a raw secret. It is a no-op when a
 // JWK Set URL is used or no key is configured. A PEM-encoded key gets no
@@ -780,7 +784,7 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 	}
 
 	if c.Alg == "" {
-		c.Alg = "HS256"
+		c.Alg = defaultJWTAlgorithm
 	}
 
 	return nil
