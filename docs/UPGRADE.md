@@ -191,14 +191,12 @@ The entries below describe earlier upgrades. They are kept for users migrating a
 
 When Mercure is compiled manually or used as a Go library, deprecated features are no longer included by default.
 
-To re-enable deprecated transports, pass the `deprecated_transports` build tag when compiling Mercure:
+To re-enable deprecated transports, pass the `deprecated_transport` build tag when compiling Mercure:
 
 ```console
 # Mercure 0.21 Upgrade Notes
 go build -tags deprecated_transport
 ```
-
-To re-enable the legacy HTTP server, pass the `deprecated_server` build tag.
 
 Official binaries and Docker images still include deprecated features.
 
