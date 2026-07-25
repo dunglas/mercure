@@ -201,14 +201,6 @@ type Mercure struct {
 	// URLs work without configuration; set it to force one canonical audience.
 	ResourceIdentifier string `json:"resource_identifier,omitempty"`
 
-	// OAuth 2.0 authorization server issuer identifiers advertised in the
-	// hub's protected resource metadata.
-	AuthorizationServers []string `json:"authorization_servers,omitempty"`
-
-	// Issuer identifiers accepted in the token iss claim in addition to the
-	// authorization servers, for self-issued tokens (RFC 9068).
-	TrustedIssuers []string `json:"trusted_issuers,omitempty"`
-
 	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
 

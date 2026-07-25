@@ -228,15 +228,6 @@ func WithIssuers(issuers []Issuer) Option {
 	}
 }
 
-// WithAllowedHosts sets the allowed hosts.
-func WithAllowedHosts(hosts []string) Option {
-	return func(o *opt) error {
-		o.allowedHosts = hosts
-
-		return nil
-	}
-}
-
 // WithPublicURLs restricts the hub to the given public URLs, pinning their
 // scheme as well as their host. A request whose derived origin (scheme + host)
 // is not one of them is rejected with 421 Misdirected Request, and the hub
@@ -416,7 +407,6 @@ type opt struct {
 	publisherConfigured          bool
 	subscriberConfigured         bool
 	metrics                      Metrics
-	allowedHosts                 []string
 	publishOriginsAll            bool
 	publishOrigins               []string
 	publishWOrigins              []wildcard
