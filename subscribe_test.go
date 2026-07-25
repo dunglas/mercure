@@ -1347,3 +1347,54 @@ func TestShutdownClosesSubscribersWhenWriteTimeoutDisabled(t *testing.T) {
 		assert.Equal(t, 0, n, "subscriber must exit on hub shutdown when writeTimeout is 0")
 	})
 }
+
+// The disconnection timer is armed with time.Until(disconnectionTime), so a
+// disconnectionTime in the past closes the connection as soon as it opens.
+// Reachable whenever the write deadline is nearer than dispatchTimeout.
+func TestNewResponseControllerDisconnectionTimeStaysInTheFuture(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name            string
+		writeTimeout    time.Duration
+		dispatchTimeout time.Duration
+		tokenExpiresIn  time.Duration
+	}{
+		{name: "token expiring sooner than dispatchTimeout", writeTimeout: 600 * time.Second, dispatchTimeout: 5 * time.Second, tokenExpiresIn: 2 * time.Second},
+		{name: "token expiring at exactly dispatchTimeout", writeTimeout: 600 * time.Second, dispatchTimeout: 5 * time.Second, tokenExpiresIn: 5 * time.Second},
+		{name: "dispatchTimeout larger than writeTimeout", writeTimeout: 5 * time.Second, dispatchTimeout: 10 * time.Second},
+		{name: "healthy defaults", writeTimeout: DefaultWriteTimeout, dispatchTimeout: DefaultDispatchTimeout},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := &Hub{opt: &opt{writeTimeout: tc.writeTimeout, dispatchTimeout: tc.dispatchTimeout}}
+
+			s := &LocalSubscriber{}
+			if tc.tokenExpiresIn != 0 {
+				s.Claims = &claims{RegisteredClaims: jwt.RegisteredClaims{
+					ExpiresAt: jwt.NewNumericDate(time.Now().Add(tc.tokenExpiresIn)),
+				}}
+			}
+
+			rc := h.newResponseController(httptest.NewRecorder(), s)
+
+			assert.True(t, rc.disconnectionTime.After(time.Now()),
+				"disconnectionTime is %v in the past, the connection would close immediately", time.Until(rc.disconnectionTime))
+			assert.False(t, rc.disconnectionTime.After(rc.writeDeadline),
+				"disconnectionTime must not outlive the write deadline")
+		})
+	}
+}
+
+// With neither a write timeout nor a token expiry there is no deadline, so no
+// disconnection timer is armed and the zero time must be preserved.
+func TestNewResponseControllerNoDeadline(t *testing.T) {
+	t.Parallel()
+
+	h := &Hub{opt: &opt{writeTimeout: 0, dispatchTimeout: DefaultDispatchTimeout}}
+	rc := h.newResponseController(httptest.NewRecorder(), &LocalSubscriber{})
+
+	assert.True(t, rc.writeDeadline.IsZero())
+	assert.True(t, rc.disconnectionTime.IsZero())
+}
