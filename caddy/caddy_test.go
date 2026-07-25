@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -840,4 +841,66 @@ func TestNormalizeJWTPEMKeyWithUnsetAlgPlaceholder(t *testing.T) {
 	err := normalizeJWT(caddy.NewReplacer(), c, "", "subscriber")
 	require.ErrorIs(t, err, ErrPEMKeyMissingAlgorithm)
 	assert.ErrorContains(t, err, "subscriber")
+}
+
+func TestUnmarshalCaddyfileRejectsUnknownDirective(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		block   string
+		wantErr string
+	}{
+		{name: "typo of a boolean directive", block: "anonymus", wantErr: `unknown mercure directive "anonymus"`},
+		{name: "typo of cors_origins", block: "cors_origin *", wantErr: `unknown mercure directive "cors_origin"`},
+		{name: "typo of publish_origins", block: "publish_origin *", wantErr: `unknown mercure directive "publish_origin"`},
+		{name: "wholly unknown directive", block: "totally_bogus foo bar", wantErr: `unknown mercure directive "totally_bogus"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := caddyfile.NewTestDispenser("mercure {\n\t" + tc.block + "\n}")
+
+			require.ErrorContains(t, new(Mercure).UnmarshalCaddyfile(d), tc.wantErr)
+		})
+	}
+}
+
+func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
+	t.Parallel()
+
+	d := caddyfile.NewTestDispenser(`mercure {
+		name test
+		anonymous
+		demo
+		ui
+		subscriptions
+		write_timeout 1m
+		dispatch_timeout 5s
+		heartbeat 40s
+		max_request_body_size 1MB
+		cookie_name mercure_access_token
+		cors_origins *
+		publish_origins *
+		public_urls https://example.com
+		resource_identifier https://example.com/.well-known/mercure
+		topic_matcher_cache 10
+		subscriber_list_cache_size 10
+		protocol_version_compatibility 8
+		issuer https://example.com {
+			authorization_server
+			publisher {
+				jwt !ChangeMe!
+			}
+			subscriber {
+				jwt !ChangeMe!
+			}
+		}
+	}`)
+
+	m := new(Mercure)
+	require.NoError(t, m.UnmarshalCaddyfile(d))
+	assert.True(t, m.Anonymous)
+	assert.Equal(t, []string{"*"}, m.CORSOrigins)
+	assert.Len(t, m.Issuers, 1)
 }

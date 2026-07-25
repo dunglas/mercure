@@ -648,6 +648,12 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				m.ProtocolVersionCompatibility = v
+
+			default:
+				// Fail loudly: silently ignoring a typo would disable whatever
+				// the operator meant to configure, including the origin and
+				// CORS allowlists.
+				return d.Errf("unknown mercure directive %q", d.Val())
 			}
 		}
 	}
