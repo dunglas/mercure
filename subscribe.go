@@ -72,10 +72,25 @@ func (rc *responseController) flush(ctx context.Context) bool {
 func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *responseController {
 	wd := h.getWriteDeadline(s)
 
+	// Disconnect one dispatch before the write deadline so the client sees a
+	// clean end of stream instead of a failed write. That subtraction lands in
+	// the past when the deadline is nearer than dispatchTimeout — a token
+	// expiring within it, or a dispatchTimeout larger than writeTimeout — which
+	// would close the connection as soon as it opened and put the subscriber in
+	// a reconnect loop. Fall back to the deadline itself: less margin, but the
+	// subscriber gets the time its token grants. A zero deadline means no
+	// deadline at all, and SubscribeHandler then arms no timer.
+	dt := wd
+	if !wd.IsZero() {
+		if d := wd.Add(-h.dispatchTimeout); d.After(time.Now()) {
+			dt = d
+		}
+	}
+
 	return &responseController{
 		*http.NewResponseController(w), // nolint:bodyclose
 		w,
-		wd.Add(-h.dispatchTimeout),
+		dt,
 		wd,
 		h,
 		s,
