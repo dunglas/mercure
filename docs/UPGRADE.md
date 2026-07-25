@@ -128,6 +128,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
 - A second `topic=` on a publish request -> publish to one topic; scope per-user access in the token
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
+- `Last-Event-ID` read from a **response** -> `Mercure-Last-Event-ID` (the request header keeps its name; see [Reconnection and history](concepts/reconnection-and-history.md))
 
 - JSON-LD subscription documents (`application/ld+json`, `@context`) -> plain JSON served as `application/json`
 - `type` values lowercased: `Subscription` -> `subscription`, `Subscriptions` -> `subscriptions`
