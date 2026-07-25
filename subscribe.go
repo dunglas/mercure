@@ -269,11 +269,9 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	addCtx := context.WithoutCancel(ctx)
-	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
 	if err := h.transport.AddSubscriber(addCtx, s); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
-		h.dispatchSubscriptionUpdate(addCtx, s, false)
 
 		if h.logger.Enabled(ctx, slog.LevelError) {
 			h.logger.LogAttrs(ctx, slog.LevelError, "Unable to add subscriber", slog.Any("error", err))
@@ -283,6 +281,12 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 		return nil, nil
 	}
+
+	// Announce the subscription only once it exists, so a failed registration
+	// cannot publish an active:true for a subscriber that never connected and
+	// then have to take it back. shutdown() already announces termination in
+	// this order: remove first, then dispatch active:false.
+	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
 	h.sendHeaders(ctx, w, s)
 	rc := h.newResponseController(w, s)
