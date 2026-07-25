@@ -61,7 +61,9 @@ This is the right way to seed an event-sourced view from the hub.
 
 ## Detecting data loss in Mercure replay
 
-If the requested event ID is no longer in the hub's history (it was evicted), the hub sets the `Last-Event-ID` HTTP **response** header to the ID of the event preceding the first one it actually sent. By comparing what you asked for with what you got, you can tell whether you missed updates.
+Whenever a request carries a resumption cursor, the hub sets the `Mercure-Last-Event-ID` HTTP **response** header to the ID of the event preceding the first one it actually sent, or `earliest` when there is no preceding event. By comparing what you asked for with what you got, you can tell whether you missed updates.
+
+The response field is `Mercure-Last-Event-ID`, not `Last-Event-ID`: the latter is registered for request semantics only, so the protocol defines a distinct name for the response direction.
 
 ```javascript
 // Native EventSource doesn't expose response headers; use fetch-event-source
@@ -69,7 +71,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 await fetchEventSource(url, {
   onopen: (response) => {
-    const replayedFrom = response.headers.get("Last-Event-ID");
+    const replayedFrom = response.headers.get("Mercure-Last-Event-ID");
     if (replayedFrom !== expectedLastEventID) {
       // Possibly missed events, refetch the resource from the origin
     }
@@ -132,7 +134,7 @@ Browsers wait at least that many milliseconds before reconnecting after a discon
 
 ## Native `EventSource` doesn't expose response headers
 
-This catches people. If you need to read the `Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library: `fetch-event-source` exposes it; native `EventSource` does not. Most server-side SSE clients also expose it.
+This catches people. If you need to read the `Mercure-Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library: `fetch-event-source` exposes it; native `EventSource` does not. Most server-side SSE clients also expose it.
 
 ## Header-based polyfills send the cursor as a query parameter
 
