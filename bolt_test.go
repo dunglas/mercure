@@ -358,3 +358,52 @@ func TestBoltLastEventID(t *testing.T) {
 	lastEventID, _, _ := transport.GetSubscribers(t.Context())
 	assert.Equal(t, "foo", lastEventID)
 }
+
+// cleanup_frequency is documented as the probability of running a cleanup pass
+// on each publish, so a higher value must clean more often, not less.
+func TestBoltTransportCleanupFrequencyIsAProbability(t *testing.T) {
+	t.Parallel()
+
+	const samples = 20000
+
+	for _, tc := range []struct {
+		frequency float64
+		want      float64
+	}{
+		{frequency: 0, want: 0},
+		{frequency: 0.1, want: 0.1},
+		{frequency: 0.3, want: 0.3},
+		{frequency: 0.9, want: 0.9},
+		{frequency: 1, want: 1},
+	} {
+		t.Run(strconv.FormatFloat(tc.frequency, 'f', -1, 64), func(t *testing.T) {
+			t.Parallel()
+
+			transport := &BoltTransport{size: 5, cleanupFrequency: tc.frequency}
+
+			var runs int
+
+			for range samples {
+				// lastID is past the size limit, so only the probability decides.
+				if transport.shouldCleanup(100) {
+					runs++
+				}
+			}
+
+			assert.InDelta(t, tc.want, float64(runs)/samples, 0.02)
+		})
+	}
+}
+
+func TestBoltTransportCleanupSkippedWithinSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	// Always-on frequency, but the history has not reached the limit yet.
+	transport := &BoltTransport{size: 5, cleanupFrequency: 1}
+	assert.False(t, transport.shouldCleanup(5))
+	assert.True(t, transport.shouldCleanup(6))
+
+	// An unlimited history is never cleaned.
+	unlimited := &BoltTransport{size: 0, cleanupFrequency: 1}
+	assert.False(t, unlimited.shouldCleanup(1_000_000))
+}
