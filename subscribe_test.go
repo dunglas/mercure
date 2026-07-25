@@ -1269,3 +1269,75 @@ func TestNewResponseControllerNoDeadline(t *testing.T) {
 	assert.True(t, rc.writeDeadline.IsZero())
 	assert.True(t, rc.disconnectionTime.IsZero())
 }
+
+// refusingTransport records dispatched updates and refuses to register
+// subscribers, to exercise the registration-failure path.
+type refusingTransport struct {
+	dispatched []*Update
+}
+
+func (t *refusingTransport) Dispatch(_ context.Context, u *Update) error {
+	t.dispatched = append(t.dispatched, u)
+
+	return nil
+}
+
+func (t *refusingTransport) AddSubscriber(context.Context, *LocalSubscriber) error {
+	return ErrClosedTransport
+}
+
+func (t *refusingTransport) RemoveSubscriber(context.Context, *LocalSubscriber) error { return nil }
+
+func (t *refusingTransport) Close(context.Context) error { return nil }
+
+// A registration that fails must not announce a subscription that never
+// existed, nor take it back with a compensating active:false.
+func TestNoSubscriptionEventWhenRegistrationFails(t *testing.T) {
+	t.Parallel()
+
+	transport := &refusingTransport{}
+	hub := createAnonymousDummy(t, WithSubscriptions(), WithTransport(transport))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic=https://example.com/foo", nil)
+	w := httptest.NewRecorder()
+
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	assert.Empty(t, transport.dispatched)
+}
+
+// The subscription is announced once it exists, so a subscriber authorized for
+// the subscriptions namespace sees its own arrival and needs no reconciliation
+// against the snapshot it fetched from the subscription API.
+func TestSubscriptionEventReachesTheSubscriberItDescribes(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithSubscriptions())
+
+	const namespace = "/.well-known/mercure/subscriptions/{topic}/{subscriber}"
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic="+namespace, nil)
+	req.AddCookie(&http.Cookie{
+		Name:  defaultCookieName,
+		Value: createDummyAuthorizedJWT(roleSubscriber, []string{namespace}),
+	})
+
+	w := newSubscribeRecorder()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+
+	hub.SubscribeHandler(w, req.WithContext(ctx))
+
+	body := w.Body.String()
+	assert.Contains(t, body, `data:   "type": "Subscription",`)
+	assert.Contains(t, body, `data:   "active": true,`)
+	assert.Contains(t, body, `data:   "topic": "`+namespace+`",`)
+}
