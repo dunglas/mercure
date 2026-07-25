@@ -59,7 +59,6 @@ func (h *Hub) initHandler() {
 
 	secureMiddleware := secure.New(secure.Options{
 		IsDevelopment:         h.debug,
-		AllowedHosts:          h.allowedHosts,
 		FrameDeny:             true,
 		ContentTypeNosniff:    true,
 		BrowserXssFilter:      true,
