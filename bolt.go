@@ -369,12 +369,21 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 	return nil
 }
 
+// shouldCleanup reports whether this publish runs a cleanup pass. cleanupFrequency
+// is the probability of doing so, from 0 (never) to 1 (every publish): drawing
+// below it is what triggers the pass. There is nothing to remove while the
+// history is still within the size limit.
+func (t *BoltTransport) shouldCleanup(lastID uint64) bool {
+	if t.size == 0 || t.size >= lastID {
+		return false
+	}
+
+	return rand.Float64() < t.cleanupFrequency //nolint:gosec
+}
+
 // cleanup removes entries in the history above the size limit, triggered probabilistically.
 func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
-	if t.size == 0 ||
-		t.cleanupFrequency == 0 ||
-		t.size >= lastID ||
-		(t.cleanupFrequency != 1 && rand.Float64() < t.cleanupFrequency) { //nolint:gosec
+	if !t.shouldCleanup(lastID) {
 		return nil
 	}
 
