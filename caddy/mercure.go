@@ -745,38 +745,71 @@ func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
 	return v, nil
 }
 
+// pemPrefix opens a PEM block. A PEM-encoded key is an asymmetric public key,
+// so it must never be paired with an HMAC algorithm: createJWTKeyfunc would
+// then use the key material itself as the shared secret, and anyone holding
+// that (public) key could mint valid tokens.
+const pemPrefix = "-----BEGIN"
+
 // normalizeJWT applies Caddy placeholder replacement to a static-key verifier
-// and defaults its algorithm to HS256. It is a no-op when a JWK Set URL is used
-// or no key is configured.
-func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL string) {
+// and defaults its algorithm to HS256 for a raw secret. It is a no-op when a
+// JWK Set URL is used or no key is configured. A PEM-encoded key gets no
+// default: its algorithm must be stated, and it must not be an HMAC one.
+func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) error {
 	if jwksURL != "" {
-		return
+		return nil
 	}
 
 	c.Key = repl.ReplaceKnown(c.Key, "")
 	if c.Key == "" {
-		return
+		return nil
 	}
 
-	c.Alg = repl.ReplaceKnown(c.Alg, "HS256")
+	c.Alg = repl.ReplaceKnown(c.Alg, "")
+
+	if strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+		if c.Alg == "" {
+			return fmt.Errorf("the %s JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)", role) //nolint:err113
+		}
+
+		if strings.HasPrefix(c.Alg, "HS") {
+			return fmt.Errorf("the %s JWT key is PEM-encoded but the signing algorithm is %q: an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens", role, c.Alg) //nolint:err113
+		}
+
+		return nil
+	}
+
 	if c.Alg == "" {
 		c.Alg = "HS256"
 	}
+
+	return nil
 }
 
 func (m *Mercure) populateJWTConfig() error {
 	repl := caddy.NewReplacer()
 
-	normalizeJWT(repl, &m.PublisherJWT, m.PublisherJWKSURL)
-	normalizeJWT(repl, &m.SubscriberJWT, m.SubscriberJWKSURL)
+	if err := normalizeJWT(repl, &m.PublisherJWT, m.PublisherJWKSURL, "publisher"); err != nil {
+		return err
+	}
+
+	if err := normalizeJWT(repl, &m.SubscriberJWT, m.SubscriberJWKSURL, "subscriber"); err != nil {
+		return err
+	}
 
 	hasPublisher := m.PublisherJWT.Key != "" || m.PublisherJWKSURL != ""
 	hasSubscriber := m.SubscriberJWT.Key != "" || m.SubscriberJWKSURL != ""
 
 	for i := range m.Issuers {
 		iss := &m.Issuers[i]
-		normalizeJWT(repl, &iss.Publisher.JWT, iss.Publisher.JWKSURL)
-		normalizeJWT(repl, &iss.Subscriber.JWT, iss.Subscriber.JWKSURL)
+
+		if err := normalizeJWT(repl, &iss.Publisher.JWT, iss.Publisher.JWKSURL, "publisher"); err != nil {
+			return fmt.Errorf("issuer %q: %w", iss.Identifier, err)
+		}
+
+		if err := normalizeJWT(repl, &iss.Subscriber.JWT, iss.Subscriber.JWKSURL, "subscriber"); err != nil {
+			return fmt.Errorf("issuer %q: %w", iss.Identifier, err)
+		}
 
 		if iss.Publisher.isSet() {
 			hasPublisher = true

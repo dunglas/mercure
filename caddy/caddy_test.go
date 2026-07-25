@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -792,4 +793,58 @@ func TestMultiIssuerPublish(t *testing.T) {
 	// Issuer A signed with key B is rejected: keys are not pooled across issuers.
 	resp = tester.AssertResponseCode(publish(mint([]byte("key-b"), "https://a.example")), http.StatusUnauthorized)
 	require.NoError(t, resp.Body.Close())
+}
+
+func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
+	t.Parallel()
+
+	const pem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----"
+
+	for _, tc := range []struct {
+		name    string
+		key     string
+		alg     string
+		wantAlg string
+		wantErr string
+	}{
+		{name: "raw secret without algorithm defaults to HS256", key: "!ChangeMe!", wantAlg: "HS256"},
+		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
+		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
+		{
+			name:    "PEM key without an algorithm",
+			key:     pem,
+			wantErr: "the publisher JWT key is PEM-encoded, so its signing algorithm must be set explicitly",
+		},
+		{
+			name:    "PEM key with an HMAC algorithm",
+			key:     pem,
+			alg:     "HS256",
+			wantErr: "an HMAC algorithm would use the public key as a shared secret",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &JWTConfig{Key: tc.key, Alg: tc.alg}
+
+			err := normalizeJWT(caddy.NewReplacer(), c, "", "publisher")
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantAlg, c.Alg)
+		})
+	}
+}
+
+// An unset MERCURE_*_JWT_ALG placeholder must not silently turn a PEM key into
+// an HMAC secret: the shipped Caddyfile pairs both as placeholders.
+func TestNormalizeJWTPEMKeyWithUnsetAlgPlaceholder(t *testing.T) {
+	c := &JWTConfig{Key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----", Alg: "{env.MERCURE_TEST_UNSET_ALG}"}
+
+	require.ErrorContains(t, normalizeJWT(caddy.NewReplacer(), c, "", "subscriber"),
+		"the subscriber JWT key is PEM-encoded, so its signing algorithm must be set explicitly")
 }
