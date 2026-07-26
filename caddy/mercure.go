@@ -755,6 +755,11 @@ const pemPrefix = "-----BEGIN"
 // stated. A PEM-encoded key gets no default (see normalizeJWT).
 const defaultJWTAlgorithm = "HS256"
 
+var (
+	ErrPEMKeyMissingAlgorithm = errors.New("the JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)")
+	ErrPEMKeyHMACAlgorithm    = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
+)
+
 // normalizeJWT applies Caddy placeholder replacement to a static-key verifier
 // and defaults its algorithm to HS256 for a raw secret. It is a no-op when a
 // JWK Set URL is used or no key is configured. A PEM-encoded key gets no
@@ -773,11 +778,11 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 
 	if strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
 		if c.Alg == "" {
-			return fmt.Errorf("the %s JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)", role) //nolint:err113
+			return fmt.Errorf("%s: %w", role, ErrPEMKeyMissingAlgorithm)
 		}
 
 		if strings.HasPrefix(c.Alg, "HS") {
-			return fmt.Errorf("the %s JWT key is PEM-encoded but the signing algorithm is %q: an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens", role, c.Alg) //nolint:err113
+			return fmt.Errorf("%s: %q: %w", role, c.Alg, ErrPEMKeyHMACAlgorithm)
 		}
 
 		return nil
