@@ -947,8 +947,7 @@ func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
 				return
 			}
 
-			require.ErrorContains(t, err, "work only in compatibility mode")
-			assert.ErrorContains(t, err, "protocol_version_compatibility 8")
+			require.ErrorIs(t, err, errLegacyVerifiersNeedCompatibility)
 		})
 	}
 }

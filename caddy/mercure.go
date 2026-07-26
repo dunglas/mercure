@@ -41,6 +41,8 @@ var (
 
 	ErrCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
+	errLegacyVerifiersNeedCompatibility = errors.New(`the "publisher_jwt", "subscriber_jwt", "publisher_jwks_url" and "subscriber_jwks_url" directives work only in compatibility mode, which relaxes access-token validation: move them into an "issuer" block for modern mode, or set "protocol_version_compatibility 8" to opt in explicitly`)
+
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
 	hubsMu sync.Mutex                        //nolint:gochecknoglobals
@@ -905,7 +907,7 @@ func (m *Mercure) checkLegacyVerifiers() error {
 		return nil
 	}
 
-	return errors.New(`the "publisher_jwt", "subscriber_jwt", "publisher_jwks_url" and "subscriber_jwks_url" directives work only in compatibility mode, which relaxes access-token validation: move them into an "issuer" block for modern mode, or set "protocol_version_compatibility 8" to opt in explicitly`) //nolint:err113
+	return errLegacyVerifiersNeedCompatibility
 }
 
 // buildIssuers assembles the hub's issuer bindings from the explicit issuer
