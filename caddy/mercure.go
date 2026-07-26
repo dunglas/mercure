@@ -39,7 +39,7 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
-	ErrCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
+	errCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
@@ -644,7 +644,7 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				if v != 7 && v != 8 {
-					return d.WrapErr(ErrCompatibility)
+					return d.WrapErr(errCompatibility)
 				}
 
 				m.ProtocolVersionCompatibility = v
@@ -754,8 +754,8 @@ const pemPrefix = "-----BEGIN"
 const defaultJWTAlgorithm = "HS256"
 
 var (
-	ErrPEMKeyMissingAlgorithm = errors.New("the JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)")
-	ErrPEMKeyHMACAlgorithm    = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
+	errPEMKeyMissingAlgorithm = errors.New("the JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)")
+	errPEMKeyHMACAlgorithm    = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
 )
 
 // normalizeJWT applies Caddy placeholder replacement to a static-key verifier
@@ -776,11 +776,11 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 
 	if strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
 		if c.Alg == "" {
-			return fmt.Errorf("%s: %w", role, ErrPEMKeyMissingAlgorithm)
+			return fmt.Errorf("%s: %w", role, errPEMKeyMissingAlgorithm)
 		}
 
 		if strings.HasPrefix(c.Alg, "HS") {
-			return fmt.Errorf("%s: %q: %w", role, c.Alg, ErrPEMKeyHMACAlgorithm)
+			return fmt.Errorf("%s: %q: %w", role, c.Alg, errPEMKeyHMACAlgorithm)
 		}
 
 		return nil
@@ -793,10 +793,7 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 	return nil
 }
 
-var (
-	ErrMissingPublisherVerifier  = errors.New("a JWT key or the URL of a JWK Set for publishers must be provided")
-	ErrMissingSubscriberVerifier = errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided")
-)
+var errMissingVerifier = errors.New("a JWT key or the URL of a JWK Set must be provided")
 
 func (m *Mercure) populateJWTConfig() error {
 	repl := caddy.NewReplacer()
@@ -833,11 +830,11 @@ func (m *Mercure) populateJWTConfig() error {
 	}
 
 	if !hasPublisher && !AllowNoPublish {
-		return ErrMissingPublisherVerifier
+		return fmt.Errorf("publishers: %w", errMissingVerifier)
 	}
 
 	if !hasSubscriber && !m.Anonymous {
-		return ErrMissingSubscriberVerifier
+		return fmt.Errorf("subscribers: %w", errMissingVerifier)
 	}
 
 	return nil
@@ -927,7 +924,7 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 	return issuers, nil
 }
 
-var ErrInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+var errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
 //
@@ -945,7 +942,7 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 
 	if u.Scheme == "file" {
 		if u.Host != "" && u.Host != "localhost" {
-			return nil, fmt.Errorf("%w, got %q", ErrInvalidJWKSetFileHost, u.Host)
+			return nil, fmt.Errorf("%w, got %q", errInvalidJWKSetFileHost, u.Host)
 		}
 
 		b, err := os.ReadFile(u.Path)
