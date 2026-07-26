@@ -37,6 +37,8 @@ The identifier is the stable identifier of whoever signs the tokens: your app's 
 
 Inside `publisher`/`subscriber`, use `jwt <key> [<algorithm>]` for a shared secret or public key, or `jwks_uri <url> [<algorithm>...]` for a JWK Set. The two are mutually exclusive.
 
+The algorithm defaults to `HS256` only for a raw shared secret. A PEM-encoded key must state its algorithm, and that algorithm must not be an HMAC one: the hub refuses to start otherwise, because verifying with `HS*` would use the public key as the shared secret and let anyone holding it forge tokens.
+
 `resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). Leave it unset and the hub derives it from each request (the public URL the client contacted), so a hub reachable through several domains needs no configuration; set it only to pin one canonical audience shared across every domain.
 
 `resource_identifier` and `public_urls` answer different questions and are independent: `resource_identifier` sets the token audience, while `public_urls` restricts which origins the hub answers on (rejecting others with `421`). A single `resource_identifier` is what lets one token work across several public URLs, since a per-request-derived audience is specific to the host the client contacted.
@@ -103,7 +105,7 @@ issuer https://issuer-b.example {
 | `authorization_server`            | Advertise this issuer in the [protected resource metadata](../concepts/discovery.md). Off by default.  |
 | `publisher { … }`                 | Verification material for publisher tokens. Omit to reject publishing for this issuer.                 |
 | `subscriber { … }`                | Verification material for subscriber tokens. Omit to reject subscribing for this issuer.               |
-| `jwt <key> [<algorithm>]`         | Shared secret or PEM public key, plus algorithm (defaults to `HS256`). Supports Caddy placeholders.    |
+| `jwt <key> [<algorithm>]`         | Shared secret or PEM public key, plus algorithm. A PEM key must set a non-HMAC one (see above).        |
 | `jwks_uri <url> [<algorithm>...]` | JWK Set URL and its allowed algorithms (defaults to the asymmetric allowlist). Accepts `file://` URLs. |
 
 `jwt` and `jwks_uri` are mutually exclusive within a `publisher`/`subscriber` block.
