@@ -2,7 +2,7 @@ package mercure
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -114,7 +114,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 	}{{paramTopic, &f.topic}, {paramMatch, &f.match}, {paramMatchType, &f.matchType}} {
 		v, err := url.PathUnescape(vars[seg.name])
 		if err != nil {
-			return subscriptionFilter{}, errors.New("invalid " + seg.name + " segment: " + err.Error()) //nolint:err113
+			return subscriptionFilter{}, fmt.Errorf("invalid %s segment: %w", seg.name, err)
 		}
 
 		*seg.dst = v

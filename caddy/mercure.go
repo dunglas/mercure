@@ -764,6 +764,11 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL string) {
 	}
 }
 
+var (
+	ErrMissingPublisherVerifier  = errors.New("a JWT key or the URL of a JWK Set for publishers must be provided")
+	ErrMissingSubscriberVerifier = errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided")
+)
+
 func (m *Mercure) populateJWTConfig() error {
 	repl := caddy.NewReplacer()
 
@@ -788,11 +793,11 @@ func (m *Mercure) populateJWTConfig() error {
 	}
 
 	if !hasPublisher && !AllowNoPublish {
-		return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
+		return ErrMissingPublisherVerifier
 	}
 
 	if !hasSubscriber && !m.Anonymous {
-		return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
+		return ErrMissingSubscriberVerifier
 	}
 
 	return nil
@@ -882,6 +887,8 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 	return issuers, nil
 }
 
+var ErrInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
 //
 // file:// URLs point to a local JSON file containing a JWK Set; the file is
@@ -898,7 +905,7 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 
 	if u.Scheme == "file" {
 		if u.Host != "" && u.Host != "localhost" {
-			return nil, fmt.Errorf(`file:// JWK Set URL host must be empty or "localhost", got %q`, u.Host) //nolint:err113
+			return nil, fmt.Errorf("%w, got %q", ErrInvalidJWKSetFileHost, u.Host)
 		}
 
 		b, err := os.ReadFile(u.Path)
