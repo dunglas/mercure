@@ -811,8 +811,8 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 		{name: "raw secret without algorithm defaults to HS256", key: "!ChangeMe!", wantAlg: defaultJWTAlgorithm},
 		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
 		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
-		{name: "PEM key without an algorithm", key: pem, wantErr: ErrPEMKeyMissingAlgorithm},
-		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantErr: ErrPEMKeyHMACAlgorithm},
+		{name: "PEM key without an algorithm", key: pem, wantErr: errPEMKeyMissingAlgorithm},
+		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantErr: errPEMKeyHMACAlgorithm},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -839,7 +839,7 @@ func TestNormalizeJWTPEMKeyWithUnsetAlgPlaceholder(t *testing.T) {
 	c := &JWTConfig{Key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----", Alg: "{env.MERCURE_TEST_UNSET_ALG}"}
 
 	err := normalizeJWT(caddy.NewReplacer(), c, "", "subscriber")
-	require.ErrorIs(t, err, ErrPEMKeyMissingAlgorithm)
+	require.ErrorIs(t, err, errPEMKeyMissingAlgorithm)
 	assert.ErrorContains(t, err, "subscriber")
 }
 
