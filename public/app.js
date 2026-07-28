@@ -12,12 +12,13 @@
   // Signed with `!ChangeThisMercureHubJWTSecretKey!`.
   //
   // {
+  //   "iss": "https://localhost",
   //   "aud": "https://localhost/.well-known/mercure",
   //   "exp": 4102444800,
   //   "authorization_details": [
-  //     { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
+  //     { "type": "https://mercure.rocks/authorization-detail", "actions": ["publish"], "topics": [{ "match": "*" }] },
   //     {
-  //       "type": "mercure",
+  //       "type": "https://mercure.rocks/authorization-detail",
   //       "actions": ["subscribe"],
   //       "topics": [
   //         { "match": "https://example.com/my-private-topic" },
@@ -29,7 +30,7 @@
   //   ]
   // }
   const defaultJwt =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJwYXlsb2FkIjp7InJlbW90ZUFkZHIiOiIxMjcuMC4wLjEiLCJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIn0sInRvcGljcyI6W3sibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL215LXByaXZhdGUtdG9waWMifSx7Im1hdGNoIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9kZW1vL2Jvb2tzLzppZC5qc29ubGQiLCJtYXRjaF90eXBlIjoidXJscGF0dGVybiJ9LHsibWF0Y2giOiIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey86bWF0Y2hUeXBlfT97LzptYXRjaH0_ey86c3Vic2NyaWJlcn0_IiwibWF0Y2hfdHlwZSI6InVybHBhdHRlcm4ifV0sInR5cGUiOiJtZXJjdXJlIn1dLCJleHAiOjQxMDI0NDQ4MDB9.ZgpUCyCES-GCIP4_U6T5m0FJ4sN38QNDG4LAVhgSh1g";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2xvY2FsaG9zdCIsImF1ZCI6Imh0dHBzOi8vbG9jYWxob3N0Ly53ZWxsLWtub3duL21lcmN1cmUiLCJleHAiOjQxMDI0NDQ4MDAsImF1dGhvcml6YXRpb25fZGV0YWlscyI6W3sidHlwZSI6Imh0dHBzOi8vbWVyY3VyZS5yb2Nrcy9hdXRob3JpemF0aW9uLWRldGFpbCIsImFjdGlvbnMiOlsicHVibGlzaCJdLCJ0b3BpY3MiOlt7Im1hdGNoIjoiKiJ9XX0seyJ0eXBlIjoiaHR0cHM6Ly9tZXJjdXJlLnJvY2tzL2F1dGhvcml6YXRpb24tZGV0YWlsIiwiYWN0aW9ucyI6WyJzdWJzY3JpYmUiXSwidG9waWNzIjpbeyJtYXRjaCI6Imh0dHBzOi8vZXhhbXBsZS5jb20vbXktcHJpdmF0ZS10b3BpYyJ9LHsibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL2RlbW8vYm9va3MvOmlkLmpzb25sZCIsIm1hdGNoX3R5cGUiOiJ1cmxwYXR0ZXJuIn0seyJtYXRjaCI6Ii8ud2VsbC1rbm93bi9tZXJjdXJlL3N1YnNjcmlwdGlvbnN7LzptYXRjaFR5cGV9P3svOm1hdGNofT97LzpzdWJzY3JpYmVyfT8iLCJtYXRjaF90eXBlIjoidXJscGF0dGVybiJ9XSwicGF5bG9hZCI6eyJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIiwicmVtb3RlQWRkciI6IjEyNy4wLjAuMSJ9fV19.w3Anl1ZVUiB8uLI9Z8_ekHQPsd8XP14qhPmjrIU3NkM";
 
   const $updates = document.getElementById("updates");
   const $subscriptions = document.getElementById("subscriptions");
