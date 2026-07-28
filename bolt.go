@@ -312,12 +312,23 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 			}
 		}
 
+		if !afterFromID {
+			// The requested id was never found, so nothing was replayed and
+			// there is no event preceding a first one sent. The protocol
+			// reserves "earliest" for this case — a requested event that does
+			// not exist or has been discarded — and reporting it tells the
+			// subscriber to re-fetch. Reporting the newest id seen while
+			// searching would instead claim it is caught up to an event it
+			// never received. This also covers giving up at maxHistoryScan.
+			responseLastEventID = EarliestLastEventID
+		}
+
+		// Unblock the subscriber before logging: it is parked on this channel
+		// and cannot send its response headers until the value arrives.
 		s.HistoryDispatched(responseLastEventID)
 
-		if !afterFromID {
-			if t.logger.Enabled(ctx, slog.LevelInfo) {
-				t.logger.LogAttrs(ctx, slog.LevelInfo, "Can't find requested LastEventID")
-			}
+		if !afterFromID && t.logger.Enabled(ctx, slog.LevelInfo) {
+			t.logger.LogAttrs(ctx, slog.LevelInfo, "Can't find requested LastEventID")
 		}
 
 		return nil

@@ -407,3 +407,51 @@ func TestBoltTransportCleanupSkippedWithinSizeLimit(t *testing.T) {
 	unlimited := &BoltTransport{size: 0, cleanupFrequency: 1}
 	assert.False(t, unlimited.shouldCleanup(1_000_000))
 }
+
+// A requested Last-Event-ID that is not in the history means nothing was
+// replayed, so there is no "event preceding the first one sent". The response
+// cursor must be the reserved "earliest" value rather than the newest id seen
+// while searching, which the subscriber never received.
+func TestBoltTransportUnknownLastEventIDReportsEarliest(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	for i := range 5 {
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{"https://example.com/foo"},
+		}))
+	}
+
+	s := NewLocalSubscriber("does-not-exist", transport.logger, &TopicSelectorStore{})
+	s.SetTopics([]string{"https://example.com/foo"}, nil)
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	assert.Equal(t, EarliestLastEventID, <-s.responseLastEventID)
+
+	s.Disconnect()
+}
+
+// A known id is echoed back: the subscriber already has it, and it really is
+// the event preceding the first one replayed.
+func TestBoltTransportKnownLastEventIDIsEchoed(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	for i := range 5 {
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{"https://example.com/foo"},
+		}))
+	}
+
+	s := NewLocalSubscriber("2", transport.logger, &TopicSelectorStore{})
+	s.SetTopics([]string{"https://example.com/foo"}, nil)
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	assert.Equal(t, "2", <-s.responseLastEventID)
+
+	s.Disconnect()
+}
