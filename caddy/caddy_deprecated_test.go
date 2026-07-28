@@ -349,10 +349,9 @@ localhost:9080 {
 }
 
 // The deprecated top-level publisher_jwt directive maps to the implicit issuer,
-// which is rejected in modern mode. Without protocol_version_compatibility the
-// hub must auto-enable compatibility mode so a 0.x bare-claim token still
-// publishes, instead of failing to provision.
-func TestMercureDeprecatedAutoCompat(t *testing.T) {
+// which only compatibility mode accepts. With protocol_version_compatibility
+// stated explicitly, a 0.x bare-claim token still publishes.
+func TestMercureDeprecatedExplicitCompat(t *testing.T) {
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`{
 	skip_install_trust
@@ -366,6 +365,7 @@ localhost:9080 {
 		mercure {
 			anonymous
 			publisher_jwt !ChangeMe!
+			protocol_version_compatibility 8
 			transport local
 		}
 
