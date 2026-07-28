@@ -41,9 +41,10 @@
   const $subscriptionsForm = document.forms.subscriptions;
 
   const error = (e) => {
-    if (!e.error || e.error.message?.includes?.("Reconnecting")) {
-      // Silent reconnecting messages from the polyfill
-
+    // Stay quiet only for the polyfill's transient reconnect notices; every
+    // other error (fetch rejection, thrown message, or an HTTP error event)
+    // must surface.
+    if (e.error?.message?.includes?.("Reconnecting")) {
       console.log("Connection closed, reconnecting...", e);
 
       return;
@@ -51,16 +52,17 @@
 
     console.log(e);
 
-    if (e.toString !== Object.prototype.toString) {
-      // Display relevant error message
-      alert(e.toString());
+    // Polyfill HTTP error event (401, 403, ...): statusText is empty over
+    // HTTP/2, so the status code is what carries the meaning.
+    if (typeof e.status === "number") {
+      alert(`${e.status}${e.statusText ? ` ${e.statusText}` : ""}`);
 
       return;
     }
 
-    if (e.statusText) {
-      // Special handling of errors from the polyfill
-      alert(e.statusText);
+    // A thrown Error or a plain string passed by the fetch-based handlers.
+    if (e.toString !== Object.prototype.toString) {
+      alert(e.toString());
 
       return;
     }
