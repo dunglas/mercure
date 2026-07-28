@@ -273,8 +273,12 @@ When an identity provider or authorization server (Keycloak, Cognito, Auth0) iss
 mercure {
   issuer https://idp.example.com {
     authorization_server
-    publisher  { jwks_uri https://idp.example.com/.well-known/jwks.json }
-    subscriber { jwks_uri https://idp.example.com/.well-known/jwks.json }
+    publisher {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
+    subscriber {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
   }
 }
 ```
@@ -289,8 +293,12 @@ The default algorithm is HS256 (symmetric HMAC). For asymmetric verification (th
 # Verifying tokens with RSA and ECDSA keys
 mercure {
   issuer https://example.com {
-    publisher  { jwt {env.PUBLISHER_PUBLIC_KEY} RS256 }
-    subscriber { jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256 }
+    publisher {
+      jwt {env.PUBLISHER_PUBLIC_KEY} RS256
+    }
+    subscriber {
+      jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256
+    }
   }
 }
 ```

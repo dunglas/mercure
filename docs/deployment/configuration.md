@@ -95,8 +95,12 @@ issuer https://issuer-a.example {
 }
 
 issuer https://issuer-b.example {
-  publisher  { jwks_uri https://issuer-b.example/jwks }
-  subscriber { jwks_uri https://issuer-b.example/jwks }
+  publisher {
+    jwks_uri https://issuer-b.example/jwks
+  }
+  subscriber {
+    jwks_uri https://issuer-b.example/jwks
+  }
 }
 ```
 
@@ -196,8 +200,12 @@ When tokens are minted by an external IdP (Keycloak, Cognito, Auth0):
 mercure {
   issuer https://idp.example.com {
     authorization_server
-    publisher  { jwks_uri https://idp.example.com/.well-known/jwks.json }
-    subscriber { jwks_uri https://idp.example.com/.well-known/jwks.json }
+    publisher {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
+    subscriber {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
   }
 }
 ```
@@ -216,8 +224,12 @@ mercure {
   resource_identifier https://hub.example.com/.well-known/mercure
   issuer https://auth.example.com {
     authorization_server
-    publisher  { jwks_uri https://auth.example.com/jwks }
-    subscriber { jwks_uri https://auth.example.com/jwks }
+    publisher {
+      jwks_uri https://auth.example.com/jwks
+    }
+    subscriber {
+      jwks_uri https://auth.example.com/jwks
+    }
   }
 }
 ```
