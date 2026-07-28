@@ -39,9 +39,7 @@ existingSecret: ""
 # These keys must exist in the provided secret:
 # -  publisher-jwt-key
 # -  subscriber-jwt-key
-# -  extra-directives:
-# -  license:
-# -  caddy-extra-directives:
+# -  license
 
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).
 license: ""
