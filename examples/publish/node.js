@@ -12,7 +12,7 @@ const postData = querystring.stringify({
 const req = http.request(
   {
     hostname: "localhost",
-    port: "3000",
+    port: "8080",
     path: "/.well-known/mercure",
     method: "POST",
     headers: {
