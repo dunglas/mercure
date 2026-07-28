@@ -31,7 +31,7 @@ The publisher closes that gap by attaching a `last-event-id` attribute to its `L
 
 ```http
 # Bootstrapping after page load
-GET /books/1 HTTP/1.1
+GET /books/1
 Host: example.com
 
 200 OK

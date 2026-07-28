@@ -231,7 +231,7 @@ Set the cookie during discovery, when the user fetches the page or the API resou
 
 ```http
 # Cookies in detail
-HTTP/1.1 200 OK
+200 OK
 Set-Cookie: __Secure-mercure_access_token=<JWT>; Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 ```

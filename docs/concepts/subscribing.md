@@ -176,7 +176,7 @@ The publisher of a resource can advertise its hub via a `Link` header so clients
 
 ```http
 # Discovering the Mercure Hub via Link Header
-GET /books/1 HTTP/1.1
+GET /books/1
 Host: example.com
 
 200 OK

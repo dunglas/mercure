@@ -34,7 +34,7 @@ The publisher and the subscriber need a shared key. Two patterns work:
 
 ```http
 # Distributing the JWE Key Between Publisher and Subscriber
-GET /books/1 HTTP/1.1
+GET /books/1
 Host: example.com
 Authorization: Bearer <session token>
 
