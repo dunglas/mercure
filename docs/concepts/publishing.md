@@ -9,7 +9,7 @@ A publication is an HTTP `POST` to the hub with a form-encoded body:
 
 ```http
 # Publishing
-POST /.well-known/mercure HTTP/1.1
+POST /.well-known/mercure
 Host: hub.example.com
 Authorization: Bearer <access token>
 Content-Type: application/x-www-form-urlencoded

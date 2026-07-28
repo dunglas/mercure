@@ -231,7 +231,7 @@ Set the cookie during discovery, when the user fetches the page or the API resou
 
 ```http
 # Cookies in detail
-HTTP/1.1 200 OK
+200 OK
 Set-Cookie: __Secure-mercure_access_token=<JWT>; Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 ```
@@ -273,8 +273,12 @@ When an identity provider or authorization server (Keycloak, Cognito, Auth0) iss
 mercure {
   issuer https://idp.example.com {
     authorization_server
-    publisher  { jwks_uri https://idp.example.com/.well-known/jwks.json }
-    subscriber { jwks_uri https://idp.example.com/.well-known/jwks.json }
+    publisher {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
+    subscriber {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
   }
 }
 ```
@@ -289,8 +293,12 @@ The default algorithm is HS256 (symmetric HMAC). For asymmetric verification (th
 # Verifying tokens with RSA and ECDSA keys
 mercure {
   issuer https://example.com {
-    publisher  { jwt {env.PUBLISHER_PUBLIC_KEY} RS256 }
-    subscriber { jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256 }
+    publisher {
+      jwt {env.PUBLISHER_PUBLIC_KEY} RS256
+    }
+    subscriber {
+      jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256
+    }
   }
 }
 ```

@@ -41,7 +41,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 
 - The exact-match parameter is `match` (explicit spelling: `match_exact`); the templated one is `match_urlpattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
 - Parameter names are **case-sensitive**. Any other name under the `match` prefix is rejected with `400`, so typos fail loudly.
-- The `Regexp`, `CEL`, and `URI Template` matcher types are gone. Rewrite `Regexp`/CEL filters as URL Patterns or exact topics. URI Templates survive only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`.
+- The `URI Template` matcher type is gone; it survives only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`. Rewrite templated topics as URL Patterns and string topics as exact topics.
 
 ### Migrate your tokens
 
@@ -122,7 +122,6 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 - `?topic=` / `&topic=` in subscriber URLs -> `match=` (or `match_urlpattern=` if templated)
 - URI Template syntax in subscribe URLs (`{id}`) -> URL Pattern syntax (`:id`)
-- `Regexp` / CEL subscribe filters -> URL Patterns or exact topics
 - `"mercure": { "publish": [...] }` in issuer code -> `authorization_details` with `actions: ["publish"]`
 - `"mercure": { "subscribe": [...] }` -> `authorization_details` with `actions: ["subscribe"]`
 - `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
