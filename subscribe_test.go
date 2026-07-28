@@ -977,7 +977,9 @@ func TestUnknownLastEventID(t *testing.T) {
 			}
 
 			hub.SubscribeHandler(w, req)
-			assert.Equal(t, "a", w.Header().Get("Mercure-Last-Event-ID"))
+			// "unknown" is not in the history, so nothing was replayed and the
+			// cursor is the reserved "earliest", not the newest id in history.
+			assert.Equal(t, EarliestLastEventID, w.Header().Get("Mercure-Last-Event-ID"))
 		}(ctx)
 
 		go func(ctx context.Context) {
@@ -994,7 +996,9 @@ func TestUnknownLastEventID(t *testing.T) {
 			}
 
 			hub.SubscribeHandler(w, req)
-			assert.Equal(t, "a", w.Header().Get("Mercure-Last-Event-ID"))
+			// "unknown" is not in the history, so nothing was replayed and the
+			// cursor is the reserved "earliest", not the newest id in history.
+			assert.Equal(t, EarliestLastEventID, w.Header().Get("Mercure-Last-Event-ID"))
 		}(ctx)
 
 		for {
@@ -1054,10 +1058,15 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 			}
 
 			hub.SubscribeHandler(w, req)
-			// Authorized "a" leaks back as the recovery anchor; the
-			// private "b" does not, even though it is the most recent
-			// in-history event.
-			assert.Equal(t, "a", w.Header().Get("Mercure-Last-Event-ID"))
+
+			cursor := w.Header().Get("Mercure-Last-Event-ID")
+			// The private "b" must not leak, even though it is the most
+			// recent in-history event. Nothing was replayed either, since
+			// "unknown" is not in the history, so the cursor is the reserved
+			// "earliest" rather than the authorized "a" — which the
+			// subscriber never received.
+			assert.NotEqual(t, "b", cursor)
+			assert.Equal(t, EarliestLastEventID, cursor)
 		}(ctx)
 
 		for {
