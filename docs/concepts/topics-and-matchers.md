@@ -7,7 +7,7 @@ description: "How subscribers select topics in Mercure with the two matcher type
 
 A **topic** is the address of an update. A **matcher** is the rule a subscriber uses to say which topics it cares about. Mercure defines two matcher types, `exact` and `urlpattern`; every hub supports both. Pick the one that fits the shape of your data.
 
-> **Upgrading from 0.x?** The subscriber query parameter changed from `topic=` to `match=` (exact) or `match_urlpattern=` (templated), and URI Templates are replaced by [URL Patterns](https://urlpattern.spec.whatwg.org). The Regexp, CEL, and URI Template matcher types are gone. Authorization claims are now `authorization_details` objects, not bare strings. Full details: [Upgrade guide](../UPGRADE.md#10-from-0x).
+> **Upgrading from 0.x?** The subscriber query parameter changed from `topic=` to `match=` (exact) or `match_urlpattern=` (templated), and URI Templates are replaced by [URL Patterns](https://urlpattern.spec.whatwg.org). The URI Template matcher type is gone. Authorization claims are now `authorization_details` objects, not bare strings. Full details: [Upgrade guide](../UPGRADE.md#10-from-0x).
 
 ## Topics
 
