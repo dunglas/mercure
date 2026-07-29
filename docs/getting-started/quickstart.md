@@ -13,7 +13,7 @@ If you already have a hub running, jump to [Subscribe](#subscribe-to-a-mercure-t
 
 ```console
 # Run the Mercure Hub Locally with Docker
-docker run -p 80:80 -p 443:443 \
+docker run -p 80:80 -p 443:443 -p 443:443/udp \
   -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
   -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
   dunglas/mercure caddy run --config /etc/caddy/dev.Caddyfile
@@ -23,6 +23,7 @@ The hub is now serving on `https://localhost`.
 
 What that command does:
 
+- `-p 443:443/udp`: Caddy serves HTTP/3 over QUIC on this port too. Without it, the container still starts and HTTP/1.1 and HTTP/2 both work, but clients silently fall back past HTTP/3.
 - `MERCURE_*_JWT_KEY`: the secret used to verify access tokens. Don't ship this value to production; the [installation guide](installation.md) covers proper key management.
 - `caddy run --config /etc/caddy/dev.Caddyfile`: swaps in the image's bundled development config, which turns on anonymous subscriptions, permissive CORS, and the in-browser debugger at <https://localhost/.well-known/mercure/ui/>. Drop this flag for production; the [installation guide](installation.md) covers the default config.
 
