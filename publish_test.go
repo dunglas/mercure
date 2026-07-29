@@ -477,8 +477,9 @@ func TestUpdateValidate(t *testing.T) {
 		want   error
 	}{
 		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topics: []string{"https://example.com/books/1"}}, nil},
-		// The empty topic resolves to the hub URL itself, which is reserved.
-		{"empty", Update{}, ErrReservedTopic},
+		{"no topics", Update{}, ErrMissingTopic},
+		// An empty topic value resolves to the hub URL itself, which is reserved.
+		{"empty topic value", Update{Topics: []string{""}}, ErrReservedTopic},
 		{"reserved topic", Update{Topics: []string{"https://example.com/.well-known/mercure/subscriptions/foo"}}, ErrReservedTopic},
 		{"reserved topic relative", Update{Topics: []string{"mercure/subscriptions/foo"}}, ErrReservedTopic},
 		{"reserved topic absolute path", Update{Topics: []string{"/.well-known/mercure/subscriptions/foo"}}, ErrReservedTopic},

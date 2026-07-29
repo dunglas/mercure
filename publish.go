@@ -40,6 +40,7 @@ var (
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
 	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
 	ErrTooManyTopics     = errors.New("too many topics in update")
+	ErrMissingTopic      = errors.New("update carries no topic")
 	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
 )
 
@@ -57,10 +58,7 @@ var (
 func (u *Update) Validate() error {
 	topics := u.Topics
 	if len(topics) == 0 {
-		// A zero-value Update{} carries no topic at all; check the empty
-		// string as its (canonical) topic so it still gets rejected, rather
-		// than silently passing validation with nothing to check.
-		topics = []string{""}
+		return ErrMissingTopic
 	}
 
 	if len(topics) > maxPublishTopics {
@@ -292,7 +290,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
 			errors.Is(err, ErrReservedEventType),
 			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
-			errors.Is(err, ErrInvalidData):
+			errors.Is(err, ErrMissingTopic), errors.Is(err, ErrInvalidData):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
