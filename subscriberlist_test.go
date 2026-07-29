@@ -40,14 +40,14 @@ func BenchmarkSubscriberList(b *testing.B) {
 	}
 
 	for b.Loop() {
-		assert.NotEmpty(b, l.MatchAny(&Update{Topic: "https://example.org/foo"}))
-		assert.Empty(b, l.MatchAny(&Update{Topic: "https://example.org/baz"}))
-		assert.NotEmpty(b, l.MatchAny(&Update{Topic: "https://example.com/8", Private: false}))
+		assert.NotEmpty(b, l.MatchAny(&Update{Topics: []string{"https://example.org/foo"}}))
+		assert.Empty(b, l.MatchAny(&Update{Topics: []string{"https://example.org/baz"}}))
+		assert.NotEmpty(b, l.MatchAny(&Update{Topics: []string{"https://example.com/8"}, Private: false}))
 	}
 }
 
-// encode must not reorder the slice it is given: Update.topics() can return the
-// Update's own backing array, so sorting in place would mutate the update being
+// encode must not reorder the slice it is given: it can be the Update's own
+// Topics backing array, so sorting in place would mutate the update being
 // dispatched and race with concurrent readers of it.
 func TestEncodeDoesNotMutateItsInput(t *testing.T) {
 	t.Parallel()

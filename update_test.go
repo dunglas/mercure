@@ -16,13 +16,13 @@ func TestAssignUUID(t *testing.T) {
 	t.Parallel()
 
 	u := &Update{
-		Topic:   "foo",
+		Topics:  []string{"foo"},
 		Private: true,
 		Event:   Event{Retry: 3},
 	}
 	u.AssignUUID()
 
-	assert.Equal(t, "foo", u.Topic)
+	assert.Equal(t, []string{"foo"}, u.Topics)
 	assert.True(t, u.Private)
 	assert.Equal(t, uint64(3), u.Retry)
 	assert.True(t, strings.HasPrefix(u.ID, "urn:uuid:"))
@@ -31,10 +31,10 @@ func TestAssignUUID(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestUpdateJSONLegacyShape guards the wire format used by bolt: records
-// written by 0.x hubs carry a "Topics" array and must stay readable, and
-// records written by this version must keep the same shape.
-func TestUpdateJSONLegacyShape(t *testing.T) {
+// TestUpdateJSON guards the wire format used by bolt/redis history: the
+// canonical topic and its alternates round-trip as a single "Topics" array,
+// matching the 0.x shape exactly.
+func TestUpdateJSON(t *testing.T) {
 	t.Parallel()
 
 	legacy := `{"Data":"d","ID":"i","Type":"t","Retry":3,"Topics":["https://example.com/a","https://example.com/b"],"Private":true,"Debug":false}`
@@ -42,7 +42,7 @@ func TestUpdateJSONLegacyShape(t *testing.T) {
 	var u *Update
 
 	require.NoError(t, json.Unmarshal([]byte(legacy), &u))
-	assert.Equal(t, "https://example.com/a", u.Topic)
+	assert.Equal(t, []string{"https://example.com/a", "https://example.com/b"}, u.Topics)
 	assert.Equal(t, "d", u.Data)
 	assert.Equal(t, "i", u.ID)
 	assert.Equal(t, "t", u.Type)
@@ -51,7 +51,7 @@ func TestUpdateJSONLegacyShape(t *testing.T) {
 
 	out, err := json.Marshal(u)
 	require.NoError(t, err)
-	assert.Contains(t, string(out), `"Topics":["https://example.com/a"`)
+	assert.JSONEq(t, legacy, string(out))
 }
 
 func TestLogUpdate(t *testing.T) {
@@ -62,7 +62,7 @@ func TestLogUpdate(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
 	u := &Update{
-		Topic:   "https://example.com/foo",
+		Topics:  []string{"https://example.com/foo"},
 		Private: true,
 		Debug:   true,
 		Event:   Event{ID: "a", Retry: 3, Data: "bar", Type: "baz"},

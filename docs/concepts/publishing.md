@@ -17,18 +17,18 @@ Content-Type: application/x-www-form-urlencoded
 topic=https%3A%2F%2Fexample.com%2Fbooks%2F1&data=%7B%22status%22%3A%22checked+out%22%7D
 ```
 
-The hub fans the update out to every subscriber whose matchers hit the publication's topic, then returns the event ID it assigned.
+The hub fans the update out to every subscriber whose matchers hit one of the publication's topics, then returns the event ID it assigned.
 
 ## Mercure publish form fields
 
-| Field     | Required | Description                                                                                                                  |
-| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `topic`   | Yes      | Identifier of the topic. Exactly one per publication; sending several `topic` fields returns `400`.                          |
-| `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                                |
-| `private` | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.                         |
-| `id`      | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't.           |
-| `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`. |
-| `retry`   | No       | Reconnection time hint, in milliseconds.                                                                                     |
+| Field     | Required | Description                                                                                                                                                                              |
+| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `topic`   | Yes      | Identifier of the updated topic. **MAY** appear more than once: the first occurrence is the canonical topic, any others are [alternate topics](topics-and-matchers.md#alternate-topics). |
+| `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                                                                                            |
+| `private` | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.                                                                                     |
+| `id`      | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't.                                                                       |
+| `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`.                                                             |
+| `retry`   | No       | Reconnection time hint, in milliseconds.                                                                                                                                                 |
 
 The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
 
@@ -97,17 +97,17 @@ public function __invoke(HubInterface $hub) {
 }
 ```
 
-## One topic per update
+## Canonical and alternate topics
 
-An update is about **exactly one topic**. The publish request carries a single `topic`; sending several returns `400`. To address a resource by more than one name, pick one canonical topic (its URL is the natural choice) and use it consistently on both the publish and subscribe sides.
+A publish request usually carries a single `topic`: pick one canonical topic for a resource (its URL is the natural choice) and use it consistently on both the publish and subscribe sides.
 
-Per-user access to a shared resource is expressed with a scoped matcher in the subscriber's token, not with extra topics on the update; see [Authorization](authorization.md#per-user-authorization-on-shared-resources).
+The `topic` field **MAY** be repeated. The first occurrence is the canonical topic; any others are alternate topics, and the hub dispatches the update to subscribers matching either the canonical topic or any alternate — see [Alternate topics](topics-and-matchers.md#alternate-topics). This lets one publish serve several differently-scoped private audiences at once, instead of one publish per audience; see [Authorization](authorization.md#per-user-authorization-on-shared-resources) for the pattern and its confidentiality rule.
 
 ## Public vs. Private updates
 
 Without the `private` field, an update is **public**: the hub sends it to every subscriber whose matchers hit, regardless of whether they presented a token.
 
-With `private=on` (the value can be anything; `on` is the convention), the update is **private**: a subscriber receives it only if its token grants `subscribe` on the update's topic.
+With `private=on` (the value can be anything; `on` is the convention), the update is **private**: a subscriber receives it only if its token grants `subscribe` on at least one of the update's topics.
 
 ```console
 # Public, anyone subscribed to this topic gets it
@@ -126,7 +126,7 @@ If you want updates on a topic to be visible only to authorized subscribers, **m
 
 ## Authorization
 
-The publisher's access token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` cover the publication's topic. Otherwise the hub returns `403 insufficient_scope` (or `401` when no token is presented).
+The publisher's access token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` cover every topic of the publication — the canonical topic and any alternates. Otherwise the hub returns `403 insufficient_scope` (or `401` when no token is presented).
 
 ```jsonc
 // Authorization

@@ -135,7 +135,15 @@ func openSSE(ctx context.Context, t *testing.T, base, query, token string) <-cha
 func e2ePublish(t *testing.T, base, token, topic, data string, private bool) {
 	t.Helper()
 
-	form := url.Values{"topic": {topic}, "data": {data}}
+	e2ePublishTopics(t, base, token, []string{topic}, data, private)
+}
+
+// e2ePublishTopics publishes an update carrying a canonical topic followed by
+// any alternates (topics[1:]).
+func e2ePublishTopics(t *testing.T, base, token string, topics []string, data string, private bool) {
+	t.Helper()
+
+	form := url.Values{"topic": topics, "data": {data}}
 	if private {
 		form.Set("private", "on")
 	}
@@ -228,6 +236,51 @@ func TestE2EMessageDeliveryAndSubscriptionAPI(t *testing.T) {
 		require.Equal(t, "hi", m["message"], "received the published message")
 	case <-ctx.Done():
 		t.Fatal("subscriber did not receive the published message")
+	}
+}
+
+// TestE2EAlternateTopicPrivateAuthorization mirrors the spec's worked
+// example: a subscriber authorized only for its own per-user alternate
+// receives a private update about a shared canonical resource it has no
+// direct grant on, because the publisher attached a per-user alternate topic
+// alongside the canonical one. The publisher must hold a publish grant on
+// both topics (grantsAll); the subscriber needs a subscribe grant on only one
+// of them (any topic authorizes the whole update).
+func TestE2EAlternateTopicPrivateAuthorization(t *testing.T) {
+	h := e2eHub(t)
+
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	msgPattern := "https://chat.example.com/messages/:id"
+	msgTopic := "https://chat.example.com/messages/1"
+	altTopic := "https://chat.example.com/users/alice/messages/1"
+
+	// Subscribed to the shared canonical pattern, but only granted subscribe
+	// access to its own per-user alternate namespace.
+	subToken := e2eToken(t, "subscribe",
+		[]map[string]any{{"match": "https://chat.example.com/users/alice/*", "match_type": "urlpattern"}}, nil)
+	// Must be authorized to publish on every topic it attaches to the update.
+	pubToken := e2eToken(t, "publish",
+		[]map[string]any{
+			{"match": msgPattern, "match_type": "urlpattern"},
+			{"match": "https://chat.example.com/users/alice/*", "match_type": "urlpattern"},
+		}, nil)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
+	defer cancel()
+
+	msgs := openSSE(ctx, t, srv.URL, "match_urlpattern="+url.QueryEscape(msgPattern), subToken)
+
+	time.Sleep(200 * time.Millisecond) // let the subscription register
+
+	e2ePublishTopics(t, srv.URL, pubToken, []string{msgTopic, altTopic}, `{"message":"hi"}`, true)
+
+	select {
+	case m := <-msgs:
+		require.Equal(t, "hi", m["message"], "received the private update via the alternate-topic grant")
+	case <-ctx.Done():
+		t.Fatal("subscriber did not receive the update despite matching its alternate topic")
 	}
 }
 

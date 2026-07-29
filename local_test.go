@@ -22,12 +22,12 @@ func TestLocalTransportDoNotDispatchUntilListen(t *testing.T) {
 
 		assert.Implements(t, (*Transport)(nil), transport)
 
-		u := &Update{Topic: "https://example.com/books/1"}
+		u := &Update{Topics: []string{"https://example.com/books/1"}}
 		err := transport.Dispatch(ctx, u)
 		require.NoError(t, err)
 
 		s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
-		s.setMatchers(stringsToExactMatchers([]string{u.Topic}), stringsToExactMatchers(nil))
+		s.setMatchers(stringsToExactMatchers(u.Topics), stringsToExactMatchers(nil))
 		require.NoError(t, transport.AddSubscriber(ctx, s))
 
 		go func() {
@@ -57,7 +57,7 @@ func TestLocalTransportDispatch(t *testing.T) {
 	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/foo"}), stringsToExactMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
-	u := &Update{Topic: s.SubscribedMatchers[0].Pattern}
+	u := &Update{Topics: []string{s.SubscribedMatchers[0].Pattern}}
 	require.NoError(t, transport.Dispatch(ctx, u))
 	assert.Equal(t, u, <-s.Receive())
 }
@@ -133,7 +133,7 @@ func TestLiveReading(t *testing.T) {
 	s.setMatchers(stringsToExactMatchers([]string{"https://example.com"}), stringsToExactMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
-	u := &Update{Topic: s.SubscribedMatchers[0].Pattern}
+	u := &Update{Topics: []string{s.SubscribedMatchers[0].Pattern}}
 	require.NoError(t, transport.Dispatch(ctx, u))
 
 	receivedUpdate := <-s.Receive()

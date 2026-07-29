@@ -489,7 +489,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		// escapes control characters), not attacker-controlled. Keep that
 		// invariant if this function changes.
 		u := &Update{
-			Topic:   subscription.ID,
+			Topics:  []string{subscription.ID},
 			Private: true,
 			Debug:   h.debug,
 			Event:   Event{Data: string(j), Type: reservedEventType},
