@@ -34,7 +34,7 @@ func TestPublish(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedMatchers[0].Pattern, u.Topic)
+			assert.Equal(t, s.SubscribedMatchers[0].Pattern, u.Topics[0])
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -44,7 +44,7 @@ func TestPublish(t *testing.T) {
 				ID:   "id",
 				Data: "Hello!",
 			},
-			Topic:   s.SubscribedMatchers[0].Pattern,
+			Topics:  []string{s.SubscribedMatchers[0].Pattern},
 			Private: true,
 		}))
 
@@ -275,7 +275,7 @@ func TestPublishHandlerOK(t *testing.T) {
 			assert.True(t, ok)
 			assert.NotNil(t, u)
 			assert.Equal(t, "id", u.ID)
-			assert.Equal(t, s.SubscribedMatchers[0].Pattern, u.Topic)
+			assert.Equal(t, s.SubscribedMatchers[0].Pattern, u.Topics[0])
 			assert.Equal(t, "Hello!", u.Data)
 			assert.True(t, u.Private)
 		}()
@@ -476,31 +476,31 @@ func TestUpdateValidate(t *testing.T) {
 		update Update
 		want   error
 	}{
-		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topic: "https://example.com/books/1"}, nil},
+		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topics: []string{"https://example.com/books/1"}}, nil},
 		// The empty topic resolves to the hub URL itself, which is reserved.
 		{"empty", Update{}, ErrReservedTopic},
-		{"reserved topic", Update{Topic: "https://example.com/.well-known/mercure/subscriptions/foo"}, ErrReservedTopic},
-		{"reserved topic relative", Update{Topic: "mercure/subscriptions/foo"}, ErrReservedTopic},
-		{"reserved topic absolute path", Update{Topic: "/.well-known/mercure/subscriptions/foo"}, ErrReservedTopic},
-		{"reserved topic exact", Update{Topic: "https://example.com/.well-known/mercure"}, ErrReservedTopic},
-		{"reserved topic percent-encoded", Update{Topic: "https://example.com/.well-known/%6Dercure/subscriptions/foo"}, ErrReservedTopic},
-		{"reserved topic backslashes", Update{Topic: `https://example.com\.well-known\mercure\subscriptions\foo`}, ErrReservedTopic},
-		{"reserved wildcard", Update{Topic: "*"}, ErrReservedWildcard},
-		{"non-reserved mid-path namespace", Update{Topic: "https://example.com/foo/.well-known/mercure/bar"}, nil},
-		{"non-reserved sibling path", Update{Topic: "https://example.com/.well-known/mercure-dashboard"}, nil},
-		{"non-reserved opaque topic", Update{Topic: "urn:example:mercure"}, nil},
-		{"id starts with #", Update{Topic: "https://example.com/books/1", Event: Event{ID: "#42"}}, ErrInvalidEventID},
-		{"id earliest", Update{Topic: "https://example.com/books/1", Event: Event{ID: EarliestLastEventID}}, ErrInvalidEventID},
-		{"topic NUL", Update{Topic: "https://example.com/foo\x00bar"}, ErrInvalidTopic},
-		{"topic C0", Update{Topic: "https://example.com/foo\nbar"}, ErrInvalidTopic},
-		{"topic invalid UTF-8", Update{Topic: "https://example.com/\xff"}, ErrInvalidTopic},
-		{"id LF", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
-		{"id CR", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
-		{"id NUL", Update{Topic: "https://example.com/books/1", Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
-		{"type LF", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
-		{"type CR", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
-		{"type NUL", Update{Topic: "https://example.com/books/1", Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
-		{"type reserved mercure", Update{Topic: "https://example.com/books/1", Event: Event{Type: reservedEventType}}, ErrReservedEventType},
+		{"reserved topic", Update{Topics: []string{"https://example.com/.well-known/mercure/subscriptions/foo"}}, ErrReservedTopic},
+		{"reserved topic relative", Update{Topics: []string{"mercure/subscriptions/foo"}}, ErrReservedTopic},
+		{"reserved topic absolute path", Update{Topics: []string{"/.well-known/mercure/subscriptions/foo"}}, ErrReservedTopic},
+		{"reserved topic exact", Update{Topics: []string{"https://example.com/.well-known/mercure"}}, ErrReservedTopic},
+		{"reserved topic percent-encoded", Update{Topics: []string{"https://example.com/.well-known/%6Dercure/subscriptions/foo"}}, ErrReservedTopic},
+		{"reserved topic backslashes", Update{Topics: []string{`https://example.com\.well-known\mercure\subscriptions\foo`}}, ErrReservedTopic},
+		{"reserved wildcard", Update{Topics: []string{"*"}}, ErrReservedWildcard},
+		{"non-reserved mid-path namespace", Update{Topics: []string{"https://example.com/foo/.well-known/mercure/bar"}}, nil},
+		{"non-reserved sibling path", Update{Topics: []string{"https://example.com/.well-known/mercure-dashboard"}}, nil},
+		{"non-reserved opaque topic", Update{Topics: []string{"urn:example:mercure"}}, nil},
+		{"id starts with #", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "#42"}}, ErrInvalidEventID},
+		{"id earliest", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: EarliestLastEventID}}, ErrInvalidEventID},
+		{"topic NUL", Update{Topics: []string{"https://example.com/foo\x00bar"}}, ErrInvalidTopic},
+		{"topic C0", Update{Topics: []string{"https://example.com/foo\nbar"}}, ErrInvalidTopic},
+		{"topic invalid UTF-8", Update{Topics: []string{"https://example.com/\xff"}}, ErrInvalidTopic},
+		{"id LF", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
+		{"id CR", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
+		{"id NUL", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
+		{"type LF", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
+		{"type CR", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
+		{"type NUL", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
+		{"type reserved mercure", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: reservedEventType}}, ErrReservedEventType},
 	}
 
 	for _, tc := range cases {

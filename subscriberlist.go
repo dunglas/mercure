@@ -49,11 +49,11 @@ func encode(topics []string, private bool) string {
 		parts[i+1] = replacer.Replace(t)
 	}
 
-	// Sort the escaped copies, never the caller's slice: Update.topics() can
-	// return the Update's own backing array, and reordering it would change
-	// what MarshalJSON, LogValue and SpanAttributes report, and race with any
-	// concurrent reader. The key only has to be one canonical string per topic
-	// set, which sorting the escaped forms gives just as well.
+	// Sort the escaped copies, never the caller's slice: this can be the
+	// Update's own Topics backing array, and reordering it would change what
+	// LogValue and SpanAttributes report, and race with any concurrent
+	// reader. The key only has to be one canonical string per topic set,
+	// which sorting the escaped forms gives just as well.
 	slices.Sort(parts[1:])
 
 	return strings.Join(parts, string(delim))
@@ -102,7 +102,7 @@ func decode(f string) (topics []string, private bool) {
 }
 
 func (sl *SubscriberList) MatchAny(u *Update) []*LocalSubscriber {
-	return sl.skipfilter.MatchAny(encode(u.topics(), u.Private))
+	return sl.skipfilter.MatchAny(encode(u.Topics, u.Private))
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {

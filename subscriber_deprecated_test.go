@@ -35,8 +35,8 @@ func TestMatchAlternateTopics(t *testing.T) {
 	)
 
 	// URI Template selectors keep working for v8 subscribers.
-	assert.True(t, s.Match(&Update{Topic: "https://example.com/books/1"}))
-	assert.False(t, s.Match(&Update{Topic: "https://example.com/books/1", Private: true}))
+	assert.True(t, s.Match(&Update{Topics: []string{"https://example.com/books/1"}}))
+	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/books/1"}, Private: true}))
 
 	// The alternate topic does not match the private selector.
 	assert.False(t, s.Match(testUpdate(&Update{Private: true},

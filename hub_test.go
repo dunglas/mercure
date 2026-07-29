@@ -76,8 +76,8 @@ func TestStop(t *testing.T) {
 			}
 
 			assert.NoError(t, hub.transport.Dispatch(ctx, &Update{
-				Topic: "https://example.com/foo",
-				Event: Event{Data: "Hello World"},
+				Topics: []string{"https://example.com/foo"},
+				Event:  Event{Data: "Hello World"},
 			}))
 
 			assert.NoError(t, hub.Stop(ctx))

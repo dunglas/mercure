@@ -64,16 +64,16 @@ func TestTotalOfHandledUpdates(t *testing.T) {
 	m := NewPrometheusMetrics(nil)
 
 	m.UpdatePublished(&Update{
-		Topic: "topic1",
+		Topics: []string{"topic1"},
 	})
 	m.UpdatePublished(&Update{
-		Topic: "topic2",
+		Topics: []string{"topic2"},
 	})
 	m.UpdatePublished(&Update{
-		Topic: "topic2",
+		Topics: []string{"topic2"},
 	})
 	m.UpdatePublished(&Update{
-		Topic: "topic3",
+		Topics: []string{"topic3"},
 	})
 
 	assertCounterValue(t, 4.0, m.updatesTotal)

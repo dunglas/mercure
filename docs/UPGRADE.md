@@ -178,7 +178,6 @@ respond /healthz 200
 
 ### Go API changes
 
-- `Update.Topics []string` (the full canonical-plus-alternates list) becomes `Update.Topic string` (the canonical topic) plus `Update.Topics []string` (alternates only, empty when there are none).
 - `canReceive` / `canDispatch` are replaced by the internal authorization-detail grant logic.
 - `NewHub` no longer requires a resource identifier: it derives the identity from each request, resolving the origin from `NewRequestOriginContext` when an embedding server sets it, else from the request's scheme and `Host`. `WithResourceIdentifier` still pins one static value; a value ending in `/.well-known/mercure` also sets the URL Pattern base. `WithPublicURLs` restricts the hub to an allowlist of public URLs (scheme and host), returning `421` for an unlisted origin.
 

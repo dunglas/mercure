@@ -55,7 +55,14 @@ var (
 // reserved "/.well-known/mercure" topic namespace, so it is meant for
 // publisher input, not hub-internal updates such as subscription events.
 func (u *Update) Validate() error {
-	topics := u.topics()
+	topics := u.Topics
+	if len(topics) == 0 {
+		// A zero-value Update{} carries no topic at all; check the empty
+		// string as its (canonical) topic so it still gets rejected, rather
+		// than silently passing validation with nothing to check.
+		topics = []string{""}
+	}
+
 	if len(topics) > maxPublishTopics {
 		return ErrTooManyTopics
 	}
@@ -270,11 +277,11 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u = &Update{
+		Topics:  topics,
 		Private: private,
 		Debug:   h.debug,
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
-	u.setTopics(topics)
 
 	dispatchCtx := context.WithoutCancel(ctx)
 
