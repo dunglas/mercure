@@ -43,6 +43,7 @@ func TestUpdateJSONLegacyShape(t *testing.T) {
 
 	require.NoError(t, json.Unmarshal([]byte(legacy), &u))
 	assert.Equal(t, "https://example.com/a", u.Topic)
+	assert.Equal(t, []string{"https://example.com/b"}, u.Topics)
 	assert.Equal(t, "d", u.Data)
 	assert.Equal(t, "i", u.ID)
 	assert.Equal(t, "t", u.Type)
@@ -51,7 +52,38 @@ func TestUpdateJSONLegacyShape(t *testing.T) {
 
 	out, err := json.Marshal(u)
 	require.NoError(t, err)
-	assert.Contains(t, string(out), `"Topics":["https://example.com/a"`)
+	assert.JSONEq(t, legacy, string(out))
+}
+
+// TestUpdateJSONAlternateTopics checks that alternate topics survive a JSON
+// round trip (bolt/redis history).
+func TestUpdateJSONAlternateTopics(t *testing.T) {
+	t.Parallel()
+
+	u := &Update{}
+	u.setTopics([]string{"https://example.com/a", "https://example.com/b"})
+
+	out, err := json.Marshal(u)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"Data":"","ID":"","Type":"","Retry":0,"Topics":["https://example.com/a","https://example.com/b"],"Private":false,"Debug":false}`, string(out))
+
+	var decoded *Update
+
+	require.NoError(t, json.Unmarshal(out, &decoded))
+	assert.Equal(t, "https://example.com/a", decoded.Topic)
+	assert.Equal(t, []string{"https://example.com/b"}, decoded.Topics)
+	assert.Equal(t, u, decoded)
+}
+
+// TestUpdateLegacyTopicsOnly checks that updates built by code that only sets
+// the Topics field (the pre-split v8 Go API shape) still dispatch correctly.
+func TestUpdateLegacyTopicsOnly(t *testing.T) {
+	t.Parallel()
+
+	u := &Update{}
+	u.Topics = []string{"https://example.com/a", "https://example.com/b"}
+
+	assert.Equal(t, []string{"https://example.com/a", "https://example.com/b"}, u.topics())
 }
 
 func TestLogUpdate(t *testing.T) {

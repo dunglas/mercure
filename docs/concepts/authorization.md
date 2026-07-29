@@ -83,7 +83,7 @@ The hub never accepts tokens over plain HTTP. Whichever method you pick, **HTTPS
 
 ## Publishers
 
-To publish, a token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` match the update's topic.
+To publish, a token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` match the update's topic. An update **MAY** carry more than one `topic` field — the first is the canonical topic, any others are [alternate topics](topics-and-matchers.md#alternate-topics) — in which case the token must be granted on every one of them, not only the canonical one.
 
 ```jsonc
 // Publishers
@@ -106,8 +106,7 @@ To publish, a token must carry an `authorization_details` entry whose `actions` 
 
 Behavior:
 
-- No `publish` grant covering the topic -> the publication is rejected with `403 insufficient_scope`.
-- An update has exactly one topic; the grant must cover that topic.
+- No `publish` grant covering every topic of the update -> the publication is rejected with `403 insufficient_scope`, even when some of its topics are covered.
 - `[{ "match": "*" }]` -> every topic is allowed.
 
 `*` is the only "match anything" wildcard; you cannot get the same effect with a permissive URL Pattern.
@@ -116,7 +115,7 @@ Behavior:
 
 A subscriber's token is **only consulted for private updates**. Public updates flow to any subscriber whose `match*` query parameters hit, with or without a token.
 
-For a private update, the hub checks that a `subscribe` grant covers the update's (single) topic. If it does, the update is delivered; if not, the subscriber never sees it.
+For a private update, the hub checks that a `subscribe` grant covers at least one of the update's topics (canonical or alternate). If it does, the update is delivered; if not, the subscriber never sees it. Since matching any one topic delivers the whole update, the audience of a private update is the union of the audiences of each of its topics — see [alternate topics](topics-and-matchers.md#alternate-topics) for what that means for publishers attaching them.
 
 ```jsonc
 // Subscribers
@@ -147,7 +146,7 @@ This is the right default for live feeds, public dashboards, and any case where 
 
 ## Per-user authorization on shared resources
 
-A subscriber should receive updates only about the resources it owns. Because an update has exactly one topic and the hub authorizes against that single topic, you express this with a **scoped matcher** in the token, not with shared "capability" topics.
+A subscriber should receive updates only about the resources it owns. When the resource's own topic already encodes ownership (a path segment per user or tenant), express this with a **scoped matcher** in the token — no need for anything else.
 
 Publish each private update to its own per-user (or per-resource) topic:
 
@@ -180,6 +179,23 @@ Mint each subscriber a token whose `subscribe` grant covers only its own space:
 ```
 
 User 42's token matches `https://example.com/users/42/messages/1`; user 99's token does not, so the hub never delivers it. The subscriber's `match*` query parameter can be as broad as `match_urlpattern=https://example.com/users/:id/messages/:mid`: the query selects what the client wants to receive, and the token decides what it is allowed to receive. The narrower of the two wins.
+
+### Shared resources without a per-user path
+
+Sometimes the resource's own topic can't (or shouldn't) encode ownership — a resource shared by several users, each with a different reason to read it. Publishing per-user copies works, but costs one publish request per authorized reader for what is really a single event. [Alternate topics](topics-and-matchers.md#alternate-topics) solve this: attach a per-user (or per-tenant) alternate topic to the update in addition to its shared canonical topic, and scope each subscriber's grant to its own alternate namespace instead of the canonical resource.
+
+```console
+# One event, several private audiences, one publish request
+curl -X POST $HUB -H "Authorization: Bearer $JWT" \
+  -d 'topic=https://example.com/books/1' \
+  -d 'topic=https://example.com/users/42/books/1' \
+  -d 'private=on' \
+  -d 'data=...'
+```
+
+The publisher's token must be granted `publish` on both `https://example.com/books/:id` and `https://example.com/users/42/*` — a grant on the canonical topic alone is not enough once an alternate is attached. A subscriber whose token only grants `subscribe` on `https://example.com/users/42/*` receives this update even though it has no grant on `books/1` itself, because its grant matches the alternate topic.
+
+Never attach an alternate that a broader audience than the intended readers can match: any subscriber authorized for any one topic of the update receives its full content. See [Private Update Audience](../../spec/mercure.md#private-update-audience) in the spec.
 
 ## Subscriber payloads
 

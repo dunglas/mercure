@@ -18,7 +18,6 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | Matcher types             | URI Template, string, plus exploratory types                       | `exact` and `urlpattern` only                                                  |
 | Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `match_urlpattern=<pattern>` (case-sensitive)               |
 | Templating language       | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org))                    |
-| Topics per update         | Canonical + alternates                                             | Exactly one                                                                    |
 | Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `iss`, `aud`, `authorization_details`   |
 | Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries with the Mercure `type` URI (see below)        |
 | Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `__Secure-mercure_access_token` cookie; no query parameter (RFC 9700)          |
@@ -125,7 +124,6 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - `"mercure": { "publish": [...] }` in issuer code -> `authorization_details` with `actions: ["publish"]`
 - `"mercure": { "subscribe": [...] }` -> `authorization_details` with `actions: ["subscribe"]`
 - `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
-- A second `topic=` on a publish request -> publish to one topic; scope per-user access in the token
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
 - `Last-Event-ID` read from a **response** -> `Mercure-Last-Event-ID` (the request header keeps its name; see [Reconnection and history](concepts/reconnection-and-history.md))
 
@@ -146,7 +144,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 0.x behaviors are gated behind two build tags, honored only with `protocol_version_compatibility 8`:
 
-- `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, alternate topics, the `/subscriptions/{topic}` routes.
+- `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, the `/subscriptions/{topic}` routes. Canonical and alternate topics (repeated `topic=` publish fields) are a modern-mode feature, not gated by this tag; see [Alternate topics](concepts/topics-and-matchers.md#alternate-topics).
 - `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt`, `aud`, `exp` or a matching `iss`.
 
 Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
@@ -180,7 +178,7 @@ respond /healthz 200
 
 ### Go API changes
 
-- `Update.Topics` becomes `Update.Topic` (a single topic).
+- `Update.Topics []string` (the full canonical-plus-alternates list) becomes `Update.Topic string` (the canonical topic) plus `Update.Topics []string` (alternates only, empty when there are none).
 - `canReceive` / `canDispatch` are replaced by the internal authorization-detail grant logic.
 - `NewHub` no longer requires a resource identifier: it derives the identity from each request, resolving the origin from `NewRequestOriginContext` when an embedding server sets it, else from the request's scheme and `Host`. `WithResourceIdentifier` still pins one static value; a value ending in `/.well-known/mercure` also sets the URL Pattern base. `WithPublicURLs` restricts the hub to an allowlist of public URLs (scheme and host), returning `421` for an unlisted origin.
 

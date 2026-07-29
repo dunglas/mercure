@@ -13,11 +13,15 @@ import (
 type Update struct {
 	// The Server-Sent Event to send.
 	Event
-	// v8 alternate topics; only present in builds with the deprecated_topic tag.
-	deprecatedTopics //nolint:unused // empty struct without the deprecated_topic tag
 
-	// The topic's Internationalized Resource Identifier (RFC3987) (will most likely be a URL).
+	// The canonical topic's Internationalized Resource Identifier (RFC3987)
+	// (will most likely be a URL).
 	Topic string
+
+	// Alternate topic IRIs. The update is dispatched to subscribers matching
+	// either the canonical topic or any alternate; a private update's
+	// audience is the union of the audiences of all its topics.
+	Topics []string
 
 	// Private updates can only be dispatched to subscribers authorized to receive them.
 	Private bool
@@ -26,9 +30,8 @@ type Update struct {
 	Debug bool
 }
 
-// updateJSON preserves the historic wire shape (a "Topics" array holding the
-// canonical topic first) so bolt databases written by 0.x hubs stay readable
-// in both build modes.
+// updateJSON is the wire shape: the canonical topic and its alternates,
+// serialized together as a "Topics" array (canonical first).
 type updateJSON struct {
 	Event
 
@@ -102,4 +105,35 @@ func (u *Update) SpanAttributes() []attribute.KeyValue {
 
 func newSerializedUpdate(u *Update) *serializedUpdate {
 	return &serializedUpdate{u, u.String()}
+}
+
+// topics returns the canonical topic followed by its alternates. Updates
+// built by legacy code that only sets Topics keep working: the first element
+// acts as the canonical topic.
+func (u *Update) topics() []string {
+	if u.Topic == "" && len(u.Topics) > 0 {
+		return u.Topics
+	}
+
+	if len(u.Topics) == 0 {
+		return []string{u.Topic}
+	}
+
+	return append([]string{u.Topic}, u.Topics...)
+}
+
+// setTopics assigns the canonical topic and its alternates from a topic list
+// (canonical first), as carried by the "topic" publish field or the wire
+// shape.
+func (u *Update) setTopics(topics []string) {
+	u.Topic, u.Topics = "", nil
+
+	if len(topics) == 0 {
+		return
+	}
+
+	u.Topic = topics[0]
+	if len(topics) > 1 {
+		u.Topics = topics[1:]
+	}
 }

@@ -156,7 +156,22 @@ In an access token, each `mercure` entry of the `authorization_details` claim ho
 
 ## How matching works on the publish side
 
-A publisher posts an update with exactly one `topic`. The hub runs every connected subscriber's matchers against that topic. Public updates go to every subscriber whose matchers hit. Private updates additionally require that the subscriber's token grants `subscribe` on that topic. See [Publishing](publishing.md) and [Authorization](authorization.md) for the full path.
+A publisher posts an update with one or more `topic` fields — the first is the canonical topic, any others are [alternate topics](#alternate-topics). The hub runs every connected subscriber's matchers against all of the update's topics. Public updates go to every subscriber whose matchers hit any one of them. Private updates additionally require that the subscriber's token grants `subscribe` on at least one of them. See [Publishing](publishing.md) and [Authorization](authorization.md) for the full path.
+
+## Alternate topics
+
+A single update can carry more than one `topic` field. The first is the **canonical topic** — the primary identifier of the updated resource. Any others are **alternate topics**. The hub dispatches the update to every subscriber matching the canonical topic _or_ any alternate, and, for private updates, authorizes it the same way: a subscriber needs a `subscribe` grant on just one of the topics, not the canonical one specifically.
+
+```console
+# Publishing with an alternate topic
+curl -X POST $HUB -H "Authorization: Bearer $JWT" \
+  -d 'topic=https://example.com/books/1' \
+  -d 'topic=https://example.com/users/42/books/1' \
+  -d 'private=on' \
+  -d 'data=...'
+```
+
+This lets one publish serve several differently-scoped audiences at once — typically a shared canonical resource plus a per-user (or per-tenant) alias — instead of one publish per audience. See [Per-user authorization on shared resources](authorization.md#per-user-authorization-on-shared-resources) for the authorization side, including the publisher grant requirement (every topic, not just the canonical one) and the confidentiality rule (never attach an alternate matchable by a broader audience than intended).
 
 ## Picking a matcher
 

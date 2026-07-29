@@ -97,6 +97,8 @@ The hub stores recent events in a transport. The size of that buffer determines 
 
 > **Pro tip.** The open-source hub has **no built-in history limit**. The Cloud caps exist for operational reasons: managed instances need predictable storage. If you're running on your own infrastructure and want to keep weeks of history for replay or event sourcing, the open-source build will store everything you give it disk for.
 
+An update with [alternate topics](topics-and-matchers.md#alternate-topics) still costs a single history entry: the BoltDB, Redis, and other transports store one record per update — carrying its full topic list — and match it against a replaying subscriber's matchers, the same as they do for live dispatch. Attaching alternates does not multiply storage or the number of Last-Event-IDs a subscriber has to track.
+
 ### Configuring the Mercure BoltDB history size
 
 By default, the BoltDB transport keeps everything. To put a cap on it:

@@ -519,6 +519,18 @@ func TestUpdateValidate(t *testing.T) {
 	}
 }
 
+func TestUpdateValidateTooManyTopics(t *testing.T) {
+	t.Parallel()
+
+	topics := make([]string, maxPublishTopics+1)
+	for i := range topics {
+		topics[i] = "https://example.com/books/1"
+	}
+
+	err := testUpdate(&Update{}, topics...).Validate()
+	assert.ErrorIs(t, err, ErrTooManyTopics)
+}
+
 func TestPublishHandlerReservedTopicNamespace(t *testing.T) {
 	t.Parallel()
 

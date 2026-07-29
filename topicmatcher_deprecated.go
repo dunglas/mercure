@@ -33,6 +33,14 @@ func (tms *TopicMatcherStore) matchDeprecated(topics []string, m TopicMatcher) b
 	})
 }
 
+// deprecatedMatcherTypeCompiled reports whether the v8 matcher-type code
+// (exact-or-URI-Template semantics) is compiled into this binary. Used to
+// decide whether a bare-string JWT claim can resolve to the deprecated
+// matcher type, independent of whether alternate topics are granted.
+func deprecatedMatcherTypeCompiled() bool {
+	return true
+}
+
 // getRegexp retrieves the regexp for this v8 template selector.
 func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 	// If it's definitely not a URI template, skip to save some resources
