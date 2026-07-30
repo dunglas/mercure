@@ -100,20 +100,21 @@ docker_manifests:
     image_templates:
       - dunglas/mercure:{{ .Tag }}-amd64
       - dunglas/mercure:{{ .Tag }}-arm64v8
-  # Rolling manifests are skipped on prereleases (name_template cannot
-  # be empty, so use skip_push instead of an {{ if }} wrap).
+  # skip_push "auto" omits the rolling manifests on prereleases; a templated
+  # "{{ .Prerelease }}" renders to the non-empty tag (e.g. "alpha.1"), which is
+  # truthy and would push them, referencing per-arch images guarded off above.
   - name_template: dunglas/mercure:v{{ .Major }}
-    skip_push: "{{ .Prerelease }}"
+    skip_push: "auto"
     image_templates:
       - dunglas/mercure:v{{ .Major }}-amd64
       - dunglas/mercure:v{{ .Major }}-arm64v8
   - name_template: dunglas/mercure:v{{ .Major }}.{{ .Minor }}
-    skip_push: "{{ .Prerelease }}"
+    skip_push: "auto"
     image_templates:
       - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64
       - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8
   - name_template: dunglas/mercure:latest
-    skip_push: "{{ .Prerelease }}"
+    skip_push: "auto"
     image_templates:
       - dunglas/mercure:latest-amd64
       - dunglas/mercure:latest-arm64v8
