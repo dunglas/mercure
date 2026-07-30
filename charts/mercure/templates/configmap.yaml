@@ -8,3 +8,6 @@ data:
   global-options:  {{ .Values.globalOptions | quote }}
   publisher-jwt-alg: {{ .Values.publisherJwtAlg | quote }}
   subscriber-jwt-alg: {{ .Values.subscriberJwtAlg | quote }}
+  extra-directives: {{ .Values.extraDirectives | quote }}
+  caddy-extra-config: {{ .Values.caddyExtraConfig | quote }}
+  caddy-extra-directives: {{ .Values.caddyExtraDirectives | quote }}
