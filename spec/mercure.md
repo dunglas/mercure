@@ -406,10 +406,13 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     The provided ID **MAY** be a valid IRI. If omitted, the
     hub **MUST** generate either a valid IRI [@!RFC3987] or a relative reference consisting of a
     fragment (starting with `#`). A UUID [@RFC9562] or a DID [@DID] **MAY** be used as the IRI; a
-    fragment is convenient to return an offset or a sequence that is unique for this hub. The hub
-    **MAY** ignore the
-    client-supplied ID and generate its own. The hub **MUST** reject client-supplied IDs
-    violating the character constraints above with a 400 HTTP status code.
+    fragment is convenient to return an offset or a sequence that is unique for this hub. A
+    client-supplied ID **SHOULD** be unique within the scope of the hub: the hub treats IDs as
+    cursors into a single, hub-wide event sequence rather than one scoped per topic (see
+    (#reconciliation)), so a reused ID leaves ambiguous which update a subsequent
+    `Last-Event-ID` refers to. The hub **MAY** ignore the client-supplied ID and generate its
+    own. The hub **MUST** reject client-supplied IDs violating the character constraints above
+    with a 400 HTTP status code.
 *   `type` (optional): the SSE `event` property (a specific event type). The value **MUST NOT**
     contain control characters (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)) or Unicode
     format characters (general category `Cf` [@!UNICODE]); hubs **MUST** reject violating values
@@ -942,6 +945,11 @@ topics. The hub **MAY** ignore this request according to its own policy. Hub-gen
 identifiers are IRIs or fragments (see above) and publishers are forbidden from supplying
 `earliest` as an update ID (see (#publication)), so `earliest` cannot collide with an event
 identifier.
+
+If more than one update in the hub's history shares the same ID, in violation of the
+recommendation in (#publication), a `Last-Event-ID` bearing that value **MUST** resolve to the
+earliest such update in the hub's history. The hub **MUST** then send all updates published
+after that one, including any later update carrying the same, reused ID.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `last_event_id` query parameter, the hub **MUST** set a
@@ -1811,7 +1819,8 @@ captured token is unusable without the corresponding proof-of-possession key.
 A captured publish request carrying a bearer access token can be replayed by an on-path attacker,
 causing the same update to be dispatched again. For most deployments re-dispatching an identical update
 is harmless. Deployments for which it is not **SHOULD** include a freshness indicator in the
-update (for example, a unique `id` checked for replay, or a timestamp) and reject duplicates.
+update (for example, checking the unique `id` recommended in (#publication) against previously
+seen values, or a timestamp) and reject duplicates.
 
 ## JWE Algorithms and Replay
 
