@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -1023,6 +1024,70 @@ func TestApplyPlaygroundDefaults(t *testing.T) {
 		assert.Empty(t, m.CookieName)
 		assert.Nil(t, m.CORSOrigins)
 		assert.Nil(t, m.PublishOrigins)
+	})
+}
+
+func TestPopulateJWTConfigDefaultsPlaygroundKey(t *testing.T) {
+	t.Parallel()
+
+	ctx := caddy.Context{Context: context.Background()}
+	discardLogger := slog.New(slog.DiscardHandler)
+
+	t.Run("defaults both roles when nothing is configured", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Issuers:    []IssuerConfig{{Identifier: "https://localhost"}},
+			logger:     discardLogger,
+		}
+		require.NoError(t, m.populateJWTConfig(ctx))
+
+		want := JWTConfig{Key: devKeyFallback, Alg: defaultJWTAlgorithm}
+		assert.Equal(t, want, m.Issuers[0].Publisher.JWT)
+		assert.Equal(t, want, m.Issuers[0].Subscriber.JWT)
+	})
+
+	t.Run("an explicit key on either role prevents defaulting", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Anonymous:  true, // sidesteps the unrelated missing-subscriber error
+			Issuers: []IssuerConfig{{
+				Identifier: "https://localhost",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: "custom-key"}},
+			}},
+			logger: discardLogger,
+		}
+		require.NoError(t, m.populateJWTConfig(ctx))
+
+		assert.Equal(t, "custom-key", m.Issuers[0].Publisher.JWT.Key)
+		assert.Empty(t, m.Issuers[0].Subscriber.JWT.Key)
+	})
+
+	t.Run("no-op without playground", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{Issuers: []IssuerConfig{{Identifier: "https://localhost"}}, logger: discardLogger}
+		require.ErrorIs(t, m.populateJWTConfig(ctx), errMissingVerifier)
+		assert.Empty(t, m.Issuers[0].Publisher.JWT.Key)
+	})
+
+	t.Run("does not guess among several issuers", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Issuers: []IssuerConfig{
+				{Identifier: "https://a.example.com"},
+				{Identifier: "https://b.example.com"},
+			},
+			logger: discardLogger,
+		}
+		require.ErrorIs(t, m.populateJWTConfig(ctx), errMissingVerifier)
+		assert.Empty(t, m.Issuers[0].Publisher.JWT.Key)
+		assert.Empty(t, m.Issuers[1].Publisher.JWT.Key)
 	})
 }
 

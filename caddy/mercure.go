@@ -235,7 +235,9 @@ func (s stoppingHandlerFunc) Handle(_ context.Context, _ caddy.Event) error {
 func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,gocognit,gocyclo,maintidx
 	metrics := mercure.NewPrometheusMetrics(ctx.GetMetricsRegistry())
 
-	if err := m.populateJWTConfig(); err != nil {
+	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
+
+	if err := m.populateJWTConfig(ctx); err != nil {
 		return err
 	}
 
@@ -257,8 +259,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	} else {
 		ctx = ctx.WithValue(SubscriberListCacheSizeContextKey, *m.SubscriberListCacheSize)
 	}
-
-	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
 
 	if err := m.checkLegacyVerifiers(); err != nil {
 		return err
@@ -849,7 +849,7 @@ func (m *Mercure) applyPlaygroundDefaults() {
 
 var errMissingVerifier = errors.New("a JWT key or the URL of a JWK Set must be provided")
 
-func (m *Mercure) populateJWTConfig() error {
+func (m *Mercure) populateJWTConfig(ctx caddy.Context) error {
 	repl := caddy.NewReplacer()
 
 	if err := normalizeJWT(repl, &m.PublisherJWT, m.PublisherJWKSURL, "publisher"); err != nil {
@@ -880,6 +880,23 @@ func (m *Mercure) populateJWTConfig() error {
 
 		if iss.Subscriber.isSet() {
 			hasSubscriber = true
+		}
+	}
+
+	// Convenience: a `playground` hub with nothing configured at all (the
+	// quickstart's MERCURE_EXTRA_DIRECTIVES=playground, no JWT key env vars)
+	// still needs a key to sign and verify its own prefilled token. Default the
+	// sole issuer's key rather than guessing among several.
+	//
+	// INSECURE: only ever applies to the insecure playground.
+	if m.Playground && !hasPublisher && !hasSubscriber && len(m.Issuers) == 1 {
+		key := JWTConfig{Key: devKeyFallback, Alg: defaultJWTAlgorithm}
+		m.Issuers[0].Publisher.JWT = key
+		m.Issuers[0].Subscriber.JWT = key
+		hasPublisher, hasSubscriber = true, true
+
+		if m.logger.Enabled(ctx, slog.LevelInfo) {
+			m.logger.LogAttrs(ctx, slog.LevelInfo, "Playground enabled with no JWT key configured: defaulting to the well-known dev secret. Never do this in production.")
 		}
 	}
 
