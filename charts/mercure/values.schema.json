@@ -86,7 +86,7 @@
       }
     },
     "dev": {
-      "description": "Enable the development mode, including the debug UI and the demo.",
+      "description": "Enable development mode: injects the insecure `playground` directive (debug UI, demo endpoints, anonymous subscriptions, permissive CORS). Never enable in production.",
       "type": "boolean"
     },
     "existingSecret": {

@@ -13,10 +13,17 @@ import (
 )
 
 const (
-	defaultHubURL  = "/.well-known/mercure"
-	defaultUIURL   = defaultHubURL + "/ui/"
-	defaultDemoURL = defaultUIURL + "demo/"
+	defaultHubURL   = "/.well-known/mercure"
+	defaultDebugURL = defaultHubURL + "/debug/"
 )
+
+// PlaygroundURLPrefix is the root path the insecure playground echo endpoints are
+// served under (only when the playground is enabled). It sits outside the reserved
+// /.well-known/mercure namespace, so the resources it serves are valid, subscribable
+// Mercure topics; nesting them under the hub path would make them reserved.
+//
+// INSECURE + EXPERIMENTAL. Not covered by the backward compatibility promise.
+const PlaygroundURLPrefix = "/playground/"
 
 func (h *Hub) initHandler() {
 	router := mux.NewRouter()
@@ -25,19 +32,30 @@ func (h *Hub) initHandler() {
 
 	csp := "default-src 'self'"
 
-	if h.demo {
-		router.PathPrefix(defaultDemoURL).HandlerFunc(h.Demo).Methods(http.MethodGet, http.MethodHead)
+	if h.playground {
+		router.PathPrefix(PlaygroundURLPrefix).HandlerFunc(h.Playground).Methods(http.MethodGet, http.MethodHead)
 	}
 
-	if h.ui {
-		public, err := fs.Sub(uiContent, "public")
+	if h.debugger {
+		// Register the UI's dynamic endpoints before the file server: it claims
+		// the whole defaultDebugURL prefix, so the more specific routes must come
+		// first (gorilla/mux matches in registration order).
+		router.HandleFunc(defaultDebugURL+"config.json", h.DebuggerConfigHandler).Methods(http.MethodGet, http.MethodHead)
+
+		if h.playground && h.playgroundTokenFunc != nil {
+			router.HandleFunc(defaultDebugURL+"playground-token", h.PlaygroundTokenHandler).Methods(http.MethodGet, http.MethodHead)
+		}
+
+		public, err := fs.Sub(debuggerContent, "public")
 		if err != nil {
 			panic(err)
 		}
 
-		router.PathPrefix(defaultUIURL).Handler(http.StripPrefix(defaultUIURL, http.FileServer(http.FS(public))))
+		router.PathPrefix(defaultDebugURL).Handler(http.StripPrefix(defaultDebugURL, http.FileServer(http.FS(public))))
 
-		csp += " mercure.rocks cdn.jsdelivr.net"
+		// The UI pulls its fonts and the SSE library from a single CDN; the rest
+		// is same-origin, with no inline script or style.
+		csp = "default-src 'self'; script-src 'self' cdn.jsdelivr.net; style-src 'self' cdn.jsdelivr.net; font-src cdn.jsdelivr.net"
 	}
 
 	h.registerSubscriptionHandlers(router)

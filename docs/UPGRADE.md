@@ -146,6 +146,9 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 - The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
 - `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`.
 - An unrecognized directive inside the `mercure` block is now a configuration error instead of being ignored. A typo previously disabled whatever it was meant to configure, silently, so check your `MERCURE_EXTRA_DIRECTIVES` if the hub refuses to start after the upgrade.
+- The `ui` and `demo` directives were renamed. `ui` is now `debugger`: the prod-safe debugger UI, which also moved from `/.well-known/mercure/ui/` to `/.well-known/mercure/debug/`. `demo` is now `playground` (the insecure playground: it additionally mints an all-access token prefilled in the UI, and its echo endpoints moved out of the reserved hub namespace, from `/.well-known/mercure/ui/demo/` to the root `/playground/` path, so the resources they expose are valid, subscribable topics). Because unknown directives now error, rename them in your Caddyfile.
+- `playground` now turns on the permissive dev settings it needs on its own: `anonymous`, `subscriptions`, wildcard `cors_origins`/`publish_origins`, and a prefix-less `cookie_name`, unless you set them explicitly, and redirects the site root `/` to the debugger UI. This is INSECURE; never enable `playground` in production.
+- The bundled `dev.Caddyfile` was removed. It was only the default `Caddyfile` plus `playground`, so run a development hub with the default config and `MERCURE_EXTRA_DIRECTIVES=playground` (or `debugger` for the prod-safe UI without a token). The Docker image and the Helm chart's `dev: true` value do this for you.
 
 #### Legacy non-Caddy server removed
 
@@ -190,6 +193,7 @@ respond /healthz 200
 ### Go API changes
 
 - `canReceive` / `canDispatch` are replaced by the internal authorization-detail grant logic.
+- `WithUI` is renamed `WithDebugger`, and `WithDemo` is renamed `WithPlayground`. The playground can prefill an access token via the new `WithPlaygroundTokenFunc` (INSECURE, EXPERIMENTAL).
 - `NewHub` no longer requires a resource identifier: it derives the identity from each request, resolving the origin from `NewRequestOriginContext` when an embedding server sets it, else from the request's scheme and `Host`. `WithResourceIdentifier` still pins one static value; a value ending in `/.well-known/mercure` also sets the URL Pattern base. `WithPublicURLs` restricts the hub to an allowlist of public URLs (scheme and host), returning `421` for an unlisted origin.
 
 ---

@@ -11,7 +11,6 @@ LABEL org.opencontainers.image.vendor="Kévin Dunglas"
 
 COPY mercure /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
-COPY dev.Caddyfile /etc/caddy/dev.Caddyfile
 
 # Transport-aware readiness check on the Caddy admin API (localhost:2019 by default).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \

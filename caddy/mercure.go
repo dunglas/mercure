@@ -133,11 +133,12 @@ type Mercure struct {
 	// Dispatch updates when subscriptions are created or terminated
 	Subscriptions bool `json:"subscriptions,omitempty"`
 
-	// Enable the demo.
-	Demo bool `json:"demo,omitempty"`
+	// Enable the prod-safe debugger UI at /.well-known/mercure/debug/.
+	Debugger bool `json:"debugger,omitempty"`
 
-	// Enable the UI.
-	UI bool `json:"ui,omitempty"`
+	// Enable the insecure playground (implies debugger): mints an all-access
+	// token prefilled in the UI and registers the /playground/ endpoints. Dev only.
+	Playground bool `json:"playground,omitempty"`
 
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
@@ -316,12 +317,18 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithAnonymous())
 	}
 
-	if m.Demo {
-		opts = append(opts, mercure.WithDemo())
+	if m.Playground {
+		opts = append(opts, mercure.WithPlayground())
+
+		if fn := m.playgroundTokenFunc(); fn != nil {
+			opts = append(opts, mercure.WithPlaygroundTokenFunc(fn))
+		} else if m.logger.Enabled(ctx, slog.LevelInfo) {
+			m.logger.LogAttrs(ctx, slog.LevelInfo, `Playground enabled without a symmetric signing key: the UI won't prefill a token. Paste one, or mint one with "caddy mercure-token".`)
+		}
 	}
 
-	if m.UI {
-		opts = append(opts, mercure.WithUI())
+	if m.Debugger {
+		opts = append(opts, mercure.WithDebugger())
 	}
 
 	if m.Subscriptions {
@@ -425,7 +432,24 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != mercure.ProtectedResourceMetadataPath {
+	// On a playground (dev) hub, send the site root to the debugger UI as a
+	// convenience landing page. Gated on the playground so a prod-safe debugger
+	// hub never hijacks the operator's own "/". The target mirrors the debugger
+	// UI mount in the mercure package (defaultDebugURL).
+	if m.Playground && r.URL.Path == "/" {
+		http.Redirect(w, r, defaultHubURL+"/debug/", http.StatusFound)
+
+		return nil
+	}
+
+	// The playground echo endpoints live at a root prefix (outside the reserved
+	// hub namespace so their resources are valid topics), so forward them too,
+	// but only when the playground is enabled, to avoid shadowing an operator's
+	// own routes on a hub that never serves them.
+	handled := strings.HasPrefix(r.URL.Path, defaultHubURL) ||
+		r.URL.Path == mercure.ProtectedResourceMetadataPath ||
+		(m.Playground && strings.HasPrefix(r.URL.Path, mercure.PlaygroundURLPrefix))
+	if !handled {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
@@ -439,9 +463,9 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	scheme, _ := repl.GetString("http.request.scheme")
 
 	// Pass the origin out-of-band via the context, never by mutating r.URL: the
-	// demo handler builds its rel="self" Link from r.URL.String(), which must
-	// stay a relative path. Writing scheme/host onto r.URL would corrupt that
-	// Link (and diverge under trusted_proxies).
+	// playground handler builds its rel="self" Link from r.URL.String(), which
+	// must stay a relative path. Writing scheme/host onto r.URL would corrupt
+	// that Link (and diverge under trusted_proxies).
 	m.hub.ServeHTTP(w, r.WithContext(mercure.NewRequestOriginContext(r.Context(), scheme, host)))
 
 	return nil
@@ -464,11 +488,11 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 			case "anonymous":
 				m.Anonymous = true
 
-			case "demo":
-				m.Demo = true
+			case "playground":
+				m.Playground = true
 
-			case "ui":
-				m.UI = true
+			case "debugger":
+				m.Debugger = true
 
 			case "subscriptions":
 				m.Subscriptions = true
@@ -656,6 +680,10 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 	m.assignDeprecatedTransportURLForEnv()
 
+	// Expand the playground's permissive dev defaults here, at Caddyfile-parse
+	// time, so `caddy adapt` output reflects what the hub actually runs.
+	m.applyPlaygroundDefaults()
+
 	return nil
 }
 
@@ -787,6 +815,36 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 	}
 
 	return nil
+}
+
+// applyPlaygroundDefaults fills in the permissive dev settings the insecure
+// playground needs so the `playground` directive alone (plus signing keys) yields
+// a hub fully usable from the built-in UI: anonymous subscriptions and the
+// subscriptions API are forced on (a Caddyfile boolean directive has no "off"
+// form anyway), while the cookie name and CORS/publish origins are only
+// defaulted when the operator left them unset, so an explicit setting there
+// always wins.
+//
+// INSECURE: never enable playground in production.
+func (m *Mercure) applyPlaygroundDefaults() {
+	if !m.Playground {
+		return
+	}
+
+	m.Anonymous = true
+	m.Subscriptions = true
+
+	if m.CookieName == "" {
+		m.CookieName = "mercure_access_token"
+	}
+
+	if m.CORSOrigins == nil {
+		m.CORSOrigins = []string{"*"}
+	}
+
+	if m.PublishOrigins == nil {
+		m.PublishOrigins = []string{"*"}
+	}
 }
 
 var errMissingVerifier = errors.New("a JWT key or the URL of a JWK Set must be provided")
@@ -933,6 +991,80 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 	}
 
 	return issuers, nil
+}
+
+// isHMACSigningKey reports whether c is a static symmetric (HMAC) key the hub
+// can sign with, not just verify: a raw secret with an HS* (or empty → HS256)
+// algorithm. A PEM key is asymmetric — only its public half is configured here —
+// so it can verify but never sign locally.
+func isHMACSigningKey(c JWTConfig) bool {
+	if c.Key == "" || strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+		return false
+	}
+
+	return c.Alg == "" || strings.HasPrefix(c.Alg, "HS")
+}
+
+// playgroundSigningKey picks the issuer whose token the debugger UI prefills: the first
+// one whose subscriber verifier is a static HMAC secret. pub reports whether the
+// same issuer's publisher uses that same secret, so a single token can carry
+// both the subscribe and publish grants.
+func (m *Mercure) playgroundSigningKey() (id string, sub JWTConfig, pub, ok bool) {
+	pick := func(identifier string, p, s VerifierConfig) bool {
+		if s.JWKSURL != "" || !isHMACSigningKey(s.JWT) {
+			return false
+		}
+
+		id, sub = identifier, s.JWT
+		pub = p.JWKSURL == "" && isHMACSigningKey(p.JWT) && p.JWT.Key == s.JWT.Key
+
+		return true
+	}
+
+	for i := range m.Issuers {
+		ic := &m.Issuers[i]
+		if pick(ic.Identifier, ic.Publisher, ic.Subscriber) {
+			return id, sub, pub, true
+		}
+	}
+
+	if lp, ls := m.legacyVerifiers(); pick("", lp, ls) {
+		return id, sub, pub, true
+	}
+
+	return "", JWTConfig{}, false, false
+}
+
+// playgroundTokenFunc returns the per-request minter wired into the debugger UI, or
+// nil when the hub has no symmetric key to sign a token with. The aud is filled per
+// request by the hub (the resource identifier it derived), so the token is valid
+// on whatever public URL the playground answers on.
+//
+// INSECURE + EXPERIMENTAL: the minted token grants publish and subscribe on
+// every topic. Not covered by the backward compatibility promise.
+func (m *Mercure) playgroundTokenFunc() func(string) (string, error) {
+	id, sub, pub, ok := m.playgroundSigningKey()
+	if !ok {
+		return nil
+	}
+
+	return func(resourceIdentifier string) (string, error) {
+		p := tokenParams{
+			iss:       id,
+			aud:       resourceIdentifier,
+			key:       sub.Key,
+			alg:       sub.Alg,
+			exp:       devExp,
+			subscribe: []string{"*"},
+		}
+		if pub {
+			p.publish = []string{"*"}
+		}
+
+		signed, _, _, err := mint(p)
+
+		return signed, err
+	}
 }
 
 var errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)

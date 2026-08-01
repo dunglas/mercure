@@ -532,6 +532,81 @@ func TestPublicURLs(t *testing.T) {
 	assert.Contains(t, string(b), `"resource":"http://good.example.com/.well-known/mercure"`)
 }
 
+// TestPlaygroundRootRedirectAndForwarding covers ServeHTTP's playground-gated
+// branches: the "/" -> debug UI redirect, and forwarding requests under
+// PlaygroundURLPrefix to the hub instead of the site's own routes. Neither
+// branch fires unless the playground is on.
+func TestPlaygroundRootRedirectAndForwarding(t *testing.T) {
+	const caddyfileTemplate = `
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	:9080 {
+		route {
+			mercure {
+				%s
+				issuer https://as.example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				transport local
+			}
+
+			respond * "fallback"
+		}
+	}
+	`
+
+	t.Run("playground redirects the site root to the debugger", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground\n\t\t\t\tdebugger"), "caddyfile")
+
+		resp := tester.AssertRedirect("http://localhost:9080/", "http://localhost:9080/.well-known/mercure/debug/", http.StatusFound)
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("without playground the site root is not redirected", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "debugger"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/", nil)
+		require.NoError(t, err)
+
+		resp, _ := tester.AssertResponse(req, http.StatusOK, "fallback")
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("playground echo endpoints are forwarded to the hub", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/playground/foo.jsonld", nil)
+		require.NoError(t, err)
+
+		resp := tester.AssertResponseCode(req, http.StatusOK)
+		assert.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("without playground its URL prefix falls through to the site", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "debugger"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/playground/foo.jsonld", nil)
+		require.NoError(t, err)
+
+		resp, _ := tester.AssertResponse(req, http.StatusOK, "fallback")
+		require.NoError(t, resp.Body.Close())
+	})
+}
+
 func TestAllowNoPublish(t *testing.T) {
 	AllowNoPublish = true
 
@@ -872,8 +947,8 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 	d := caddyfile.NewTestDispenser(`mercure {
 		name test
 		anonymous
-		demo
-		ui
+		playground
+		debugger
 		subscriptions
 		write_timeout 1m
 		dispatch_timeout 5s
@@ -903,6 +978,52 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 	assert.True(t, m.Anonymous)
 	assert.Equal(t, []string{"*"}, m.CORSOrigins)
 	assert.Len(t, m.Issuers, 1)
+}
+
+func TestApplyPlaygroundDefaults(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fills unset dev settings", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{Playground: true}
+		m.applyPlaygroundDefaults()
+
+		assert.True(t, m.Anonymous)
+		assert.True(t, m.Subscriptions)
+		assert.Equal(t, "mercure_access_token", m.CookieName)
+		assert.Equal(t, []string{"*"}, m.CORSOrigins)
+		assert.Equal(t, []string{"*"}, m.PublishOrigins)
+	})
+
+	t.Run("keeps explicit settings", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{
+			Playground:     true,
+			CookieName:     "__Host-token",
+			CORSOrigins:    []string{"https://example.com"},
+			PublishOrigins: []string{"https://example.com"},
+		}
+		m.applyPlaygroundDefaults()
+
+		assert.Equal(t, "__Host-token", m.CookieName)
+		assert.Equal(t, []string{"https://example.com"}, m.CORSOrigins)
+		assert.Equal(t, []string{"https://example.com"}, m.PublishOrigins)
+	})
+
+	t.Run("no-op without playground", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{}
+		m.applyPlaygroundDefaults()
+
+		assert.False(t, m.Anonymous)
+		assert.False(t, m.Subscriptions)
+		assert.Empty(t, m.CookieName)
+		assert.Nil(t, m.CORSOrigins)
+		assert.Nil(t, m.PublishOrigins)
+	})
 }
 
 // Compatibility mode relaxes access-token validation, so a leftover deprecated

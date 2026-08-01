@@ -24,18 +24,17 @@ docker run \
 
 HTTPS is on by default. Caddy issues a Let's Encrypt certificate for the configured `SERVER_NAME`. To disable HTTPS (typically when running behind a reverse proxy), set `SERVER_NAME=:80`.
 
-For local development, swap the entrypoint to load `dev.Caddyfile`, which enables anonymous subscriptions and the debug UI:
+For local development, set `MERCURE_EXTRA_DIRECTIVES=playground`, which enables anonymous subscriptions and the debug UI:
 
 ```console
 # Docker (recommended)
 docker run \
-    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_EXTRA_DIRECTIVES=playground \
     -p 80:80 -p 443:443 \
-    dunglas/mercure caddy run --config /etc/caddy/dev.Caddyfile
+    dunglas/mercure
 ```
 
-The hub is then available at `https://localhost`, with the debug UI at `https://localhost/.well-known/mercure/ui/`.
+The hub is then available at `https://localhost`, with the debug UI at `https://localhost/.well-known/mercure/debug/`.
 
 The image's `HEALTHCHECK` queries the [transport-aware](../production/health-monitoring.md) `/mercure/health/ready` endpoint on the Caddy admin API.
 
@@ -52,8 +51,8 @@ services:
       #SERVER_NAME: ':80'
       MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
       MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
-    # Uncomment to run in development mode
-    #command: /usr/bin/caddy run --config /etc/caddy/dev.Caddyfile
+      # Uncomment to run in development mode (insecure playground)
+      #MERCURE_EXTRA_DIRECTIVES: playground
     ports:
       - "80:80"
       - "443:443"
@@ -84,12 +83,11 @@ Download an archive for your OS from the [release page](https://github.com/dungl
 
 ```console
 # Mercure Hub Prebuilt Binary
-MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-./mercure run --config dev.Caddyfile
+MERCURE_EXTRA_DIRECTIVES='playground' \
+./mercure run --config Caddyfile
 ```
 
-The hub binds to `https://localhost`. To run in production mode (no anonymous subscribers, no debug UI), drop the `--config dev.Caddyfile` flag.
+The hub binds to `https://localhost`. To run in production mode (no anonymous subscribers, no debug UI), drop the `MERCURE_EXTRA_DIRECTIVES='playground'` line.
 
 **macOS users:** the binary is quarantined on first run. Strip the attribute once with `xattr -d com.apple.quarantine ./mercure`.
 
