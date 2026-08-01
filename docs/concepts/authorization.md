@@ -60,6 +60,24 @@ The hub enforces, on every token:
 
 [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) also requires issuers to populate `sub`, `client_id`, `iat`, and `jti`; include them so any RFC 9068 validator accepts your tokens. The hub uses `sub` to derive subscriber identifiers for [subscription events](active-subscriptions.md).
 
+### Minting a token
+
+`caddy mercure-token` builds one of these for you instead of hand-writing the JSON above:
+
+```console
+caddy mercure-token --dev  # matches the quickstart's local hub, zero config
+
+caddy mercure-token \
+  --iss https://example.com --aud https://hub.example.com/.well-known/mercure \
+  --key '!ChangeMe!' \
+  --publish 'https://example.com/books/1' \
+  --subscribe 'https://example.com/users/42/notifications' \
+  --subscribe-urlpattern 'https://example.com/books/:id' \
+  --payload '{"user": "https://example.com/users/42"}'
+```
+
+`--publish`/`--subscribe` grant an exact topic and may be repeated; `--publish-urlpattern`/`--subscribe-urlpattern` grant a [URL Pattern](topics-and-matchers.md) and may also be repeated — the same two matcher types as the subscribe query parameters. `--key` takes a raw secret, `@path/to/file`, `@-` to read it from stdin, or a PEM-encoded private key with `--alg` (the private counterpart of whatever public key or secret the hub's `issuer` block verifies with). Prefer `@path/to/file` or `@-` over a literal secret: an argument passed on the command line is visible to other processes on the same machine (`ps`) and lands in shell history. `sub`, `client_id`, `iat`, and `jti` are filled in automatically. Run `caddy mercure-token --help` for the full flag reference.
+
 ### Authorization details
 
 Each entry in `authorization_details` with `"type": "https://mercure.rocks/authorization-detail"` grants a set of actions over a set of topic matchers:
