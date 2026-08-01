@@ -57,7 +57,6 @@ archives:
       - LICENSE
       - README.md
       - Caddyfile
-      - dev.Caddyfile
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -79,7 +78,6 @@ dockers:
       - "--platform=linux/amd64"
     extra_files:
       - Caddyfile
-      - dev.Caddyfile
   - ids:
       - caddy
     goos: linux
@@ -94,7 +92,6 @@ dockers:
       - "--platform=linux/arm64/v8"
     extra_files:
       - Caddyfile
-      - dev.Caddyfile
 docker_manifests:
   - name_template: dunglas/mercure:{{ .Tag }}
     image_templates:

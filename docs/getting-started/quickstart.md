@@ -14,9 +14,8 @@ If you already have a hub running, jump to [Subscribe](#subscribe-to-a-mercure-t
 ```console
 # Run the Mercure Hub Locally with Docker
 docker run -p 80:80 -p 443:443 -p 443:443/udp \
-  -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-  -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-  dunglas/mercure caddy run --config /etc/caddy/dev.Caddyfile
+  -e MERCURE_EXTRA_DIRECTIVES=playground \
+  dunglas/mercure
 ```
 
 The hub is now serving on `https://localhost`.
@@ -24,10 +23,9 @@ The hub is now serving on `https://localhost`.
 What that command does:
 
 - `-p 443:443/udp`: Caddy serves HTTP/3 over QUIC on this port too. Without it, the container still starts and HTTP/1.1 and HTTP/2 both work, but clients silently fall back past HTTP/3.
-- `MERCURE_*_JWT_KEY`: the secret used to verify access tokens. Don't ship this value to production; the [installation guide](installation.md) covers proper key management.
-- `caddy run --config /etc/caddy/dev.Caddyfile`: swaps in the image's bundled development config, which turns on anonymous subscriptions, permissive CORS, and the in-browser debugger at <https://localhost/.well-known/mercure/ui/>. Drop this flag for production; the [installation guide](installation.md) covers the default config.
+- `MERCURE_EXTRA_DIRECTIVES=playground`: turns on the insecure playground, which enables anonymous subscriptions, permissive CORS, and the in-browser debugger at <https://localhost/.well-known/mercure/debug/> with a prefilled all-access token signed with a well-known default secret (no `MERCURE_*_JWT_KEY` needed). Drop it for production; the [installation guide](installation.md) covers the default config and proper key management.
 
-Because `SERVER_NAME` defaults to `localhost`, Caddy serves real HTTPS on it: an internal, self-signed certificate, since `localhost` can't get a publicly trusted one. Open <https://localhost/.well-known/mercure/ui/> in your browser and accept the certificate warning once; that's expected for local dev, and it doubles as a check that the hub is up. This also means the hub's default trusted issuer (`https://localhost`) and its derived resource identifier (`https://localhost/.well-known/mercure`) already match the demo token below, so nothing needs pinning.
+Because `SERVER_NAME` defaults to `localhost`, Caddy serves real HTTPS on it: an internal, self-signed certificate, since `localhost` can't get a publicly trusted one. Open <https://localhost/.well-known/mercure/debug/> in your browser and accept the certificate warning once; that's expected for local dev, and it doubles as a check that the hub is up. This also means the hub's default trusted issuer (`https://localhost`) and its derived resource identifier (`https://localhost/.well-known/mercure`) already match the example token below, so nothing needs pinning.
 
 > **Pro tip.** Don't want to manage a hub? [Mercure Cloud](https://mercure.rocks/pricing) has a free tier sized for prototyping. Same protocol, no infrastructure to run.
 
@@ -101,7 +99,7 @@ The bearer token is an OAuth 2.0 access token signed with the dev key above (hea
 }
 ```
 
-The `iss` matches the hub's default trusted issuer, the `aud` matches its derived resource identifier, the `typ` header is `at+jwt`, and the `publish` grant covers every topic. Generate your own at [jwt.io](https://jwt.io). Details in [Authorization](../concepts/authorization.md).
+The `iss` matches the hub's default trusted issuer, the `aud` matches its derived resource identifier, the `typ` header is `at+jwt`, and the `publish` grant covers every topic. Generate your own with `caddy mercure-token --dev` — it mints an equivalent token (the same issuer, audience, and grants, plus the `sub`/`client_id`/`iat`/`jti` claims this hub doesn't require but RFC 9068 does). Details in [Authorization](../concepts/authorization.md).
 
 ## Closing the Mercure EventSource connection
 

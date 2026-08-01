@@ -98,7 +98,7 @@ The browser's WebCrypto API can do the same without an external library if you o
 End-to-end encryption rules out a few hub-side conveniences:
 
 - **Server-side filtering on payload contents.** The hub can't introspect the data, so any matching has to be on the topic.
-- **Server-rendered debug UI.** The demo UI shows ciphertext, not plaintext.
+- **Server-rendered debug UI.** The debugger UI shows ciphertext, not plaintext.
 - **Partial updates that depend on aggregating prior state at the hub.** Any aggregation has to happen on the subscriber.
 
 The topic and the SSE metadata (event ID, type) are still visible to the hub. If you need to hide _those_ too, derive opaque topics from a secret and rotate them.

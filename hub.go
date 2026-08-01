@@ -86,19 +86,39 @@ func WithDebug() Option {
 	}
 }
 
-func WithUI() Option {
+func WithDebugger() Option {
 	return func(o *opt) error {
-		o.ui = true
+		o.debugger = true
 
 		return nil
 	}
 }
 
-// WithDemo enables the demo.
-func WithDemo() Option {
+// WithPlayground enables the playground.
+func WithPlayground() Option {
 	return func(o *opt) error {
-		o.demo = true
-		o.ui = true
+		o.playground = true
+		o.debugger = true
+
+		return nil
+	}
+}
+
+// WithPlaygroundTokenFunc sets the callback the playground UI uses to prefill an
+// access token, exposed at .well-known/mercure/debug/playground-token. The callback
+// receives the request's resource identifier (the token's aud claim, derived per
+// request so the token is valid on whatever public URL the playground answers on).
+// It has no effect unless the playground is also enabled (see WithPlayground).
+//
+// INSECURE: it hands every visitor an all-access token (publish and subscribe on
+// every topic) signed with the hub's key, so only ever configure it on a throwaway
+// playground hub. The Caddy module wires it automatically for a `playground` hub
+// that has a symmetric signing key.
+//
+// EXPERIMENTAL. Not covered by the backward compatibility promise.
+func WithPlaygroundTokenFunc(f func(resourceIdentifier string) (string, error)) Option {
+	return func(o *opt) error {
+		o.playgroundTokenFunc = f
 
 		return nil
 	}
@@ -396,8 +416,9 @@ type opt struct {
 	anonymous                    bool
 	debug                        bool
 	subscriptions                bool
-	ui                           bool
-	demo                         bool
+	debugger                     bool
+	playground                   bool
+	playgroundTokenFunc          func(resourceIdentifier string) (string, error)
 	logger                       *slog.Logger
 	writeTimeout                 time.Duration
 	dispatchTimeout              time.Duration

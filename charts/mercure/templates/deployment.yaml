@@ -83,10 +83,6 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          {{- if .Values.dev }}
-          command: ["caddy"]
-          args: ["run", "--config", "/etc/caddy/dev.Caddyfile", "--adapter", "caddyfile"]
-          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: SERVER_NAME
