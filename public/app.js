@@ -283,7 +283,15 @@ const addSubscription = (s) => {
     : "topic";
   node.querySelector(".match").textContent = modern ? s.match : s.topic;
   node.querySelector(".subscriber").textContent = s.subscriber;
-  node.querySelector("pre").textContent = JSON.stringify(s.payload, null, 2);
+
+  const pre = node.querySelector("pre");
+  if (s.payload === undefined) {
+    node.querySelector(".payload-label").remove();
+    pre.remove();
+  } else {
+    pre.textContent = JSON.stringify(s.payload, null, 2);
+  }
+
   $subscriptions.appendChild(node);
 };
 
