@@ -1073,6 +1073,7 @@ func (m *Mercure) playgroundTokenFunc() func(string) (string, error) {
 			alg:       sub.Alg,
 			exp:       devExp,
 			subscribe: []string{"*"},
+			payload:   `{"playground":true}`,
 		}
 		if pub {
 			p.publish = []string{"*"}
