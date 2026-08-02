@@ -19,6 +19,7 @@ builds:
     ldflags:
       - -X 'github.com/caddyserver/caddy/v2/modules/caddyhttp.ServerHeader=Mercure.rocks Caddy'
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
+      - -X 'github.com/caddyserver/caddy/v2.CustomBinaryName=mercure'
     tags:
       - deprecated_transport
       - deprecated_topic
