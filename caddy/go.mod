@@ -12,7 +12,7 @@ replace github.com/dunglas/mercure => ../
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/caddyserver/caddy/v2 v2.11.4
-	github.com/dunglas/mercure v1.0.0-alpha.2
+	github.com/dunglas/mercure v1.0.0-alpha.3
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/golang-jwt/jwt/v5 v5.3.1

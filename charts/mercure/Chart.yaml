@@ -13,8 +13,8 @@ keywords:
 - streaming-api
 - async-api
 type: application
-version: 1.0.0-alpha.2
-appVersion: "v1.0.0-alpha.2"
+version: 1.0.0-alpha.3
+appVersion: "v1.0.0-alpha.3"
 maintainers:
   - name: dunglas
     email: kevin@dunglas.dev
