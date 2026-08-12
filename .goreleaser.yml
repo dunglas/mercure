@@ -19,6 +19,7 @@ builds:
     ldflags:
       - -X 'github.com/caddyserver/caddy/v2/modules/caddyhttp.ServerHeader=Mercure.rocks Caddy'
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
+      - -X 'github.com/caddyserver/caddy/v2.CustomBinaryName=mercure'
     tags:
       - deprecated_transport
       - deprecated_topic
@@ -57,7 +58,6 @@ archives:
       - LICENSE
       - README.md
       - Caddyfile
-      - dev.Caddyfile
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -79,7 +79,6 @@ dockers:
       - "--platform=linux/amd64"
     extra_files:
       - Caddyfile
-      - dev.Caddyfile
   - ids:
       - caddy
     goos: linux
@@ -94,26 +93,26 @@ dockers:
       - "--platform=linux/arm64/v8"
     extra_files:
       - Caddyfile
-      - dev.Caddyfile
 docker_manifests:
   - name_template: dunglas/mercure:{{ .Tag }}
     image_templates:
       - dunglas/mercure:{{ .Tag }}-amd64
       - dunglas/mercure:{{ .Tag }}-arm64v8
-  # Rolling manifests are skipped on prereleases (name_template cannot
-  # be empty, so use skip_push instead of an {{ if }} wrap).
+  # skip_push "auto" omits the rolling manifests on prereleases; a templated
+  # "{{ .Prerelease }}" renders to the non-empty tag (e.g. "alpha.1"), which is
+  # truthy and would push them, referencing per-arch images guarded off above.
   - name_template: dunglas/mercure:v{{ .Major }}
-    skip_push: "{{ .Prerelease }}"
+    skip_push: "auto"
     image_templates:
       - dunglas/mercure:v{{ .Major }}-amd64
       - dunglas/mercure:v{{ .Major }}-arm64v8
   - name_template: dunglas/mercure:v{{ .Major }}.{{ .Minor }}
-    skip_push: "{{ .Prerelease }}"
+    skip_push: "auto"
     image_templates:
       - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64
       - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8
   - name_template: dunglas/mercure:latest
-    skip_push: "{{ .Prerelease }}"
+    skip_push: "auto"
     image_templates:
       - dunglas/mercure:latest-amd64
       - dunglas/mercure:latest-arm64v8

@@ -80,10 +80,25 @@ func (rc *responseController) flush(ctx context.Context) bool {
 func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *responseController {
 	wd := h.getWriteDeadline(s)
 
+	// Disconnect one dispatch before the write deadline so the client sees a
+	// clean end of stream instead of a failed write. That subtraction lands in
+	// the past when the deadline is nearer than dispatchTimeout — a token
+	// expiring within it, or a dispatchTimeout larger than writeTimeout — which
+	// would close the connection as soon as it opened and put the subscriber in
+	// a reconnect loop. Fall back to the deadline itself: less margin, but the
+	// subscriber gets the time its token grants. A zero deadline means no
+	// deadline at all, and SubscribeHandler then arms no timer.
+	dt := wd
+	if !wd.IsZero() {
+		if d := wd.Add(-h.dispatchTimeout); d.After(time.Now()) {
+			dt = d
+		}
+	}
+
 	return &responseController{
 		*http.NewResponseController(w), // nolint:bodyclose
 		w,
-		wd.Add(-h.dispatchTimeout),
+		dt,
 		wd,
 		h,
 		s,
@@ -195,11 +210,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			// An update counts as activity, so push the heartbeat back. Go 1.23
+			// made timer channels unbuffered and has Reset discard any pending
+			// value, so Reset alone is enough: no Stop-and-drain dance.
 			if heartbeatTimer != nil {
-				if !heartbeatTimer.Stop() {
-					<-heartbeatTimer.C
-				}
-
 				heartbeatTimer.Reset(h.heartbeat)
 			}
 
@@ -283,11 +297,9 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	addCtx := context.WithoutCancel(ctx)
-	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
 	if err := h.transport.AddSubscriber(addCtx, s); err != nil {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
-		h.dispatchSubscriptionUpdate(addCtx, s, false)
 
 		if h.logger.Enabled(ctx, slog.LevelError) {
 			h.logger.LogAttrs(ctx, slog.LevelError, "Unable to add subscriber", slog.Any("error", err))
@@ -297,6 +309,12 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 		return nil, nil
 	}
+
+	// Announce the subscription only once it exists, so a failed registration
+	// cannot publish an active:true for a subscriber that never connected and
+	// then have to take it back. shutdown() already announces termination in
+	// this order: remove first, then dispatch active:false.
+	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
 	h.sendHeaders(ctx, w, s)
 	rc := h.newResponseController(w, s)
@@ -471,7 +489,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		// escapes control characters), not attacker-controlled. Keep that
 		// invariant if this function changes.
 		u := &Update{
-			Topic:   subscription.ID,
+			Topics:  []string{subscription.ID},
 			Private: true,
 			Debug:   h.debug,
 			Event:   Event{Data: string(j), Type: reservedEventType},

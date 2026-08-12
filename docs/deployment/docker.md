@@ -39,17 +39,16 @@ docker run \
 ```console
 # Mercure Docker Development Mode
 docker run \
-    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_EXTRA_DIRECTIVES=playground \
     -p 80:80 -p 443:443 \
-    dunglas/mercure caddy run --config /etc/caddy/dev.Caddyfile
+    dunglas/mercure
 ```
 
-The dev Caddyfile turns on:
+The `playground` directive turns on:
 
-- the debug UI at `/.well-known/mercure/ui/`,
+- the debug UI at `/.well-known/mercure/debug/`, with a prefilled all-access token,
 - anonymous subscribers,
-- demo endpoints,
+- the playground's echo endpoints,
 - a permissive CORS config (`cors_origins *`).
 
 Don't expose this to the internet.

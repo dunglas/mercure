@@ -19,7 +19,7 @@ const (
 func bearerErrorHub(tb testing.TB) *Hub {
 	tb.Helper()
 
-	return createDummy(tb, WithPublicURL(testPublicURL), WithResourceIdentifier(testPublicURL))
+	return createDummy(tb, WithResourceIdentifier(testPublicURL))
 }
 
 func TestBearerChallengeNoToken(t *testing.T) {

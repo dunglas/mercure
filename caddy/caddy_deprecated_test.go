@@ -347,3 +347,72 @@ localhost:9080 {
 
 	assert.FileExists(t, "test.db")
 }
+
+// The deprecated top-level publisher_jwt directive maps to the implicit issuer,
+// which only compatibility mode accepts. With protocol_version_compatibility
+// stated explicitly, a 0.x bare-claim token still publishes.
+func TestMercureDeprecatedExplicitCompat(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`{
+	skip_install_trust
+	admin localhost:2999
+	http_port     9080
+	https_port    9443
+}
+
+localhost:9080 {
+	route {
+		mercure {
+			anonymous
+			publisher_jwt !ChangeMe!
+			protocol_version_compatibility 8
+			transport local
+		}
+
+		respond 404
+	}
+}`, "caddyfile")
+
+	var connected, received sync.WaitGroup
+
+	connected.Add(1)
+	received.Go(func() {
+		cx, cancel := context.WithCancel(t.Context())
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req = req.WithContext(cx)
+		resp := tester.AssertResponseCode(req, http.StatusOK)
+
+		connected.Done()
+
+		var receivedBody strings.Builder
+
+		buf := make([]byte, 1024)
+		for {
+			_, err := resp.Body.Read(buf)
+			require.NoError(t, err)
+
+			receivedBody.Write(buf)
+
+			if strings.Contains(receivedBody.String(), "data: bar\n") {
+				cancel()
+
+				break
+			}
+		}
+
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	connected.Wait()
+
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {"bar"}, "id": {"bar"}}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	require.NoError(t, err)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+publisherJWTDeprecated)
+
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+	require.NoError(t, resp.Body.Close())
+
+	received.Wait()
+}

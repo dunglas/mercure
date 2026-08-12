@@ -42,8 +42,8 @@ func TestBoltTransportHistory(t *testing.T) {
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Event: Event{ID: strconv.Itoa(i)},
-			Topic: topics[0],
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{topics[0]},
 		}))
 	}
 
@@ -79,7 +79,7 @@ func TestBoltTransportLogsBogusLastEventID(t *testing.T) {
 	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 	ctx := context.WithValue(t.Context(), SubscriberContextKey, &s.Subscriber)
 
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topic: topics[0]})) // make sure the db is not empty
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{topics[0]}})) // make sure the db is not empty
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 	assert.Contains(t, buf.String(), `"last_event_id":"711131"`)
 }
@@ -90,10 +90,10 @@ func TestBoltTopicMatcherHistory(t *testing.T) {
 	transport := createBoltTransport(t, 0, 0)
 	ctx := t.Context()
 
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topic: "https://example.com/subscribed", Event: Event{ID: "1"}}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topic: "https://example.com/not-subscribed", Event: Event{ID: "2"}}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topic: "https://example.com/subscribed-public-only", Private: true, Event: Event{ID: "3"}}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topic: "https://example.com/subscribed-public-only", Event: Event{ID: "4"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed"}, Event: Event{ID: "1"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/not-subscribed"}, Event: Event{ID: "2"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Event: Event{ID: "4"}}))
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicMatcherStore{})
 	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}), stringsToExactMatchers([]string{"https://example.com/subscribed"}))
@@ -113,8 +113,8 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Event: Event{ID: strconv.Itoa(i)},
-			Topic: topics[0],
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{topics[0]},
 		}))
 	}
 
@@ -148,8 +148,8 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		topics := []string{"https://example.com/foo"}
 		for i := 1; i <= 10; i++ {
 			require.NoError(t, transport.Dispatch(ctx, &Update{
-				Topic: topics[0],
-				Event: Event{ID: strconv.Itoa(i)},
+				Topics: []string{topics[0]},
+				Event:  Event{ID: strconv.Itoa(i)},
 			}))
 		}
 
@@ -174,8 +174,8 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		}()
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Event: Event{ID: "11"},
-			Topic: topics[0],
+			Event:  Event{ID: "11"},
+			Topics: []string{topics[0]},
 		}))
 
 		synctest.Wait()
@@ -189,8 +189,8 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 
 	for i := range 12 {
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Event: Event{ID: strconv.Itoa(i)},
-			Topic: "https://example.com/foo",
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{"https://example.com/foo"},
 		}))
 	}
 
@@ -238,18 +238,18 @@ func TestBoltTransportDispatch(t *testing.T) {
 
 	require.NoError(t, transport.AddSubscriber(ctx, s))
 
-	notSubscribed := &Update{Topic: "not-subscribed"}
+	notSubscribed := &Update{Topics: []string{"not-subscribed"}}
 	require.NoError(t, transport.Dispatch(ctx, notSubscribed))
 
-	subscribedNotAuthorized := &Update{Topic: "https://example.com/foo", Private: true}
+	subscribedNotAuthorized := &Update{Topics: []string{"https://example.com/foo"}, Private: true}
 	require.NoError(t, transport.Dispatch(ctx, subscribedNotAuthorized))
 
-	public := &Update{Topic: s.SubscribedMatchers[0].Pattern}
+	public := &Update{Topics: []string{s.SubscribedMatchers[0].Pattern}}
 	require.NoError(t, transport.Dispatch(ctx, public))
 
 	assert.Equal(t, public, <-s.Receive())
 
-	private := &Update{Topic: s.AllowedPrivateMatchers[0].Pattern, Private: true}
+	private := &Update{Topics: []string{s.AllowedPrivateMatchers[0].Pattern}, Private: true}
 	require.NoError(t, transport.Dispatch(ctx, private))
 
 	assert.Equal(t, private, <-s.Receive())
@@ -270,7 +270,7 @@ func TestBoltTransportClosed(t *testing.T) {
 	require.NoError(t, transport.Close(ctx))
 	require.Error(t, transport.AddSubscriber(ctx, s))
 
-	assert.Equal(t, transport.Dispatch(ctx, &Update{Topic: s.SubscribedMatchers[0].Pattern}), ErrClosedTransport)
+	assert.Equal(t, transport.Dispatch(ctx, &Update{Topics: []string{s.SubscribedMatchers[0].Pattern}}), ErrClosedTransport)
 
 	_, ok := <-s.Receive()
 	assert.False(t, ok)
@@ -357,4 +357,101 @@ func TestBoltLastEventID(t *testing.T) {
 
 	lastEventID, _, _ := transport.GetSubscribers(t.Context())
 	assert.Equal(t, "foo", lastEventID)
+}
+
+// cleanup_frequency is documented as the probability of running a cleanup pass
+// on each publish, so a higher value must clean more often, not less.
+func TestBoltTransportCleanupFrequencyIsAProbability(t *testing.T) {
+	t.Parallel()
+
+	const samples = 20000
+
+	for _, tc := range []struct {
+		frequency float64
+		want      float64
+	}{
+		{frequency: 0, want: 0},
+		{frequency: 0.1, want: 0.1},
+		{frequency: 0.3, want: 0.3},
+		{frequency: 0.9, want: 0.9},
+		{frequency: 1, want: 1},
+	} {
+		t.Run(strconv.FormatFloat(tc.frequency, 'f', -1, 64), func(t *testing.T) {
+			t.Parallel()
+
+			transport := &BoltTransport{size: 5, cleanupFrequency: tc.frequency}
+
+			var runs int
+
+			for range samples {
+				// lastID is past the size limit, so only the probability decides.
+				if transport.shouldCleanup(100) {
+					runs++
+				}
+			}
+
+			assert.InDelta(t, tc.want, float64(runs)/samples, 0.02)
+		})
+	}
+}
+
+func TestBoltTransportCleanupSkippedWithinSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	// Always-on frequency, but the history has not reached the limit yet.
+	transport := &BoltTransport{size: 5, cleanupFrequency: 1}
+	assert.False(t, transport.shouldCleanup(5))
+	assert.True(t, transport.shouldCleanup(6))
+
+	// An unlimited history is never cleaned.
+	unlimited := &BoltTransport{size: 0, cleanupFrequency: 1}
+	assert.False(t, unlimited.shouldCleanup(1_000_000))
+}
+
+// A requested Last-Event-ID that is not in the history means nothing was
+// replayed, so there is no "event preceding the first one sent". The response
+// cursor must be the reserved "earliest" value rather than the newest id seen
+// while searching, which the subscriber never received.
+func TestBoltTransportUnknownLastEventIDReportsEarliest(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	for i := range 5 {
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{"https://example.com/foo"},
+		}))
+	}
+
+	s := NewLocalSubscriber("does-not-exist", transport.logger, &TopicMatcherStore{})
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/foo"}}, nil)
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	assert.Equal(t, EarliestLastEventID, <-s.responseLastEventID)
+
+	s.Disconnect()
+}
+
+// A known id is echoed back: the subscriber already has it, and it really is
+// the event preceding the first one replayed.
+func TestBoltTransportKnownLastEventIDIsEchoed(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	for i := range 5 {
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			Event:  Event{ID: strconv.Itoa(i)},
+			Topics: []string{"https://example.com/foo"},
+		}))
+	}
+
+	s := NewLocalSubscriber("2", transport.logger, &TopicMatcherStore{})
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/foo"}}, nil)
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	assert.Equal(t, "2", <-s.responseLastEventID)
+
+	s.Disconnect()
 }

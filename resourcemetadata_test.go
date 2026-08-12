@@ -82,8 +82,8 @@ func TestProtectedResourceMetadataAdvertisesSubscriptions(t *testing.T) {
 	assert.True(t, metadata.MercureSubscriptions)
 }
 
-func TestProtectedResourceMetadataDefaultsToPublicURL(t *testing.T) {
-	hub := createDummy(t, WithPublicURL("https://example.com/.well-known/mercure"))
+func TestProtectedResourceMetadataUsesResourceIdentifier(t *testing.T) {
+	hub := createDummy(t, WithResourceIdentifier("https://example.com/.well-known/mercure"))
 
 	req := httptest.NewRequest(http.MethodGet, protectedResourceMetadataPath, nil)
 	w := httptest.NewRecorder()
@@ -97,6 +97,31 @@ func TestProtectedResourceMetadataDefaultsToPublicURL(t *testing.T) {
 
 	assert.Equal(t, "https://example.com/.well-known/mercure", metadata.Resource)
 	assert.Empty(t, metadata.AuthorizationServers)
+}
+
+// With no static resource identifier configured, the metadata resource is
+// derived from the request origin, so a hub reachable through several public
+// URLs presents each caller the identity of the host it contacted.
+func TestProtectedResourceMetadataDerivedFromRequest(t *testing.T) {
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	hub, err := NewHub(t.Context(), testIssuerOption(), WithTopicMatcherStore(tms))
+	require.NoError(t, err)
+
+	for _, host := range []string{"https://a.example.com", "https://b.example.com"} {
+		req := httptest.NewRequest(http.MethodGet, host+protectedResourceMetadataPath, nil)
+		w := httptest.NewRecorder()
+		hub.ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		var metadata protectedResourceMetadata
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&metadata))
+
+		assert.Equal(t, host+"/.well-known/mercure", metadata.Resource)
+	}
 }
 
 func TestProtectedResourceMetadataNotRegisteredWhenAnonymousWithoutKeys(t *testing.T) {

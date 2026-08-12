@@ -11,10 +11,10 @@
     <maven.compiler.release>11</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <gatling.version>3.15.1</gatling.version>
-    <gatling-maven-plugin.version>4.21.8</gatling-maven-plugin.version>
+    <gatling-maven-plugin.version>4.21.10</gatling-maven-plugin.version>
     <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
     <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
-    <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
+    <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
     <scala-maven-plugin.version>4.9.10</scala-maven-plugin.version>
   </properties>
 

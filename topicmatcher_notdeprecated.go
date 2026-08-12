@@ -7,3 +7,9 @@ package mercure
 func (tms *TopicMatcherStore) matchDeprecated([]string, TopicMatcher) bool {
 	return false
 }
+
+// deprecatedMatcherTypeCompiled is the stub compiled without the
+// deprecated_topic build tag: the v8 matcher-type code is not in the binary.
+func deprecatedMatcherTypeCompiled() bool {
+	return false
+}

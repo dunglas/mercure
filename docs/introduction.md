@@ -16,6 +16,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 - **Native browser support.** No SDK. The `EventSource` API ships in every modern browser; on the server, any HTTP client can publish.
 - **HTTP/2+ multiplexing.** One TCP connection carries every subscription a client opens, plus the rest of your app traffic.
 - **Built-in reconnection and replay.** Clients reconnect automatically and resume from the last event they saw. The hub's history buffer fills the gap.
+- **Presence.** The hub publishes an event every time someone subscribes or unsubscribes, so "who's online" and "who's viewing this document" work without a separate service. ([Details](concepts/active-subscriptions.md))
 - **JWT authorization.** Sign tokens with the matchers a publisher or subscriber is allowed to use. The hub enforces them.
 - **Hypermedia-friendly.** Topics are URLs. The protocol works with REST, GraphQL, JSON-LD, and HTML over the wire (Hotwire, htmx).
 - **Encryption support.** Updates can be JWE-encrypted end-to-end, so even the hub operator cannot read them.
@@ -33,7 +34,7 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 
 **vs. WebSockets.** WebSocket is a low-level transport; you still need to design framing, authorization, reconnection, replay, and presence. Mercure gives you all of that on top of HTTP/2, which most infrastructure already understands. For request/response inside the same connection, just use a regular `POST`: HTTP/2 already multiplexes it.
 
-**vs. Pusher / Ably / Firebase / Supabase Realtime.** These are SaaS-only. Mercure is a protocol with an open-source reference hub: you own the data and the connections, and you can run it on your own infrastructure if compliance demands it. The free Mercure.rocks Hub has **unlimited connections and an unlimited history buffer**, bound only by the hardware you give it.
+**vs. Pusher / Ably / Firebase / Supabase Realtime.** These are SaaS-only. Mercure is a protocol, not a vendor: run the open-source hub yourself, or use [Mercure Cloud](https://mercure.rocks/pricing) if you'd rather not manage infrastructure. Either way the wire format is the same, so you're not locked into a proprietary SDK, and switching between self-hosted and Cloud is a config change, not a rewrite. The free self-hosted Hub has **unlimited connections and an unlimited history buffer**, bound only by the hardware you give it. See the [pricing comparison](production/high-availability.md#mercure-vs-pusher-and-ably-pricing-comparison) for the numbers.
 
 **vs. WebSub.** WebSub is server-to-server only. Mercure does server-to-server, server-to-client, and client-to-client over the same primitive.
 

@@ -18,7 +18,6 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | Matcher types             | URI Template, string, plus exploratory types                       | `exact` and `urlpattern` only                                                  |
 | Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `match_urlpattern=<pattern>` (case-sensitive)               |
 | Templating language       | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org))                    |
-| Topics per update         | Canonical + alternates                                             | Exactly one                                                                    |
 | Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `iss`, `aud`, `authorization_details`   |
 | Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries with the Mercure `type` URI (see below)        |
 | Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `__Secure-mercure_access_token` cookie; no query parameter (RFC 9700)          |
@@ -41,7 +40,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 
 - The exact-match parameter is `match` (explicit spelling: `match_exact`); the templated one is `match_urlpattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
 - Parameter names are **case-sensitive**. Any other name under the `match` prefix is rejected with `400`, so typos fail loudly.
-- The `Regexp`, `CEL`, and `URI Template` matcher types are gone. Rewrite `Regexp`/CEL filters as URL Patterns or exact topics. URI Templates survive only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`.
+- The `URI Template` matcher type is gone; it survives only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`. Rewrite templated topics as URL Patterns and string topics as exact topics.
 
 ### Migrate your tokens
 
@@ -122,12 +121,11 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 - `?topic=` / `&topic=` in subscriber URLs -> `match=` (or `match_urlpattern=` if templated)
 - URI Template syntax in subscribe URLs (`{id}`) -> URL Pattern syntax (`:id`)
-- `Regexp` / CEL subscribe filters -> URL Patterns or exact topics
 - `"mercure": { "publish": [...] }` in issuer code -> `authorization_details` with `actions: ["publish"]`
 - `"mercure": { "subscribe": [...] }` -> `authorization_details` with `actions: ["subscribe"]`
 - `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
-- A second `topic=` on a publish request -> publish to one topic; scope per-user access in the token
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
+- `Last-Event-ID` read from a **response** -> `Mercure-Last-Event-ID` (the request header keeps its name; see [Reconnection and history](concepts/reconnection-and-history.md))
 
 - JSON-LD subscription documents (`application/ld+json`, `@context`) -> plain JSON served as `application/json`
 - `type` values lowercased: `Subscription` -> `subscription`, `Subscriptions` -> `subscriptions`
@@ -135,18 +133,35 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 ### Hub configuration changes
 
-- Set `resource_identifier` (or `public_url`) to the audience your tokens carry; it's required when JWT auth is enabled in modern mode. The official Caddyfile defaults it to `https://localhost/.well-known/mercure`.
+#### New in 1.0 (nothing to migrate)
+
+`resource_identifier`, `public_urls`, and RFC 9728 discovery have no 0.x equivalent. There's no prior config to translate here, only something new to configure if you want it.
+
+- The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity.
+
+#### Changed configuration
+
 - Declare your token issuer with an `issuer <id> { ... }` block binding the `iss` value your tokens carry to its `publisher`/`subscriber` verifier (`jwt` or `jwks_uri`); it's required when JWT auth is enabled in modern mode. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys.
-- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode; migrate them into an `issuer` block for modern mode.
+- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
 - The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
-- `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`. The legacy non-Caddy server is removed.
+- `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`.
+- An unrecognized directive inside the `mercure` block is now a configuration error instead of being ignored. A typo previously disabled whatever it was meant to configure, silently, so check your `MERCURE_EXTRA_DIRECTIVES` if the hub refuses to start after the upgrade.
+- The `ui` and `demo` directives were renamed. `ui` is now `debugger`: the prod-safe debugger UI, which also moved from `/.well-known/mercure/ui/` to `/.well-known/mercure/debug/`. `demo` is now `playground` (the insecure playground: it additionally mints an all-access token prefilled in the UI, and its echo endpoints moved out of the reserved hub namespace, from `/.well-known/mercure/ui/demo/` to the root `/playground/` path, so the resources they expose are valid, subscribable topics). Because unknown directives now error, rename them in your Caddyfile.
+- `playground` now turns on the permissive dev settings it needs on its own: `anonymous`, `subscriptions`, wildcard `cors_origins`/`publish_origins`, and a prefix-less `cookie_name`, unless you set them explicitly, and redirects the site root `/` to the debugger UI. This is INSECURE; never enable `playground` in production.
+- The bundled `dev.Caddyfile` was removed. It was only the default `Caddyfile` plus `playground`, so run a development hub with the default config and `MERCURE_EXTRA_DIRECTIVES=playground` (or `debugger` for the prod-safe UI without a token). The Docker image and the Helm chart's `dev: true` value do this for you.
+
+#### Legacy non-Caddy server removed
+
+The standalone non-Caddy binary is gone. It's been deprecated since Mercure 0.11, when the Caddy module became the primary hub, so this shouldn't affect anyone still on a supported setup. If you're still running it: switch to the Caddy-based binary or Docker image everyone else already uses (see [Installation](getting-started/installation.md)). There's no flag-for-flag migration to give, because this isn't a config change, it's a different binary. [Compatibility mode](#compatibility-mode) restores 0.x _protocol_ behaviors on the Caddy-based hub only; it doesn't bring the removed binary back.
 
 ### Compatibility mode
 
 0.x behaviors are gated behind two build tags, honored only with `protocol_version_compatibility 8`:
 
-- `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, alternate topics, the `/subscriptions/{topic}` routes.
-- `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt` / `aud`.
+- `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, the `/subscriptions/{topic}` routes. Canonical and alternate topics (repeated `topic=` publish fields) are a modern-mode feature, not gated by this tag; see [Alternate topics](concepts/topics-and-matchers.md#alternate-topics).
+- `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt`, `aud`, `exp` or a matching `iss`.
+
+Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
 Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
 
@@ -154,14 +169,13 @@ Official binaries and Docker images ship with both tags, so you can run `protoco
 
 The official Caddyfile dropped two directives that only serve 0.x clients. Add them back to your Caddyfile when running compatibility mode.
 
-0.x clients pass tokens in the `authorization` and `access_token` query parameters, so keep them out of logs by restoring the log filter inside the site block:
+0.x clients pass the token in the `authorization` query parameter, so keep it out of logs by restoring the log filter inside the site block:
 
 ```caddyfile
 log {
   format filter {
     fields {
       request>uri query {
-        replace access_token REDACTED
         replace authorization REDACTED
       }
     }
@@ -178,9 +192,9 @@ respond /healthz 200
 
 ### Go API changes
 
-- `Update.Topics` becomes `Update.Topic` (a single topic).
 - `canReceive` / `canDispatch` are replaced by the internal authorization-detail grant logic.
-- `NewHub` requires a resource identifier (set `WithResourceIdentifier` or `WithPublicURL`) when JWT auth is enabled in modern mode.
+- `WithUI` is renamed `WithDebugger`, and `WithDemo` is renamed `WithPlayground`. The playground can prefill an access token via the new `WithPlaygroundTokenFunc` (INSECURE, EXPERIMENTAL).
+- `NewHub` no longer requires a resource identifier: it derives the identity from each request, resolving the origin from `NewRequestOriginContext` when an embedding server sets it, else from the request's scheme and `Host`. `WithResourceIdentifier` still pins one static value; a value ending in `/.well-known/mercure` also sets the URL Pattern base. `WithPublicURLs` restricts the hub to an allowlist of public URLs (scheme and host), returning `421` for an unlisted origin.
 
 ---
 
@@ -192,14 +206,12 @@ The entries below describe earlier upgrades. They are kept for users migrating a
 
 When Mercure is compiled manually or used as a Go library, deprecated features are no longer included by default.
 
-To re-enable deprecated transports, pass the `deprecated_transports` build tag when compiling Mercure:
+To re-enable deprecated transports, pass the `deprecated_transport` build tag when compiling Mercure:
 
 ```console
 # Mercure 0.21 Upgrade Notes
 go build -tags deprecated_transport
 ```
-
-To re-enable the legacy HTTP server, pass the `deprecated_server` build tag.
 
 Official binaries and Docker images still include deprecated features.
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddytest"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -482,6 +485,129 @@ func TestMaxRequestBodySize(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 }
 
+// On a catch-all site block, public_urls rejects an unlisted origin with 421;
+// an allowed origin reaches the hub, which derives its identity from that host.
+func TestPublicURLs(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	:9080 {
+		route {
+			mercure {
+				issuer https://as.example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				public_urls http://good.example.com
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	metadataPath := "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure"
+
+	req, _ := http.NewRequest(http.MethodGet, metadataPath, nil)
+	req.Host = "bad.example.com"
+	resp := tester.AssertResponseCode(req, http.StatusMisdirectedRequest)
+	require.NoError(t, resp.Body.Close())
+
+	req, _ = http.NewRequest(http.MethodGet, metadataPath, nil)
+	req.Host = "good.example.com"
+	resp = tester.AssertResponseCode(req, http.StatusOK)
+
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), `"resource":"http://good.example.com/.well-known/mercure"`)
+}
+
+// TestPlaygroundRootRedirectAndForwarding covers ServeHTTP's playground-gated
+// branches: the "/" -> debug UI redirect, and forwarding requests under
+// PlaygroundURLPrefix to the hub instead of the site's own routes. Neither
+// branch fires unless the playground is on.
+func TestPlaygroundRootRedirectAndForwarding(t *testing.T) {
+	const caddyfileTemplate = `
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	:9080 {
+		route {
+			mercure {
+				%s
+				issuer https://as.example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				transport local
+			}
+
+			respond * "fallback"
+		}
+	}
+	`
+
+	t.Run("playground redirects the site root to the debugger", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground\n\t\t\t\tdebugger"), "caddyfile")
+
+		resp := tester.AssertRedirect("http://localhost:9080/", "http://localhost:9080/.well-known/mercure/debug/", http.StatusFound)
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("without playground the site root is not redirected", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "debugger"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/", nil)
+		require.NoError(t, err)
+
+		resp, _ := tester.AssertResponse(req, http.StatusOK, "fallback")
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("playground echo endpoints are forwarded to the hub", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/playground/foo.jsonld", nil)
+		require.NoError(t, err)
+
+		resp := tester.AssertResponseCode(req, http.StatusOK)
+		assert.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("without playground its URL prefix falls through to the site", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "debugger"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/playground/foo.jsonld", nil)
+		require.NoError(t, err)
+
+		resp, _ := tester.AssertResponse(req, http.StatusOK, "fallback")
+		require.NoError(t, resp.Body.Close())
+	})
+}
+
 func TestAllowNoPublish(t *testing.T) {
 	AllowNoPublish = true
 
@@ -744,4 +870,270 @@ func TestMultiIssuerPublish(t *testing.T) {
 	// Issuer A signed with key B is rejected: keys are not pooled across issuers.
 	resp = tester.AssertResponseCode(publish(mint([]byte("key-b"), "https://a.example")), http.StatusUnauthorized)
 	require.NoError(t, resp.Body.Close())
+}
+
+func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
+	t.Parallel()
+
+	const pem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----"
+
+	for _, tc := range []struct {
+		name    string
+		key     string
+		alg     string
+		wantAlg string
+		wantErr error
+	}{
+		{name: "raw secret without algorithm defaults to HS256", key: "!ChangeMe!", wantAlg: defaultJWTAlgorithm},
+		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
+		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
+		{name: "PEM key without an algorithm", key: pem, wantErr: errPEMKeyMissingAlgorithm},
+		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantErr: errPEMKeyHMACAlgorithm},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &JWTConfig{Key: tc.key, Alg: tc.alg}
+
+			err := normalizeJWT(caddy.NewReplacer(), c, "", "publisher")
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				assert.ErrorContains(t, err, "publisher")
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantAlg, c.Alg)
+		})
+	}
+}
+
+// An unset MERCURE_*_JWT_ALG placeholder must not silently turn a PEM key into
+// an HMAC secret: the shipped Caddyfile pairs both as placeholders.
+func TestNormalizeJWTPEMKeyWithUnsetAlgPlaceholder(t *testing.T) {
+	c := &JWTConfig{Key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----", Alg: "{env.MERCURE_TEST_UNSET_ALG}"}
+
+	err := normalizeJWT(caddy.NewReplacer(), c, "", "subscriber")
+	require.ErrorIs(t, err, errPEMKeyMissingAlgorithm)
+	assert.ErrorContains(t, err, "subscriber")
+}
+
+func TestUnmarshalCaddyfileRejectsUnknownDirective(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		block   string
+		wantErr string
+	}{
+		{name: "typo of a boolean directive", block: "anonymus", wantErr: `unknown mercure directive "anonymus"`},
+		{name: "typo of cors_origins", block: "cors_origin *", wantErr: `unknown mercure directive "cors_origin"`},
+		{name: "typo of publish_origins", block: "publish_origin *", wantErr: `unknown mercure directive "publish_origin"`},
+		{name: "wholly unknown directive", block: "totally_bogus foo bar", wantErr: `unknown mercure directive "totally_bogus"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := caddyfile.NewTestDispenser("mercure {\n\t" + tc.block + "\n}")
+
+			require.ErrorContains(t, new(Mercure).UnmarshalCaddyfile(d), tc.wantErr)
+		})
+	}
+}
+
+func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
+	t.Parallel()
+
+	d := caddyfile.NewTestDispenser(`mercure {
+		name test
+		anonymous
+		playground
+		debugger
+		subscriptions
+		write_timeout 1m
+		dispatch_timeout 5s
+		heartbeat 40s
+		max_request_body_size 1MB
+		cookie_name mercure_access_token
+		cors_origins *
+		publish_origins *
+		public_urls https://example.com
+		resource_identifier https://example.com/.well-known/mercure
+		topic_matcher_cache 10
+		subscriber_list_cache_size 10
+		protocol_version_compatibility 8
+		issuer https://example.com {
+			authorization_server
+			publisher {
+				jwt !ChangeMe!
+			}
+			subscriber {
+				jwt !ChangeMe!
+			}
+		}
+	}`)
+
+	m := new(Mercure)
+	require.NoError(t, m.UnmarshalCaddyfile(d))
+	assert.True(t, m.Anonymous)
+	assert.Equal(t, []string{"*"}, m.CORSOrigins)
+	assert.Len(t, m.Issuers, 1)
+}
+
+func TestApplyPlaygroundDefaults(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fills unset dev settings", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{Playground: true}
+		m.applyPlaygroundDefaults()
+
+		assert.True(t, m.Anonymous)
+		assert.True(t, m.Subscriptions)
+		assert.Equal(t, "mercure_access_token", m.CookieName)
+		assert.Equal(t, []string{"*"}, m.CORSOrigins)
+		assert.Equal(t, []string{"*"}, m.PublishOrigins)
+	})
+
+	t.Run("keeps explicit settings", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{
+			Playground:     true,
+			CookieName:     "__Host-token",
+			CORSOrigins:    []string{"https://example.com"},
+			PublishOrigins: []string{"https://example.com"},
+		}
+		m.applyPlaygroundDefaults()
+
+		assert.Equal(t, "__Host-token", m.CookieName)
+		assert.Equal(t, []string{"https://example.com"}, m.CORSOrigins)
+		assert.Equal(t, []string{"https://example.com"}, m.PublishOrigins)
+	})
+
+	t.Run("no-op without playground", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{}
+		m.applyPlaygroundDefaults()
+
+		assert.False(t, m.Anonymous)
+		assert.False(t, m.Subscriptions)
+		assert.Empty(t, m.CookieName)
+		assert.Nil(t, m.CORSOrigins)
+		assert.Nil(t, m.PublishOrigins)
+	})
+}
+
+func TestPopulateJWTConfigDefaultsPlaygroundKey(t *testing.T) {
+	t.Parallel()
+
+	ctx := caddy.Context{Context: context.Background()}
+	discardLogger := slog.New(slog.DiscardHandler)
+
+	t.Run("defaults both roles when nothing is configured", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Issuers:    []IssuerConfig{{Identifier: "https://localhost"}},
+			logger:     discardLogger,
+		}
+		require.NoError(t, m.populateJWTConfig(ctx))
+
+		want := JWTConfig{Key: devKeyFallback, Alg: defaultJWTAlgorithm}
+		assert.Equal(t, want, m.Issuers[0].Publisher.JWT)
+		assert.Equal(t, want, m.Issuers[0].Subscriber.JWT)
+	})
+
+	t.Run("an explicit key on either role prevents defaulting", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Anonymous:  true, // sidesteps the unrelated missing-subscriber error
+			Issuers: []IssuerConfig{{
+				Identifier: "https://localhost",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: "custom-key"}},
+			}},
+			logger: discardLogger,
+		}
+		require.NoError(t, m.populateJWTConfig(ctx))
+
+		assert.Equal(t, "custom-key", m.Issuers[0].Publisher.JWT.Key)
+		assert.Empty(t, m.Issuers[0].Subscriber.JWT.Key)
+	})
+
+	t.Run("no-op without playground", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{Issuers: []IssuerConfig{{Identifier: "https://localhost"}}, logger: discardLogger}
+		require.ErrorIs(t, m.populateJWTConfig(ctx), errMissingVerifier)
+		assert.Empty(t, m.Issuers[0].Publisher.JWT.Key)
+	})
+
+	t.Run("does not guess among several issuers", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Issuers: []IssuerConfig{
+				{Identifier: "https://a.example.com"},
+				{Identifier: "https://b.example.com"},
+			},
+			logger: discardLogger,
+		}
+		require.ErrorIs(t, m.populateJWTConfig(ctx), errMissingVerifier)
+		assert.Empty(t, m.Issuers[0].Publisher.JWT.Key)
+		assert.Empty(t, m.Issuers[1].Publisher.JWT.Key)
+	})
+}
+
+// Compatibility mode relaxes access-token validation, so a leftover deprecated
+// JWT directive must not switch it on by itself.
+func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		mercure       Mercure
+		wantRejection bool
+	}{
+		{
+			name:          "legacy publisher key without compatibility mode",
+			mercure:       Mercure{PublisherJWT: JWTConfig{Key: "!ChangeMe!"}},
+			wantRejection: true,
+		},
+		{
+			name:          "legacy subscriber JWK Set without compatibility mode",
+			mercure:       Mercure{SubscriberJWKSURL: "https://example.com/jwks.json"},
+			wantRejection: true,
+		},
+		{
+			name:    "legacy publisher key with compatibility mode",
+			mercure: Mercure{PublisherJWT: JWTConfig{Key: "!ChangeMe!"}, ProtocolVersionCompatibility: 8},
+		},
+		{
+			name: "issuer block only",
+			mercure: Mercure{Issuers: []IssuerConfig{{
+				Identifier: "https://example.com",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: "!ChangeMe!"}},
+			}}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tc.mercure.checkLegacyVerifiers()
+			if !tc.wantRejection {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.ErrorIs(t, err, errLegacyVerifiersNeedCompatibility)
+		})
+	}
 }

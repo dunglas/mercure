@@ -76,8 +76,8 @@ func TestStop(t *testing.T) {
 			}
 
 			assert.NoError(t, hub.transport.Dispatch(ctx, &Update{
-				Topic: "https://example.com/foo",
-				Event: Event{Data: "Hello World"},
+				Topics: []string{"https://example.com/foo"},
+				Event:  Event{Data: "Hello World"},
 			}))
 
 			assert.NoError(t, hub.Stop(ctx))
@@ -246,14 +246,14 @@ func TestWithDebug(t *testing.T) {
 	require.True(t, op.debug)
 }
 
-func TestWithUI(t *testing.T) {
+func TestWithDebugger(t *testing.T) {
 	t.Parallel()
 
 	op := &opt{}
 
-	o := WithUI()
+	o := WithDebugger()
 	require.NoError(t, o(op))
-	require.True(t, op.ui)
+	require.True(t, op.debugger)
 }
 
 func TestOriginsValidator(t *testing.T) {
@@ -308,7 +308,7 @@ func TestOriginsValidator(t *testing.T) {
 func TestSecurityHeaders(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t, WithSubscriptions(), WithCORSOrigins([]string{"https://example.com"}), WithDemo())
+	hub := createAnonymousDummy(t, WithSubscriptions(), WithCORSOrigins([]string{"https://example.com"}), WithPlayground())
 
 	form := url.Values{}
 	form.Add("id", "id")
@@ -329,7 +329,7 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, "default-src 'self' mercure.rocks cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "default-src 'self'; script-src 'self' cdn.jsdelivr.net; style-src 'self' cdn.jsdelivr.net; font-src cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
@@ -487,14 +487,13 @@ func TestNewHubRejectsEmptyIssuerIdentifier(t *testing.T) {
 }
 
 // A resource identifier that is the full hub URL doubles as the URL Pattern
-// base when no public URL is configured.
+// base.
 func TestNewHubDerivesPatternBaseFromResourceIdentifier(t *testing.T) {
 	t.Parallel()
 
 	h, err := NewHub(t.Context(), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
 	assert.Equal(t, testResourceIdentifier, h.topicMatcherStore.baseURL)
-	assert.Equal(t, testResourceIdentifier, h.publicURL)
 }
 
 // A key function configured without an explicit algorithm allowlist gets the

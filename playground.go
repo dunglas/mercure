@@ -13,16 +13,16 @@ import (
 
 const hubLink = "<" + defaultHubURL + `>; rel="mercure"`
 
-// uiContent is our static web server content.
+// debuggerContent is our static web server content.
 //
 //go:embed public
-var uiContent embed.FS
+var debuggerContent embed.FS
 
-// Demo exposes INSECURE Demo endpoints to test discovery and authorization mechanisms.
+// Playground exposes INSECURE endpoints to test discovery and authorization mechanisms.
 // Add a query parameter named "body" to define the content to return in the response's body.
 // Add a query parameter named "jwt" to set the authorization cookie (see WithCookieName) containing this token.
 // The Content-Type header will automatically be set according to the URL's extension.
-func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
+func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
 	// JSON-LD is the preferred format
 	_ = mime.AddExtensionType(".jsonld", "application/ld+json")
 	url := r.URL.String()
@@ -45,7 +45,7 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 		header["Content-Type"] = []string{mimeType}
 	}
 
-	// Secure / HttpOnly are conditional on TLS so the demo keeps working
+	// Secure / HttpOnly are conditional on TLS so the playground keeps working
 	// when served over plain HTTP locally (with a prefix-less cookie name);
 	// gosec wants them unconditional. A "__Secure-" prefixed name requires
 	// the Secure attribute regardless, or user agents drop the cookie.
@@ -70,7 +70,7 @@ func (h *Hub) Demo(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write demo response", slog.Any("error", err))
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write playground response", slog.Any("error", err))
 		}
 	}
 }

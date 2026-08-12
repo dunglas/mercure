@@ -1,336 +1,398 @@
-"use strict";
+import { fetchEventSource } from "https://cdn.jsdelivr.net/npm/@microsoft/fetch-event-source@2/+esm";
 
-/* eslint-env browser */
-/* global EventSourcePolyfill */
+const origin = window.location.origin;
+const hubBase = `${origin}/.well-known/mercure`;
+// The playground echo endpoints live at a root prefix, outside the reserved
+// /.well-known/mercure namespace, so the resources they expose are valid topics.
+const playgroundBase = `${origin}/playground/`;
 
-(function () {
-  const origin = window.location.origin;
-  const defaultTopic = document.URL + "demo/books/1.jsonld";
-  const placeholderTopic = "https://example.com/my-private-topic";
+// Example topics, one per matcher, kept out of the hub's reserved
+// /.well-known/mercure namespace so they are publishable and subscribable.
+const DEFAULTS = {
+  match: "https://example.com/books/1",
+  match_urlpattern: "https://example.com/books/:id",
+};
+const DEFAULT_TOPICS = new Set(Object.values(DEFAULTS));
 
-  // RFC 9068 access token (typ: at+jwt, aud: the hub resource identifier).
-  // Signed with `!ChangeThisMercureHubJWTSecretKey!`.
-  //
-  // {
-  //   "aud": "https://localhost/.well-known/mercure",
-  //   "exp": 4102444800,
-  //   "authorization_details": [
-  //     { "type": "mercure", "actions": ["publish"], "topics": [{ "match": "*" }] },
-  //     {
-  //       "type": "mercure",
-  //       "actions": ["subscribe"],
-  //       "topics": [
-  //         { "match": "https://example.com/my-private-topic" },
-  //         { "match": "https://example.com/demo/books/:id.jsonld", "match_type": "urlpattern" },
-  //         { "match": "/.well-known/mercure/subscriptions{/:matchType}?{/:match}?{/:subscriber}?", "match_type": "urlpattern" }
-  //       ],
-  //       "payload": { "user": "https://example.com/users/dunglas", "remoteAddr": "127.0.0.1" }
-  //     }
-  //   ]
-  // }
-  const defaultJwt =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJtZXJjdXJlIn0seyJhY3Rpb25zIjpbInN1YnNjcmliZSJdLCJwYXlsb2FkIjp7InJlbW90ZUFkZHIiOiIxMjcuMC4wLjEiLCJ1c2VyIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS91c2Vycy9kdW5nbGFzIn0sInRvcGljcyI6W3sibWF0Y2giOiJodHRwczovL2V4YW1wbGUuY29tL215LXByaXZhdGUtdG9waWMifSx7Im1hdGNoIjoiaHR0cHM6Ly9leGFtcGxlLmNvbS9kZW1vL2Jvb2tzLzppZC5qc29ubGQiLCJtYXRjaF90eXBlIjoidXJscGF0dGVybiJ9LHsibWF0Y2giOiIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey86bWF0Y2hUeXBlfT97LzptYXRjaH0_ey86c3Vic2NyaWJlcn0_IiwibWF0Y2hfdHlwZSI6InVybHBhdHRlcm4ifV0sInR5cGUiOiJtZXJjdXJlIn1dLCJleHAiOjQxMDI0NDQ4MDB9.ZgpUCyCES-GCIP4_U6T5m0FJ4sN38QNDG4LAVhgSh1g";
+const forms = document.forms;
+const settings = forms.settings;
+const $status = document.getElementById("status");
+const $updates = document.getElementById("updates");
+const $updateCount = document.getElementById("updateCount");
+const $subscriptions = document.getElementById("subscriptions");
+const updateTemplate = document.getElementById("update");
+const subscriptionTemplate = document.getElementById("subscription");
 
-  const $updates = document.getElementById("updates");
-  const $subscriptions = document.getElementById("subscriptions");
-  const $settingsForm = document.forms.settings;
-  const $discoverForm = document.forms.discover;
-  const $subscribeForm = document.forms.subscribe;
-  const $publishForm = document.forms.publish;
-  const $subscriptionsForm = document.forms.subscriptions;
+// HTTPError carries an HTTP status through fetchEventSource's onopen/onerror so
+// a 401/403 stops the stream and surfaces, instead of retrying forever.
+class HTTPError extends Error {
+  constructor(status, statusText) {
+    super(statusText ? `${status} ${statusText}` : String(status));
+    this.status = status;
+  }
+}
 
-  const error = (e) => {
-    if (!e.error || e.error.message?.includes?.("Reconnecting")) {
-      // Silent reconnecting messages from the polyfill
+const setStatus = (state, label) => {
+  $status.dataset.state = state;
+  $status.textContent = label;
+};
 
-      console.log("Connection closed, reconnecting...", e);
+const report = (e) => {
+  if (!e) return;
+  console.error(e);
+  window.alert(e instanceof Error ? e.message : String(e));
+};
 
-      return;
-    }
+const useCookie = () => settings.authorization.value === "cookie";
 
-    console.log(e);
+const authHeaders = () =>
+  !useCookie() && settings.jwt.value.trim()
+    ? { Authorization: `Bearer ${settings.jwt.value.trim()}` }
+    : {};
 
-    if (e.toString !== Object.prototype.toString) {
-      // Display relevant error message
-      alert(e.toString());
+const credentials = () => (useCookie() ? "include" : "same-origin");
 
-      return;
-    }
+// The hub's auth cookie is HttpOnly, so JS can't set it; the playground endpoint does,
+// from its ?jwt query. Plant it there before a cookie-authorized request (playground
+// mode only — the option is hidden otherwise).
+const ensureCookie = async () => {
+  if (!useCookie()) return;
 
-    if (e.statusText) {
-      // Special handling of errors from the polyfill
-      alert(e.statusText);
+  await fetch(
+    `${playgroundBase}cookie?jwt=${encodeURIComponent(settings.jwt.value.trim())}`,
+    {
+      credentials: "same-origin",
+    },
+  ).catch(() => {});
+};
 
-      return;
-    }
+// openStream connects an SSE stream and returns its AbortController. onMessage
+// receives every fetchEventSource message ({ id, event, data }). Transient
+// network drops reconnect automatically (fetchEventSource resends the
+// Last-Event-ID header, which the hub honors); an HTTP error is fatal.
+const openStream = (url, onMessage) => {
+  const controller = new AbortController();
 
-    alert("An error occurred, details have been logged.");
-  };
+  setStatus("off", "Connecting…");
 
-  const getHubUrl = (resp) => {
-    const link = resp.headers.get("Link");
-    if (!link) {
-      error('No rel="mercure" Link header provided.');
-    }
-
-    const match = link.match(/<(.*)>.*rel="mercure".*/);
-    if (match && match[1]) return match[1];
-  };
-
-  // Set default values
-  document.addEventListener("DOMContentLoaded", () => {
-    $settingsForm.hubUrl.value = origin + "/.well-known/mercure";
-    $settingsForm.jwt.value = defaultJwt;
-
-    $discoverForm.topic.value = defaultTopic;
-    $discoverForm.body.value = JSON.stringify(
-      {
-        "@id": defaultTopic,
-        availability: "https://schema.org/InStock",
-      },
-      null,
-      2,
-    );
-    $publishForm.data.value = JSON.stringify(
-      {
-        "@id": defaultTopic,
-        availability: "https://schema.org/OutOfStock",
-      },
-      null,
-      2,
-    );
-
-    document.getElementById("subscribeTopicsExamples").textContent =
-      `${defaultTopic}
-${document.URL}demo/novels/:id.jsonld   (URL Pattern)
-foo`;
-  });
-
-  // Discover
-  $discoverForm.onsubmit = async function (e) {
-    e.preventDefault();
-    const {
-      elements: { topic, body },
-    } = this;
-    const jwt = $settingsForm.jwt.value;
-
-    const url = new URL(topic.value);
-    if (body.value) url.searchParams.append("body", body.value);
-    if (jwt) url.searchParams.append("jwt", jwt);
-
-    try {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(resp.statusText);
-
-      // Set hub default
-      const hubUrl = getHubUrl(resp);
-      if (hubUrl) $settingsForm.hubUrl.value = new URL(hubUrl, topic.value);
-
-      const subscribeTopics = $subscribeForm.topics;
-      if (subscribeTopics.value === placeholderTopic) {
-        subscribeTopics.value = topic.value;
+  fetchEventSource(url.toString(), {
+    signal: controller.signal,
+    openWhenHidden: true,
+    headers: authHeaders(),
+    credentials: credentials(),
+    async onopen(response) {
+      if (response.ok) {
+        setStatus("on", "Connected");
+        return;
       }
 
-      // Set publish default values
-      const publishTopics = $publishForm.topics;
-      if (publishTopics.value === placeholderTopic) {
-        publishTopics.value = topic.value;
+      throw new HTTPError(response.status, response.statusText);
+    },
+    onmessage: onMessage,
+    onerror(err) {
+      if (err instanceof HTTPError) {
+        setStatus("error", "Error");
+        throw err; // fatal: stop retrying
       }
 
-      body.value = await resp.text();
-    } catch (e) {
-      error(e);
-    }
-  };
+      setStatus("error", "Reconnecting…"); // transient: retry with default backoff
+    },
+    onclose() {
+      setStatus("off", "Disconnected");
+    },
+  }).catch(report);
 
-  // lastEventIdQueryParameterName: the hub reads last_event_id, not the
-  // polyfill's default lastEventId, so reconnects would replay from the start.
-  const openEventSource = (url) => {
-    const opts = { lastEventIdQueryParameterName: "last_event_id" };
-    if ($settingsForm.authorization.value === "header") {
-      opts.headers = { Authorization: `Bearer ${$settingsForm.jwt.value}` };
-    } else {
-      opts.withCredentials = true;
-    }
-    return new EventSourcePolyfill(url, opts);
-  };
+  return controller;
+};
 
-  // Subscribe
-  const $updateTemplate = document.getElementById("update");
-  let updateEventSource;
-  $subscribeForm.onsubmit = function (e) {
-    e.preventDefault();
+const getHubUrl = (response) => {
+  const link = response.headers.get("Link");
+  const match = link?.match(/<([^>]*)>[^,]*rel="mercure"/);
 
-    updateEventSource && updateEventSource.close();
-    $updates.textContent = "No updates pushed yet.";
+  return match?.[1];
+};
 
-    const {
-      elements: { topics, matcherType, lastEventId },
-    } = this;
+// jwt.io deep-link, so a token can be inspected and edited then pasted back.
+const updateJwtLink = () => {
+  const token = settings.jwt.value.trim();
+  document.getElementById("jwtInspect").href = token
+    ? `https://jwt.io/#debugger-io?token=${encodeURIComponent(token)}`
+    : "https://jwt.io";
+};
+settings.jwt.addEventListener("input", updateJwtLink);
 
-    const paramName = matcherType.value;
-    const u = new URL($settingsForm.hubUrl.value);
-    topics.value
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .forEach((pattern) => u.searchParams.append(paramName, pattern));
-    if (lastEventId.value) {
-      u.searchParams.append("last_event_id", lastEventId.value);
-    }
+// Segmented tabs write the picked value into the sibling hidden input; the
+// matcher tabs also swap the example topic (exact vs URL pattern) unless edited.
+document.querySelectorAll(".tabs").forEach((tabs) => {
+  const input = tabs.parentElement.querySelector(
+    `[name="${tabs.dataset.target}"]`,
+  );
 
-    let ol = null;
-    updateEventSource = openEventSource(u);
+  tabs.querySelectorAll("button").forEach((button) => {
+    button.onclick = () => {
+      tabs
+        .querySelectorAll("button")
+        .forEach((b) => b.setAttribute("aria-selected", String(b === button)));
+      input.value = button.dataset.value;
 
-    updateEventSource.onmessage = function (e) {
-      if (!ol) {
-        ol = document.createElement("ol");
-        ol.reversed = true;
-
-        $updates.textContent = "";
-        $updates.appendChild(ol);
+      if (input.name === "matcherType") {
+        const topics = forms.subscribe.topics;
+        if (DEFAULT_TOPICS.has(topics.value.trim())) {
+          topics.value = DEFAULTS[button.dataset.value];
+        }
       }
-
-      const li = document.importNode($updateTemplate.content, true);
-      li.querySelector("h2").textContent = e.lastEventId;
-      li.querySelector("pre").textContent = e.data;
-      ol.firstChild ? ol.insertBefore(li, ol.firstChild) : ol.appendChild(li);
     };
-    const unsubscribeBtn = this.elements.unsubscribe;
-    updateEventSource.onerror = error;
-    unsubscribeBtn.disabled = false;
-  };
-  $subscribeForm.elements.unsubscribe.onclick = function (e) {
-    e.preventDefault();
+  });
+});
 
-    updateEventSource && updateEventSource.close();
-    this.disabled = true;
-    $updates.textContent = "Unsubscribed.";
-  };
+// Subscribe
+let updatesController;
+let updatesCount = 0;
 
-  // Publish
-  $publishForm.onsubmit = async function (e) {
-    e.preventDefault();
-    const {
-      elements: { topics, data, priv, id, type, retry },
-    } = this;
+const resetUpdates = () => {
+  updatesCount = 0;
+  $updateCount.textContent = "";
+  $updates.replaceChildren(
+    Object.assign(document.createElement("li"), {
+      className: "empty",
+      textContent: "Waiting for updates…",
+    }),
+  );
+};
 
-    // An update has exactly one topic: publish one update per line.
-    const topicList = topics.value
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+const prependUpdate = (event) => {
+  $updates.querySelector(".empty")?.remove();
 
-    try {
-      for (const topic of topicList) {
-        const body = new URLSearchParams({
-          topic,
-          data: data.value,
-          id: id.value,
-          type: type.value,
-          retry: retry.value,
-        });
-        priv.checked && body.append("private", "on");
+  const item = document.importNode(updateTemplate.content, true);
+  item.querySelector(".id").textContent = event.id || "(no id)";
+  item.querySelector(".time").textContent = new Date().toLocaleTimeString();
+  item.querySelector("pre").textContent = event.data;
+  $updates.insertBefore(item, $updates.firstChild);
 
-        const opt = { method: "POST", body };
-        if ($settingsForm.authorization.value === "header") {
-          opt.headers = { Authorization: `Bearer ${$settingsForm.jwt.value}` };
-        }
+  $updateCount.textContent = `${++updatesCount} received`;
+};
 
-        const resp = await fetch($settingsForm.hubUrl.value, opt);
-        if (!resp.ok) throw new Error(resp.statusText);
-      }
-    } catch (e) {
-      error(e);
-    }
-  };
+forms.subscribe.onsubmit = async (e) => {
+  e.preventDefault();
+  updatesController?.abort();
 
-  // Subscriptions
-  const $subscriptionTemplate = document.getElementById("subscription");
-  let subscriptionEventSource;
+  const { topics, matcherType, lastEventId } = e.target.elements;
 
-  const addSubscription = (s) => {
-    // Idempotent: replays re-deliver the same id.
-    if (document.getElementById(s.id)) {
-      return;
-    }
+  const url = new URL(settings.hubUrl.value);
+  topics.value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((topic) => url.searchParams.append(matcherType.value, topic));
+  if (lastEventId.value) {
+    url.searchParams.append("last_event_id", lastEventId.value);
+  }
 
-    const subscription = document.importNode(
-      $subscriptionTemplate.content,
-      true,
-    );
-    subscription.querySelector("div").setAttribute("id", s.id);
-    subscription.querySelector(".card-header-title").textContent = s.id;
-    // v9+ subscriptions expose match/match_type; deprecated ones expose topic.
-    subscription.querySelector(".match").textContent =
-      s.match !== undefined ? `${s.match_type || "exact"} ${s.match}` : s.topic;
-    subscription.querySelector(".subscriber").textContent = s.subscriber;
-    subscription.querySelector("code").textContent = JSON.stringify(
-      s.payload,
-      null,
-      2,
-    );
-    $subscriptions.appendChild(subscription);
-  };
+  await ensureCookie();
+  resetUpdates();
+  updatesController = openStream(url, prependUpdate);
+  e.target.elements.unsubscribe.disabled = false;
+};
 
-  $subscriptionsForm.onsubmit = async (e) => {
-    e.preventDefault();
+forms.subscribe.elements.unsubscribe.onclick = () => {
+  updatesController?.abort();
+  forms.subscribe.elements.unsubscribe.disabled = true;
+  setStatus("off", "Disconnected");
+  $updates.replaceChildren(
+    Object.assign(document.createElement("li"), {
+      className: "empty",
+      textContent: "Unsubscribed.",
+    }),
+  );
+};
 
-    subscriptionEventSource && subscriptionEventSource.close();
-    $subscriptions.textContent = "";
+// Publish
+forms.publish.onsubmit = async (e) => {
+  e.preventDefault();
+  const { topics, data, priv, id, type, retry } = e.target.elements;
 
-    try {
-      const opt =
-        $settingsForm.authorization.value === "header"
-          ? { headers: { Authorization: `Bearer ${$settingsForm.jwt.value}` } }
-          : undefined;
-      const resp = await fetch(
-        `${$settingsForm.hubUrl.value}/subscriptions`,
-        opt,
-      );
-      if (!resp.ok) throw new Error(resp.statusText);
-      // The snapshot cursor is carried by the rel="mercure" Link header's
-      // last-event-id attribute, not the JSON body.
-      const lastEventId = (resp.headers.get("Link") ?? "").match(
-        /rel="mercure".*?last-event-id="([^"]*)"/,
-      )?.[1];
-      const json = await resp.json();
+  const topicList = topics.value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
-      json.subscriptions.forEach(addSubscription);
+  try {
+    await ensureCookie();
 
-      // Stream changes since the snapshot, so nothing is missed in between.
-      const u = new URL($settingsForm.hubUrl.value);
-      u.searchParams.append(
-        "match_urlpattern",
-        "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
-      );
-      if (lastEventId) u.searchParams.append("last_event_id", lastEventId);
-
-      subscriptionEventSource = openEventSource(u);
-
-      // Subscription updates use the "mercure" SSE event type, not the default.
-      subscriptionEventSource.addEventListener("mercure", function (e) {
-        const s = JSON.parse(e.data);
-
-        if (s.active) {
-          addSubscription(s);
-          return;
-        }
-
-        document.getElementById(s.id)?.remove();
+    for (const topic of topicList) {
+      const body = new URLSearchParams({
+        topic,
+        data: data.value,
+        id: id.value,
+        type: type.value,
+        retry: retry.value,
       });
-      const unsubscribeBtn = $subscriptionsForm.elements.unsubscribe;
-      subscriptionEventSource.onerror = error;
-      unsubscribeBtn.disabled = false;
-    } catch (e) {
-      error(e);
-    }
-  };
-  $subscriptionsForm.elements.unsubscribe.onclick = function (e) {
-    e.preventDefault();
+      if (priv.checked) body.append("private", "on");
 
-    subscriptionEventSource.close();
-    this.disabled = true;
-    $subscriptions.textContent = "";
-  };
-})();
+      const response = await fetch(settings.hubUrl.value, {
+        method: "POST",
+        headers: authHeaders(),
+        credentials: credentials(),
+        body,
+      });
+      if (!response.ok)
+        throw new HTTPError(response.status, response.statusText);
+    }
+  } catch (err) {
+    report(err);
+  }
+};
+
+// Discover (playground only)
+forms.discover.onsubmit = async (e) => {
+  e.preventDefault();
+  const { topic, body } = e.target.elements;
+  const jwt = settings.jwt.value.trim();
+
+  const url = new URL(topic.value);
+  if (body.value) url.searchParams.append("body", body.value);
+  if (jwt) url.searchParams.append("jwt", jwt);
+
+  try {
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) throw new HTTPError(response.status, response.statusText);
+
+    // Point the hub URL at whatever the resource advertises via rel="mercure".
+    const hubUrl = getHubUrl(response);
+    if (hubUrl) settings.hubUrl.value = new URL(hubUrl, topic.value);
+
+    body.value = await response.text();
+  } catch (err) {
+    report(err);
+  }
+};
+
+// Active subscriptions
+let subscriptionsController;
+
+const addSubscription = (s) => {
+  if (document.getElementById(s.id)) return; // replays re-deliver the same id
+
+  const node = document.importNode(subscriptionTemplate.content, true);
+  node.querySelector(".sub").id = s.id;
+  node.querySelector(".id").textContent = s.id;
+  // Modern subscriptions expose match/match_type; deprecated ones expose topic.
+  const modern = s.match !== undefined;
+  node.querySelector(".match-type").textContent = modern
+    ? s.match_type || "exact"
+    : "topic";
+  node.querySelector(".match").textContent = modern ? s.match : s.topic;
+  node.querySelector(".subscriber").textContent = s.subscriber;
+
+  const pre = node.querySelector("pre");
+  if (s.payload === undefined) {
+    node.querySelector(".payload-label").remove();
+    pre.remove();
+  } else {
+    pre.textContent = JSON.stringify(s.payload, null, 2);
+  }
+
+  $subscriptions.appendChild(node);
+};
+
+forms.subscriptions.onsubmit = async (e) => {
+  e.preventDefault();
+  subscriptionsController?.abort();
+  $subscriptions.replaceChildren();
+
+  try {
+    await ensureCookie();
+
+    const response = await fetch(`${settings.hubUrl.value}/subscriptions`, {
+      headers: authHeaders(),
+      credentials: credentials(),
+    });
+    if (!response.ok) throw new HTTPError(response.status, response.statusText);
+
+    // The snapshot cursor rides the rel="mercure" Link header, not the body.
+    const lastEventId = response.headers
+      .get("Link")
+      ?.match(/rel="mercure".*?last-event-id="([^"]*)"/)?.[1];
+    const json = await response.json();
+    json.subscriptions.forEach(addSubscription);
+
+    const url = new URL(settings.hubUrl.value);
+    url.searchParams.append(
+      "match_urlpattern",
+      "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
+    );
+    if (lastEventId) url.searchParams.append("last_event_id", lastEventId);
+
+    subscriptionsController = openStream(url, (event) => {
+      if (event.event !== "mercure") return; // subscription updates use this type
+
+      const s = JSON.parse(event.data);
+      if (s.active) addSubscription(s);
+      else document.getElementById(s.id)?.remove();
+    });
+    e.target.elements.unsubscribe.disabled = false;
+  } catch (err) {
+    report(err);
+  }
+};
+
+forms.subscriptions.elements.unsubscribe.onclick = () => {
+  subscriptionsController?.abort();
+  forms.subscriptions.elements.unsubscribe.disabled = true;
+  $subscriptions.replaceChildren();
+};
+
+// Mode-aware initialization
+const loadConfig = async () => {
+  try {
+    const response = await fetch("config.json");
+    if (response.ok) return await response.json();
+  } catch {
+    /* no config endpoint: fall back to the prod-safe debugger. */
+  }
+
+  return { playground: false, anonymous: false, subscriptions: false };
+};
+
+const config = await loadConfig();
+
+settings.hubUrl.value = hubBase;
+updateJwtLink();
+
+if (!config.subscriptions) {
+  forms.subscriptions.elements.subscribe.disabled = true;
+  document.getElementById("subscriptionsHint").textContent =
+    "Disabled: this hub wasn't started with the subscriptions directive (MERCURE_EXTRA_DIRECTIVES=subscriptions to enable it).";
+}
+
+if (config.playground) {
+  document.getElementById("mode").textContent = "Playground";
+  document.getElementById("playground-banner").classList.remove("hidden");
+  document.getElementById("discoverCard").classList.remove("hidden");
+
+  forms.publish.data.value = JSON.stringify({ status: "available" }, null, 2);
+  // The Discover topic is the hub's own playground endpoint: a stand-in resource that
+  // advertises the hub via a rel="mercure" Link header.
+  forms.discover.topic.value = `${playgroundBase}books/1.json`;
+  forms.discover.body.value = JSON.stringify({ status: "available" }, null, 2);
+
+  try {
+    const response = await fetch("playground-token");
+    if (response.ok) {
+      settings.jwt.value = (await response.text()).trim();
+      updateJwtLink();
+      document.getElementById("jwtHint").textContent =
+        "Prefilled with the hub's all-access playground token. Insecure — playground only.";
+    }
+  } catch {
+    /* leave the field empty; the user can paste one. */
+  }
+} else {
+  // The playground endpoint that plants the cookie exists only in playground mode.
+  document.getElementById("cookieAuthLabel").classList.add("hidden");
+
+  if (config.anonymous) {
+    document.getElementById("jwtHint").innerHTML =
+      "This hub allows anonymous subscription, so a token is optional here. It is required to publish, or to subscribe to private topics. Mint one with <code>caddy mercure-token</code>.";
+  }
+}

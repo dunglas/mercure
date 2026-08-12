@@ -37,7 +37,11 @@ The identifier is the stable identifier of whoever signs the tokens: your app's 
 
 Inside `publisher`/`subscriber`, use `jwt <key> [<algorithm>]` for a shared secret or public key, or `jwks_uri <url> [<algorithm>...]` for a JWK Set. The two are mutually exclusive.
 
-`resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). It defaults to `public_url`; set one of them whenever the hub validates tokens.
+The algorithm defaults to `HS256` only for a raw shared secret. A PEM-encoded key must state its algorithm, and that algorithm must not be an HMAC one: the hub refuses to start otherwise, because verifying with `HS*` would use the public key as the shared secret and let anyone holding it forge tokens.
+
+`resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). Leave it unset and the hub derives it from each request (the public URL the client contacted), so a hub reachable through several domains needs no configuration; set it only to pin one canonical audience shared across every domain.
+
+`resource_identifier` and `public_urls` answer different questions and are independent: `resource_identifier` sets the token audience, while `public_urls` restricts which origins the hub answers on (rejecting others with `421`). A single `resource_identifier` is what lets one token work across several public URLs, since a per-request-derived audience is specific to the host the client contacted.
 
 Caddy provisions a Let's Encrypt certificate for `hub.example.com` automatically. To disable HTTPS (when behind a reverse proxy that terminates TLS), prefix the site address with `http://`:
 
@@ -52,28 +56,28 @@ Setting the port to 80 also disables HTTPS implicitly.
 
 ## Mercure directives
 
-| Directive                                  | Description                                                                                                                               | Default                         |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `issuer <id> { … }`                        | Bind a trusted issuer to its verification material. Repeatable. See [issuer blocks](#issuer-blocks).                                      |                                 |
-| `public_url <url>`                         | Canonical hub URL. Resolves relative URL Patterns and topics, and is the default `resource_identifier`.                                   |                                 |
-| `resource_identifier <id>`                 | OAuth 2.0 resource identifier (token `aud`). Required when JWT auth is enabled in modern mode. See [Discovery](../concepts/discovery.md). | `public_url`                    |
-| `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                          | off                             |
-| `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                      |                                 |
-| `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                  |                                 |
-| `cookie_name <name>`                       | Cookie that carries the access token for browser clients. Use a name without the `__Secure-` prefix for plain-HTTP development.           | `__Secure-mercure_access_token` |
-| `protocol_version_compatibility <version>` | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).         | off                             |
-| `subscriptions`                            | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                               | off                             |
-| `heartbeat <duration>`                     | Interval between SSE heartbeat comments. `0s` to disable.                                                                                 | `40s`                           |
-| `max_request_body_size <size>`             | Maximum size of publish and QUERY subscribe request bodies (e.g. `512KB`); larger requests get a `413`. `0` delegates to a reverse proxy. | `1MiB`                          |
-| `transport <name> [{ <options...> }]`      | Transport configuration. See [Transports](#mercure-hub-transports).                                                                       | `bolt`                          |
-| `dispatch_timeout <duration>`              | Max time to dispatch one update to one subscriber. `0s` disables.                                                                         | `5s`                            |
-| `write_timeout <duration>`                 | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                          | `600s`                          |
-| `topic_matcher_cache <maxEntries>`         | Cache for topic matcher evaluations. `0` or negative disables it.                                                                         | `100000`                        |
-| `subscriber_list_cache_size <maxSize>`     | Subscriber list cache size. `0` for unbounded.                                                                                            | `100000`                        |
-| `demo`                                     | Enable the debug UI **and** demo endpoints. Dev only.                                                                                     | off                             |
-| `ui`                                       | Enable the debug UI without the demo endpoints.                                                                                           | off                             |
+| Directive                                  | Description                                                                                                                                                 | Default                         |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `issuer <id> { … }`                        | Bind a trusted issuer to its verification material. Repeatable. See [issuer blocks](#issuer-blocks).                                                        |                                 |
+| `resource_identifier <id>`                 | Pin the OAuth 2.0 resource identifier (token `aud`); unset, it is derived per request. See [Discovery](../concepts/discovery.md).                           | derived per request             |
+| `public_urls <url...>`                     | Public URLs the hub answers on (scheme pinned); an unlisted origin gets `421 Misdirected Request`. Set it on a catch-all site.                              | site host matching              |
+| `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                                            | off                             |
+| `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                                        |                                 |
+| `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                                    |                                 |
+| `cookie_name <name>`                       | Cookie that carries the access token for browser clients. Use a name without the `__Secure-` prefix for plain-HTTP development.                             | `__Secure-mercure_access_token` |
+| `protocol_version_compatibility <version>` | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).                           | off                             |
+| `subscriptions`                            | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                                                 | off                             |
+| `heartbeat <duration>`                     | Interval between SSE heartbeat comments. `0s` to disable.                                                                                                   | `40s`                           |
+| `max_request_body_size <size>`             | Maximum size of publish and QUERY subscribe request bodies (e.g. `512KB`); larger requests get a `413`. `0` delegates to a reverse proxy.                   | `1MiB`                          |
+| `transport <name> [{ <options...> }]`      | Transport configuration. See [Transports](#mercure-hub-transports).                                                                                         | `bolt`                          |
+| `dispatch_timeout <duration>`              | Max time to dispatch one update to one subscriber. `0s` disables.                                                                                           | `5s`                            |
+| `write_timeout <duration>`                 | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                                            | `600s`                          |
+| `topic_matcher_cache <maxEntries>`         | Cache for topic matcher evaluations. `0` or negative disables it.                                                                                           | `100000`                        |
+| `subscriber_list_cache_size <maxSize>`     | Subscriber list cache size. `0` for unbounded.                                                                                                              | `100000`                        |
+| `debugger`                                 | Serve the debugger UI at `/.well-known/mercure/debug/` (no token, no playground endpoints). Safe in production.                                             | off                             |
+| `playground`                               | Enable `debugger` **and** the insecure playground: the `/playground/` discovery endpoints, and a hub-minted all-access token prefilled in the UI. Dev only. | off                             |
 
-The directives marked dev-only (`demo`, `ui`, `anonymous`) are off by default in production. Don't enable them on a hub that serves real users.
+The debugger UI (`debugger`) is a client-side tool: it opens streams and publishes with a token _you_ paste, exposing nothing the hub's API doesn't already, so it is safe to enable in production. The `playground` directive is not: it mints a token granting publish and subscribe on every topic, registers endpoints that echo whatever they are sent, and turns on `anonymous` for you. Keep `playground` off on any hub that serves real users. `anonymous` itself is a normal, production-ready opt-in for topics you deliberately want readable without a token — safe to enable when it's your own explicit choice, not a side effect of the playground. To try the debugger against a protected hub, mint yourself a scoped token with [`caddy mercure-token`](../concepts/authorization.md#minting-a-token).
 
 ### Issuer blocks
 
@@ -91,8 +95,12 @@ issuer https://issuer-a.example {
 }
 
 issuer https://issuer-b.example {
-  publisher  { jwks_uri https://issuer-b.example/jwks }
-  subscriber { jwks_uri https://issuer-b.example/jwks }
+  publisher {
+    jwks_uri https://issuer-b.example/jwks
+  }
+  subscriber {
+    jwks_uri https://issuer-b.example/jwks
+  }
 }
 ```
 
@@ -101,7 +109,7 @@ issuer https://issuer-b.example {
 | `authorization_server`            | Advertise this issuer in the [protected resource metadata](../concepts/discovery.md). Off by default.  |
 | `publisher { … }`                 | Verification material for publisher tokens. Omit to reject publishing for this issuer.                 |
 | `subscriber { … }`                | Verification material for subscriber tokens. Omit to reject subscribing for this issuer.               |
-| `jwt <key> [<algorithm>]`         | Shared secret or PEM public key, plus algorithm (defaults to `HS256`). Supports Caddy placeholders.    |
+| `jwt <key> [<algorithm>]`         | Shared secret or PEM public key, plus algorithm. A PEM key must set a non-HMAC one (see above).        |
 | `jwks_uri <url> [<algorithm>...]` | JWK Set URL and its allowed algorithms (defaults to the asymmetric allowlist). Accepts `file://` URLs. |
 
 `jwt` and `jwks_uri` are mutually exclusive within a `publisher`/`subscriber` block.
@@ -120,7 +128,6 @@ The Docker image and the official Caddyfile read these:
 | `MERCURE_PUBLISHER_JWT_ALG`     | Publisher algorithm.                                                                   | `HS256`     |
 | `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber signing key.                                                                |             |
 | `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`     |
-| `MERCURE_RESOURCE_IDENTIFIER`   | Sets `resource_identifier` (the token `aud`).                                          |             |
 | `MERCURE_TRUSTED_ISSUERS`       | Sets the `issuer` block identifier (the token `iss`).                                  |             |
 | `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |             |
 | `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |             |
@@ -193,8 +200,12 @@ When tokens are minted by an external IdP (Keycloak, Cognito, Auth0):
 mercure {
   issuer https://idp.example.com {
     authorization_server
-    publisher  { jwks_uri https://idp.example.com/.well-known/jwks.json }
-    subscriber { jwks_uri https://idp.example.com/.well-known/jwks.json }
+    publisher {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
+    subscriber {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
   }
 }
 ```
@@ -213,15 +224,19 @@ mercure {
   resource_identifier https://hub.example.com/.well-known/mercure
   issuer https://auth.example.com {
     authorization_server
-    publisher  { jwks_uri https://auth.example.com/jwks }
-    subscriber { jwks_uri https://auth.example.com/jwks }
+    publisher {
+      jwks_uri https://auth.example.com/jwks
+    }
+    subscriber {
+      jwks_uri https://auth.example.com/jwks
+    }
   }
 }
 ```
 
 ## Keeping tokens out of logs
 
-The hub accepts no token in the URL ([RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids it), but misconfigured or legacy clients may still send one there. Redact the known parameter names from access logs; the official Caddyfile does this with a log field filter:
+The hub accepts no token in the URL ([RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids it), so modern clients never put one there. Only 0.x clients did, in the `authorization` query parameter, and only in [compatibility mode](../UPGRADE.md#compatibility-mode). If you run compatibility mode, redact it from access logs with a log field filter:
 
 ```caddyfile
 # Keeping tokens out of logs
@@ -229,7 +244,6 @@ log {
   format filter {
     fields {
       request>uri query {
-        replace access_token REDACTED
         replace authorization REDACTED
       }
     }

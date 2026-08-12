@@ -26,13 +26,13 @@ jobs:
     environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
           go-version: "1.26"
@@ -43,7 +43,7 @@ jobs:
 
       - name: Login to Docker Hub
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -73,7 +73,7 @@ jobs:
 
       - name: Attest release artifacts
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
           subject-path: |
             ${{ github.workspace }}/dist/**/mercure
@@ -93,7 +93,7 @@ jobs:
 
       - name: Attest Caddy Docker manifest
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
           # docker.io/ prefix is required: actions/attest splits subject-name
           # on the first '/' to find the registry. We only push to Docker Hub.

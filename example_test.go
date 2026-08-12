@@ -18,7 +18,7 @@ func Example() {
 			Publisher:  mercure.Static{Key: []byte("!ChangeMe!"), Algorithm: "HS256"},
 			Subscriber: mercure.Static{Key: []byte("!ChangeMe!"), Algorithm: "HS256"},
 		}}),
-		mercure.WithPublicURL("https://example.com/.well-known/mercure"),
+		mercure.WithResourceIdentifier("https://example.com/.well-known/mercure"),
 	)
 	if err != nil {
 		log.Fatal(err)

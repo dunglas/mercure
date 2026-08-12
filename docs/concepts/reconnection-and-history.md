@@ -31,7 +31,7 @@ The publisher closes that gap by attaching a `last-event-id` attribute to its `L
 
 ```http
 # Bootstrapping after page load
-GET /books/1 HTTP/1.1
+GET /books/1
 Host: example.com
 
 200 OK
@@ -61,7 +61,9 @@ This is the right way to seed an event-sourced view from the hub.
 
 ## Detecting data loss in Mercure replay
 
-If the requested event ID is no longer in the hub's history (it was evicted), the hub sets the `Last-Event-ID` HTTP **response** header to the ID of the event preceding the first one it actually sent. By comparing what you asked for with what you got, you can tell whether you missed updates.
+Whenever a request carries a resumption cursor, the hub sets the `Mercure-Last-Event-ID` HTTP **response** header to the ID of the event preceding the first one it actually sent, or `earliest` when there is no preceding event. By comparing what you asked for with what you got, you can tell whether you missed updates.
+
+The response field is `Mercure-Last-Event-ID`, not `Last-Event-ID`: the latter is registered for request semantics only, so the protocol defines a distinct name for the response direction.
 
 ```javascript
 // Native EventSource doesn't expose response headers; use fetch-event-source
@@ -69,7 +71,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 await fetchEventSource(url, {
   onopen: (response) => {
-    const replayedFrom = response.headers.get("Last-Event-ID");
+    const replayedFrom = response.headers.get("Mercure-Last-Event-ID");
     if (replayedFrom !== expectedLastEventID) {
       // Possibly missed events, refetch the resource from the origin
     }
@@ -94,6 +96,8 @@ The hub stores recent events in a transport. The size of that buffer determines 
 | Self-Hosted (any tier) | Redis / PostgreSQL / Kafka / Pulsar | **Unlimited** (bound by your storage) |
 
 > **Pro tip.** The open-source hub has **no built-in history limit**. The Cloud caps exist for operational reasons: managed instances need predictable storage. If you're running on your own infrastructure and want to keep weeks of history for replay or event sourcing, the open-source build will store everything you give it disk for.
+
+An update with [alternate topics](topics-and-matchers.md#alternate-topics) still costs a single history entry: the BoltDB, Redis, and other transports store one record per update — carrying its full topic list — and match it against a replaying subscriber's matchers, the same as they do for live dispatch. Attaching alternates does not multiply storage or the number of Last-Event-IDs a subscriber has to track.
 
 ### Configuring the Mercure BoltDB history size
 
@@ -132,7 +136,7 @@ Browsers wait at least that many milliseconds before reconnecting after a discon
 
 ## Native `EventSource` doesn't expose response headers
 
-This catches people. If you need to read the `Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library: `fetch-event-source` exposes it; native `EventSource` does not. Most server-side SSE clients also expose it.
+This catches people. If you need to read the `Mercure-Last-Event-ID` response header (to detect data loss), you have to use a polyfill or library: `fetch-event-source` exposes it; native `EventSource` does not. Most server-side SSE clients also expose it.
 
 ## Header-based polyfills send the cursor as a query parameter
 

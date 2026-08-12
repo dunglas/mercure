@@ -6,7 +6,7 @@
 globalOptions: ""
 # -- Inject snippet or named-routes options in the Caddyfile
 caddyExtraConfig: ""
-# -- Enable the development mode, including the debug UI and the demo.
+# -- Enable development mode: injects the insecure `playground` directive (debug UI, demo endpoints, anonymous subscriptions, permissive CORS). Never enable in production.
 dev: false
 # -- Deprecated: The URL representation of the transport to use.
 transportUrl: ""

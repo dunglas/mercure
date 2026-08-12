@@ -49,6 +49,11 @@ paths:
       responses:
         "200":
           description: Event stream opened.
+          headers:
+            Mercure-Last-Event-ID:
+              description: The id of the event preceding the first one sent, or the reserved value earliest when there is none. Set whenever the request carried a resumption cursor; compare it with the requested id to detect data loss.
+              schema:
+                type: string
           content:
             "text/event-stream": {}
         "401":

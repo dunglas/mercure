@@ -79,12 +79,12 @@ func (h *Hub) resolveLegacyClaims(c *claims) error {
 	}
 
 	// Bare-string v8 claims are only meaningful when the deprecated_topic
-	// matcher code is compiled in: allowsAlternateTopics() is true only then.
-	// Using isBackwardCompatiblyEnabledWith(8) here would be always-true (this
-	// function already returned unless compat is on), so a "*" string claim
-	// would authorize every topic via the wildcard short-circuit even in a
-	// deprecated_claim-only build where the v8 matcher is absent.
-	deprecated := h.allowsAlternateTopics()
+	// matcher code is compiled in. Using isBackwardCompatiblyEnabledWith(8)
+	// here would be always-true (this function already returned unless compat
+	// is on), so a "*" string claim would authorize every topic via the
+	// wildcard short-circuit even in a deprecated_claim-only build where the
+	// v8 matcher is absent.
+	deprecated := deprecatedMatcherTypeCompiled()
 	if err := resolveMatcherClaims(h.topicMatcherStore, mc.Publish, deprecated); err != nil {
 		return err
 	}

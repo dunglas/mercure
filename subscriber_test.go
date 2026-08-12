@@ -22,10 +22,10 @@ func TestDispatch(t *testing.T) {
 
 	// Dispatch must be non-blocking
 	// Messages coming from the history can be sent after live messages, but must be received first
-	s.Dispatch(ctx, &Update{Topic: topic, Event: Event{ID: "3"}}, false)
-	s.Dispatch(ctx, &Update{Topic: topic, Event: Event{ID: "1"}}, true)
-	s.Dispatch(ctx, &Update{Topic: topic, Event: Event{ID: "4"}}, false)
-	s.Dispatch(ctx, &Update{Topic: topic, Event: Event{ID: "2"}}, true)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "3"}}, false)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "1"}}, true)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "4"}}, false)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "2"}}, true)
 	s.HistoryDispatched("")
 
 	s.Ready(ctx)
@@ -80,13 +80,13 @@ func TestMatchTopic(t *testing.T) {
 		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/users/foo/*"},
 	})
 
-	assert.False(t, s.Match(&Update{Topic: "https://example.com/not-subscribed"}))
-	assert.False(t, s.Match(&Update{Topic: "https://example.com/not-subscribed", Private: true}))
-	assert.False(t, s.Match(&Update{Topic: "https://example.com/no-match", Private: true}))
-	assert.False(t, s.Match(&Update{Topic: "https://example.com/books/1", Private: true}))
+	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}}))
+	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/not-subscribed"}, Private: true}))
+	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/no-match"}, Private: true}))
+	assert.False(t, s.Match(&Update{Topics: []string{"https://example.com/books/1"}, Private: true}))
 
-	assert.True(t, s.Match(&Update{Topic: "https://example.com/books/1"}))
-	assert.True(t, s.Match(&Update{Topic: "https://example.com/no-match"}))
+	assert.True(t, s.Match(&Update{Topics: []string{"https://example.com/books/1"}}))
+	assert.True(t, s.Match(&Update{Topics: []string{"https://example.com/no-match"}}))
 }
 
 func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {

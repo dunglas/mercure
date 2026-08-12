@@ -39,7 +39,9 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
-	ErrCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
+	errCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
+
+	errLegacyVerifiersNeedCompatibility = errors.New(`the "publisher_jwt", "subscriber_jwt", "publisher_jwks_url" and "subscriber_jwks_url" directives work only in compatibility mode, which relaxes access-token validation: move them into an "issuer" block for modern mode, or set "protocol_version_compatibility 8" to opt in explicitly`)
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
 	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
@@ -131,11 +133,12 @@ type Mercure struct {
 	// Dispatch updates when subscriptions are created or terminated
 	Subscriptions bool `json:"subscriptions,omitempty"`
 
-	// Enable the demo.
-	Demo bool `json:"demo,omitempty"`
+	// Enable the prod-safe debugger UI at /.well-known/mercure/debug/.
+	Debugger bool `json:"debugger,omitempty"`
 
-	// Enable the UI.
-	UI bool `json:"ui,omitempty"`
+	// Enable the insecure playground (implies debugger): mints an all-access
+	// token prefilled in the UI and registers the /playground/ endpoints. Dev only.
+	Playground bool `json:"playground,omitempty"`
 
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
@@ -188,21 +191,18 @@ type Mercure struct {
 	// prefix-less name.
 	CookieName string `json:"cookie_name,omitempty"`
 
-	// The URL at which subscribers reach the hub. Used as the base URL when
-	// matching relative URL patterns and topics.
-	PublicURL string `json:"public_url,omitempty"`
+	// Public URLs the hub answers on. When set, a request whose origin (scheme
+	// and host) is not listed is rejected with 421 Misdirected Request, pinning
+	// the scheme too. Leave empty to rely on the site's own host matching; set
+	// it for a catch-all site block that would otherwise let a client pick the
+	// derived public URL.
+	PublicURLs []string `json:"public_urls,omitempty"`
 
-	// The hub's OAuth 2.0 resource identifier (the `aud` value access tokens
-	// must carry). Defaults to the public URL when unset.
+	// Pins the hub's OAuth 2.0 resource identifier (the `aud` value access
+	// tokens must carry) to a single value. When unset, the hub derives it from
+	// each request (the public URL the client contacted), so several public
+	// URLs work without configuration; set it to force one canonical audience.
 	ResourceIdentifier string `json:"resource_identifier,omitempty"`
-
-	// OAuth 2.0 authorization server issuer identifiers advertised in the
-	// hub's protected resource metadata.
-	AuthorizationServers []string `json:"authorization_servers,omitempty"`
-
-	// Issuer identifiers accepted in the token iss claim in addition to the
-	// authorization servers, for self-issued tokens (RFC 9068).
-	TrustedIssuers []string `json:"trusted_issuers,omitempty"`
 
 	// The version of the Mercure protocol to be backward compatible with (versions 7 and 8 are supported)
 	ProtocolVersionCompatibility int `json:"protocol_version_compatibility,omitempty"`
@@ -235,7 +235,9 @@ func (s stoppingHandlerFunc) Handle(_ context.Context, _ caddy.Event) error {
 func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,gocognit,gocyclo,maintidx
 	metrics := mercure.NewPrometheusMetrics(ctx.GetMetricsRegistry())
 
-	if err := m.populateJWTConfig(); err != nil {
+	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
+
+	if err := m.populateJWTConfig(ctx); err != nil {
 		return err
 	}
 
@@ -258,7 +260,9 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		ctx = ctx.WithValue(SubscriberListCacheSizeContextKey, *m.SubscriberListCacheSize)
 	}
 
-	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
+	if err := m.checkLegacyVerifiers(); err != nil {
+		return err
+	}
 
 	var transport mercure.Transport
 	if transport, err = m.createTransportDeprecated(); err != nil {
@@ -286,11 +290,14 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
-		mercure.WithPublicURL(m.PublicURL),
 	}
 
 	if m.ResourceIdentifier != "" {
 		opts = append(opts, mercure.WithResourceIdentifier(m.ResourceIdentifier))
+	}
+
+	if len(m.PublicURLs) > 0 {
+		opts = append(opts, mercure.WithPublicURLs(m.PublicURLs))
 	}
 
 	if m.logger.Enabled(ctx, slog.LevelDebug) {
@@ -310,12 +317,18 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithAnonymous())
 	}
 
-	if m.Demo {
-		opts = append(opts, mercure.WithDemo())
+	if m.Playground {
+		opts = append(opts, mercure.WithPlayground())
+
+		if fn := m.playgroundTokenFunc(); fn != nil {
+			opts = append(opts, mercure.WithPlaygroundTokenFunc(fn))
+		} else if m.logger.Enabled(ctx, slog.LevelInfo) {
+			m.logger.LogAttrs(ctx, slog.LevelInfo, `Playground enabled without a symmetric signing key: the UI won't prefill a token. Paste one, or mint one with "caddy mercure-token".`)
+		}
 	}
 
-	if m.UI {
-		opts = append(opts, mercure.WithUI())
+	if m.Debugger {
+		opts = append(opts, mercure.WithDebugger())
 	}
 
 	if m.Subscriptions {
@@ -419,11 +432,41 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	if !strings.HasPrefix(r.URL.Path, defaultHubURL) && r.URL.Path != mercure.ProtectedResourceMetadataPath {
+	// On a playground (dev) hub, send the site root to the debugger UI as a
+	// convenience landing page. Gated on the playground so a prod-safe debugger
+	// hub never hijacks the operator's own "/". The target mirrors the debugger
+	// UI mount in the mercure package (defaultDebugURL).
+	if m.Playground && r.URL.Path == "/" {
+		http.Redirect(w, r, defaultHubURL+"/debug/", http.StatusFound)
+
+		return nil
+	}
+
+	// The playground echo endpoints live at a root prefix (outside the reserved
+	// hub namespace so their resources are valid topics), so forward them too,
+	// but only when the playground is enabled, to avoid shadowing an operator's
+	// own routes on a hub that never serves them.
+	handled := strings.HasPrefix(r.URL.Path, defaultHubURL) ||
+		r.URL.Path == mercure.ProtectedResourceMetadataPath ||
+		(m.Playground && strings.HasPrefix(r.URL.Path, mercure.PlaygroundURLPrefix))
+	if !handled {
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
-	m.hub.ServeHTTP(w, r)
+	// Resolve the public origin from Caddy's request placeholders so it honors
+	// the trusted_proxies configuration rather than raw forwarded headers. The
+	// hub derives its OAuth resource identifier and RFC 9728 metadata URL from
+	// it (a hub reachable through several public URLs needs no configuration),
+	// and enforces the public_urls allowlist against this trusted origin.
+	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer) //nolint:forcetypeassert
+	host, _ := repl.GetString("http.request.hostport")
+	scheme, _ := repl.GetString("http.request.scheme")
+
+	// Pass the origin out-of-band via the context, never by mutating r.URL: the
+	// playground handler builds its rel="self" Link from r.URL.String(), which
+	// must stay a relative path. Writing scheme/host onto r.URL would corrupt
+	// that Link (and diverge under trusted_proxies).
+	m.hub.ServeHTTP(w, r.WithContext(mercure.NewRequestOriginContext(r.Context(), scheme, host)))
 
 	return nil
 }
@@ -445,11 +488,11 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 			case "anonymous":
 				m.Anonymous = true
 
-			case "demo":
-				m.Demo = true
+			case "playground":
+				m.Playground = true
 
-			case "ui":
-				m.UI = true
+			case "debugger":
+				m.Debugger = true
 
 			case "subscriptions":
 				m.Subscriptions = true
@@ -589,12 +632,11 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				m.CookieName = d.Val()
 
-			case "public_url":
-				if !d.NextArg() {
+			case "public_urls":
+				m.PublicURLs = d.RemainingArgs()
+				if len(m.PublicURLs) == 0 {
 					return d.ArgErr()
 				}
-
-				m.PublicURL = d.Val()
 
 			case "resource_identifier":
 				if !d.NextArg() {
@@ -622,15 +664,25 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				}
 
 				if v != 7 && v != 8 {
-					return d.WrapErr(ErrCompatibility)
+					return d.WrapErr(errCompatibility)
 				}
 
 				m.ProtocolVersionCompatibility = v
+
+			default:
+				// Fail loudly: silently ignoring a typo would disable whatever
+				// the operator meant to configure, including the origin and
+				// CORS allowlists.
+				return d.Errf("unknown mercure directive %q", d.Val())
 			}
 		}
 	}
 
 	m.assignDeprecatedTransportURLForEnv()
+
+	// Expand the playground's permissive dev defaults here, at Caddyfile-parse
+	// time, so `caddy adapt` output reflects what the hub actually runs.
+	m.applyPlaygroundDefaults()
 
 	return nil
 }
@@ -715,38 +767,112 @@ func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
 	return v, nil
 }
 
+// pemPrefix opens a PEM block. A PEM-encoded key is an asymmetric public key,
+// so it must never be paired with an HMAC algorithm: createJWTKeyfunc would
+// then use the key material itself as the shared secret, and anyone holding
+// that (public) key could mint valid tokens.
+const pemPrefix = "-----BEGIN"
+
+// defaultJWTAlgorithm is assumed for a raw shared secret whose algorithm is not
+// stated. A PEM-encoded key gets no default (see normalizeJWT).
+const defaultJWTAlgorithm = "HS256"
+
+var (
+	errPEMKeyMissingAlgorithm = errors.New("the JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)")
+	errPEMKeyHMACAlgorithm    = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
+)
+
 // normalizeJWT applies Caddy placeholder replacement to a static-key verifier
-// and defaults its algorithm to HS256. It is a no-op when a JWK Set URL is used
-// or no key is configured.
-func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL string) {
+// and defaults its algorithm to HS256 for a raw secret. It is a no-op when a
+// JWK Set URL is used or no key is configured. A PEM-encoded key gets no
+// default: its algorithm must be stated, and it must not be an HMAC one.
+func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) error {
 	if jwksURL != "" {
-		return
+		return nil
 	}
 
 	c.Key = repl.ReplaceKnown(c.Key, "")
 	if c.Key == "" {
+		return nil
+	}
+
+	c.Alg = repl.ReplaceKnown(c.Alg, "")
+
+	if strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+		if c.Alg == "" {
+			return fmt.Errorf("%s: %w", role, errPEMKeyMissingAlgorithm)
+		}
+
+		if strings.HasPrefix(c.Alg, "HS") {
+			return fmt.Errorf("%s: %q: %w", role, c.Alg, errPEMKeyHMACAlgorithm)
+		}
+
+		return nil
+	}
+
+	if c.Alg == "" {
+		c.Alg = defaultJWTAlgorithm
+	}
+
+	return nil
+}
+
+// applyPlaygroundDefaults fills in the permissive dev settings the insecure
+// playground needs so the `playground` directive alone (plus signing keys) yields
+// a hub fully usable from the built-in UI: anonymous subscriptions and the
+// subscriptions API are forced on (a Caddyfile boolean directive has no "off"
+// form anyway), while the cookie name and CORS/publish origins are only
+// defaulted when the operator left them unset, so an explicit setting there
+// always wins.
+//
+// INSECURE: never enable playground in production.
+func (m *Mercure) applyPlaygroundDefaults() {
+	if !m.Playground {
 		return
 	}
 
-	c.Alg = repl.ReplaceKnown(c.Alg, "HS256")
-	if c.Alg == "" {
-		c.Alg = "HS256"
+	m.Anonymous = true
+	m.Subscriptions = true
+
+	if m.CookieName == "" {
+		m.CookieName = "mercure_access_token"
+	}
+
+	if m.CORSOrigins == nil {
+		m.CORSOrigins = []string{"*"}
+	}
+
+	if m.PublishOrigins == nil {
+		m.PublishOrigins = []string{"*"}
 	}
 }
 
-func (m *Mercure) populateJWTConfig() error {
+var errMissingVerifier = errors.New("a JWT key or the URL of a JWK Set must be provided")
+
+func (m *Mercure) populateJWTConfig(ctx caddy.Context) error {
 	repl := caddy.NewReplacer()
 
-	normalizeJWT(repl, &m.PublisherJWT, m.PublisherJWKSURL)
-	normalizeJWT(repl, &m.SubscriberJWT, m.SubscriberJWKSURL)
+	if err := normalizeJWT(repl, &m.PublisherJWT, m.PublisherJWKSURL, "publisher"); err != nil {
+		return err
+	}
+
+	if err := normalizeJWT(repl, &m.SubscriberJWT, m.SubscriberJWKSURL, "subscriber"); err != nil {
+		return err
+	}
 
 	hasPublisher := m.PublisherJWT.Key != "" || m.PublisherJWKSURL != ""
 	hasSubscriber := m.SubscriberJWT.Key != "" || m.SubscriberJWKSURL != ""
 
 	for i := range m.Issuers {
 		iss := &m.Issuers[i]
-		normalizeJWT(repl, &iss.Publisher.JWT, iss.Publisher.JWKSURL)
-		normalizeJWT(repl, &iss.Subscriber.JWT, iss.Subscriber.JWKSURL)
+
+		if err := normalizeJWT(repl, &iss.Publisher.JWT, iss.Publisher.JWKSURL, "publisher"); err != nil {
+			return fmt.Errorf("issuer %q: %w", iss.Identifier, err)
+		}
+
+		if err := normalizeJWT(repl, &iss.Subscriber.JWT, iss.Subscriber.JWKSURL, "subscriber"); err != nil {
+			return fmt.Errorf("issuer %q: %w", iss.Identifier, err)
+		}
 
 		if iss.Publisher.isSet() {
 			hasPublisher = true
@@ -757,12 +883,29 @@ func (m *Mercure) populateJWTConfig() error {
 		}
 	}
 
+	// Convenience: a `playground` hub with nothing configured at all (the
+	// quickstart's MERCURE_EXTRA_DIRECTIVES=playground, no JWT key env vars)
+	// still needs a key to sign and verify its own prefilled token. Default the
+	// sole issuer's key rather than guessing among several.
+	//
+	// INSECURE: only ever applies to the insecure playground.
+	if m.Playground && !hasPublisher && !hasSubscriber && len(m.Issuers) == 1 {
+		key := JWTConfig{Key: devKeyFallback, Alg: defaultJWTAlgorithm}
+		m.Issuers[0].Publisher.JWT = key
+		m.Issuers[0].Subscriber.JWT = key
+		hasPublisher, hasSubscriber = true, true
+
+		if m.logger.Enabled(ctx, slog.LevelInfo) {
+			m.logger.LogAttrs(ctx, slog.LevelInfo, "Playground enabled with no JWT key configured: defaulting to the well-known dev secret. Never do this in production.")
+		}
+	}
+
 	if !hasPublisher && !AllowNoPublish {
-		return errors.New("a JWT key or the URL of a JWK Set for publishers must be provided") //nolint:err113
+		return fmt.Errorf("publishers: %w", errMissingVerifier)
 	}
 
 	if !hasSubscriber && !m.Anonymous {
-		return errors.New("a JWT key or the URL of a JWK Set for subscribers must be provided") //nolint:err113
+		return fmt.Errorf("subscribers: %w", errMissingVerifier)
 	}
 
 	return nil
@@ -810,6 +953,35 @@ func (m *Mercure) buildIssuer(ctx context.Context, id string, authServer bool, p
 	return issuer, nil
 }
 
+// legacyVerifiers returns the publisher and subscriber verifiers configured
+// through the deprecated top-level directives (the single implicit issuer).
+func (m *Mercure) legacyVerifiers() (VerifierConfig, VerifierConfig) {
+	return VerifierConfig{JWT: m.PublisherJWT, JWKSURL: m.PublisherJWKSURL},
+		VerifierConfig{JWT: m.SubscriberJWT, JWKSURL: m.SubscriberJWKSURL}
+}
+
+// hasLegacyVerifiers reports whether any deprecated top-level JWT directive is set.
+func (m *Mercure) hasLegacyVerifiers() bool {
+	pub, sub := m.legacyVerifiers()
+
+	return pub.isSet() || sub.isSet()
+}
+
+// checkLegacyVerifiers refuses the deprecated top-level JWT directives unless
+// compatibility mode was asked for by name. They map to an implicit issuer with
+// no identifier, which only that mode accepts, and turning it on does more than
+// accept the legacy token format: it also drops the required exp, the audience
+// check, the at+jwt typ check and the verified-issuer check, and it re-accepts
+// the access token in the URL query string. Losing those should be a decision
+// the operator wrote down, not something a leftover directive switches on.
+func (m *Mercure) checkLegacyVerifiers() error {
+	if m.ProtocolVersionCompatibility != 0 || !m.hasLegacyVerifiers() {
+		return nil
+	}
+
+	return errLegacyVerifiersNeedCompatibility
+}
+
 // buildIssuers assembles the hub's issuer bindings from the explicit issuer
 // blocks and the deprecated top-level directives (a single implicit issuer).
 func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
@@ -824,8 +996,7 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 		issuers = append(issuers, issuer)
 	}
 
-	legacyPub := VerifierConfig{JWT: m.PublisherJWT, JWKSURL: m.PublisherJWKSURL}
-	legacySub := VerifierConfig{JWT: m.SubscriberJWT, JWKSURL: m.SubscriberJWKSURL}
+	legacyPub, legacySub := m.legacyVerifiers()
 
 	if legacyPub.isSet() || legacySub.isSet() {
 		issuer, err := m.buildIssuer(ctx, "", false, legacyPub, legacySub)
@@ -838,6 +1009,83 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 
 	return issuers, nil
 }
+
+// isHMACSigningKey reports whether c is a static symmetric (HMAC) key the hub
+// can sign with, not just verify: a raw secret with an HS* (or empty → HS256)
+// algorithm. A PEM key is asymmetric — only its public half is configured here —
+// so it can verify but never sign locally.
+func isHMACSigningKey(c JWTConfig) bool {
+	if c.Key == "" || strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+		return false
+	}
+
+	return c.Alg == "" || strings.HasPrefix(c.Alg, "HS")
+}
+
+// playgroundSigningKey picks the issuer whose token the debugger UI prefills: the first
+// one whose subscriber verifier is a static HMAC secret. pub reports whether the
+// same issuer's publisher uses that same secret, so a single token can carry
+// both the subscribe and publish grants.
+func (m *Mercure) playgroundSigningKey() (id string, sub JWTConfig, pub, ok bool) {
+	pick := func(identifier string, p, s VerifierConfig) bool {
+		if s.JWKSURL != "" || !isHMACSigningKey(s.JWT) {
+			return false
+		}
+
+		id, sub = identifier, s.JWT
+		pub = p.JWKSURL == "" && isHMACSigningKey(p.JWT) && p.JWT.Key == s.JWT.Key
+
+		return true
+	}
+
+	for i := range m.Issuers {
+		ic := &m.Issuers[i]
+		if pick(ic.Identifier, ic.Publisher, ic.Subscriber) {
+			return id, sub, pub, true
+		}
+	}
+
+	if lp, ls := m.legacyVerifiers(); pick("", lp, ls) {
+		return id, sub, pub, true
+	}
+
+	return "", JWTConfig{}, false, false
+}
+
+// playgroundTokenFunc returns the per-request minter wired into the debugger UI, or
+// nil when the hub has no symmetric key to sign a token with. The aud is filled per
+// request by the hub (the resource identifier it derived), so the token is valid
+// on whatever public URL the playground answers on.
+//
+// INSECURE + EXPERIMENTAL: the minted token grants publish and subscribe on
+// every topic. Not covered by the backward compatibility promise.
+func (m *Mercure) playgroundTokenFunc() func(string) (string, error) {
+	id, sub, pub, ok := m.playgroundSigningKey()
+	if !ok {
+		return nil
+	}
+
+	return func(resourceIdentifier string) (string, error) {
+		p := tokenParams{
+			iss:       id,
+			aud:       resourceIdentifier,
+			key:       sub.Key,
+			alg:       sub.Alg,
+			exp:       devExp,
+			subscribe: []string{"*"},
+			payload:   `{"playground":true}`,
+		}
+		if pub {
+			p.publish = []string{"*"}
+		}
+
+		signed, _, _, err := mint(p)
+
+		return signed, err
+	}
+}
+
+var errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
 //
@@ -855,7 +1103,7 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 
 	if u.Scheme == "file" {
 		if u.Host != "" && u.Host != "localhost" {
-			return nil, fmt.Errorf(`file:// JWK Set URL host must be empty or "localhost", got %q`, u.Host) //nolint:err113
+			return nil, fmt.Errorf("%w, got %q", errInvalidJWKSetFileHost, u.Host)
 		}
 
 		b, err := os.ReadFile(u.Path)

@@ -76,7 +76,11 @@ appear in all capitals, as shown here.
     bidirectional and zero-width controls), which are invisible and enable identifier spoofing.
     Character classifications are those of the Unicode version cited in [@!UNICODE]; hubs
     **MAY** also reject characters that later Unicode versions assign to general category `Cf`.
-    An update is about exactly one topic.
+*   Canonical topic: The first `topic` value of an update; the primary identifier of the updated
+    resource.
+*   Alternate topic: Any `topic` value of an update other than the canonical topic. An update is
+    dispatched to subscribers matching either the canonical topic or an alternate topic (see
+    (#publication)).
 *   Update: The message containing the updated version of the topic. An update can be marked as
     private; in that case, it **MUST** be dispatched only to subscribers allowed to receive it.
 *   Topic matcher: An expression matched against one or more topics,
@@ -116,8 +120,19 @@ body instead of the query component — notably the `QUERY` method [@RFC10008] �
 subscribers can send topic matcher lists too large for the URI length limits of
 intermediaries. When the parameters are carried in the request body, they **MUST** be
 encoded as `application/x-www-form-urlencoded` [@!URL], and the reserved-namespace rule
-and value constraints below apply identically to the body-decoded names and values. The
-connection **SHOULD** use HTTP version 2 or higher to leverage multiplexing and other
+and value constraints below apply identically to the body-decoded names and values.
+
+A request carrying such a body **MAY** also carry parameters in the query component. The hub
+**MUST** then take the union of the two: every name/value pair from the query component and
+every pair from the body, as if they had all appeared in one component. This applies to the
+topic matcher parameters and to `last_event_id` (see (#reconciliation)) alike, so a subscriber
+whose matcher list only fits in the body can still send its cursor there. A subscription is
+created for every matcher parameter in the union, so the two components need no precedence rule
+between them. `last_event_id` is single-valued: if it appears in both, the hub **MUST** use the
+value from the query component, and the `Last-Event-ID` HTTP field still takes precedence over
+either (see (#reconciliation)).
+
+The connection **SHOULD** use HTTP version 2 or higher to leverage multiplexing and other
 performance-related features.
 
 The subscriber specifies the topics to receive updates from using topic matcher query
@@ -337,17 +352,21 @@ case, the publish endpoint described in this section is not required.
 
 The request **MUST** be encoded using the `application/x-www-form-urlencoded` format
 [@!URL]. Field names and values **MUST** be UTF-8 [@!RFC3629]. The request
-**MUST** contain exactly one `topic` field; all other fields defined below are optional:
+**MUST** contain at least one `topic` field; all other fields defined below are optional:
 
-*   `topic` (required): The identifier of the updated topic, and the resource against which private-read
-    authorization is evaluated (see (#subscribers)). It is **RECOMMENDED** to use an IRI as
-    identifier. This field **MUST** appear exactly once; a request carrying more than one `topic`
-    field **MUST** be rejected with a 400 "Bad Request" HTTP status code. The topic value
-    **MUST** conform to the constraints defined in (#terminology). The topic **MUST NOT** address
-    the reserved hub namespace. To test this, the topic **MUST** be resolved against the hub's URL
-    (see (#discovery)) using the URL parser of [@!URL] — the same algorithm and canonicalization
-    used for URL Pattern matching (see (#url-pattern)). A topic addresses the reserved namespace
-    when the resolved path component equals the path of the hub's URL or begins with that path
+*   `topic` (required): The identifier of an updated topic. It is **RECOMMENDED** to use an IRI
+    as identifier. This field **MAY** appear more than once: the first occurrence is the
+    canonical topic (the primary identifier of the updated resource) and any remaining
+    occurrences are alternate topics (see (#terminology)). The hub dispatches the update to
+    subscribers matching any one of these topics, and private-read authorization is evaluated
+    against the set as a whole (see (#subscribers)) — the audience of a private update is
+    therefore the union of the audiences of all its topics (see
+    (#private-update-audience)). Each topic value **MUST** conform to the constraints defined in
+    (#terminology). Every topic value (canonical or alternate) **MUST NOT** address the reserved
+    hub namespace. To test this, each topic **MUST** be resolved against the hub's URL (see
+    (#discovery)) using the URL parser of [@!URL] — the same algorithm and canonicalization used
+    for URL Pattern matching (see (#url-pattern)). A topic addresses the reserved namespace when
+    the resolved path component equals the path of the hub's URL or begins with that path
     followed by `/` — for the default hub URL (see (#discovery)), `/.well-known/mercure` and
     `/.well-known/mercure/...` — regardless of scheme or authority. Before this comparison, the path
     **MUST** have its dot-segments removed and its percent-encoded octets that correspond to
@@ -356,12 +375,13 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     A topic that cannot be parsed as a URL reference against the hub's URL does not address the
     reserved namespace (it cannot name a hub path) and is not rejected by this rule. This namespace is
     reserved for resources generated by the hub itself, including subscription events (see
-    (#subscription-events)). The topic value **MUST NOT** be exactly `*`, which is reserved for the
+    (#subscription-events)). Every topic value **MUST NOT** be exactly `*`, which is reserved for the
     wildcard matcher (see (#matcher-types)) and would otherwise not be addressable. Because both rules
     reject the request regardless of the presented access token, hubs **MUST** reject publish requests
-    violating them with a 400 "Bad Request" HTTP status code. Checking the resolved path component (rather than a leading-substring match
-    on the raw value) prevents a publisher from forging subscription events with an absolute topic
-    such as `https://hub.example.com/.well-known/mercure/subscriptions/...`.
+    violating them, for any topic value, with a 400 "Bad Request" HTTP status code. Checking the
+    resolved path component (rather than a leading-substring match on the raw value) prevents a
+    publisher from forging subscription events with an absolute topic such as
+    `https://hub.example.com/.well-known/mercure/subscriptions/...`.
 *   `data` (optional): the content of the new version of this topic. The value **MUST** be
     valid UTF-8 [@!RFC3629]. When dispatching the update, the hub **MUST** serialize the value as
     one SSE `data:` field per line, splitting on CR, LF, or CRLF, per the Server-Sent Events
@@ -386,10 +406,13 @@ The request **MUST** be encoded using the `application/x-www-form-urlencoded` fo
     The provided ID **MAY** be a valid IRI. If omitted, the
     hub **MUST** generate either a valid IRI [@!RFC3987] or a relative reference consisting of a
     fragment (starting with `#`). A UUID [@RFC9562] or a DID [@DID] **MAY** be used as the IRI; a
-    fragment is convenient to return an offset or a sequence that is unique for this hub. The hub
-    **MAY** ignore the
-    client-supplied ID and generate its own. The hub **MUST** reject client-supplied IDs
-    violating the character constraints above with a 400 HTTP status code.
+    fragment is convenient to return an offset or a sequence that is unique for this hub. A
+    client-supplied ID **SHOULD** be unique within the scope of the hub: the hub treats IDs as
+    cursors into a single, hub-wide event sequence rather than one scoped per topic (see
+    (#reconciliation)), so a reused ID leaves ambiguous which update a subsequent
+    `Last-Event-ID` refers to. The hub **MAY** ignore the client-supplied ID and generate its
+    own. The hub **MUST** reject client-supplied IDs violating the character constraints above
+    with a 400 HTTP status code.
 *   `type` (optional): the SSE `event` property (a specific event type). The value **MUST NOT**
     contain control characters (C0 (U+0000–U+001F), U+007F, or C1 (U+0080–U+009F)) or Unicode
     format characters (general category `Cf` [@!UNICODE]); hubs **MUST** reject violating values
@@ -405,14 +428,14 @@ To allow future extensions, hubs **MUST** ignore fields they do not recognize.
 On success, the hub **MUST** return a 200 (OK) HTTP status code, and the response body **MUST**
 be the `id` generated by the hub for the update, served with the `text/plain` media type and the
 UTF-8 charset (`Content-Type: text/plain; charset=utf-8`). Other 2xx status codes are not
-appropriate: some cannot carry content at all (204, 205) [@RFC9110], and 201
+appropriate: some cannot carry content at all (204, 205) [@!RFC9110], and 201
 (Created) would misrepresent an ephemeral message as a resource
 retrievable at a dereferenceable URL — the `id` is an event cursor (see (#reconciliation)),
 not a `Location`. The publisher **MUST** be authorized to publish updates; see (#authorization).
 
-Hubs **SHOULD** apply implementation-defined maximums to the size of the request body and to
-the length of individual fields. Requests exceeding any such limit **MUST** be rejected with a
-413 "Content Too Large" HTTP status code.
+Hubs **SHOULD** apply implementation-defined maximums to the size of the request body, to
+the length of individual fields, and to the number of `topic` fields per request. Requests
+exceeding any such limit **MUST** be rejected with a 413 "Content Too Large" HTTP status code.
 
 Example:
 
@@ -521,7 +544,7 @@ explicit `Authorization` header is not treated as a client protocol violation. W
 Clients **SHOULD** use an `Authorization`
 HTTP header. This header **MUST** contain the string `Bearer` followed by a space character and
 by the access token, as defined in [@!RFC6750]. As with every HTTP authentication scheme, the
-scheme name is matched case-insensitively [@RFC9110].
+scheme name is matched case-insensitively [@!RFC9110].
 
 In a web browser, the `fetch()` API [@!FETCH] can set this header and consume the
 Server-Sent Events stream through the response body's readable stream [@streams]; this is the
@@ -715,23 +738,27 @@ the limit is reached.
 
 ## Publishers
 
-A publisher **MUST** present a token that grants the `publish` action on the update's topic: the
-token **MUST** carry a Mercure authorization detail whose `actions` includes `publish` and one
-of whose `topics` matches the update's topic. Otherwise the hub **MUST NOT** dispatch the update
-and **MUST** return a 403 status code with `error="insufficient_scope"` (see (#error-responses)).
+A publisher **MUST** present a token that grants the `publish` action on every topic of the
+update, canonical and alternate alike: for each topic, the token **MUST** carry a Mercure
+authorization detail whose `actions` includes `publish` and one of whose `topics` matches that
+topic. If the token is not authorized for every topic of the update, the hub **MUST NOT**
+dispatch the update — even if some of its topics are allowed — and **MUST** return a 403 status
+code with `error="insufficient_scope"` (see (#error-responses)).
 
 ## Subscribers
 
 To receive updates marked as `private`, a subscriber **MUST** present a token that grants the
-`subscribe` action on the update's topic: the token **MUST** carry a Mercure authorization
-detail whose `actions` includes `subscribe` and one of whose `topics` matches the update's topic.
-If the token does not grant `subscribe` on that topic, the hub **MUST NOT** deliver the update to
-the subscriber.
+`subscribe` action on at least one topic of the update (canonical or alternate): the token
+**MUST** carry a Mercure authorization detail whose `actions` includes `subscribe` and one of
+whose `topics` matches at least one of the update's topics. If the token does not grant
+`subscribe` on any topic of the update, the hub **MUST NOT** deliver the update to the
+subscriber.
 
-Because an update has exactly one topic (see (#publication)) and authorization is evaluated
-against that single topic, a subscriber receives a private update only when its token explicitly
-grants `subscribe` on that resource. The subscriber's routing matchers (query parameters) only
-select which topics it listens to; they never widen what it may read.
+Authorization is therefore evaluated against the update's topics as a whole, not against any one
+of them in isolation: the audience of a private update is the union of the audiences of each of
+its topics (see (#private-update-audience)). The subscriber's routing matchers (query
+parameters) only select which topics it listens to; they never widen what it may read — the
+subscriber still needs a `subscribe` grant matching one of the update's topics to receive it.
 
 When the subscriber presented an access token, the hub **MUST** close the connection no
 later than the token's `exp` time, since `exp` is required (see (#token-validation)).
@@ -761,6 +788,44 @@ books:
 
 A private update for `https://example.com/books/1` is delivered; a private update for
 `https://example.com/books/2` is not, even though the routing matcher would select it.
+
+Alternate topics let a publisher grant this same kind of narrow, per-subscriber access without
+issuing a token scoped to every individual resource. Consider a subscriber authorized only for
+its own namespace, `https://example.com/users/42/*`, that listens to all books via
+`match_urlpattern=https://example.com/books/:id`:
+
+~~~ json
+{
+  "authorization_details": [
+    {
+      "type": "https://mercure.rocks/authorization-detail",
+      "actions": ["subscribe"],
+      "topics": [
+        {"match": "https://example.com/users/42/*", "match_type": "urlpattern"}
+      ]
+    }
+  ]
+}
+~~~
+
+The publisher publishes a private update about `https://example.com/books/1`, attaching
+`https://example.com/users/42/books/1` as an alternate topic:
+
+~~~ http
+POST /.well-known/mercure HTTP/1.1
+Host: example.com
+Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer [snip]
+
+topic=https://example.com/books/1&topic=https://example.com/users/42/books/1&private=on
+~~~
+
+The subscriber's routing matcher selects the update by its canonical topic, `books/1`, which its
+token does not grant `subscribe` on. The token does grant `subscribe` on the alternate topic, so
+the hub delivers the update. A publisher **MUST NOT** attach to a private update an alternate
+topic matchable by an audience broader than the audience intended to read the update's content;
+doing so discloses the full content of the update to that broader audience (see
+(#private-update-audience)).
 
 ## Topic Matcher List
 
@@ -880,6 +945,11 @@ topics. The hub **MAY** ignore this request according to its own policy. Hub-gen
 identifiers are IRIs or fragments (see above) and publishers are forbidden from supplying
 `earliest` as an update ID (see (#publication)), so `earliest` cannot collide with an event
 identifier.
+
+If more than one update in the hub's history shares the same ID, in violation of the
+recommendation in (#publication), a `Last-Event-ID` bearing that value **MUST** resolve to the
+earliest such update in the hub's history. The hub **MUST** then send all updates published
+after that one, including any later update carrying the same, reused ID.
 
 The hub **MAY** discard some events for operational reasons. When the request contains a
 `Last-Event-ID` HTTP header or a `last_event_id` query parameter, the hub **MUST** set a
@@ -1509,12 +1579,23 @@ the defining specification states the matching semantics precisely, bounds the e
 of a crafted matcher (see (#url-pattern-denial-of-service) for the kind of exposure to
 consider), and does not conflict with the reserved wildcard `*` (see (#matcher-types)).
 
+A registration provides:
+
+*   Matcher Type Name: the name, subject to the syntax above.
+*   Description: a brief description of the matching semantics.
+*   Change Controller: "IETF" for registrations in the IETF stream, otherwise the party
+    responsible for the registration.
+*   Reference: the specification defining the matcher type.
+
+Note that the name syntax above admits no name equal to the reserved wildcard `*` (see
+(#matcher-types)), so no registration can shadow it.
+
 Initial registrations:
 
-| Matcher Type Name | Reference                             |
-|-------------------|---------------------------------------|
-| `exact`           | This specification, (#exact-matching) |
-| `urlpattern`      | This specification, (#url-pattern)    |
+| Matcher Type Name | Description                                   | Change Controller | Reference                             |
+|-------------------|-----------------------------------------------|-------------------|---------------------------------------|
+| `exact`           | Byte-for-byte comparison of topic and matcher | IETF              | This specification, (#exact-matching) |
+| `urlpattern`      | Matching per the URL Pattern Living Standard  | IETF              | This specification, (#url-pattern)    |
 
 ## Mercure Actions Registry
 
@@ -1526,12 +1607,24 @@ An action name **MUST** consist of lowercase ASCII letters and digits. Hubs igno
 they do not recognize (see (#authorization-details)), so registering a new action does not
 require deployed hubs to change.
 
+The designated experts verify that the defining specification names an operation the hub
+performs on a topic, states how a token carrying the action is evaluated against the `topics`
+of its authorization detail, and does not duplicate an already registered action.
+
+A registration provides:
+
+*   Action Name: the name, subject to the syntax above.
+*   Description: a brief description of the operation the action authorizes.
+*   Change Controller: "IETF" for registrations in the IETF stream, otherwise the party
+    responsible for the registration.
+*   Reference: the specification defining the action.
+
 Initial registrations:
 
-| Action      | Reference                          |
-|-------------|------------------------------------|
-| `publish`   | This specification, (#publishers)  |
-| `subscribe` | This specification, (#subscribers) |
+| Action Name | Description                                     | Change Controller | Reference                          |
+|-------------|-------------------------------------------------|-------------------|------------------------------------|
+| `publish`   | Send updates for the matching topics            | IETF              | This specification, (#publishers)  |
+| `subscribe` | Receive private updates for the matching topics | IETF              | This specification, (#subscribers) |
 
 # Security Considerations
 
@@ -1639,16 +1732,28 @@ derivation incorporates the issuer. Identifiers derived from `sub` also disclose
 value to every subscriber authorized for the corresponding subscription events; hub-generated
 random identifiers avoid that disclosure.
 
-## Private Update Authorization
+## Private Update Audience {#private-update-audience}
 
-A private update has exactly one topic, and the hub delivers it to a subscriber only when the
-subscriber's access token grants the `subscribe` action on that topic (see (#subscribers) and
-(#authorization-details)). Authorization is therefore a hub-enforced, per-resource check tied to
-the token issued for the subscriber, not a property of the publisher's topic construction or of
-the subscriber's routing matchers. Issuers scope each token's authorization details to the
-resources a subscriber may read; the hub never widens that based on routing. Unauthenticated
+A private update is delivered to a subscriber only when the subscriber's access token grants the
+`subscribe` action on at least one of its topics (see (#subscribers) and
+(#authorization-details)). Authorization is therefore a hub-enforced check tied to the token
+issued for the subscriber, not a property of the subscriber's routing matchers: those only select
+which topics a subscriber listens to and never widen what it may read. Unauthenticated
 subscribers, when the hub accepts them (see (#authorization)), present no token and therefore
 never receive private updates.
+
+Because authorization is evaluated against the update's topics as a whole, the audience of a
+private update is the union of the audiences of each of its topics: attaching an alternate topic
+matchable by a broad audience discloses the update's full content to that audience, regardless
+of how narrowly the canonical topic is scoped. Publishers **MUST NOT** attach to a private update
+an alternate topic matchable by an audience broader than the audience intended to read the
+update's content (see (#subscribers) for a worked example). This places the per-resource
+confidentiality boundary in the publisher's choice of topics, in addition to the hub-enforced
+check against the subscriber's token: the hub verifies that the token matches some topic of the
+update, but does not know which topics a publisher intended as narrowing versus broadening.
+Issuers and publishers are jointly responsible for keeping topics and authorization details
+aligned with the intended access-control policy; deployments with strict per-resource
+confidentiality requirements should account for this when designing their topic conventions.
 
 ## URL-Pattern Denial of Service
 
@@ -1676,10 +1781,10 @@ guidance in (#exact-matching) addresses this.
 
 Absent limits on request and token size, malicious clients can exhaust hub resources. The
 implementation-defined limits described elsewhere in this document — on publish request body
-size, individual field length, the number of topic matcher query parameters per request, the
-number of Mercure authorization details and of entries in their `topics` arrays, individual
-pattern length, concurrent subscriptions per token, and concurrent connections per client and
-in total (see (#subscription)) — bound this exposure.
+size, individual field length, the number of `topic` fields per publish request, the number of
+topic matcher query parameters per request, the number of Mercure authorization details and of
+entries in their `topics` arrays, individual pattern length, concurrent subscriptions per token,
+and concurrent connections per client and in total (see (#subscription)) — bound this exposure.
 
 ## Hub Trust
 
@@ -1714,7 +1819,8 @@ captured token is unusable without the corresponding proof-of-possession key.
 A captured publish request carrying a bearer access token can be replayed by an on-path attacker,
 causing the same update to be dispatched again. For most deployments re-dispatching an identical update
 is harmless. Deployments for which it is not **SHOULD** include a freshness indicator in the
-update (for example, a unique `id` checked for replay, or a timestamp) and reject duplicates.
+update (for example, checking the unique `id` recommended in (#publication) against previously
+seen values, or a timestamp) and reject duplicates.
 
 ## JWE Algorithms and Replay
 

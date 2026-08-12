@@ -54,11 +54,29 @@ The hub enforces, on every token:
 
 - **`typ: at+jwt` header.** Tokens minted for other purposes (an OpenID Connect ID token, for example) are rejected.
 - **`iss` claim.** It must exactly match one of the hub's trusted issuers, each declared with an `issuer` block (see [Discovery](discovery.md)). Add `authorization_server` inside a block to advertise that issuer.
-- **`aud` claim.** It must contain the hub's resource identifier (configured with `resource_identifier`, defaulting to `public_url`). `aud` may be a string or an array.
+- **`aud` claim.** It must contain the hub's resource identifier: the value pinned with `resource_identifier`, or, when unset, the public URL the client contacted (derived per request). `aud` may be a string or an array.
 - **`exp` claim.** Required. The hub rejects expired tokens, including on the first request. `nbf` is enforced when present.
 - **Signature** with the issuer's configured key (its `publisher`/`subscriber` verifier; see below). The token is verified only with the key(s) bound to its `iss`, so keys are never pooled across issuers. The algorithm comes from hub configuration, never from the token, so `alg=none` and algorithm-confusion attacks are blocked.
 
 [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) also requires issuers to populate `sub`, `client_id`, `iat`, and `jti`; include them so any RFC 9068 validator accepts your tokens. The hub uses `sub` to derive subscriber identifiers for [subscription events](active-subscriptions.md).
+
+### Minting a token
+
+`caddy mercure-token` builds one of these for you instead of hand-writing the JSON above:
+
+```console
+caddy mercure-token --dev  # matches the quickstart's local hub, zero config
+
+caddy mercure-token \
+  --iss https://example.com --aud https://hub.example.com/.well-known/mercure \
+  --key '!ChangeMe!' \
+  --publish 'https://example.com/books/1' \
+  --subscribe 'https://example.com/users/42/notifications' \
+  --subscribe-urlpattern 'https://example.com/books/:id' \
+  --payload '{"user": "https://example.com/users/42"}'
+```
+
+`--publish`/`--subscribe` grant an exact topic and may be repeated; `--publish-urlpattern`/`--subscribe-urlpattern` grant a [URL Pattern](topics-and-matchers.md) and may also be repeated — the same two matcher types as the subscribe query parameters. `--key` takes a raw secret, `@path/to/file`, `@-` to read it from stdin, or a PEM-encoded private key with `--alg` (the private counterpart of whatever public key or secret the hub's `issuer` block verifies with). Prefer `@path/to/file` or `@-` over a literal secret: an argument passed on the command line is visible to other processes on the same machine (`ps`) and lands in shell history. `sub`, `client_id`, `iat`, and `jti` are filled in automatically. Run `caddy mercure-token --help` for the full flag reference.
 
 ### Authorization details
 
@@ -83,7 +101,7 @@ The hub never accepts tokens over plain HTTP. Whichever method you pick, **HTTPS
 
 ## Publishers
 
-To publish, a token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` match the update's topic.
+To publish, a token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` match the update's topic. An update **MAY** carry more than one `topic` field — the first is the canonical topic, any others are [alternate topics](topics-and-matchers.md#alternate-topics) — in which case the token must be granted on every one of them, not only the canonical one.
 
 ```jsonc
 // Publishers
@@ -106,8 +124,7 @@ To publish, a token must carry an `authorization_details` entry whose `actions` 
 
 Behavior:
 
-- No `publish` grant covering the topic -> the publication is rejected with `403 insufficient_scope`.
-- An update has exactly one topic; the grant must cover that topic.
+- No `publish` grant covering every topic of the update -> the publication is rejected with `403 insufficient_scope`, even when some of its topics are covered.
 - `[{ "match": "*" }]` -> every topic is allowed.
 
 `*` is the only "match anything" wildcard; you cannot get the same effect with a permissive URL Pattern.
@@ -116,7 +133,7 @@ Behavior:
 
 A subscriber's token is **only consulted for private updates**. Public updates flow to any subscriber whose `match*` query parameters hit, with or without a token.
 
-For a private update, the hub checks that a `subscribe` grant covers the update's (single) topic. If it does, the update is delivered; if not, the subscriber never sees it.
+For a private update, the hub checks that a `subscribe` grant covers at least one of the update's topics (canonical or alternate). If it does, the update is delivered; if not, the subscriber never sees it. Since matching any one topic delivers the whole update, the audience of a private update is the union of the audiences of each of its topics — see [alternate topics](topics-and-matchers.md#alternate-topics) for what that means for publishers attaching them.
 
 ```jsonc
 // Subscribers
@@ -147,7 +164,7 @@ This is the right default for live feeds, public dashboards, and any case where 
 
 ## Per-user authorization on shared resources
 
-A subscriber should receive updates only about the resources it owns. Because an update has exactly one topic and the hub authorizes against that single topic, you express this with a **scoped matcher** in the token, not with shared "capability" topics.
+A subscriber should receive updates only about the resources it owns. When the resource's own topic already encodes ownership (a path segment per user or tenant), express this with a **scoped matcher** in the token — no need for anything else.
 
 Publish each private update to its own per-user (or per-resource) topic:
 
@@ -180,6 +197,23 @@ Mint each subscriber a token whose `subscribe` grant covers only its own space:
 ```
 
 User 42's token matches `https://example.com/users/42/messages/1`; user 99's token does not, so the hub never delivers it. The subscriber's `match*` query parameter can be as broad as `match_urlpattern=https://example.com/users/:id/messages/:mid`: the query selects what the client wants to receive, and the token decides what it is allowed to receive. The narrower of the two wins.
+
+### Shared resources without a per-user path
+
+Sometimes the resource's own topic can't (or shouldn't) encode ownership — a resource shared by several users, each with a different reason to read it. Publishing per-user copies works, but costs one publish request per authorized reader for what is really a single event. [Alternate topics](topics-and-matchers.md#alternate-topics) solve this: attach a per-user (or per-tenant) alternate topic to the update in addition to its shared canonical topic, and scope each subscriber's grant to its own alternate namespace instead of the canonical resource.
+
+```console
+# One event, several private audiences, one publish request
+curl -X POST $HUB -H "Authorization: Bearer $JWT" \
+  -d 'topic=https://example.com/books/1' \
+  -d 'topic=https://example.com/users/42/books/1' \
+  -d 'private=on' \
+  -d 'data=...'
+```
+
+The publisher's token must be granted `publish` on both `https://example.com/books/:id` and `https://example.com/users/42/*` — a grant on the canonical topic alone is not enough once an alternate is attached. A subscriber whose token only grants `subscribe` on `https://example.com/users/42/*` receives this update even though it has no grant on `books/1` itself, because its grant matches the alternate topic.
+
+Never attach an alternate that a broader audience than the intended readers can match: any subscriber authorized for any one topic of the update receives its full content. See [Private Update Audience](../../spec/mercure.md#private-update-audience) in the spec.
 
 ## Subscriber payloads
 
@@ -231,7 +265,7 @@ Set the cookie during discovery, when the user fetches the page or the API resou
 
 ```http
 # Cookies in detail
-HTTP/1.1 200 OK
+200 OK
 Set-Cookie: __Secure-mercure_access_token=<JWT>; Domain=example.com; Path=/.well-known/mercure; Secure; HttpOnly; SameSite=Strict
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 ```
@@ -273,8 +307,12 @@ When an identity provider or authorization server (Keycloak, Cognito, Auth0) iss
 mercure {
   issuer https://idp.example.com {
     authorization_server
-    publisher  { jwks_uri https://idp.example.com/.well-known/jwks.json }
-    subscriber { jwks_uri https://idp.example.com/.well-known/jwks.json }
+    publisher {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
+    subscriber {
+      jwks_uri https://idp.example.com/.well-known/jwks.json
+    }
   }
 }
 ```
@@ -289,8 +327,12 @@ The default algorithm is HS256 (symmetric HMAC). For asymmetric verification (th
 # Verifying tokens with RSA and ECDSA keys
 mercure {
   issuer https://example.com {
-    publisher  { jwt {env.PUBLISHER_PUBLIC_KEY} RS256 }
-    subscriber { jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256 }
+    publisher {
+      jwt {env.PUBLISHER_PUBLIC_KEY} RS256
+    }
+    subscriber {
+      jwt {env.SUBSCRIBER_PUBLIC_KEY} RS256
+    }
   }
 }
 ```

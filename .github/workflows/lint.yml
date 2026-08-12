@@ -18,7 +18,7 @@ jobs:
       packages: read
       statuses: write
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -26,7 +26,7 @@ jobs:
         uses: super-linter/super-linter/slim@4ce20838b8ab83717e78138c5b3a1407148e0918 # v8.7.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FILTER_REGEX_EXCLUDE: .*gatling/mvnw.*|conformance-tests/.*\.ts$|examples/chat/chart/mercure-example-chat/README.md$
+          FILTER_REGEX_EXCLUDE: .*gatling/mvnw.*|conformance-tests/.*\.ts$|examples/chat/chart/mercure-example-chat/README.md$|\.vscode/launch\.json$
           VALIDATE_BIOME_FORMAT: false
           VALIDATE_BIOME_LINT: false
           VALIDATE_CHECKOV: false

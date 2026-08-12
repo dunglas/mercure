@@ -25,11 +25,14 @@
 				jwt {env.MERCURE_SUBSCRIBER_JWT_KEY} {env.MERCURE_SUBSCRIBER_JWT_ALG}
 			}
 		}
-		# OAuth 2.0 resource identifier: the audience (aud) access tokens must carry.
-		# The localhost default suits local development only. In production set
-		# MERCURE_RESOURCE_IDENTIFIER to your hub's public URL (matching SERVER_NAME
-		# and the audience your issuer mints), otherwise every real token is rejected.
-		resource_identifier {$MERCURE_RESOURCE_IDENTIFIER:https://localhost/.well-known/mercure}
+		# The hub derives its public URL, the OAuth 2.0 resource identifier (the
+		# audience access tokens must carry) and the RFC 9728 metadata from each
+		# request, so it works unchanged behind one or several domains. The
+		# SERVER_NAME site address already restricts which Host reaches the hub.
+		# Advanced (via MERCURE_EXTRA_DIRECTIVES): pin one canonical audience
+		# across every domain with `resource_identifier https://…/.well-known/mercure`,
+		# or, on a catch-all site block, restrict the public URLs the hub answers
+		# on with `public_urls https://a.example.com https://b.example.com`.
 		# Extra directives
 		{$MERCURE_EXTRA_DIRECTIVES}
 	}

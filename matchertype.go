@@ -75,7 +75,9 @@ func knownMatcherType(mt MatcherType) bool {
 	case MatcherTypeExact, MatcherTypeURLPattern:
 		return true
 	case deprecatedMatcherTypeName:
-		// The internal deprecated type is not addressable from the wire.
+		// The internal deprecated type is not addressable from the wire. Listed
+		// explicitly rather than folded into the default: the exhaustive linter
+		// requires every MatcherType constant to appear.
 		return false
 	default:
 		return false

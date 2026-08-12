@@ -40,6 +40,7 @@ var (
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
 	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
 	ErrTooManyTopics     = errors.New("too many topics in update")
+	ErrMissingTopic      = errors.New("update carries no topic")
 	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
 )
 
@@ -55,7 +56,11 @@ var (
 // reserved "/.well-known/mercure" topic namespace, so it is meant for
 // publisher input, not hub-internal updates such as subscription events.
 func (u *Update) Validate() error {
-	topics := u.topics()
+	topics := u.Topics
+	if len(topics) == 0 {
+		return ErrMissingTopic
+	}
+
 	if len(topics) > maxPublishTopics {
 		return ErrTooManyTopics
 	}
@@ -211,15 +216,6 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The protocol allows exactly one topic per update; alternate topics are
-	// a v8 feature, available only under the deprecated_topic build tag and
-	// WithProtocolVersionCompatibility(8).
-	if len(topics) > 1 && !h.allowsAlternateTopics() {
-		http.Error(w, `Multiple "topic" parameters are not supported anymore, publish one update per topic`, http.StatusBadRequest)
-
-		return
-	}
-
 	// Reject oversized topic lists before running canDispatch — otherwise
 	// an authenticated publisher could force O(topics × matchers)
 	// matching work on every request before being rejected by validate.
@@ -257,7 +253,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	private := len(r.PostForm["private"]) != 0
 	if claims != nil && !claims.authz.grantsAll(h.topicMatcherStore, actionPublish, topics) { //nolint:nestif
 		if private {
-			h.writeBearerError(w, bearerErrInsufficientScope, http.StatusForbidden)
+			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
 			return
 		}
@@ -272,18 +268,18 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 				h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: posting public updates to topics not granted to the token is not supported anymore, grant the "*" topic to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
 			}
 
-			h.writeBearerError(w, bearerErrInsufficientScope, http.StatusForbidden)
+			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
 			return
 		}
 	}
 
 	u = &Update{
+		Topics:  topics,
 		Private: private,
 		Debug:   h.debug,
 		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
-	u.setTopics(topics)
 
 	dispatchCtx := context.WithoutCancel(ctx)
 
@@ -294,7 +290,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
 			errors.Is(err, ErrReservedEventType),
 			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
-			errors.Is(err, ErrInvalidData):
+			errors.Is(err, ErrMissingTopic), errors.Is(err, ErrInvalidData):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

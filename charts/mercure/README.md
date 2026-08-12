@@ -1,7 +1,7 @@
 <!-- markdownlint-disable -->
 # Mercure Chart for Kubernetes
 
-![Version: 0.24.2](https://img.shields.io/badge/Version-0.24.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.24.2](https://img.shields.io/badge/AppVersion-v0.24.2-informational?style=flat-square)
+![Version: 1.0.0-alpha.3](https://img.shields.io/badge/Version-1.0.0--alpha.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.0.0-alpha.3](https://img.shields.io/badge/AppVersion-v1.0.0--alpha.3-informational?style=flat-square)
 
 A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 
@@ -36,7 +36,7 @@ Kubernetes: `>=1.23.0-0`
 | ciliumNetworkPolicy.ingress | list | `[]` | Allowed inbound traffic. Pass-through to `spec.ingress`. |
 | ciliumNetworkPolicy.ingressDeny | list | `[]` | Explicit inbound deny rules. Pass-through to `spec.ingressDeny`. |
 | deployment.annotations | object | `{}` | Annotations to be added to the deployment. |
-| dev | bool | `false` | Enable the development mode, including the debug UI and the demo. |
+| dev | bool | `false` | Enable development mode: injects the insecure `playground` directive (debug UI, demo endpoints, anonymous subscriptions, permissive CORS). Never enable in production. |
 | existingSecret | string | `""` | Allows to pass an existing secret name, the above values will be used if empty. |
 | extraDirectives | string | `""` | Inject extra Mercure directives in the Caddyfile. |
 | extraEnvs | list | `[]` | Additional environment variables to set |
