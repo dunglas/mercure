@@ -21,14 +21,15 @@ The hub fans the update out to every subscriber whose matchers hit one of the pu
 
 ## Mercure publish form fields
 
-| Field     | Required | Description                                                                                                                                                                              |
-| --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `topic`   | Yes      | Identifier of the updated topic. **MAY** appear more than once: the first occurrence is the canonical topic, any others are [alternate topics](topics-and-matchers.md#alternate-topics). |
-| `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                                                                                            |
-| `private` | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.                                                                                     |
-| `id`      | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't.                                                                       |
-| `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`.                                                             |
-| `retry`   | No       | Reconnection time hint, in milliseconds.                                                                                                                                                 |
+| Field          | Required | Description                                                                                                                                                                              |
+| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `topic`        | Yes      | Identifier of the updated topic. **MAY** appear more than once: the first occurrence is the canonical topic, any others are [alternate topics](topics-and-matchers.md#alternate-topics). |
+| `data`         | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                                                                                            |
+| `private`      | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.                                                                                     |
+| `id`           | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't.                                                                       |
+| `content_type` | No       | Media type of `data` (e.g. `application/ld+json`). Conveyed to subscribers when the response encoding can carry it (not over SSE). Invalid media types are rejected with a `400`.        |
+| `type`         | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`.                                                             |
+| `retry`        | No       | Reconnection time hint, in milliseconds.                                                                                                                                                 |
 
 The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
 

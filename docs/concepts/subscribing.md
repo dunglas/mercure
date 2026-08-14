@@ -95,6 +95,43 @@ await fetchEventSource("https://hub.example.com/.well-known/mercure", {
 
 Everything else stays the same: the matcher names and values follow the [same rules](topics-and-matchers.md) as query parameters, and the hub streams the same Server-Sent Events. Stick with `GET` unless your topic list is large enough to risk the URL limit.
 
+## Subscribing with HTTP Events Query
+
+When the hub runs with the [`events_query` directive](../deployment/configuration.md#mercure-directives) (experimental), a `QUERY` subscriber can also opt out of Server-Sent Events entirely and receive updates as [HTTP Events Query](https://datatracker.ietf.org/doc/draft-gupta-httpapi-events-query/) notifications. Send `Accept: multipart/mixed`, and optionally bound the response duration with the `Events` header:
+
+```http
+# Subscribing with HTTP Events Query
+QUERY /.well-known/mercure HTTP/2
+Host: hub.example.com
+Accept: multipart/mixed
+Content-Type: application/x-www-form-urlencoded
+Events: duration=600
+
+match=https://example.com/books/1&last_event_id=earliest
+```
+
+The hub answers with a bounded incremental stream in which each update is a body part: the raw `data` as the part body, the event ID in `Content-ID`, and the media type declared by the publisher (the [`content_type` publish field](publishing.md#mercure-publish-form-fields)), if any, in `Content-Type`:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: multipart/mixed; boundary=THIS_STRING_SEPARATES
+Incremental: ?1
+Events: duration=600
+Accept-Query: application/x-www-form-urlencoded
+
+--THIS_STRING_SEPARATES
+Content-ID: <urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb>
+Content-Type: application/ld+json
+Content-Length: 21
+
+{"status": "shipped"}
+--THIS_STRING_SEPARATES--
+```
+
+The response `Events` header advertises how long the hub intends to serve the stream (never longer than `write_timeout` or the token expiration); when it elapses, the hub closes the multipart document cleanly and the client re-queries, passing the last received `Content-ID` as `last_event_id` to resume. The `Events: duration=N` request header also works on plain SSE subscriptions when the directive is enabled, and the hub advertises the feature with an `Accept-Query` header on subscription responses and a `mercure_events_query` member in its [protected resource metadata](discovery.md).
+
+SSE-specific properties (`type`, `retry`) have no equivalent in this encoding, and the hub sends no heartbeats inside a multipart stream: the bounded duration plays that role. Stick with Server-Sent Events unless your client platform handles multipart streams more naturally than `text/event-stream`.
+
 ## Closing the Mercure EventSource connection
 
 `EventSource` keeps the TCP connection open until you close it. In single-page apps the connection survives component unmounts and route changes if you don't tear it down explicitly:
