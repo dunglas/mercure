@@ -104,10 +104,13 @@ func (h *Hub) corsHandler(router http.Handler) http.Handler {
 		AllowedOrigins:   h.corsOrigins,
 		AllowCredentials: allowCredentials,
 		AllowedMethods:   []string{http.MethodGet, http.MethodHead, http.MethodPost, methodQuery},
-		AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id"},
-		// Exposed so cross-origin subscribers can read the subscription API's
-		// rel="mercure" Link header, which carries the last-event-id cursor.
-		ExposedHeaders: []string{"Link"},
+		AllowedHeaders:   []string{authorizationHeader, "cache-control", "last-event-id", "events"},
+		// Link is exposed so cross-origin subscribers can read the
+		// subscription API's rel="mercure" Link header, which carries the
+		// last-event-id cursor; Mercure-Last-Event-Id, Events, Incremental and
+		// Accept-Query so fetch-based subscribers can resume from the response
+		// cursor and discover the negotiable subscription behaviors.
+		ExposedHeaders: []string{"Link", "Mercure-Last-Event-Id", "Events", "Incremental", "Accept-Query"},
 		Debug:          h.debug,
 	}).Handler(router)
 }

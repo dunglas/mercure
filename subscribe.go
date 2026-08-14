@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -124,7 +126,7 @@ func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	s, rc := h.registerSubscriber(ctx, w, r)
+	s, rc, enc := h.registerSubscriber(ctx, w, r)
 	if s == nil {
 		return
 	}
@@ -141,7 +143,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		disconnectionTimerC <-chan time.Time
 	)
 
-	if h.heartbeat != 0 {
+	heartbeatPayload := enc.heartbeat()
+	if h.heartbeat != 0 && heartbeatPayload != nil {
 		heartbeatTimer = time.NewTimer(h.heartbeat)
 		defer heartbeatTimer.Stop()
 
@@ -188,6 +191,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				rc.hub.logger.LogAttrs(ctx, slog.LevelDebug, "Hub is shutting down, closing connection")
 			}
 
+			h.writeTrailer(ctx, rc, enc)
+
 			return
 		case <-ctx.Done():
 			if debugLevel {
@@ -196,17 +201,31 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case <-heartbeatTimerC:
-			// Send an SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(ctx, rc, ":\n") {
+			if !h.write(ctx, rc, string(heartbeatPayload)) {
 				return
 			}
 
 			heartbeatTimer.Reset(h.heartbeat)
 		case <-disconnectionTimerC:
 			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
+			h.writeTrailer(ctx, rc, enc)
+
 			return
 		case update, ok := <-s.Receive():
-			if !ok || !h.write(ctx, rc, newSerializedUpdate(update).event) {
+			if !ok {
+				return
+			}
+
+			payload, err := enc.encode(update)
+			if err != nil {
+				if rc.hub.logger.Enabled(ctx, slog.LevelError) {
+					rc.hub.logger.LogAttrs(ctx, slog.LevelError, "Failed to encode update", slog.Any("error", err))
+				}
+
+				return
+			}
+
+			if !h.write(ctx, rc, payload) {
 				return
 			}
 
@@ -225,9 +244,13 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) { //nolint:funlen
+//
+//nolint:funlen,ireturn // the encoder is chosen at negotiation time by design
+func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController, streamEncoder) {
 	ctx, span := startSpan(ctx, "mercure.subscribe", trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
+
+	enc := h.negotiateStreamEncoder(r)
 
 	h.limitRequestBody(w, r)
 
@@ -243,7 +266,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		http.Error(w, http.StatusText(status), status)
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
@@ -268,7 +291,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 				recordSpanError(span, err)
 			}
 
-			return nil, nil
+			return nil, nil, nil
 		}
 	}
 
@@ -279,7 +302,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		h.writeMatcherParamError(ctx, w, err)
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var privateTopicMatchers []TopicMatcher
@@ -307,7 +330,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Announce the subscription only once it exists, so a failed registration
@@ -316,8 +339,22 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	// this order: remove first, then dispatch active:false.
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
-	h.sendHeaders(ctx, w, s)
+	// The response controller is created before the headers are sent because
+	// the advisory response duration derives from its write deadline. Nothing
+	// is written before sendHeaders.
 	rc := h.newResponseController(w, s)
+
+	durationRequested := false
+
+	if h.eventsQuery {
+		if d, ok := parseEventsDuration(r.Header.Get("Events")); ok {
+			durationRequested = true
+
+			rc.capDeadline(d)
+		}
+	}
+
+	h.sendHeaders(ctx, w, s, enc, rc, durationRequested)
 	rc.flush(ctx)
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
@@ -330,13 +367,30 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	h.metrics.SubscriberConnected(s)
 
-	return s, rc
+	return s, rc, enc
+}
+
+// capDeadline shortens the write deadline to now+d when that is sooner (a
+// zero deadline meaning unbounded), and recomputes the disconnection time
+// with the same margin-with-floor rule as newResponseController. The
+// requested duration is not randomized: it is the client's own bound.
+func (rc *responseController) capDeadline(d time.Duration) {
+	wd := time.Now().Add(d)
+	if !rc.writeDeadline.IsZero() && !wd.Before(rc.writeDeadline) {
+		return
+	}
+
+	rc.writeDeadline = wd
+
+	rc.disconnectionTime = wd
+	if dt := wd.Add(-rc.hub.dispatchTimeout); dt.After(time.Now()) {
+		rc.disconnectionTime = dt
+	}
 }
 
 //nolint:gochecknoglobals
 var (
 	headerConnection   = []string{"keep-alive"}
-	headerContentType  = []string{"text/event-stream"}
 	headerCacheControl = []string{"private, no-cache, no-store, must-revalidate, max-age=0"}
 	headerPragma       = []string{"no-cache"}
 	headerExpire       = []string{"0"}
@@ -345,13 +399,13 @@ var (
 )
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber) {
+func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber, enc streamEncoder, rc *responseController, durationRequested bool) {
 	header := w.Header()
 
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	header["Connection"] = headerConnection
 
-	header["Content-Type"] = headerContentType
+	header["Content-Type"] = []string{enc.contentType()}
 
 	// Disable cache, even for old browsers and proxies
 	header["Cache-Control"] = headerCacheControl
@@ -361,14 +415,45 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 
+	if h.eventsQuery {
+		header["Accept-Query"] = headerAcceptQuery
+	}
+
+	_, sse := enc.(sseEncoder)
+	if !sse {
+		header["Incremental"] = headerIncremental
+	}
+
+	// The advisory response duration is sent on negotiated encodings and
+	// whenever the client asked for a bound. It is omitted when no write
+	// deadline exists (no write timeout and no token expiration): the hub
+	// cannot promise a bound it does not enforce. Ceiled so the advertised
+	// bound is never earlier than the disconnection timer.
+	if (!sse || durationRequested) && !rc.writeDeadline.IsZero() {
+		seconds := int64(math.Ceil(time.Until(rc.writeDeadline).Seconds()))
+		header["Events"] = []string{"duration=" + strconv.FormatInt(seconds, 10)}
+	}
+
 	if s.RequestLastEventIDSet {
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
-	// Write a comment in the body
-	// Go currently doesn't provide a better way to flush the headers
-	if _, err := w.Write([]byte{':', '\n'}); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
-		h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write comment", slog.Any("error", err))
+	// Writing the preamble is the only way to flush the headers without
+	// writing an event; encodings without one flush via WriteHeader.
+	if p := enc.preamble(); p != nil {
+		if _, err := w.Write(p); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write preamble", slog.Any("error", err))
+		}
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// writeTrailer closes the response body with the encoder's trailer, if any,
+// so a clean disconnection ends the stream with valid framing.
+func (h *Hub) writeTrailer(ctx context.Context, rc *responseController, enc streamEncoder) {
+	if tr := enc.trailer(); tr != nil {
+		h.write(ctx, rc, string(tr))
 	}
 }
 
@@ -443,7 +528,9 @@ func (h *Hub) write(ctx context.Context, rc *responseController, data string) bo
 		return false
 	}
 
-	if _, err := rc.rw.Write([]byte(data)); err != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
+	// Subscription responses are text/event-stream or multipart/mixed, never
+	// an HTML-rendered media type, and X-Content-Type-Options: nosniff is set.
+	if _, err := rc.rw.Write([]byte(data)); err != nil && h.logger.Enabled(ctx, slog.LevelDebug) { //nolint:gosec
 		h.logger.LogAttrs(ctx, slog.LevelDebug, "Failed to write comment", slog.Any("error", err))
 
 		return false

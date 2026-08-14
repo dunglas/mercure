@@ -142,6 +142,22 @@ func WithSubscriptions() Option {
 	}
 }
 
+// WithEventsQuery enables negotiating draft-gupta-httpapi-events-query
+// subscription responses: QUERY requests whose Accept header prefers
+// multipart/mixed receive each update as a body part (raw data, event ID in
+// Content-ID), and the Events request header can bound the response duration.
+// text/event-stream remains the default and is always served otherwise.
+//
+// EXPERIMENTAL: the draft is an individual Internet-Draft and this behavior
+// is not covered by the backward compatibility promise.
+func WithEventsQuery() Option {
+	return func(o *opt) error {
+		o.eventsQuery = true
+
+		return nil
+	}
+}
+
 // WithLogger sets the logger to use.
 func WithLogger(logger *slog.Logger) Option {
 	return func(o *opt) error {
@@ -416,6 +432,7 @@ type opt struct {
 	anonymous                    bool
 	debug                        bool
 	subscriptions                bool
+	eventsQuery                  bool
 	debugger                     bool
 	playground                   bool
 	playgroundTokenFunc          func(resourceIdentifier string) (string, error)
