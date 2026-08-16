@@ -128,7 +128,9 @@ Content-Length: 21
 --THIS_STRING_SEPARATES--
 ```
 
-The response `Events` header advertises how long the hub intends to serve the stream (never longer than `write_timeout` or the token expiration); when it elapses, the hub closes the multipart document cleanly and the client re-queries, passing the last received `Content-ID` as `last_event_id` to resume. The `Events: duration=N` request header also works on plain SSE subscriptions when the directive is enabled, and the hub advertises the feature with an `Accept-Query` header on subscription responses and a `mercure_events_query` member in its [protected resource metadata](discovery.md).
+The response `Events` header advertises how long the hub intends to serve the stream (never longer than `write_timeout` or the token expiration); when it elapses, the hub closes the multipart document cleanly and the client re-queries, passing the last received `Content-ID` as `last_event_id` to resume. The `Events: duration=N` request header also works on plain SSE subscriptions when the directive is enabled, and the hub advertises the feature with a `mercure_events_query` member in its [protected resource metadata](discovery.md).
+
+Two response headers are sent on every subscription response, with or without the directive: `Incremental: ?1` (the standardized way to tell intermediaries not to buffer, which benefits SSE just as much) and `Accept-Query: application/x-www-form-urlencoded` (the hub always accepts `QUERY` with a form-encoded body).
 
 SSE-specific properties (`type`, `retry`) have no equivalent in this encoding, and the hub sends no heartbeats inside a multipart stream: the bounded duration plays that role. Stick with Server-Sent Events unless your client platform handles multipart streams more naturally than `text/event-stream`.
 
