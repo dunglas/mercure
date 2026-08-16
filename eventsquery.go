@@ -22,13 +22,18 @@ const (
 	mediaTypeMultipart   = "multipart/mixed"
 )
 
+// Sent on every subscription response, whatever the encoding.
+//
 //nolint:gochecknoglobals
 var (
 	// Incremental (draft-ietf-httpbis-incremental) tells intermediaries to
-	// forward each chunk immediately instead of buffering the response.
+	// forward each chunk immediately instead of buffering the response — the
+	// standardized equivalent of X-Accel-Buffering: no, which SSE needs too.
 	headerIncremental = []string{"?1"}
 	// Accept-Query advertises the media type of the QUERY request body
 	// (RFC 10008): the subscription parameters, form-encoded as for GET.
+	// The hub accepts QUERY unconditionally, so this is not gated on the
+	// events query support.
 	headerAcceptQuery = []string{"application/x-www-form-urlencoded"}
 )
 

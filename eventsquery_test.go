@@ -355,15 +355,16 @@ func TestSubscribeSSEDuration(t *testing.T) {
 	})
 
 	assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
-	assert.Empty(t, resp.Header.Get("Incremental"))
+	assert.Equal(t, "?1", resp.Header.Get("Incremental"))
 
 	duration, ok := parseEventsDuration(resp.Header.Get("Events"))
 	require.True(t, ok)
 	assert.LessOrEqual(t, duration, time.Second)
 }
 
-// With the feature disabled, the Events request header is ignored and no
-// events query response headers leak.
+// With the feature disabled, the non-standard Events request header is
+// ignored, while the standard Incremental and Accept-Query response headers
+// are sent on every subscription response.
 func TestSubscribeEventsHeaderIgnoredWhenDisabled(t *testing.T) {
 	t.Parallel()
 
@@ -399,6 +400,6 @@ func TestSubscribeEventsHeaderIgnoredWhenDisabled(t *testing.T) {
 	hub.SubscribeHandler(w, req)
 
 	assert.Empty(t, w.Header().Get("Events"))
-	assert.Empty(t, w.Header().Get("Accept-Query"))
-	assert.Empty(t, w.Header().Get("Incremental"))
+	assert.Equal(t, "application/x-www-form-urlencoded", w.Header().Get("Accept-Query"))
+	assert.Equal(t, "?1", w.Header().Get("Incremental"))
 }

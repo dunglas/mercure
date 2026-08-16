@@ -415,14 +415,10 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 
-	if h.eventsQuery {
-		header["Accept-Query"] = headerAcceptQuery
-	}
+	header["Accept-Query"] = headerAcceptQuery
+	header["Incremental"] = headerIncremental
 
 	_, sse := enc.(sseEncoder)
-	if !sse {
-		header["Incremental"] = headerIncremental
-	}
 
 	// The advisory response duration is sent on negotiated encodings and
 	// whenever the client asked for a bound. It is omitted when no write
