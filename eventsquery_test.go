@@ -91,7 +91,7 @@ func TestMultipartEncoder(t *testing.T) {
 
 	part, err := mr.NextPart()
 	require.NoError(t, err)
-	assert.Equal(t, "<urn:uuid:first>", part.Header.Get("Content-Id"))
+	assert.Equal(t, "urn:uuid:first", part.Header.Get("Content-Event-Id"))
 	assert.Equal(t, "application/ld+json", part.Header.Get("Content-Type"))
 
 	body, err := io.ReadAll(part)
@@ -102,7 +102,7 @@ func TestMultipartEncoder(t *testing.T) {
 
 	part, err = mr.NextPart()
 	require.NoError(t, err)
-	assert.Equal(t, "<urn:uuid:second>", part.Header.Get("Content-Id"))
+	assert.Equal(t, "urn:uuid:second", part.Header.Get("Content-Event-Id"))
 	assert.Empty(t, part.Header.Get("Content-Type"))
 
 	body, err = io.ReadAll(part)
@@ -248,7 +248,7 @@ func TestSubscribeEventsQueryMultipart(t *testing.T) {
 
 	part, err := mr.NextPart()
 	require.NoError(t, err)
-	assert.Equal(t, "<b>", part.Header.Get("Content-Id"))
+	assert.Equal(t, "b", part.Header.Get("Content-Event-Id"))
 	assert.Equal(t, "application/ld+json", part.Header.Get("Content-Type"))
 
 	partBody, err := io.ReadAll(part)
@@ -287,7 +287,7 @@ func TestSubscribeEventsQuerySubscriptionEvents(t *testing.T) {
 
 	part, err := mr.NextPart()
 	require.NoError(t, err)
-	assert.NotEmpty(t, part.Header.Get("Content-Id"))
+	assert.NotEmpty(t, part.Header.Get("Content-Event-Id"))
 
 	partBody, err := io.ReadAll(part)
 	require.NoError(t, err)

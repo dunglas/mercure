@@ -70,8 +70,8 @@ func (sseEncoder) heartbeat() []byte { return []byte{':', '\n'} }
 func (sseEncoder) trailer() []byte { return nil }
 
 // multipartEncoder encodes each update as a multipart/mixed body part: the
-// raw data as the part body, the event ID in the Content-ID header and the
-// publisher-provided media type, if any, in Content-Type. SSE-specific
+// raw data as the part body, the event ID in the Content-Event-Id header and
+// the publisher-provided media type, if any, in Content-Type. SSE-specific
 // properties (type, retry) have no equivalent in this encoding. The writer is
 // bound to an internal buffer, never to the ResponseWriter, so each event
 // still reaches the client as a single deadline-bounded write.
@@ -98,11 +98,14 @@ func (e *multipartEncoder) preamble() []byte { return nil }
 func (e *multipartEncoder) encode(u *Update) (string, error) {
 	e.buf.Reset()
 
-	// RFC 2046 only allows Content-* fields in body part headers; the event
-	// ID fits the Content-ID slot (RFC 2045, msg-id syntax).
+	// RFC 2046 gives body-part meaning to Content-* fields only, and RFC 2045
+	// defines extension fields as any field starting with Content-.
+	// Content-Event-Id carries the update ID verbatim: Content-ID cannot (its
+	// msg-id syntax requires <left@right>) and Content-Location cannot either
+	// (Mercure IDs may be non-URI strings).
 	header := textproto.MIMEHeader{
-		"Content-Id":     {"<" + u.ID + ">"},
-		"Content-Length": {strconv.Itoa(len(u.Data))},
+		"Content-Event-Id": {u.ID},
+		"Content-Length":   {strconv.Itoa(len(u.Data))},
 	}
 	// The hub treats update data as opaque, so a media type is only asserted
 	// when the publisher provided one.
