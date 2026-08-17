@@ -59,6 +59,22 @@ func TestSSEEncoder(t *testing.T) {
 	assert.Equal(t, "event: t\nretry: 3\nid: i\ndata: d\n\n", payload)
 }
 
+// Binary updates are base64-encoded on SSE, unconditionally: without a
+// per-event metadata slot, only a rule fixed at publication time lets
+// subscribers decode deterministically.
+func TestSSEEncoderBinary(t *testing.T) {
+	t.Parallel()
+
+	payload, err := sseEncoder{}.encode(&Update{Binary: true, Event: Event{ID: "i", Data: "\xff\x00PNG"}})
+	require.NoError(t, err)
+	assert.Equal(t, "id: i\ndata: /wBQTkc=\n\n", payload)
+
+	// Valid UTF-8 is encoded too when the update is marked binary.
+	payload, err = sseEncoder{}.encode(&Update{Binary: true, Event: Event{ID: "i", Data: "text"}})
+	require.NoError(t, err)
+	assert.Equal(t, "id: i\ndata: dGV4dA==\n\n", payload)
+}
+
 func TestMultipartEncoder(t *testing.T) {
 	t.Parallel()
 
@@ -256,6 +272,74 @@ func TestSubscribeEventsQueryMultipart(t *testing.T) {
 	assert.Equal(t, "Hello World", string(partBody))
 }
 
+// A binary update reaches multipart subscribers byte-exactly, while the SSE
+// serialization of the same update is base64-encoded.
+func TestSubscribeEventsQueryBinary(t *testing.T) {
+	t.Parallel()
+
+	binaryData := "\xff\x00PNG"
+	update := &Update{
+		Topics:      []string{"https://example.com/books/1"},
+		ContentType: "image/png",
+		Binary:      true,
+		Event:       Event{Data: binaryData, ID: "b"},
+	}
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+	transport, _ := hub.transport.(*LocalTransport)
+	ctx := t.Context()
+
+	go func() {
+		for {
+			transport.RLock()
+			ready := transport.subscribers.Len() == 1
+			transport.RUnlock()
+
+			if !ready {
+				continue
+			}
+
+			_ = hub.transport.Dispatch(ctx, update)
+
+			return
+		}
+	}()
+
+	reqCtx, cancel := context.WithCancel(t.Context())
+	body := url.Values{"match": {"https://example.com/books/1"}}.Encode()
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body)).WithContext(reqCtx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "multipart/mixed")
+
+	w := &containsResponseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		contains:           binaryData,
+		cancel:             cancel,
+		tb:                 t,
+	}
+	hub.SubscribeHandler(w, req)
+
+	_, params, err := mime.ParseMediaType(w.Header().Get("Content-Type"))
+	require.NoError(t, err)
+
+	boundary := params["boundary"]
+	mr := multipart.NewReader(strings.NewReader(w.body+"\r\n--"+boundary+"--\r\n"), boundary)
+
+	part, err := mr.NextPart()
+	require.NoError(t, err)
+	assert.Equal(t, "image/png", part.Header.Get("Content-Type"))
+
+	partBody, err := io.ReadAll(part)
+	require.NoError(t, err)
+	assert.Equal(t, binaryData, string(partBody))
+
+	// The same update over SSE: base64-encoded data.
+	sse, err := sseEncoder{}.encode(update)
+	require.NoError(t, err)
+	assert.Equal(t, "id: b\ndata: /wBQTkc=\n\n", sse)
+}
+
 // Subscription events flow through the shared registration path, so they
 // reach negotiated encodings like any other update.
 func TestSubscribeEventsQuerySubscriptionEvents(t *testing.T) {
@@ -288,6 +372,7 @@ func TestSubscribeEventsQuerySubscriptionEvents(t *testing.T) {
 	part, err := mr.NextPart()
 	require.NoError(t, err)
 	assert.NotEmpty(t, part.Header.Get("Content-Event-Id"))
+	assert.Equal(t, "application/json", part.Header.Get("Content-Type"))
 
 	partBody, err := io.ReadAll(part)
 	require.NoError(t, err)

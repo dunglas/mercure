@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"mime/multipart"
@@ -62,7 +63,20 @@ func (sseEncoder) contentType() string { return mediaTypeEventStream }
 // The comment is the only way to flush the headers without writing an event.
 func (sseEncoder) preamble() []byte { return []byte{':', '\n'} }
 
-func (sseEncoder) encode(u *Update) (string, error) { return u.String(), nil }
+// Binary payloads are always base64-encoded, even when the bytes happen to
+// be valid UTF-8: SSE is a text format with no per-event metadata slot, so
+// only a rule fixed at publication time lets subscribers decode
+// deterministically. The multipart encoding delivers the bytes verbatim.
+func (sseEncoder) encode(u *Update) (string, error) {
+	if !u.Binary {
+		return u.String(), nil
+	}
+
+	e := u.Event
+	e.Data = base64.StdEncoding.EncodeToString([]byte(e.Data))
+
+	return e.String(), nil
+}
 
 // An SSE comment as a heartbeat prevents issues with some proxies and old browsers.
 func (sseEncoder) heartbeat() []byte { return []byte{':', '\n'} }

@@ -34,6 +34,32 @@ func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *B
 	return transport
 }
 
+// Binary payloads survive the JSON persistence thanks to Update.MarshalJSON's
+// base64 encoding.
+func TestBoltTransportBinary(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+	topics := []string{"https://example.com/foo"}
+	binaryData := "\xff\x00PNG"
+
+	require.NoError(t, transport.Dispatch(t.Context(), &Update{
+		Event:       Event{ID: "1", Data: binaryData},
+		Topics:      topics,
+		Binary:      true,
+		ContentType: "image/png",
+	}))
+
+	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicMatcherStore{})
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	u := <-s.Receive()
+	assert.Equal(t, binaryData, u.Data)
+	assert.True(t, u.Binary)
+	assert.Equal(t, "image/png", u.ContentType)
+}
+
 func TestBoltTransportHistory(t *testing.T) {
 	t.Parallel()
 
