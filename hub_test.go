@@ -648,3 +648,25 @@ func createDummyNoneSignedJWT() string {
 
 	return tokenString
 }
+
+// A subscription answers with Mercure-Last-Event-Id, the cursor to resume
+// from. A fetch-based subscriber cannot read it unless CORS exposes it.
+func TestCORSExposesTheLastEventIDCursor(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Mercure-Last-Event-Id")
+}
