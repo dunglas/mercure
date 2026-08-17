@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
+	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -30,6 +33,9 @@ const (
 	// (subscribematchers.go).
 )
 
+// fieldData is the publish form field carrying the update payload.
+const fieldData = "data"
+
 // Sentinel errors returned by Publish. Callers can branch on them via
 // errors.Is.
 var (
@@ -39,6 +45,7 @@ var (
 	ErrInvalidEventType  = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
 	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
+	ErrInvalidMediaType  = errors.New("the event content type is not a valid media type")
 	ErrTooManyTopics     = errors.New("too many topics in update")
 	ErrMissingTopic      = errors.New("update carries no topic")
 	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
@@ -106,10 +113,21 @@ func (u *Update) Validate() error {
 		return ErrReservedEventType
 	}
 
-	// The protocol requires field values to be valid UTF-8; ParseForm does not
-	// enforce it, so reject invalid data rather than dispatch it.
-	if !utf8.ValidString(u.Data) {
+	// The protocol requires urlencoded field values to be valid UTF-8;
+	// ParseForm does not enforce it, so reject invalid data rather than
+	// dispatch it. Binary updates (multipart publications) may carry any
+	// bytes: they are base64-encoded when serialized to text formats.
+	if !u.Binary && !utf8.ValidString(u.Data) {
 		return ErrInvalidData
+	}
+
+	// The content type ends up on the wire as a header of negotiated response
+	// encodings, so a malformed value could inject fields there (CWE-93);
+	// ParseMediaType rejects everything but valid media type syntax.
+	if u.ContentType != "" {
+		if _, _, err := mime.ParseMediaType(u.ContentType); err != nil {
+			return fmt.Errorf("%q: %w", u.ContentType, ErrInvalidMediaType)
+		}
 	}
 
 	return nil
@@ -196,20 +214,39 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	h.limitRequestBody(w, r)
 
-	if err := r.ParseForm(); err != nil {
-		status := http.StatusBadRequest
+	var (
+		form        url.Values
+		contentType string
+		binary      bool
+	)
 
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			status = http.StatusRequestEntityTooLarge
+	if mediaType, params, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mediaType == "multipart/form-data" { //nolint:nestif
+		// Multipart publication is part of the experimental events query
+		// support: it exists to carry binary payloads, which only the
+		// multipart subscription encoding delivers verbatim.
+		if !h.eventsQuery {
+			http.Error(w, http.StatusText(http.StatusUnsupportedMediaType), http.StatusUnsupportedMediaType)
+
+			return
 		}
 
-		http.Error(w, http.StatusText(status), status)
+		var err error
+		if form, contentType, err = parseMultipartPublication(r.Body, params["boundary"]); err != nil {
+			writeParseError(w, err)
+
+			return
+		}
+
+		binary = true
+	} else if err := r.ParseForm(); err != nil {
+		writeParseError(w, err)
 
 		return
+	} else {
+		form = r.PostForm
 	}
 
-	topics := r.PostForm["topic"]
+	topics := form["topic"]
 	if len(topics) == 0 {
 		http.Error(w, `Missing "topic" parameter`, http.StatusBadRequest)
 
@@ -241,7 +278,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 	var retry uint64
 
-	if retryString := r.PostForm.Get("retry"); retryString != "" {
+	if retryString := form.Get("retry"); retryString != "" {
 		var err error
 		if retry, err = strconv.ParseUint(retryString, 10, 64); err != nil {
 			http.Error(w, `Invalid "retry" parameter`, http.StatusBadRequest)
@@ -250,7 +287,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	private := len(r.PostForm["private"]) != 0
+	private := len(form["private"]) != 0
 	if claims != nil && !claims.authz.grantsAll(h.topicMatcherStore, actionPublish, topics) { //nolint:nestif
 		if private {
 			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
@@ -275,10 +312,12 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u = &Update{
-		Topics:  topics,
-		Private: private,
-		Debug:   h.debug,
-		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
+		Topics:      topics,
+		Private:     private,
+		Debug:       h.debug,
+		ContentType: contentType,
+		Binary:      binary,
+		Event:       Event{form.Get(fieldData), form.Get("id"), form.Get("type"), retry},
 	}
 
 	dispatchCtx := context.WithoutCancel(ctx)
@@ -290,7 +329,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
 			errors.Is(err, ErrReservedEventType),
 			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
-			errors.Is(err, ErrMissingTopic), errors.Is(err, ErrInvalidData):
+			errors.Is(err, ErrMissingTopic), errors.Is(err, ErrInvalidData),
+			errors.Is(err, ErrInvalidMediaType):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -313,5 +353,64 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return
+	}
+}
+
+// writeParseError maps a publication body parsing failure to its status:
+// 413 when the MaxBytesReader cap fired, 400 otherwise.
+func writeParseError(w http.ResponseWriter, err error) {
+	status := http.StatusBadRequest
+
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		status = http.StatusRequestEntityTooLarge
+	}
+
+	http.Error(w, http.StatusText(status), status)
+}
+
+// parseMultipartPublication reads a multipart/form-data publication body.
+// Fields parse exactly like their urlencoded counterparts, but the data
+// part keeps its raw bytes — the reason this encoding exists: urlencoded
+// field values must be UTF-8, so they cannot carry binary payloads — and
+// its explicit Content-Type header, if any, declares the event media type.
+// The caller has already capped the body with MaxBytesReader.
+func parseMultipartPublication(body io.Reader, boundary string) (url.Values, string, error) {
+	if boundary == "" {
+		return nil, "", http.ErrMissingBoundary
+	}
+
+	var contentType string
+
+	form := url.Values{}
+	mr := multipart.NewReader(body, boundary)
+
+	for {
+		p, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			return form, contentType, nil
+		}
+
+		if err != nil {
+			return nil, "", fmt.Errorf("invalid multipart publication body: %w", err)
+		}
+
+		name := p.FormName()
+		if name == "" {
+			// A part without a field name has no urlencoded equivalent;
+			// ignore it like an unknown field.
+			continue
+		}
+
+		v, err := io.ReadAll(p)
+		if err != nil {
+			return nil, "", fmt.Errorf("unable to read multipart publication part: %w", err)
+		}
+
+		if name == fieldData {
+			contentType = p.Header.Get("Content-Type")
+		}
+
+		form.Add(name, string(v))
 	}
 }

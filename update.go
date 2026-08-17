@@ -1,6 +1,9 @@
 package mercure
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 
 	"github.com/gofrs/uuid/v5"
@@ -22,8 +25,61 @@ type Update struct {
 	// Private updates can only be dispatched to subscribers authorized to receive them.
 	Private bool
 
+	// The media type of Data, as declared by the publisher. Conveyed to
+	// subscribers when the negotiated response encoding can carry per-event
+	// metadata; text/event-stream defines no field for it. omitempty keeps
+	// history entries persisted before this field existed decodable.
+	ContentType string `json:",omitempty"`
+
+	// Binary marks updates whose Data is an arbitrary byte payload
+	// (published as multipart/form-data): Data is base64-encoded when
+	// serialized to text formats (SSE, JSON) and delivered verbatim
+	// otherwise. omitempty keeps older history entries decodable.
+	Binary bool `json:",omitempty"`
+
 	// To print debug information
 	Debug bool
+}
+
+// updateJSON drops Update's methods so encoding/json does not recurse into
+// MarshalJSON; the wire shape stays byte-identical for non-binary updates.
+type updateJSON Update
+
+// MarshalJSON base64-encodes binary Data: encoding/json silently replaces
+// invalid UTF-8 in strings with U+FFFD, which would corrupt persisted
+// binary payloads.
+func (u *Update) MarshalJSON() ([]byte, error) {
+	c := updateJSON(*u)
+	if u.Binary {
+		c.Data = base64.StdEncoding.EncodeToString([]byte(u.Data))
+	}
+
+	b, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal update: %w", err)
+	}
+
+	return b, nil
+}
+
+func (u *Update) UnmarshalJSON(data []byte) error {
+	var c updateJSON
+	if err := json.Unmarshal(data, &c); err != nil {
+		return fmt.Errorf("unable to unmarshal update: %w", err)
+	}
+
+	if c.Binary {
+		d, err := base64.StdEncoding.DecodeString(c.Data)
+		if err != nil {
+			return fmt.Errorf("unable to decode binary update data: %w", err)
+		}
+
+		c.Data = string(d)
+	}
+
+	*u = Update(c)
+
+	return nil
 }
 
 func (u *Update) LogValue() slog.Value {
@@ -40,12 +96,6 @@ func (u *Update) LogValue() slog.Value {
 	}
 
 	return slog.GroupValue(attrs...)
-}
-
-type serializedUpdate struct {
-	*Update
-
-	event string
 }
 
 // AssignUUID generates a new UUID an assign it to the given update if no ID is already set.
@@ -66,8 +116,4 @@ func (u *Update) SpanAttributes() []attribute.KeyValue {
 		attribute.StringSlice("mercure.topics", u.Topics),
 		attribute.Bool("mercure.private", u.Private),
 	)
-}
-
-func newSerializedUpdate(u *Update) *serializedUpdate {
-	return &serializedUpdate{u, u.String()}
 }
