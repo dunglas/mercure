@@ -8,3 +8,11 @@ data:
   global-options:  {{ .Values.globalOptions | quote }}
   publisher-jwt-alg: {{ .Values.publisherJwtAlg | quote }}
   subscriber-jwt-alg: {{ .Values.subscriberJwtAlg | quote }}
+  {{- $extraDirectives := .Values.extraDirectives }}
+  {{- if .Values.dev }}
+  {{- /* Dev mode: turn on the insecure playground (debug UI, demo endpoints, anonymous, permissive CORS). */}}
+  {{- $extraDirectives = printf "playground\n%s" .Values.extraDirectives }}
+  {{- end }}
+  extra-directives: {{ $extraDirectives | quote }}
+  caddy-extra-config: {{ .Values.caddyExtraConfig | quote }}
+  caddy-extra-directives: {{ .Values.caddyExtraDirectives | quote }}
