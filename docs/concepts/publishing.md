@@ -21,25 +21,43 @@ The hub fans the update out to every subscriber whose matchers hit one of the pu
 
 ## Mercure publish form fields
 
-| Field          | Required | Description                                                                                                                                                                              |
-| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `topic`        | Yes      | Identifier of the updated topic. **MAY** appear more than once: the first occurrence is the canonical topic, any others are [alternate topics](topics-and-matchers.md#alternate-topics). |
-| `data`         | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                                                                                            |
-| `private`      | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.                                                                                     |
-| `id`           | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't.                                                                       |
-| `content_type` | No       | Media type of `data` (e.g. `application/ld+json`). Conveyed to subscribers when the response encoding can carry it (not over SSE). Invalid media types are rejected with a `400`.        |
-| `type`         | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`.                                                             |
-| `retry`        | No       | Reconnection time hint, in milliseconds.                                                                                                                                                 |
+| Field     | Required | Description                                                                                                                                                                              |
+|-----------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `topic`   | Yes      | Identifier of the updated topic. **MAY** appear more than once: the first occurrence is the canonical topic, any others are [alternate topics](topics-and-matchers.md#alternate-topics). |
+| `data`    | No       | Payload of the update. Anything you want: JSON, HTML, JSON Patch, plain text.                                                                                                            |
+| `private` | No       | If present, the update is private. The hub delivers it only to subscribers authorized for the topic.                                                                                     |
+| `id`      | No       | Custom event ID. Must not start with `#` or equal the reserved value `earliest`. The hub assigns one if you don't.                                                                       |
+| `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`.                                                             |
+| `retry`   | No       | Reconnection time hint, in milliseconds.                                                                                                                                                 |
 
 The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
 
 The hub treats `data` as opaque bytes, so you can push any format the subscriber
-understands: JSON, HTML, plain text, JSON Patch, base64-encoded binary, or an
+understands: JSON, HTML, plain text, JSON Patch, [raw binary](#publishing-binary-data), or an
 event envelope such as [CloudEvents](https://cloudevents.io/) or
 [ActivityStreams 2.0](https://www.w3.org/TR/activitystreams-core/). Wrapping the
 payload in an envelope is a publisher/subscriber convention; the hub neither
 requires nor inspects it. See [Update payloads](update-payloads.md) for how to
 pick one.
+
+## Publishing binary data
+
+When the hub runs with the [`events_query` directive](../deployment/configuration.md#mercure-directives) (experimental), the publish endpoint also accepts `multipart/form-data` bodies. The fields are the same, but the `data` part carries raw bytes, and its `Content-Type` header, if set, declares the media type of the payload (invalid media types are rejected with a `400`). Without the directive, multipart publications are rejected with a `415`.
+
+```console
+# Publishing binary data
+curl -X POST https://hub.example.com/.well-known/mercure \
+  -H "Authorization: Bearer $JWT" \
+  -F 'topic=https://example.com/books/1/cover' \
+  -F 'data=@cover.png;type=image/png'
+```
+
+Delivery depends on the subscription encoding:
+
+- [HTTP Events Query subscribers](subscribing.md#subscribing-with-http-events-query) (`multipart/mixed`) receive the bytes verbatim, with the declared media type in the part's `Content-Type` header.
+- Server-Sent Events subscribers receive the `data` field base64-encoded. This happens for every multipart-published update, even when the payload is plain text: SSE has no per-event metadata slot, so only a rule fixed at publication time lets subscribers decode deterministically.
+
+Multipart publishing is also the way to get byte-exact round-tripping of text payloads (encrypted blobs, signed documents): the SSE serialization normalizes CR and CRLF to LF, while base64 (over SSE) and multipart parts both preserve the exact bytes.
 
 ## Mercure publish examples
 

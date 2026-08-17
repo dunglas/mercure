@@ -110,7 +110,7 @@ Events: duration=600
 match=https://example.com/books/1&last_event_id=earliest
 ```
 
-The hub answers with a bounded incremental stream in which each update is a body part: the raw `data` as the part body, the event ID in `Content-Event-Id` (a MIME extension field carrying the ID verbatim), and the media type declared by the publisher (the [`content_type` publish field](publishing.md#mercure-publish-form-fields)), if any, in `Content-Type`:
+The hub answers with a bounded incremental stream in which each update is a body part: the raw `data` as the part body, the event ID in `Content-Event-Id` (a MIME extension field carrying the ID verbatim), and the media type declared by the publisher (the `Content-Type` of a [multipart publication](publishing.md#publishing-binary-data)'s `data` part), if any, in `Content-Type`:
 
 ```http
 HTTP/1.1 200 OK
@@ -132,7 +132,7 @@ The response `Events` header advertises how long the hub intends to serve the st
 
 Two response headers are sent on every subscription response, with or without the directive: `Incremental: ?1` (the standardized way to tell intermediaries not to buffer, which benefits SSE just as much) and `Accept-Query: application/x-www-form-urlencoded` (the hub always accepts `QUERY` with a form-encoded body).
 
-SSE-specific properties (`type`, `retry`) have no equivalent in this encoding, and the hub sends no heartbeats inside a multipart stream: the bounded duration plays that role. Stick with Server-Sent Events unless your client platform handles multipart streams more naturally than `text/event-stream`.
+SSE-specific properties (`type`, `retry`) have no equivalent in this encoding, and the hub sends no heartbeats inside a multipart stream: the bounded duration plays that role. Stick with Server-Sent Events unless your client platform handles multipart streams more naturally than `text/event-stream`, or unless you consume [binary updates](publishing.md#publishing-binary-data): multipart parts carry their bytes verbatim, while the SSE serialization of a multipart-published update is always base64-encoded.
 
 ## Closing the Mercure EventSource connection
 
