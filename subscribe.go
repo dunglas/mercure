@@ -129,6 +129,12 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The response begins here, once the subscriber is registered. Registering
+	// one and answering it are separate concerns, and only the second belongs
+	// to a handler that then keeps the connection.
+	h.sendHeaders(ctx, w, s)
+	rc.flush(ctx)
+
 	ctx = context.WithValue(ctx, SubscriberContextKey, &s.Subscriber)
 
 	defer h.shutdown(ctx, s)
@@ -316,9 +322,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	// this order: remove first, then dispatch active:false.
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
-	h.sendHeaders(ctx, w, s)
 	rc := h.newResponseController(w, s)
-	rc.flush(ctx)
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
