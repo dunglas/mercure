@@ -4,12 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
-	"net/url"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -238,25 +235,16 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	h.limitRequestBody(w, r)
 
-	values, err := h.subscribeValues(r)
-	if err != nil {
-		status := http.StatusBadRequest
-
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			status = http.StatusRequestEntityTooLarge
-		}
-
-		http.Error(w, http.StatusText(status), status)
-		recordSpanError(span, err)
+	req, parseErr := h.parseSubscribeRequest(ctx, r)
+	if parseErr != nil {
+		http.Error(w, http.StatusText(parseErr.status), parseErr.status)
+		recordSpanError(span, parseErr.cause)
 
 		return nil, nil, nil
 	}
 
-	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
-
-	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
-	s.RequestLastEventIDSet = lastEventIDSet
+	s := NewLocalSubscriber(req.lastEventID, h.logger, h.topicMatcherStore)
+	s.RequestLastEventIDSet = req.lastEventIDSet
 
 	var claims *claims
 
@@ -281,7 +269,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	deprecated := h.isBackwardCompatiblyEnabledWith(8)
 
-	matchers, err := h.parseMatchers(values, deprecated)
+	matchers, err := h.parseMatchers(req.values, deprecated)
 	if err != nil {
 		h.writeMatcherParamError(ctx, w, err)
 		recordSpanError(span, err)
@@ -377,70 +365,6 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	if _, err := w.Write([]byte(preamble)); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
 		h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write preamble", slog.Any("error", err))
 	}
-}
-
-// subscribeValues returns the subscription parameters. For GET and HEAD they
-// come from the URL query; for QUERY the application/x-www-form-urlencoded
-// request body is parsed and merged on top, so a subscriber can pass topics
-// either way. Body size is bounded by limitRequestBody, as for the publish
-// endpoint.
-func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
-	values := r.URL.Query()
-	if r.Method != methodQuery {
-		return values, nil
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading QUERY request body: %w", err)
-	}
-
-	bodyValues, err := url.ParseQuery(string(body))
-	if err != nil {
-		return nil, fmt.Errorf("parsing QUERY request body: %w", err)
-	}
-
-	for k, vs := range bodyValues {
-		values[k] = append(values[k], vs...)
-	}
-
-	return values, nil
-}
-
-// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP
-// header with a fallback on the query parameter. The second return value
-// reports whether either was present at all, even with an empty value: the
-// protocol requires answering with a Mercure-Last-Event-ID response field
-// whenever one was.
-func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query url.Values) (string, bool) {
-	if id := r.Header.Get("Last-Event-ID"); id != "" {
-		return id, true
-	}
-
-	_, headerPresent := r.Header["Last-Event-Id"]
-
-	if id := query.Get("last_event_id"); id != "" {
-		return id, true
-	}
-
-	_, queryPresent := query["last_event_id"]
-
-	if legacyEventIDValues, present := query["Last-Event-ID"]; present { //nolint:nestif
-		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)
-		if h.isBackwardCompatiblyEnabledWith(7) {
-			if infoLevel {
-				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'last_event_id' instead.")
-			}
-
-			if len(legacyEventIDValues) != 0 {
-				return legacyEventIDValues[0], true
-			}
-		} else if infoLevel {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID" query parameter is not supported anymore, use "last_event_id" instead or enable backward compatibility with version 7 of the protocol.`)
-		}
-	}
-
-	return "", headerPresent || queryPresent
 }
 
 // Write sends the given string to the client.
