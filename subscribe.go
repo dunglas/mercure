@@ -124,7 +124,7 @@ func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	s, rc := h.registerSubscriber(ctx, w, r)
+	s, rc, enc := h.registerSubscriber(ctx, w, r)
 	if s == nil {
 		return
 	}
@@ -132,7 +132,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	// The response begins here, once the subscriber is registered. Registering
 	// one and answering it are separate concerns, and only the second belongs
 	// to a handler that then keeps the connection.
-	h.sendHeaders(ctx, w, s)
+	h.sendHeaders(ctx, w, s, enc.contentType(), enc.preamble())
 	rc.flush(ctx)
 
 	ctx = context.WithValue(ctx, SubscriberContextKey, &s.Subscriber)
@@ -147,7 +147,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		disconnectionTimerC <-chan time.Time
 	)
 
-	if h.heartbeat != 0 {
+	heartbeat := enc.heartbeat()
+	if h.heartbeat != 0 && heartbeat != "" {
 		heartbeatTimer = time.NewTimer(h.heartbeat)
 		defer heartbeatTimer.Stop()
 
@@ -202,8 +203,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case <-heartbeatTimerC:
-			// Send an SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(ctx, rc, ":\n") {
+			// Keep the connection alive, to prevent issues with some proxies and old browsers
+			if !h.write(ctx, rc, enc.heartbeat()) {
 				return
 			}
 
@@ -212,7 +213,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
 			return
 		case update, ok := <-s.Receive():
-			if !ok || !h.write(ctx, rc, newSerializedUpdate(update).event) {
+			if !ok || !h.write(ctx, rc, enc.encode(update)) {
 				return
 			}
 
@@ -231,7 +232,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) { //nolint:funlen
+func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController, streamEncoder) { //nolint:funlen
 	ctx, span := startSpan(ctx, "mercure.subscribe", trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
@@ -249,7 +250,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		http.Error(w, http.StatusText(status), status)
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
@@ -274,7 +275,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 				recordSpanError(span, err)
 			}
 
-			return nil, nil
+			return nil, nil, nil
 		}
 	}
 
@@ -285,7 +286,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		h.writeMatcherParamError(ctx, w, err)
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var privateTopicMatchers []TopicMatcher
@@ -313,7 +314,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Announce the subscription only once it exists, so a failed registration
@@ -323,6 +324,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
 	rc := h.newResponseController(w, s)
+	enc := eventStreamEncoder{}
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
@@ -334,13 +336,12 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	h.metrics.SubscriberConnected(s)
 
-	return s, rc
+	return s, rc, enc
 }
 
 //nolint:gochecknoglobals
 var (
 	headerConnection   = []string{"keep-alive"}
-	headerContentType  = []string{"text/event-stream"}
 	headerCacheControl = []string{"private, no-cache, no-store, must-revalidate, max-age=0"}
 	headerPragma       = []string{"no-cache"}
 	headerExpire       = []string{"0"}
@@ -349,13 +350,15 @@ var (
 )
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber) {
+func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber,
+	contentType []string, preamble string,
+) {
 	header := w.Header()
 
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	header["Connection"] = headerConnection
 
-	header["Content-Type"] = headerContentType
+	header["Content-Type"] = contentType
 
 	// Disable cache, even for old browsers and proxies
 	header["Cache-Control"] = headerCacheControl
@@ -369,10 +372,10 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
-	// Write a comment in the body
+	// Write the framing's preamble in the body
 	// Go currently doesn't provide a better way to flush the headers
-	if _, err := w.Write([]byte{':', '\n'}); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
-		h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write comment", slog.Any("error", err))
+	if _, err := w.Write([]byte(preamble)); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
+		h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write preamble", slog.Any("error", err))
 	}
 }
 

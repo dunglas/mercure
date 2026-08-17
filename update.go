@@ -42,12 +42,6 @@ func (u *Update) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-type serializedUpdate struct {
-	*Update
-
-	event string
-}
-
 // AssignUUID generates a new UUID an assign it to the given update if no ID is already set.
 func (u *Update) AssignUUID() {
 	if u.ID == "" {
@@ -66,8 +60,4 @@ func (u *Update) SpanAttributes() []attribute.KeyValue {
 		attribute.StringSlice("mercure.topics", u.Topics),
 		attribute.Bool("mercure.private", u.Private),
 	)
-}
-
-func newSerializedUpdate(u *Update) *serializedUpdate {
-	return &serializedUpdate{u, u.String()}
 }

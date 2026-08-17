@@ -1478,3 +1478,27 @@ func TestSubscriptionEventReachesTheSubscriberItDescribes(t *testing.T) {
 	assert.Contains(t, body, `"active": true`)
 	assert.Contains(t, body, `"match": "/.well-known/mercure/subscriptions/:mt/:m/:s"`)
 }
+
+// A subscription response must state the media type it is framed in. Every
+// other assertion about a subscription looks at the body, so nothing else
+// would notice the hub answering with the wrong Content-Type.
+func TestSubscribeContentType(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "text/event-stream", w.Header().Get("Content-Type"))
+}
