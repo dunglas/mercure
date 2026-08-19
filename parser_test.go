@@ -5,8 +5,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // A subscription refusing every media type the hub answers with leaves
@@ -291,4 +293,125 @@ func TestEventsQuerySubscribeWithoutEvents(t *testing.T) {
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+}
+
+func TestParseEventsDuration(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		values []string
+		want   time.Duration
+	}{
+		{"integer", []string{"duration=30"}, 30 * time.Second},
+		{"decimal", []string{"duration=1.5"}, 1500 * time.Millisecond},
+		{"among other keys", []string{"foo=1, duration=30, bar=?1"}, 30 * time.Second},
+		{"split over several field lines", []string{"foo=1", "duration=30"}, 30 * time.Second},
+		{"with parameters", []string{"duration=30;precise"}, 30 * time.Second},
+
+		// Beyond what a time.Duration holds — a shade over 9223372036
+		// seconds — there is no bound the hub can apply, and never a
+		// negative duration.
+		{"just past time.Duration", []string{"duration=9223372037"}, 0},
+		{"the largest Integer the field can carry", []string{"duration=999999999999999"}, 0},
+
+		// "no preference" and invalid values both degrade to no preference.
+		{"zero is no preference", []string{"duration=0"}, 0},
+		{"negative is invalid", []string{"duration=-5"}, 0},
+		{"absent", []string{"foo=1"}, 0},
+		{"no field at all", nil, 0},
+		{"empty field", []string{""}, 0},
+
+		// A malformed field must not fail the subscription.
+		{"unparsable", []string{"duration=="}, 0},
+		{"not a number", []string{`duration="600"`}, 0},
+		{"token not a number", []string{"duration=abc"}, 0},
+		{"inner list", []string{"duration=(1 2)"}, 0},
+
+		// Decimals carry three fractional digits, so a millisecond is the
+		// smallest bound a client can express; a fourth digit is not a
+		// Structured Field at all.
+		{"a millisecond", []string{"duration=0.001"}, time.Millisecond},
+		{"finer than a millisecond", []string{"duration=0.0001"}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, parseEventsDuration(tc.values))
+		})
+	}
+}
+
+// The Events request field bounds the response an Events Query asked for.
+func TestEventsQuerySubscribeReadsEventsDuration(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	r := eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events=")
+	r.Header.Set("Events", "duration=30")
+
+	req, parseErr := hub.parseSubscribeRequest(t.Context(), r)
+	require.Nil(t, parseErr)
+	assert.Equal(t, 30*time.Second, req.duration)
+}
+
+// No field is no bound.
+func TestEventsQuerySubscribeWithoutEventsDuration(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	req, parseErr := hub.parseSubscribeRequest(t.Context(),
+		eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events="))
+	require.Nil(t, parseErr)
+	assert.Zero(t, req.duration)
+}
+
+// An ordinary subscription is not an Events Query, so the field does not
+// bound it even on a hub serving that protocol.
+func TestSubscribeIgnoresEventsDuration(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	r := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil)
+	r.Header.Set("Events", "duration=30")
+
+	req, parseErr := hub.parseSubscribeRequest(t.Context(), r)
+	require.Nil(t, parseErr)
+	assert.Zero(t, req.duration)
+}
+
+// A hub not serving Events Query reads none of its fields: a subscriber
+// sending one keeps the connection it would have had.
+func TestQuerySubscribeIgnoresEventsDurationWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	r := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+	r.Header.Set("Content-Type", urlEncodedMediaType)
+	r.Header.Set("Events", "duration=30")
+
+	req, parseErr := hub.parseSubscribeRequest(t.Context(), r)
+	require.Nil(t, parseErr)
+	assert.Zero(t, req.duration)
+}
+
+// Events is a Structured Fields Dictionary, so field lines repeating it are
+// one dictionary split in two (RFC 9110, Section 5.3).
+func TestEventsQuerySubscribeReadsEventsDurationSplitOverFieldLines(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	r := eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events=")
+	r.Header.Add("Events", "foo=1")
+	r.Header.Add("Events", "duration=30")
+
+	req, parseErr := hub.parseSubscribeRequest(t.Context(), r)
+	require.Nil(t, parseErr)
+	assert.Equal(t, 30*time.Second, req.duration)
 }

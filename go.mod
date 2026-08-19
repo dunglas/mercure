@@ -9,6 +9,7 @@ retract (
 
 require (
 	github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526
+	github.com/dunglas/httpsfv v1.1.1
 	github.com/dunglas/skipfilter v1.0.0
 	github.com/elnormous/contenttype v1.0.4
 	github.com/gofrs/uuid/v5 v5.4.0

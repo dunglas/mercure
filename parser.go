@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"mime"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/dunglas/httpsfv"
 	"github.com/elnormous/contenttype"
 )
 
@@ -58,7 +61,7 @@ var subscriptionParsers = map[string]func(body []byte) (url.Values, error){
 //
 //nolint:gochecknoglobals
 var (
-	parsedCarriers = parseMediaTypes(carrierContentTypes)
+	parsedCarriers       = parseMediaTypes(carrierContentTypes)
 	parsedMercureCarrier = parseMediaTypes(mercureCarrierContentType)
 )
 
@@ -77,6 +80,11 @@ type subscribeRequest struct {
 	// The framing is built from it on the response side, a per-connection
 	// framing belonging there rather than to a request.
 	contentType string
+
+	// duration is the bound the client asked the hub to apply. Zero is no
+	// bound: the smallest duration a client can express is a millisecond,
+	// Structured Fields Decimals carrying three fractional digits.
+	duration time.Duration
 }
 
 // parseError is a subscription request the hub will not serve, carrying the
@@ -135,11 +143,14 @@ func (h *Hub) parseSubscribeRequest(ctx context.Context, r *http.Request) (*subs
 			lastEventID, lastEventIDSet = id, lastEventIDSet || exists
 		}
 
+		duration := parseEventsDuration(r.Header.Values("Events"))
+
 		return &subscribeRequest{
 			values:         values,
 			lastEventID:    lastEventID,
 			lastEventIDSet: lastEventIDSet,
 			contentType:    contentType,
+			duration:       duration,
 		}, nil
 	}
 
@@ -310,4 +321,77 @@ func getValueAndExistence(source []string) (string, bool) {
 	}
 
 	return source[0], true
+}
+
+// parseEventsDuration reads from the Events request field the upper bound a
+// client asks the hub to apply to the response. The property is an Integer
+// or Decimal number of seconds, of which only non-negative values are valid.
+//
+// A zero duration means the client supplied no bound the hub can apply,
+// which is the case when the property is
+//
+//   - absent, or 0, which the specification defines as no preference;
+//   - malformed, or not a number, since a preference the hub may overrule
+//     anyway should not fail a subscription;
+//   - larger than a time.Duration holds, roughly 292 years, which no
+//     response could ever reach.
+//
+// The hub is then left to its own deadline, which may itself be absent. A
+// bound and a zero cannot be confused: the smallest a client can express is
+// a millisecond, Structured Fields Decimals carrying three fractional
+// digits.
+func parseEventsDuration(values []string) time.Duration {
+	if len(values) == 0 {
+		return 0
+	}
+
+	dict, err := httpsfv.UnmarshalDictionary(values)
+	if err != nil {
+		return 0
+	}
+
+	member, found := dict.Get("duration")
+	if !found {
+		return 0
+	}
+
+	// An Inner List is not a number; the property is defined as an Item.
+	item, isItem := member.(httpsfv.Item)
+	if !isItem {
+		return 0
+	}
+
+	var seconds float64
+
+	switch v := item.Value.(type) {
+	case int64:
+		seconds = float64(v)
+	case float64:
+		seconds = v
+	default:
+		return 0
+	}
+
+	// Zero is "no preference", which is the same outcome as an absent
+	// property, and negatives are invalid.
+	if seconds <= 0 {
+		return 0
+	}
+
+	// A Structured Field Integer reaches 999999999999999, some five orders
+	// of magnitude beyond the ~292 years a time.Duration holds, so a large
+	// but perfectly legal value would wrap to a negative duration and pull
+	// the deadline into the past, closing the connection the instant it
+	// opened.
+	//
+	// No response could run that long, so there is no bound here for the hub
+	// to apply. Against a hub with its own deadline this changes nothing —
+	// a request may only shorten, and this shortens nothing. Against a hub
+	// with no deadline the connection stays open indefinitely, which is what
+	// was asked for.
+	if seconds >= float64(math.MaxInt64)/float64(time.Second) {
+		return 0
+	}
+
+	return time.Duration(seconds * float64(time.Second))
 }

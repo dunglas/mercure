@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"math"
 	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -74,7 +76,7 @@ func (rc *responseController) flush(ctx context.Context) bool {
 	return true
 }
 
-func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *responseController {
+func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber, duration time.Duration) *responseController {
 	wd := h.getWriteDeadline(s)
 
 	// Disconnect one dispatch before the write deadline so the client sees a
@@ -89,6 +91,15 @@ func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *
 	if !wd.IsZero() {
 		if d := wd.Add(-h.dispatchTimeout); d.After(time.Now()) {
 			dt = d
+		}
+	}
+
+	// A subscription may ask the hub to stop sooner, and only sooner. The
+	// dispatch of margin belongs to the connection's write deadline, not to what
+	// was asked for, so it is added back rather than taken out.
+	if duration > 0 {
+		if capped := time.Now().Add(duration); dt.IsZero() || capped.Before(dt) {
+			dt = capped
 		}
 	}
 
@@ -129,7 +140,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	// The response begins here, once the subscriber is registered. Registering
 	// one and answering it are separate concerns, and only the second belongs
 	// to a handler that then keeps the connection.
-	h.sendHeaders(ctx, w, s, enc.contentType(), enc.preamble())
+	h.sendHeaders(ctx, w, s, enc.contentType(), enc.preamble(), rc.disconnectionTime)
 	rc.flush(ctx)
 
 	ctx = context.WithValue(ctx, SubscriberContextKey, &s.Subscriber)
@@ -159,7 +170,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	// connection no later than exp, so relying on a failed write against a past
 	// deadline would otherwise leave an authenticated connection open up to a
 	// heartbeat interval past exp, or indefinitely with heartbeat off.
-	if !rc.writeDeadline.IsZero() {
+	if !rc.disconnectionTime.IsZero() {
 		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
 		defer disconnectionTimer.Stop()
 
@@ -315,7 +326,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	// this order: remove first, then dispatch active:false.
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
-	rc := h.newResponseController(w, s)
+	rc := h.newResponseController(w, s, req.duration)
 	enc := responseEncoders[req.contentType]
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
@@ -348,7 +359,7 @@ var (
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
 func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber,
-	contentType []string, preamble string,
+	contentType []string, preamble string, disconnectionTime time.Time,
 ) {
 	header := w.Header()
 
@@ -365,6 +376,11 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
 	header["Incremental"] = headerIncremental
+
+	if h.eventsQuery && !disconnectionTime.IsZero() {
+		seconds := max(int64(math.Ceil(time.Until(disconnectionTime).Seconds())), 0)
+		header["Events"] = []string{"duration=" + strconv.FormatInt(seconds, 10)}
+	}
 
 	if s.RequestLastEventIDSet {
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}

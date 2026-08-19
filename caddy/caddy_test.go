@@ -1170,6 +1170,7 @@ func TestEventsQuery(t *testing.T) {
 	req, err := http.NewRequest("QUERY", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
 	require.NoError(t, err)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Events", "duration=1")
 
 	resp := tester.AssertResponseCode(req, http.StatusOK)
 
@@ -1179,4 +1180,7 @@ func TestEventsQuery(t *testing.T) {
 
 	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
 	assert.Equal(t, "?1", resp.Header.Get("Incremental"))
+	// The bound the subscription asked for, read from the request and served
+	// back: a hub ignoring it would advertise its own write timeout instead.
+	assert.Equal(t, "duration=1", resp.Header.Get("Events"))
 }

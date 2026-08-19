@@ -1386,7 +1386,7 @@ func TestNewResponseControllerDisconnectionTimeStaysInTheFuture(t *testing.T) {
 				}}
 			}
 
-			rc := h.newResponseController(httptest.NewRecorder(), s)
+			rc := h.newResponseController(httptest.NewRecorder(), s, 0)
 
 			assert.True(t, rc.disconnectionTime.After(time.Now()),
 				"disconnectionTime is %v in the past, the connection would close immediately", time.Until(rc.disconnectionTime))
@@ -1402,7 +1402,7 @@ func TestNewResponseControllerNoDeadline(t *testing.T) {
 	t.Parallel()
 
 	h := &Hub{opt: &opt{writeTimeout: 0, dispatchTimeout: DefaultDispatchTimeout}}
-	rc := h.newResponseController(httptest.NewRecorder(), &LocalSubscriber{})
+	rc := h.newResponseController(httptest.NewRecorder(), &LocalSubscriber{}, 0)
 
 	assert.True(t, rc.writeDeadline.IsZero())
 	assert.True(t, rc.disconnectionTime.IsZero())
@@ -1747,3 +1747,178 @@ func TestEventsQuerySubscribeRejectsMalformedBody(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
+
+// A subscription is served for as long as it asked. The dispatch of margin
+// belongs to the hub's own deadline, so it is not taken out of the bound the
+// client chose, whichever side of a dispatch that bound falls on.
+func TestNewResponseControllerServesTheRequestedDuration(t *testing.T) {
+	t.Parallel()
+
+	for _, requested := range []time.Duration{
+		30 * time.Second,
+		6 * time.Second,
+		5 * time.Second,
+		4 * time.Second,
+		time.Second,
+	} {
+		t.Run(requested.String(), func(t *testing.T) {
+			t.Parallel()
+
+			h := &Hub{opt: &opt{writeTimeout: 10 * time.Minute, dispatchTimeout: 5 * time.Second}}
+
+			rc := h.newResponseController(httptest.NewRecorder(), &LocalSubscriber{}, requested)
+
+			assert.InDelta(t, requested, time.Until(rc.disconnectionTime), float64(500*time.Millisecond))
+			assert.True(t, rc.writeDeadline.After(rc.disconnectionTime),
+				"the connection must outlive the notifications it carries")
+		})
+	}
+}
+
+// A hub with no deadline of its own stops when the subscription asked it to.
+func TestNewResponseControllerRequestedDurationWithoutHubDeadline(t *testing.T) {
+	t.Parallel()
+
+	h := &Hub{opt: &opt{writeTimeout: 0, dispatchTimeout: 5 * time.Second}}
+
+	rc := h.newResponseController(httptest.NewRecorder(), &LocalSubscriber{}, 30*time.Second)
+
+	assert.InDelta(t, 30*time.Second, time.Until(rc.disconnectionTime), float64(500*time.Millisecond))
+	// The connection keeps the deadline it had, which is none: what was asked
+	// for bounds the notifications, not the socket.
+	assert.True(t, rc.writeDeadline.IsZero())
+}
+
+// A bound looser than the hub's own changes nothing: a subscription may only
+// shorten the period it is served for.
+func TestNewResponseControllerRequestedDurationOnlyShortens(t *testing.T) {
+	t.Parallel()
+
+	h := &Hub{opt: &opt{writeTimeout: time.Minute, dispatchTimeout: 5 * time.Second}}
+
+	rc := h.newResponseController(httptest.NewRecorder(), &LocalSubscriber{}, time.Hour)
+
+	assert.False(t, rc.disconnectionTime.After(rc.writeDeadline.Add(-5*time.Second)),
+		"a longer request must not extend the period served")
+}
+
+// A token expiring inside the dispatch margin leaves no margin to give away,
+// and a request cannot buy more time than the token grants.
+func TestNewResponseControllerRequestedDurationCannotOutlastTheToken(t *testing.T) {
+	t.Parallel()
+
+	h := &Hub{opt: &opt{writeTimeout: 0, dispatchTimeout: 5 * time.Second}}
+
+	s := &LocalSubscriber{Subscriber: Subscriber{}}
+	s.Claims = &claims{RegisteredClaims: jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Second)),
+	}}
+
+	rc := h.newResponseController(httptest.NewRecorder(), s, 30*time.Second)
+
+	assert.Equal(t, rc.writeDeadline, rc.disconnectionTime,
+		"with the margin already spent the hub stops at the deadline itself")
+	assert.False(t, time.Until(rc.disconnectionTime) > 2*time.Second)
+}
+
+// The Events response field states the period notifications will be sent for,
+// in whole seconds rounded up: the hub may stop before the bound it
+// advertised, but must never still be sending after it.
+func TestSendHeadersEventsDuration(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		requested time.Duration
+		want      string
+	}{
+		{"whole seconds", 30 * time.Second, "duration=30"},
+		{"rounded up", 1500 * time.Millisecond, "duration=2"},
+		{"sub-second rounds up to a second", 500 * time.Millisecond, "duration=1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			hub := createAnonymousDummy(t, WithEventsQuery(),
+				WithWriteTimeout(10*time.Minute), WithDispatchTimeout(5*time.Second))
+
+			s := &LocalSubscriber{}
+			w := httptest.NewRecorder()
+
+			rc := hub.newResponseController(w, s, tc.requested)
+			hub.sendHeaders(t.Context(), w, s, []string{eventStreamContentType}, ":\n", rc.disconnectionTime)
+
+			assert.Equal(t, tc.want, w.Header().Get("Events"))
+		})
+	}
+}
+
+// A hub not serving Events Query sends none of its fields.
+func TestSendHeadersOmitsEventsDurationWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithWriteTimeout(10*time.Minute))
+
+	s := &LocalSubscriber{}
+	w := httptest.NewRecorder()
+
+	rc := hub.newResponseController(w, s, 0)
+	hub.sendHeaders(t.Context(), w, s, []string{eventStreamContentType}, ":\n", rc.disconnectionTime)
+
+	assert.Empty(t, w.Header().Values("Events"))
+}
+
+// A hub that will not stop has no duration to state, and 0 would read as "no
+// notifications will be served".
+func TestSendHeadersOmitsEventsDurationWithoutDeadline(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery(), WithWriteTimeout(0), WithDispatchTimeout(0))
+
+	s := &LocalSubscriber{}
+	w := httptest.NewRecorder()
+
+	rc := hub.newResponseController(w, s, 0)
+	hub.sendHeaders(t.Context(), w, s, []string{eventStreamContentType}, ":\n", rc.disconnectionTime)
+
+	assert.Empty(t, w.Header().Values("Events"))
+}
+
+// A hub with no deadline of its own still stops when the subscription said
+// to: the bound it advertises is one it enforces.
+func TestEventsQuerySubscribeStopsAfterTheRequestedDuration(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery(), WithWriteTimeout(0), WithDispatchTimeout(0))
+
+	req := eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events=")
+	req.Header.Set("Events", "duration=0.2")
+
+	w := writeDeadlineRecorder{httptest.NewRecorder()}
+
+	served := make(chan struct{})
+
+	go func() {
+		defer close(served)
+
+		hub.SubscribeHandler(w, req)
+	}()
+
+	select {
+	case <-served:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the hub streamed past the duration the subscription asked for")
+	}
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, ":\n", w.Body.String())
+	assert.Equal(t, "duration=1", w.Header().Get("Events"))
+}
+
+// writeDeadlineRecorder accepts the write deadlines a subscription sets on
+// its connection, which httptest.ResponseRecorder does not support at all.
+type writeDeadlineRecorder struct {
+	*httptest.ResponseRecorder
+}
+
+func (writeDeadlineRecorder) SetWriteDeadline(time.Time) error { return nil }
