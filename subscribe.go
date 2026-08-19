@@ -339,6 +339,11 @@ var (
 	headerExpire       = []string{"0"}
 
 	headerXAccelBuffering = []string{"no"}
+
+	// Incremental (draft-ietf-httpbis-incremental) asks an intermediary to
+	// forward each chunk as it arrives rather than buffer the response, the
+	// standardized counterpart of X-Accel-Buffering above.
+	headerIncremental = []string{"?1"}
 )
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
@@ -359,6 +364,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
+	header["Incremental"] = headerIncremental
 
 	if s.RequestLastEventIDSet {
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}

@@ -1178,4 +1178,5 @@ func TestEventsQuery(t *testing.T) {
 	})
 
 	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
+	assert.Equal(t, "?1", resp.Header.Get("Incremental"))
 }

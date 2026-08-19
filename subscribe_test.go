@@ -1552,6 +1552,29 @@ func TestEventsQuerySubscribeAcceptQuery(t *testing.T) {
 	assert.Equal(t, "application/x-www-form-urlencoded", w.Header().Get("Accept-Query"))
 }
 
+// A subscription asks intermediaries to forward each chunk as it arrives,
+// which a buffered response would otherwise defeat.
+func TestSubscribeIncremental(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "?1", w.Header().Get("Incremental"))
+}
+
 // A subscription expressed as an Events Query receives the updates it asked
 // for. Nothing negotiates a carrier yet, so it is answered as an event
 // stream, like any other subscription.

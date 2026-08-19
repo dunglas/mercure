@@ -692,3 +692,25 @@ func TestCORSExposesAcceptQuery(t *testing.T) {
 
 	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Accept-Query")
 }
+
+// Incremental asks for the response as it is produced rather than buffered,
+// which a user agent is as free to do as an intermediary.
+func TestCORSExposesIncremental(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Incremental")
+}
