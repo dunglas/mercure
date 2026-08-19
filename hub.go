@@ -425,12 +425,15 @@ func WithResourceIdentifier(resourceIdentifier string) Option {
 //
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
-	transport                    Transport
-	topicMatcherStore            *TopicMatcherStore
-	anonymous                    bool
-	debug                        bool
-	subscriptions                bool
-	eventsQuery                  bool
+	transport         Transport
+	topicMatcherStore *TopicMatcherStore
+	anonymous         bool
+	debug             bool
+	subscriptions     bool
+	eventsQuery       bool
+	// acceptQuery is the Accept-Query field value, resolved once from the
+	// media types this hub reads a subscription in.
+	acceptQuery                  []string
 	debugger                     bool
 	playground                   bool
 	playgroundTokenFunc          func(resourceIdentifier string) (string, error)
@@ -556,6 +559,14 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 
 	if opt.logger == nil {
 		opt.logger = slog.New(mercureHandler{slog.Default().Handler()})
+	}
+
+	// A hub not serving Events Query reads a subscription only as form-encoded
+	// parameters, whatever else a parser file registers.
+	if opt.eventsQuery {
+		opt.acceptQuery = []string{strings.Join(subscriptionMediaTypes, ", ")}
+	} else {
+		opt.acceptQuery = []string{urlEncodedMediaType}
 	}
 
 	if opt.topicMatcherStore == nil {

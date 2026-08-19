@@ -235,6 +235,10 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	h.limitRequestBody(w, r)
 
+	// Advertised on every answer, a refusal included: a client told 415 needs
+	// to know what it should have sent (RFC 10008, Section 3).
+	w.Header()["Accept-Query"] = h.acceptQuery
+
 	req, parseErr := h.parseSubscribeRequest(ctx, r)
 	if parseErr != nil {
 		http.Error(w, http.StatusText(parseErr.status), parseErr.status)

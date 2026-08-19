@@ -1503,6 +1503,55 @@ func TestSubscribeContentType(t *testing.T) {
 	assert.Equal(t, "text/event-stream", w.Header().Get("Content-Type"))
 }
 
+// A subscription is answered with the media types a QUERY body can express it
+// in, so a client learns what the hub reads (RFC 10008, Section 3).
+func TestSubscribeAcceptQuery(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, urlEncodedMediaType, w.Header().Get("Accept-Query"))
+}
+
+// A hub serving Events Query advertises every media type its parsers read, so
+// this expectation grows as parsers are added.
+func TestEventsQuerySubscribeAcceptQuery(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := eventsQueryRequest(ctx, url.Values{
+		paramMatch: {"https://example.com/foo"},
+		"events":   {""},
+	}.Encode())
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "application/x-www-form-urlencoded", w.Header().Get("Accept-Query"))
+}
+
 // A subscription expressed as an Events Query receives the updates it asked
 // for. Nothing negotiates a carrier yet, so it is answered as an event
 // stream, like any other subscription.

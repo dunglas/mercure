@@ -1176,4 +1176,6 @@ func TestEventsQuery(t *testing.T) {
 	t.Cleanup(func() {
 		require.NoError(t, resp.Body.Close())
 	})
+
+	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
 }

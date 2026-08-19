@@ -670,3 +670,25 @@ func TestCORSExposesTheLastEventIDCursor(t *testing.T) {
 
 	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Mercure-Last-Event-Id")
 }
+
+// Accept-Query tells a subscriber what a QUERY body may be expressed in, which
+// is of no use to a fetch-based one unless CORS exposes it.
+func TestCORSExposesAcceptQuery(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Accept-Query")
+}
