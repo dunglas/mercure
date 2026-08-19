@@ -19,9 +19,32 @@ const (
 	unsupportedLastEventIDNotice = `Unsupported: the "Last-Event-ID" query parameter is not supported anymore, use "last_event_id" instead or enable backward compatibility with version 7 of the protocol.`
 )
 
-// errUnreadableSubscription rejects a subscription in a media type the hub
-// cannot read.
-var errUnreadableSubscription = errors.New("unsupported subscription media type")
+var (
+	// errUnreadableSubscription rejects a subscription in a media type the hub
+	// cannot read.
+	errUnreadableSubscription = errors.New("unsupported subscription media type")
+
+	// errNoEvents rejects a subscription expressing no interest in a stream of
+	// notifications. That request is the single notification of the
+	// specification's section 8, which this hub does not serve.
+	errNoEvents = errors.New(`missing "events": a stream of notifications is the only mode this hub serves`)
+)
+
+// subscriptionMediaTypes are the media types a subscription can be expressed
+// in, most preferred first. A parser file registers its reader in
+// subscriptionParsers under the same media type; this list decides which of
+// them are offered, and in what order.
+//
+//nolint:gochecknoglobals
+var subscriptionMediaTypes = []string{urlEncodedMediaType}
+
+// subscriptionParsers is the reader each media type is read by, one per parser
+// file.
+//
+//nolint:gochecknoglobals
+var subscriptionParsers = map[string]func(body []byte) (url.Values, error){
+	urlEncodedMediaType: parseURLEncoded,
+}
 
 // subscribeRequest describes the resolved values that the hub needs to process
 // the subscription request.
@@ -47,6 +70,51 @@ type parseError struct {
 // parseSubscribeRequest returns the subscription parameters that a hub needs
 // to serve notifications, or refuses with the appropriate HTTP status.
 func (h *Hub) parseSubscribeRequest(ctx context.Context, r *http.Request) (*subscribeRequest, *parseError) {
+
+	// An Events Query carries the subscription in the request body, in one of
+	// the media types realizing the subscription data model. Nothing comes
+	// from the URL: the request carries a subscription rather than naming one.
+	if h.eventsQuery && r.Method == methodQuery {
+		body, readErr := readSubscribeBody(r)
+		if readErr != nil {
+			return nil, readErr
+		}
+
+		// A request naming no media type, or naming one that is not a media
+		// type at all, is incorrect by definition and answered 400; one
+		// naming a media type no parser reads is unsupported and answered
+		// 415, below (RFC 10008, Section 2.3).
+		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil {
+			return nil, &parseError{status: http.StatusBadRequest, cause: err}
+		}
+
+		values, parseErr := parseSubscriptionBody(mediaType, body)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+
+		// The hub reads and understands the subscription, but serves only a
+		// stream of notifications, so one asking for no events is
+		// unprocessable.
+		if _, asked := values["events"]; !asked {
+			return nil, &parseError{status: http.StatusUnprocessableEntity, cause: errNoEvents}
+		}
+
+		lastEventID, lastEventIDSet := getValueAndExistence(r.Header.Values("Last-Event-ID"))
+
+		if lastEventID == "" {
+			id, exists := getValueAndExistence(values["last_event_id"])
+			lastEventID, lastEventIDSet = id, lastEventIDSet || exists
+		}
+
+		return &subscribeRequest{
+			values:         values,
+			lastEventID:    lastEventID,
+			lastEventIDSet: lastEventIDSet,
+		}, nil
+	}
+
 	// For GET and HEAD the subscription parameters come from the URL query.
 	values := r.URL.Query()
 
@@ -136,6 +204,29 @@ func readSubscribeBody(r *http.Request) ([]byte, *parseError) {
 	}
 
 	return body, nil
+}
+
+// parseSubscriptionBody reads a body in the media type it declares, or refuses a
+// media type no parser reads (RFC 10008, Section 2.3).
+func parseSubscriptionBody(mediaType string, body []byte) (url.Values, *parseError) {
+	for _, offered := range subscriptionMediaTypes {
+		if offered == mediaType {
+			values, err := subscriptionParsers[mediaType](body)
+			if err != nil {
+				return nil, &parseError{
+					status: http.StatusBadRequest,
+					cause:  fmt.Errorf("invalid %s request body: %w", mediaType, err),
+				}
+			}
+
+			return values, nil
+		}
+	}
+
+	return nil, &parseError{
+		status: http.StatusUnsupportedMediaType,
+		cause:  fmt.Errorf("%w: %q", errUnreadableSubscription, mediaType),
+	}
 }
 
 // getValueAndExistence returns the source string and if it was specified at all.

@@ -142,6 +142,20 @@ func WithSubscriptions() Option {
 	}
 }
 
+// WithEventsQuery serves subscriptions expressed as an Events Query
+// (draft-gupta-httpapi-events-query), a QUERY request whose body realizes the
+// subscription data model.
+//
+// EXPERIMENTAL: the draft is an individual Internet-Draft and this behavior is
+// not covered by the backward compatibility promise.
+func WithEventsQuery() Option {
+	return func(o *opt) error {
+		o.eventsQuery = true
+
+		return nil
+	}
+}
+
 // WithLogger sets the logger to use.
 func WithLogger(logger *slog.Logger) Option {
 	return func(o *opt) error {
@@ -416,6 +430,7 @@ type opt struct {
 	anonymous                    bool
 	debug                        bool
 	subscriptions                bool
+	eventsQuery                  bool
 	debugger                     bool
 	playground                   bool
 	playgroundTokenFunc          func(resourceIdentifier string) (string, error)

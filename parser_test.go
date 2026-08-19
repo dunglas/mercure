@@ -72,3 +72,83 @@ func TestQuerySubscribeWithoutMediaTypeRejectedWith400(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
+
+// The same two rules apply inside the Events Query dispatch, which reads the
+// media type to choose a parser.
+func TestEventsQuerySubscribeUnsupportedMediaType(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+}
+
+func TestEventsQuerySubscribeWithoutMediaType(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(`{}`))
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// A QUERY served as an Events Query carries its subscription in the body, so
+// a matcher in the query component is not one.
+func TestEventsQuerySubscribeIgnoresURLParameters(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	req := httptest.NewRequest(methodQuery,
+		defaultHubURL+"?match=https://example.com/books/1", strings.NewReader("events="))
+	req.Header.Set("Content-Type", urlEncodedMediaType)
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	assert.Equal(t, "missing \"match\" subscription parameter\n", w.Body.String())
+}
+
+// A QUERY the hub reads and understands but that asks for no events is
+// unprocessable: a stream of notifications is the only mode it serves.
+func TestEventsQuerySubscribeWithoutEvents(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+	req.Header.Set("Content-Type", urlEncodedMediaType)
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.StatusCode)
+}

@@ -1502,3 +1502,150 @@ func TestSubscribeContentType(t *testing.T) {
 
 	assert.Equal(t, "text/event-stream", w.Header().Get("Content-Type"))
 }
+
+// A subscription expressed as an Events Query receives the updates it asked
+// for. Nothing negotiates a carrier yet, so it is answered as an event
+// stream, like any other subscription.
+func TestEventsQuerySubscribe(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+	ctx := t.Context()
+
+	go func() {
+		s := hub.transport.(*LocalTransport)
+
+		var ready bool
+
+		for !ready {
+			s.RLock()
+			ready = s.subscribers.Len() == 1
+			s.RUnlock()
+		}
+
+		_ = hub.transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/books/1"},
+			Event:  Event{Data: "Hello World", ID: "b"},
+		})
+	}()
+
+	reqCtx, cancel := context.WithCancel(t.Context())
+	req := eventsQueryRequest(reqCtx, url.Values{
+		paramMatch: {"https://example.com/books/1"},
+		"events":   {""},
+	}.Encode())
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nid: b\ndata: Hello World\n\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+}
+
+// The parameters reach the same matcher implementation the query component
+// does, so a pattern matcher works identically in a request body.
+func TestEventsQuerySubscribeURLPattern(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+	ctx := t.Context()
+
+	go func() {
+		s := hub.transport.(*LocalTransport)
+
+		var ready bool
+
+		for !ready {
+			s.RLock()
+			ready = s.subscribers.Len() == 1
+			s.RUnlock()
+		}
+
+		_ = hub.transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/books/1"},
+			Event:  Event{Data: "Hello World", ID: "b"},
+		})
+	}()
+
+	reqCtx, cancel := context.WithCancel(t.Context())
+	req := eventsQueryRequest(reqCtx, url.Values{
+		"match_urlpattern": {"https://example.com/books/:id"},
+		"events":           {""},
+	}.Encode())
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\nid: b\ndata: Hello World\n\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+}
+
+// A subscription naming no topic is refused the same way a subscription URL
+// without a match parameter is.
+func TestEventsQuerySubscribeWithoutTopics(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	w := newSubscribeRecorder()
+	hub.SubscribeHandler(w, eventsQueryRequest(t.Context(), "events="))
+
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+}
+
+// eventsQueryRequest builds a subscription request carrying the given body.
+func eventsQueryRequest(ctx context.Context, body string) *http.Request {
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body)).WithContext(ctx)
+	req.Header.Set("Content-Type", urlEncodedMediaType)
+
+	return req
+}
+
+// A subscription resuming from a cursor in its parameters is answered with
+// the Mercure-Last-Event-Id field the protocol requires.
+func TestEventsQuerySubscribeLastEventID(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	reqCtx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	req := eventsQueryRequest(reqCtx, url.Values{
+		paramMatch:      {"https://example.com/books/1"},
+		"events":        {""},
+		"last_event_id": {"urn:uuid:0198c1f2-3f4a-7000-8000-9abcdef01234"},
+	}.Encode())
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, EarliestLastEventID, w.Header().Get("Mercure-Last-Event-ID"))
+}
+
+// A malformed body is a bad request: the type is declared and understood, but
+// the content does not match it (RFC 10008, Section 2.3).
+func TestEventsQuerySubscribeRejectsMalformedBody(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, eventsQueryRequest(t.Context(), "match=%zz"))
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}

@@ -1137,3 +1137,43 @@ func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
 		})
 	}
 }
+
+func TestEventsQuery(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				events_query
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	body := url.Values{"match": {"https://example.com/foo/1"}, "events": {""}}
+	req, err := http.NewRequest("QUERY", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	require.NoError(t, err)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+}

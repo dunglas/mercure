@@ -35,6 +35,9 @@ type protectedResourceMetadata struct {
 	// MercureSubscriptions advertises the active subscriptions feature (a
 	// Mercure extension to RFC 9728) when the hub implements it.
 	MercureSubscriptions bool `json:"mercure_subscriptions,omitempty"`
+	// MercureEventsQuery advertises subscriptions expressed as an Events
+	// Query (a Mercure extension to RFC 9728) when the hub serves them.
+	MercureEventsQuery bool `json:"mercure_events_query,omitempty"`
 }
 
 // bearerMethodsSupported lists the RFC 6750 token presentation methods the hub
@@ -62,6 +65,7 @@ func (h *Hub) ProtectedResourceMetadataHandler(w http.ResponseWriter, r *http.Re
 		// advertise the configured cookie name.
 		MercureCookie:        h.cookieName,
 		MercureSubscriptions: h.subscriptions,
+		MercureEventsQuery:   h.eventsQuery,
 	}
 
 	if err := json.NewEncoder(w).Encode(metadata); err != nil && h.logger.Enabled(r.Context(), slog.LevelInfo) {
