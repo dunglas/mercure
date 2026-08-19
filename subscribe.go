@@ -316,7 +316,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
 	rc := h.newResponseController(w, s)
-	enc := eventStreamEncoder{}
+	enc := responseEncoders[req.contentType]
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {

@@ -1503,6 +1503,32 @@ func TestSubscribeContentType(t *testing.T) {
 	assert.Equal(t, "text/event-stream", w.Header().Get("Content-Type"))
 }
 
+// An Events Query is answered in the media type it negotiated, which is the
+// only framing this hub has to offer so far.
+func TestEventsQuerySubscribeContentType(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := eventsQueryRequest(ctx, url.Values{
+		paramMatch: {"https://example.com/books/1"},
+		"events":   {""},
+	}.Encode())
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "text/event-stream", w.Header().Get("Content-Type"))
+}
+
 // A subscription is answered with the media types a QUERY body can express it
 // in, so a client learns what the hub reads (RFC 10008, Section 3).
 func TestSubscribeAcceptQuery(t *testing.T) {

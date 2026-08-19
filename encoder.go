@@ -1,5 +1,25 @@
 package mercure
 
+// carrierContentTypes are the media types a stream of notifications can be
+// served as, most preferred first. An Events Query names what it will read in
+// Accept; this list decides what there is to choose from, and what a
+// subscription expressing no preference gets.
+//
+//nolint:gochecknoglobals
+var carrierContentTypes = []string{eventStreamContentType}
+
+// responseEncoders provides the framing for each media type
+//
+//nolint:gochecknoglobals
+var responseEncoders = map[string]streamEncoder{
+	eventStreamContentType: eventStreamEncoder{},
+}
+
+// Mercure ordinarily (without Events Query) serves only Event Stream
+//
+//nolint:gochecknoglobals
+var mercureCarrierContentType = []string{eventStreamContentType}
+
 // streamEncoder frames updates onto a subscription response stream.
 //
 // A subscription response is a sequence of framed messages: a preamble

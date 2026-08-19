@@ -9,6 +9,9 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"strings"
+
+	"github.com/elnormous/contenttype"
 )
 
 // Notices about the "Last-Event-ID" query parameter, deprecated since version
@@ -23,6 +26,10 @@ var (
 	// errUnreadableSubscription rejects a subscription in a media type the hub
 	// cannot read.
 	errUnreadableSubscription = errors.New("unsupported subscription media type")
+
+	// errUnacceptableSubscription rejects a subscription refusing every media
+	// type the hub can stream notifications in, leaving nothing to send it.
+	errUnacceptableSubscription = errors.New("unacceptable response media type")
 
 	// errNoEvents rejects a subscription expressing no interest in a stream of
 	// notifications. That request is the single notification of the
@@ -46,6 +53,15 @@ var subscriptionParsers = map[string]func(body []byte) (url.Values, error){
 	urlEncodedMediaType: parseURLEncoded,
 }
 
+// The media types a stream of notifications is negotiated from, parsed once
+// from the lists the encoders are registered under.
+//
+//nolint:gochecknoglobals
+var (
+	parsedCarriers = parseMediaTypes(carrierContentTypes)
+	parsedMercureCarrier = parseMediaTypes(mercureCarrierContentType)
+)
+
 // subscribeRequest describes the resolved values that the hub needs to process
 // the subscription request.
 type subscribeRequest struct {
@@ -56,6 +72,11 @@ type subscribeRequest struct {
 	lastEventID string
 	// lastEventIDSet records that a cursor was supplied even when empty.
 	lastEventIDSet bool
+
+	// contentType is the media type the notifications stream is served as.
+	// The framing is built from it on the response side, a per-connection
+	// framing belonging there rather than to a request.
+	contentType string
 }
 
 // parseError is a subscription request the hub will not serve, carrying the
@@ -101,6 +122,12 @@ func (h *Hub) parseSubscribeRequest(ctx context.Context, r *http.Request) (*subs
 			return nil, &parseError{status: http.StatusUnprocessableEntity, cause: errNoEvents}
 		}
 
+		// Content Negotiation for the response
+		contentType := negotiate(r, parsedCarriers)
+		if contentType == "" {
+			return nil, &parseError{status: http.StatusNotAcceptable, cause: errUnacceptableSubscription}
+		}
+
 		lastEventID, lastEventIDSet := getValueAndExistence(r.Header.Values("Last-Event-ID"))
 
 		if lastEventID == "" {
@@ -112,6 +139,7 @@ func (h *Hub) parseSubscribeRequest(ctx context.Context, r *http.Request) (*subs
 			values:         values,
 			lastEventID:    lastEventID,
 			lastEventIDSet: lastEventIDSet,
+			contentType:    contentType,
 		}, nil
 	}
 
@@ -155,6 +183,11 @@ func (h *Hub) parseSubscribeRequest(ctx context.Context, r *http.Request) (*subs
 		}
 	}
 
+	// A client refusing text/event-stream leaves nothing for the hub to send.
+	if negotiate(r, parsedMercureCarrier) == "" {
+		return nil, &parseError{status: http.StatusNotAcceptable, cause: errUnacceptableSubscription}
+	}
+
 	// The following block extracts the Last-Event-ID from possible sources that
 	// have the following precedence: the header field, the parameter, then the
 	// version 7 spelling of the parameter. It also reports whether Last-Event-ID
@@ -185,7 +218,48 @@ func (h *Hub) parseSubscribeRequest(ctx context.Context, r *http.Request) (*subs
 		values:         values,
 		lastEventID:    lastEventID,
 		lastEventIDSet: lastEventIDSet,
+		contentType:    eventStreamContentType,
 	}, nil
+}
+
+// negotiate picks the media type a subscription is answered in.
+//
+// A subscription naming none of them is not refusing them, so it gets the
+// first; one naming several gets whichever it weighted highest. Only a
+// subscription that refuses every one of them is answered with an error,
+// there being nothing left to send it.
+func negotiate(r *http.Request, available []contenttype.MediaType) string {
+	// Accept is a list, so field lines repeating it are one list split in two
+	// (RFC 9110, Section 5.3). Only the first is read, so a subscription that
+	// split its list is negotiated from a request carrying them joined.
+	request := r
+	if accept := r.Header.Values("Accept"); len(accept) > 1 {
+		request = &http.Request{Header: http.Header{"Accept": {strings.Join(accept, ", ")}}}
+	}
+
+	best, _, err := contenttype.GetAcceptableMediaType(request, available)
+
+	switch {
+	case errors.Is(err, contenttype.ErrNoAcceptableTypeFound):
+		return ""
+	case err != nil:
+		// An Accept the hub cannot read states no preference.
+		return available[0].MIME()
+	default:
+		return best.MIME()
+	}
+}
+
+// parseMediaTypes is the form negotiation compares against, parsed from the
+// media types a list offers. The lists themselves stay strings: that is what
+// a reader adds a media type to, and what the encoders are registered under.
+func parseMediaTypes(available []string) []contenttype.MediaType {
+	parsed := make([]contenttype.MediaType, 0, len(available))
+	for _, a := range available {
+		parsed = append(parsed, contenttype.NewMediaType(a))
+	}
+
+	return parsed
 }
 
 // readSubscribeBody reads the request body. Its size is bounded by
