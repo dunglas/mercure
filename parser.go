@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/url"
 )
@@ -17,6 +18,10 @@ const (
 	deprecatedLastEventIDNotice  = "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'last_event_id' instead."
 	unsupportedLastEventIDNotice = `Unsupported: the "Last-Event-ID" query parameter is not supported anymore, use "last_event_id" instead or enable backward compatibility with version 7 of the protocol.`
 )
+
+// errUnreadableSubscription rejects a subscription in a media type the hub
+// cannot read.
+var errUnreadableSubscription = errors.New("unsupported subscription media type")
 
 // subscribeRequest describes the resolved values that the hub needs to process
 // the subscription request.
@@ -51,6 +56,22 @@ func (h *Hub) parseSubscribeRequest(ctx context.Context, r *http.Request) (*subs
 		body, readErr := readSubscribeBody(r)
 		if readErr != nil {
 			return nil, readErr
+		}
+
+		// A request naming no media type is incorrect by definition, and one
+		// naming a media type the hub cannot read as a subscription is
+		// unsupported (RFC 10008, Section 2.3). Neither is read as a form:
+		// a server does not infer a media type from the content it carries.
+		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err != nil {
+			return nil, &parseError{status: http.StatusBadRequest, cause: err}
+		}
+
+		if mediaType != urlEncodedMediaType {
+			return nil, &parseError{
+				status: http.StatusUnsupportedMediaType,
+				cause:  fmt.Errorf("%w: %q", errUnreadableSubscription, mediaType),
+			}
 		}
 
 		bodyValues, err := parseURLEncoded(body)
