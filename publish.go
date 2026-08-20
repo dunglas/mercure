@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,6 +40,7 @@ var (
 	ErrInvalidEventType  = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
 	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
+	ErrInvalidMediaType  = errors.New(`"content_type" field is not a valid media type`)
 	ErrTooManyTopics     = errors.New("too many topics in update")
 	ErrMissingTopic      = errors.New("update carries no topic")
 	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
@@ -110,6 +112,15 @@ func (u *Update) Validate() error {
 	// enforce it, so reject invalid data rather than dispatch it.
 	if !utf8.ValidString(u.Data) {
 		return ErrInvalidData
+	}
+
+	// The content type ends up on the wire as a header of negotiated response
+	// encodings, so a malformed value could inject fields there (CWE-93);
+	// ParseMediaType rejects everything but valid media type syntax.
+	if u.ContentType != "" {
+		if _, _, err := mime.ParseMediaType(u.ContentType); err != nil {
+			return fmt.Errorf("%q: %w", u.ContentType, ErrInvalidMediaType)
+		}
 	}
 
 	return nil
@@ -275,10 +286,11 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u = &Update{
-		Topics:  topics,
-		Private: private,
-		Debug:   h.debug,
-		Event:   Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
+		Topics:      topics,
+		Private:     private,
+		Debug:       h.debug,
+		ContentType: r.PostForm.Get("content_type"),
+		Event:       Event{r.PostForm.Get("data"), r.PostForm.Get("id"), r.PostForm.Get("type"), retry},
 	}
 
 	dispatchCtx := context.WithoutCancel(ctx)
@@ -290,7 +302,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 			errors.Is(err, ErrInvalidEventID), errors.Is(err, ErrInvalidEventType),
 			errors.Is(err, ErrReservedEventType),
 			errors.Is(err, ErrInvalidTopic), errors.Is(err, ErrTooManyTopics),
-			errors.Is(err, ErrMissingTopic), errors.Is(err, ErrInvalidData):
+			errors.Is(err, ErrMissingTopic), errors.Is(err, ErrInvalidData),
+			errors.Is(err, ErrInvalidMediaType):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

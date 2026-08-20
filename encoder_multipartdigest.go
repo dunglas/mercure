@@ -64,8 +64,13 @@ func (e *multipartDigestEncoder) encode(u *Update) string {
 		m.WriteString("\r\n")
 	}
 
+	contentType := u.ContentType
+	if contentType == "" {
+		contentType = updateDataContentType
+	}
+
 	m.WriteString("Content-Type: ")
-	m.WriteString(updateDataContentType)
+	m.WriteString(contentType)
 	m.WriteString("\r\nContent-Length: ")
 	m.WriteString(strconv.Itoa(len(u.Data)))
 	m.WriteString("\r\n\r\n")
