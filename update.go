@@ -22,6 +22,12 @@ type Update struct {
 	// Private updates can only be dispatched to subscribers authorized to receive them.
 	Private bool
 
+	// The media type of Data, as declared by the publisher. Conveyed to
+	// subscribers when the negotiated response encoding can carry per-event
+	// metadata; text/event-stream defines no field for it. omitempty keeps
+	// history entries persisted before this field existed decodable.
+	ContentType string `json:",omitempty"`
+
 	// To print debug information
 	Debug bool
 }
@@ -42,12 +48,6 @@ func (u *Update) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-type serializedUpdate struct {
-	*Update
-
-	event string
-}
-
 // AssignUUID generates a new UUID an assign it to the given update if no ID is already set.
 func (u *Update) AssignUUID() {
 	if u.ID == "" {
@@ -66,8 +66,4 @@ func (u *Update) SpanAttributes() []attribute.KeyValue {
 		attribute.StringSlice("mercure.topics", u.Topics),
 		attribute.Bool("mercure.private", u.Private),
 	)
-}
-
-func newSerializedUpdate(u *Update) *serializedUpdate {
-	return &serializedUpdate{u, u.String()}
 }

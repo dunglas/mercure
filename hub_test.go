@@ -648,3 +648,115 @@ func createDummyNoneSignedJWT() string {
 
 	return tokenString
 }
+
+// A subscription answers with Mercure-Last-Event-Id, the cursor to resume
+// from. A fetch-based subscriber cannot read it unless CORS exposes it.
+func TestCORSExposesTheLastEventIDCursor(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Mercure-Last-Event-Id")
+}
+
+// Accept-Query tells a subscriber what a QUERY body may be expressed in, which
+// is of no use to a fetch-based one unless CORS exposes it.
+func TestCORSExposesAcceptQuery(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Accept-Query")
+}
+
+// Incremental asks for the response as it is produced rather than buffered,
+// which a user agent is as free to do as an intermediary.
+func TestCORSExposesIncremental(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Incremental")
+}
+
+// A subscription answers with the period it will be served for. A
+// fetch-based subscriber cannot read the field unless CORS exposes it.
+func TestCORSExposesTheEventsDuration(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery(), WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Events")
+}
+
+// And a subscription may ask for a shorter one, which a browser can only send
+// if the preflight allows the field.
+func TestCORSAllowsTheEventsRequestField(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithEventsQuery(), WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodOptions, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+	req.Header.Set("Access-Control-Request-Method", http.MethodGet)
+	req.Header.Set("Access-Control-Request-Headers", "events")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Allow-Headers"), "events")
+}

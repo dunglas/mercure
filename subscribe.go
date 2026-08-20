@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"log/slog"
+	"math"
 	"math/rand/v2"
 	"net/http"
-	"net/url"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -77,7 +76,7 @@ func (rc *responseController) flush(ctx context.Context) bool {
 	return true
 }
 
-func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *responseController {
+func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber, duration time.Duration) *responseController {
 	wd := h.getWriteDeadline(s)
 
 	// Disconnect one dispatch before the write deadline so the client sees a
@@ -92,6 +91,15 @@ func (h *Hub) newResponseController(w http.ResponseWriter, s *LocalSubscriber) *
 	if !wd.IsZero() {
 		if d := wd.Add(-h.dispatchTimeout); d.After(time.Now()) {
 			dt = d
+		}
+	}
+
+	// A subscription may ask the hub to stop sooner, and only sooner. The
+	// dispatch of margin belongs to the connection's write deadline, not to what
+	// was asked for, so it is added back rather than taken out.
+	if duration > 0 {
+		if capped := time.Now().Add(duration); dt.IsZero() || capped.Before(dt) {
+			dt = capped
 		}
 	}
 
@@ -124,10 +132,16 @@ func (h *Hub) getWriteDeadline(s *LocalSubscriber) (deadline time.Time) {
 func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	s, rc := h.registerSubscriber(ctx, w, r)
+	s, rc, enc := h.registerSubscriber(ctx, w, r)
 	if s == nil {
 		return
 	}
+
+	// The response begins here, once the subscriber is registered. Registering
+	// one and answering it are separate concerns, and only the second belongs
+	// to a handler that then keeps the connection.
+	h.sendHeaders(ctx, w, s, enc.contentType(), enc.preamble(), rc.disconnectionTime)
+	rc.flush(ctx)
 
 	ctx = context.WithValue(ctx, SubscriberContextKey, &s.Subscriber)
 
@@ -141,7 +155,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		disconnectionTimerC <-chan time.Time
 	)
 
-	if h.heartbeat != 0 {
+	heartbeat := enc.heartbeat()
+	if h.heartbeat != 0 && heartbeat != "" {
 		heartbeatTimer = time.NewTimer(h.heartbeat)
 		defer heartbeatTimer.Stop()
 
@@ -155,7 +170,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	// connection no later than exp, so relying on a failed write against a past
 	// deadline would otherwise leave an authenticated connection open up to a
 	// heartbeat interval past exp, or indefinitely with heartbeat off.
-	if !rc.writeDeadline.IsZero() {
+	if !rc.disconnectionTime.IsZero() {
 		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
 		defer disconnectionTimer.Stop()
 
@@ -188,6 +203,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				rc.hub.logger.LogAttrs(ctx, slog.LevelDebug, "Hub is shutting down, closing connection")
 			}
 
+			h.sendTrailer(ctx, rc, enc.trailer())
+
 			return
 		case <-ctx.Done():
 			if debugLevel {
@@ -196,17 +213,19 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case <-heartbeatTimerC:
-			// Send an SSE comment as a heartbeat, to prevent issues with some proxies and old browsers
-			if !h.write(ctx, rc, ":\n") {
+			// Keep the connection alive, to prevent issues with some proxies and old browsers
+			if !h.write(ctx, rc, enc.heartbeat()) {
 				return
 			}
 
 			heartbeatTimer.Reset(h.heartbeat)
 		case <-disconnectionTimerC:
 			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
+			h.sendTrailer(ctx, rc, enc.trailer())
+
 			return
 		case update, ok := <-s.Receive():
-			if !ok || !h.write(ctx, rc, newSerializedUpdate(update).event) {
+			if !ok || !h.write(ctx, rc, enc.encode(update)) {
 				return
 			}
 
@@ -225,31 +244,26 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerSubscriber initializes the connection.
-func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController) { //nolint:funlen
+func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *http.Request) (*LocalSubscriber, *responseController, streamEncoder) { //nolint:funlen
 	ctx, span := startSpan(ctx, "mercure.subscribe", trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
 	h.limitRequestBody(w, r)
 
-	values, err := h.subscribeValues(r)
-	if err != nil {
-		status := http.StatusBadRequest
+	// Advertised on every answer, a refusal included: a client told 415 needs
+	// to know what it should have sent (RFC 10008, Section 3).
+	w.Header()["Accept-Query"] = h.acceptQuery
 
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			status = http.StatusRequestEntityTooLarge
-		}
+	req, parseErr := h.parseSubscribeRequest(ctx, r)
+	if parseErr != nil {
+		http.Error(w, http.StatusText(parseErr.status), parseErr.status)
+		recordSpanError(span, parseErr.cause)
 
-		http.Error(w, http.StatusText(status), status)
-		recordSpanError(span, err)
-
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
-
-	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
-	s.RequestLastEventIDSet = lastEventIDSet
+	s := NewLocalSubscriber(req.lastEventID, h.logger, h.topicMatcherStore)
+	s.RequestLastEventIDSet = req.lastEventIDSet
 
 	var claims *claims
 
@@ -268,18 +282,18 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 				recordSpanError(span, err)
 			}
 
-			return nil, nil
+			return nil, nil, nil
 		}
 	}
 
 	deprecated := h.isBackwardCompatiblyEnabledWith(8)
 
-	matchers, err := h.parseMatchers(values, deprecated)
+	matchers, err := h.parseMatchers(req.values, deprecated)
 	if err != nil {
 		h.writeMatcherParamError(ctx, w, err)
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	var privateTopicMatchers []TopicMatcher
@@ -307,7 +321,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 		recordSpanError(span, err)
 
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Announce the subscription only once it exists, so a failed registration
@@ -316,9 +330,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	// this order: remove first, then dispatch active:false.
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
-	h.sendHeaders(ctx, w, s)
-	rc := h.newResponseController(w, s)
-	rc.flush(ctx)
+	rc := h.newResponseController(w, s, req.duration)
+	enc := responseEncoders[req.contentType]()
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
@@ -330,28 +343,34 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	h.metrics.SubscriberConnected(s)
 
-	return s, rc
+	return s, rc, enc
 }
 
 //nolint:gochecknoglobals
 var (
 	headerConnection   = []string{"keep-alive"}
-	headerContentType  = []string{"text/event-stream"}
 	headerCacheControl = []string{"private, no-cache, no-store, must-revalidate, max-age=0"}
 	headerPragma       = []string{"no-cache"}
 	headerExpire       = []string{"0"}
 
 	headerXAccelBuffering = []string{"no"}
+
+	// Incremental (draft-ietf-httpbis-incremental) asks an intermediary to
+	// forward each chunk as it arrives rather than buffer the response, the
+	// standardized counterpart of X-Accel-Buffering above.
+	headerIncremental = []string{"?1"}
 )
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
-func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber) {
+func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSubscriber,
+	contentType []string, preamble string, disconnectionTime time.Time,
+) {
 	header := w.Header()
 
 	// Keep alive, useful only for HTTP 1 clients https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
 	header["Connection"] = headerConnection
 
-	header["Content-Type"] = headerContentType
+	header["Content-Type"] = contentType
 
 	// Disable cache, even for old browsers and proxies
 	header["Cache-Control"] = headerCacheControl
@@ -360,80 +379,52 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
+	header["Incremental"] = headerIncremental
+
+	if h.eventsQuery && !disconnectionTime.IsZero() {
+		seconds := max(int64(math.Ceil(time.Until(disconnectionTime).Seconds())), 0)
+		header["Events"] = []string{"duration=" + strconv.FormatInt(seconds, 10)}
+	}
 
 	if s.RequestLastEventIDSet {
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
 	}
 
-	// Write a comment in the body
+	// Write the framing's preamble in the body
 	// Go currently doesn't provide a better way to flush the headers
-	if _, err := w.Write([]byte{':', '\n'}); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
-		h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write comment", slog.Any("error", err))
+	if _, err := w.Write([]byte(preamble)); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
+		h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write preamble", slog.Any("error", err))
 	}
 }
 
-// subscribeValues returns the subscription parameters. For GET and HEAD they
-// come from the URL query; for QUERY the application/x-www-form-urlencoded
-// request body is parsed and merged on top, so a subscriber can pass topics
-// either way. Body size is bounded by limitRequestBody, as for the publish
-// endpoint.
-func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
-	values := r.URL.Query()
-	if r.Method != methodQuery {
-		return values, nil
+// sendTrailer closes the stream for framings that need a terminator. It is
+// called only on the clean exit paths, never once the client has gone away.
+//
+// The terminator gets a write deadline of its own rather than the
+// connection's. The response ends because its deadline arrived, so that
+// deadline has just expired: writing through it would fail, and the client
+// would receive a body that reads as truncated rather than finished. This is
+// the last write on the connection, and it is one buffered line long.
+func (h *Hub) sendTrailer(ctx context.Context, rc *responseController, trailer string) {
+	if trailer == "" {
+		return
 	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading QUERY request body: %w", err)
+	if err := rc.SetWriteDeadline(time.Now().Add(h.dispatchTimeout)); err != nil {
+		h.handleWriterError(ctx, err, "Error while setting the trailer write deadline")
+
+		return
 	}
 
-	bodyValues, err := url.ParseQuery(string(body))
-	if err != nil {
-		return nil, fmt.Errorf("parsing QUERY request body: %w", err)
-	}
-
-	for k, vs := range bodyValues {
-		values[k] = append(values[k], vs...)
-	}
-
-	return values, nil
-}
-
-// retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP
-// header with a fallback on the query parameter. The second return value
-// reports whether either was present at all, even with an empty value: the
-// protocol requires answering with a Mercure-Last-Event-ID response field
-// whenever one was.
-func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query url.Values) (string, bool) {
-	if id := r.Header.Get("Last-Event-ID"); id != "" {
-		return id, true
-	}
-
-	_, headerPresent := r.Header["Last-Event-Id"]
-
-	if id := query.Get("last_event_id"); id != "" {
-		return id, true
-	}
-
-	_, queryPresent := query["last_event_id"]
-
-	if legacyEventIDValues, present := query["Last-Event-ID"]; present { //nolint:nestif
-		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)
-		if h.isBackwardCompatiblyEnabledWith(7) {
-			if infoLevel {
-				h.logger.LogAttrs(ctx, slog.LevelInfo, "Deprecated: the 'Last-Event-ID' query parameter is deprecated since the version 8 of the protocol, use 'last_event_id' instead.")
-			}
-
-			if len(legacyEventIDValues) != 0 {
-				return legacyEventIDValues[0], true
-			}
-		} else if infoLevel {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: the "Last-Event-ID" query parameter is not supported anymore, use "last_event_id" instead or enable backward compatibility with version 7 of the protocol.`)
+	if _, err := rc.rw.Write([]byte(trailer)); err != nil {
+		if h.logger.Enabled(ctx, slog.LevelDebug) {
+			h.logger.LogAttrs(ctx, slog.LevelDebug, "Failed to write trailer", slog.Any("error", err))
 		}
+
+		return
 	}
 
-	return "", headerPresent || queryPresent
+	rc.flush(ctx)
 }
 
 // Write sends the given string to the client.

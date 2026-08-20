@@ -60,7 +60,9 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20240924180020-3414d57e47da // indirect
 	github.com/dlclark/regexp2/v2 v2.1.1 // indirect
 	github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526 // indirect
+	github.com/dunglas/httpsfv v1.1.1 // indirect
 	github.com/dunglas/skipfilter v1.0.0 // indirect
+	github.com/elnormous/contenttype v1.0.4 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-chi/chi/v5 v5.3.0 // indirect

@@ -27,8 +27,8 @@ func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *B
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		require.NoError(t, os.Remove(path))
 		require.NoError(t, transport.Close(t.Context()))
+		require.NoError(t, os.Remove(path))
 	})
 
 	return transport

@@ -133,6 +133,9 @@ type Mercure struct {
 	// Dispatch updates when subscriptions are created or terminated
 	Subscriptions bool `json:"subscriptions,omitempty"`
 
+	// Serve subscriptions expressed as an Events Query
+	EventsQuery bool `json:"events_query,omitempty"`
+
 	// Enable the prod-safe debugger UI at /.well-known/mercure/debug/.
 	Debugger bool `json:"debugger,omitempty"`
 
@@ -335,6 +338,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithSubscriptions())
 	}
 
+	if m.EventsQuery {
+		opts = append(opts, mercure.WithEventsQuery())
+	}
+
 	if d := m.WriteTimeout; d != nil {
 		opts = append(opts, mercure.WithWriteTimeout(time.Duration(*d)))
 	}
@@ -496,6 +503,9 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 			case "subscriptions":
 				m.Subscriptions = true
+
+			case "events_query":
+				m.EventsQuery = true
 
 			case "write_timeout":
 				if m.WriteTimeout, err = parseDurationParameter(d); err != nil {

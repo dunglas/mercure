@@ -76,6 +76,9 @@ paths:
                 data:
                   description: The content of the new version of this topic.
                   type: string
+                content_type:
+                  description: The media type of the data value, conveyed to subscribers when the negotiated response media type can carry per-event metadata.
+                  type: string
                 private:
                   description: To mark an update as private. If not provided, this update will be public.
                   type: boolean

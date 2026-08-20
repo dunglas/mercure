@@ -1137,3 +1137,51 @@ func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
 		})
 	}
 }
+
+func TestEventsQuery(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				events_query
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	body := url.Values{"match": {"https://example.com/foo/1"}, "events": {""}}
+	req, err := http.NewRequest("QUERY", "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	require.NoError(t, err)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Events", "duration=1")
+
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, "application/events+json, application/x-www-form-urlencoded",
+		resp.Header.Get("Accept-Query"))
+	assert.Equal(t, "?1", resp.Header.Get("Incremental"))
+	// The bound the subscription asked for, read from the request and served
+	// back: a hub ignoring it would advertise its own write timeout instead.
+	assert.Equal(t, "duration=1", resp.Header.Get("Events"))
+}
