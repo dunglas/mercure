@@ -203,6 +203,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 				rc.hub.logger.LogAttrs(ctx, slog.LevelDebug, "Hub is shutting down, closing connection")
 			}
 
+			h.sendTrailer(ctx, rc, enc.trailer())
+
 			return
 		case <-ctx.Done():
 			if debugLevel {
@@ -219,6 +221,8 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			heartbeatTimer.Reset(h.heartbeat)
 		case <-disconnectionTimerC:
 			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
+			h.sendTrailer(ctx, rc, enc.trailer())
+
 			return
 		case update, ok := <-s.Receive():
 			if !ok || !h.write(ctx, rc, enc.encode(update)) {
@@ -327,7 +331,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	h.dispatchSubscriptionUpdate(addCtx, s, true)
 
 	rc := h.newResponseController(w, s, req.duration)
-	enc := responseEncoders[req.contentType]
+	enc := responseEncoders[req.contentType]()
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
@@ -391,6 +395,36 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	if _, err := w.Write([]byte(preamble)); err != nil && h.logger.Enabled(ctx, slog.LevelInfo) {
 		h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write preamble", slog.Any("error", err))
 	}
+}
+
+// sendTrailer closes the stream for framings that need a terminator. It is
+// called only on the clean exit paths, never once the client has gone away.
+//
+// The terminator gets a write deadline of its own rather than the
+// connection's. The response ends because its deadline arrived, so that
+// deadline has just expired: writing through it would fail, and the client
+// would receive a body that reads as truncated rather than finished. This is
+// the last write on the connection, and it is one buffered line long.
+func (h *Hub) sendTrailer(ctx context.Context, rc *responseController, trailer string) {
+	if trailer == "" {
+		return
+	}
+
+	if err := rc.SetWriteDeadline(time.Now().Add(h.dispatchTimeout)); err != nil {
+		h.handleWriterError(ctx, err, "Error while setting the trailer write deadline")
+
+		return
+	}
+
+	if _, err := rc.rw.Write([]byte(trailer)); err != nil {
+		if h.logger.Enabled(ctx, slog.LevelDebug) {
+			h.logger.LogAttrs(ctx, slog.LevelDebug, "Failed to write trailer", slog.Any("error", err))
+		}
+
+		return
+	}
+
+	rc.flush(ctx)
 }
 
 // Write sends the given string to the client.

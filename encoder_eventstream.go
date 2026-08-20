@@ -8,6 +8,8 @@ const eventStreamContentType = "text/event-stream"
 // the protocol's first version.
 type eventStreamEncoder struct{}
 
+func newEventStreamEncoder() streamEncoder { return eventStreamEncoder{} }
+
 func (eventStreamEncoder) contentType() []string { return []string{eventStreamContentType} }
 
 // A bare SSE comment. Go currently provides no better way to flush the
@@ -18,3 +20,5 @@ func (eventStreamEncoder) encode(u *Update) string { return u.String() }
 
 // An SSE comment, to prevent issues with some proxies and old browsers.
 func (eventStreamEncoder) heartbeat() string { return ":\n" }
+
+func (eventStreamEncoder) trailer() string { return "" }

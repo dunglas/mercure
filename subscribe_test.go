@@ -1,12 +1,15 @@
 package mercure
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1513,17 +1516,15 @@ func TestEventsQuerySubscribeContentType(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	req := eventsQueryRequest(ctx, `{"url": ["https://example.com/books/1"], "events": {}}`)
 
-	w := &responseTester{
-		header:             http.Header{},
-		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\n",
-		tb:                 t,
-		cancel:             cancel,
-	}
+	// The delimiter that opens the stream is enough to know it started.
+	w := newEventsQueryTester(1, cancel)
 
 	hub.SubscribeHandler(w, req)
 
-	assert.Equal(t, "text/event-stream", w.Header().Get("Content-Type"))
+	mediaType, params, err := mime.ParseMediaType(w.Header().Get("Content-Type"))
+	require.NoError(t, err)
+	assert.Equal(t, multipartDigestContentType, mediaType)
+	assert.NotEmpty(t, params["boundary"], "every connection is framed by its own boundary")
 }
 
 // A subscription is answered with the media types a QUERY body can express it
@@ -1559,13 +1560,8 @@ func TestEventsQuerySubscribeAcceptQuery(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	req := eventsQueryRequest(ctx, `{"url": ["https://example.com/foo"], "events": {}}`)
 
-	w := &responseTester{
-		header:             http.Header{},
-		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\n",
-		tb:                 t,
-		cancel:             cancel,
-	}
+	// The delimiter that opens the stream is enough to know it started.
+	w := newEventsQueryTester(1, cancel)
 
 	hub.SubscribeHandler(w, req)
 
@@ -1625,13 +1621,11 @@ func TestEventsQuerySubscribe(t *testing.T) {
 	reqCtx, cancel := context.WithCancel(t.Context())
 	req := eventsQueryRequest(reqCtx, `{"url": ["https://example.com/books/1"], "events": {}}`)
 
-	w := &responseTester{
-		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nid: b\ndata: Hello World\n\n",
-		tb:                 t,
-		cancel:             cancel,
-	}
+	// One delimiter opens the stream, the next closes the notification.
+	w := newEventsQueryTester(2, cancel)
 	hub.SubscribeHandler(w, req)
+
+	assertNotification(t, w, "b", "Hello World")
 }
 
 // The parameters reach the same matcher implementation the query component
@@ -1663,13 +1657,11 @@ func TestEventsQuerySubscribeURLPattern(t *testing.T) {
 	req := eventsQueryRequest(reqCtx,
 		`{"url": {"match_urlpattern": ["https://example.com/books/:id"]}, "events": {}}`)
 
-	w := &responseTester{
-		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nid: b\ndata: Hello World\n\n",
-		tb:                 t,
-		cancel:             cancel,
-	}
+	// One delimiter opens the stream, the next closes the notification.
+	w := newEventsQueryTester(2, cancel)
 	hub.SubscribeHandler(w, req)
+
+	assertNotification(t, w, "b", "Hello World")
 }
 
 // A subscription naming no topic is refused the same way a subscription URL
@@ -1707,13 +1699,8 @@ func TestEventsQuerySubscribeLastEventID(t *testing.T) {
 	req := eventsQueryRequest(reqCtx,
 		`{"url": ["https://example.com/books/1"], "events": {}, "last_event_id": "urn:uuid:0198c1f2-3f4a-7000-8000-9abcdef01234"}`)
 
-	w := &responseTester{
-		header:             http.Header{},
-		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\n",
-		tb:                 t,
-		cancel:             cancel,
-	}
+	// The delimiter that opens the stream is enough to know it started.
+	w := newEventsQueryTester(1, cancel)
 	hub.SubscribeHandler(w, req)
 
 	assert.Equal(t, EarliestLastEventID, w.Header().Get("Mercure-Last-Event-ID"))
@@ -1899,7 +1886,10 @@ func TestEventsQuerySubscribeStopsAfterTheRequestedDuration(t *testing.T) {
 	}
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, ":\n", w.Body.String())
+	// The stream carried no notification and the hub closed it itself, so it
+	// is a preamble followed by the close-delimiter.
+	assert.True(t, strings.HasSuffix(w.Body.String(), "--\r\n"),
+		"the stream must end with the close-delimiter, got %q", w.Body.String())
 	assert.Equal(t, "duration=1", w.Header().Get("Events"))
 }
 
@@ -1910,3 +1900,80 @@ type writeDeadlineRecorder struct {
 }
 
 func (writeDeadlineRecorder) SetWriteDeadline(time.Time) error { return nil }
+
+// assertNotification reads back the one notification a stream carries, by the
+// length its message declares rather than the delimiter.
+func assertNotification(t *testing.T, w *eventsQueryTester, id, data string) {
+	t.Helper()
+
+	_, params, err := mime.ParseMediaType(w.Header().Get("Content-Type"))
+	require.NoError(t, err)
+	require.NotEmpty(t, params["boundary"])
+
+	// Close the body so the parser sees a complete multipart message: the hub
+	// writes the trailer only when it ends the response itself.
+	r := multipart.NewReader(strings.NewReader(w.String()+"--\r\n"), params["boundary"])
+
+	part, err := r.NextPart()
+	require.NoError(t, err)
+	assert.Empty(t, part.Header.Get("Content-Type"), "a notification takes the carrier's default")
+
+	header, body := readNotification(t, bufio.NewReader(part))
+	assert.Equal(t, data, body)
+	assert.Equal(t, id, header.Get("Event-ID"))
+
+	// Topics never reach a subscriber, over either carrier.
+	assert.Empty(t, header.Get("Topic"))
+}
+
+// eventsQueryTester collects a notifications stream, ending the request once
+// it has seen the delimiter that many times. Unlike responseTester it cannot
+// match against an expected body: the boundary is random per connection, so
+// the response is only knowable once parsed.
+type eventsQueryTester struct {
+	mu       sync.Mutex
+	body     strings.Builder
+	boundary string
+	// wanted is the number of delimiters to wait for before cancelling.
+	wanted int
+	cancel context.CancelFunc
+	header http.Header
+}
+
+func newEventsQueryTester(wanted int, cancel context.CancelFunc) *eventsQueryTester {
+	return &eventsQueryTester{wanted: wanted, cancel: cancel, header: http.Header{}}
+}
+
+func (t *eventsQueryTester) Header() http.Header { return t.header }
+
+func (t *eventsQueryTester) WriteHeader(int) {}
+
+func (t *eventsQueryTester) Flush() {}
+
+func (t *eventsQueryTester) SetWriteDeadline(_ time.Time) error { return nil }
+
+func (t *eventsQueryTester) Write(buf []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.body.Write(buf)
+
+	if t.boundary == "" {
+		if _, params, err := mime.ParseMediaType(t.header.Get("Content-Type")); err == nil {
+			t.boundary = params["boundary"]
+		}
+	}
+
+	if t.boundary != "" && strings.Count(t.body.String(), "--"+t.boundary) >= t.wanted {
+		t.cancel()
+	}
+
+	return len(buf), nil
+}
+
+func (t *eventsQueryTester) String() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	return t.body.String()
+}

@@ -6,13 +6,14 @@ package mercure
 // subscription expressing no preference gets.
 //
 //nolint:gochecknoglobals
-var carrierContentTypes = []string{eventStreamContentType}
+var carrierContentTypes = []string{multipartDigestContentType, eventStreamContentType}
 
 // responseEncoders provides the framing for each media type
 //
 //nolint:gochecknoglobals
-var responseEncoders = map[string]streamEncoder{
-	eventStreamContentType: eventStreamEncoder{},
+var responseEncoders = map[string]func() streamEncoder{
+	multipartDigestContentType: newMultipartDigestEncoder,
+	eventStreamContentType:     newEventStreamEncoder,
 }
 
 // Mercure ordinarily (without Events Query) serves only Event Stream
@@ -38,4 +39,9 @@ type streamEncoder interface {
 
 	// heartbeat returns the keep-alive payload.
 	heartbeat() string
+
+	// trailer closes the stream, or "" when the framing needs no terminator.
+	// It is written only when the response ends cleanly, never once the
+	// client has gone away.
+	trailer() string
 }
