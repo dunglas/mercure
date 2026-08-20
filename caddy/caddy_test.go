@@ -1178,7 +1178,8 @@ func TestEventsQuery(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
+	assert.Equal(t, "application/events+json, application/x-www-form-urlencoded",
+		resp.Header.Get("Accept-Query"))
 	assert.Equal(t, "?1", resp.Header.Get("Incremental"))
 	// The bound the subscription asked for, read from the request and served
 	// back: a hub ignoring it would advertise its own write timeout instead.

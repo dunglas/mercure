@@ -18,7 +18,7 @@ func TestEventsQuerySubscribeRefusedResponseMediaType(t *testing.T) {
 
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
-	req := eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events=")
+	req := eventsQueryRequest(t.Context(), `{"url": ["https://example.com/books/1"], "events": {}}`)
 	req.Header.Set("Accept", eventStreamContentType+";q=0")
 
 	w := httptest.NewRecorder()
@@ -138,7 +138,7 @@ func TestEventsQuerySubscribeWithoutEventsBeforeRefusedResponseMediaType(t *test
 
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
-	req := eventsQueryRequest(t.Context(), "match=https://example.com/books/1")
+	req := eventsQueryRequest(t.Context(), `{"url": ["https://example.com/books/1"]}`)
 	req.Header.Set("Accept", eventStreamContentType+";q=0")
 
 	w := httptest.NewRecorder()
@@ -348,7 +348,7 @@ func TestEventsQuerySubscribeReadsEventsDuration(t *testing.T) {
 
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
-	r := eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events=")
+	r := eventsQueryRequest(t.Context(), `{"url": ["https://example.com/books/1"], "events": {}}`)
 	r.Header.Set("Events", "duration=30")
 
 	req, parseErr := hub.parseSubscribeRequest(t.Context(), r)
@@ -363,7 +363,7 @@ func TestEventsQuerySubscribeWithoutEventsDuration(t *testing.T) {
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
 	req, parseErr := hub.parseSubscribeRequest(t.Context(),
-		eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events="))
+		eventsQueryRequest(t.Context(), `{"url": ["https://example.com/books/1"], "events": {}}`))
 	require.Nil(t, parseErr)
 	assert.Zero(t, req.duration)
 }
@@ -407,7 +407,7 @@ func TestEventsQuerySubscribeReadsEventsDurationSplitOverFieldLines(t *testing.T
 
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
-	r := eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events=")
+	r := eventsQueryRequest(t.Context(), `{"url": ["https://example.com/books/1"], "events": {}}`)
 	r.Header.Add("Events", "foo=1")
 	r.Header.Add("Events", "duration=30")
 

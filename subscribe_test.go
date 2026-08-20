@@ -1511,10 +1511,7 @@ func TestEventsQuerySubscribeContentType(t *testing.T) {
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
 	ctx, cancel := context.WithCancel(t.Context())
-	req := eventsQueryRequest(ctx, url.Values{
-		paramMatch: {"https://example.com/books/1"},
-		"events":   {""},
-	}.Encode())
+	req := eventsQueryRequest(ctx, `{"url": ["https://example.com/books/1"], "events": {}}`)
 
 	w := &responseTester{
 		header:             http.Header{},
@@ -1560,10 +1557,7 @@ func TestEventsQuerySubscribeAcceptQuery(t *testing.T) {
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
 	ctx, cancel := context.WithCancel(t.Context())
-	req := eventsQueryRequest(ctx, url.Values{
-		paramMatch: {"https://example.com/foo"},
-		"events":   {""},
-	}.Encode())
+	req := eventsQueryRequest(ctx, `{"url": ["https://example.com/foo"], "events": {}}`)
 
 	w := &responseTester{
 		header:             http.Header{},
@@ -1575,7 +1569,8 @@ func TestEventsQuerySubscribeAcceptQuery(t *testing.T) {
 
 	hub.SubscribeHandler(w, req)
 
-	assert.Equal(t, "application/x-www-form-urlencoded", w.Header().Get("Accept-Query"))
+	assert.Equal(t, "application/events+json, application/x-www-form-urlencoded",
+		w.Header().Get("Accept-Query"))
 }
 
 // A subscription asks intermediaries to forward each chunk as it arrives,
@@ -1628,10 +1623,7 @@ func TestEventsQuerySubscribe(t *testing.T) {
 	}()
 
 	reqCtx, cancel := context.WithCancel(t.Context())
-	req := eventsQueryRequest(reqCtx, url.Values{
-		paramMatch: {"https://example.com/books/1"},
-		"events":   {""},
-	}.Encode())
+	req := eventsQueryRequest(reqCtx, `{"url": ["https://example.com/books/1"], "events": {}}`)
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -1668,10 +1660,8 @@ func TestEventsQuerySubscribeURLPattern(t *testing.T) {
 	}()
 
 	reqCtx, cancel := context.WithCancel(t.Context())
-	req := eventsQueryRequest(reqCtx, url.Values{
-		"match_urlpattern": {"https://example.com/books/:id"},
-		"events":           {""},
-	}.Encode())
+	req := eventsQueryRequest(reqCtx,
+		`{"url": {"match_urlpattern": ["https://example.com/books/:id"]}, "events": {}}`)
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
@@ -1690,15 +1680,16 @@ func TestEventsQuerySubscribeWithoutTopics(t *testing.T) {
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
 	w := newSubscribeRecorder()
-	hub.SubscribeHandler(w, eventsQueryRequest(t.Context(), "events="))
+	hub.SubscribeHandler(w, eventsQueryRequest(t.Context(), `{"events": {}}`))
 
 	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
 }
 
-// eventsQueryRequest builds a subscription request carrying the given body.
+// eventsQueryRequest builds a subscription request carrying the given body,
+// expressed in the media type an Events Query is canonically written in.
 func eventsQueryRequest(ctx context.Context, body string) *http.Request {
 	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body)).WithContext(ctx)
-	req.Header.Set("Content-Type", urlEncodedMediaType)
+	req.Header.Set("Content-Type", eventsJSONMediaType)
 
 	return req
 }
@@ -1713,11 +1704,8 @@ func TestEventsQuerySubscribeLastEventID(t *testing.T) {
 	reqCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	req := eventsQueryRequest(reqCtx, url.Values{
-		paramMatch:      {"https://example.com/books/1"},
-		"events":        {""},
-		"last_event_id": {"urn:uuid:0198c1f2-3f4a-7000-8000-9abcdef01234"},
-	}.Encode())
+	req := eventsQueryRequest(reqCtx,
+		`{"url": ["https://example.com/books/1"], "events": {}, "last_event_id": "urn:uuid:0198c1f2-3f4a-7000-8000-9abcdef01234"}`)
 
 	w := &responseTester{
 		header:             http.Header{},
@@ -1739,7 +1727,7 @@ func TestEventsQuerySubscribeRejectsMalformedBody(t *testing.T) {
 	hub := createAnonymousDummy(t, WithEventsQuery())
 
 	w := httptest.NewRecorder()
-	hub.SubscribeHandler(w, eventsQueryRequest(t.Context(), "match=%zz"))
+	hub.SubscribeHandler(w, eventsQueryRequest(t.Context(), `{"url": 42, "events": {}}`))
 
 	resp := w.Result()
 
@@ -1891,7 +1879,7 @@ func TestEventsQuerySubscribeStopsAfterTheRequestedDuration(t *testing.T) {
 
 	hub := createAnonymousDummy(t, WithEventsQuery(), WithWriteTimeout(0), WithDispatchTimeout(0))
 
-	req := eventsQueryRequest(t.Context(), "match=https://example.com/books/1&events=")
+	req := eventsQueryRequest(t.Context(), `{"url": ["https://example.com/books/1"], "events": {}}`)
 	req.Header.Set("Events", "duration=0.2")
 
 	w := writeDeadlineRecorder{httptest.NewRecorder()}

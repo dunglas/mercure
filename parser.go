@@ -46,7 +46,7 @@ var (
 // them are offered, and in what order.
 //
 //nolint:gochecknoglobals
-var subscriptionMediaTypes = []string{urlEncodedMediaType}
+var subscriptionMediaTypes = []string{eventsJSONMediaType, urlEncodedMediaType}
 
 // subscriptionParsers is the reader each media type is read by, one per parser
 // file.
@@ -54,6 +54,7 @@ var subscriptionMediaTypes = []string{urlEncodedMediaType}
 //nolint:gochecknoglobals
 var subscriptionParsers = map[string]func(body []byte) (url.Values, error){
 	urlEncodedMediaType: parseURLEncoded,
+	eventsJSONMediaType: parseEventsJSON,
 }
 
 // The media types a stream of notifications is negotiated from, parsed once
