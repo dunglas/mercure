@@ -1298,6 +1298,31 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 	return h
 }
 
+// hubDrainTestHub is hubShutdownTestHub with a configurable drain timeout, for
+// the graceful-drain tests.
+func hubDrainTestHub(ctx context.Context, tb testing.TB, writeTimeout, drainTimeout time.Duration) *Hub {
+	tb.Helper()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(tb, err)
+
+	h, err := NewHub(ctx,
+		WithAnonymous(),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Publisher:  Static{Key: []byte("publisher"), Algorithm: jwt.SigningMethodHS256.Name},
+			Subscriber: Static{Key: []byte("subscriber"), Algorithm: jwt.SigningMethodHS256.Name},
+		}}),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithTopicMatcherStore(tms),
+		WithWriteTimeout(writeTimeout),
+		WithDrainTimeout(drainTimeout),
+	)
+	require.NoError(tb, err)
+
+	return h
+}
+
 // TestShutdownKeepsSubscribersWhenWriteTimeoutEnabled verifies the graceful
 // drain contract: when the hub context is cancelled (Caddy stopping, pod
 // SIGTERM, ...) and writeTimeout is set, subscribers stay connected until
@@ -1354,6 +1379,185 @@ func TestShutdownClosesSubscribersWhenWriteTimeoutDisabled(t *testing.T) {
 		n := transport.subscribers.Len()
 		transport.RUnlock()
 		assert.Equal(t, 0, n, "subscriber must exit on hub shutdown when writeTimeout is 0")
+	})
+}
+
+// TestDrainDeadline checks the drain window bounds: a strictly positive
+// duration that never exceeds the window, so a rescheduled clean close always
+// lands inside the drain window and never in the past.
+func TestDrainDeadline(t *testing.T) {
+	t.Parallel()
+
+	for _, window := range []time.Duration{
+		time.Nanosecond, time.Millisecond, time.Second, 5 * time.Minute, 20 * time.Minute,
+	} {
+		for range 1000 {
+			d := drainDeadline(window)
+			assert.Positive(t, d, "drain deadline must be strictly positive")
+			assert.LessOrEqual(t, d, window, "drain deadline must not exceed the window")
+		}
+	}
+}
+
+// TestDrainDisconnectionTime covers the "never extend" decision: a drain
+// reschedules to now+offset unless the connection is already closing at or
+// before that, and always reschedules a connection that had no deadline.
+func TestDrainDisconnectionTime(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	for _, tc := range []struct {
+		name           string
+		existing       time.Time
+		offset         time.Duration
+		wantReschedule bool
+		want           time.Time
+	}{
+		{name: "no existing deadline reschedules", existing: time.Time{}, offset: 5 * time.Minute, wantReschedule: true, want: now.Add(5 * time.Minute)},
+		{name: "existing later than drain reschedules sooner", existing: now.Add(20 * time.Minute), offset: 5 * time.Minute, wantReschedule: true, want: now.Add(5 * time.Minute)},
+		{name: "existing sooner than drain is kept", existing: now.Add(time.Minute), offset: 5 * time.Minute, wantReschedule: false, want: now.Add(time.Minute)},
+		{name: "existing equal to drain is kept", existing: now.Add(5 * time.Minute), offset: 5 * time.Minute, wantReschedule: false, want: now.Add(5 * time.Minute)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, reschedule := drainDisconnectionTime(now, tc.existing, tc.offset)
+			assert.Equal(t, tc.wantReschedule, reschedule)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestDrainReschedulesWithinDrainWindow verifies the core of the feature: with
+// a long writeTimeout but a shorter drainTimeout, Drain reschedules each
+// connection's clean close into the drain window, so subscribers drain within
+// drainTimeout rather than riding the much longer writeTimeout.
+func TestDrainReschedulesWithinDrainWindow(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		const (
+			writeTimeout = 20 * time.Minute
+			drainTimeout = 5 * time.Minute
+		)
+
+		hub := hubDrainTestHub(t.Context(), t, writeTimeout, drainTimeout)
+		transport, _ := hub.transport.(*LocalTransport)
+
+		go func() {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(t.Context())
+			hub.SubscribeHandler(newSubscribeRecorder(), req)
+		}()
+
+		waitSubscribers(t, transport, 1)
+
+		// Begin draining (real termination).
+		hub.Drain()
+
+		// Advancing past the drain window — but well short of writeTimeout —
+		// drains the subscriber, proving the drain window is drainTimeout, not
+		// writeTimeout.
+		time.Sleep(drainTimeout + time.Second)
+		synctest.Wait()
+
+		transport.RLock()
+		n := transport.subscribers.Len()
+		transport.RUnlock()
+		assert.Equal(t, 0, n, "subscriber must drain within drainTimeout, not writeTimeout")
+	})
+}
+
+// TestDrainDoesNotDisconnectOnReload verifies the stop-only contract: cancelling
+// the hub context without calling Drain (a graceful config reload) must not
+// disconnect subscribers even when a drain timeout is configured. That is what
+// keeps reloads reconnect-free.
+func TestDrainDoesNotDisconnectOnReload(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		hubCtx, cancelHub := context.WithCancel(t.Context())
+		hub := hubDrainTestHub(hubCtx, t, 20*time.Minute, 5*time.Minute)
+		transport, _ := hub.transport.(*LocalTransport)
+
+		go func() {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(t.Context())
+			hub.SubscribeHandler(newSubscribeRecorder(), req)
+		}()
+
+		waitSubscribers(t, transport, 1)
+
+		// Reload: the hub context is cancelled, but Drain is not called.
+		cancelHub()
+		synctest.Wait()
+
+		transport.RLock()
+		n := transport.subscribers.Len()
+		transport.RUnlock()
+		assert.Equal(t, 1, n, "context cancel without Drain must not drain: drain is stop-only")
+	})
+}
+
+// TestDrainWithoutWriteTimeout covers the bonus path: with writeTimeout 0 a
+// connection starts with no disconnection timer at all, yet a configured
+// drainTimeout still drains it gracefully on shutdown by arming a fresh timer.
+func TestDrainWithoutWriteTimeout(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		// A different window from the other drain tests, so the drain still
+		// finishes within it whatever the exact value.
+		const drainTimeout = 3 * time.Minute
+
+		hub := hubDrainTestHub(t.Context(), t, 0, drainTimeout)
+		transport, _ := hub.transport.(*LocalTransport)
+
+		go func() {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(t.Context())
+			hub.SubscribeHandler(newSubscribeRecorder(), req)
+		}()
+
+		waitSubscribers(t, transport, 1)
+
+		hub.Drain()
+		time.Sleep(drainTimeout + time.Second)
+		synctest.Wait()
+
+		transport.RLock()
+		n := transport.subscribers.Len()
+		transport.RUnlock()
+		assert.Equal(t, 0, n, "drain must arm a disconnection timer even when writeTimeout is 0")
+	})
+}
+
+// TestDrainReloadWithoutWriteTimeoutStillExits guards the escape hatch: a
+// writeTimeout==0 connection has no deadline of its own, so on a reload (hub
+// context cancelled without Drain) it must still exit even when a drain timeout
+// is configured — the drain is stop-only, and without the escape hatch such a
+// connection would hang until the client disconnects.
+func TestDrainReloadWithoutWriteTimeoutStillExits(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		hubCtx, cancelHub := context.WithCancel(t.Context())
+		hub := hubDrainTestHub(hubCtx, t, 0, 5*time.Minute)
+		transport, _ := hub.transport.(*LocalTransport)
+
+		go func() {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(t.Context())
+			hub.SubscribeHandler(newSubscribeRecorder(), req)
+		}()
+
+		waitSubscribers(t, transport, 1)
+
+		// Reload: context cancelled, Drain not called.
+		cancelHub()
+		synctest.Wait()
+
+		transport.RLock()
+		n := transport.subscribers.Len()
+		transport.RUnlock()
+		assert.Equal(t, 0, n, "writeTimeout==0 connection must exit on reload via the escape hatch")
 	})
 }
 
