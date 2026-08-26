@@ -14,6 +14,7 @@ import (
 
 // Deprecated: use transports Caddy modules.
 var transports = caddy.NewUsagePool() //nolint:gochecknoglobals
+
 // Deprecated
 //
 //nolint:wrapcheck,ireturn,nilnil
