@@ -29,6 +29,7 @@ linters:
     - depguard
     - errcheck
     - exhaustruct
+    - exhaustruct_v5
     - forcetypeassert
     - gomodguard
     - intrange
