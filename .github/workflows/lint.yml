@@ -4,9 +4,11 @@ on:
   pull_request:
     branches:
       - main
+      - 0.x
   push:
     branches:
       - main
+      - 0.x
 
 permissions: {}
 
