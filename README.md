@@ -10,7 +10,6 @@ It is especially useful to publish async and real-time updates of resources serv
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/dunglas/mercure)](https://pkg.go.dev/github.com/dunglas/mercure)
 [![CI](https://github.com/dunglas/mercure/actions/workflows/ci.yml/badge.svg)](https://github.com/dunglas/mercure/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/dunglas/mercure/badge.svg?branch=master)](https://coveralls.io/github/dunglas/mercure?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/dunglas/mercure)](https://goreportcard.com/report/github.com/dunglas/mercure)
 
 ![Subscriptions Schema](spec/subscriptions.png)
 
