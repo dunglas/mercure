@@ -101,6 +101,14 @@
       "description": "Additional environment variables to set",
       "type": "array"
     },
+    "extraVolumeMounts": {
+      "description": "Additional volume mounts to set.",
+      "type": "array"
+    },
+    "extraVolumes": {
+      "description": "Additional volumes to set.",
+      "type": "array"
+    },
     "fullnameOverride": {
       "description": "A name to substitute for the full names of resources.",
       "type": "string"
@@ -334,6 +342,15 @@
         }
       }
     },
+    "metricsService": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations to be added to the metrics service.",
+          "type": "object"
+        }
+      }
+    },
     "nameOverride": {
       "description": "A name in place of the chart name for `app:` labels.",
       "type": "string"
@@ -483,6 +500,7 @@
       "type": "object",
       "properties": {
         "annotations": {
+          "description": "Annotations to be added to the service.",
           "type": "object"
         },
         "nodePort": {
@@ -499,6 +517,11 @@
           "type": "integer",
           "maximum": 65535,
           "minimum": 1
+        },
+        "portName": {
+          "description": "Service port name.",
+          "type": "string",
+          "minLength": 1
         },
         "targetPort": {
           "description": "Service target port.",
