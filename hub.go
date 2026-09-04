@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -155,6 +156,18 @@ func WithLogger(logger *slog.Logger) Option {
 func WithWriteTimeout(timeout time.Duration) Option {
 	return func(o *opt) error {
 		o.writeTimeout = timeout
+
+		return nil
+	}
+}
+
+// WithDrainTimeout sets the graceful-shutdown drain window, defaults to 0
+// (disabled). When set, a shutdown (see Drain) reschedules each subscriber to
+// close at a random point spread across this window instead of riding the write
+// timeout, decoupling the shutdown drain from the steady-state rotation cadence.
+func WithDrainTimeout(timeout time.Duration) Option {
+	return func(o *opt) error {
+		o.drainTimeout = timeout
 
 		return nil
 	}
@@ -421,6 +434,7 @@ type opt struct {
 	playgroundTokenFunc          func(resourceIdentifier string) (string, error)
 	logger                       *slog.Logger
 	writeTimeout                 time.Duration
+	drainTimeout                 time.Duration
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
 	maxRequestBodySize           int64
@@ -522,6 +536,12 @@ type Hub struct {
 
 	handler http.Handler
 	ctx     context.Context //nolint:containedctx
+
+	// drainCh is closed by Drain to start a graceful-shutdown drain. It is
+	// distinct from ctx so that a graceful config reload (which cancels ctx)
+	// does not drain, while real termination (which calls Drain) does.
+	drainCh   chan struct{}
+	drainOnce sync.Once
 }
 
 // NewHub creates a new Hub instance.
@@ -572,7 +592,7 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.cookieName = defaultCookieName
 	}
 
-	h := &Hub{opt: opt, ctx: ctx}
+	h := &Hub{opt: opt, ctx: ctx, drainCh: make(chan struct{})}
 	h.initHandler()
 
 	return h, nil
@@ -585,6 +605,18 @@ func (h *Hub) Stop(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Drain begins a graceful-shutdown drain: when a drain timeout is configured
+// (WithDrainTimeout), each active subscriber reschedules its clean close to a
+// random point within that window, spreading reconnects instead of dropping
+// them all at once. It must be called only on real termination, never on a
+// graceful config reload (which keeps reloads reconnect-free). Safe to call
+// more than once; only the first call has effect.
+func (h *Hub) Drain() {
+	h.drainOnce.Do(func() {
+		close(h.drainCh)
+	})
 }
 
 // limitRequestBody bounds the request body per WithMaxRequestBodySize; the
