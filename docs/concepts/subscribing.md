@@ -202,21 +202,21 @@ Host: example.com
 200 OK
 Content-Type: application/ld+json
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
+Link: </books/1>; rel="self"
 ```
 
-Subscribers that fetch the resource first can read the header to find the hub:
+Subscribers that fetch the resource first can read the headers to find both the hub and the topic to subscribe to:
 
 ```javascript
 // Discovering the Mercure Hub via Link Header
 const res = await fetch("https://example.com/books/1");
-const link = res.headers.get("Link");
-const hub = link.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
+const links = res.headers.get("Link");
+
+const hub = links.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
+const self = links.match(/<([^>]+)>;\s*rel="?self"?/)?.[1] ?? res.url;
 
 const url = new URL(hub);
-url.searchParams.append(
-  "match",
-  res.headers.get("Content-Location") ?? res.url,
-);
+url.searchParams.append("match", new URL(self, res.url).toString());
 new EventSource(url);
 ```
 
