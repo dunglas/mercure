@@ -163,6 +163,13 @@ The standalone non-Caddy binary is gone. It's been deprecated since Mercure 0.11
 
 Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
+The directive also accepts `7`, which is a **superset** of `8`: it restores everything `8` does, plus two behaviors deprecated in protocol version 7. Unlike the ones above, these two are not gated behind a build tag, so every build honors them:
+
+- the `Last-Event-ID` **query parameter**, renamed `last_event_id` in 0.14;
+- publishing a *public* update to a topic the token grants no `publish` action on. Without `7` this is a `403 insufficient_scope`; grant the `*` topic instead.
+
+Prefer `8`. Reach for `7` only if you still run clients from before 0.14, and expect an `Unsupported:` log line naming the behavior when a request trips a relaxation you have not enabled.
+
 Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright.
 
 Custom builds must pass the tags to `go build`. With [`xcaddy`](https://github.com/caddyserver/xcaddy), that means `XCADDY_GO_BUILD_FLAGS`:
@@ -271,7 +278,7 @@ The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your cli
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 
-A `protocol_version_compatibility 7` directive was added to ease the transition. It has since been removed in 1.0.
+A `protocol_version_compatibility 7` directive was added to ease the transition. It is still accepted in 1.0; see [Compatibility mode](#compatibility-mode).
 
 ### Mercure 0.13 upgrade notes
 
