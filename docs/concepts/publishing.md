@@ -97,6 +97,8 @@ public function __invoke(HubInterface $hub) {
 }
 ```
 
+The code is the same on 0.x and 1.0; what differs is the token the bundle mints for it. Set `protocol_version: '1.0'` on the hub, or it keeps minting 0.x tokens that a 1.0 hub rejects — see [Symfony and API Platform](../ecosystem/symfony.md).
+
 ## Canonical and alternate topics
 
 A publish request usually carries a single `topic`: pick one canonical topic for a resource (its URL is the natural choice) and use it consistently on both the publish and subscribe sides.

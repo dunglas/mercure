@@ -65,6 +65,7 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 
 ## Mercure ecosystem
 
+- [Symfony and API Platform](ecosystem/symfony.md): running `symfony/mercure-bundle` against a 1.0 hub
 - [Awesome Mercure](ecosystem/awesome.md): libraries, integrations, demos
 - [Conformance tests](ecosystem/conformance-tests.md)
 

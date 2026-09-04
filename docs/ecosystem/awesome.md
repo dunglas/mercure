@@ -41,8 +41,8 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Mercure framework integrations
 
-- [Symfony](https://symfony.com/doc/current/mercure.html): official component, full publisher support.
-- [API Platform](https://api-platform.com/docs/core/mercure/): full publisher + subscriber + GraphQL subscriptions.
+- [Symfony](https://symfony.com/doc/current/mercure.html): official component, full publisher support. For the 1.0 protocol, see [Symfony and API Platform](symfony.md).
+- [API Platform](https://api-platform.com/docs/core/mercure/): full publisher + subscriber + GraphQL subscriptions. For the 1.0 protocol, see [Symfony and API Platform](symfony.md).
 - [Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)
 - [Yii Mercure Behavior](https://github.com/bizley/mercure-behavior)
 - [CakePHP Mercure plugin](https://github.com/josbeir/cakephp-mercure)
