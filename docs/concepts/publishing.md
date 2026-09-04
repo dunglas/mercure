@@ -185,6 +185,8 @@ For stricter delivery guarantees (every state change reaches the hub even if the
 
 The Mercure protocol does not require an external hub. An application that already terminates HTTP/2 connections can speak the protocol directly: write SSE bytes to subscribers, validate JWTs, run matchers. This is unusual outside of frameworks that ship their own hub (FrankenPHP, for instance), but the spec allows it.
 
+Check which version of the protocol an embedded hub speaks before you rely on it. [FrankenPHP](https://frankenphp.dev) 1.12.7 embeds `github.com/dunglas/mercure v0.24.2`, so an application running its built-in hub — which includes anything built on the symfony-docker or API Platform distributions — is on 0.x and cannot opt into 1.0 by upgrading the PHP side. Reaching 1.0 there means either running a standalone hub next to the app, or building a custom binary with the 1.0 Caddy module (see [Custom Caddy build](../getting-started/installation.md#custom-caddy-build)).
+
 For everyone else, run the hub.
 
 ## Next steps for Mercure publishing
