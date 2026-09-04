@@ -163,7 +163,18 @@ The standalone non-Caddy binary is gone. It's been deprecated since Mercure 0.11
 
 Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
-Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
+Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright.
+
+Custom builds must pass the tags to `go build`. With [`xcaddy`](https://github.com/caddyserver/xcaddy), that means `XCADDY_GO_BUILD_FLAGS`:
+
+```console
+# Custom build with compatibility mode
+XCADDY_GO_BUILD_FLAGS='-tags deprecated_topic,deprecated_claim' \
+  xcaddy build \
+  --with github.com/dunglas/mercure/caddy
+```
+
+See [Custom Caddy build](getting-started/installation.md#custom-caddy-build) for the Go toolchain requirement.
 
 #### Restore the removed Caddyfile directives
 
