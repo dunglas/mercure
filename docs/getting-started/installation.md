@@ -125,7 +125,7 @@ XCADDY_GO_BUILD_FLAGS='-tags deprecated_topic,deprecated_claim' \
   --with github.com/dunglas/mercure/caddy
 ```
 
-The official binaries and Docker images already ship both tags. The tags only make the 0.x behaviors *available*; the hub still needs `protocol_version_compatibility` in its Caddyfile to honor them.
+The official binaries and Docker images already ship both tags. The tags only make the 0.x behaviors _available_; the hub still needs `protocol_version_compatibility` in its Caddyfile to honor them.
 
 Or use the [Caddy download page](https://caddyserver.com/download?package=github.com%2Fdunglas%2Fmercure%2Fcaddy) to assemble a build in the browser.
 
