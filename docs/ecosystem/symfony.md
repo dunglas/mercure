@@ -11,13 +11,13 @@ Nothing in your publishing code changes: you still inject `HubInterface` and pub
 
 ## Version requirements
 
-| Package                        | Constraint for 1.0                    |
-| ------------------------------ | ------------------------------------- |
-| `symfony/mercure-bundle`       | `^0.5`                                |
-| `symfony/mercure`              | `^0.8` (pulled in by the bundle)      |
-| PHP                            | `>= 8.2`                              |
-| Symfony components             | `^6.4 \| ^7.3 \| ^8.0`                |
-| Mercure hub                    | `v1.0.0-alpha.3` or later             |
+| Package                  | Constraint for 1.0               |
+| ------------------------ | -------------------------------- |
+| `symfony/mercure-bundle` | `^0.5`                           |
+| `symfony/mercure`        | `^0.8` (pulled in by the bundle) |
+| PHP                      | `>= 8.2`                         |
+| Symfony components       | `^6.4 \| ^7.3 \| ^8.0`           |
+| Mercure hub              | `v1.0.0-alpha.3` or later        |
 
 The Symfony constraint is worth reading twice: it is `^6.4 | ^7.3 | ^8.0`, not `^6.4 | ^7.0`. **Symfony 7.0 through 7.2 cannot install the bundle** — an app on 7.1 has to move to 7.3 or later before it can speak 1.0.
 
@@ -101,10 +101,10 @@ composer require web-token/jwt-library
 
 `jwt.algorithm` has no single default, because the two token factories name algorithms differently:
 
-| With          | Factory           | Names                                       | Default        |
-| ------------- | ----------------- | ------------------------------------------- | -------------- |
-| `jwt.secret`  | `LcobucciFactory` | `hmac.sha256`, `hmac.sha384`, …             | `hmac.sha256`  |
-| `jwt.jwks_uri`| `WebTokenFactory` | JWA names: `HS256`, `RS256`, `PS256`, `EdDSA`, … | `HS256`   |
+| With           | Factory           | Names                                            | Default       |
+| -------------- | ----------------- | ------------------------------------------------ | ------------- |
+| `jwt.secret`   | `LcobucciFactory` | `hmac.sha256`, `hmac.sha384`, …                  | `hmac.sha256` |
+| `jwt.jwks_uri` | `WebTokenFactory` | JWA names: `HS256`, `RS256`, `PS256`, `EdDSA`, … | `HS256`       |
 
 Carrying an algorithm across from `secret` to `jwks_uri` without renaming it is a common trip-up.
 
