@@ -58,7 +58,6 @@
 
 ## Ecosystem
 
-- [Mercure 1.0 with Symfony and API Platform](https://mercure.rocks/docs/ecosystem/symfony): Configure symfony/mercure-bundle 0.5 for the 1.0 protocol: protocol_version, RFC 9068 claims, JWKS keys, and the FrankenPHP caveat.
 - [Awesome Mercure](https://mercure.rocks/docs/ecosystem/awesome): Libraries, framework integrations, demos, and learning resources.
 - [Mercure conformance tests](https://mercure.rocks/docs/ecosystem/conformance-tests): Playwright-based test suite to validate any Mercure hub implementation.
 

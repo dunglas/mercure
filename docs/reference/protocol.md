@@ -38,7 +38,6 @@ See [Topics and matchers](../concepts/topics-and-matchers.md) for the developer-
 - **[Ilshidur/node-mercure](https://github.com/Ilshidur/node-mercure)**: Node.js hub and publisher. Beta.
 - **[Symfony Mercure component](https://symfony.com/doc/current/mercure.html)**: PHP publisher and Symfony integration.
 - **[API Platform](https://api-platform.com/docs/core/mercure/)**: full publisher + subscriber + GraphQL subscription support.
-- **[Symfony and API Platform on 1.0](../ecosystem/symfony.md)**: configuring the bundle for this version of the protocol.
 - **[Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)**: publisher for Laravel.
 - **[dart_mercure](https://github.com/wallforfry/dart_mercure)**: Dart / Flutter publisher and subscriber.
 
