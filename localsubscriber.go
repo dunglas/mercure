@@ -12,11 +12,11 @@ import (
 type LocalSubscriber struct {
 	Subscriber
 
-	disconnected        atomic.Uint32
+	disconnected        atomic.Bool
 	out                 chan *Update
 	mutex               sync.Mutex
 	responseLastEventID chan string
-	ready               atomic.Uint32
+	ready               atomic.Bool
 	liveQueue           []*Update
 }
 
@@ -46,11 +46,11 @@ func (s *LocalSubscriber) Dispatch(ctx context.Context, u *Update, fromHistory b
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if s.disconnected.Load() > 0 {
+	if s.disconnected.Load() {
 		return false
 	}
 
-	if !fromHistory && s.ready.Load() < 1 {
+	if !fromHistory && !s.ready.Load() {
 		s.liveQueue = append(s.liveQueue, u)
 
 		return true
@@ -71,7 +71,7 @@ func (s *LocalSubscriber) Ready(ctx context.Context) (n int) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if s.disconnected.Load() > 0 || s.ready.Load() > 0 {
+	if s.disconnected.Load() || s.ready.Load() {
 		return 0
 	}
 
@@ -80,7 +80,7 @@ func (s *LocalSubscriber) Ready(ctx context.Context) (n int) {
 		case s.out <- u:
 			n++
 		default:
-			s.ready.Store(1)
+			s.ready.Store(true)
 			s.handleFullChan(ctx)
 			s.liveQueue = nil
 
@@ -88,7 +88,7 @@ func (s *LocalSubscriber) Ready(ctx context.Context) (n int) {
 		}
 	}
 
-	s.ready.Store(1)
+	s.ready.Store(true)
 	s.liveQueue = nil
 
 	return n
@@ -122,10 +122,10 @@ func (s *LocalSubscriber) handleFullChan(ctx context.Context) {
 }
 
 func (s *LocalSubscriber) doDisconnect() {
-	if s.disconnected.Load() > 0 {
+	if s.disconnected.Load() {
 		return // already disconnected
 	}
 
-	s.disconnected.Store(1)
+	s.disconnected.Store(true)
 	close(s.out)
 }
