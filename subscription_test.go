@@ -2,6 +2,7 @@ package mercure
 
 import (
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -190,6 +191,63 @@ func TestSubscriptionsHandler(t *testing.T) {
 // attached to a subscription is the payload of the FIRST JWT subscribe-claim
 // that matches the subscription's own matcher — not the claim at the same
 // positional index.
+// TestSubscriptionWireFormat pins the serialised form of a subscription
+// document: compact, with <, > and & left unescaped, and map keys sorted. The
+// escaping is deliberately absent (the hub never emits these documents into an
+// HTML context); the sorting is deliberately present, so a payload carried by a
+// token serialises identically on every dispatch.
+func TestSubscriptionWireFormat(t *testing.T) {
+	t.Parallel()
+
+	sub := subscription{
+		ID:         "/.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample.com/urn%3Auuid%3A1",
+		Type:       "subscription",
+		Subscriber: "urn:uuid:1",
+		Match:      "https://example.com/books?a=1&b=<2>\u2028\u2029",
+		MatchType:  "exact",
+		Active:     true,
+		Payload:    map[string]any{"z": 1, "a": "x", "m": true},
+	}
+
+	const want = `{"id":"/.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample.com/urn%3Auuid%3A1",` +
+		`"type":"subscription","subscriber":"urn:uuid:1",` +
+		"\"match\":\"https://example.com/books?a=1&b=<2>\u2028\u2029\"," +
+		`"match_type":"exact","active":true,"payload":{"a":"x","m":true,"z":1}}`
+
+	// Repeated: Go randomises map iteration, so an unsorted encoder would only
+	// fail intermittently.
+	for range 10 {
+		j, err := jsonv2.Marshal(sub, subscriptionJSONOptions)
+		require.NoError(t, err)
+		// Byte-exact on purpose: JSONEq would compare semantically and ignore
+		// the key order and escaping this test exists to pin.
+		assert.Equal(t, want, string(j)) //nolint:testifylint
+	}
+}
+
+// TestSubscriptionOmitsOnlyNilPayload guards the omitzero tag: a payload that
+// encodes as an empty object is carried by the token and must survive, while an
+// absent one stays absent.
+func TestSubscriptionOmitsOnlyNilPayload(t *testing.T) {
+	t.Parallel()
+
+	withEmpty, err := jsonv2.Marshal(subscription{ID: "/x", Payload: map[string]any{}}, subscriptionJSONOptions)
+	require.NoError(t, err)
+
+	var withEmptyDecoded map[string]any
+	require.NoError(t, json.Unmarshal(withEmpty, &withEmptyDecoded))
+	assert.Contains(t, withEmptyDecoded, "payload", "an empty payload carried by the token must survive")
+	assert.Empty(t, withEmptyDecoded["payload"])
+
+	withNil, err := jsonv2.Marshal(subscription{ID: "/x"}, subscriptionJSONOptions)
+	require.NoError(t, err)
+
+	// A separate map: decoding into a populated one merges instead of replacing.
+	var withNilDecoded map[string]any
+	require.NoError(t, json.Unmarshal(withNil, &withNilDecoded))
+	assert.NotContains(t, withNilDecoded, "payload")
+}
+
 func TestSubscriptionPayloadFromMatchingClaim(t *testing.T) {
 	t.Parallel()
 

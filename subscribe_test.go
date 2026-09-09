@@ -3,6 +3,7 @@ package mercure
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -92,6 +94,37 @@ type subscribeRecorder struct {
 
 func newSubscribeRecorder() *subscribeRecorder {
 	return &subscribeRecorder{ResponseRecorder: httptest.NewRecorder()}
+}
+
+// sseSubscriptions decodes every subscription document carried by an SSE
+// stream. Assertions then run against the document rather than against its
+// serialised form, so they survive a change of JSON formatting.
+func sseSubscriptions(tb testing.TB, stream string) []subscription {
+	tb.Helper()
+
+	var subs []subscription
+
+	for frame := range strings.SplitSeq(stream, "\n\n") {
+		var data []string
+
+		for line := range strings.SplitSeq(frame, "\n") {
+			if after, ok := strings.CutPrefix(line, "data:"); ok {
+				data = append(data, strings.TrimPrefix(after, " "))
+			}
+		}
+
+		if len(data) == 0 {
+			continue
+		}
+
+		// Per the SSE grammar the data lines of a frame are joined with LF.
+		var sub subscription
+		require.NoError(tb, json.Unmarshal([]byte(strings.Join(data, "\n")), &sub))
+
+		subs = append(subs, sub)
+	}
+
+	return subs
 }
 
 func (r *subscribeRecorder) SetWriteDeadline(deadline time.Time) error {
@@ -679,96 +712,116 @@ func TestSubscribePrivate(t *testing.T) {
 func TestSubscriptionEvents(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t, WithSubscriptions())
+	synctest.Test(t, func(t *testing.T) {
+		hub := createDummy(t, WithSubscriptions())
 
-	ctx1, cancel1 := context.WithCancel(t.Context())
-	t.Cleanup(cancel1)
+		ctx1, cancel1 := context.WithCancel(t.Context())
+		t.Cleanup(cancel1)
 
-	ctx2, cancel2 := context.WithCancel(t.Context())
-	t.Cleanup(cancel2)
+		ctx2, cancel2 := context.WithCancel(t.Context())
+		t.Cleanup(cancel2)
 
-	var wg sync.WaitGroup
+		var wg sync.WaitGroup
 
-	wg.Go(func() {
-		// Authorized to receive connection events
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, struct {
-			Foo string `json:"foo"`
-		}{Foo: "bar"}, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
+		wg.Go(func() {
+			// Authorized to receive connection events
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
+			req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, struct {
+				Foo string `json:"foo"`
+			}{Foo: "bar"}, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
 
-		w := newSubscribeRecorder()
-		hub.SubscribeHandler(w, req)
+			w := newSubscribeRecorder()
+			hub.SubscribeHandler(w, req)
 
-		resp := w.Result()
+			resp := w.Result()
 
-		t.Cleanup(func() {
-			_ = resp.Body.Close()
-		})
+			t.Cleanup(func() {
+				_ = resp.Body.Close()
+			})
 
-		body, _ := io.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		bodyContent := string(body)
-		assert.Contains(t, bodyContent, "event: mercure\n")
-		assert.Regexp(t, `(?m)^data:   "id": "/\.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample\.com/.*,$`, bodyContent)
-		assert.Contains(t, bodyContent, `data:   "type": "subscription",`)
-		assert.Contains(t, bodyContent, `data:   "subscriber": "urn:uuid:`)
-		assert.Contains(t, bodyContent, `data:   "match": "https://example.com",`)
-		assert.Contains(t, bodyContent, `data:   "match_type": "exact",`)
-		assert.Contains(t, bodyContent, `data:   "active": true,`)
-		assert.Contains(t, bodyContent, `data:   "active": false,`)
-		assert.Contains(t, bodyContent, `data:   "payload": {`)
-		assert.Contains(t, bodyContent, `data:     "foo": "bar"`)
-	})
+			bodyContent := string(body)
+			assert.Contains(t, bodyContent, "event: mercure\n")
 
-	wg.Go(func() {
-		// Not authorized to receive connection events
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/:match_type/:match/:subscriber", nil).WithContext(ctx2)
-		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+			subs := sseSubscriptions(t, bodyContent)
+			require.NotEmpty(t, subs)
 
-		w := newSubscribeRecorder()
-		hub.SubscribeHandler(w, req)
+			var announced, withdrawn []subscription
 
-		resp := w.Result()
-
-		t.Cleanup(func() {
-			_ = resp.Body.Close()
-		})
-
-		body, _ := io.ReadAll(resp.Body)
-
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Empty(t, string(body))
-	})
-
-	wg.Go(func() {
-		ctx := t.Context()
-
-		for {
-			_, s, _ := hub.transport.(TransportSubscribers).GetSubscribers(ctx)
-			if len(s) == 2 {
-				break
+			for _, sub := range subs {
+				if sub.Active {
+					announced = append(announced, sub)
+				} else {
+					withdrawn = append(withdrawn, sub)
+				}
 			}
-		}
 
-		ctx, cancelRequest2 := context.WithCancel(ctx)
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
+			assert.NotEmpty(t, announced, "no subscription was announced")
+			assert.NotEmpty(t, withdrawn, "the disconnection was never announced")
 
-		w := &responseTester{
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\n",
-			tb:                 t,
-			cancel:             cancelRequest2,
-		}
-		hub.SubscribeHandler(w, req)
-		time.Sleep(1 * time.Second) // TODO: find a better way to wait for the disconnection update to be dispatched
-		cancel2()
-		cancel1()
+			for _, sub := range subs {
+				assert.Equal(t, "subscription", sub.Type)
+				assert.Regexp(t, `^urn:uuid:`, sub.Subscriber)
+			}
+
+			i := slices.IndexFunc(subs, func(sub subscription) bool { return sub.Match == "https://example.com" })
+			require.GreaterOrEqual(t, i, 0, "no event described the example.com subscription")
+
+			assert.Equal(t, string(MatcherTypeExact), subs[i].MatchType)
+			assert.Regexp(t, `^/\.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample\.com/`, subs[i].ID)
+			assert.Equal(t, map[string]any{"foo": "bar"}, subs[i].Payload)
+		})
+
+		wg.Go(func() {
+			// Not authorized to receive connection events
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/:match_type/:match/:subscriber", nil).WithContext(ctx2)
+			req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+
+			w := newSubscribeRecorder()
+			hub.SubscribeHandler(w, req)
+
+			resp := w.Result()
+
+			t.Cleanup(func() {
+				_ = resp.Body.Close()
+			})
+
+			body, _ := io.ReadAll(resp.Body)
+
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Empty(t, string(body))
+		})
+
+		wg.Go(func() {
+			// Both subscribers above are registered once they are durably
+			// blocked waiting for updates.
+			synctest.Wait()
+
+			ctx, cancelRequest2 := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
+			req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
+
+			w := &responseTester{
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\n",
+				tb:                 t,
+				cancel:             cancelRequest2,
+			}
+			hub.SubscribeHandler(w, req)
+
+			// This subscriber is gone; wait for the resulting "active": false
+			// update to reach the subscriber above before tearing it down.
+			synctest.Wait()
+
+			cancel2()
+			cancel1()
+		})
+
+		wg.Wait()
 	})
-
-	wg.Wait()
 }
 
 func TestSubscribeAll(t *testing.T) {
@@ -1459,6 +1512,10 @@ func TestSubscriptionEventReachesTheSubscriberItDescribes(t *testing.T) {
 
 	body := w.Body.String()
 	assert.Contains(t, body, "event: mercure")
-	assert.Contains(t, body, `"active": true`)
-	assert.Contains(t, body, `"match": "/.well-known/mercure/subscriptions/:mt/:m/:s"`)
+
+	subs := sseSubscriptions(t, body)
+	require.NotEmpty(t, subs)
+	assert.True(t, slices.ContainsFunc(subs, func(sub subscription) bool {
+		return sub.Active && sub.Match == "/.well-known/mercure/subscriptions/:mt/:m/:s"
+	}), "the subscriber was not told about its own subscription")
 }

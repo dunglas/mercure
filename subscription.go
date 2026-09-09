@@ -1,7 +1,7 @@
 package mercure
 
 import (
-	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -77,12 +77,32 @@ type subscription struct {
 	ID         string `json:"id"`
 	Type       string `json:"type"`
 	Subscriber string `json:"subscriber"`
-	Topic      string `json:"topic,omitempty"`
-	Match      string `json:"match,omitempty"`
-	MatchType  string `json:"match_type,omitempty"`
+	Topic      string `json:"topic,omitzero"`
+	Match      string `json:"match,omitzero"`
+	MatchType  string `json:"match_type,omitzero"`
 	Active     bool   `json:"active"`
-	Payload    any    `json:"payload,omitempty"`
+	// omitzero, not omitempty: under encoding/json/v2 "omitempty" drops a
+	// payload that encodes as an empty object, which would silently discard a
+	// token's `"payload": {}`. omitzero keeps it and drops only a nil payload.
+	Payload any `json:"payload,omitzero"`
 }
+
+// subscriptionJSONOptions marshals subscription documents compactly: JSON
+// whitespace is insignificant, and every newline in an indented document costs
+// a further "data: " prefix once the SSE framing wraps it.
+//
+// The encoder keeps encoding/json/v2's defaults otherwise. In particular it
+// does not escape <, > and & the way encoding/json v1 did: the hub serves these
+// documents as application/json and text/event-stream with nosniff, never
+// inside HTML, and escaping them here would only hide, from clients written
+// against this hub, a mistake every other conforming hub would expose.
+//
+// Deterministic is the one non-default: it sorts map keys so a payload carried
+// by a token serialises identically on every dispatch, which keeps events
+// diffable. It is unmeasurably cheap.
+//
+//nolint:gochecknoglobals
+var subscriptionJSONOptions = jsonv2.Deterministic(true)
 
 type subscriptionCollection struct {
 	ID            string         `json:"id"`
@@ -158,7 +178,7 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 		subscriptionCollection.Subscriptions = append(subscriptionCollection.Subscriptions, subscriber.getSubscriptions(filter, true)...)
 	}
 
-	j, err := json.MarshalIndent(subscriptionCollection, "", "  ")
+	j, err := jsonv2.Marshal(subscriptionCollection, subscriptionJSONOptions)
 	if err != nil {
 		// Can't happen
 		panic(err)
@@ -207,7 +227,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, subscription := range subscriber.getSubscriptions(filter, true) {
-			j, err := json.MarshalIndent(subscription, "", "  ")
+			j, err := jsonv2.Marshal(subscription, subscriptionJSONOptions)
 			if err != nil {
 				panic(err)
 			}
