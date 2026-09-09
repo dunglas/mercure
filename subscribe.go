@@ -2,7 +2,7 @@ package mercure
 
 import (
 	"context"
-	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -476,7 +476,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 	}
 
 	for _, subscription := range s.getSubscriptions(subscriptionFilter{}, active) {
-		j, err := json.MarshalIndent(subscription, "", "  ")
+		j, err := jsonv2.Marshal(subscription, subscriptionJSONOptions)
 		if err != nil {
 			panic(err)
 		}
@@ -484,14 +484,15 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 		// Dispatched directly, bypassing Hub.Publish/Update.Validate: this is
 		// the only path allowed to set the reserved reservedEventType, and
 		// Validate would reject it. Safe because Topic and Data are hub-built
-		// here (subscription.ID is a hub-constructed path; json.MarshalIndent
+		// here (subscription.ID is a hub-constructed path; the JSON encoder
 		// escapes control characters), not attacker-controlled. Keep that
 		// invariant if this function changes.
 		u := &Update{
 			Topics:  []string{subscription.ID},
 			Private: true,
 			Debug:   h.debug,
-			Event:   Event{Data: string(j), Type: reservedEventType},
+			Data:    string(j),
+			Type:    reservedEventType,
 		}
 
 		if err := h.transport.Dispatch(ctx, u); err != nil && h.logger.Enabled(ctx, slog.LevelError) {

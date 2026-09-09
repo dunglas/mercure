@@ -118,6 +118,8 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 `<match_type>`, `<match>`, and `<subscriber>` must be percent-encoded. The `mercure.subscriber` claim is gone: the hub assigns the subscriber identifier. See [Active subscriptions](concepts/active-subscriptions.md).
 
+Subscription documents are now serialised compactly, and `<`, `>` and `&` are no longer escaped as `\u003c`, `\u003e` and `\u0026`. Both forms are the same JSON ([RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) whitespace is insignificant, and the escapes were never required), so any conforming parser is unaffected; only a client string-matching the raw bytes needs updating. A subscription event is now a single `data:` line.
+
 ### Find-and-replace checklist
 
 - `?topic=` / `&topic=` in subscriber URLs -> `match=` (or `match_urlpattern=` if templated)
