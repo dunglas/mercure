@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 	"testing/synctest"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,10 +40,8 @@ func TestPublish(t *testing.T) {
 		}()
 
 		require.NoError(t, hub.Publish(t.Context(), &Update{
-			Event: Event{
-				ID:   "id",
-				Data: "Hello!",
-			},
+			ID:      "id",
+			Data:    "Hello!",
 			Topics:  []string{s.SubscribedMatchers[0].Pattern},
 			Private: true,
 		}))
@@ -348,7 +346,7 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 			u := <-s.Receive()
 			assert.NotNil(t, u)
 
-			_, err := uuid.FromString(strings.TrimPrefix(u.ID, "urn:uuid:"))
+			_, err := uuid.Parse(strings.TrimPrefix(u.ID, "urn:uuid:"))
 			assert.NoError(t, err)
 		}()
 
@@ -374,7 +372,7 @@ func TestPublishHandlerGenerateUUID(t *testing.T) {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		body := string(bodyBytes)
 
-		_, err := uuid.FromString(strings.TrimPrefix(body, "urn:uuid:"))
+		_, err := uuid.Parse(strings.TrimPrefix(body, "urn:uuid:"))
 		require.NoError(t, err)
 
 		synctest.Wait()
@@ -476,7 +474,7 @@ func TestUpdateValidate(t *testing.T) {
 		update Update
 		want   error
 	}{
-		{"valid", Update{Event: Event{ID: "id", Type: "type"}, Topics: []string{"https://example.com/books/1"}}, nil},
+		{"valid", Update{ID: "id", Type: "type", Topics: []string{"https://example.com/books/1"}}, nil},
 		{"no topics", Update{}, ErrMissingTopic},
 		// An empty topic value resolves to the hub URL itself, which is reserved.
 		{"empty topic value", Update{Topics: []string{""}}, ErrReservedTopic},
@@ -490,18 +488,18 @@ func TestUpdateValidate(t *testing.T) {
 		{"non-reserved mid-path namespace", Update{Topics: []string{"https://example.com/foo/.well-known/mercure/bar"}}, nil},
 		{"non-reserved sibling path", Update{Topics: []string{"https://example.com/.well-known/mercure-dashboard"}}, nil},
 		{"non-reserved opaque topic", Update{Topics: []string{"urn:example:mercure"}}, nil},
-		{"id starts with #", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "#42"}}, ErrInvalidEventID},
-		{"id earliest", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: EarliestLastEventID}}, ErrInvalidEventID},
+		{"id starts with #", Update{Topics: []string{"https://example.com/books/1"}, ID: "#42"}, ErrInvalidEventID},
+		{"id earliest", Update{Topics: []string{"https://example.com/books/1"}, ID: EarliestLastEventID}, ErrInvalidEventID},
 		{"topic NUL", Update{Topics: []string{"https://example.com/foo\x00bar"}}, ErrInvalidTopic},
 		{"topic C0", Update{Topics: []string{"https://example.com/foo\nbar"}}, ErrInvalidTopic},
 		{"topic invalid UTF-8", Update{Topics: []string{"https://example.com/\xff"}}, ErrInvalidTopic},
-		{"id LF", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "foo\nevent: injected"}}, ErrInvalidEventID},
-		{"id CR", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "foo\rinjected"}}, ErrInvalidEventID},
-		{"id NUL", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{ID: "foo\x00bar"}}, ErrInvalidEventID},
-		{"type LF", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: "foo\nid: injected"}}, ErrInvalidEventType},
-		{"type CR", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: "foo\rinjected"}}, ErrInvalidEventType},
-		{"type NUL", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: "foo\x00bar"}}, ErrInvalidEventType},
-		{"type reserved mercure", Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Type: reservedEventType}}, ErrReservedEventType},
+		{"id LF", Update{Topics: []string{"https://example.com/books/1"}, ID: "foo\nevent: injected"}, ErrInvalidEventID},
+		{"id CR", Update{Topics: []string{"https://example.com/books/1"}, ID: "foo\rinjected"}, ErrInvalidEventID},
+		{"id NUL", Update{Topics: []string{"https://example.com/books/1"}, ID: "foo\x00bar"}, ErrInvalidEventID},
+		{"type LF", Update{Topics: []string{"https://example.com/books/1"}, Type: "foo\nid: injected"}, ErrInvalidEventType},
+		{"type CR", Update{Topics: []string{"https://example.com/books/1"}, Type: "foo\rinjected"}, ErrInvalidEventType},
+		{"type NUL", Update{Topics: []string{"https://example.com/books/1"}, Type: "foo\x00bar"}, ErrInvalidEventType},
+		{"type reserved mercure", Update{Topics: []string{"https://example.com/books/1"}, Type: reservedEventType}, ErrReservedEventType},
 	}
 
 	for _, tc := range cases {

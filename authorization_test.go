@@ -273,10 +273,8 @@ func TestAuthorizeRejectsWrongAudience(t *testing.T) {
 	t.Parallel()
 
 	c := &claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Audience:  jwt.ClaimStrings{"https://other.example.com/.well-known/mercure"},
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-		},
+		Audience:             jwt.ClaimStrings{"https://other.example.com/.well-known/mercure"},
+		ExpiresAt:            jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
@@ -294,7 +292,7 @@ func TestAuthorizeRejectsMissingAudience(t *testing.T) {
 	t.Parallel()
 
 	c := &claims{
-		RegisteredClaims:     jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour))},
+		ExpiresAt:            jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
@@ -312,7 +310,7 @@ func TestAuthorizeRejectsMissingExpiration(t *testing.T) {
 	t.Parallel()
 
 	c := &claims{
-		RegisteredClaims:     jwt.RegisteredClaims{Audience: jwt.ClaimStrings{testResourceIdentifier}},
+		Audience:             jwt.ClaimStrings{testResourceIdentifier},
 		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 
@@ -421,11 +419,9 @@ func signTokenHS256(tb testing.TB, key []byte, issuer string) string {
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    issuer,
-			Audience:  jwt.ClaimStrings{testResourceIdentifier},
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-		},
+		Issuer:               issuer,
+		Audience:             jwt.ClaimStrings{testResourceIdentifier},
+		ExpiresAt:            jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}),
 	}
 

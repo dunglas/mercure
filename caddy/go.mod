@@ -1,6 +1,6 @@
 module github.com/dunglas/mercure/caddy
 
-go 1.26
+go 1.27
 
 retract (
 	v0.14.7 // CI problem
@@ -14,7 +14,6 @@ require (
 	github.com/caddyserver/caddy/v2 v2.11.4
 	github.com/dunglas/mercure v1.0.0-alpha.3
 	github.com/dustin/go-humanize v1.0.1
-	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1

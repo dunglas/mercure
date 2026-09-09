@@ -5,8 +5,7 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
-
-	"github.com/gofrs/uuid/v5"
+	"uuid"
 )
 
 // LocalSubscriber represents a client subscribed to a list of topics on the current hub.
@@ -25,7 +24,7 @@ const outBufferLength = 1000
 
 // NewLocalSubscriber creates a new subscriber.
 func NewLocalSubscriber(lastEventID string, logger *slog.Logger, topicMatcherStore *TopicMatcherStore) *LocalSubscriber {
-	id := "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
+	id := "urn:uuid:" + uuid.NewV4().String()
 	s := &LocalSubscriber{
 		Subscriber:          *NewSubscriber(logger, topicMatcherStore),
 		responseLastEventID: make(chan string, 1),

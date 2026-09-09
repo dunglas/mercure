@@ -42,7 +42,7 @@ func TestBoltTransportHistory(t *testing.T) {
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Event:  Event{ID: strconv.Itoa(i)},
+			ID:     strconv.Itoa(i),
 			Topics: []string{topics[0]},
 		}))
 	}
@@ -90,10 +90,10 @@ func TestBoltTopicMatcherHistory(t *testing.T) {
 	transport := createBoltTransport(t, 0, 0)
 	ctx := t.Context()
 
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed"}, Event: Event{ID: "1"}}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/not-subscribed"}, Event: Event{ID: "2"}}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Private: true, Event: Event{ID: "3"}}))
-	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Event: Event{ID: "4"}}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed"}, ID: "1"}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/not-subscribed"}, ID: "2"}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, Private: true, ID: "3"}))
+	require.NoError(t, transport.Dispatch(ctx, &Update{Topics: []string{"https://example.com/subscribed-public-only"}, ID: "4"}))
 
 	s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicMatcherStore{})
 	s.setMatchers(stringsToExactMatchers([]string{"https://example.com/subscribed", "https://example.com/subscribed-public-only"}), stringsToExactMatchers([]string{"https://example.com/subscribed"}))
@@ -113,7 +113,7 @@ func TestBoltTransportRetrieveAllHistory(t *testing.T) {
 	topics := []string{"https://example.com/foo"}
 	for i := 1; i <= 10; i++ {
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Event:  Event{ID: strconv.Itoa(i)},
+			ID:     strconv.Itoa(i),
 			Topics: []string{topics[0]},
 		}))
 	}
@@ -149,7 +149,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		for i := 1; i <= 10; i++ {
 			require.NoError(t, transport.Dispatch(ctx, &Update{
 				Topics: []string{topics[0]},
-				Event:  Event{ID: strconv.Itoa(i)},
+				ID:     strconv.Itoa(i),
 			}))
 		}
 
@@ -174,7 +174,7 @@ func TestBoltTransportHistoryAndLive(t *testing.T) {
 		}()
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
-			Event:  Event{ID: "11"},
+			ID:     "11",
 			Topics: []string{topics[0]},
 		}))
 
@@ -189,7 +189,7 @@ func TestBoltTransportPurgeHistory(t *testing.T) {
 
 	for i := range 12 {
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Event:  Event{ID: strconv.Itoa(i)},
+			ID:     strconv.Itoa(i),
 			Topics: []string{"https://example.com/foo"},
 		}))
 	}
@@ -419,7 +419,7 @@ func TestBoltTransportUnknownLastEventIDReportsEarliest(t *testing.T) {
 
 	for i := range 5 {
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Event:  Event{ID: strconv.Itoa(i)},
+			ID:     strconv.Itoa(i),
 			Topics: []string{"https://example.com/foo"},
 		}))
 	}
@@ -442,7 +442,7 @@ func TestBoltTransportKnownLastEventIDIsEchoed(t *testing.T) {
 
 	for i := range 5 {
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
-			Event:  Event{ID: strconv.Itoa(i)},
+			ID:     strconv.Itoa(i),
 			Topics: []string{"https://example.com/foo"},
 		}))
 	}
