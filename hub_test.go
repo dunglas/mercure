@@ -39,6 +39,7 @@ func TestNewHub(t *testing.T) {
 	assert.Equal(t, 40*time.Second, h.heartbeat)
 	assert.Equal(t, 5*time.Second, h.dispatchTimeout)
 	assert.Equal(t, 600*time.Second, h.writeTimeout)
+	assert.IsType(t, NopMetrics{}, h.metrics)
 }
 
 func TestNewHubWithConfig(t *testing.T) {
