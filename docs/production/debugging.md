@@ -40,6 +40,7 @@ Visit `http://localhost:2019/debug/pprof/` for the full list. The ones that matt
 | -------------------- | ------------------------------------------------------------------ |
 | `heap`               | Memory leaks, oversized allocations.                               |
 | `goroutine`          | Goroutine leaks (the hub keeping handlers alive after disconnect). |
+| `goroutineleak`      | Only the goroutines the runtime proved are permanently blocked.    |
 | `profile?seconds=30` | CPU profile over a window. Find hot paths.                         |
 | `block`              | Goroutines blocked on synchronization.                             |
 | `mutex`              | Mutex contention.                                                  |
@@ -89,6 +90,22 @@ Look for:
 - Goroutines stuck in transport reads (Redis `XREAD`, Postgres `LISTEN`): usually fine, expected behavior.
 - Goroutines stuck in `chan send`: backpressure on the dispatch path. A slow subscriber blocking everyone.
 - Goroutines piling up on the same handler over time: leaked subscriber handlers; usually a missed `defer`.
+
+## Find leaked goroutines in the Mercure hub
+
+The `goroutine` profile lists every live goroutine, so a leak hides among the
+per-subscriber goroutines a healthy hub is supposed to have. The `goroutineleak`
+profile reports only goroutines the garbage collector proved can never be
+unblocked, which is the shorter list worth reading:
+
+```console
+# Find Leaked Goroutines in the Mercure Hub
+curl -s "http://localhost:2019/debug/pprof/goroutineleak?debug=2" > leaks.txt
+```
+
+An empty profile means no leak was detected. Goroutines blocked on a channel or
+mutex still reachable from a global variable can escape detection, so an empty
+result is not a proof of absence: fall back to the goroutine dump above.
 
 ## Capture an execution trace of the Mercure hub
 
