@@ -1,6 +1,6 @@
 module github.com/dunglas/mercure
 
-go 1.26
+go 1.27
 
 retract (
 	v0.14.7 // CI problem
@@ -10,7 +10,6 @@ retract (
 require (
 	github.com/dunglas/go-urlpattern v0.0.0-20260716093037-fb05c4998526
 	github.com/dunglas/skipfilter v1.0.0
-	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gorilla/mux v1.8.1
 	github.com/maypok86/otter/v2 v2.3.0

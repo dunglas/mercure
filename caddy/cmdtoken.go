@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 	"time"
+	"uuid"
 
 	caddycmd "github.com/caddyserver/caddy/v2/cmd"
-	"github.com/gofrs/uuid/v5"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/cobra"
 )
@@ -260,7 +260,7 @@ func printPretty(alg string, claims jwt.MapClaims) error {
 func (p *tokenParams) buildClaims(details []authDetail, now time.Time, exp int64) jwt.MapClaims {
 	sub := p.sub
 	if sub == "" {
-		sub = "urn:uuid:" + uuid.Must(uuid.NewV4()).String()
+		sub = "urn:uuid:" + uuid.NewV4().String()
 	}
 
 	clientID := p.clientID
@@ -275,7 +275,7 @@ func (p *tokenParams) buildClaims(details []authDetail, now time.Time, exp int64
 		claimClientID:             clientID,
 		claimIat:                  now.Unix(),
 		claimExp:                  exp,
-		claimJTI:                  "urn:uuid:" + uuid.Must(uuid.NewV4()).String(),
+		claimJTI:                  "urn:uuid:" + uuid.NewV4().String(),
 		claimAuthorizationDetails: details,
 	}
 }

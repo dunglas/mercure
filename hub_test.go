@@ -77,7 +77,7 @@ func TestStop(t *testing.T) {
 
 			assert.NoError(t, hub.transport.Dispatch(ctx, &Update{
 				Topics: []string{"https://example.com/foo"},
-				Event:  Event{Data: "Hello World"},
+				Data:   "Hello World",
 			}))
 
 			assert.NoError(t, hub.Stop(ctx))
@@ -619,12 +619,10 @@ func mintAccessToken(key []byte, audience string, details []authorizationDetail)
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    testIssuer,
-			Audience:  jwt.ClaimStrings{audience},
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-		},
+		Issuer:               testIssuer,
+		Audience:             jwt.ClaimStrings{audience},
+		IssuedAt:             jwt.NewNumericDate(time.Now()),
+		ExpiresAt:            jwt.NewNumericDate(time.Now().Add(time.Hour)),
 		AuthorizationDetails: details,
 	}
 

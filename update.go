@@ -2,8 +2,8 @@ package mercure
 
 import (
 	"log/slog"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -51,7 +51,7 @@ type serializedUpdate struct {
 // AssignUUID generates a new UUID an assign it to the given update if no ID is already set.
 func (u *Update) AssignUUID() {
 	if u.ID == "" {
-		u.ID = "urn:uuid:" + uuid.Must(uuid.NewV7()).String()
+		u.ID = "urn:uuid:" + uuid.NewV7().String()
 	}
 }
 

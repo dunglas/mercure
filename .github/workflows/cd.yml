@@ -35,7 +35,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.26"
+          go-version: "1.27"
           check-latest: true
           cache-dependency-path: |
             go.sum

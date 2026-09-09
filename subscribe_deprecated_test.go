@@ -30,7 +30,7 @@ func TestSubscribeDeprecatedTopicParam(t *testing.T) {
 
 		_ = hub.transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/books/1"},
-			Event:  Event{Data: "Hello World", ID: "a"},
+			Data:   "Hello World", ID: "a",
 		})
 	}()
 

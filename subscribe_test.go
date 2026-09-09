@@ -146,7 +146,7 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 
 		_ = hub.transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/foo"},
-			Event:  Event{Data: "Hello World"},
+			Data:   "Hello World",
 		})
 	}()
 
@@ -421,7 +421,7 @@ func TestSubscribeQueryMethod(t *testing.T) {
 
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/books/1"},
-			Event:  Event{Data: "Hello World", ID: "b"},
+			Data:   "Hello World", ID: "b",
 		})
 	}()
 
@@ -459,23 +459,23 @@ func subscribe(tb testing.TB, numberOfSubscribers int) {
 
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/not-subscribed"},
-			Event:  Event{Data: "Hello World", ID: "a"},
+			Data:   "Hello World", ID: "a",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/books/1"},
-			Event:  Event{Data: "Hello World", ID: "b"},
+			Data:   "Hello World", ID: "b",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/reviews/22"},
-			Event:  Event{Data: "Great", ID: "c"},
+			Data:   "Great", ID: "c",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/hub?topic=faulty{iri"},
-			Event:  Event{Data: "Faulty IRI", ID: "d"},
+			Data:   "Faulty IRI", ID: "d",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"string"},
-			Event:  Event{Data: "string", ID: "e"},
+			Data:   "string", ID: "e",
 		})
 	}()
 
@@ -643,18 +643,18 @@ func TestSubscribePrivate(t *testing.T) {
 			}
 
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/21"},
-				Event:   Event{Data: "Foo", ID: "a"},
+				Topics: []string{"https://example.com/reviews/21"},
+				Data:   "Foo", ID: "a",
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/22"},
-				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+				Topics: []string{"https://example.com/reviews/22"},
+				Data:   "Hello World", ID: "b", Type: "test",
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/23"},
-				Event:   Event{Data: "Great", ID: "c", Retry: 1},
+				Topics: []string{"https://example.com/reviews/23"},
+				Data:   "Great", ID: "c", Retry: 1,
 				Private: true,
 			})
 
@@ -789,13 +789,13 @@ func TestSubscribeAll(t *testing.T) {
 			}
 
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/21"},
-				Event:   Event{Data: "Foo", ID: "a"},
+				Topics: []string{"https://example.com/reviews/21"},
+				Data:   "Foo", ID: "a",
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/22"},
-				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+				Topics: []string{"https://example.com/reviews/22"},
+				Data:   "Hello World", ID: "b", Type: "test",
 				Private: true,
 			})
 
@@ -828,17 +828,13 @@ func TestSendMissedEvents(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event: Event{
-				ID:   "a",
-				Data: "d1",
-			},
+			ID:     "a",
+			Data:   "d1",
 		}))
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		// Using deprecated 'Last-Event-ID' query parameter
@@ -899,17 +895,13 @@ func TestSendAllEvents(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event: Event{
-				ID:   "a",
-				Data: "d1",
-			},
+			ID:     "a",
+			Data:   "d1",
 		}))
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		go func() {
@@ -956,10 +948,8 @@ func TestUnknownLastEventID(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event: Event{
-				ID:   "a",
-				Data: "d1",
-			},
+			ID:     "a",
+			Data:   "d1",
 		}))
 
 		ctx := t.Context()
@@ -1013,10 +1003,8 @@ func TestUnknownLastEventID(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		synctest.Wait()
@@ -1033,14 +1021,14 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 		// Public event the anonymous subscriber is authorized to read.
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event:  Event{ID: "a", Data: "d1"},
+			ID:     "a", Data: "d1",
 		}))
 		// Private event the anonymous subscriber is NOT authorized to
 		// read. Its id must not appear in the Last-Event-ID response.
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Topics:  []string{"https://example.com/foos/b"},
 			Private: true,
-			Event:   Event{ID: "b", Data: "secret"},
+			ID:      "b", Data: "secret",
 		}))
 
 		ctx := t.Context()
@@ -1081,7 +1069,7 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/c"},
-			Event:  Event{ID: "c", Data: "d3"},
+			ID:     "c", Data: "d3",
 		}))
 
 		synctest.Wait()
@@ -1142,10 +1130,8 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		synctest.Wait()
@@ -1191,7 +1177,7 @@ func TestEmptyLastEventIDGetsResponseHeader(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foo"},
-			Event:  Event{ID: "e1", Data: "d"},
+			ID:     "e1", Data: "d",
 		}))
 
 		synctest.Wait()
@@ -1215,7 +1201,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 
 			_ = hub.transport.Dispatch(ctx, &Update{
 				Topics: []string{"https://example.com/books/1"},
-				Event:  Event{Data: "Hello World", ID: "b"},
+				Data:   "Hello World", ID: "b",
 			})
 
 			return
@@ -1242,11 +1228,9 @@ func TestSubscribeExpires(t *testing.T) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    testIssuer,
-			Audience:  jwt.ClaimStrings{testResourceIdentifier},
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
-		},
+		Issuer:               testIssuer,
+		Audience:             jwt.ClaimStrings{testResourceIdentifier},
+		ExpiresAt:            jwt.NewNumericDate(time.Now().Add(time.Second)),
 		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "*"}),
 	}
 
@@ -1381,9 +1365,9 @@ func TestNewResponseControllerDisconnectionTimeStaysInTheFuture(t *testing.T) {
 
 			s := &LocalSubscriber{}
 			if tc.tokenExpiresIn != 0 {
-				s.Claims = &claims{RegisteredClaims: jwt.RegisteredClaims{
+				s.Claims = &claims{
 					ExpiresAt: jwt.NewNumericDate(time.Now().Add(tc.tokenExpiresIn)),
-				}}
+				}
 			}
 
 			rc := h.newResponseController(httptest.NewRecorder(), s)
