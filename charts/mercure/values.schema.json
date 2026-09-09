@@ -107,7 +107,7 @@
     },
     "global": {
       "description": "Global values shared between all subcharts",
-      "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
+      "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key.",
       "type": [
         "object",
         "null"
