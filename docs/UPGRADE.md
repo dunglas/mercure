@@ -91,6 +91,7 @@ Rules:
 - Each entry is `{ "type": "https://mercure.rocks/authorization-detail", "actions": [...], "topics": [...] }`. `actions` is a non-empty subset of `["publish", "subscribe"]`; `topics` is a non-empty array of `{ "match", "match_type"? }` objects (bare strings are rejected).
 - `match_type` is **case-sensitive** and defaults to `exact`. The reserved `{ "match": "*" }` matches every topic.
 - A `subscribe` entry may carry a `payload`; the old top-level `mercure.payload` is gone. See [subscriber payloads](concepts/authorization.md#subscriber-payloads).
+- The claim must be unambiguous JSON: a duplicate object member or invalid UTF-8 rejects the token, rather than the hub picking one of the readings an authorization server may not have validated.
 - One invalid Mercure detail rejects the whole token with `401 invalid_token`.
 
 ### Migrate token presentation
