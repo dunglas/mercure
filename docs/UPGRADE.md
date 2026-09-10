@@ -159,6 +159,10 @@ The standalone non-Caddy binary is gone. It's been deprecated since Mercure 0.11
 
 ### Compatibility mode
 
+Setting `protocol_version_compatibility` to `7` or `8` omits the `topics` SSE fields from live
+and replayed updates, regardless of build tags. In modern mode, every update includes its
+authorized topics; see [What the hub sends](concepts/subscribing.md#what-the-hub-sends).
+
 0.x behaviors are gated behind two build tags, honored only with `protocol_version_compatibility 8`:
 
 - `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, the `/subscriptions/{topic}` routes. Canonical and alternate topics (repeated `topic=` publish fields) are a modern-mode feature, not gated by this tag; see [Alternate topics](concepts/topics-and-matchers.md#alternate-topics).

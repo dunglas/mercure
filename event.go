@@ -29,11 +29,7 @@ func (e *Event) String() string {
 	return e.serialize(nil)
 }
 
-// serialize is the "text/event-stream" representation of the event, carrying
-// one "topic" field per given topic. Compliant SSE parsers ignore fields with
-// unrecognized names, so the extra fields are invisible to subscribers not
-// expecting them. Topic values are constrained at publication (no control
-// characters), so writing them raw cannot inject SSE fields.
+// serialize relies on publication validation to prevent topic values from injecting SSE fields.
 func (e *Event) serialize(topics []string) string {
 	var b strings.Builder
 
@@ -46,7 +42,7 @@ func (e *Event) serialize(topics []string) string {
 	}
 
 	for _, t := range topics {
-		_, _ = fmt.Fprintf(&b, "topic: %s\n", t)
+		_, _ = fmt.Fprintf(&b, "topics: %s\n", t)
 	}
 
 	_, _ = fmt.Fprintf(&b, "id: %s\ndata: %s\n\n", e.ID, dataReplacer.Replace(e.Data))

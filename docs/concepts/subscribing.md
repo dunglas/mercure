@@ -159,7 +159,7 @@ Each event is a standard SSE message:
 ```text
 # What the hub sends
 event: message
-topic: https://example.com/books/1
+topics: https://example.com/books/1
 id: urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 data: {"status": "checked out"}
 
@@ -169,30 +169,28 @@ Fields:
 
 - `id`: a unique identifier the hub assigns to every update. Clients send it back in `Last-Event-ID` to resume after a disconnect. See [Reconnection and history](reconnection-and-history.md).
 - `event`: the `type` field from the publish request, if any. Defaults to `message`. `EventSource` triggers `addEventListener("<type>", ...)` for non-default types.
-- `topic`: one field per topic of the update that your subscription matched (and, for private updates, that your token authorizes). This is how you tell which concrete topic fired when you subscribe with a pattern such as `match_urlpattern=/books/:id`.
+- `topics`: one field per topic of a public update, or per topic your token authorizes for a private update. Every update includes at least one. Fields preserve publication order after authorization filtering; the first topic is canonical only if the canonical topic is included.
 - `data`: whatever the publisher sent in `data`. Mercure does not interpret it; it's bytes you decided on (JSON, HTML, JSON Patch, plain text...).
 
-`topic` is a Mercure extension to the SSE format. The native `EventSource` API cannot expose it
-(it only surfaces `data`, the event type, and `lastEventId`), and spec-compliant parsers ignore
-it, so it never breaks existing subscribers. To read it, consume the stream with a parser that
-surfaces unknown fields, such as [`eventsource-parser`](https://github.com/rexxars/eventsource-parser):
+Topics need not match your subscription's routing pattern. For example, you can subscribe to
+`https://example.com/books/:id` while your token authorizes only `https://example.com/users/42/*`.
+A private update with topics `https://example.com/books/1` and
+`https://example.com/users/42/books/1` is delivered with
+`topics: https://example.com/users/42/books/1`.
 
-```javascript
-// Reading topic fields with eventsource-parser
-import { createParser } from "eventsource-parser";
+`topics` is a Mercure extension to the SSE format. Native browser `EventSource` ignores these
+fields and continues to receive events. To read them, use a parser that preserves repeated
+extension fields across network chunks. Collect the `topics` values for each event block in
+order, clear them at every blank-line block boundary, and discard pending values when the
+connection ends. Each new connection starts with an empty list.
 
-let topics = [];
-const parser = createParser({
-  onEvent: (event) => {
-    console.log(topics, event.data);
-    topics = [];
-  },
-  onError: (err) => {
-    if (err.type === "unknown-field" && err.field === "topic")
-      topics.push(err.value);
-  },
-});
-```
+Some libraries report unknown fields as errors or can be configured to terminate on them.
+Ensure your parser accepts `topics` fields. The `eventsource-parser` unknown-field error callback
+alone is unsuitable: version 4.1.0 can discard unknown fields split across chunks.
+
+Setting [`protocol_version_compatibility`](../deployment/configuration.md) to `7` or `8` omits
+`topics` fields from both live and replayed updates. Clients using such a hub, or an older hub,
+must obtain topic information from the payload if needed.
 
 If your client is a plain `EventSource` and you need the topic, keep putting it in the payload
 on the publisher side.

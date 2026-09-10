@@ -37,7 +37,7 @@ func TestEncodeTopics(t *testing.T) {
 
 	assert.Equal(
 		t,
-		"event: type\ntopic: https://example.com/books/1\ntopic: https://example.com/alt/1\nid: custom-id\ndata: data\n\n",
+		"event: type\ntopics: https://example.com/books/1\ntopics: https://example.com/alt/1\nid: custom-id\ndata: data\n\n",
 		e.serialize([]string{"https://example.com/books/1", "https://example.com/alt/1"}),
 	)
 }

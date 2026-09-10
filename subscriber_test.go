@@ -105,7 +105,7 @@ func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 	}
 }
 
-func TestMatchedTopics(t *testing.T) {
+func TestAuthorizedTopics(t *testing.T) {
 	t.Parallel()
 
 	tms, err := NewTopicMatcherStore(0)
@@ -114,31 +114,30 @@ func TestMatchedTopics(t *testing.T) {
 	s := NewLocalSubscriber("", slog.Default(), tms)
 	s.setMatchers([]TopicMatcher{
 		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/books/:id"},
-		{Type: MatcherTypeExact, Pattern: "https://example.com/alt/1"},
 	}, []TopicMatcher{
 		{Type: MatcherTypeExact, Pattern: "https://example.com/alt/1"},
 	})
 
-	// Public update: subscribed topics only, in the update's order.
 	assert.Equal(
 		t,
-		[]string{"https://example.com/books/1", "https://example.com/alt/1"},
-		s.MatchedTopics(&Update{Topics: []string{
+		[]string{"https://example.com/books/1", "https://example.com/not-subscribed", "https://example.com/alt/1"},
+		s.AuthorizedTopics(&Update{Topics: []string{
 			"https://example.com/books/1",
 			"https://example.com/not-subscribed",
 			"https://example.com/alt/1",
 		}}),
 	)
 
-	// Private update: a subscribed but unauthorized topic must not be exposed.
+	u := &Update{
+		Topics:  []string{"https://example.com/books/1", "https://example.com/alt/1"},
+		Private: true,
+	}
+	require.True(t, s.Match(u))
 	assert.Equal(
 		t,
 		[]string{"https://example.com/alt/1"},
-		s.MatchedTopics(&Update{
-			Topics:  []string{"https://example.com/books/1", "https://example.com/alt/1"},
-			Private: true,
-		}),
+		s.AuthorizedTopics(u),
 	)
 
-	assert.Empty(t, s.MatchedTopics(&Update{Topics: []string{"https://example.com/not-subscribed"}}))
+	assert.Empty(t, s.AuthorizedTopics(&Update{Topics: []string{"https://example.com/not-authorized"}, Private: true}))
 }
