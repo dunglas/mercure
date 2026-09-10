@@ -1,9 +1,12 @@
 package mercure
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"testing"
@@ -117,4 +120,150 @@ func TestPublishHandlerInvalidContentType(t *testing.T) {
 	})
 
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// newMultipartPublishRequest builds a multipart/form-data publication: every
+// field value plus a data part carrying raw bytes and, optionally, an
+// explicit Content-Type header.
+func newMultipartPublishRequest(t *testing.T, fields url.Values, data []byte, dataContentType string) *http.Request {
+	t.Helper()
+
+	var body bytes.Buffer
+
+	mw := multipart.NewWriter(&body)
+
+	for name, values := range fields {
+		for _, v := range values {
+			require.NoError(t, mw.WriteField(name, v))
+		}
+	}
+
+	header := textproto.MIMEHeader{"Content-Disposition": {`form-data; name="data"`}}
+	if dataContentType != "" {
+		header.Set("Content-Type", dataContentType)
+	}
+
+	pw, err := mw.CreatePart(header)
+	require.NoError(t, err)
+
+	_, err = pw.Write(data)
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, &body)
+	req.Header.Add("Content-Type", mw.FormDataContentType())
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+	return req
+}
+
+func TestPublishHandlerMultipart(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithEventsQuery())
+
+	// The subscriber is registered before the publication, so by the time
+	// PublishHandler returns the update sits in its buffered channel.
+	s := NewLocalSubscriber("", hub.logger, hub.topicMatcherStore)
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/books/1"}}, nil)
+	require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
+
+	binaryData := []byte{0x89, 'P', 'N', 'G', 0xff, 0x00, 0xfe}
+	form := url.Values{"topic": {"https://example.com/books/1"}}
+
+	req := newMultipartPublishRequest(t, form, binaryData, "image/png")
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	select {
+	case dispatched := <-s.Receive():
+		assert.Equal(t, string(binaryData), dispatched.Data)
+		assert.Equal(t, "image/png", dispatched.ContentType)
+		assert.True(t, dispatched.Binary)
+	case <-time.After(5 * time.Second):
+		t.Fatal("update not received")
+	}
+}
+
+// The explicit content_type field wins over the data part's own header.
+func TestPublishHandlerMultipartContentTypeFieldPrecedence(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithEventsQuery())
+
+	s := NewLocalSubscriber("", hub.logger, hub.topicMatcherStore)
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/books/1"}}, nil)
+	require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
+
+	form := url.Values{"topic": {"https://example.com/books/1"}, "content_type": {"application/ld+json"}}
+	req := newMultipartPublishRequest(t, form, []byte(`{}`), "application/json")
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	select {
+	case dispatched := <-s.Receive():
+		assert.Equal(t, "application/ld+json", dispatched.ContentType)
+	case <-time.After(5 * time.Second):
+		t.Fatal("update not received")
+	}
+}
+
+func TestPublishHandlerMultipartInvalidContentType(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithEventsQuery())
+
+	form := url.Values{"topic": {"https://example.com/books/1"}}
+	req := newMultipartPublishRequest(t, form, []byte("Hello World"), "not a media type")
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// Multipart publication belongs to the experimental events query surface:
+// without the option the hub must not silently parse an empty form.
+func TestPublishHandlerMultipartDisabled(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+
+	form := url.Values{"topic": {"https://example.com/books/1"}}
+	req := newMultipartPublishRequest(t, form, []byte("Hello World"), "text/plain")
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
 }
