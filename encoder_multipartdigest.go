@@ -13,9 +13,6 @@ const multipartDigestContentType = "multipart/digest"
 // Default media type of the update data sent to/from the hub.
 const updateDataContentType = "text/plain; charset=utf-8"
 
-// Opens every boundary, as many browsers and HTTP libraries write it.
-const boundaryPrefix = "----------------"
-
 // multipartDigestEncoder frames updates as a multipart/digest stream. A part
 // defaults to message/rfc822 (RFC 2046 §5.1.5), so a notification is a message:
 // the event's fields as header fields, its data as the body.
@@ -24,11 +21,15 @@ type multipartDigestEncoder struct {
 }
 
 // newMultipartDigestEncoder returns an encoder with a fresh random boundary.
+// Length-aware receivers read each body by its Content-Length, but standard
+// multipart parsers locate parts by scanning for the delimiter, so the
+// boundary carries enough entropy (240 bits, the same as mime/multipart's
+// writer) that a payload can never be crafted to contain it.
 func newMultipartDigestEncoder() streamEncoder {
-	var b [8]byte
+	var b [30]byte
 	rand.Read(b[:])
 
-	return &multipartDigestEncoder{boundary: boundaryPrefix + hex.EncodeToString(b[:])}
+	return &multipartDigestEncoder{boundary: hex.EncodeToString(b[:])}
 }
 
 func (e *multipartDigestEncoder) contentType() []string {
