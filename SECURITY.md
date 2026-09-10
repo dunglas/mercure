@@ -7,6 +7,15 @@ Report security issues through GitHub's private vulnerability reporting:
 
 Do not open public issues or PRs for suspected vulnerabilities.
 
+### Mercure Cloud
+
+This policy covers the Hub in this repository. For the hosted service at
+mercure.rocks, including its API, dashboard and the hubs we operate, report to
+<contact+security@mercure.rocks> instead. That service publishes its own
+scope, triage targets and safe-harbour terms, which authorise good-faith
+research against it:
+<https://mercure.rocks/legal/security#vulnerability-disclosure-policy>.
+
 ## Supported versions
 
 | Version | Branch | Status                                                                                                              |
