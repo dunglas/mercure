@@ -54,6 +54,39 @@ func TestUpdateJSON(t *testing.T) {
 	assert.JSONEq(t, legacy, string(out))
 }
 
+// Binary payloads must survive JSON persistence byte-exactly: encoding/json
+// replaces invalid UTF-8 with U+FFFD, so MarshalJSON base64-encodes Data
+// when Binary is set.
+func TestUpdateBinaryJSONRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	u := &Update{
+		Topics: []string{"https://example.com/books/1"},
+		Binary: true,
+		Event:  Event{Data: "\xff\x00\xfePNG", ID: "i"},
+	}
+
+	serialized, err := json.Marshal(u)
+	require.NoError(t, err)
+	assert.Contains(t, string(serialized), `"Data":"/wD+UE5H"`)
+	assert.Contains(t, string(serialized), `"Binary":true`)
+
+	var decoded Update
+
+	require.NoError(t, json.Unmarshal(serialized, &decoded))
+	assert.Equal(t, *u, decoded)
+}
+
+func TestUpdateValidateBinaryData(t *testing.T) {
+	t.Parallel()
+
+	u := &Update{Topics: []string{"https://example.com/books/1"}, Event: Event{Data: "\xff\x00"}}
+	require.ErrorIs(t, u.Validate(), ErrInvalidData)
+
+	u.Binary = true
+	require.NoError(t, u.Validate())
+}
+
 func TestLogUpdate(t *testing.T) {
 	t.Parallel()
 

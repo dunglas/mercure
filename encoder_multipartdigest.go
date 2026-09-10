@@ -67,7 +67,13 @@ func (e *multipartDigestEncoder) encode(u *Update) string {
 
 	contentType := u.ContentType
 	if contentType == "" {
-		contentType = updateDataContentType
+		// Without a declared media type, binary payloads are opaque bytes;
+		// the text default would misdeclare them.
+		if u.Binary {
+			contentType = "application/octet-stream"
+		} else {
+			contentType = updateDataContentType
+		}
 	}
 
 	m.WriteString("Content-Type: ")

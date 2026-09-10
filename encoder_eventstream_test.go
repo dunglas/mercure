@@ -105,3 +105,17 @@ func TestEventStreamEncoderStream(t *testing.T) {
 	// Every event is terminated, so a subscriber never waits on a partial one.
 	assert.True(t, strings.HasSuffix(stream, "\n\n"))
 }
+
+// Binary updates are base64-encoded on the event stream, unconditionally:
+// without a per-event metadata slot, only a rule fixed at publication time
+// lets subscribers decode deterministically.
+func TestEventStreamEncoderBinary(t *testing.T) {
+	t.Parallel()
+
+	payload := eventStreamEncoder{}.encode(&Update{Binary: true, Event: Event{ID: "i", Data: "\xff\x00PNG"}})
+	assert.Equal(t, "id: i\ndata: /wBQTkc=\n\n", payload)
+
+	// Valid UTF-8 is encoded too when the update is marked binary.
+	payload = eventStreamEncoder{}.encode(&Update{Binary: true, Event: Event{ID: "i", Data: "text"}})
+	assert.Equal(t, "id: i\ndata: dGV4dA==\n\n", payload)
+}

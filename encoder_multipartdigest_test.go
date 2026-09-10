@@ -244,3 +244,23 @@ func newDigestEncoder(t *testing.T) *multipartDigestEncoder {
 
 	return e
 }
+
+// A binary payload travels verbatim: the message body is length-delimited,
+// and an undeclared media type is opaque bytes, not text.
+func TestMultipartDigestEncoderBinary(t *testing.T) {
+	t.Parallel()
+
+	e := newDigestEncoder(t)
+
+	const data = "\x89PNG\xff\x00\xfe"
+
+	header, body := encodedNotification(t, e,
+		e.encode(&Update{Binary: true, Event: Event{ID: "a", Data: data}}))
+	assert.Equal(t, data, body)
+	assert.Equal(t, "application/octet-stream", header.Get("Content-Type"))
+
+	header, body = encodedNotification(t, e,
+		e.encode(&Update{Binary: true, ContentType: "image/png", Event: Event{ID: "a", Data: data}}))
+	assert.Equal(t, data, body)
+	assert.Equal(t, "image/png", header.Get("Content-Type"))
+}

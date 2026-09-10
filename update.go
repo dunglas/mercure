@@ -1,6 +1,9 @@
 package mercure
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 
 	"github.com/gofrs/uuid/v5"
@@ -28,8 +31,55 @@ type Update struct {
 	// history entries persisted before this field existed decodable.
 	ContentType string `json:",omitempty"`
 
+	// Binary marks updates whose Data is an arbitrary byte payload
+	// (published as multipart/form-data): Data is base64-encoded when
+	// serialized to text formats (SSE, JSON) and delivered verbatim
+	// otherwise. omitempty keeps older history entries decodable.
+	Binary bool `json:",omitempty"`
+
 	// To print debug information
 	Debug bool
+}
+
+// updateJSON drops Update's methods so encoding/json does not recurse into
+// MarshalJSON; the wire shape stays byte-identical for non-binary updates.
+type updateJSON Update
+
+// MarshalJSON base64-encodes binary Data: encoding/json silently replaces
+// invalid UTF-8 in strings with U+FFFD, which would corrupt persisted
+// binary payloads.
+func (u *Update) MarshalJSON() ([]byte, error) {
+	c := updateJSON(*u)
+	if u.Binary {
+		c.Data = base64.StdEncoding.EncodeToString([]byte(u.Data))
+	}
+
+	b, err := json.Marshal(c)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal update: %w", err)
+	}
+
+	return b, nil
+}
+
+func (u *Update) UnmarshalJSON(data []byte) error {
+	var c updateJSON
+	if err := json.Unmarshal(data, &c); err != nil {
+		return fmt.Errorf("unable to unmarshal update: %w", err)
+	}
+
+	if c.Binary {
+		d, err := base64.StdEncoding.DecodeString(c.Data)
+		if err != nil {
+			return fmt.Errorf("unable to decode binary update data: %w", err)
+		}
+
+		c.Data = string(d)
+	}
+
+	*u = Update(c)
+
+	return nil
 }
 
 func (u *Update) LogValue() slog.Value {

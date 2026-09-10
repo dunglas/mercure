@@ -1977,3 +1977,54 @@ func (t *eventsQueryTester) String() string {
 
 	return t.body.String()
 }
+
+// A binary update reaches a multipart/digest subscriber byte-exactly, with
+// the media type its publisher declared; the same update over an event
+// stream is base64-encoded (see the event stream encoder).
+func TestEventsQuerySubscribeBinary(t *testing.T) {
+	t.Parallel()
+
+	const binaryData = "\x89PNG\xff\x00\xfe"
+
+	hub := createAnonymousDummy(t, WithEventsQuery())
+	ctx := t.Context()
+
+	go func() {
+		s := hub.transport.(*LocalTransport)
+
+		var ready bool
+
+		for !ready {
+			s.RLock()
+			ready = s.subscribers.Len() == 1
+			s.RUnlock()
+		}
+
+		_ = hub.transport.Dispatch(ctx, &Update{
+			Topics:      []string{"https://example.com/books/1"},
+			Binary:      true,
+			ContentType: "image/png",
+			Event:       Event{Data: binaryData, ID: "b"},
+		})
+	}()
+
+	reqCtx, cancel := context.WithCancel(t.Context())
+	req := eventsQueryRequest(reqCtx, `{"url": ["https://example.com/books/1"], "events": {}}`)
+
+	// One delimiter opens the stream, the next closes the notification.
+	w := newEventsQueryTester(2, cancel)
+	hub.SubscribeHandler(w, req)
+
+	_, params, err := mime.ParseMediaType(w.Header().Get("Content-Type"))
+	require.NoError(t, err)
+
+	r := multipart.NewReader(strings.NewReader(w.String()+"--\r\n"), params["boundary"])
+
+	part, err := r.NextPart()
+	require.NoError(t, err)
+
+	header, body := readNotification(t, bufio.NewReader(part))
+	assert.Equal(t, binaryData, body)
+	assert.Equal(t, "b", header.Get("Event-ID"))
+	assert.Equal(t, "image/png", header.Get("Content-Type"))
+}
