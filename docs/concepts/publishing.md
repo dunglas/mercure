@@ -34,9 +34,11 @@ The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
 
 The hub treats `data` as opaque bytes, so you can push any format the subscriber
 understands: JSON, HTML, plain text, JSON Patch, base64-encoded binary, or an
-event envelope such as [CloudEvents](https://cloudevents.io/). Wrapping the
+event envelope such as [CloudEvents](https://cloudevents.io/) or
+[ActivityStreams 2.0](https://www.w3.org/TR/activitystreams-core/). Wrapping the
 payload in an envelope is a publisher/subscriber convention; the hub neither
-requires nor inspects it.
+requires nor inspects it. See [Update payloads](update-payloads.md) for how to
+pick one.
 
 ## Mercure publish examples
 

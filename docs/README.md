@@ -20,6 +20,7 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 - [Topics and matchers](concepts/topics-and-matchers.md): how subscribers say what they want
 - [Subscribing](concepts/subscribing.md): the SSE side
 - [Publishing](concepts/publishing.md): the POST side
+- [Update payloads](concepts/update-payloads.md): envelopes for the `data` field, ActivityStreams 2.0
 - [Authorization](concepts/authorization.md): OAuth 2.0 access tokens, `authorization_details`, cookies
 - [Discovery](concepts/discovery.md): finding the hub and its protected resource metadata
 - [Reconnection and history](concepts/reconnection-and-history.md): `Last-Event-ID`, replay
