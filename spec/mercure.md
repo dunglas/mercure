@@ -225,6 +225,19 @@ a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@
 All other properties defined in the Server-Sent Events specification **MAY** be used and **MUST**
 be supported by hubs.
 
+In addition to the fields defined in the Server-Sent Events specification, the hub **MUST** add
+one `topic` field per topic of the update that matches the subscriber's topic matchers and, if
+the update is private, for which the subscriber is authorized. The `topic` fields come before
+the `data` field, in the update's topic order (the canonical topic first). The `topic` field
+name is reserved for this purpose. Fields with unrecognized names are ignored by compliant
+Server-Sent Events parsers [@!HTML], so subscribers not expecting `topic` fields are unaffected.
+Topics of the update not satisfying the restriction above **MUST NOT** be emitted: an update can
+carry topics its recipient is not entitled to observe (see (#topic-disclosure)).
+
+The `EventSource` interface [@!HTML] exposes no field other than `data`, `event` and `id`.
+Subscribers needing `topic` fields have to consume the stream with a Server-Sent Events parser
+surfacing fields with unrecognized names.
+
 The resource **MAY** be represented in a format with hypermedia capabilities such as
 JSON-LD [@W3C.REC-json-ld11-20200716], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
 [@!HTML].
@@ -1680,6 +1693,17 @@ it is not constrained the same way, so the hub **MUST** serialize it as one `dat
 line (see (#publication)) rather than emitting the raw value. A hub that writes the value
 without this line-splitting would let a `data` value containing `\nevent:` or `\nid:` inject a
 forged field, so this serialization is a security requirement, not only a formatting one.
+
+## Topic Disclosure
+
+A private update is dispatched to every subscriber authorized for at least one of its topics, so
+a recipient is not necessarily subscribed to, nor authorized for, every topic the update
+carries. Emitting the update's full topic list in `topic` fields (see (#subscription)) would
+disclose the other topics: a subscriber matched through an alternate topic could learn a
+canonical topic embedding information it is not authorized for, such as another user's
+identifier. This is why (#subscription) requires hubs to filter the `topic` fields against each
+subscriber's matchers and authorization instead of writing one shared serialization of the
+update.
 
 ## Reserved Hub Namespace
 

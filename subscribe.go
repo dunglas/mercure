@@ -206,7 +206,21 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			// Cleanly close the HTTP connection before the write deadline to prevent client-side errors
 			return
 		case update, ok := <-s.Receive():
-			if !ok || !h.write(ctx, rc, newSerializedUpdate(update).event) {
+			if !ok {
+				return
+			}
+
+			// Transports only dispatch updates the subscriber matches, so for a
+			// single-topic update — the common case — that one topic is already
+			// proven subscribed and, if private, authorized: skip the per-topic
+			// re-match that multi-topic updates need (their audience is the
+			// union of their topics' audiences, see MatchedTopics).
+			topics := update.Topics
+			if len(topics) > 1 {
+				topics = s.MatchedTopics(update)
+			}
+
+			if !h.write(ctx, rc, update.serialize(topics)) {
 				return
 			}
 

@@ -39,7 +39,7 @@ func TestSubscribeDeprecatedTopicParam(t *testing.T) {
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nid: a\ndata: Hello World\n\n",
+		expectedBody:       ":\ntopic: https://example.com/books/1\nid: a\ndata: Hello World\n\n",
 		tb:                 t,
 		cancel:             cancel,
 	}

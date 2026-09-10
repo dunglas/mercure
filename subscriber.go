@@ -60,6 +60,31 @@ func (s *Subscriber) Match(u *Update) bool {
 	return s.MatchTopics(u.Topics, u.Private)
 }
 
+// MatchedTopics returns the topics of the update the subscriber could receive
+// the update on individually, in the update's order (canonical topic first).
+// A private update is dispatched to any subscriber authorized for at least one
+// of its topics, so a recipient is not necessarily subscribed to, nor
+// authorized for, every topic the update carries: exposing an unmatched topic
+// (in "topic" SSE fields, notably) would disclose it.
+func (s *Subscriber) MatchedTopics(u *Update) []string {
+	var matched []string
+
+	for i := range u.Topics {
+		topic := u.Topics[i : i+1 : i+1]
+		if !s.matchesAny(topic, s.SubscribedMatchers) {
+			continue
+		}
+
+		if u.Private && !s.matchesAny(topic, s.AllowedPrivateMatchers) {
+			continue
+		}
+
+		matched = append(matched, u.Topics[i])
+	}
+
+	return matched
+}
+
 func (s *Subscriber) LogValue() slog.Value {
 	attrs := []slog.Attr{
 		slog.String("id", s.ID),
