@@ -551,7 +551,7 @@
       "type": "string"
     },
     "terminationGracePeriodSeconds": {
-      "description": "Pod terminationGracePeriodSeconds. Must be \u003e= `write_timeout` so SSE subscribers drain at their own write deadline before k8s SIGKILLs the pod. Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin. Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s) to minimize the gap between old pod gone and new pod ready.",
+      "description": "Pod terminationGracePeriodSeconds. Must be \u003e= the shutdown drain window so SSE subscribers drain before k8s SIGKILLs the pod. The drain window is `write_timeout` (subscribers drain at their own write deadline), or the shorter `drain_timeout` when that directive is set (via `extraDirectives`), which lets a long `write_timeout` keep a short grace period. Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin. Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s) to minimize the gap between old pod gone and new pod ready.",
       "type": "integer",
       "minimum": 0
     },

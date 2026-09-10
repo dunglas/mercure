@@ -393,6 +393,11 @@ func TestWithSubscribeDisabled(t *testing.T) {
 // before a Dispatch or context cancel runs. Sleeps between checks to avoid
 // busy-spinning, and fails the test via tb.Fatalf after 5s so a genuinely
 // stuck expectation surfaces as a clear error instead of a hung suite.
+// n is currently always 1, but the helper stays general on purpose: waiting for
+// a specific subscriber count is the natural shape for future multi-subscriber
+// tests.
+//
+//nolint:unparam
 func waitSubscribers(tb testing.TB, transport *LocalTransport, n int) {
 	tb.Helper()
 

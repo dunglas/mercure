@@ -72,6 +72,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `transport <name> [{ <options...> }]`      | Transport configuration. See [Transports](#mercure-hub-transports).                                                                                         | `bolt`                          |
 | `dispatch_timeout <duration>`              | Max time to dispatch one update to one subscriber. `0s` disables.                                                                                           | `5s`                            |
 | `write_timeout <duration>`                 | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                                            | `600s`                          |
+| `drain_timeout <duration>`                 | Graceful-shutdown drain window, used instead of `write_timeout`. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                    | `0s` (off)                      |
 | `topic_matcher_cache <maxEntries>`         | Cache for topic matcher evaluations. `0` or negative disables it.                                                                                           | `100000`                        |
 | `subscriber_list_cache_size <maxSize>`     | Subscriber list cache size. `0` for unbounded.                                                                                                              | `100000`                        |
 | `debugger`                                 | Serve the debugger UI at `/.well-known/mercure/debug/` (no token, no playground endpoints). Safe in production.                                             | off                             |
@@ -288,7 +289,8 @@ The endpoints bind to `localhost` for security. Probes from outside the containe
 A few knobs that move the needle:
 
 - `dispatch_timeout`: too low and slow subscribers get cut off; too high and a stuck dispatch ties up resources. The 5s default is a reasonable starting point.
-- `write_timeout`: controls how often each subscriber rotates its connection in steady state. Higher values mean fewer reconnects but worse drain pacing on shutdown. See [Rolling updates](../production/rolling-updates.md).
+- `write_timeout`: controls how often each subscriber rotates its connection in steady state. Higher values mean fewer reconnects but worse drain pacing on shutdown, unless you pair it with `drain_timeout`. See [Rolling updates](../production/rolling-updates.md).
+- `drain_timeout`: decouples the shutdown drain window from `write_timeout`. Set it shorter than `write_timeout` to keep steady-state reconnects rare (a long `write_timeout`) while still draining quickly on termination (a short `drain_timeout`), so a rolling update doesn't wait a full `write_timeout` per pod. `0s` (default) drains over `write_timeout`. See [Rolling updates](../production/rolling-updates.md).
 - `topic_matcher_cache` and `subscriber_list_cache_size`: increase if your hub has many distinct matchers and you see CPU spent in matcher evaluation. Decrease if memory is tight.
 - File descriptors: every subscriber takes one. `ulimit -n 100000` on the host (or the equivalent in your orchestrator) for high-fanout hubs.
 

@@ -55,7 +55,8 @@ spec:
         {{- toYaml $podLabels | nindent 8 }}
     spec:
       {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
-      # Lets the hub drain SSE at its own writeTimeout before SIGKILL.
+      # Lets the hub drain SSE before SIGKILL, over its writeTimeout or the
+      # shorter drainTimeout when that directive is set.
       # Skipped under Recreate (e.g. BoltDB+persistence single-pod): the
       # replacement Pod waits for full termination, so a long grace period
       # would just extend downtime.
