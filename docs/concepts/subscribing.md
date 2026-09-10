@@ -184,7 +184,7 @@ es.onmessage = (event) => {
 };
 ```
 
-JSON-LD's `@id` is the natural field because it is the topic URL itself, but any identifier works as long as every publisher of that topic sets it. Publishing a bare value with no identifier in it — a number, a status string — leaves a multi-topic subscriber unable to place the update.
+JSON-LD's [`@id`](https://www.w3.org/TR/json-ld11/#node-identifiers) is the natural field because it is the topic URL itself, but any identifier works as long as every publisher of that topic sets it. Publishing a bare value with no identifier in it — a number, a status string — leaves a multi-topic subscriber unable to place the update.
 
 For coarse routing, the publish `type` becomes the SSE `event` field, so a family of updates can be picked up with `addEventListener("<type>", ...)` instead. That is a label you choose, not the topic, and `mercure` is reserved for [subscription events](active-subscriptions.md).
 
@@ -202,7 +202,6 @@ Host: example.com
 200 OK
 Content-Type: application/ld+json
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
-Link: </books/1>; rel="self"
 ```
 
 Subscribers that fetch the resource first can read the headers to find both the hub and the topic to subscribe to:
@@ -213,10 +212,9 @@ const res = await fetch("https://example.com/books/1");
 const links = res.headers.get("Link");
 
 const hub = links.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
-const self = links.match(/<([^>]+)>;\s*rel="?self"?/)?.[1] ?? res.url;
 
 const url = new URL(hub);
-url.searchParams.append("match", new URL(self, res.url).toString());
+url.searchParams.append("match", res.url);
 new EventSource(url);
 ```
 
