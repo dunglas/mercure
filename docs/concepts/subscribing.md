@@ -188,9 +188,12 @@ Some libraries report unknown fields as errors or can be configured to terminate
 Ensure your parser accepts `topics` fields. The `eventsource-parser` unknown-field error callback
 alone is unsuitable: version 4.1.0 can discard unknown fields split across chunks.
 
-Setting [`protocol_version_compatibility`](../deployment/configuration.md) to `7` or `8` omits
-`topics` fields from both live and replayed updates. Clients using such a hub, or an older hub,
-must obtain topic information from the payload if needed.
+When [`protocol_version_compatibility`](../deployment/configuration.md) is set to `7` or `8`,
+only subscriptions using exclusively the legacy `topic` parameter omit `topics` fields.
+Requests containing `match` or `match_*` parameters receive them even with compatibility enabled,
+including requests that also contain `topic`. This applies to GET query parameters and QUERY
+body parameters, for both live and replayed updates. Legacy subscriptions and older hubs require
+topic information in the payload if needed.
 
 If your client is a plain `EventSource` and you need the topic, keep putting it in the payload
 on the publisher side.

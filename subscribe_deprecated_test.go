@@ -4,9 +4,11 @@ package mercure
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/synctest"
 )
 
 // TestSubscribeDeprecatedTopicParam covers the v8 end-to-end flow: a
@@ -45,4 +47,31 @@ func TestSubscribeDeprecatedTopicParam(t *testing.T) {
 	}
 
 	hub.SubscribeHandler(w, req)
+}
+
+func TestSubscribeTopicsLegacyRequests(t *testing.T) {
+	t.Parallel()
+
+	requests := map[string]topicFieldsRequest{
+		"legacy":            {method: http.MethodGet, query: "topic=https://example.com/books/{id}"},
+		"legacy_query_body": {method: methodQuery, body: "topic=https://example.com/books/{id}"},
+		// The modern matcher opts in even when only the legacy matcher selects the update.
+		"mixed":            {method: http.MethodGet, query: "topic=https://example.com/books/{id}&match=https://example.com/other", wantTopics: true},
+		"mixed_query_body": {method: methodQuery, query: "topic=https://example.com/books/{id}", body: "match_urlpattern=https://example.com/other/:id", wantTopics: true},
+	}
+	for name, request := range requests {
+		for _, compatibility := range []int{7, 8} {
+			for _, private := range []bool{false, true} {
+				for _, replay := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/compatibility=%d/private=%t/replay=%t", name, compatibility, private, replay), func(t *testing.T) {
+						t.Parallel()
+
+						synctest.Test(t, func(t *testing.T) {
+							testSubscribeTopics(t, compatibility, private, replay, request)
+						})
+					})
+				}
+			}
+		}
+	}
 }

@@ -897,7 +897,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -911,7 +911,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -926,7 +926,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1520,25 +1520,37 @@ func TestSubscriptionEventReachesTheSubscriberItDescribes(t *testing.T) {
 	}), "the subscriber was not told about its own subscription")
 }
 
+type topicFieldsRequest struct {
+	method, query, body string
+	wantTopics          bool
+}
+
 func TestSubscribeTopics(t *testing.T) {
 	t.Parallel()
 
-	for _, compatibility := range []int{0, 7, 8} {
-		for _, private := range []bool{false, true} {
-			for _, replay := range []bool{false, true} {
-				t.Run(fmt.Sprintf("compatibility=%d/private=%t/replay=%t", compatibility, private, replay), func(t *testing.T) {
-					t.Parallel()
+	requests := map[string]topicFieldsRequest{
+		"exact":      {method: http.MethodGet, query: "match=https://example.com/books/1", wantTopics: true},
+		"urlpattern": {method: http.MethodGet, query: "match_urlpattern=https://example.com/books/:id", wantTopics: true},
+		"query_body": {method: methodQuery, body: "match=https://example.com/books/1", wantTopics: true},
+	}
+	for name, request := range requests {
+		for _, compatibility := range []int{0, 7, 8} {
+			for _, private := range []bool{false, true} {
+				for _, replay := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/compatibility=%d/private=%t/replay=%t", name, compatibility, private, replay), func(t *testing.T) {
+						t.Parallel()
 
-					synctest.Test(t, func(t *testing.T) {
-						testSubscribeTopics(t, compatibility, private, replay)
+						synctest.Test(t, func(t *testing.T) {
+							testSubscribeTopics(t, compatibility, private, replay, request)
+						})
 					})
-				})
+				}
 			}
 		}
 	}
 }
 
-func testSubscribeTopics(t *testing.T, compatibility int, private, replay bool) {
+func testSubscribeTopics(t *testing.T, compatibility int, private, replay bool, request topicFieldsRequest) {
 	t.Helper()
 
 	var transport Transport = NewLocalTransport(NewSubscriberList(0))
@@ -1570,7 +1582,8 @@ func testSubscribeTopics(t *testing.T, compatibility int, private, replay bool) 
 	defer cancel()
 
 	// Routing selects the canonical topic; authorization selects only alternates.
-	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=https://example.com/books/:id", nil).WithContext(ctx)
+	req := httptest.NewRequest(request.method, defaultHubURL+"?"+request.query, strings.NewReader(request.body)).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Authorization", bearerPrefix+createDummySubscriberJWTWithDetails(t, nil,
 		TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/users/42/*"}))
 
@@ -1594,7 +1607,7 @@ func testSubscribeTopics(t *testing.T, compatibility int, private, replay bool) 
 
 	var fields string
 
-	if compatibility == 0 {
+	if request.wantTopics {
 		if private {
 			fields = "topics: https://example.com/users/42/books/1\ntopics: https://example.com/users/42/inbox/1\n"
 		} else {

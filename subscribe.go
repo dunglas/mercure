@@ -10,6 +10,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -129,6 +130,11 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Modern matchers opt this connection into topic metadata even on a compatibility hub.
+	includeTopics := slices.ContainsFunc(s.SubscribedMatchers, func(m TopicMatcher) bool {
+		return m.Type != deprecatedMatcherTypeName
+	})
+
 	ctx = context.WithValue(ctx, SubscriberContextKey, &s.Subscriber)
 
 	defer h.shutdown(ctx, s)
@@ -211,7 +217,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var topics []string
-			if h.protocolVersionCompatibility == 0 {
+			if includeTopics {
 				topics = update.Topics
 				// Delivery already proves authorization for a single-topic update.
 				if update.Private && len(topics) > 1 {
