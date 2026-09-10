@@ -29,3 +29,15 @@ func TestEncodeNoRetry(t *testing.T) {
 
 	assert.Equal(t, "id: custom-id\ndata: data\n\n", e.String())
 }
+
+func TestEncodeTopics(t *testing.T) {
+	t.Parallel()
+
+	e := &Event{"data", "custom-id", "type", 0}
+
+	assert.Equal(
+		t,
+		"event: type\ntopics: https://example.com/books/1\ntopics: https://example.com/alt/1\nid: custom-id\ndata: data\n\n",
+		e.serialize([]string{"https://example.com/books/1", "https://example.com/alt/1"}),
+	)
+}

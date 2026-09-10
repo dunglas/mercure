@@ -225,6 +225,34 @@ a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@
 All other properties defined in the Server-Sent Events specification **MAY** be used and **MUST**
 be supported by hubs.
 
+In addition to the fields defined in the Server-Sent Events specification, each update the hub
+dispatches **MUST** contain at least one `topics` field. For a public update, the hub **MUST**
+include one `topics` field per topic of the update. For a private update, the hub **MUST** include
+one `topics` field per topic on which the subscriber's access token grants the `subscribe` action
+(see (#subscribers)), and **MUST NOT** include any other topic (see (#topic-disclosure)).
+The subscriber's routing matchers **MUST NOT** restrict this list: routing and authorization can
+match different topics of the same update. Private delivery already requires a grant on at
+least one topic, so the list is non-empty.
+
+Each `topics` field value **MUST** equal the corresponding topic string of the update, without
+URL normalization or additional escaping. The hub **MUST** emit these fields before the first
+`data` field, preserving publication order after authorization filtering. The canonical topic
+is first only if included; the first received topic is not necessarily canonical.
+The `topics` field name is reserved for this purpose within the Mercure protocol.
+
+Subscribers processing this extension **MUST** maintain an ordered topic list for each event
+block, initially empty. They **MUST** parse field names and values according to the Server-Sent
+Events rules [@!HTML] and append the value of each `topics` field to the list, preserving repeated
+values. They **MUST** associate the list with the event dispatched for that block and clear it
+at every blank-line block boundary, including blocks that dispatch no event. They **MUST**
+discard pending topics at the end of a stream and start with an empty list on reconnection.
+Topic values **MUST NOT** carry over to a subsequent event or connection.
+
+Server-Sent Events parsers ignore fields with unrecognized names [@!HTML]. Native browser
+`EventSource` clients therefore continue to receive events but cannot access `topics` fields;
+their `MessageEvent` objects expose the SSE data, type, and identifier through `data`, `type`,
+and `lastEventId`. Subscribers needing topics must use a parser that supports this extension.
+
 The resource **MAY** be represented in a format with hypermedia capabilities such as
 JSON-LD [@W3C.REC-json-ld11-20200716], Atom [@RFC4287], XML [@W3C.REC-xml-20081126] or HTML
 [@!HTML].
@@ -1680,6 +1708,17 @@ it is not constrained the same way, so the hub **MUST** serialize it as one `dat
 line (see (#publication)) rather than emitting the raw value. A hub that writes the value
 without this line-splitting would let a `data` value containing `\nevent:` or `\nid:` inject a
 forged field, so this serialization is a security requirement, not only a formatting one.
+
+## Topic Disclosure
+
+A private update can be delivered when routing and authorization match different topics of the
+update (see (#subscribers)). Its recipient is not necessarily authorized for every topic it
+carries. Emitting the full topic list in `topics` fields (see (#subscription)) could disclose
+a canonical topic embedding information the recipient is not authorized for, such as another
+user's identifier. Hubs therefore filter these fields against the subscriber's `subscribe`
+grants. Authorized topics are included even when they do not match the routing matchers.
+Public updates disclose all their topics; publishers requiring topic confidentiality must use
+private updates and appropriately scoped grants.
 
 ## Reserved Hub Namespace
 
