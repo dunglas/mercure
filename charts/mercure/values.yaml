@@ -39,9 +39,7 @@ existingSecret: ""
 # These keys must exist in the provided secret:
 # -  publisher-jwt-key
 # -  subscriber-jwt-key
-# -  extra-directives:
-# -  license:
-# -  caddy-extra-directives:
+# -  license
 
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).
 license: ""
@@ -189,6 +187,13 @@ service:
   targetPort: 80  # @schema type:[integer, string];minimum:1;maximum:65535
   # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
   nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
+  # -- Service port name.
+  portName: http  # @schema minLength:1
+  # -- Annotations to be added to the service.
+  annotations: {}
+
+metricsService:
+  # -- Annotations to be added to the metrics service.
   annotations: {}
 
 ingress:
@@ -438,3 +443,9 @@ persistence:
   # -- Requires `persistence.enabled: true`
   # -- If defined, PVC must be created manually before volume will be bound
   existingClaim: ""
+
+# -- Additional volumes to set.
+extraVolumes: []  # @schema type:[array]
+
+# -- Additional volume mounts to set.
+extraVolumeMounts: []  # @schema type:[array]
