@@ -197,7 +197,10 @@ the connection. Any other appropriate mechanism, including but not limited to re
 
 Web browsers enforce the CORS protocol [@!FETCH] on cross-origin `EventSource` connections.
 Hubs serving browser-based subscribers on other origins **MUST** send the appropriate CORS
-response headers. When the connection carries credentials (such as the cookie defined in
+response headers. In particular, the `Mercure-Last-Event-ID` response field (see
+(#reconciliation)) **MUST** be exposed to cross-origin subscribers through
+`Access-Control-Expose-Headers`: a subscriber that cannot read it cannot detect data loss
+when resuming. When the connection carries credentials (such as the cookie defined in
 (#cookie)), the `Access-Control-Allow-Origin` response header **MUST NOT** be the `*` wildcard
 and **MUST NOT** be reflected from arbitrary request origins: it **MUST** be restricted to an
 explicit allowlist of trusted origins, and the hub **MUST** also send
