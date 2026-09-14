@@ -466,7 +466,7 @@ func TestSubscribeQueryMethod(t *testing.T) {
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nid: b\ndata: Hello World\n\n",
+		expectedBody:       ":\ntopics: https://example.com/books/1\nid: b\ndata: Hello World\n\n",
 		tb:                 t,
 		cancel:             cancel,
 	}
@@ -521,7 +521,7 @@ func subscribe(tb testing.TB, numberOfSubscribers int) {
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: Hello World\n\nid: c\ndata: Great\n\nid: d\ndata: Faulty IRI\n\nid: e\ndata: string\n\n",
+				expectedBody:       ":\ntopics: https://example.com/books/1\nid: b\ndata: Hello World\n\ntopics: https://example.com/reviews/22\nid: c\ndata: Great\n\ntopics: https://example.com/hub?topic=faulty{iri\nid: d\ndata: Faulty IRI\n\ntopics: string\nid: e\ndata: string\n\n",
 				tb:                 tb,
 				cancel:             cancel,
 			}
@@ -701,7 +701,7 @@ func TestSubscribePrivate(t *testing.T) {
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nevent: test\nid: b\ndata: Hello World\n\nretry: 1\nid: c\ndata: Great\n\n",
+		expectedBody:       ":\nevent: test\ntopics: https://example.com/reviews/22\nid: b\ndata: Hello World\n\nretry: 1\ntopics: https://example.com/reviews/23\nid: c\ndata: Great\n\n",
 		tb:                 t,
 		cancel:             cancel,
 	}
@@ -862,7 +862,7 @@ func TestSubscribeAll(t *testing.T) {
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nid: a\ndata: Foo\n\nevent: test\nid: b\ndata: Hello World\n\n",
+		expectedBody:       ":\ntopics: https://example.com/reviews/21\nid: a\ndata: Foo\n\nevent: test\ntopics: https://example.com/reviews/22\nid: b\ndata: Hello World\n\n",
 		tb:                 t,
 		cancel:             cancel,
 	}
@@ -897,7 +897,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -911,7 +911,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -926,7 +926,7 @@ func TestSendMissedEvents(t *testing.T) {
 
 			w := &responseTester{
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -964,7 +964,7 @@ func TestSendAllEvents(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/a\nid: a\ndata: d1\n\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -980,7 +980,7 @@ func TestSendAllEvents(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/a\nid: a\ndata: d1\n\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1014,7 +1014,7 @@ func TestUnknownLastEventID(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1033,7 +1033,7 @@ func TestUnknownLastEventID(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1093,7 +1093,7 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: c\ndata: d3\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/c\nid: c\ndata: d3\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1145,7 +1145,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1162,7 +1162,7 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foos/b\nid: b\ndata: d2\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1209,7 +1209,7 @@ func TestEmptyLastEventIDGetsResponseHeader(t *testing.T) {
 			w := &responseTester{
 				header:             http.Header{},
 				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: e1\ndata: d\n\n",
+				expectedBody:       ":\ntopics: https://example.com/foo\nid: e1\ndata: d\n\n",
 				tb:                 t,
 				cancel:             cancel,
 			}
@@ -1266,7 +1266,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 
 	w := &responseTester{
 		expectedStatusCode: http.StatusOK,
-		expectedBody:       ":\nid: b\ndata: Hello World\n\n:\n",
+		expectedBody:       ":\ntopics: https://example.com/books/1\nid: b\ndata: Hello World\n\n:\n",
 		tb:                 t,
 		cancel:             cancel,
 	}
@@ -1518,4 +1518,103 @@ func TestSubscriptionEventReachesTheSubscriberItDescribes(t *testing.T) {
 	assert.True(t, slices.ContainsFunc(subs, func(sub subscription) bool {
 		return sub.Active && sub.Match == "/.well-known/mercure/subscriptions/:mt/:m/:s"
 	}), "the subscriber was not told about its own subscription")
+}
+
+type topicFieldsRequest struct {
+	method, query, body string
+	wantTopics          bool
+}
+
+func TestSubscribeTopics(t *testing.T) {
+	t.Parallel()
+
+	requests := map[string]topicFieldsRequest{
+		"exact":      {method: http.MethodGet, query: "match=https://example.com/books/1", wantTopics: true},
+		"urlpattern": {method: http.MethodGet, query: "match_urlpattern=https://example.com/books/:id", wantTopics: true},
+		"query_body": {method: methodQuery, body: "match=https://example.com/books/1", wantTopics: true},
+	}
+	for name, request := range requests {
+		for _, compatibility := range []int{0, 7, 8} {
+			for _, private := range []bool{false, true} {
+				for _, replay := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/compatibility=%d/private=%t/replay=%t", name, compatibility, private, replay), func(t *testing.T) {
+						t.Parallel()
+
+						synctest.Test(t, func(t *testing.T) {
+							testSubscribeTopics(t, compatibility, private, replay, request)
+						})
+					})
+				}
+			}
+		}
+	}
+}
+
+func testSubscribeTopics(t *testing.T, compatibility int, private, replay bool, request topicFieldsRequest) {
+	t.Helper()
+
+	var transport Transport = NewLocalTransport(NewSubscriberList(0))
+	if replay {
+		transport = createBoltTransport(t, 0, 0)
+	}
+
+	options := []Option{WithTransport(transport)}
+	if compatibility != 0 {
+		options = append(options, WithProtocolVersionCompatibility(compatibility))
+	}
+
+	hub := createDummy(t, options...)
+
+	update := &Update{
+		Topics: []string{
+			"https://example.com/books/1",
+			"https://example.com/users/42/books/1",
+			"https://example.com/users/7/books/1",
+			"https://example.com/users/42/inbox/1",
+		},
+		Data: "Foo", ID: "a", Private: private,
+	}
+	if replay {
+		require.NoError(t, transport.Dispatch(t.Context(), update))
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	// Routing selects the canonical topic; authorization selects only alternates.
+	req := httptest.NewRequest(request.method, defaultHubURL+"?"+request.query, strings.NewReader(request.body)).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Authorization", bearerPrefix+createDummySubscriberJWTWithDetails(t, nil,
+		TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/users/42/*"}))
+
+	if replay {
+		req.Header.Set("Last-Event-ID", EarliestLastEventID)
+	}
+
+	w := newSubscribeRecorder()
+
+	go hub.SubscribeHandler(w, req)
+
+	synctest.Wait()
+
+	if !replay {
+		require.NoError(t, transport.Dispatch(t.Context(), update))
+		synctest.Wait()
+	}
+
+	cancel()
+	synctest.Wait()
+
+	var fields string
+
+	if request.wantTopics {
+		if private {
+			fields = "topics: https://example.com/users/42/books/1\ntopics: https://example.com/users/42/inbox/1\n"
+		} else {
+			fields = "topics: https://example.com/books/1\ntopics: https://example.com/users/42/books/1\ntopics: https://example.com/users/7/books/1\ntopics: https://example.com/users/42/inbox/1\n"
+		}
+	}
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, fields+"id: a\ndata: Foo\n\n", w.Body.String())
 }

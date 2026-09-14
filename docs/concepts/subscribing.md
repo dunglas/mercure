@@ -158,8 +158,9 @@ Each event is a standard SSE message:
 
 ```text
 # What the hub sends
-id: urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 event: message
+topics: https://example.com/books/1
+id: urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 data: {"status": "checked out"}
 
 ```
@@ -168,7 +169,34 @@ Fields:
 
 - `id`: a unique identifier the hub assigns to every update. Clients send it back in `Last-Event-ID` to resume after a disconnect. See [Reconnection and history](reconnection-and-history.md).
 - `event`: the `type` field from the publish request, if any. Defaults to `message`. `EventSource` triggers `addEventListener("<type>", ...)` for non-default types.
+- `topics`: one field per topic of a public update, or per topic your token authorizes for a private update. Every update includes at least one. Fields preserve publication order after authorization filtering; the first topic is canonical only if the canonical topic is included.
 - `data`: whatever the publisher sent in `data`. Mercure does not interpret it; it's bytes you decided on (JSON, HTML, JSON Patch, plain text...).
+
+Topics need not match your subscription's routing pattern. For example, you can subscribe to
+`https://example.com/books/:id` while your token authorizes only `https://example.com/users/42/*`.
+A private update with topics `https://example.com/books/1` and
+`https://example.com/users/42/books/1` is delivered with
+`topics: https://example.com/users/42/books/1`.
+
+`topics` is a Mercure extension to the SSE format. Native browser `EventSource` ignores these
+fields and continues to receive events. To read them, use a parser that preserves repeated
+extension fields across network chunks. Collect the `topics` values for each event block in
+order, clear them at every blank-line block boundary, and discard pending values when the
+connection ends. Each new connection starts with an empty list.
+
+Some libraries report unknown fields as errors or can be configured to terminate on them.
+Ensure your parser accepts `topics` fields. The `eventsource-parser` unknown-field error callback
+alone is unsuitable: version 4.1.0 can discard unknown fields split across chunks.
+
+When [`protocol_version_compatibility`](../deployment/configuration.md) is set to `7` or `8`,
+only subscriptions using exclusively the legacy `topic` parameter omit `topics` fields.
+Requests containing `match` or `match_*` parameters receive them even with compatibility enabled,
+including requests that also contain `topic`. This applies to GET query parameters and QUERY
+body parameters, for both live and replayed updates. Legacy subscriptions and older hubs require
+topic information in the payload if needed.
+
+If your client is a plain `EventSource` and you need the topic, keep putting it in the payload
+on the publisher side.
 
 ## Discovering the Mercure hub via link header
 

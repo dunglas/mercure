@@ -104,3 +104,40 @@ func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 	for range s.Receive() { //nolint:revive
 	}
 }
+
+func TestAuthorizedTopics(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	s := NewLocalSubscriber("", slog.Default(), tms)
+	s.setMatchers([]TopicMatcher{
+		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/books/:id"},
+	}, []TopicMatcher{
+		{Type: MatcherTypeExact, Pattern: "https://example.com/alt/1"},
+	})
+
+	assert.Equal(
+		t,
+		[]string{"https://example.com/books/1", "https://example.com/not-subscribed", "https://example.com/alt/1"},
+		s.AuthorizedTopics(&Update{Topics: []string{
+			"https://example.com/books/1",
+			"https://example.com/not-subscribed",
+			"https://example.com/alt/1",
+		}}),
+	)
+
+	u := &Update{
+		Topics:  []string{"https://example.com/books/1", "https://example.com/alt/1"},
+		Private: true,
+	}
+	require.True(t, s.Match(u))
+	assert.Equal(
+		t,
+		[]string{"https://example.com/alt/1"},
+		s.AuthorizedTopics(u),
+	)
+
+	assert.Empty(t, s.AuthorizedTopics(&Update{Topics: []string{"https://example.com/not-authorized"}, Private: true}))
+}
