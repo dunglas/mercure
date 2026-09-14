@@ -1580,3 +1580,81 @@ func TestQuerySubscribeMediaTypeParametersAccepted(t *testing.T) {
 	}
 	hub.SubscribeHandler(w, req)
 }
+
+// A subscription that named no media type it will read is not refusing any,
+// and the most specific matching range decides. Only one refusing
+// text/event-stream is answered 406, there being nothing left to send it.
+func TestAcceptsEventStream(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		accept []string
+		want   bool
+	}{
+		"absent":                    {nil, true},
+		"empty":                     {[]string{""}, true},
+		"exact":                     {[]string{"text/event-stream"}, true},
+		"wildcard":                  {[]string{"*/*"}, true},
+		"type wildcard":             {[]string{"text/*"}, true},
+		"weighted":                  {[]string{"application/json;q=0.8, text/event-stream;q=0.2"}, true},
+		"refused exact":             {[]string{"text/event-stream;q=0"}, false},
+		"refused wildcard":          {[]string{"*/*;q=0"}, false},
+		"specific grant wins":       {[]string{"*/*;q=0, text/event-stream"}, true},
+		"specific refusal wins":     {[]string{"*/*, text/event-stream;q=0"}, false},
+		"other types only":          {[]string{"application/json"}, false},
+		"split over field lines":    {[]string{"application/json;q=0.8", "text/event-stream;q=0.2"}, true},
+		"split refusal":             {[]string{"application/json", "text/event-stream;q=0"}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+			for _, a := range tc.accept {
+				req.Header.Add("Accept", a)
+			}
+
+			assert.Equal(t, tc.want, acceptsEventStream(req))
+		})
+	}
+}
+
+// A subscription refusing the only media type the hub streams leaves nothing
+// to send it, whether it asked with GET or QUERY.
+func TestSubscribeRefusedResponseMediaTypeRejectedWith406(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		defaultHubURL+"?match=https://example.com/books/1", nil)
+	req.Header.Set("Accept", "text/event-stream;q=0")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusNotAcceptable, resp.StatusCode)
+}
+
+func TestQuerySubscribeRefusedResponseMediaTypeRejectedWith406(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusNotAcceptable, resp.StatusCode)
+}

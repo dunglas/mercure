@@ -11,8 +11,10 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
+	"github.com/elnormous/contenttype"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -248,6 +250,15 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		return nil, nil
 	}
 
+	// A subscriber refusing text/event-stream leaves nothing for the hub to
+	// send (RFC 9110, Section 12.5.1).
+	if !acceptsEventStream(r) {
+		http.Error(w, http.StatusText(http.StatusNotAcceptable), http.StatusNotAcceptable)
+		recordSpanError(span, errNotAcceptable)
+
+		return nil, nil
+	}
+
 	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
 
 	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
@@ -377,6 +388,42 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 // errUnsupportedSubscriptionMediaType rejects a QUERY subscription body
 // declaring a media type the hub cannot read.
 var errUnsupportedSubscriptionMediaType = errors.New("unsupported subscription media type")
+
+// errNotAcceptable rejects a subscription refusing the only media type the
+// hub can stream, leaving nothing to send it.
+var errNotAcceptable = errors.New("the request does not accept text/event-stream")
+
+// The only representation subscriptions are answered in, parsed once for
+// negotiation.
+//
+//nolint:gochecknoglobals
+var availableEventStream = []contenttype.MediaType{contenttype.NewMediaType("text/event-stream")}
+
+// acceptsEventStream reports whether the request's Accept header field allows
+// text/event-stream, per proactive content negotiation (RFC 9110, Section
+// 12.5.1): the most specific matching media range decides, so an explicit
+// text/event-stream wins over a "*/*;q=0" refusing everything else. An
+// absent or unreadable Accept states no preference.
+func acceptsEventStream(r *http.Request) bool {
+	// A blank Accept lists nothing, which the library reads as accepting
+	// nothing; treat it like an absent field instead.
+	joined := strings.TrimSpace(strings.Join(r.Header.Values("Accept"), ", "))
+	if strings.Trim(joined, ", ") == "" {
+		return true
+	}
+
+	// Field lines repeating Accept form one list (RFC 9110, Section 5.3);
+	// the library reads only the first line.
+	if len(r.Header.Values("Accept")) > 1 {
+		single := r.Clone(r.Context())
+		single.Header.Set("Accept", joined)
+		r = single
+	}
+
+	_, _, err := contenttype.GetAcceptableMediaType(r, availableEventStream)
+
+	return !errors.Is(err, contenttype.ErrNoAcceptableTypeFound)
+}
 
 // subscribeValues returns the subscription parameters. For GET and HEAD they
 // come from the URL query; for QUERY the application/x-www-form-urlencoded
