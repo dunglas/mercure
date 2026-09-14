@@ -1519,3 +1519,64 @@ func TestSubscriptionEventReachesTheSubscriberItDescribes(t *testing.T) {
 		return sub.Active && sub.Match == "/.well-known/mercure/subscriptions/:mt/:m/:s"
 	}), "the subscriber was not told about its own subscription")
 }
+
+// A QUERY naming no media type at all is incorrect by definition, so it is a
+// bad request rather than an unsupported one (RFC 10008, Section 2.3).
+func TestQuerySubscribeWithoutMediaTypeRejectedWith400(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// A QUERY naming a media type the hub cannot read as a subscription is
+// unsupported: its content is not read as a form (RFC 10008, Section 2.3).
+func TestQuerySubscribeUnsupportedMediaTypeRejectedWith415(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader(`{"match": "https://example.com/books/1"}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+}
+
+// Media type parameters do not change what the body is.
+func TestQuerySubscribeMediaTypeParametersAccepted(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1")).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+}

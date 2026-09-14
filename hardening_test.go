@@ -96,6 +96,8 @@ func TestQuerySubscribeBodyOverLimitRejectedWith413(t *testing.T) {
 
 	body := "match=" + strings.Repeat("a", 2048)
 	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
