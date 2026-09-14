@@ -114,6 +114,19 @@ xcaddy build \
   --with github.com/dunglas/mercure/caddy
 ```
 
+**Build with Go 1.26 or later.** That is the `go` directive in `caddy/go.mod`. Older toolchains fail the build outright, which includes the `caddy:2.8-builder` image (Go 1.23).
+
+To keep accepting 0.x clients during a migration, the two [compatibility-mode](../UPGRADE.md#compatibility-mode) build tags have to be compiled in. `xcaddy` passes `XCADDY_GO_BUILD_FLAGS` through to `go build`:
+
+```console
+# Custom Caddy build with compatibility mode
+XCADDY_GO_BUILD_FLAGS='-tags deprecated_topic,deprecated_claim' \
+  xcaddy build \
+  --with github.com/dunglas/mercure/caddy
+```
+
+The official binaries and Docker images already ship both tags. The tags only make the 0.x behaviors _available_; the hub still needs `protocol_version_compatibility` in its Caddyfile to honor them.
+
 Or use the [Caddy download page](https://caddyserver.com/download?package=github.com%2Fdunglas%2Fmercure%2Fcaddy) to assemble a build in the browser.
 
 ## Embedding the Mercure hub in a Go binary
