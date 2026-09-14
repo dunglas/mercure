@@ -110,7 +110,7 @@ func (h *Hub) corsHandler(router http.Handler) http.Handler {
 		// and the Mercure-Last-Event-Id field a subscription answers with:
 		// without it, a fetch-based cross-origin subscriber cannot detect
 		// data loss when resuming.
-		ExposedHeaders: []string{"Link", "Mercure-Last-Event-Id"},
+		ExposedHeaders: []string{"Link", "Mercure-Last-Event-Id", "Accept-Query"},
 		Debug:          h.debug,
 	}).Handler(router)
 }

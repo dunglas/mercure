@@ -1658,3 +1658,45 @@ func TestQuerySubscribeRefusedResponseMediaTypeRejectedWith406(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotAcceptable, resp.StatusCode)
 }
+
+// A subscription is answered with the media types a QUERY body can express it
+// in, so a client learns what the hub reads (RFC 10008, Section 3) — on
+// refusals included: a client told 415 needs to know what to send instead.
+func TestSubscribeAcceptQuery(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "application/x-www-form-urlencoded", w.Header().Get("Accept-Query"))
+}
+
+func TestSubscribeAcceptQueryOnUnsupportedMediaType(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
+}

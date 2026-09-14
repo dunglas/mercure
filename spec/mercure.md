@@ -124,7 +124,10 @@ and value constraints below apply identically to the body-decoded names and valu
 A server does not infer a media type from the content a request carries [@RFC10008]: hubs
 **MUST** reject a body-carrying subscription request without a `Content-Type` field with a
 400 "Bad Request" HTTP status code, and one declaring a media type the hub does not read
-subscriptions in with a 415 "Unsupported Media Type" HTTP status code.
+subscriptions in with a 415 "Unsupported Media Type" HTTP status code. Hubs accepting
+body-carried parameters **SHOULD** advertise the media types they read in an `Accept-Query`
+response header field [@RFC10008], on error responses included, so that a rejected client
+learns what it should have sent.
 
 A request carrying such a body **MAY** also carry parameters in the query component. The hub
 **MUST** then take the union of the two: every name/value pair from the query component and
