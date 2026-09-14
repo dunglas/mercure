@@ -1591,19 +1591,19 @@ func TestAcceptsEventStream(t *testing.T) {
 		accept []string
 		want   bool
 	}{
-		"absent":                    {nil, true},
-		"empty":                     {[]string{""}, true},
-		"exact":                     {[]string{"text/event-stream"}, true},
-		"wildcard":                  {[]string{"*/*"}, true},
-		"type wildcard":             {[]string{"text/*"}, true},
-		"weighted":                  {[]string{"application/json;q=0.8, text/event-stream;q=0.2"}, true},
-		"refused exact":             {[]string{"text/event-stream;q=0"}, false},
-		"refused wildcard":          {[]string{"*/*;q=0"}, false},
-		"specific grant wins":       {[]string{"*/*;q=0, text/event-stream"}, true},
-		"specific refusal wins":     {[]string{"*/*, text/event-stream;q=0"}, false},
-		"other types only":          {[]string{"application/json"}, false},
-		"split over field lines":    {[]string{"application/json;q=0.8", "text/event-stream;q=0.2"}, true},
-		"split refusal":             {[]string{"application/json", "text/event-stream;q=0"}, false},
+		"absent":                 {nil, true},
+		"empty":                  {[]string{""}, true},
+		"exact":                  {[]string{"text/event-stream"}, true},
+		"wildcard":               {[]string{"*/*"}, true},
+		"type wildcard":          {[]string{"text/*"}, true},
+		"weighted":               {[]string{"application/json;q=0.8, text/event-stream;q=0.2"}, true},
+		"refused exact":          {[]string{"text/event-stream;q=0"}, false},
+		"refused wildcard":       {[]string{"*/*;q=0"}, false},
+		"specific grant wins":    {[]string{"*/*;q=0, text/event-stream"}, true},
+		"specific refusal wins":  {[]string{"*/*, text/event-stream;q=0"}, false},
+		"other types only":       {[]string{"application/json"}, false},
+		"split over field lines": {[]string{"application/json;q=0.8", "text/event-stream;q=0.2"}, true},
+		"split refusal":          {[]string{"application/json", "text/event-stream;q=0"}, false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -1699,4 +1699,27 @@ func TestSubscribeAcceptQueryOnUnsupportedMediaType(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
 	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
+}
+
+// A subscription asks intermediaries to forward each chunk as it is produced
+// rather than buffered (RFC 10036), which SSE needs as much as any
+// incremental response.
+func TestSubscribeIncremental(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "?1", w.Header().Get("Incremental"))
 }

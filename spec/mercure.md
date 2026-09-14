@@ -230,7 +230,8 @@ Event streams are long-lived responses and interact poorly with intermediaries t
 responses or terminate idle connections. When no update has been dispatched for an
 implementation-defined period, hubs **SHOULD** send an SSE comment line (a line starting with
 `:` [@!HTML]) as a keep-alive, and deployments **SHOULD** configure intermediaries not to
-buffer event streams.
+buffer event streams. Hubs **SHOULD** also signal incremental delivery to intermediaries with
+an `Incremental: ?1` response header field [@RFC10036].
 
 The `data` property **MUST** contain the topic's new version. It **MAY** be the full resource or
 a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396].

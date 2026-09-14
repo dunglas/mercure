@@ -363,6 +363,11 @@ var (
 	// Accept-Query advertises the media type of the QUERY request body
 	// (RFC 10008): the subscription parameters, form-encoded as for GET.
 	headerAcceptQuery = []string{"application/x-www-form-urlencoded"}
+
+	// Incremental (RFC 10036) tells intermediaries to forward each chunk as
+	// it is produced instead of buffering the response, the standardized
+	// counterpart of X-Accel-Buffering above.
+	headerIncremental = []string{"?1"}
 )
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
@@ -381,6 +386,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
+	header["Incremental"] = headerIncremental
 
 	if s.RequestLastEventIDSet {
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
