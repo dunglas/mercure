@@ -40,16 +40,14 @@ func TestMultipartDigestEncoderBoundaryIsRandom(t *testing.T) {
 	assert.NotEqual(t, a.boundary, b.boundary)
 }
 
-// 16 hyphens and 16 random hex characters, the shape many browsers and HTTP
-// libraries write.
+// 60 random hex characters: RFC 2046 caps a boundary at 70, and delimiter
+// scanning is only safe when a payload cannot be crafted to contain it.
 func TestMultipartDigestEncoderBoundaryShape(t *testing.T) {
 	t.Parallel()
 
 	boundary := newDigestEncoder(t).boundary
 
-	assert.Len(t, boundary, 32)
-	assert.Equal(t, strings.Repeat("-", 16), boundary[:16])
-	assert.Regexp(t, "^[0-9a-f]{16}$", boundary[16:])
+	assert.Regexp(t, "^[0-9a-f]{60}$", boundary)
 }
 
 func TestMultipartDigestEncoderEncode(t *testing.T) {
