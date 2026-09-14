@@ -234,6 +234,10 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	h.limitRequestBody(w, r)
 
+	// Advertised on every answer, refusals included: a client told 415 needs
+	// to know what it should have sent (RFC 10008, Section 3).
+	w.Header()["Accept-Query"] = headerAcceptQuery
+
 	values, err := h.subscribeValues(r)
 	if err != nil {
 		status := http.StatusBadRequest
@@ -355,6 +359,10 @@ var (
 	headerExpire       = []string{"0"}
 
 	headerXAccelBuffering = []string{"no"}
+
+	// Accept-Query advertises the media type of the QUERY request body
+	// (RFC 10008): the subscription parameters, form-encoded as for GET.
+	headerAcceptQuery = []string{"application/x-www-form-urlencoded"}
 )
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
