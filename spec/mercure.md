@@ -218,7 +218,10 @@ If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscri
 to receive it. See (#authorization).
 
 The hub **MUST** send these updates as `text/event-stream`-compliant events
-[@!HTML].
+[@!HTML]. A subscription request whose `Accept` header field does not allow
+`text/event-stream` under proactive content negotiation [@!RFC9110] refuses the only
+representation the hub can send, and **MUST** be rejected with a 406 "Not Acceptable" HTTP
+status code; an absent `Accept` field states no preference.
 
 Event streams are long-lived responses and interact poorly with intermediaries that buffer
 responses or terminate idle connections. When no update has been dispatched for an
