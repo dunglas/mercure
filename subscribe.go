@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"math/rand/v2"
+	"mime"
 	"net/http"
 	"net/url"
 	"time"
@@ -237,6 +238,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			status = http.StatusRequestEntityTooLarge
+		} else if errors.Is(err, errUnsupportedSubscriptionMediaType) {
+			status = http.StatusUnsupportedMediaType
 		}
 
 		http.Error(w, http.StatusText(status), status)
@@ -371,6 +374,10 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	}
 }
 
+// errUnsupportedSubscriptionMediaType rejects a QUERY subscription body
+// declaring a media type the hub cannot read.
+var errUnsupportedSubscriptionMediaType = errors.New("unsupported subscription media type")
+
 // subscribeValues returns the subscription parameters. For GET and HEAD they
 // come from the URL query; for QUERY the application/x-www-form-urlencoded
 // request body is parsed and merged on top, so a subscriber can pass topics
@@ -380,6 +387,19 @@ func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
 	values := r.URL.Query()
 	if r.Method != methodQuery {
 		return values, nil
+	}
+
+	// A QUERY naming no media type is incorrect by definition, and one naming
+	// a media type the hub cannot read as a subscription is unsupported
+	// (RFC 10008, Section 2.3). Neither is read as a form: a server does not
+	// infer a media type from the content it carries.
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid QUERY request Content-Type: %w", err)
+	}
+
+	if mediaType != "application/x-www-form-urlencoded" {
+		return nil, fmt.Errorf("%w: %q", errUnsupportedSubscriptionMediaType, mediaType)
 	}
 
 	body, err := io.ReadAll(r.Body)

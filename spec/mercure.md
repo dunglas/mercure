@@ -121,6 +121,10 @@ subscribers can send topic matcher lists too large for the URI length limits of
 intermediaries. When the parameters are carried in the request body, they **MUST** be
 encoded as `application/x-www-form-urlencoded` [@!URL], and the reserved-namespace rule
 and value constraints below apply identically to the body-decoded names and values.
+A server does not infer a media type from the content a request carries [@RFC10008]: hubs
+**MUST** reject a body-carrying subscription request without a `Content-Type` field with a
+400 "Bad Request" HTTP status code, and one declaring a media type the hub does not read
+subscriptions in with a 415 "Unsupported Media Type" HTTP status code.
 
 A request carrying such a body **MAY** also carry parameters in the query component. The hub
 **MUST** then take the union of the two: every name/value pair from the query component and
