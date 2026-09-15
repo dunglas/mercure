@@ -83,7 +83,11 @@ jobs:
           gh release upload "$RELEASE_TAG" .cr-release-packages/* --clobber
 
       - name: Update Helm chart repo index
-        uses: helm/chart-releaser-action@cae68fefc6b5f367a0275617c9f83181ba54714f # v1.7.0
+        # Pinned past v1.7.0: with skip_packaging the released cr.sh reads an
+        # unset `latest_tag` under `set -u` and fails the job after the index
+        # has already been pushed. Fixed in helm/chart-releaser-action#202,
+        # unreleased at the time of writing.
+        uses: helm/chart-releaser-action@3e001cb8c68933439c7e721650f20a07a1a5c61e # main, post-v1.7.0
         with:
           skip_packaging: true
           skip_existing: true
