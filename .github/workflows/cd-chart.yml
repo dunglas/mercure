@@ -3,6 +3,14 @@ name: Release Chart
 on:
   release:
     types: [published]
+  # Backfill: releases cut while the signing step was broken carry no chart
+  # asset, and `release: published` cannot be replayed for them.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to package the chart for (e.g. v1.0.0-beta.1)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,16 +19,18 @@ permissions:
 
 jobs:
   release:
-    if: startsWith(github.event.release.tag_name, 'v')
+    if: startsWith(github.event.release.tag_name || inputs.tag, 'v')
     runs-on: ubuntu-latest
     environment: release
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Configure Git
         run: |
@@ -69,7 +79,6 @@ jobs:
       - name: Upload Helm chart to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           gh release upload "$RELEASE_TAG" .cr-release-packages/* --clobber
 
