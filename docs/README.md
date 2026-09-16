@@ -22,6 +22,7 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 - [Publishing](concepts/publishing.md): the POST side
 - [Update payloads](concepts/update-payloads.md): envelopes for the `data` field, ActivityStreams 2.0
 - [Authorization](concepts/authorization.md): OAuth 2.0 access tokens, `authorization_details`, cookies
+- [Authorization servers](concepts/authorization-servers.md): issuing tokens from Keycloak or another OAuth 2.0 server
 - [Discovery](concepts/discovery.md): finding the hub and its protected resource metadata
 - [Reconnection and history](concepts/reconnection-and-history.md): `Last-Event-ID`, replay
 - [Active subscriptions](concepts/active-subscriptions.md): presence and the subscription API
