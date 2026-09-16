@@ -317,7 +317,7 @@ mercure {
 }
 ```
 
-The hub fetches and caches the keys, rotates them when the provider does, and validates each token against the matching `kid`. See [Configuration](../deployment/configuration.md#jwt-validation-via-jwks).
+The hub fetches and caches the keys, rotates them when the provider does, and validates each token against the matching `kid`. See [Authorization servers](authorization-servers.md) for what the issuer must put in the token and how to configure Keycloak, and [Configuration](../deployment/configuration.md#jwt-validation-via-jwks) for the directive reference.
 
 ## Verifying tokens with RSA and ECDSA keys
 
