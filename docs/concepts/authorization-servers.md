@@ -88,7 +88,7 @@ See [Discovery](discovery.md) for the client side, and [Configuration](../deploy
 
 The hub does not care how `authorization_details` was produced, only that the server signed it. There are two ways to get there.
 
-**Natively.** A server implementing RFC 9396 accepts an `authorization_details` parameter on the authorization or token request, validates it against what the client and user are actually allowed, and echoes the approved set back in the token. Clients ask for what they need and get a subset. This is the model the protocol was designed for, and it needs no Mercure-specific server configuration beyond registering the detail type.
+**Natively.** A server implementing RFC 9396 accepts an `authorization_details` parameter on the authorization or token request, validates it against what the client and user are actually allowed, and echoes the approved set back in the token. Clients ask for what they need and get a subset. This is the model the protocol was designed for, and it needs no Mercure-specific server configuration beyond registering the detail type. Among open-source servers, [node-oidc-provider](https://github.com/panva/node-oidc-provider) supports RFC 9396 out of the box, and already stamps the `at+jwt` header the hub requires.
 
 **Through a claim mapper.** Most deployed servers do not implement RFC 9396 yet, but nearly all can inject a custom claim into an access token: a mapper, hook, action, or rule, depending on the vendor. Store each subject's grants alongside the account and map them into `authorization_details` at token time. The token is identical on the wire; only the negotiation is missing.
 
@@ -196,6 +196,23 @@ curl -s -X POST https://auth.example.com/realms/main/protocol/openid-connect/tok
 The header must read `"typ": "at+jwt"`, and `authorization_details` must be a JSON array, not a string. A quoted string is the usual symptom of a missing `jsonType.label`.
 
 A complete runnable setup, with a hub, a Keycloak realm and a small application wired together in Docker Compose, is available at [dunglas/demo-mercure-keycloak](https://github.com/dunglas/demo-mercure-keycloak).
+
+### Letting Keycloak clients narrow their own tokens
+
+A claim mapper gives every token of a subject the same grants. To get the negotiation RFC 9396 describes, where a client asks for a subset of what it may have, Keycloak needs a provider: [dunglas/keycloak-rar](https://github.com/dunglas/keycloak-rar) implements one for the Mercure detail type.
+
+It exists because Keycloak validates an `authorization_details` request but writes the result to the token endpoint's JSON response body, never to the access token, so the claim never reaches the hub on its own. The provider pairs the validation with a protocol mapper that puts the approved set in the token.
+
+With it, a client that only needs one topic for one session asks for it, and the token it gets is worth nothing more:
+
+```console
+# Letting Keycloak clients narrow their own tokens
+curl -X POST https://auth.example.com/realms/main/protocol/openid-connect/token \
+  -d grant_type=client_credentials -d client_id=publisher -d client_secret="$SECRET" \
+  --data-urlencode 'authorization_details=[{"type":"https://mercure.rocks/authorization-detail","actions":["publish"],"topics":[{"match":"https://example.com/books/1"}]}]'
+```
+
+Requesting more than the subject is granted is refused with `400 invalid_authorization_details` on the authorization code grant. Read that project's notes before deploying it: it builds on a private Keycloak SPI that changes between minor releases.
 
 ## Letting clients ask for less
 
