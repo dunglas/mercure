@@ -9,8 +9,14 @@ on:
       - main
     tags:
       - v*.*.*
+  # Backfill: once a tag is in the Go checksum database it cannot be moved, so
+  # a failed tag-triggered run cannot be replayed by re-pushing the tag.
   workflow_dispatch:
-    inputs: {}
+    inputs:
+      tag:
+        description: "Existing tag to release (e.g. v1.0.0). Leave empty for a snapshot build."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -23,13 +29,17 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
-    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || '' }}
+    environment: ${{ (startsWith(github.ref, 'refs/tags/v') || inputs.tag) && 'release' || '' }}
+    env:
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
+          # Empty means the triggering ref, which is what snapshot builds want.
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -42,14 +52,14 @@ jobs:
             caddy/go.sum
 
       - name: Login to Docker Hub
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_TAG != ''
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Import GPG key
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_TAG != ''
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
@@ -57,22 +67,27 @@ jobs:
           passphrase: ${{ secrets.PASSPHRASE }}
 
       - name: Set GoReleaser Git tags
+        if: env.RELEASE_TAG != ''
         run: |
-          tags=$(git tag --list --sort=-version:refname 'v*')
-          echo "GORELEASER_CURRENT_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
-          echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==2 {print;exit}' <<< "$tags")"  >> "$GITHUB_ENV"
+          # `--sort=version:refname` has no notion of semver prereleases and
+          # ranks v1.0.0-beta.1 above v1.0.0, so reading the current tag off the
+          # sorted list pointed GoReleaser at the beta when 1.0.0 was cut. Take
+          # it from the ref and keep the list only for the previous tag.
+          tags=$(git tag --list --sort=-version:refname 'v*' | grep -Fxv "$RELEASE_TAG" || true)
+          echo "GORELEASER_CURRENT_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
+          echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")" >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           version: latest
-          args: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'build --single-target --snapshot' }} --clean --timeout 60m
+          args: ${{ env.RELEASE_TAG != '' && 'release' || 'build --single-target --snapshot' }} --clean --timeout 60m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ startsWith(github.ref, 'refs/tags/v') && steps.import_gpg.outputs.fingerprint || '' }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
 
       - name: Attest release artifacts
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_TAG != ''
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
@@ -86,13 +101,13 @@ jobs:
 
       - name: Inspect Caddy Docker manifest
         id: caddy_image
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_TAG != ''
         run: |
-          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "dunglas/mercure:${GITHUB_REF_NAME}")
+          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "dunglas/mercure:${RELEASE_TAG}")
           echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Attest Caddy Docker manifest
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.RELEASE_TAG != ''
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           # docker.io/ prefix is required: actions/attest splits subject-name
@@ -105,7 +120,7 @@ jobs:
         run: dist/caddy_linux_amd64_v1/mercure version
 
       - name: Upload snapshot
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: env.RELEASE_TAG == ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: snapshot
