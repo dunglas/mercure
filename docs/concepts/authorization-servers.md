@@ -13,14 +13,14 @@ Any authorization server works, as long as it can put an [RFC 9396](https://www.
 
 The hub accepts a token when all of the following hold. Most are plain [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) requirements that any compliant server already satisfies.
 
-| Requirement             | Value                                                                                                                |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `typ` header            | `at+jwt`. Servers that default to `JWT` need to be told; the hub rejects anything else.                              |
-| `iss` claim             | Exactly the identifier configured in the hub's `issuer` block.                                                       |
-| `aud` claim             | Contains the hub's resource identifier. Extra audiences are fine.                                                    |
-| `exp` claim             | Required. Keep it short: minutes, not days.                                                                          |
-| Signature               | An asymmetric algorithm whose public key is published in a JWK Set. The hub only ever holds public keys.             |
-| `authorization_details` | One or more entries of type `https://mercure.rocks/authorization-detail`.                                            |
+| Requirement             | Value                                                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| `typ` header            | `at+jwt`. Servers that default to `JWT` need to be told; the hub rejects anything else.                  |
+| `iss` claim             | Exactly the identifier configured in the hub's `issuer` block.                                           |
+| `aud` claim             | Contains the hub's resource identifier. Extra audiences are fine.                                        |
+| `exp` claim             | Required. Keep it short: minutes, not days.                                                              |
+| Signature               | An asymmetric algorithm whose public key is published in a JWK Set. The hub only ever holds public keys. |
+| `authorization_details` | One or more entries of type `https://mercure.rocks/authorization-detail`.                                |
 
 A Mercure authorization detail grants a set of actions over a set of [topic matchers](topics-and-matchers.md):
 
@@ -77,12 +77,14 @@ curl https://hub.example.com/.well-known/oauth-protected-resource/.well-known/me
   "resource": "https://hub.example.com/.well-known/mercure",
   "bearer_methods_supported": ["header"],
   "authorization_servers": ["https://auth.example.com/realms/main"],
-  "authorization_details_types_supported": ["https://mercure.rocks/authorization-detail"],
+  "authorization_details_types_supported": [
+    "https://mercure.rocks/authorization-detail"
+  ],
   "mercure_cookie": "__Secure-mercure_access_token"
 }
 ```
 
-See [Discovery](discovery.md) for the client side, and [Configuration](../deployment/configuration.md#jwt-validation-via-jwks) for the full directive reference.
+See [Discovery](discovery.md) for the client-side, and [Configuration](../deployment/configuration.md#jwt-validation-via-jwks) for the full directive reference.
 
 ## Two ways the claim gets into the token
 
@@ -239,13 +241,13 @@ The server returns the approved subset in the token. With a claim mapper, the sa
 
 ## Troubleshooting
 
-| Symptom                                                          | Cause                                                                                     |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `401 invalid_token`, token looks fine                            | `typ` is `JWT` instead of `at+jwt`, or `iss` does not match the `issuer` block byte for byte |
-| `401 invalid_token` right after switching servers                | The hub is verifying with the other issuer's keys: each server needs its own block          |
-| `401 invalid_token`, `authorization_details` present             | The claim is a JSON string rather than an array, or a `topics` entry is a bare string       |
-| `403 insufficient_scope` on publish                              | No entry grants `publish` on that topic; alternate topics each need their own grant         |
-| Subscriber connects but never receives private updates           | No entry grants `subscribe` on the update's topic                                           |
-| Hub logs a JWKS fetch failure                                    | `jwks_uri` is unreachable from the hub, which may need the private address, not the public one |
+| Symptom                                                | Cause                                                                                          |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `401 invalid_token`, token looks fine                  | `typ` is `JWT` instead of `at+jwt`, or `iss` does not match the `issuer` block byte for byte   |
+| `401 invalid_token` right after switching servers      | The hub is verifying with the other issuer's keys: each server needs its own block             |
+| `401 invalid_token`, `authorization_details` present   | The claim is a JSON string rather than an array, or a `topics` entry is a bare string          |
+| `403 insufficient_scope` on publish                    | No entry grants `publish` on that topic; alternate topics each need their own grant            |
+| Subscriber connects but never receives private updates | No entry grants `subscribe` on the update's topic                                              |
+| Hub logs a JWKS fetch failure                          | `jwks_uri` is unreachable from the hub, which may need the private address, not the public one |
 
 [Troubleshooting](../production/troubleshooting.md) covers the general cases.
