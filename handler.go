@@ -86,6 +86,23 @@ func (h *Hub) initHandler() {
 	h.handler = secureMiddleware.Handler(h.corsHandler(router))
 }
 
+// spansArbitraryOrigins reports whether a configured CORS origin can match
+// hosts the operator did not enumerate. rs/cors treats any "*" in an entry as a
+// wildcard, so "https://*" and "https://*.com" reflect an attacker's Origin as
+// readily as "*" does. Only "<scheme>://*.<host>", whose wildcard is confined
+// to the subdomain labels of one host, keeps a credentialed response bound to
+// an allowlist.
+func spansArbitraryOrigins(origin string) bool {
+	prefix, suffix, found := strings.Cut(origin, "*")
+	if !found {
+		return false
+	}
+
+	return !strings.HasSuffix(prefix, "://") ||
+		!strings.HasPrefix(suffix, ".") ||
+		strings.Contains(suffix, "*")
+}
+
 // corsHandler wraps the router with CORS when origins are configured,
 // otherwise returns it unchanged.
 func (h *Hub) corsHandler(router http.Handler) http.Handler {
@@ -97,8 +114,10 @@ func (h *Hub) corsHandler(router http.Handler) http.Handler {
 	// with credentials: cookies cross origins only when the allowed origins
 	// form an explicit allowlist. With "*", credentialed responses are
 	// rejected by browsers anyway, so disable credentials instead of shipping
-	// a header pair that can never work.
-	allowCredentials := !slices.Contains(h.corsOrigins, "*")
+	// a header pair that can never work. A pattern that is not literally "*"
+	// but still spans arbitrary hosts is worse: rs/cors reflects the request's
+	// Origin, which browsers do accept alongside credentials.
+	allowCredentials := !slices.ContainsFunc(h.corsOrigins, spansArbitraryOrigins)
 
 	return cors.New(cors.Options{
 		AllowedOrigins:   h.corsOrigins,
