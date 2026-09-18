@@ -118,7 +118,7 @@ func (h *Hub) corsHandler(router http.Handler) http.Handler {
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Reject a request whose origin is not in the public-URL allowlist before
 	// deriving any identity from it (see requestIdentity). The origin is the one
-	// an embedding server resolved (the Caddy module, from Caddy's trusted
+	// an embedding server resolved (the Caddy module, from Caddy's request
 	// placeholders), else the request's own scheme and Host.
 	if len(h.allowedOrigins) > 0 {
 		scheme, host := h.requestOrigin(r)

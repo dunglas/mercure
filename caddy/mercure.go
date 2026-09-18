@@ -453,11 +453,11 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
-	// Resolve the public origin from Caddy's request placeholders so it honors
-	// the trusted_proxies configuration rather than raw forwarded headers. The
-	// hub derives its OAuth resource identifier and RFC 9728 metadata URL from
-	// it (a hub reachable through several public URLs needs no configuration),
-	// and enforces the public_urls allowlist against this trusted origin.
+	// Resolve the public origin from Caddy's request placeholders, which report
+	// the request's own Host and TLS state and honor no forwarded header — so a
+	// hub behind a TLS terminator derives http://, and pinning the https://
+	// identity needs resource_identifier. The hub derives its RFC 9728 metadata
+	// from this origin and enforces public_urls against it.
 	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer) //nolint:forcetypeassert
 	host, _ := repl.GetString("http.request.hostport")
 	scheme, _ := repl.GetString("http.request.scheme")
@@ -465,7 +465,7 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	// Pass the origin out-of-band via the context, never by mutating r.URL: the
 	// playground handler builds its rel="self" Link from r.URL.String(), which
 	// must stay a relative path. Writing scheme/host onto r.URL would corrupt
-	// that Link (and diverge under trusted_proxies).
+	// that Link by turning it into an absolute URL.
 	m.hub.ServeHTTP(w, r.WithContext(mercure.NewRequestOriginContext(r.Context(), scheme, host)))
 
 	return nil

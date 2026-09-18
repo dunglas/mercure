@@ -65,3 +65,33 @@ func TestServeHTTPRejectsOriginNotInAllowlist(t *testing.T) {
 	hub.ServeHTTP(w, r)
 	assert.NotEqual(t, http.StatusMisdirectedRequest, w.Result().StatusCode)
 }
+
+// A request carrying no Host (HTTP/1.0) leaves a hub with no configured
+// resource identifier without an identity. Modern mode must then reject every
+// token rather than validate it with no audience constraint, and the RFC 9728
+// metadata document, whose "resource" member is required, must not be served.
+func TestNoRequestIdentityFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	hub, err := NewHub(t.Context(), testIssuerOption(), WithTopicMatcherStore(tms))
+	require.NoError(t, err)
+	require.Empty(t, hub.resourceIdentifier)
+
+	token := mintAccessToken([]byte("subscriber"), "https://other.example.com/.well-known/mercure", nil)
+
+	r, err := http.NewRequest(http.MethodGet, defaultHubURL, nil) //nolint:noctx
+	require.NoError(t, err)
+	require.Empty(t, r.Host)
+
+	r.Header.Set("Authorization", bearerPrefix+token)
+
+	_, err = hub.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+
+	w := httptest.NewRecorder()
+	hub.ProtectedResourceMetadataHandler(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+}

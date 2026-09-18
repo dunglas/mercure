@@ -140,7 +140,7 @@ Subscription documents are now serialised compactly, and `<`, `>` and `&` are no
 
 `resource_identifier`, `public_urls`, and RFC 9728 discovery have no 0.x equivalent. There's no prior config to translate here, only something new to configure if you want it.
 
-- The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity.
+- The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity. List the origins the hub itself receives, scheme included: behind a TLS-terminating proxy that is the `http://` form (see [Reverse proxies](deployment/reverse-proxy.md)).
 
 #### Changed configuration
 

@@ -215,7 +215,7 @@ Same-origin sidesteps CORS entirely. Same-origin also means the cookie can be `D
 
 ## Set `USE_FORWARDED_HEADERS` carefully on the Mercure hub
 
-The hub can read `X-Forwarded-*` and the RFC 7239 `Forwarded` header to know the original client IP and scheme:
+The hub can read `X-Forwarded-*` and the RFC 7239 `Forwarded` header to know the original client IP:
 
 ```caddyfile
 # Set USEFORWARDEDHEADERS Carefully on the Mercure Hub
@@ -227,6 +227,18 @@ The hub can read `X-Forwarded-*` and the RFC 7239 `Forwarded` header to know the
 ```
 
 Only trust these headers when the proxy in front of the hub strips or replaces them on every request. If clients can send their own `X-Forwarded-For` and the hub trusts it, your IP-based logic is wrong.
+
+`trusted_proxies` resolves the client IP only. The hub derives the scheme of its own public identity from the connection it terminates, so behind a proxy that terminates TLS it derives `http://`: the OAuth 2.0 resource identifier it expects as the token `aud`, and the RFC 9728 metadata URL it advertises, are `http://` too.
+
+Set `resource_identifier` to the public `https://` URL to fix that:
+
+```caddyfile
+mercure {
+  resource_identifier https://example.com/.well-known/mercure
+}
+```
+
+`public_urls` does not fix it, and does not belong here: it pins the scheme of the origin the hub *receives*, so listing the `https://` form on a hub that is reached over plain HTTP rejects every request with `421 Misdirected Request`. Use it on a catch-all site block reached directly over TLS.
 
 ## Next steps for Mercure reverse proxies
 

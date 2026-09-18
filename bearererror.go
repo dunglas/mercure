@@ -100,7 +100,8 @@ func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code st
 // host matching and the optional public_urls allowlist) — a raw Host or
 // X-Forwarded-Proto header could otherwise point discovery at an attacker
 // origin. Returns empty strings when no identifier is configured and no origin
-// is available (only reached in compatibility mode without an identifier).
+// is available — reached in every mode by a request carrying no Host, where
+// modern mode then refuses every token (see validateJWT).
 func (h *Hub) requestIdentity(r *http.Request) (identifier, metadataURL string) {
 	if h.resourceIdentifier != "" {
 		return h.resourceIdentifier, h.resourceMetadataURL

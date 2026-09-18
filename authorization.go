@@ -153,7 +153,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 
 // jwtParserOptions returns the RFC 9068 parser checks enforced in modern mode:
 // a required audience matching the hub's per-request resource identifier
-// (expectedAudience) and a required exp. In compatibility mode (deprecated_claim builds with
+// (expectedAudience, never empty: validateJWT refuses that) and a required exp. In compatibility mode (deprecated_claim builds with
 // WithProtocolVersionCompatibility) these checks are relaxed. The accepted
 // algorithms are pinned here (RFC 8725) so the algorithm can never be taken
 // from the token header: they come from the selected issuer's Verifier (a
@@ -172,14 +172,9 @@ func (h *Hub) jwtParserOptions(algs []string, expectedAudience string) []jwt.Par
 
 	opts = append(opts, jwt.WithExpirationRequired())
 
-	// Enforce the audience only when the hub has one (the statically configured
-	// resource identifier, or the per-request identity derived from the public
-	// URL the client contacted). Compatibility mode on a build without the
-	// deprecated_claim tag still reaches this path (compatClaimsEnabled is a
-	// no-op stub there) with an empty audience; golang-jwt treats an empty
-	// expected audience as a required claim, so enforcing it would reject every
-	// otherwise-valid token.
-	if expectedAudience != "" {
+	// Compatibility mode predates RFC 9068 and has no hub identity to check
+	// against, so it is the only mode that skips the audience.
+	if h.protocolVersionCompatibility == 0 {
 		opts = append(opts, jwt.WithAudience(expectedAudience))
 	}
 
@@ -223,6 +218,12 @@ func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, e
 // validateJWT parses and validates an access token, returning its claims with
 // the mercure authorization details resolved into c.authz.
 func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience string) (*claims, error) {
+	// Fail closed: with no identity to bind the token to, parsing without
+	// jwt.WithAudience accepts one audienced anywhere, or carrying no aud at all.
+	if expectedAudience == "" && h.protocolVersionCompatibility == 0 {
+		return nil, fmt.Errorf("%w: the hub has no resource identifier to check the audience against", ErrInvalidJWT)
+	}
+
 	rv, err := h.selectVerifier(encodedToken, publish)
 	if err != nil {
 		return nil, err
