@@ -27,6 +27,12 @@ var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 const (
 	maxClaimMatchers = 1000 // mercure.subscribe / mercure.publish array
 	maxPublishTopics = 1000 // "topic" form fields on publish
+	// maxEventIDLength bounds the publisher-supplied "id". It is echoed in the
+	// ETag and the rel="mercure" Link header of every subscription API
+	// response, and in the Mercure-Last-Event-Id header, so an unbounded one
+	// turns a single small publish into megabytes of response headers on every
+	// later request — and persists, surviving a restart.
+	maxEventIDLength = 1024
 	// Subscribe-side matcher count is capped by maxMatcherCount
 	// (subscribematchers.go).
 )
@@ -36,7 +42,7 @@ const (
 var (
 	ErrReservedTopic     = errors.New(`topic value resolves into the reserved "/.well-known/mercure" namespace`)
 	ErrReservedWildcard  = errors.New(`topic value "*" is reserved for the wildcard matcher and cannot be published`)
-	ErrInvalidEventID    = errors.New(`"id" field contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
+	ErrInvalidEventID    = errors.New(`"id" field is too long, contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
 	ErrInvalidEventType  = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
 	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
@@ -97,7 +103,7 @@ func (u *Update) Validate(baseURL string) error {
 	// reserved for hub-generated fragment IDs and "earliest" for the reserved
 	// last-event-id value; accepting either from a publisher would corrupt
 	// reconnection cursors.
-	if !validProtocolString(u.ID) ||
+	if !validProtocolString(u.ID) || len(u.ID) > maxEventIDLength ||
 		strings.HasPrefix(u.ID, "#") || u.ID == EarliestLastEventID {
 		return ErrInvalidEventID
 	}

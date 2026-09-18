@@ -489,6 +489,7 @@ func TestUpdateValidate(t *testing.T) {
 		{"non-reserved sibling path", Update{Topics: []string{"https://example.com/.well-known/mercure-dashboard"}}, nil},
 		{"non-reserved opaque topic", Update{Topics: []string{"urn:example:mercure"}}, nil},
 		{"id starts with #", Update{Topics: []string{"https://example.com/books/1"}, ID: "#42"}, ErrInvalidEventID},
+		{"id too long", Update{Topics: []string{"https://example.com/books/1"}, ID: strings.Repeat("a", maxEventIDLength+1)}, ErrInvalidEventID},
 		{"id earliest", Update{Topics: []string{"https://example.com/books/1"}, ID: EarliestLastEventID}, ErrInvalidEventID},
 		{"topic NUL", Update{Topics: []string{"https://example.com/foo\x00bar"}}, ErrInvalidTopic},
 		{"topic C0", Update{Topics: []string{"https://example.com/foo\nbar"}}, ErrInvalidTopic},
