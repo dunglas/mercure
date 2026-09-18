@@ -767,10 +767,9 @@ func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
 	return v, nil
 }
 
-// pemPrefix opens a PEM block. A PEM-encoded key is an asymmetric public key,
-// so it must never be paired with an HMAC algorithm: createJWTKeyfunc would
-// then use the key material itself as the shared secret, and anyone holding
-// that (public) key could mint valid tokens.
+// pemPrefix opens a PEM block. Here it only decides which algorithm defaults
+// apply; pairing such a key with HMAC is refused by the verifier
+// (mercure.ErrPEMKeyHMACAlgorithm).
 const pemPrefix = "-----BEGIN"
 
 // defaultJWTAlgorithm is assumed for a raw shared secret whose algorithm is not
@@ -779,13 +778,16 @@ const defaultJWTAlgorithm = "HS256"
 
 var (
 	errPEMKeyMissingAlgorithm = errors.New("the JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)")
-	errPEMKeyHMACAlgorithm    = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
+	// Signing-side counterpart of mercure.ErrPEMKeyHMACAlgorithm: the token
+	// command parses a private key, which never reaches a verifier.
+	errPEMKeyHMACAlgorithm = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
 )
 
 // normalizeJWT applies Caddy placeholder replacement to a static-key verifier
 // and defaults its algorithm to HS256 for a raw secret. It is a no-op when a
 // JWK Set URL is used or no key is configured. A PEM-encoded key gets no
-// default: its algorithm must be stated, and it must not be an HMAC one.
+// default, which would make the verifier cite an algorithm the operator never
+// wrote.
 func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) error {
 	if jwksURL != "" {
 		return nil
@@ -801,10 +803,6 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 	if strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
 		if c.Alg == "" {
 			return fmt.Errorf("%s: %w", role, errPEMKeyMissingAlgorithm)
-		}
-
-		if strings.HasPrefix(c.Alg, "HS") {
-			return fmt.Errorf("%s: %q: %w", role, c.Alg, errPEMKeyHMACAlgorithm)
 		}
 
 		return nil

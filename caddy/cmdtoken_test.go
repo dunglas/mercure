@@ -72,10 +72,8 @@ func TestSignTokenPEMWithoutAlgFails(t *testing.T) {
 	require.ErrorIs(t, err, errPEMKeyNeedsAlg)
 }
 
-// TestSignTokenPEMWithHMACAlgFails guards against the algorithm-confusion
-// attack normalizeJWT already rejects on the verifier side: an HMAC algorithm
-// would sign with the PEM bytes as a shared secret, which anyone holding the
-// public half of the key pair could reproduce.
+// Signing side of the confusion mercure.ErrPEMKeyHMACAlgorithm rejects when
+// verifying: HS* signs with the PEM bytes, which the public half reproduces.
 func TestSignTokenPEMWithHMACAlgFails(t *testing.T) {
 	t.Parallel()
 

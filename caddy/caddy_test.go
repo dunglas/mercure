@@ -17,6 +17,7 @@ import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddytest"
+	"github.com/dunglas/mercure"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -888,7 +889,8 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
 		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
 		{name: "PEM key without an algorithm", key: pem, wantErr: errPEMKeyMissingAlgorithm},
-		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantErr: errPEMKeyHMACAlgorithm},
+		// Left alone here; the verifier refuses it, one check below.
+		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantAlg: defaultJWTAlgorithm},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -907,6 +909,22 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 			assert.Equal(t, tc.wantAlg, c.Alg)
 		})
 	}
+}
+
+// normalizeJWT passes the pair through, so the verifier is the only check — which
+// is what covers a Go embedder configuring it directly.
+func TestPEMKeyWithHMACAlgorithmRefusedByVerifier(t *testing.T) {
+	t.Parallel()
+
+	c := &JWTConfig{Key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----", Alg: defaultJWTAlgorithm}
+	require.NoError(t, normalizeJWT(caddy.NewReplacer(), c, "", "publisher"))
+
+	_, err := mercure.NewHub(t.Context(), mercure.WithIssuers([]mercure.Issuer{{
+		Identifier: "https://example.com",
+		Publisher:  mercure.Static{Key: []byte(c.Key), Algorithm: c.Alg},
+	}}))
+	require.ErrorIs(t, err, mercure.ErrPEMKeyHMACAlgorithm)
+	assert.ErrorContains(t, err, "publisher")
 }
 
 // An unset MERCURE_*_JWT_ALG placeholder must not silently turn a PEM key into

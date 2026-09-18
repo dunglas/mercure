@@ -224,7 +224,7 @@ func WithIssuers(issuers []Issuer) Option {
 			if iss.Publisher != nil {
 				kf, algs, err := iss.Publisher.buildKeyfunc()
 				if err != nil {
-					return err
+					return fmt.Errorf("issuer %q: publisher: %w", iss.Identifier, err)
 				}
 
 				iv.publisher = roleVerifier{keyfunc: kf, algorithms: algs}
@@ -234,7 +234,7 @@ func WithIssuers(issuers []Issuer) Option {
 			if iss.Subscriber != nil {
 				kf, algs, err := iss.Subscriber.buildKeyfunc()
 				if err != nil {
-					return err
+					return fmt.Errorf("issuer %q: subscriber: %w", iss.Identifier, err)
 				}
 
 				iv.subscriber = roleVerifier{keyfunc: kf, algorithms: algs}
