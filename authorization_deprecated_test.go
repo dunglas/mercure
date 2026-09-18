@@ -5,7 +5,9 @@ package mercure
 import (
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -869,3 +871,51 @@ func TestAuthorizeCustomCookieName(t *testing.T) {
 // canReceive/canDispatch were replaced by mercureAuthz.grants/grantsAll; the
 // grant matrix is covered by TestMercureAuthzGrants in
 // authorizationdetails_test.go.
+
+// A modern-mode hub must ignore the pre-1.0 mercure claim even in a
+// deprecated_claim build: the claim is still unmarshaled, and mercure.payload
+// was where 0.x operators were told to move subscriptions_include_ip, so
+// honoring it would keep broadcasting subscriber IP addresses.
+func TestLegacyPayloadIgnoredOutsideCompatibilityMode(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h, err := NewHub(t.Context(),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: Static{Key: []byte("subscriber"), Algorithm: "HS256"},
+		}}),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithTopicMatcherStore(tms),
+	)
+	require.NoError(t, err)
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	token.Header["typ"] = atJWTType
+	token.Claims = &claims{
+		Issuer:    testIssuer,
+		Audience:  jwt.ClaimStrings{testResourceIdentifier},
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		Mercure:   mercureClaim{Payload: map[string]any{"ip": "192.0.2.1"}},
+		AuthorizationDetails: []authorizationDetail{{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{actionSubscribe},
+			Topics:  stringsToDetailTopics([]string{"https://example.com/books/1"}),
+		}},
+	}
+
+	encoded, err := token.SignedString([]byte("subscriber"))
+	require.NoError(t, err)
+
+	c, err := h.validateJWT(encoded, false, testResourceIdentifier)
+	require.NoError(t, err)
+	assert.Nil(t, c.Mercure.Payload)
+
+	s := NewSubscriber(nil, tms)
+	s.Claims = c
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/books/1"}}, nil)
+	require.Len(t, s.SubscriptionPayloads, 1)
+	assert.Nil(t, s.SubscriptionPayloads[0])
+}

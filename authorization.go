@@ -279,6 +279,8 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 
 	c.authz = authz
 
+	h.dropLegacyClaims(c)
+
 	// The legacy mercure claim is honored only when the token carries no
 	// authorization_details, and only in deprecated_claim builds running in
 	// compatibility mode (the stub is a no-op otherwise).
