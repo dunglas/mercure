@@ -61,6 +61,21 @@ func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
 	return r.Cookie(legacyCookieName) //nolint:wrapcheck
 }
 
+// dropLegacyClaims discards the pre-1.0 mercure claim outside compatibility
+// mode. The claim is still unmarshaled in a deprecated_claim build, and the
+// subscriber payload fallback reads mercure.payload straight off it, so a
+// modern-mode hub would keep broadcasting a payload the protocol no longer
+// defines — including the subscriber IP addresses operators were told to move
+// there when migrating subscriptions_include_ip.
+func (h *Hub) dropLegacyClaims(c *claims) {
+	if h.compatClaimsEnabled() {
+		return
+	}
+
+	c.Mercure = mercureClaim{}
+	c.MercureNamespaced = nil
+}
+
 // resolveLegacyClaims converts the legacy mercure claim into the validated
 // authorization details shape, so the grant logic is uniform across token
 // formats. It runs only in compatibility mode.
