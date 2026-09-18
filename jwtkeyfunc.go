@@ -1,8 +1,10 @@
 package mercure
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -46,6 +48,15 @@ type Static struct {
 func (s Static) buildKeyfunc() (jwt.Keyfunc, []string, error) {
 	if s.Algorithm == "" {
 		return nil, nil, ErrMissingAlgorithm
+	}
+
+	if len(s.Key) == 0 {
+		return nil, nil, ErrMissingKey
+	}
+
+	// Checked here rather than only in the Caddy module, so embedders are covered.
+	if bytes.HasPrefix(bytes.TrimSpace(s.Key), []byte("-----BEGIN")) && strings.HasPrefix(s.Algorithm, "HS") {
+		return nil, nil, fmt.Errorf("%q: %w", s.Algorithm, ErrPEMKeyHMACAlgorithm)
 	}
 
 	keyfunc, err := createJWTKeyfunc(s.Key, s.Algorithm)

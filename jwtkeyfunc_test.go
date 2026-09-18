@@ -44,3 +44,22 @@ Ki0jUpg2xzzwyA+nEI6Bf6CDaHKnCqxL7x0yk2XqeA==
 	require.EqualError(t, err, "unable to parse RSA public key: asn1: structure error: integer too large")
 	require.Nil(t, keyfunc)
 }
+
+func TestStaticMissingKey(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := Static{Algorithm: "HS256"}.buildKeyfunc()
+	require.ErrorIs(t, err, ErrMissingKey)
+}
+
+func TestStaticPEMKeyWithHMACAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	key := []byte(`-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVMSpp6r4Rzf1mM4l3q5k9qz2S
+-----END PUBLIC KEY-----
+`)
+
+	_, _, err := Static{Key: key, Algorithm: "HS256"}.buildKeyfunc()
+	require.ErrorIs(t, err, ErrPEMKeyHMACAlgorithm)
+}

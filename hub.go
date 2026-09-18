@@ -54,6 +54,14 @@ var ErrIssuerMissingKey = errors.New("an issuer must configure a publisher or su
 // a signing algorithm.
 var ErrMissingAlgorithm = errors.New("a Static verifier requires a signing algorithm")
 
+// ErrMissingKey is returned when a Static verifier has no key material: an HMAC
+// algorithm accepts a zero-length secret, so every token would verify.
+var ErrMissingKey = errors.New("a Static verifier requires a key")
+
+// ErrPEMKeyHMACAlgorithm is returned when a Static verifier pairs a PEM key with
+// an HMAC algorithm, which would make the public key the shared secret.
+var ErrPEMKeyHMACAlgorithm = errors.New("a PEM-encoded key must not be used with an HMAC algorithm")
+
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
 

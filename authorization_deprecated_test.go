@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// wrongKey signs nothing these tests present: it only has to be non-empty, which
+// ErrMissingKey now requires.
+var wrongKey = []byte("!NotTheSigningKey!") //nolint:gochecknoglobals
+
 type authorizationTestData struct {
 	algorithm       string
 	privateKey      string
@@ -162,7 +166,7 @@ func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 			r.Header.Add("Authorization", testdata.validEmpty)
 			r.Header.Add("Authorization", testdata.validEmpty)
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.EqualError(t, err, `invalid "Authorization" HTTP header`)
@@ -185,7 +189,7 @@ func TestAuthorizeAuthorizationHeaderTooShort(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", "Bearer x")
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.EqualError(t, err, `invalid "Authorization" HTTP header`)
@@ -208,7 +212,7 @@ func TestAuthorizeAuthorizationHeaderNoBearer(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", "Greater "+testdata.validEmpty)
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.EqualError(t, err, `invalid "Authorization" HTTP header`)
@@ -231,7 +235,7 @@ func TestAuthorizeAuthorizationHeaderInvalidAlg(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", bearerPrefix+createDummyNoneSignedJWT())
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
@@ -255,7 +259,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKey(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", bearerPrefix+testdata.validEmpty)
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err, testdata.algorithm)
@@ -404,7 +408,7 @@ func TestAuthorizeAuthorizationQueryTooShort(t *testing.T) {
 			query.Set("authorization", "x")
 			r.URL.RawQuery = query.Encode()
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			// A too-short deprecated "authorization" query parameter is ignored,
 			// falling through to anonymous access.
@@ -431,7 +435,7 @@ func TestAuthorizeAuthorizationQueryInvalidAlg(t *testing.T) {
 			query.Set("authorization", createDummyNoneSignedJWT())
 			r.URL.RawQuery = query.Encode()
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
@@ -457,7 +461,7 @@ func TestAuthorizeAuthorizationQueryInvalidKey(t *testing.T) {
 			query.Set("authorization", testdata.validEmpty)
 			r.URL.RawQuery = query.Encode()
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
@@ -631,7 +635,7 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.validEmpty})
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)

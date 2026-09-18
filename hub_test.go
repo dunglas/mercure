@@ -378,7 +378,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(t.Context(), WithIssuers([]Issuer{{Identifier: testIssuer, Publisher: Static{Key: []byte(""), Algorithm: "HS256"}}}), WithResourceIdentifier(testResourceIdentifier))
+	h, err := NewHub(t.Context(), WithIssuers([]Issuer{{Identifier: testIssuer, Publisher: Static{Key: []byte("!ChangeMe!"), Algorithm: "HS256"}}}), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
