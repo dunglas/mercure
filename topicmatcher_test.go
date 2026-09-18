@@ -1,6 +1,8 @@
 package mercure
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -126,4 +128,37 @@ func TestValidatePattern(t *testing.T) {
 
 	// Unknown matcher types are rejected.
 	assert.ErrorIs(t, tms.validatePattern(TopicMatcher{Type: "Regexp", Pattern: "fo+"}), ErrUnsupportedMatcherType)
+}
+
+// The match cache is bounded by the bytes its keys retain, not by entry count:
+// a topic carries no length limit of its own, so counting entries would let a
+// handful of oversized topics retain far more than the configured budget.
+func TestMatchCacheBoundedByWeight(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(100)
+	require.NoError(t, err)
+
+	big := strings.Repeat("a", 64*1024)
+	for i := range 100 {
+		tms.matches(
+			[]string{"https://example.com/" + strconv.Itoa(i) + "/" + big, "https://example.com/other"},
+			TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/*"},
+		)
+	}
+
+	var weight, heaviest int
+
+	tms.matchCache.All()(func(k matchCacheKey, v bool) bool {
+		w := int(matchCacheEntryWeight(k, v))
+		weight += w
+		heaviest = max(heaviest, w)
+
+		return true
+	})
+
+	// An entry heavier than the whole budget cannot be evicted below it, so the
+	// bound is the budget plus one such entry. Counting entries instead would
+	// have retained all 100, some 6.5 MB under a 10 kB budget.
+	assert.LessOrEqual(t, weight, 100*avgMatchCacheEntrySize+heaviest)
 }
