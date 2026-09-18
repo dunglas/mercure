@@ -382,12 +382,15 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		// The DB is append-only
 		bucket.FillPercent = 1
 
-		t.lastSeq = seq
-		t.lastEventID = updateID
-
 		if err := bucket.Put(key, updateJSON); err != nil {
 			return fmt.Errorf("unable to put value in Bolt DB: %w", err)
 		}
+
+		// Advance the in-memory cursor only once the write is committed to the
+		// transaction, so a failed Put does not leave the hub reporting a
+		// Last-Event-ID no subscriber can ever resume from.
+		t.lastSeq = seq
+		t.lastEventID = updateID
 
 		return t.cleanup(bucket, seq)
 	}); err != nil {
