@@ -3,6 +3,7 @@ package mercure
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"regexp"
 	"slices"
@@ -17,6 +18,25 @@ import (
 // Raise it via the `topic_matcher_cache <N>` Caddyfile directive for hubs
 // handling a much larger topic / matcher universe.
 const DefaultTopicMatcherStoreCacheSize = 100_000
+
+// avgMatchCacheEntrySize is the entry size the cache budget is expressed in.
+// The cache is bounded by weight rather than by entry count: a key embeds the
+// full topic text, which the protocol does not bound per topic, so counting
+// entries would let a publisher retain gigabytes under a limit that reads as
+// ~10 MB. A cache sized for N entries therefore holds N × this many bytes,
+// which is more entries than N of ordinary keys and fewer of oversized ones.
+const avgMatchCacheEntrySize = 100
+
+// matchCacheEntryWeight approximates the bytes an entry retains: the key
+// strings plus the key struct, the cached bool and the cache's own per-entry
+// bookkeeping.
+func matchCacheEntryWeight(k matchCacheKey, _ bool) uint32 {
+	const fixedOverhead = 64
+
+	weight := fixedOverhead + len(k.Base) + len(k.Type) + len(k.Pattern) + len(k.Topics)
+
+	return uint32(min(weight, math.MaxUint32))
+}
 
 // topicsKeySeparator joins the topics of an update into a single cache-key
 // field. It is a NUL byte, which the publish and subscribe handlers reject in
@@ -71,7 +91,8 @@ func NewTopicMatcherStore(cacheSize int) (*TopicMatcherStore, error) {
 	}
 
 	matchCache, err := otter.New(&otter.Options[matchCacheKey, bool]{
-		MaximumSize: cacheSize,
+		MaximumWeight: uint64(cacheSize) * avgMatchCacheEntrySize,
+		Weigher:       matchCacheEntryWeight,
 	})
 	if err != nil {
 		return nil, err //nolint:wrapcheck
