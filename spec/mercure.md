@@ -1188,7 +1188,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-Control: must-revalidate
+Cache-Control: private, must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions",
@@ -1233,7 +1233,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-Control: must-revalidate
+Cache-Control: private, must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector",
@@ -1269,7 +1269,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-Control: must-revalidate
+Cache-Control: private, must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
