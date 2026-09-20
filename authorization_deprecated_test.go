@@ -919,3 +919,32 @@ func TestLegacyPayloadIgnoredOutsideCompatibilityMode(t *testing.T) {
 	require.Len(t, s.SubscriptionPayloads, 1)
 	assert.Nil(t, s.SubscriptionPayloads[0])
 }
+
+// Compatibility mode honors the legacy claim only for a token carrying no
+// authorization_details: those replace the claim outright, so the payload
+// riding along with them must not be broadcast either.
+func TestLegacyPayloadIgnoredBesideAuthorizationDetails(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h := createLegacyDummy(t, WithTopicMatcherStore(tms), legacyVerifier(false, []byte("subscriber"), "HS256"))
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	token.Claims = &claims{
+		Mercure: mercureClaim{Payload: map[string]any{"ip": "192.0.2.1"}},
+		AuthorizationDetails: []authorizationDetail{{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{actionSubscribe},
+			Topics:  stringsToDetailTopics([]string{"https://example.com/books/1"}),
+		}},
+	}
+
+	encoded, err := token.SignedString([]byte("subscriber"))
+	require.NoError(t, err)
+
+	c, err := h.validateJWT(encoded, false, "")
+	require.NoError(t, err)
+	assert.Nil(t, c.Mercure.Payload)
+}
