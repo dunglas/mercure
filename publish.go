@@ -33,6 +33,12 @@ const (
 	// turns a single small publish into megabytes of response headers on every
 	// later request — and persists, surviving a restart.
 	maxEventIDLength = 1024
+	// maxTopicLength bounds one topic, mirroring maxPatternLength on the
+	// matcher side. Without it the two are asymmetric: a matcher pattern is
+	// bounded but the topic it is matched against is not, and the match cache
+	// keys entries on the topic text, so one publish could park the whole
+	// request body in the cache under an entry that reads as one small result.
+	maxTopicLength = maxPatternLength
 	// Subscribe-side matcher count is capped by maxMatcherCount
 	// (subscribematchers.go).
 )
@@ -45,7 +51,7 @@ var (
 	ErrInvalidEventID    = errors.New(`"id" field is too long, contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
 	ErrInvalidEventType  = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
-	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
+	ErrInvalidTopic      = errors.New("topic is too long, or contains a forbidden control character or invalid UTF-8")
 	ErrTooManyTopics     = errors.New("too many topics in update")
 	ErrMissingTopic      = errors.New("update carries no topic")
 	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
@@ -81,7 +87,7 @@ func (u *Update) Validate(baseURL string) error {
 	for _, t := range topics {
 		// Control characters are forbidden by the protocol; a NUL would also
 		// collide with the match cache's topic-list separator.
-		if !validProtocolString(t) {
+		if !validProtocolString(t) || len(t) > maxTopicLength {
 			return fmt.Errorf("%q: %w", t, ErrInvalidTopic)
 		}
 
@@ -241,10 +247,11 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// authorization grant check (grantsAll → matches → cachedMatch), which
 	// keys the cache on the topic list joined with NUL; an unvalidated topic
 	// containing a literal NUL would collide with a legitimate multi-topic key
-	// and poison the entry (CWE-20). Update.Validate re-checks later, but only
-	// after the grant check has already consulted the cache.
+	// and poison the entry (CWE-20), and an unbounded one would be retained
+	// verbatim in that key. Update.Validate re-checks later, but only after
+	// the grant check has already consulted the cache.
 	for _, t := range topics {
-		if !validProtocolString(t) {
+		if !validProtocolString(t) || len(t) > maxTopicLength {
 			http.Error(w, fmt.Errorf("%q: %w", t, ErrInvalidTopic).Error(), http.StatusBadRequest)
 
 			return
