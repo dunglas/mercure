@@ -66,10 +66,8 @@ func TestServeHTTPRejectsOriginNotInAllowlist(t *testing.T) {
 	assert.NotEqual(t, http.StatusMisdirectedRequest, w.Result().StatusCode)
 }
 
-// A request carrying no Host (HTTP/1.0) leaves a hub with no configured
-// resource identifier without an identity. Modern mode must then reject every
-// token rather than validate it with no audience constraint, and the RFC 9728
-// metadata document, whose "resource" member is required, must not be served.
+// With no Host there is no identity: modern mode must refuse every token rather
+// than drop the audience check, and must not serve metadata with no "resource".
 func TestNoRequestIdentityFailsClosed(t *testing.T) {
 	t.Parallel()
 
@@ -93,5 +91,26 @@ func TestNoRequestIdentityFailsClosed(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	hub.ProtectedResourceMetadataHandler(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+
+	// The request is refused outright rather than served without an identity.
+	w = httptest.NewRecorder()
+	hub.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+}
+
+// An anonymous hub derives an identity too, for the metadata URL it advertises,
+// so a hostless request is refused there as well.
+func TestNoRequestIdentityRefusedWhenAnonymous(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	r, err := http.NewRequest(http.MethodGet, defaultHubURL, nil) //nolint:noctx
+	require.NoError(t, err)
+	require.Empty(t, r.Host)
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
 }

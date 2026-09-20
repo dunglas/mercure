@@ -353,7 +353,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 	// Subscriptions
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
+	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	hub.ServeHTTP(w, req)
 	resp3 := w.Result()
 

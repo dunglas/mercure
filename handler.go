@@ -120,8 +120,18 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// deriving any identity from it (see requestIdentity). The origin is the one
 	// an embedding server resolved (the Caddy module, from Caddy's request
 	// placeholders), else the request's own scheme and Host.
+	scheme, host := h.requestOrigin(r)
+
+	// No Host (HTTP/1.0, or HTTP/2 without :authority) leaves a hub with no
+	// configured identifier nothing to derive an identity from: no audience to
+	// check tokens against, no valid RFC 9728 metadata to serve.
+	if host == "" {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+
+		return
+	}
+
 	if len(h.allowedOrigins) > 0 {
-		scheme, host := h.requestOrigin(r)
 		if !slices.Contains(h.allowedOrigins, strings.ToLower(scheme+"://"+host)) {
 			http.Error(w, http.StatusText(http.StatusMisdirectedRequest), http.StatusMisdirectedRequest)
 
