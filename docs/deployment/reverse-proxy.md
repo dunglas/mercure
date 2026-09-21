@@ -238,7 +238,7 @@ mercure {
 }
 ```
 
-`public_urls` does not fix it, and does not belong here: it pins the scheme of the origin the hub *receives*, so listing the `https://` form on a hub that is reached over plain HTTP rejects every request with `421 Misdirected Request`. Use it on a catch-all site block reached directly over TLS.
+`public_urls` does not fix it, and does not belong here: it pins the scheme of the origin the hub _receives_, so listing the `https://` form on a hub that is reached over plain HTTP rejects every request with `421 Misdirected Request`. Use it on a catch-all site block reached directly over TLS.
 
 ## Next steps for Mercure reverse proxies
 
