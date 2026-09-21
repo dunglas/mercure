@@ -9,7 +9,7 @@ retract (
 
 require (
 	github.com/dunglas/go-urlpattern v1.0.0
-	github.com/dunglas/skipfilter v1.0.0
+	github.com/dunglas/skipfilter v1.1.0
 	github.com/elnormous/contenttype v1.0.4
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gorilla/mux v1.8.1
@@ -29,7 +29,7 @@ require (
 
 require (
 	github.com/MauriceGit/skiplist v0.0.0-20211105230623-77f5c8d3e145 // indirect
-	github.com/RoaringBitmap/roaring/v2 v2.27.0 // indirect
+	github.com/RoaringBitmap/roaring/v2 v2.28.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.25.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
