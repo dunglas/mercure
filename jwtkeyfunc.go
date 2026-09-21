@@ -54,7 +54,6 @@ func (s Static) buildKeyfunc() (jwt.Keyfunc, []string, error) {
 		return nil, nil, ErrMissingKey
 	}
 
-	// Checked here rather than only in the Caddy module, so embedders are covered.
 	if bytes.HasPrefix(bytes.TrimSpace(s.Key), []byte("-----BEGIN")) && strings.HasPrefix(s.Algorithm, "HS") {
 		return nil, nil, fmt.Errorf("%q: %w", s.Algorithm, ErrPEMKeyHMACAlgorithm)
 	}
