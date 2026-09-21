@@ -5,7 +5,7 @@ description: "Using the broadcasting feature of Laravel with Mercure"
 
 # Laravel Broadcasting
 
-[Laravel Broadcasting](https://laravel.com/docs/broadcasting) is a feature of Laravel that allows your application to push server-side events to the client in real time, the web client  uses [Laravel Echo](https://laravel.com/framework/docs/broadcasting#client-side-installation) to receives the events. It supports several drivers such as Mercure, Reverb, Pusher or Ably.
+[Laravel Broadcasting](https://laravel.com/docs/broadcasting) is a feature of Laravel that allows your application to push server-side events to the client in real time, the web client uses [Laravel Echo](https://laravel.com/framework/docs/broadcasting#client-side-installation) to receives the events. It supports several drivers such as Mercure, Reverb, Pusher or Ably.
 
 ## Setting up
 
@@ -180,11 +180,11 @@ It uses the same authorization as `PrivateChannel`, so our `chat.{roomId}` callb
 
 ```javascript
 // resources/js/echo.js
-import Echo from 'laravel-echo';
+import Echo from "laravel-echo";
 
 window.Echo = new Echo({
-    broadcaster: 'mercure',
-    host: import.meta.env.VITE_MERCURE_HUB_URL, // If empty, Echo uses /.well-known/mercure on the current domain
+  broadcaster: "mercure",
+  host: import.meta.env.VITE_MERCURE_HUB_URL, // If empty, Echo uses /.well-known/mercure on the current domain
 });
 ```
 
@@ -192,10 +192,10 @@ window.Echo = new Echo({
 
 ```javascript
 // Listen to a public channel
-window.Echo.channel('chat')
-    .listen('.message.sent', (event) => { // The dot is needed because we used broadcastAs()
-        console.log(`${event.author}: ${event.content}`);
-    });
+window.Echo.channel("chat").listen(".message.sent", (event) => {
+  // The dot is needed because we used broadcastAs()
+  console.log(`${event.author}: ${event.content}`);
+});
 ```
 
 Echo first authenticates its channels even public ones to get a Mercure token:
@@ -226,21 +226,26 @@ data: {"channels":["chat"],"event":"message.sent","payload":{"content":"Hello!",
 
 ```javascript
 // Listen to a private channel
-window.Echo.private('chat.1')
-    .listen('.message.sent', (event) => {
-        console.log(`${event.author}: ${event.content}`);
-    })
-    .error((error) => { // Called if the user is not authorized, or if the connection fails
-        console.error(error);
-    });
+window.Echo.private("chat.1")
+  .listen(".message.sent", (event) => {
+    console.log(`${event.author}: ${event.content}`);
+  })
+  .error((error) => {
+    // Called if the user is not authorized, or if the connection fails
+    console.error(error);
+  });
 ```
 
 If the user is not authorized, the auth request still succeeds for the other channels but this one is flagged as denied:
 
 ```json
-{"channel_names":[{"name":"private-chat.1","denied":true}],"expires_in":300,"topic_prefix":"https://laravel.alt/echo/","client_events":true}
+{
+  "channel_names": [{ "name": "private-chat.1", "denied": true }],
+  "expires_in": 300,
+  "topic_prefix": "https://laravel.alt/echo/",
+  "client_events": true
+}
 ```
-
 
 ## Next steps for Laravel over Mercure
 
