@@ -67,14 +67,16 @@ jobs:
           passphrase: ${{ secrets.PASSPHRASE }}
 
       - name: Set GoReleaser Git tags
-        if: env.RELEASE_TAG != ''
         run: |
+          # Left to itself GoReleaser takes the closest tag of any shape, which
+          # on this repository is the non-semver `caddy/vX.Y.Z` module tag.
           # `--sort=version:refname` has no notion of semver prereleases and
           # ranks v1.0.0-beta.1 above v1.0.0, so reading the current tag off the
           # sorted list pointed GoReleaser at the beta when 1.0.0 was cut. Take
           # it from the ref and keep the list only for the previous tag.
-          tags=$(git tag --list --sort=-version:refname 'v*' | grep -Fxv "$RELEASE_TAG" || true)
-          echo "GORELEASER_CURRENT_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
+          current=${RELEASE_TAG:-$(git describe --tags --abbrev=0 --match 'v*.*.*' 2>/dev/null || echo v0.0.0)}
+          tags=$(git tag --list --sort=-version:refname 'v*.*.*' | grep -Fxv "$current" || true)
+          echo "GORELEASER_CURRENT_TAG=${current}" >> "$GITHUB_ENV"
           echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")" >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
