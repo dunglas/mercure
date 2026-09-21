@@ -18,12 +18,10 @@ research against it:
 
 ## Supported versions
 
-| Version | Branch | Status                                                                                                              |
-| ------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
-| 1.0.x   | `main` | Active development. `1.0.0-beta.x` prereleases are shipped from `main`; not recommended for production until 1.0.0. |
-| 0.24.x  | `0.x`  | Security and critical bugfixes only, until `1.0.0` ships.                                                           |
-| < 0.24  | —      | Unsupported. Upgrade to 0.24.x.                                                                                     |
+| Version | Branch | Status                                  |
+| ------- | ------ | --------------------------------------- |
+| 1.0.x   | `main` | Supported. Security fixes and bugfixes. |
+| < 1.0   | —      | Unsupported. Upgrade to 1.0.x.          |
 
-Patches for the 0.x line land on the `0.x` branch and are released from
-there (e.g., `0.24.2`). Fixes that also apply to v1 are cherry-picked to
-`main`.
+Fixes land on `main` and are released from there (e.g., `1.0.1`). See the
+[upgrade guide](docs/UPGRADE.md) to move off an unsupported version.
