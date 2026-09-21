@@ -143,6 +143,11 @@ type Mercure struct {
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
 
+	// Graceful-shutdown drain window. When set, a termination drains subscribers
+	// across this window instead of riding write_timeout; a config reload never
+	// drains. Defaults to 0 (disabled).
+	DrainTimeout *caddy.Duration `json:"drain_timeout,omitempty"`
+
 	// Maximum dispatch duration of an update, defaults to 5s.
 	DispatchTimeout *caddy.Duration `json:"dispatch_timeout,omitempty"`
 
@@ -339,6 +344,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithWriteTimeout(time.Duration(*d)))
 	}
 
+	if d := m.DrainTimeout; d != nil {
+		opts = append(opts, mercure.WithDrainTimeout(time.Duration(*d)))
+	}
+
 	if d := m.DispatchTimeout; d != nil {
 		opts = append(opts, mercure.WithDispatchTimeout(time.Duration(*d)))
 	}
@@ -371,9 +380,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	var c context.Context
 
 	c, m.cancel = context.WithCancel(ctx)
-	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(m.cancel)); err != nil {
-		return err
-	}
 
 	h, err := mercure.NewHub(c, opts...)
 	if err != nil {
@@ -381,6 +387,24 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	m.hub = h
+
+	// The "stopping" event fires on both real termination and config reloads.
+	// On a real termination with a drain timeout, start the graceful drain and
+	// leave the context alone so the drain isn't preempted (see
+	// shouldDrainOnStopping); otherwise cancel the hub context, the escape hatch
+	// for a writeTimeout==0 hub. The cancel must run during the event, or the
+	// handler and the blocking server shutdown would deadlock.
+	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(func() {
+		if shouldDrainOnStopping(caddy.Exiting(), m.DrainTimeout) {
+			h.Drain()
+
+			return
+		}
+
+		m.cancel()
+	})); err != nil {
+		return err
+	}
 
 	name := m.Name
 	if name == "" {
@@ -499,6 +523,11 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 			case "write_timeout":
 				if m.WriteTimeout, err = parseDurationParameter(d); err != nil {
+					return err
+				}
+
+			case "drain_timeout":
+				if m.DrainTimeout, err = parseDurationParameter(d); err != nil {
 					return err
 				}
 
@@ -1127,6 +1156,16 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	m := new(Mercure)
 
 	return m, m.UnmarshalCaddyfile(h.Dispenser)
+}
+
+// shouldDrainOnStopping reports whether a "stopping" event should trigger a
+// graceful drain (Hub.Drain) instead of cancelling the hub context. The
+// "stopping" event fires on both real termination and a config reload; draining
+// applies only on a real termination (exiting) and only when a drain timeout is
+// configured. A reload (not exiting), or a hub with no drain timeout, cancels
+// the hub context instead.
+func shouldDrainOnStopping(exiting bool, drainTimeout *caddy.Duration) bool {
+	return exiting && drainTimeout != nil && time.Duration(*drainTimeout) != 0
 }
 
 func parseDurationParameter(d *caddyfile.Dispenser) (*caddy.Duration, error) {
