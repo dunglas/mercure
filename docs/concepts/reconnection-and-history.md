@@ -114,6 +114,8 @@ transport bolt {
 
 `cleanup_frequency` is the chance (between 0 and 1) of running a cleanup pass on each publish. The default `0.3` strikes a balance between write latency and storage growth. See [Configuration](../deployment/configuration.md#bolt-transport-default-single-node).
 
+Replay depth is bounded by the search for the requested `Last-Event-ID`: to keep an ancient or forged ID from forcing a walk over the whole database, the hub looks back at most 10,000 events, or `size` events when `size` is larger. A subscriber asking for an older ID gets `earliest` back even though the event is still stored, so set `size` to the retention you want to stay searchable instead of leaving it at `0`.
+
 ### When history isn't enough
 
 For workflows where lost updates are unacceptable (partial updates that mutate state, primary event store), pair the hub with a durable system:

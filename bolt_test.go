@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"strconv"
@@ -454,4 +455,125 @@ func TestBoltTransportKnownLastEventIDIsEchoed(t *testing.T) {
 	assert.Equal(t, "2", <-s.responseLastEventID)
 
 	s.Disconnect()
+}
+
+// seedBoltHistory writes n updates in a single transaction: the scan-limit
+// bugs need more events than is practical to publish one by one.
+func seedBoltHistory(t *testing.T, transport *BoltTransport, topic string, n int) {
+	t.Helper()
+
+	require.NoError(t, transport.db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(transport.bucketName))
+		if err != nil {
+			return err
+		}
+
+		for i := 1; i <= n; i++ {
+			seq, err := b.NextSequence()
+			if err != nil {
+				return err
+			}
+
+			id := strconv.Itoa(i)
+
+			updateJSON, err := json.Marshal(&Update{ID: id, Topics: []string{topic}})
+			if err != nil {
+				return err
+			}
+
+			key := make([]byte, 8, 8+len(id))
+			binary.BigEndian.PutUint64(key, seq)
+
+			if err := b.Put(append(key, id...), updateJSON); err != nil {
+				return err
+			}
+
+			transport.lastSeq = seq
+			transport.lastEventID = id
+		}
+
+		return nil
+	}))
+}
+
+// The search used to walk forwards from the oldest event, so the scan limit cut
+// off every id newer than the 10 000th one.
+func TestBoltTransportHistoryBeyondScanLimit(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	const n = maxHistoryScan + 2
+
+	topics := []string{"https://example.com/foo"}
+	seedBoltHistory(t, transport, topics[0], n)
+
+	s := NewLocalSubscriber(strconv.Itoa(n-1), transport.logger, &TopicMatcherStore{})
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	// require: nothing is replayed without the cursor, and the read below blocks.
+	require.Equal(t, strconv.Itoa(n-1), <-s.responseLastEventID)
+
+	u := <-s.Receive()
+	assert.Equal(t, strconv.Itoa(n), u.ID)
+
+	s.Disconnect()
+}
+
+// An id older than the scan limit is the denial-of-service case: give up
+// instead of walking the whole history.
+func TestBoltTransportHistoryGivesUpPastScanLimit(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	const n = maxHistoryScan + 2
+
+	topics := []string{"https://example.com/foo"}
+	seedBoltHistory(t, transport, topics[0], n)
+
+	s := NewLocalSubscriber("1", transport.logger, &TopicMatcherStore{})
+	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	assert.Equal(t, EarliestLastEventID, <-s.responseLastEventID)
+
+	s.Disconnect()
+}
+
+// A configured size is retention the operator pays for: searchable in full.
+func TestBoltTransportHistoryScanLimitFollowsSize(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, uint64(maxHistoryScan), (&BoltTransport{size: 0}).historyScanLimit())
+	assert.Equal(t, uint64(maxHistoryScan), (&BoltTransport{size: 10}).historyScanLimit())
+	assert.Equal(t, uint64(maxHistoryScan+1), (&BoltTransport{size: maxHistoryScan + 1}).historyScanLimit())
+}
+
+// Updates stored after the subscribe snapshot belong to the live queue.
+func TestBoltTransportFindLastEventIDIgnoresUpdatesPastTheBound(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	topics := []string{"https://example.com/foo"}
+	seedBoltHistory(t, transport, topics[0], 5)
+
+	require.NoError(t, transport.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(transport.bucketName))
+
+		seq, found := findLastEventID(b, "5", 5, maxHistoryScan)
+		assert.True(t, found)
+		assert.Equal(t, uint64(5), seq)
+
+		_, found = findLastEventID(b, "5", 3, maxHistoryScan)
+		assert.False(t, found)
+
+		seq, found = findLastEventID(b, "3", 3, maxHistoryScan)
+		assert.True(t, found)
+		assert.Equal(t, uint64(3), seq)
+
+		return nil
+	}))
 }
