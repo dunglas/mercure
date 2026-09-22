@@ -227,14 +227,26 @@ func pastSeqBound(k []byte, toSeq uint64) bool {
 // backwards matches how subscribers reconnect: forwards from the oldest event,
 // scanLimit cut off exactly the recent ids they ask for.
 func findLastEventID(b *bolt.Bucket, lastEventID string, toSeq, scanLimit uint64) (uint64, bool) {
-	var scanned uint64
+	if toSeq == 0 {
+		return 0, false
+	}
+
+	// Seek to the snapshot so newer events cannot bypass the scan limit.
+	bound := make([]byte, 8)
+	binary.BigEndian.PutUint64(bound, toSeq)
 
 	c := b.Cursor()
-	for k, _ := c.Last(); k != nil; k, _ = c.Prev() {
-		if pastSeqBound(k, toSeq) {
-			continue
-		}
 
+	k, _ := c.Seek(bound)
+	if k == nil {
+		k, _ = c.Last()
+	} else if pastSeqBound(k, toSeq) {
+		k, _ = c.Prev()
+	}
+
+	var scanned uint64
+
+	for ; k != nil; k, _ = c.Prev() {
 		if string(k[8:]) == lastEventID {
 			return binary.BigEndian.Uint64(k[:8]), true
 		}

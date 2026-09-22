@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"testing/synctest"
@@ -459,10 +460,10 @@ func TestBoltTransportKnownLastEventIDIsEchoed(t *testing.T) {
 
 // seedBoltHistory writes n updates in a single transaction: the scan-limit
 // bugs need more events than is practical to publish one by one.
-func seedBoltHistory(t *testing.T, transport *BoltTransport, topic string, n int) {
-	t.Helper()
+func seedBoltHistory(tb testing.TB, transport *BoltTransport, topic string, n int) {
+	tb.Helper()
 
-	require.NoError(t, transport.db.Update(func(tx *bolt.Tx) error {
+	require.NoError(tb, transport.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(transport.bucketName))
 		if err != nil {
 			return err
@@ -576,4 +577,97 @@ func TestBoltTransportFindLastEventIDIgnoresUpdatesPastTheBound(t *testing.T) {
 
 		return nil
 	}))
+}
+
+func TestBoltTransportFindLastEventIDSnapshotBoundary(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+	seedBoltHistory(t, transport, "https://example.com/foo", 5)
+
+	require.NoError(t, transport.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(transport.bucketName))
+		key := make([]byte, 0, 9)
+
+		for _, seq := range []uint64{1, 3} {
+			key = binary.BigEndian.AppendUint64(key[:0], seq)
+			if err := bucket.Delete(append(key, strconv.FormatUint(seq, 10)...)); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}))
+
+	for _, tc := range []struct {
+		name      string
+		id        string
+		toSeq     uint64
+		scanLimit uint64
+		wantSeq   uint64
+	}{
+		{name: "zero snapshot", id: "2", toSeq: 0, scanLimit: 1},
+		{name: "before oldest", id: "2", toSeq: 1, scanLimit: 1},
+		{name: "at snapshot", id: "2", toSeq: 2, scanLimit: 1, wantSeq: 2},
+		{name: "deleted snapshot", id: "2", toSeq: 3, scanLimit: 1, wantSeq: 2},
+		{name: "after snapshot", id: "4", toSeq: 3, scanLimit: 1},
+		{name: "latest", id: "5", toSeq: 5, scanLimit: 1, wantSeq: 5},
+		{name: "beyond latest", id: "5", toSeq: 6, scanLimit: 1, wantSeq: 5},
+		{name: "maximum snapshot", id: "5", toSeq: ^uint64(0), scanLimit: 1, wantSeq: 5},
+		{name: "at scan limit", id: "2", toSeq: 5, scanLimit: 3, wantSeq: 2},
+		{name: "past scan limit", id: "2", toSeq: 5, scanLimit: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.NoError(t, transport.db.View(func(tx *bolt.Tx) error {
+				seq, found := findLastEventID(tx.Bucket([]byte(transport.bucketName)), tc.id, tc.toSeq, tc.scanLimit)
+				assert.Equal(t, tc.wantSeq != 0, found)
+				assert.Equal(t, tc.wantSeq, seq)
+
+				return nil
+			}))
+		})
+	}
+}
+
+func TestBoltTransportFindLastEventIDEmptyBucket(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+	seedBoltHistory(t, transport, "https://example.com/foo", 0)
+
+	require.NoError(t, transport.db.View(func(tx *bolt.Tx) error {
+		_, found := findLastEventID(tx.Bucket([]byte(transport.bucketName)), "missing", 1, 1)
+		assert.False(t, found)
+
+		return nil
+	}))
+}
+
+func BenchmarkBoltTransportFindLastEventIDSnapshot(b *testing.B) {
+	for _, n := range []int{10000, 100000} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			transport, err := NewBoltTransport(NewSubscriberList(0), slog.Default(), filepath.Join(b.TempDir(), "history.db"), defaultBoltBucketName, 0, 0)
+			require.NoError(b, err)
+
+			b.Cleanup(func() {
+				require.NoError(b, transport.Close(b.Context()))
+			})
+			seedBoltHistory(b, transport, "https://example.com/foo", n)
+
+			for _, toSeq := range []uint64{0, 1, uint64(n)} {
+				b.Run(strconv.FormatUint(toSeq, 10), func(b *testing.B) {
+					require.NoError(b, transport.db.View(func(tx *bolt.Tx) error {
+						bucket := tx.Bucket([]byte(transport.bucketName))
+						for b.Loop() {
+							findLastEventID(bucket, "missing", toSeq, 1)
+						}
+
+						return nil
+					}))
+				})
+			}
+		})
+	}
 }
