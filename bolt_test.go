@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
+	"go.etcd.io/bbolt/errors"
 )
 
 func createBoltTransport(t *testing.T, size uint64, cleanupFrequency float64) *BoltTransport {
@@ -670,4 +671,30 @@ func BenchmarkBoltTransportFindLastEventIDSnapshot(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestBoltTransportCursorAfterRollback(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 1, 1)
+	require.NoError(t, transport.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(defaultBoltBucketName))
+		if err != nil {
+			return err
+		}
+
+		key := binary.BigEndian.AppendUint64(nil, 1)
+		// A nested bucket makes cleanup fail after the new event has been written.
+		if _, err := bucket.CreateBucket(key); err != nil {
+			return err
+		}
+
+		return bucket.SetSequence(1)
+	}))
+	transport.lastSeq = 1
+	transport.lastEventID = "previous"
+
+	require.ErrorIs(t, transport.persist("next", []byte(`{}`)), errors.ErrIncompatibleValue)
+	assert.Equal(t, uint64(1), transport.lastSeq)
+	assert.Equal(t, "previous", transport.lastEventID)
 }
