@@ -362,6 +362,8 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 
 // persist stores update in the database.
 func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
+	var committedSeq uint64
+
 	if err := t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
 		if err != nil {
@@ -386,16 +388,16 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 			return fmt.Errorf("unable to put value in Bolt DB: %w", err)
 		}
 
-		// Advance the in-memory cursor only once the write is committed to the
-		// transaction, so a failed Put does not leave the hub reporting a
-		// Last-Event-ID no subscriber can ever resume from.
-		t.lastSeq = seq
-		t.lastEventID = updateID
+		committedSeq = seq
 
 		return t.cleanup(bucket, seq)
 	}); err != nil {
 		return fmt.Errorf("bolt error: %w", err)
 	}
+
+	// A rolled-back transaction must not advance the reconnection cursor.
+	t.lastSeq = committedSeq
+	t.lastEventID = updateID
 
 	return nil
 }
