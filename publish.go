@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	wurl "github.com/nlnwa/whatwg-url/url"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -50,12 +51,13 @@ var (
 //
 // A caller that builds an Update from untrusted input (e.g. a publisher
 // request) and dispatches it through a Transport directly, bypassing
-// Hub.Publish, MUST call Validate first and reject the update on error.
+// Hub.Publish, MUST call Validate with the same base URL used for topic matching
+// and reject the update on error. The base must be an absolute URL with a host.
 // Skipping it lets a CR, LF, or NUL in ID or Type inject arbitrary SSE
 // fields into subscribers' streams (CWE-93). Validate also rejects the
 // reserved "/.well-known/mercure" topic namespace, so it is meant for
 // publisher input, not hub-internal updates such as subscription events.
-func (u *Update) Validate() error {
+func (u *Update) Validate(baseURL string) error {
 	topics := u.Topics
 	if len(topics) == 0 {
 		return ErrMissingTopic
@@ -65,6 +67,11 @@ func (u *Update) Validate() error {
 		return ErrTooManyTopics
 	}
 
+	base, err := wurl.Parse(baseURL)
+	if err != nil || base.Hostname() == "" {
+		return fmt.Errorf("%w: %q", ErrInvalidBaseURL, baseURL)
+	}
+
 	for _, t := range topics {
 		// Control characters are forbidden by the protocol; a NUL would also
 		// collide with the match cache's topic-list separator.
@@ -72,7 +79,7 @@ func (u *Update) Validate() error {
 			return fmt.Errorf("%q: %w", t, ErrInvalidTopic)
 		}
 
-		if addressesReservedNamespace(t) {
+		if addressesReservedNamespace(t, base) {
 			return fmt.Errorf("%q: %w", t, ErrReservedTopic)
 		}
 
@@ -128,7 +135,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 		span.End()
 	}()
 
-	if err := update.Validate(); err != nil {
+	if err := update.Validate(h.topicMatcherStore.base()); err != nil {
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Rejected invalid update", slog.Any("error", err))
 		}
@@ -228,7 +235,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// authorization grant check (grantsAll → matches → cachedMatch), which
 	// keys the cache on the topic list joined with NUL; an unvalidated topic
 	// containing a literal NUL would collide with a legitimate multi-topic key
-	// and poison the entry (CWE-20). Update.Validate() re-checks later, but only
+	// and poison the entry (CWE-20). Update.Validate re-checks later, but only
 	// after the grant check has already consulted the cache.
 	for _, t := range topics {
 		if !validProtocolString(t) {

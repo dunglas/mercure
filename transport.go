@@ -15,8 +15,8 @@ type Transport interface {
 	//
 	// It trusts u to be well-formed. A caller that builds u from untrusted
 	// input (e.g. a publisher request) and dispatches it directly instead of
-	// through Hub.Publish MUST call u.Validate first and reject the update on
-	// error, otherwise a CR, LF, or NUL in ID or Type can inject arbitrary SSE
+	// through Hub.Publish MUST call u.Validate with the matching base URL and
+	// reject the update on error, otherwise a CR, LF, or NUL in ID or Type can inject arbitrary SSE
 	// fields into subscribers' streams (CWE-93). Hub-internal updates such as
 	// subscription events are trusted and skip Validate (they use reserved
 	// topics that Validate rejects by design).

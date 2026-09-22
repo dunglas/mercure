@@ -25,14 +25,18 @@ const topicsKeySeparator = "\x00"
 
 // urlPatternFallbackBase is the base URL applied when no public URL is
 // configured. ".invalid" is reserved by RFC 6761 §6.4, so it cannot collide
-// with a real absolute pattern. Relative ↔ relative matching is
-// identity-preserving against any consistent base, so subscription events
-// (which use relative topics) match correctly even without configuration.
-// Cross-mode matching (a relative pattern against an absolute topic on the
-// hub URL or vice versa) requires a real base URL — configure a resource
-// identifier ending in "/.well-known/mercure" (WithResourceIdentifier /
-// `resource_identifier`), which then doubles as the base.
-const urlPatternFallbackBase = "http://mercure.invalid"
+// with a real absolute pattern. Its path is the hub URL, as the protocol
+// requires of the base, so a path-relative reference resolves here as it does
+// against a configured resource identifier and in the reserved-namespace guard,
+// which shares this base (see reservedtopic.go).
+// Relative ↔ relative matching is identity-preserving against any consistent
+// base, so subscription events (which use relative topics) match correctly even
+// without configuration. Cross-mode matching (a relative pattern against an
+// absolute topic on the hub URL or vice versa) requires a real base URL —
+// configure a resource identifier ending in "/.well-known/mercure"
+// (WithResourceIdentifier / `resource_identifier`), which then doubles as the
+// base.
+const urlPatternFallbackBase = "http://mercure.invalid" + defaultHubURL
 
 // matchCacheKey is the comparable struct used as the match-cache key. The
 // Topics field holds the update's topics joined with a NUL byte; for the

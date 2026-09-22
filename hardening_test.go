@@ -29,10 +29,10 @@ func TestUpdateValidateRejectsControlCharsInID(t *testing.T) {
 
 	const topic = "https://example.com/1"
 
-	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\x7fb"}).Validate(), ErrInvalidEventID)
-	require.ErrorIs(t, (&Update{Topics: []string{topic}, Type: "a\x9fb"}).Validate(), ErrInvalidEventType)
-	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\xffb"}).Validate(), ErrInvalidEventID) // invalid UTF-8
-	require.NoError(t, (&Update{Topics: []string{topic}, ID: topic, Type: "message"}).Validate())
+	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\x7fb"}).Validate(urlPatternFallbackBase), ErrInvalidEventID)
+	require.ErrorIs(t, (&Update{Topics: []string{topic}, Type: "a\x9fb"}).Validate(urlPatternFallbackBase), ErrInvalidEventType)
+	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\xffb"}).Validate(urlPatternFallbackBase), ErrInvalidEventID) // invalid UTF-8
+	require.NoError(t, (&Update{Topics: []string{topic}, ID: topic, Type: "message"}).Validate(urlPatternFallbackBase))
 }
 
 // TestPublishTopicWithNULRejected ensures a topic carrying a NUL byte is

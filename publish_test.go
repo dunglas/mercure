@@ -506,7 +506,7 @@ func TestUpdateValidate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := tc.update.Validate()
+			err := tc.update.Validate(urlPatternFallbackBase)
 			if tc.want == nil {
 				assert.NoError(t, err)
 
@@ -526,7 +526,7 @@ func TestUpdateValidateTooManyTopics(t *testing.T) {
 		topics[i] = "https://example.com/books/1"
 	}
 
-	err := testUpdate(&Update{}, topics...).Validate()
+	err := testUpdate(&Update{}, topics...).Validate(urlPatternFallbackBase)
 	assert.ErrorIs(t, err, ErrTooManyTopics)
 }
 
