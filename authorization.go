@@ -279,7 +279,6 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 
 	c.authz = authz
 
-	// Drop what the legacy claim still carries unless it is actually honored.
 	h.dropLegacyClaims(c)
 
 	// The legacy mercure claim is honored only when the token carries no

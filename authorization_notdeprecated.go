@@ -28,8 +28,7 @@ func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
 	return r.Cookie(h.cookieName) //nolint:wrapcheck
 }
 
-// dropLegacyClaims is a no-op without the deprecated_claim tag: the legacy
-// mercure claim is not even unmarshaled.
+// This build never unmarshals legacy claims.
 func (h *Hub) dropLegacyClaims(*claims) {}
 
 // resolveLegacyClaims is a no-op without the deprecated_claim tag: the legacy

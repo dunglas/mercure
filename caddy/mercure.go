@@ -180,10 +180,8 @@ type Mercure struct {
 	// Allowed CORS origins.
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
-	// Size of the topic matcher cache, in entries of the average size the
-	// cache budgets for (~100 B); an entry holding longer topics counts for
-	// more. 0 or negative disables the cache. Defaults to
-	// DefaultTopicMatcherStoreCacheSize.
+	// Match cache budget in 100-byte units; nonpositive disables it.
+	// Defaults to DefaultTopicMatcherStoreCacheSize.
 	TopicMatcherCacheSize *int `json:"topic_matcher_cache_size,omitempty"`
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`

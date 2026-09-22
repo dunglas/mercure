@@ -88,7 +88,6 @@ func (h *Hub) initHandler() {
 	h.handler = secureMiddleware.Handler(h.corsHandler(router))
 }
 
-// spansArbitraryOrigins rejects wildcards that cross registrable domain boundaries.
 func spansArbitraryOrigins(origin string) bool {
 	prefix, suffix, found := strings.Cut(origin, "*")
 	if !found {
@@ -116,13 +115,7 @@ func (h *Hub) corsHandler(router http.Handler) http.Handler {
 		return router
 	}
 
-	// The protocol forbids combining a wildcard Access-Control-Allow-Origin
-	// with credentials: cookies cross origins only when the allowed origins
-	// form an explicit allowlist. With "*", credentialed responses are
-	// rejected by browsers anyway, so disable credentials instead of shipping
-	// a header pair that can never work. A pattern that is not literally "*"
-	// but still spans arbitrary hosts is worse: rs/cors reflects the request's
-	// Origin, which browsers do accept alongside credentials.
+	// Reflected wildcard origins must not expose credentials across registrable domains.
 	allowCredentials := !slices.ContainsFunc(h.corsOrigins, spansArbitraryOrigins)
 
 	return cors.New(cors.Options{
