@@ -872,10 +872,6 @@ func TestAuthorizeCustomCookieName(t *testing.T) {
 // grant matrix is covered by TestMercureAuthzGrants in
 // authorizationdetails_test.go.
 
-// A modern-mode hub must ignore the pre-1.0 mercure claim even in a
-// deprecated_claim build: the claim is still unmarshaled, and mercure.payload
-// was where 0.x operators were told to move subscriptions_include_ip, so
-// honoring it would keep broadcasting subscriber IP addresses.
 func TestLegacyPayloadIgnoredOutsideCompatibilityMode(t *testing.T) {
 	t.Parallel()
 
@@ -920,9 +916,6 @@ func TestLegacyPayloadIgnoredOutsideCompatibilityMode(t *testing.T) {
 	assert.Nil(t, s.SubscriptionPayloads[0])
 }
 
-// Compatibility mode honors the legacy claim only for a token carrying no
-// authorization_details: those replace the claim outright, so the payload
-// riding along with them must not be broadcast either.
 func TestLegacyPayloadIgnoredBesideAuthorizationDetails(t *testing.T) {
 	t.Parallel()
 

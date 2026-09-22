@@ -19,19 +19,11 @@ import (
 // handling a much larger topic / matcher universe.
 const DefaultTopicMatcherStoreCacheSize = 100_000
 
-// avgMatchCacheEntrySize is the entry size the cache budget is expressed in.
-// The cache is bounded by weight rather than by entry count: a key embeds the
-// full topic text, which the protocol does not bound per topic, so counting
-// entries would let a publisher retain gigabytes under a limit that reads as
-// ~10 MB. A cache sized for N entries therefore holds N × this many bytes,
-// which is more entries than N of ordinary keys and fewer of oversized ones.
+// Weighting by retained bytes prevents large keys from exhausting the cache budget.
 const avgMatchCacheEntrySize = 100
 
-// matchCacheEntryWeight approximates the bytes an entry retains: the key
-// strings plus the key struct, the cached bool and the cache's own per-entry
-// bookkeeping.
 func matchCacheEntryWeight(k matchCacheKey, _ bool) uint32 {
-	const fixedOverhead = 64
+	const fixedOverhead = 64 // Estimated cache bookkeeping per entry.
 
 	weight := fixedOverhead + len(k.Base) + len(k.Type) + len(k.Pattern) + len(k.Topics)
 

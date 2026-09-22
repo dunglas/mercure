@@ -131,11 +131,7 @@ url.searchParams.append(
 if (lastEventId) url.searchParams.append("last_event_id", lastEventId);
 
 const es = new EventSource(url, { withCredentials: true });
-// snapshot.subscriptions is the initial list; the listener applies deltas as
-// subscribers come and go. Subscription events are named "mercure", a type
-// reserved for the hub, so listen for it by name: onmessage never fires for
-// them, and it would receive updates from any other publisher sharing the
-// connection.
+// Named subscription events do not trigger onmessage.
 es.addEventListener("mercure", (e) => applyDelta(JSON.parse(e.data)));
 ```
 

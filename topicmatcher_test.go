@@ -130,9 +130,6 @@ func TestValidatePattern(t *testing.T) {
 	assert.ErrorIs(t, tms.validatePattern(TopicMatcher{Type: "Regexp", Pattern: "fo+"}), ErrUnsupportedMatcherType)
 }
 
-// The match cache is bounded by the bytes its keys retain, not by entry count:
-// a topic carries no length limit of its own, so counting entries would let a
-// handful of oversized topics retain far more than the configured budget.
 func TestMatchCacheBoundedByWeight(t *testing.T) {
 	t.Parallel()
 
@@ -157,8 +154,6 @@ func TestMatchCacheBoundedByWeight(t *testing.T) {
 		return true
 	})
 
-	// An entry heavier than the whole budget cannot be evicted below it, so the
-	// bound is the budget plus one such entry. Counting entries instead would
-	// have retained all 100, some 6.5 MB under a 10 kB budget.
+	// Allow one oversized entry beyond the approximate cache budget.
 	assert.LessOrEqual(t, weight, 100*avgMatchCacheEntrySize+heaviest)
 }

@@ -27,17 +27,9 @@ var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 const (
 	maxClaimMatchers = 1000 // mercure.subscribe / mercure.publish array
 	maxPublishTopics = 1000 // "topic" form fields on publish
-	// maxEventIDLength bounds the publisher-supplied "id". It is echoed in the
-	// ETag and the rel="mercure" Link header of every subscription API
-	// response, and in the Mercure-Last-Event-Id header, so an unbounded one
-	// turns a single small publish into megabytes of response headers on every
-	// later request — and persists, surviving a restart.
+	// Persisted IDs are echoed in response headers.
 	maxEventIDLength = 1024
-	// maxTopicLength bounds one topic, mirroring maxPatternLength on the
-	// matcher side. Without it the two are asymmetric: a matcher pattern is
-	// bounded but the topic it is matched against is not, and the match cache
-	// keys entries on the topic text, so one publish could park the whole
-	// request body in the cache under an entry that reads as one small result.
+	// Match cache keys retain the full topic text.
 	maxTopicLength = maxPatternLength
 	// Subscribe-side matcher count is capped by maxMatcherCount
 	// (subscribematchers.go).
@@ -243,13 +235,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate topics before they can reach the shared match cache via the
-	// authorization grant check (grantsAll → matches → cachedMatch), which
-	// keys the cache on the topic list joined with NUL; an unvalidated topic
-	// containing a literal NUL would collide with a legitimate multi-topic key
-	// and poison the entry (CWE-20), and an unbounded one would be retained
-	// verbatim in that key. Update.Validate re-checks later, but only after
-	// the grant check has already consulted the cache.
+	// Reject cache-key collisions and oversized keys before authorization populates the cache.
 	for _, t := range topics {
 		if !validProtocolString(t) || len(t) > maxTopicLength {
 			http.Error(w, fmt.Errorf("%q: %w", t, ErrInvalidTopic).Error(), http.StatusBadRequest)

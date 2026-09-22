@@ -310,16 +310,12 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	// etagValue percent-encodes anything outside etagc (SP, DQUOTE, ...) that
 	// publish-time validation still permits, so the header stays valid.
 	etag := `"` + etagValue(lastEventID) + `"`
-	// A 304 carries the ETag and the caching directives it would have sent on a
-	// 200 (RFC 9110 §15.4.5), so set them before the conditional check.
+	// A 304 must carry the same ETag and cache directives as a 200.
 	header := w.Header()
 	header["ETag"] = []string{etag}
-	// The listing is scoped to the caller's grants, so only a private cache may
-	// hold it. RFC 9111 §3.5 already keeps a shared cache off an
-	// Authorization-bearing request, but says nothing about the Cookie the
-	// protocol offers browsers as its other credential.
+	// Cookie-authenticated listings need explicit protection from shared caches.
 	header["Cache-Control"] = subscriptionCacheControl
-	// Added, not set: the CORS middleware has already written Vary: Origin.
+	// Preserve the CORS middleware's Vary: Origin.
 	header.Add("Vary", "Authorization")
 	header.Add("Vary", "Cookie")
 

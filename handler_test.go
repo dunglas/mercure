@@ -8,10 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// rs/cors treats any "*" in an allowed origin as a wildcard and reflects the
-// request's Origin, which a browser accepts alongside credentials. Only a
-// wildcard confined to the subdomain labels of one host keeps the response
-// bound to an allowlist.
 func TestSpansArbitraryOrigins(t *testing.T) {
 	t.Parallel()
 
