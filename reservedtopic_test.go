@@ -11,9 +11,6 @@ import (
 func TestAddressesReservedNamespace(t *testing.T) {
 	t.Parallel()
 
-	base, err := wurl.Parse(urlPatternFallbackBase)
-	require.NoError(t, err)
-
 	cases := []struct {
 		topic    string
 		reserved bool
@@ -53,6 +50,9 @@ func TestAddressesReservedNamespace(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.topic, func(t *testing.T) {
 			t.Parallel()
+
+			base, err := wurl.Parse(urlPatternFallbackBase)
+			require.NoError(t, err)
 
 			assert.Equal(t, tc.reserved, addressesReservedNamespace(tc.topic, base), tc.topic)
 		})
