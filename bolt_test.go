@@ -459,6 +459,31 @@ func TestBoltTransportKnownLastEventIDIsEchoed(t *testing.T) {
 	s.Disconnect()
 }
 
+func TestBoltTransportReusedLastEventIDResolvesToEarliest(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 0, 0)
+
+	for _, id := range []string{"a", "reused", "b", "reused", "c"} {
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{
+			ID:     id,
+			Topics: []string{"https://example.com/foo"},
+		}))
+	}
+
+	s := NewLocalSubscriber("reused", transport.logger, &TopicMatcherStore{})
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/foo"}}, nil)
+	require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+	assert.Equal(t, "reused", <-s.responseLastEventID)
+
+	for _, id := range []string{"b", "reused", "c"} {
+		assert.Equal(t, id, (<-s.Receive()).ID)
+	}
+
+	s.Disconnect()
+}
+
 // seedBoltHistory writes n updates in a single transaction: the scan-limit
 // bugs need more events than is practical to publish one by one.
 func seedBoltHistory(tb testing.TB, transport *BoltTransport, topic string, n int) {
