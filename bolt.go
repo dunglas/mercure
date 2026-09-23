@@ -225,7 +225,8 @@ func pastSeqBound(k []byte, toSeq uint64) bool {
 
 // findLastEventID returns the seq of the requested Last-Event-ID. Searching
 // backwards matches how subscribers reconnect: forwards from the oldest event,
-// scanLimit cut off exactly the recent ids they ask for.
+// scanLimit cut off exactly the recent ids they ask for. The whole window is
+// scanned because a reused id resolves to its earliest occurrence.
 func findLastEventID(b *bolt.Bucket, lastEventID string, toSeq, scanLimit uint64) (uint64, bool) {
 	if toSeq == 0 {
 		return 0, false
@@ -244,20 +245,21 @@ func findLastEventID(b *bolt.Bucket, lastEventID string, toSeq, scanLimit uint64
 		k, _ = c.Prev()
 	}
 
-	var scanned uint64
+	var (
+		seq     uint64
+		found   bool
+		scanned uint64
+	)
 
-	for ; k != nil; k, _ = c.Prev() {
+	for ; k != nil && scanned < scanLimit; k, _ = c.Prev() {
 		if string(k[8:]) == lastEventID {
-			return binary.BigEndian.Uint64(k[:8]), true
+			seq, found = binary.BigEndian.Uint64(k[:8]), true
 		}
 
 		scanned++
-		if scanned >= scanLimit {
-			return 0, false
-		}
 	}
 
-	return 0, false
+	return seq, found
 }
 
 // historyScanLimit bounds the search for a requested Last-Event-ID. A
