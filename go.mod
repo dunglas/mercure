@@ -9,7 +9,7 @@ retract (
 
 require (
 	github.com/dunglas/go-urlpattern v1.0.0
-	github.com/dunglas/skipfilter v1.1.0
+	github.com/dunglas/skipfilter v1.2.0
 	github.com/elnormous/contenttype v1.0.4
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gorilla/mux v1.8.1

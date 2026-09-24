@@ -149,8 +149,8 @@ github.com/dlclark/regexp2/v2 v2.8.0 h1:CekDhPLGfm+GAJmPVFIG+5dqMIQPkyHJll7Bbdne
 github.com/dlclark/regexp2/v2 v2.8.0/go.mod h1:avUrQvPaLz2DrFNHJF0taWAFFX2C1GMSSoeiqFjcBmU=
 github.com/dunglas/go-urlpattern v1.0.0 h1:AmMwIDXWJFezeE1v38rxvQRGvvzTlityFuifLLVfoQQ=
 github.com/dunglas/go-urlpattern v1.0.0/go.mod h1:9qyjDljBPOWyWCGz7vo3Ek7cdnoG/DVk0Ucle7gWVS8=
-github.com/dunglas/skipfilter v1.1.0 h1:vyn8q0zsCCyI67B32JDzOQYga3xsXT70Ethm55Mu09o=
-github.com/dunglas/skipfilter v1.1.0/go.mod h1:ZVvGnWsdN5Hdwt27Wbi98ixUeFF3yLZ/WsFtcWQBN3s=
+github.com/dunglas/skipfilter v1.2.0 h1:J7/RXRxEx3t+DEu2Zt8ISsRuptbUFOWHEIzWIjraqRM=
+github.com/dunglas/skipfilter v1.2.0/go.mod h1:ZVvGnWsdN5Hdwt27Wbi98ixUeFF3yLZ/WsFtcWQBN3s=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dustin/go-humanize v1.1.0 h1:dbKTrvD0klcbBV/h4AWJdMuZogJACoMlvWIWZ5b2xWg=
 github.com/dustin/go-humanize v1.1.0/go.mod h1:hc1CvRkJMsgxqjmjMQF3QNRAZBwY8AXBAzKYoSX9sFI=

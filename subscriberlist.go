@@ -4,26 +4,15 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"slices"
-	"sync"
 
 	"github.com/dunglas/skipfilter"
 )
 
 type SubscriberList struct {
 	skipfilter *skipfilter.SkipFilter[*LocalSubscriber, filterKey]
-
-	// The digest used as cache key cannot be decoded back into the topics the filter needs.
-	inFlightMu sync.RWMutex
-	inFlight   map[filterKey]inFlightFilter
 }
 
 type filterKey [sha256.Size]byte
-
-type inFlightFilter struct {
-	topics  []string
-	private bool
-	refs    int
-}
 
 // DefaultSubscriberListCacheSize is the default size of the skipfilter cache.
 //
@@ -32,17 +21,7 @@ type inFlightFilter struct {
 const DefaultSubscriberListCacheSize = 100_000
 
 func NewSubscriberList(cacheSize int) *SubscriberList {
-	sl := &SubscriberList{inFlight: make(map[filterKey]inFlightFilter)}
-
-	sl.skipfilter = skipfilter.New(func(s *LocalSubscriber, k filterKey) bool {
-		sl.inFlightMu.RLock()
-		f := sl.inFlight[k]
-		sl.inFlightMu.RUnlock()
-
-		return s.MatchTopics(f.topics, f.private)
-	}, cacheSize)
-
-	return sl
+	return &SubscriberList{skipfilter: skipfilter.New[*LocalSubscriber, filterKey](nil, cacheSize)}
 }
 
 // newFilterKey returns one digest per topic set and private flag; SHA-256 makes the collision that
@@ -92,12 +71,9 @@ func newFilterKey(topics []string, private bool) filterKey {
 }
 
 func (sl *SubscriberList) MatchAny(u *Update) []*LocalSubscriber {
-	k := newFilterKey(u.Topics, u.Private)
-
-	sl.retain(k, u)
-	defer sl.release(k)
-
-	return sl.skipfilter.MatchAny(k)
+	return sl.skipfilter.MatchFunc(newFilterKey(u.Topics, u.Private), func(s *LocalSubscriber) bool {
+		return s.MatchTopics(u.Topics, u.Private)
+	})
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {
@@ -116,33 +92,4 @@ func (sl *SubscriberList) Remove(s *LocalSubscriber) {
 
 func (sl *SubscriberList) Len() int {
 	return sl.skipfilter.Len()
-}
-
-func (sl *SubscriberList) retain(k filterKey, u *Update) {
-	sl.inFlightMu.Lock()
-	defer sl.inFlightMu.Unlock()
-
-	f, ok := sl.inFlight[k]
-	if !ok {
-		f = inFlightFilter{topics: u.Topics, private: u.Private}
-	}
-
-	f.refs++
-	sl.inFlight[k] = f
-}
-
-func (sl *SubscriberList) release(k filterKey) {
-	sl.inFlightMu.Lock()
-	defer sl.inFlightMu.Unlock()
-
-	f := sl.inFlight[k]
-
-	f.refs--
-	if f.refs == 0 {
-		delete(sl.inFlight, k)
-
-		return
-	}
-
-	sl.inFlight[k] = f
 }

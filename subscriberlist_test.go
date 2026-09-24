@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,29 @@ func BenchmarkSubscriberList(b *testing.B) {
 		assert.Empty(b, l.MatchAny(&Update{Topics: []string{"https://example.org/baz"}}))
 		assert.NotEmpty(b, l.MatchAny(&Update{Topics: []string{"https://example.com/8"}, Private: false}))
 	}
+}
+
+// Cache misses on concurrent dispatches must not contend on shared state.
+func BenchmarkSubscriberListParallelMiss(b *testing.B) {
+	tms := &TopicMatcherStore{}
+	l := NewSubscriberList(1000)
+	logger := slog.Default()
+
+	for i := range 10_000 {
+		s := NewLocalSubscriber("", logger, tms)
+		s.setMatchers(stringsToExactMatchers([]string{fmt.Sprintf("https://example.com/%d", i)}), nil)
+
+		l.Add(s)
+	}
+
+	var n atomic.Int64
+
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			l.MatchAny(&Update{Topics: []string{fmt.Sprintf("https://example.com/miss/%d", n.Add(1))}})
+		}
+	})
 }
 
 // The key must not reorder the slice it is given: it can be the Update's own
@@ -137,7 +161,6 @@ func TestSubscriberListMatchesCachedFilters(t *testing.T) {
 	l.Add(authorized)
 
 	assert.Equal(t, []*LocalSubscriber{authorized}, l.MatchAny(u))
-	assert.Empty(t, l.inFlight)
 }
 
 // Cache keys must not retain the topics of the updates: a publisher sending
