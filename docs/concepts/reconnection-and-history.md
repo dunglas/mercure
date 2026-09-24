@@ -3,9 +3,9 @@ title: "Mercure reconnection, last-event-id, and history buffer"
 description: "How EventSource auto-reconnects with Last-Event-ID, how the Mercure hub replays missed updates from the history buffer, and how to detect data loss."
 ---
 
-# Reconnection and history
+# Mercure reconnection and history
 
-Network connections drop. SSE clients reconnect automatically. Mercure adds a way to **resume from the last event you saw**, so a brief disconnect doesn't lose updates.
+`EventSource` reconnects after connection loss. Mercure uses event IDs to replay missed updates while they remain available in the configured transport.
 
 This page covers how the replay mechanism works, what it costs, and how to size the history buffer.
 
@@ -14,7 +14,6 @@ This page covers how the replay mechanism works, what it costs, and how to size 
 The hub assigns a unique ID to each update (or echoes the one the publisher provided):
 
 ```text
-# Every event has an ID
 id: urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 event: message
 data: {"status": "checked out"}
@@ -25,12 +24,11 @@ data: {"status": "checked out"}
 
 ## Bootstrapping after page load
 
-The reconnection mechanism only solves _gap during a session_. The other gap to defend against is the one between **when your server generated the page** and **when the browser opened the SSE connection**: anywhere from a few hundred milliseconds to several seconds, during which updates may have been published.
+A fresh `EventSource` does not remember a previous page's cursor. To cover updates published between reading a resource snapshot and opening the stream, return a cursor associated with that snapshot.
 
 The publisher closes that gap by attaching a `last-event-id` attribute to its `Link` header at discovery time:
 
 ```http
-# Bootstrapping after page load
 GET /books/1
 Host: example.com
 
@@ -41,7 +39,6 @@ Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"; last-event-i
 The subscriber adds the value to its first SSE request as a `last_event_id` query parameter:
 
 ```javascript
-// Bootstrapping after page load
 const hub = new URL("https://hub.example.com/.well-known/mercure");
 hub.searchParams.append("match", "https://example.com/books/1");
 hub.searchParams.append(
@@ -57,84 +54,77 @@ The hub replays everything published since that ID, then transitions to live upd
 
 Pass `last_event_id=earliest` to ask the hub for **everything it has** for the subscribed topics. The hub may decline this on policy grounds (it's a heavy request); when it accepts, you get the full history.
 
-This is the right way to seed an event-sourced view from the hub.
+Use this to replay retained history. Keep authoritative state in your application database; the hub's history may be incomplete.
 
 ## Detecting data loss in Mercure replay
 
 Whenever a request carries a resumption cursor, the hub sets the `Mercure-Last-Event-ID` HTTP **response** header to the ID of the event preceding the first one it actually sent, or `earliest` when there is no preceding event. By comparing what you asked for with what you got, you can tell whether you missed updates.
 
-The response field is `Mercure-Last-Event-ID`, not `Last-Event-ID`: the latter is registered for request semantics only, so the protocol defines a distinct name for the response direction.
+The response header is `Mercure-Last-Event-ID`; `Last-Event-ID` is the request header. This sketch assumes a mutable `expectedLastEventID`, an event `handler`, and an application `reloadSnapshot` function that restores state and starts a new subscription.
 
 ```javascript
 // Native EventSource doesn't expose response headers; use fetch-event-source
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
+const controller = new AbortController();
 await fetchEventSource(url, {
-  onopen: (response) => {
+  signal: controller.signal,
+  onopen: async (response) => {
     const replayedFrom = response.headers.get("Mercure-Last-Event-ID");
     if (replayedFrom !== expectedLastEventID) {
-      // Possibly missed events, refetch the resource from the origin
+      controller.abort();
+      await reloadSnapshot();
     }
   },
-  onmessage: handler,
+  headers: { "Last-Event-ID": expectedLastEventID },
+  onmessage: (event) => {
+    if (event.id) expectedLastEventID = event.id;
+    handler(event);
+  },
 });
 ```
 
-For partial-update streams (JSON Patch, JSON Merge Patch) or anything where missing one update breaks the next one, **always check this header**. For idempotent full-state pushes, you can usually skip it.
+If a missing update would invalidate later patches, stop applying events when the cursor indicates a gap. Fetch a new snapshot, then resume from its cursor. Native `EventSource` cannot inspect this response header.
 
 ## The Mercure history buffer
 
-The hub stores recent events in a transport. The size of that buffer determines how far back a subscriber can replay.
+The transport determines whether updates are retained. BoltDB stores history on disk; `transport local` has no replay history. BoltDB's `size 0` default disables automatic retention limits, so monitor disk use and configure a finite size when appropriate.
 
-| Build                  | Default transport                   | History capacity                      |
-| ---------------------- | ----------------------------------- | ------------------------------------- |
-| Open-source hub        | BoltDB                              | **Unlimited** (bound by disk space)   |
-| Cloud (Free)           | Managed                             | None (no replay)                      |
-| Cloud (Hobby)          | Managed                             | 100 messages                          |
-| Cloud (Pro)            | Managed                             | 500 messages                          |
-| Cloud (Business)       | Managed                             | 5,000 messages                        |
-| Self-Hosted (any tier) | Redis / PostgreSQL / Kafka / Pulsar | **Unlimited** (bound by your storage) |
+**Want us to manage the hub and its history? [Choose Mercure Cloud](https://mercure.rocks/pricing).** For shared history across your own hub instances, [Mercure Enterprise](../production/high-availability.md#self-hosted-transports) includes PostgreSQL, Kafka, Redis/Valkey, and Pulsar transports.
 
-> **Pro tip.** The open-source hub has **no built-in history limit**. The Cloud caps exist for operational reasons: managed instances need predictable storage. If you're running on your own infrastructure and want to keep weeks of history for replay or event sourcing, the open-source build will store everything you give it disk for.
+PostgreSQL keeps history in SQL tables alongside your application infrastructure. Kafka uses your broker's retention policy for replay across hub nodes. Choose an [Enterprise transport](../production/high-availability.md#picking-a-mercure-self-hosted-transport) to match the storage you already operate, or [talk to us about a Self-Hosted plan](https://mercure.rocks/pricing).
 
-An update with [alternate topics](topics-and-matchers.md#alternate-topics) still costs a single history entry: the BoltDB, Redis, and other transports store one record per update — carrying its full topic list — and match it against a replaying subscriber's matchers, the same as they do for live dispatch. Attaching alternates does not multiply storage or the number of Last-Event-IDs a subscriber has to track.
+An update with [alternate topics](topics-and-matchers.md#alternate-topics) uses one BoltDB history record containing all its topics. Replay checks those topics against the subscriber's matchers.
 
 ### Configuring the Mercure BoltDB history size
 
-By default, the BoltDB transport keeps everything. To put a cap on it:
-
 ```caddyfile
-# Configuring the Mercure BoltDB History Size
-transport bolt {
-  path /data/mercure.db
-  size 1000000        # keep at most 1M events
-  cleanup_frequency 0.3
+mercure {
+  transport bolt {
+    path /data/mercure.db
+    size 1000000
+    cleanup_frequency 0.3
+  }
 }
 ```
 
-`cleanup_frequency` is the chance (between 0 and 1) of running a cleanup pass on each publish. The default `0.3` strikes a balance between write latency and storage growth. See [Configuration](../deployment/configuration.md#bolt-transport-default-single-node).
+`size` sets the retention target. Cleanup runs probabilistically on publication, so the count can temporarily exceed it. `cleanup_frequency 0` disables cleanup.
 
-Replay depth is bounded by the search for the requested `Last-Event-ID`: to keep an ancient or forged ID from forcing a walk over the whole database, the hub looks back at most 10,000 events, or `size` events when `size` is larger. A subscriber asking for an older ID gets `earliest` back even though the event is still stored, so set `size` to the retention you want to stay searchable instead of leaving it at `0`.
+A search for a specific event ID scans at most 10,000 recent events, or `size` events when larger. With `size 0`, an old event can remain stored but fall outside this search window. See [BoltDB configuration](../deployment/configuration.md#bolt-transport-default-single-node).
 
-### When history isn't enough
+### Recovering when history is incomplete
 
-For workflows where lost updates are unacceptable (partial updates that mutate state, primary event store), pair the hub with a durable system:
-
-- **Use a primary store.** Persist the source of truth (Postgres, your domain DB) and treat Mercure as the live broadcast. On reconnect with data loss, refetch from the store.
-- **Use the PostgreSQL transport.** Self-Hosted ships a transport that stores events in Postgres. You can then query them with SQL alongside your application data.
-- **Keep events forever.** Set `size 0` on BoltDB or rely on Postgres/Kafka retention.
+Keep authoritative state in your application database. If replay cannot cover a gap, fetch a fresh snapshot and resume from its cursor. Set retention for the expected disconnect duration and total publication rate across the hub.
 
 ## Server-side Mercure reconnect behaviour
 
-The hub sets a `retry` field on the SSE stream:
+Publishers can set `retry` to suggest a reconnection delay in milliseconds:
 
 ```text
-# Server-Side Mercure Reconnect Behaviour
 retry: 5000
-
 ```
 
-Browsers wait at least that many milliseconds before reconnecting after a disconnect. The hub picks a sensible default; override it if you need a different cadence.
+The hub forwards this SSE field. If no delay is supplied, the client uses its own default. Browsers may apply additional backoff.
 
 ## Native `EventSource` doesn't expose response headers
 
@@ -142,7 +132,7 @@ This catches people. If you need to read the `Mercure-Last-Event-ID` response he
 
 ## Header-based polyfills send the cursor as a query parameter
 
-A polyfill that lets you attach an `Authorization` header (for example `event-source-polyfill`, needed for [authorization](authorization.md) with a header instead of a cookie) can't use the native `Last-Event-ID` request header. It sends the resumption cursor as a query parameter instead, defaulting the name to `lastEventId`. The hub reads `last_event_id` (or the header), so that default is ignored: every reconnect resumes from the ID you set on the first request and replays a growing backlog.
+The `event-source-polyfill` package sends its reconnection cursor in a query parameter named `lastEventId` by default. This hub expects `last_event_id`, so configure that name explicitly. Other SSE clients may send the `Last-Event-ID` header instead.
 
 Set the parameter name to `last_event_id`:
 

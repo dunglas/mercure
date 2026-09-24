@@ -3,56 +3,44 @@ title: "Stream LLM tokens to the browser with Mercure and SSE"
 description: "Stream OpenAI, Anthropic, or local-model tokens to the browser in real time using Mercure and Server-Sent Events without a WebSocket gateway."
 ---
 
-# LLM token streaming
+# Stream LLM tokens with Mercure
 
-LLMs return tokens one at a time. To deliver that to a browser as it happens, you need a streaming transport between your server and the browser. Mercure is a good fit for this: it's already SSE under the hood, no WebSocket gateway, no proprietary client.
+A streaming model API returns chunks of output as generation progresses. Your server can publish those chunks to Mercure so authorized browsers receive them over SSE.
 
-This guide builds a minimal server-side LLM endpoint that calls OpenAI's streaming API and forwards tokens to the browser through Mercure. The same shape works with Anthropic, Google, Mistral, AWS Bedrock, vLLM, and llama.cpp. Anything with a streaming API fits.
+The example uses the [OpenAI Node.js SDK](https://github.com/openai/openai-node) and a Mercure publisher token. Set `OPENAI_API_KEY`, `OPENAI_MODEL` to a Chat Completions-compatible model available to your account, and `MERCURE_PUBLISHER_JWT`. The hub and application must also configure the subscriber cookie and CORS.
 
 ## LLM token streaming architecture with Mercure
 
 ```text
-# LLM Token Streaming Architecture with Mercure
-                   +----------+  POST /chat       +------------+
-   browser ------->|  origin  |-----------------> |            |
-        ^          |  server  |                   |  Mercure   |
-        |          |          |  POST /publish    |    hub     |
-        |          |          |-----------------> |            |
-        |          +----------+                   |            |
-        |                                         |            |
-        +-------------GET /.well-known/mercure----+            |
-                       (SSE, with cookie)         +------------+
-
-                    server stream loop:
-                    ---------------------
-                    for delta in openai.stream(prompt):
-                        publish(topic="conv:42", data=delta)
-                    publish(topic="conv:42", type="done")
+browser -- POST /chat --> application -- enqueue --> generation worker
+browser -- SSE subscription ------------------------------> Mercure hub
+generation worker -- model request --> model API
+generation worker -- POST /.well-known/mercure -----------> Mercure hub
+browser <---------------------- output chunks ------------- Mercure hub
 ```
 
-Why this works:
+The worker stays active while the model generates output. To return the browser's initiating request early, schedule the work in a queue or a runtime that supports background tasks. Closing the browser does not cancel that worker.
 
-- The browser holds **one** `EventSource` connection to the hub. It receives every token of every chat turn over that connection, regardless of how many models or backends you use.
-- The origin server doesn't have to keep the browser's HTTP connection open. It calls the hub and goes back to its event loop. This makes serverless inference (Lambda, Cloud Run, Workers) trivial.
-- Reconnection is built-in. If the browser drops mid-stream, `EventSource` reconnects with `Last-Event-ID` and the hub resends any tokens it still has buffered.
+The browser can replay retained chunks after a disconnect. The example requests `earliest` on a response-specific topic to cover output published before it subscribes.
 
 ## Subscriber: the browser
 
-Open one connection per chat session. Use a topic that includes the conversation ID:
+Use one topic per generated response. The example uses conversation `42` and response `1`; your application must allocate these IDs and authorize the user before starting the worker.
 
 ```html
-<!-- Subscriber: the browser -->
 <div id="output"></div>
 
 <script type="module">
   const conversationId = "42";
+  const responseId = "1";
 
   const url = new URL("https://hub.example.com/.well-known/mercure");
   url.searchParams.append(
     "match",
-    `https://example.com/conversations/${conversationId}`,
+    `https://example.com/conversations/${conversationId}/responses/${responseId}`,
   );
 
+  url.searchParams.set("last_event_id", "earliest");
   const es = new EventSource(url, { withCredentials: true });
   const out = document.getElementById("output");
 
@@ -66,14 +54,13 @@ Open one connection per chat session. Use a topic that includes the conversation
 </script>
 ```
 
-The cookie carries an OAuth 2.0 access token whose `subscribe` grant authorizes the user for `https://example.com/conversations/<their-id>` topics only. See [Authorization](../concepts/authorization.md).
+The cookie carries an OAuth 2.0 access token whose `subscribe` grant authorizes the user for `https://example.com/conversations/<their-id>/responses/<response-id>` topics only. See [Authorization](../concepts/authorization.md).
 
 ## Publisher: server-side OpenAI streaming
 
-A Node.js handler that calls OpenAI's chat completions in streaming mode and forwards each delta to the hub:
+A worker function using [Chat Completions streaming](https://developers.openai.com/api/reference/resources/chat):
 
 ```javascript
-// Publisher: server-side OpenAI streaming
 import OpenAI from "openai";
 
 const openai = new OpenAI();
@@ -81,21 +68,23 @@ const HUB = "https://hub.example.com/.well-known/mercure";
 const PUBLISHER_JWT = process.env.MERCURE_PUBLISHER_JWT;
 
 async function publish(topic, data, type = "message") {
-  await fetch(HUB, {
+  const response = await fetch(HUB, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${PUBLISHER_JWT}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ topic, data, type }),
+    body: new URLSearchParams({ topic, data, type, private: "on" }),
   });
+  if (!response.ok)
+    throw new Error(`Mercure publish failed: ${response.status}`);
 }
 
-export async function streamCompletion(conversationId, prompt) {
-  const topic = `https://example.com/conversations/${conversationId}`;
+export async function streamCompletion(conversationId, responseId, prompt) {
+  const topic = `https://example.com/conversations/${conversationId}/responses/${responseId}`;
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: process.env.OPENAI_MODEL,
     messages: [{ role: "user", content: prompt }],
     stream: true,
   });
@@ -111,32 +100,26 @@ export async function streamCompletion(conversationId, prompt) {
 }
 ```
 
-The publish call is a single `POST`; it returns as soon as the hub accepts the update. You don't await delivery to subscribers; that happens in the background.
+Each publish waits for the hub's response and checks its status. This preserves chunk order. Acceptance does not acknowledge that subscribers have processed the update.
 
 ## Why not just stream the response from the origin?
 
-`POST /chat` could return `text/event-stream` directly. That works too, but it has trade-offs Mercure avoids:
+Returning an SSE response directly is sufficient for one client consuming one generation. Use Mercure when several tabs or devices need the same stream, when output comes from background workers, or when you need retained-event replay.
 
-- **Connection stickiness.** A streaming response keeps the origin worker tied to that one client until the stream finishes. With Mercure, the origin worker publishes and exits; the hub holds the long connection.
-- **Multi-tab.** With Mercure, a user with three tabs open sees the same stream in all three. With direct streaming, you'd have to fan it out yourself.
-- **Disconnect resilience.** Mercure re-delivers tokens after a reconnect from the buffer. A direct stream doesn't: the user reloads and the stream is gone.
-- **Multi-model fan-out.** If you want to stream from several models in parallel, run two prompts at once, or push a tool result mid-stream, separate publishes are easier than splitting a single response stream.
-
-That said, for the simplest case (one model, one tab, one prompt), a streaming HTTP response from your origin is fine. Reach for Mercure when the simple case stops being enough.
+Mercure holds subscriber connections, but the generation worker still runs until the model finishes. Serverless execution limits apply to that worker.
 
 ## Other LLM providers with Mercure
 
 The pattern is identical. Replace the streaming call.
 
-**Anthropic:**
+**Anthropic:** set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` to a model that supports the [Messages streaming API](https://platform.claude.com/docs/en/build-with-claude/streaming). This fragment reuses the `publish` helper above and assumes `prompt` and `topic` are set.
 
 ```javascript
-// Other LLM Providers with Mercure
 import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
 const stream = client.messages.stream({
-  model: "claude-sonnet-4-6",
+  model: process.env.ANTHROPIC_MODEL,
   max_tokens: 1024,
   messages: [{ role: "user", content: prompt }],
 });
@@ -157,16 +140,15 @@ for await (const event of stream) {
 
 ## Performance notes for LLM token streaming over Mercure
 
-- **Don't await each publish if latency matters.** Fire-and-forget the `fetch` calls and `await Promise.all` at the end. Each call is a few hundred bytes; serializing them adds 1-5ms per token.
-- **Batch tiny tokens.** OpenAI sometimes emits single-character deltas. If your UI renders per token, that's fine; if you're hitting publish-rate limits on a managed hub, accumulate 50-100ms worth of tokens and publish in chunks.
-- **Stream IDs help replay.** Set a custom `id=` on each publish (a counter, or `<conversationId>:<index>`) so a reconnecting client can ask for everything after the last one it saw.
+- **Preserve order.** Await publications in sequence. Parallel HTTP requests can arrive out of order, including a `done` event arriving before the final chunk.
+- **Batch small chunks.** Accumulate a short interval of text before publishing if per-chunk request overhead or plan limits are significant.
+- **Handle failures.** Persist output and report a terminal failure through your application. Add sequence numbers if clients need to detect gaps or deduplicate retries.
 
 ## Authorization sketch
 
-Mint a JWT for the user when they load the chat page:
+This payload excerpt grants access to one response. Add the required access-token claims and use a short expiry as described in [Authorization](../concepts/authorization.md).
 
-```jsonc
-// Authorization sketch (header: { "alg": "...", "typ": "at+jwt" })
+```json
 {
   "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
@@ -175,10 +157,12 @@ Mint a JWT for the user when they load the chat page:
     {
       "type": "https://mercure.rocks/authorization-detail",
       "actions": ["subscribe"],
-      "topics": [{ "match": "https://example.com/conversations/42" }],
-      "payload": { "user": "https://example.com/users/42" },
-    },
-  ],
+      "topics": [
+        { "match": "https://example.com/conversations/42/responses/1" }
+      ],
+      "payload": { "user": "https://example.com/users/42" }
+    }
+  ]
 }
 ```
 
@@ -186,17 +170,19 @@ Set it as the `__Secure-mercure_access_token` cookie with `Domain=example.com; P
 
 ## Limits to be aware of
 
-- **One `EventSource` per browser tab is enough.** A tab can have one connection per origin under HTTP/2 and use `match*` parameters for as many topics as it wants.
-- **Connection counts.** A streaming chat keeps a connection open for the life of the page. The open-source hub has [no built-in cap](../concepts/reconnection-and-history.md#the-mercure-history-buffer): sizing is whatever your hardware can handle. Cloud tiers cap connections per plan.
-- **Buffer size.** If you want a user reloading mid-stream to recover the in-progress answer, set the hub's history buffer high enough to cover a typical answer's worth of tokens (5,000+).
-
-> **Pro tip.** For prototyping a streaming chat UI without provisioning infrastructure, the [Mercure Cloud Free tier](https://mercure.rocks/pricing) gives you a hub in seconds. Move to self-hosted later if connection volume or compliance demands it; the protocol is identical.
+- **One `EventSource` per browser tab is enough.** Use multiple `match*` parameters before opening the stream. This hub accepts at most 100 matchers per subscription.
+- **Connection counts.** A streaming chat keeps a connection open for the life of the page. The open-source hub has [no built-in cap](../concepts/reconnection-and-history.md#the-mercure-history-buffer): sizing is whatever your hardware can handle. [Mercure Cloud plans](https://mercure.rocks/pricing) provide managed capacity; [Enterprise](../production/high-availability.md) lets you scale across your own hubs.
+- **Buffer size.** If you want a user reloading mid-stream to recover the in-progress answer, retain enough events for the expected recovery window across all active responses. Persist completed output in your database and refetch it if replay is incomplete.
 
 ## A complete Mercure LLM streaming reference
 
-The pattern in this guide drives the SSE side of [Anthropic's web search streaming demos](https://github.com/anthropics) and several production chatbots built on the [API Platform framework](https://api-platform.com/docs/core/mercure/). [Awesome Mercure](../ecosystem/awesome.md) has more examples.
+See [Awesome Mercure](../ecosystem/awesome.md) for integrations. The worker above still needs application routes for authorizing users, creating responses, and scheduling generation.
 
-## Next steps for LLM streaming with Mercure
+## Take your AI streaming to production
+
+**[Mercure Cloud](https://mercure.rocks/pricing) handles the subscriber connections while you build the AI experience.** For deployments that need to keep prompts and responses on your own infrastructure, choose [Mercure Enterprise](../production/high-availability.md).
+
+## Next steps
 
 - [AI agent progress](ai-agent-progress.md): when there's more than tokens to stream.
 - [Authorization](../concepts/authorization.md): minting per-conversation tokens.

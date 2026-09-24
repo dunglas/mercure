@@ -3,31 +3,35 @@ title: "Run the Mercure.rocks hub with Docker and Docker Compose"
 description: "Run the Mercure.rocks Hub with the official Docker image, Docker Compose, healthchecks, and rootless deployment."
 ---
 
-# Docker
+# Run Mercure with Docker
 
-The official image is `dunglas/mercure`. Built on top of the [Caddy image](https://hub.docker.com/_/caddy), so anything Caddy's image supports works here too.
+Run `dunglas/mercure` to start the Mercure hub with Caddy. The image supports the bundled environment variables and custom Caddyfiles.
+
+Prefer to skip server maintenance? **[Mercure Cloud](https://mercure.rocks/pricing) runs the hub for you.** For a supported cluster on your own servers, use the [Mercure Enterprise image](../production/high-availability.md#self-hosted-mercure-multi-node-on-your-infrastructure).
 
 ## Run the Mercure Docker image
 
-Production mode:
+Set the following values for your deployment and replace both example secrets:
 
 ```console
-# Run the Mercure Docker Image
 docker run \
+    -e SERVER_NAME=hub.example.com \
+    -e MERCURE_TRUSTED_ISSUERS=https://app.example.com \
     -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
     -p 80:80 -p 443:443 \
     dunglas/mercure
 ```
 
-The hub binds to `:80` and `:443`. Caddy issues a Let's Encrypt cert for `SERVER_NAME` automatically. Don't set `SERVER_NAME=localhost` in production: it can't be issued a public certificate.
+Set `SERVER_NAME` to your public hostname and point its DNS record at the server. Caddy obtains a certificate automatically. The default `localhost` uses a local certificate authority.
 
-Behind a reverse proxy that handles TLS, set `SERVER_NAME=:80` and skip `:443`:
+Behind a reverse proxy that handles TLS, use HTTP on a private backend network and pin the public audience. See [Reverse proxies](reverse-proxy.md) before exposing this backend:
 
 ```console
-# Run the Mercure Docker Image
 docker run \
     -e SERVER_NAME=':80' \
+    -e MERCURE_TRUSTED_ISSUERS=https://app.example.com \
+    -e 'MERCURE_EXTRA_DIRECTIVES=resource_identifier https://hub.example.com/.well-known/mercure' \
     -e MERCURE_PUBLISHER_JWT_KEY='...' \
     -e MERCURE_SUBSCRIBER_JWT_KEY='...' \
     -p 80:80 \
@@ -37,7 +41,6 @@ docker run \
 ## Mercure Docker development mode
 
 ```console
-# Mercure Docker Development Mode
 docker run \
     -e MERCURE_EXTRA_DIRECTIVES=playground \
     -p 80:80 -p 443:443 \
@@ -55,8 +58,9 @@ Don't expose this to the internet.
 
 ## Compose
 
+Save this as `compose.yaml`, replace the secrets and hostnames, then run `docker compose up -d`:
+
 ```yaml
-# compose.yaml
 services:
   mercure:
     image: dunglas/mercure
@@ -64,6 +68,8 @@ services:
     environment:
       MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
       MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_TRUSTED_ISSUERS: https://app.example.com
+      SERVER_NAME: hub.example.com
     ports:
       - "80:80"
       - "443:443"
@@ -76,21 +82,20 @@ volumes:
   mercure_config:
 ```
 
-| Volume    | What's in it                                                         |
-| --------- | -------------------------------------------------------------------- |
-| `/data`   | BoltDB history (`mercure.db`) and Caddy data (autosave, cert cache). |
-| `/config` | Caddy autosaved configuration.                                       |
+| Volume    | What's in it                                                   |
+| --------- | -------------------------------------------------------------- |
+| `/data`   | BoltDB history (`/data/caddy/mercure.db`) and Caddy TLS state. |
+| `/config` | Caddy autosaved configuration.                                 |
 
-Persist both. Losing `/data` means losing replay history; losing `/config` means re-issuing certificates on next boot.
+Persist `/data` to keep history and TLS state across restarts. `/config` stores Caddy's autosaved configuration.
 
 ## Mercure Docker healthcheck
 
-The image's built-in healthcheck queries `localhost:2019/mercure/health/ready`: the [transport-aware](../production/health-monitoring.md) readiness endpoint, not just "is the process up."
+The image's built-in health check targets the [transport readiness endpoint](../production/health-monitoring.md) at `localhost:2019/mercure/health/ready`.
 
 For Compose, override or extend it:
 
 ```yaml
-# Mercure Docker Healthcheck
 services:
   mercure:
     # ...
@@ -100,7 +105,8 @@ services:
           "CMD",
           "wget",
           "-q",
-          "--spider",
+          "-O",
+          "/dev/null",
           "http://localhost:2019/mercure/health/ready",
         ]
       timeout: 5s
@@ -117,7 +123,6 @@ The image runs as `root` by default. Recent Docker (20.10+) sets `net.ipv4.ip_un
 To run as a non-root user:
 
 ```yaml
-# compose.yaml
 services:
   mercure:
     image: dunglas/mercure
@@ -128,6 +133,8 @@ services:
     environment:
       MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
       MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_TRUSTED_ISSUERS: https://app.example.com
+      SERVER_NAME: hub.example.com
     ports:
       - "80:80"
       - "443:443"
@@ -136,11 +143,10 @@ services:
       - mercure_config:/config
 ```
 
-The volumes must be writable by UID 1000. For fresh named volumes, set ownership once:
+The volumes must be writable by UID 1000. Use the Compose service to change ownership of the actual project volumes:
 
 ```console
-# Rootless Mercure on Docker
-docker run --rm -v mercure_data:/data -v mercure_config:/config alpine chown 1000:1000 /data /config
+docker compose run --rm --user 0 --entrypoint chown mercure -R 1000:1000 /data /config
 ```
 
 For bind mounts, `chown 1000:1000` the host directory.
@@ -150,7 +156,6 @@ For bind mounts, `chown 1000:1000` the host directory.
 Ship your own `Caddyfile`:
 
 ```yaml
-# compose.yaml
 services:
   mercure:
     image: dunglas/mercure
@@ -160,20 +165,11 @@ services:
       - mercure_config:/config
 ```
 
-A custom Caddyfile is the right move once you need:
-
-- Multiple sites or hostnames on the same hub.
-- Reverse proxying alongside the hub (Caddy handling both).
-- Per-route rate limiting, request transformation, or custom auth.
-- Reading secrets from files (`{file./run/secrets/jwt_key}`) instead of environment variables.
+Use a custom Caddyfile for multiple sites, reverse-proxy routes, or additional modules. Available features depend on which modules are compiled into the binary.
 
 ## Mercure hub Docker logs
 
-Caddy logs to stdout in JSON by default. Pipe to whatever your platform expects (Loki, Datadog, CloudWatch). Useful fields:
-
-- `mercure.subscribers_*`: connection lifecycle.
-- `mercure.update_*`: publish events.
-- `caddy.error_*`: TLS, listener, and transport errors.
+Caddy emits structured logs. Inspect them with `docker logs` or your platform's logging service; Mercure log entries include fields such as `subscriber`, `update`, and `error`.
 
 Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod: it logs update payloads).
 
@@ -181,14 +177,14 @@ Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod: it logs u
 
 - `dunglas/mercure`: Alpine-based, statically linked.
 - `dunglas/mercure:<version>`: pin to a specific release.
-- Self-Hosted ships its own image with the multi-node transports: see [High availability](../production/high-availability.md).
+- `ghcr.io/dunglas/mercure-saas/mercure-saas:1.0`: the licensed Enterprise image with Redis/Valkey, PostgreSQL, Kafka, and Pulsar transports. [Choose a Self-Hosted plan](https://mercure.rocks/pricing), then follow [High availability](../production/high-availability.md).
 
 ## Behind a reverse proxy
 
 If you're already running Traefik or NGINX, terminate TLS there and let the hub speak HTTP. See [Reverse proxies](reverse-proxy.md).
 
-## Next steps for Mercure on Docker
+## Next steps
 
 - [Configuration](configuration.md): directives and env vars.
 - [Kubernetes](kubernetes.md): same image, Helm chart.
-- [Health monitoring](../production/health-monitoring.md): what the probes actually check.
+- [Health monitoring](../production/health-monitoring.md): probe behavior.

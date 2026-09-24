@@ -5,7 +5,7 @@ description: "Curated list of Mercure libraries, framework integrations, demos, 
 
 # Awesome Mercure
 
-A curated list of libraries, integrations, and learning resources around Mercure. Add yours via PR.
+Libraries, framework integrations, and tutorials for Mercure. Check each project's supported protocol version: older integrations may require the [0.x compatibility mode](../UPGRADE.md#compatibility-mode). Contributions are welcome.
 
 ## Mercure demos
 
@@ -20,7 +20,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [PHP: publish](https://github.com/dunglas/mercure/tree/master/examples/publish/php.php)
 - [Ruby: publish](https://github.com/dunglas/mercure/tree/master/examples/publish/ruby.rb)
 - [Python: subscribe](https://github.com/dunglas/mercure/tree/master/examples/subscribe/python.py)
-- [Python: cookie-based authorization](https://github.com/dunglas/mercure/blob/master/examples/chat/chat.py)
+- [Python: cookie-based authorization](https://github.com/dunglas/mercure/blob/master/examples/chat/main.py)
 - [API Platform: publish + subscribe](https://github.com/api-platform/demo): book catalog updated in real time.
 
 ## Hubs and server libraries
@@ -31,7 +31,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Mercure client libraries
 
-- [`@microsoft/fetch-event-source` (JavaScript)](https://github.com/Azure/fetch-event-source): better SSE client for browsers and Node.
+- [`@microsoft/fetch-event-source` (JavaScript)](https://github.com/Azure/fetch-event-source): browser SSE client with custom headers and retry handling.
 - [`symfony/mercure` (PHP, publisher)](https://github.com/symfony/mercure)
 - [`python-mercure` (Python, publish + subscribe)](https://github.com/vitorluis/python-mercure)
 - [`dart_mercure` (Dart / Flutter, publish + subscribe)](https://github.com/wallforfry/dart_mercure)
@@ -51,7 +51,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Documentation, tooling, and code generation
 
-- [AsyncAPI](https://www.asyncapi.com/): natively supports the Mercure protocol.
+- [AsyncAPI](https://www.asyncapi.com/): can describe asynchronous APIs; check tooling support for your Mercure revision.
 - [URI Template tester](https://uri-template-tester.mercure.rocks/): for hubs running 0.x-style URI Template subscriptions.
 
 ## Useful SSE and JWT libraries for Mercure
@@ -71,7 +71,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Mercure learning resources
 
-### Mercure resources in english
+### Mercure resources in English
 
 - 📺 [API updates in real time with Mercure.rocks](https://www.youtube.com/watch?v=odNsxoHSkT4)
 - 📺 [Building async public APIs using HTTP/2+ and the Mercure protocol](https://www.youtube.com/watch?v=IUx47Tx0O8E)
@@ -82,7 +82,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
 - [Using Mercure on Stackhero](https://www.stackhero.io/services/Mercure-Hub/documentations)
 
-### Mercure resources in french
+### Mercure resources in French
 
 - 📺 [Notifications instantanées avec Mercure (Grafikart)](https://www.grafikart.fr/tutoriels/symfony-mercure-1151)
 - 📺 [Live coding: Notifications temps réel avec Mercure](https://www.youtube.com/watch?v=tqqJ1ul2M-E)
@@ -93,7 +93,7 @@ A curated list of libraries, integrations, and learning resources around Mercure
 - [Symfony et Mercure](https://afsy.fr/avent/2019/21-symfony-et-mercure)
 - [À la découverte de Mercure](https://blog.eleven-labs.com/fr/a-la-decouverte-de-mercure/)
 
-### Mercure resources in german
+### Mercure resources in German
 
 - [Neue Symfony-Komponente: Mercure ermöglicht Echtzeitübertragung](https://entwickler.de/online/php/symfony-mercure-komponente-579885243.html)
 
@@ -103,4 +103,4 @@ A curated list of libraries, integrations, and learning resources around Mercure
 
 ## Add your Mercure library or tutorial
 
-PRs welcome. Keep the structure (one bullet per item, language tag for libraries, language flag for learning resources) and aim for things people will actually find useful.
+Submit a pull request with one bullet per resource. Include the language for libraries and place tutorials under the appropriate language heading.

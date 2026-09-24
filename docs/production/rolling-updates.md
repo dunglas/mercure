@@ -3,11 +3,11 @@ title: "Mercure rolling updates and graceful SSE shutdown"
 description: "Drain Server-Sent Events connections cleanly during Mercure restarts and rolling updates with write_timeout and orchestrator grace periods."
 ---
 
-# Rolling updates and graceful shutdown
+# Mercure rolling updates and graceful shutdown
 
-SSE connections are long-lived by design. A naive restart (kill the process, start the new one) severs every active subscriber at the same instant. Each client auto-reconnects, all at the same moment, producing a sharp reconnect storm on the ingress and the transport: TLS handshakes, upstream renegotiation, transport churn. Visible to users as "the realtime UI freezes for a few seconds."
+Restarting a hub disconnects its SSE subscribers. If all connections close together, clients can overload the new instance with simultaneous reconnections.
 
-The Mercure.rocks Hub is built to avoid this. Shutdown rides the same `write_timeout` that already rotates connections in steady state, so a restart looks, from a client's perspective, like normal churn.
+The Mercure.rocks Hub lets connections drain until their existing write deadlines. With a shared transport and another ready replica, clients can reconnect while the old instance shuts down.
 
 ## How draining works
 
@@ -16,13 +16,13 @@ When the hub receives a shutdown signal (`SIGTERM`, the Caddy admin `/stop` endp
 - the client disconnects, **or**
 - the per-connection write deadline fires (derived from `write_timeout`, optionally shortened by JWT `exp`).
 
-Because `write_timeout` already closes each SSE connection every few minutes during steady state and relies on the client to reconnect, letting shutdown ride the same timer spreads reconnects naturally over the drain window rather than triggering them all at once. No client-visible error, no storm: just the reconnect cadence browsers and SDKs already handle.
+The hub randomizes connection deadlines between 80% and 100% of `write_timeout` (480 to 600 seconds by default). During shutdown, existing connections use those deadlines. This spreads reconnections, although the distribution still depends on when clients connected.
 
-If `write_timeout` is `0s` (steady-state rotation disabled), the hub exits all subscribers immediately on shutdown. At that point you've opted out of the drain mechanism, so the alternative would be to hang forever on active handlers.
+With `write_timeout 0s`, the hub closes subscribers immediately on shutdown.
 
 ## Sizing the drain window
 
-The orchestrator must give the hub enough time between `SIGTERM` and `SIGKILL`. If it doesn't, the drain mechanism does nothing.
+The orchestrator must allow enough time between `SIGTERM` and `SIGKILL`; otherwise, remaining connections are terminated before they finish draining.
 
 **The rule:** `stop timeout >= write_timeout + small margin`.
 
@@ -30,28 +30,27 @@ For the default `write_timeout 600s`, a 660s grace period is the right starting 
 
 ## Kubernetes
 
-The Helm chart ships with SSE-appropriate defaults:
+For `RollingUpdate`, the Helm chart sets:
 
 - `terminationGracePeriodSeconds: 660`: matches the 600s default `write_timeout` plus 60s margin.
 - `strategy.rollingUpdate.maxSurge: 1, maxUnavailable: 0`: one pod rotates at a time, no capacity drop.
 - `minReadySeconds: 30`: a newly-Ready pod gets time to warm its transport before the next rotation.
 
-A four-pod rolling update with these settings turns into a reconnect stream paced by `write_timeout`, spread over tens of minutes, instead of a four-wave storm hitting the ingress in a few seconds.
+Rolling updates can take several minutes. Size the deployment progress deadline as well as the pod termination grace period.
 
 If you set `write_timeout` higher than 600s, raise `terminationGracePeriodSeconds` proportionally:
 
 ```yaml
-# Kubernetes
 terminationGracePeriodSeconds: 960 # for write_timeout 900s
 ```
 
-If you don't, `kubelet` `SIGKILL`s the pod mid-drain and the storm you were avoiding lands anyway.
+A shorter grace period forces the remaining subscribers to disconnect together.
 
 ## Why `minReadySeconds` matters for Mercure rollouts
 
-Once Kubernetes marks a new pod Ready, the transport inside it still needs a moment to reach steady state: open the BoltDB cursor, start the Redis `XREAD` loop, join the Kafka consumer group. Without `minReadySeconds`, Kubernetes rotates the next pod as soon as the readiness probe passes, which fires before the backend is fully online.
+`minReadySeconds` requires a new pod to remain ready before Kubernetes treats it as available. It helps pace a rollout and reveal failures soon after startup; it does not delay traffic to an already-ready pod.
 
-With 30s of quiet time, each pod stabilizes before taking its share of load. The chart sets this by default; don't lower it without measuring.
+The chart uses 30 seconds for rolling updates. Readiness must still reflect whether the transport can serve traffic.
 
 ## Non-Kubernetes deployments
 
@@ -65,28 +64,27 @@ Any supervisor that gives the hub time to drain works the same way:
 | Nomad      | `kill_timeout`      |
 | ECS        | `stopTimeout`       |
 
-The rule is the same: stop timeout >= `write_timeout` + small margin.
+Choose `write_timeout` below the supervisor's maximum stop timeout, with margin. Some platforms cap that timeout below the hub's default 600 seconds.
 
 ## Graceful Mercure hub configuration reloads
 
-`caddy reload` (or sending `SIGUSR1`) reloads the config without dropping active connections; the listener is shared across processes during the swap. SSE connections flow uninterrupted.
+Use `caddy reload --config /etc/caddy/Caddyfile` to apply changes without restarting the process. Caddy can reuse listeners and unchanged transports. Changes that replace a hub or transport may cause subscriptions to drain and reconnect, so test reloads with your configuration.
 
-This is the cleanest way to roll a config change in production: zero reconnects, zero downtime, regardless of `write_timeout`.
+On supported systems, `SIGUSR1` can reload the startup configuration file when Caddy was started from one and its signal-reload conditions are met. See [Caddy signals](https://caddyserver.com/docs/command-line#signals).
 
 ## Self-hosted transports
 
-The drain mechanism is built into the open-source hub and works with BoltDB. The [Self-Hosted transports](high-availability.md) (Redis, PostgreSQL, Kafka, Pulsar) inherit it automatically: each connection drains at its own `write_timeout` regardless of which backend carries the updates.
+The drain mechanism is built into the open-source hub and works with BoltDB. The [Self-Hosted transports](high-availability.md) (Redis/Valkey, PostgreSQL, Kafka, Pulsar) inherit it automatically: each connection drains at its own `write_timeout` regardless of which backend carries the updates.
 
-For deployments that can't afford any restart-related reconnect (sub-second SLOs, strict steady-state requirements), [Cloud and Self-Hosted](https://mercure.rocks/pricing) additionally run multi-node clusters that route around individual replica restarts entirely. A single replica restarting doesn't reconnect any clients at all, because they're balanced across the others.
+[Choose an Enterprise plan](https://mercure.rocks/pricing) for shared transports and maintainer support, or let [Mercure Cloud](https://mercure.rocks/pricing) handle the rollout. A shared transport lets a reconnecting client resume on another replica. Clients attached to a restarting replica still reconnect; a load balancer cannot migrate an established SSE connection.
 
 ## Verifying the drain
 
-Watch the active subscribers metric (`mercure_subscribers_connected`) during a deploy. Healthy drains look like a smooth ramp down on the old replica and a matching ramp up on the new one. A cliff to zero is a misconfigured grace period.
+Watch the active subscribers metric (`mercure_subscribers_connected`) during a deploy. Healthy drains look like a smooth ramp down on the old replica and a matching ramp up on the new one. A sudden drop may indicate forced termination; compare it with the remaining connection count and shutdown logs.
 
 A quick sanity check from the command line:
 
 ```console
-# Verifying the drain
 kubectl exec -it $POD -- wget -qO- localhost:2019/metrics | grep subscribers_connected
 ```
 
@@ -94,10 +92,10 @@ Trigger a `kubectl rollout restart deployment/mercure` and watch the value glide
 
 ## What Mercure clients see during a rolling update
 
-Either nothing (the steady-state rotation already does this every `write_timeout`) or a single reconnect with `Last-Event-ID` set. The hub's history covers the brief gap; clients pick up where they left off. Browsers and the major SSE libraries handle this without prompting.
+Clients reconnect after their stream closes. `EventSource` sends the last event ID it received, and the hub replays retained matching updates. If the history no longer covers the gap, the application must resynchronize.
 
-## Next steps for Mercure rolling updates
+## Next steps
 
-- [Configuration](../deployment/configuration.md): `write_timeout` and friends.
-- [High availability](high-availability.md): when even smooth restarts aren't enough.
-- [Health monitoring](health-monitoring.md): verifying the new pod is actually serving before draining the old one.
+- [Configuration](../deployment/configuration.md): timeout settings.
+- [High availability](high-availability.md): shared transports and redundant nodes.
+- [Health monitoring](health-monitoring.md): checking new replicas before retiring old ones.

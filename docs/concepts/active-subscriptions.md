@@ -1,18 +1,17 @@
 ---
 title: "Mercure active subscriptions, presence, and subscription API"
-description: "Track who is connected with Mercure subscription events and the JSON-LD subscription API for presence and live-collaboration UIs."
+description: "Track who is connected with Mercure subscription events and the JSON subscription API for presence and live-collaboration UIs."
 ---
 
-# Active subscriptions
+# Mercure active subscriptions
 
 The hub can act as its own publisher: every time a subscription is created or terminated, it publishes an update describing what happened. The hub also exposes a REST API for snapshotting the current set of subscriptions.
 
-Together, they're how you build presence ("who's online?"), shared cursors ("who's looking at this document?"), and any feature that needs to react to other subscribers' comings and goings.
+Use these events and the API to show who is connected to a document or channel. Cursor positions are application data and require separate updates.
 
 This feature is opt-in. Enable it in your Caddyfile:
 
 ```caddyfile
-# Active Subscriptions
 mercure {
   subscriptions
   # ...
@@ -24,14 +23,12 @@ mercure {
 When the feature is on, the hub publishes a private update each time a subscription opens or closes. The topic follows this pattern:
 
 ```text
-# Subscription events
 /.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}
 ```
 
 `{match_type}`, `{match}`, and `{subscriber}` are percent-encoded values. Subscribe to those topics with relative URL Patterns: the spec lets URL Patterns be relative to the hub URL, which is exactly what you want here:
 
 ```javascript
-// Subscription events
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "match_urlpattern",
@@ -40,19 +37,17 @@ url.searchParams.append(
 new EventSource(url, { withCredentials: true });
 ```
 
-Each event's `data` is a JSON-LD document:
+Each event's `data` is a JSON document:
 
-```jsonc
-// Subscription events
+```json
 {
-  "@context": "https://mercure.rocks/",
   "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",
-  "type": "Subscription",
+  "type": "subscription",
   "match_type": "urlpattern",
   "match": "https://example.com/:selector",
   "subscriber": "urn:uuid:bb3de268-05b0-4c65-b44e-8f9acefc29d6",
   "active": true,
-  "payload": { "username": "alice" },
+  "payload": { "username": "alice" }
 }
 ```
 
@@ -67,10 +62,9 @@ Subscription events are always **private**. To receive them, the listening subsc
 
 ## Authorization for subscription events
 
-A typical "show me everyone subscribed to this document" feature is authorized like this:
+This grant allows presence events for every topic on the hub:
 
-```jsonc
-// Authorization for subscription events
+```json
 {
   "authorization_details": [
     {
@@ -79,28 +73,27 @@ A typical "show me everyone subscribed to this document" feature is authorized l
       "topics": [
         {
           "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
-          "match_type": "urlpattern",
-        },
+          "match_type": "urlpattern"
+        }
       ],
-      "payload": { "username": "alice" },
-    },
-  ],
+      "payload": { "username": "alice" }
+    }
+  ]
 }
 ```
 
 Tighten the matcher if a subscriber should only see presence for a specific document's topic:
 
-```jsonc
-// Authorization for subscription events
+```json
 {
   "match": "/.well-known/mercure/subscriptions/:match_type/https%3A%2F%2Fexample.com%2Fdocs%2F42/:subscriber",
-  "match_type": "urlpattern",
+  "match_type": "urlpattern"
 }
 ```
 
 ## Subscription API
 
-Once subscription events are enabled, the hub also exposes a JSON-LD API. Use it to fetch the _current_ set of subscriptions when a client connects, then keep it in sync via subscription events.
+Once subscription events are enabled, the hub also exposes a JSON API. Use it to fetch the _current_ set of subscriptions when a client connects, then keep it in sync via subscription events.
 
 | URL                                                                        | Returns                               |
 | -------------------------------------------------------------------------- | ------------------------------------- |
@@ -108,20 +101,21 @@ Once subscription events are enabled, the hub also exposes a JSON-LD API. Use it
 | `GET /.well-known/mercure/subscriptions/{match_type}/{match}`              | Subscriptions for a specific matcher. |
 | `GET /.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}` | A single subscription.                |
 
-Authorization rules are the same as for events: the request URL must be covered by a `subscribe` grant in the caller's token.
+The caller needs a `subscribe` grant covering the API request path. The event grant above does not cover the collection URL; add an exact grant for `/.well-known/mercure/subscriptions`, or the specific matcher collection you fetch. Grant collection access only to callers allowed to inspect those subscriptions.
 
 Each response carries the reconciliation cursor as the `last-event-id` attribute of its `rel="mercure"` [`Link` header](reconnection-and-history.md#bootstrapping-after-page-load), the same mechanism used at discovery time. Pass it to your SSE connection so you don't miss any subscription event between the snapshot and the live stream:
 
 ```javascript
-// Subscription API
 const resp = await fetch(
   "https://hub.example.com/.well-known/mercure/subscriptions",
   { credentials: "include" },
 );
 const lastEventId = resp.headers
   .get("Link")
-  .match(/rel="mercure".*?last-event-id="([^"]*)"/)?.[1];
+  ?.match(/rel="mercure".*?last-event-id="([^"]*)"/)?.[1];
+if (!resp.ok) throw new Error(`Subscription API failed: ${resp.status}`);
 const snapshot = await resp.json();
+renderSnapshot(snapshot.subscriptions);
 
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
@@ -141,23 +135,21 @@ The hub returns the cursor in the `Link` header and the subscriptions in the bod
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ```
 
-```jsonc
-// Subscription API
+```json
 {
-  "@context": "https://mercure.rocks/",
   "id": "/.well-known/mercure/subscriptions",
-  "type": "Subscriptions",
+  "type": "subscriptions",
   "subscriptions": [
     {
       "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268",
-      "type": "Subscription",
+      "type": "subscription",
       "match": "https://example.com/:selector",
       "match_type": "urlpattern",
       "subscriber": "urn:uuid:bb3de268",
       "active": true,
-      "payload": { "username": "alice" },
-    },
-  ],
+      "payload": { "username": "alice" }
+    }
+  ]
 }
 ```
 
@@ -185,4 +177,4 @@ Subscription events are private updates like any other. They go through the hub'
 
 ## Disabling Mercure active subscriptions
 
-If you don't need presence and want to save the cycles, leave `subscriptions` out of your Caddyfile (it's off by default). The hub then skips publishing subscription events and serves `404` on the subscription API URLs.
+Leave `subscriptions` out of the Caddyfile to disable presence events and the subscription API. Requests to the disabled API return `404`.

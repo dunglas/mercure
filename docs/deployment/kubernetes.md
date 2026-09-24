@@ -3,49 +3,52 @@ title: "Deploy the Mercure.rocks hub on Kubernetes with Helm"
 description: "Install Mercure.rocks on Kubernetes with the official Helm chart, including SSE-aware probes, rolling updates, and rootless security context."
 ---
 
-# Kubernetes
+# Deploy Mercure on Kubernetes
 
-The official Helm chart is the path of least resistance.
+**Run a supported Mercure cluster on your infrastructure with [Mercure Enterprise](https://mercure.rocks/pricing).** The chart supports its Redis/Valkey, PostgreSQL, Kafka, and Pulsar transports. Our Managed On-Premise option covers deployment and operation; [Mercure Cloud](https://mercure.rocks/pricing) lets you skip Kubernetes entirely.
+
+Install the Mercure hub with the official Helm chart:
 
 ```console
-# Kubernetes
 helm repo add mercure https://charts.mercure.rocks
 helm install mercure mercure/mercure \
   --set publisherJwtKey='!ChangeThisMercureHubJWTSecretKey!' \
   --set subscriberJwtKey='!ChangeThisMercureHubJWTSecretKey!'
 ```
 
-For real deployments, store the keys in a Kubernetes `Secret` and point the chart at it with `existingSecret` (the chart reads `publisher-jwt-key` and `subscriber-jwt-key` from the named secret) instead of passing keys on the command line.
+For production, use `existingSecret` with a Secret containing all the chart's required keys, as shown below. Setting `existingSecret` disables creation of the chart-managed Secret, including its extra directives.
 
 Default values produce a single-replica deployment with BoltDB, a `ClusterIP` service, and SSE-aware rolling-update settings. The full list of values lives in the [chart documentation](https://github.com/dunglas/mercure/blob/main/charts/mercure/README.md).
 
 ## What the chart sets up for you
 
-The defaults are tuned for SSE workloads, not generic web apps:
+With the default `RollingUpdate` strategy, the chart sets:
 
 - `terminationGracePeriodSeconds: 660`: matches the 600s `write_timeout` plus margin so pods drain cleanly. See [Rolling updates](../production/rolling-updates.md).
 - `strategy.rollingUpdate.maxSurge: 1, maxUnavailable: 0`: one replica rotates at a time without dropping capacity.
 - `minReadySeconds: 30`: a newly-Ready replica gets time to warm its transport before the next rotation.
 
-You don't have to know these to use the chart. You do have to know them if you change the chart's defaults.
+Keep these values aligned with `write_timeout` when changing the deployment.
 
 ## Production Helm values for the Mercure hub
 
-The open-source chart defaults to a single replica with BoltDB. That's the right shape for the open-source build: BoltDB is local to each pod, so multi-replica setups require a shared transport (see the Self-Hosted block at the end of this page).
+Save the following as `values.yaml`. Use one replica for persistent BoltDB. Multiple replicas serving the same topics require an [Enterprise shared transport](../production/high-availability.md#self-hosted-transports).
 
 ```yaml
-# values.yaml
 replicaCount: 1
+updateStrategy:
+  type: Recreate
 
-# Read the JWT keys from a Kubernetes Secret you create separately.
-# The Secret must contain "publisher-jwt-key" and "subscriber-jwt-key".
+# Create the complete Secret shown below before installing.
 existingSecret: mercure-jwt
 
 ingress:
   enabled: true
   hosts:
     - host: hub.example.com
-      paths: ["/"]
+      paths:
+        - path: /
+          pathType: Prefix
   tls:
     - secretName: hub-tls
       hosts: [hub.example.com]
@@ -63,40 +66,69 @@ resources:
     cpu: 1
     memory: 1Gi
 
-extraDirectives: |
-  cors_origins https://app.example.com
-  subscriptions
+extraEnvs:
+  - name: MERCURE_TRUSTED_ISSUERS
+    value: https://app.example.com
 ```
 
-Create the JWT Secret once before installing the chart:
+With persistent BoltDB, `Recreate` prevents two pods from opening the same database. This causes a service interruption during upgrades. The chart applies its extended drain and readiness settings only to `RollingUpdate`; use a shared transport for rolling upgrades across replicas.
+
+Create `mercure-secret.yaml` with the following keys. Replace the example secrets and hostnames, then apply it before installing the chart:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mercure-jwt
+type: Opaque
+stringData:
+  publisher-jwt-key: "!ChangeThisMercureHubJWTSecretKey!"
+  subscriber-jwt-key: "!ChangeThisMercureHubJWTSecretKey!"
+  extra-directives: |
+    cors_origins https://app.example.com
+    subscriptions
+    resource_identifier https://hub.example.com/.well-known/mercure
+  license: ""
+  caddy-extra-config: ""
+  caddy-extra-directives: ""
+```
 
 ```console
-# JWT Secret
-kubectl create secret generic mercure-jwt \
-  --from-literal=publisher-jwt-key='!ChangeThisMercureHubJWTSecretKey!' \
-  --from-literal=subscriber-jwt-key='!ChangeThisMercureHubJWTSecretKey!'
+kubectl apply -f mercure-secret.yaml
+helm upgrade --install mercure mercure/mercure -f values.yaml
 ```
 
-For multi-replica deployments, use a transport that synchronizes between pods. The open-source build only supports BoltDB (single-node); for Redis, Postgres, Kafka, or Pulsar, [Self-Hosted Mercure](https://mercure.rocks/pricing) ships those transports. See [Multi-node and self-hosted](#multi-node-and-self-hosted) below.
+Keep the Secret manifest in your secret-management workflow. With `existingSecret`, place `extra-directives` in that Secret; the `extraDirectives` Helm value is not used.
 
-> **Pro tip.** Running more than one replica with the open-source build is possible if every pod handles its own slice of the topics (sticky load balancing on a hash of the topic). It's fragile: losing a pod loses its history. The Self-Hosted Redis transport replaces that with a real cluster: any replica can serve any subscriber, and the history is centralized.
+Multiple replicas need a shared transport. BoltDB and the local transport do not synchronize updates across pods. See [Multi-node and self-hosted](#multi-node-and-self-hosted).
 
 ## Kubernetes probes for the Mercure hub
 
 The Caddy admin API binds to `localhost:2019` for security. That means probes from outside the container (the standard `httpGet` form) can't reach it. Use `exec` probes:
 
 ```yaml
-# Kubernetes Probes for the Mercure Hub
 readinessProbe:
   exec:
     command:
-      ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/ready"]
+      [
+        "wget",
+        "-q",
+        "-O",
+        "/dev/null",
+        "http://localhost:2019/mercure/health/ready",
+      ]
   initialDelaySeconds: 10
   periodSeconds: 10
 livenessProbe:
   exec:
     command:
-      ["wget", "-q", "--spider", "http://localhost:2019/mercure/health/live"]
+      [
+        "wget",
+        "-q",
+        "-O",
+        "/dev/null",
+        "http://localhost:2019/mercure/health/live",
+      ]
   initialDelaySeconds: 30
   periodSeconds: 30
 ```
@@ -109,10 +141,9 @@ See [Health monitoring](../production/health-monitoring.md) for what the probes 
 
 ## Rootless Mercure on Kubernetes
 
-Kubernetes runtimes (containerd 1.5+, cri-o) set `net.ipv4.ip_unprivileged_port_start=0` inside containers, so a non-root process can bind 80 and 443.
+Binding to ports below 1024 as a non-root user depends on the runtime's `net.ipv4.ip_unprivileged_port_start` setting. Use the security context below, and select port 8080 if your runtime requires it.
 
 ```yaml
-# values.yaml (snippet)
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
@@ -134,7 +165,6 @@ The chart's volume layout (`/data`, `/config`, `/tmp` mounted writable) accommod
 For older runtimes that haven't lowered `ip_unprivileged_port_start`, change the target port to an unprivileged value:
 
 ```yaml
-# values.yaml (snippet)
 service:
   port: 80
   targetPort: 8080
@@ -155,12 +185,11 @@ A few things to know about scaling SSE in Kubernetes:
 Two things SSE needs from your ingress:
 
 1. **Don't buffer the response.** NGINX Ingress: `nginx.ingress.kubernetes.io/proxy-buffering: "off"`. Traefik does the right thing by default.
-2. **Long read timeouts.** Default ingress timeouts (60s, 30s) close every SSE connection. Set them to several minutes.
+2. **Long read timeouts.** Keep the ingress idle timeout above the heartbeat interval, with margin for delays.
 
 NGINX Ingress example:
 
 ```yaml
-# values.yaml (snippet)
 ingress:
   annotations:
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
@@ -173,50 +202,53 @@ See [Reverse proxies](reverse-proxy.md) for full configurations.
 ## Upgrading the Mercure Helm release
 
 ```console
-# Upgrading the Mercure Helm Release
 helm repo update
 helm upgrade mercure mercure/mercure -f values.yaml
 ```
 
-The chart triggers a rolling update. Subscribers reconnect at the cadence set by `write_timeout`, distributed across the drain window; they don't all reconnect at once. See [Rolling updates](../production/rolling-updates.md) for the full mechanism.
+The chart updates the deployment according to its strategy. With a shared transport, subscribers can reconnect to another ready replica while the old one drains. See [Rolling updates](../production/rolling-updates.md) for the full mechanism.
 
 ## Multi-node and self-hosted
 
-The chart supports the multi-node transports out of the box. Set `image.repository` to the Self-Hosted image and configure the transport block:
+The chart supports [Mercure Enterprise](https://mercure.rocks/pricing) out of the box. Add the following to a separate set of production values for a Redis or Valkey cluster. Use the licensed image and configure the transport:
 
 ```yaml
-# values.yaml
 replicaCount: 3
+updateStrategy:
+  type: RollingUpdate
+
+persistence:
+  enabled: false
 
 image:
-  repository: registry.mercure.rocks/mercure-enterprise
-  tag: 1.0.0
+  repository: ghcr.io/dunglas/mercure-saas/mercure-saas
+  tag: "1.0"
 
 license: "<your license key>"
 
 extraDirectives: |
   transport redis {
-    url rediss://default:p@ssw0rd@redis.example.com:6379
+    address caddy-storage-redis.alt
     stream mercure
   }
 ```
 
-The license is checked in-process; no callback to a license server.
+[Obtain a Self-Hosted license](https://mercure.rocks/pricing) and registry access, then configure `imagePullSecrets` for GHCR. Add the [Redis/Valkey storage settings below](#storing-the-redis-or-valkey-password-securely) to these values. `address caddy-storage-redis.alt` reuses that connection for the Mercure transport. Configure persistence on the shared backend; the hub pods no longer need BoltDB volumes.
 
-## Storing the Redis password securely
+Configure your JWT keys, trusted issuer, public resource identifier, and CORS as in the single-node example. If using `existingSecret`, put the license and transport block in its `license` and `extra-directives` keys instead of the `license` and `extraDirectives` Helm values. See [Enterprise transport configuration](../production/high-availability.md#self-hosted-transports) for PostgreSQL, Kafka, and Pulsar.
+
+## Storing the Redis or Valkey password securely
 
 The chart writes `globalOptions` into a ConfigMap (`templates/configmap.yaml`), while `extraDirectives`, the JWT keys, and the license live in a Secret. A `storage redis { ... password "..." ... }` block placed in `globalOptions` therefore exposes the password to anyone with `get configmap` on the namespace.
 
 Keep the password out of the ConfigMap with Caddy's `{env.NAME}` placeholder, sourcing the value from a Secret:
 
 ```console
-# Redis password Secret
 kubectl create secret generic mercure-redis \
   --from-literal=password='<your Redis password>'
 ```
 
 ```yaml
-# values.yaml
 globalOptions: |
   storage redis {
       host redis.example.com
@@ -233,11 +265,11 @@ extraEnvs:
         key: password
 ```
 
-Caddy expands `{env.REDIS_PASSWORD}` when it loads the configuration, so the module receives the substituted value and the ConfigMap holds only the block's structure. The same placeholder works inside `extraDirectives` if you prefer a single env var over embedding the password twice.
+The bundled `caddy-storage-redis` module expands `{env.REDIS_PASSWORD}` when it loads the configuration. The ConfigMap contains only the placeholder, and the Mercure transport reuses the authenticated storage client. The Mercure transport modules themselves do not expand runtime `{env.*}` placeholders.
 
 Env vars sourced from a Secret are injected at pod start: updating the Secret does not reach running pods. Rotate the password with `kubectl rollout restart deployment/mercure` or a secret-reloader controller.
 
-## Next steps for Mercure on Kubernetes
+## Next steps
 
 - [Configuration](configuration.md): directives and env vars.
 - [Health monitoring](../production/health-monitoring.md): probes, metrics, dashboards.
