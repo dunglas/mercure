@@ -6,7 +6,7 @@ import "net/http"
 
 // compatClaimsEnabled reports whether legacy mercure-claim behavior is active.
 // It never is without the deprecated_claim build tag.
-func (h *Hub) compatClaimsEnabled() bool {
+func (*opt) compatClaimsEnabled() bool {
 	return false
 }
 

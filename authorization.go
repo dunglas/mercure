@@ -170,15 +170,7 @@ func (h *Hub) jwtParserOptions(algs []string, expectedAudience string) []jwt.Par
 		return opts
 	}
 
-	opts = append(opts, jwt.WithExpirationRequired())
-
-	// Compatibility mode predates RFC 9068 and has no hub identity to check
-	// against, so it is the only mode that skips the audience.
-	if h.protocolVersionCompatibility == 0 {
-		opts = append(opts, jwt.WithAudience(expectedAudience))
-	}
-
-	return opts
+	return append(opts, jwt.WithExpirationRequired(), jwt.WithAudience(expectedAudience))
 }
 
 // selectVerifier picks the issuer-specific verifier for a token, using the
@@ -220,7 +212,7 @@ func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, e
 func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience string) (*claims, error) {
 	// Fail closed: with no identity to bind the token to, parsing without
 	// jwt.WithAudience accepts one audienced anywhere, or carrying no aud at all.
-	if expectedAudience == "" && h.protocolVersionCompatibility == 0 {
+	if expectedAudience == "" && !h.compatClaimsEnabled() {
 		return nil, fmt.Errorf("%w: the hub has no resource identifier to check the audience against", ErrInvalidJWT)
 	}
 

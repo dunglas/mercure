@@ -941,3 +941,35 @@ func TestLegacyPayloadIgnoredBesideAuthorizationDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, c.Mercure.Payload)
 }
+
+// TestCompatModeEmptyResourceIdentifierAcceptsToken ensures a hub started in
+// compatibility mode without a resource identifier does not enforce an empty
+// audience, which would reject every otherwise-valid legacy token.
+func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h, err := NewHub(t.Context(),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: Static{Key: []byte("subscriber"), Algorithm: jwt.SigningMethodHS256.Name},
+		}}),
+		WithProtocolVersionCompatibility(7),
+		WithTopicMatcherStore(tms),
+	)
+	require.NoError(t, err)
+	require.Empty(t, h.resourceIdentifier)
+
+	// A well-formed at+jwt token with an audience the hub does not know must
+	// still be accepted, since no audience is enforced.
+	token := mintAccessToken([]byte("subscriber"), "https://some.other.audience/", nil)
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+token)
+
+	claims, err := h.authorize(r, false)
+	require.NoError(t, err)
+	require.NotNil(t, claims)
+}
