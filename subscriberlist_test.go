@@ -51,6 +51,8 @@ func BenchmarkSubscriberListParallelMiss(b *testing.B) {
 	var n atomic.Int64
 
 	b.ReportAllocs()
+	b.ResetTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			l.MatchAny(&Update{Topics: []string{fmt.Sprintf("https://example.com/miss/%d", n.Add(1))}})
