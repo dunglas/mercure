@@ -329,7 +329,7 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, "default-src 'self'; script-src 'self' cdn.jsdelivr.net; style-src 'self' cdn.jsdelivr.net; font-src cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))

@@ -10,7 +10,7 @@ set -o errtrace # so the ERR trap fires inside functions/subshells too
 set -o pipefail
 trap 'echo "Aborting on line $LINENO. Exit: $?" >&2' ERR
 
-for cmd in git gh; do
+for cmd in git gh npm; do
 	if ! command -v "$cmd" >/dev/null; then
 		echo "The \"$cmd\" command must be installed." >&2
 		exit 1
@@ -32,6 +32,9 @@ if [[ -n "$(git status --porcelain)" ]]; then
 	echo "Working tree is not clean. Commit or stash your changes first." >&2
 	exit 1
 fi
+
+# The hub embeds public/vendor/: refuse to release it stale or outdated.
+(cd ui && npm ci --ignore-scripts --silent && npm run --silent check)
 
 git fetch --quiet --tags origin main
 local_head="$(git rev-parse HEAD)"

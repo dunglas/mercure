@@ -60,6 +60,16 @@ When you send a PR, make sure that:
 - You make the PR on the same branch you based your changes on. If you see commits
   that you did not make in your PR, you're doing it wrong.
 
+### Debugger UI Dependencies
+
+The debugger UI loads nothing from third-party origins. Its npm dependencies are declared in `ui/package.json` and bundled into `public/vendor/`, which is committed because the hub embeds it. Run the scripts from `ui/`:
+
+- `npm ci && npm run vendor` regenerates `public/vendor/` from `package-lock.json`.
+- `npm run upgrade` bumps every dependency to its latest version published at least a week ago, then regenerates `public/vendor/`. A weekly workflow runs it and opens a pull request when something changed.
+- `npm run check` fails when `public/vendor/` doesn't match the lockfile or a dependency is outdated. `release.sh` runs it.
+
+CI fails when `public/vendor/` doesn't match the lockfile.
+
 ### Configuring Visual Studio Code
 
 A configuration for Visual Studio Code is provided in the `.vscode/` directory of the repository.

@@ -1,0 +1,9 @@
+# Collapse the diffs of tool-written files in reviews, and keep third-party code out of the language stats.
+public/vendor/** linguist-generated
+**/go.sum linguist-generated
+**/package-lock.json linguist-generated
+charts/mercure/README.md linguist-generated
+testdata/fuzz/** linguist-generated
+gatling/mvnw linguist-vendored
+gatling/mvnw.cmd linguist-vendored
+gatling/.mvn/wrapper/** linguist-vendored

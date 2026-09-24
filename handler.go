@@ -55,9 +55,8 @@ func (h *Hub) initHandler() {
 
 		router.PathPrefix(defaultDebugURL).Handler(http.StripPrefix(defaultDebugURL, http.FileServer(http.FS(public))))
 
-		// The UI pulls its fonts and the SSE library from a single CDN; the rest
-		// is same-origin, with no inline script or style.
-		csp = "default-src 'self'; script-src 'self' cdn.jsdelivr.net; style-src 'self' cdn.jsdelivr.net; font-src cdn.jsdelivr.net"
+		// The page handles access tokens: everything it loads is vendored, with no inline script or style.
+		csp = "default-src 'self'"
 	}
 
 	h.registerSubscriptionHandlers(router)

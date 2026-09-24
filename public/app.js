@@ -1,4 +1,4 @@
-import { fetchEventSource } from "https://cdn.jsdelivr.net/npm/@microsoft/fetch-event-source@2/+esm";
+import { fetchEventSource } from "./vendor/fetch-event-source.js";
 
 const origin = window.location.origin;
 const hubBase = `${origin}/.well-known/mercure`;
