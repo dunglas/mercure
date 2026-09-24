@@ -66,7 +66,7 @@ The debugger UI loads nothing from third-party origins. Its npm dependencies are
 
 - `npm ci && npm run vendor` regenerates `public/vendor/` from `package-lock.json`.
 - `npm run upgrade` bumps every dependency to its latest version published at least a week ago, then regenerates `public/vendor/`. A weekly workflow runs it and opens a pull request when something changed.
-- `npm run check` fails when `public/vendor/` doesn't match the lockfile or a dependency is outdated.
+- `npm run check` fails when `public/vendor/` doesn't match the lockfile or a dependency is outdated. `release.sh` runs it.
 
 CI fails when `public/vendor/` doesn't match the lockfile.
 
