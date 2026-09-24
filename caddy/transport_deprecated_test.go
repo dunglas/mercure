@@ -14,6 +14,7 @@ func TestDeprecatedTransportDefaultHubName(t *testing.T) {
 	unnamed := &Mercure{TransportURL: "local://"}
 	namedDefault := &Mercure{Name: "default", TransportURL: "local://"}
 	other := &Mercure{Name: "other", TransportURL: "local://"}
+
 	assert.Equal(t, unnamed.deprecatedTransportKey(), namedDefault.deprecatedTransportKey())
 	assert.NotEqual(t, unnamed.deprecatedTransportKey(), other.deprecatedTransportKey())
 }
