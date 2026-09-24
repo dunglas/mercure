@@ -757,3 +757,29 @@ func TestBoltTransportHistoryAfterRestart(t *testing.T) {
 		s.Disconnect()
 	}
 }
+
+func TestBoltTransportCleanupRemovesEveryExpiredEntry(t *testing.T) {
+	t.Parallel()
+
+	transport := createBoltTransport(t, 5, 1)
+	require.NoError(t, transport.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(defaultBoltBucketName))
+		if err != nil {
+			return err
+		}
+
+		for seq := uint64(1); seq <= 5000; seq++ {
+			if err := bucket.Put(binary.BigEndian.AppendUint64(nil, seq), []byte(`{}`)); err != nil {
+				return err
+			}
+		}
+
+		return transport.cleanup(bucket, 5000)
+	}))
+
+	require.NoError(t, transport.db.View(func(tx *bolt.Tx) error {
+		assert.Equal(t, 5, tx.Bucket([]byte(defaultBoltBucketName)).Stats().KeyN)
+
+		return nil
+	}))
+}
