@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "adminPort": {
-      "description": "Port used for the Caddy admin API (health checks, metrics, graceful shutdown).",
+      "description": "Port used for the Caddy admin API (health checks, graceful shutdown). The admin API only listens on localhost.",
       "type": "integer",
       "maximum": 65535,
       "minimum": 1
@@ -290,11 +290,11 @@
       "type": "object",
       "properties": {
         "enabled": {
-          "description": "Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value. servers { metrics }",
+          "description": "Serve Prometheus metrics at `/metrics` on a dedicated listener. For Caddy's HTTP metrics, also enable the [`metrics` global option](https://caddyserver.com/docs/caddyfile/options#metrics) in `globalOptions`.",
           "type": "boolean"
         },
         "port": {
-          "description": "Deprecated: The port to use for exposing the metrics (use adminPort instead).",
+          "description": "Port of the metrics listener, must differ from `adminPort` and `service.targetPort`.",
           "type": "integer",
           "maximum": 65535,
           "minimum": 1

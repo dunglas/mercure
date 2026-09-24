@@ -47,7 +47,7 @@ existingSecret: ""
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).
 license: ""
 
-# -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
+# -- Port used for the Caddy admin API (health checks, graceful shutdown). The admin API only listens on localhost.
 adminPort: 2019  # @schema minimum:1;maximum:65535
 
 # -- Transport-aware health checks exposed via the Caddy admin API.
@@ -68,13 +68,10 @@ healthCheck:
     failureThreshold: 3  # @schema minimum:1
 
 metrics:
-  # -- Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value.
-  # servers {
-  #     metrics
-  # }
+  # -- Serve Prometheus metrics at `/metrics` on a dedicated listener. For Caddy's HTTP metrics, also enable the [`metrics` global option](https://caddyserver.com/docs/caddyfile/options#metrics) in `globalOptions`.
   enabled: false
-  # -- Deprecated: The port to use for exposing the metrics (use adminPort instead).
-  port: 2019  # @schema minimum:1;maximum:65535
+  # -- Port of the metrics listener, must differ from `adminPort` and `service.targetPort`.
+  port: 9180  # @schema minimum:1;maximum:65535
 
   serviceMonitor:
     # -- Whether to create a ServiceMonitor for Prometheus Operator.

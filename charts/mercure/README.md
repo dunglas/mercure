@@ -22,7 +22,7 @@ Kubernetes: `>=1.23.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| adminPort | int | `2019` | Port used for the Caddy admin API (health checks, metrics, graceful shutdown). |
+| adminPort | int | `2019` | Port used for the Caddy admin API (health checks, graceful shutdown). The admin API only listens on localhost. |
 | affinity | object | `{}` | [Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
 | autoscaling | object | Disabled by default. | Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details). |
 | autoscaling.behavior | object | `{}` | [Scaling policies](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#configurable-scaling-behavior) passed to the HPA `spec.behavior`. |
@@ -60,8 +60,8 @@ Kubernetes: `>=1.23.0-0`
 | ingress.hosts | list | See [values.yaml](values.yaml). | Ingress host configuration. |
 | ingress.tls | list | See [values.yaml](values.yaml). | Ingress TLS configuration. |
 | license | string | `""` | The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version). |
-| metrics.enabled | bool | `false` | Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value. servers {     metrics } |
-| metrics.port | int | `2019` | Deprecated: The port to use for exposing the metrics (use adminPort instead). |
+| metrics.enabled | bool | `false` | Serve Prometheus metrics at `/metrics` on a dedicated listener. For Caddy's HTTP metrics, also enable the [`metrics` global option](https://caddyserver.com/docs/caddyfile/options#metrics) in `globalOptions`. |
+| metrics.port | int | `9180` | Port of the metrics listener, must differ from `adminPort` and `service.targetPort`. |
 | metrics.serviceMonitor.enabled | bool | `false` | Whether to create a ServiceMonitor for Prometheus Operator. |
 | metrics.serviceMonitor.honorLabels | bool | `false` | Specify honorLabels parameter to add the scrape endpoint |
 | metrics.serviceMonitor.interval | string | `"15s"` | The interval to use for the ServiceMonitor to scrape the metrics. |
