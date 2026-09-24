@@ -15,12 +15,13 @@ extraDirectives: ""
 # -- Inject extra Caddy directives in the Caddyfile.
 caddyExtraDirectives: ""
 
-# -- The JWT key to use for publishers, a random key will be generated if empty.
+# -- The JWT key to use for publishers. If empty, a random key is generated on install and kept on upgrades
+# (renderers without cluster access, such as `helm template`, generate a new one each time: set it or use `existingSecret`).
 publisherJwtKey: ""
 # -- The JWT algorithm to use for publishers.
 publisherJwtAlg: HS256
 
-# -- The JWT key to use for subscribers, a random key will be generated if empty.
+# -- The JWT key to use for subscribers. Generated and kept like `publisherJwtKey` if empty.
 subscriberJwtKey: ""
 # -- The JWT algorithm to use for subscribers.
 subscriberJwtAlg: HS256

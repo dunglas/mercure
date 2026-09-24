@@ -435,7 +435,7 @@
       "type": "string"
     },
     "publisherJwtKey": {
-      "description": "The JWT key to use for publishers, a random key will be generated if empty.",
+      "description": "The JWT key to use for publishers. If empty, a random key is generated on install and kept on upgrades (renderers without cluster access, such as `helm template`, generate a new one each time: set it or use `existingSecret`).",
       "type": "string"
     },
     "replicaCount": {
@@ -547,7 +547,7 @@
       "type": "string"
     },
     "subscriberJwtKey": {
-      "description": "The JWT key to use for subscribers, a random key will be generated if empty.",
+      "description": "The JWT key to use for subscribers. Generated and kept like `publisherJwtKey` if empty.",
       "type": "string"
     },
     "terminationGracePeriodSeconds": {

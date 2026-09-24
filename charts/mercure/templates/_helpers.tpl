@@ -71,3 +71,18 @@ Get the secret name.
 {{- printf "%s" (include "mercure.fullname" .) -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Base64 JWT key: the explicit value, else the one stored in the release Secret (so upgrades don't rotate it), else a new random key.
+*/}}
+{{- define "mercure.jwtKey" -}}
+{{- $stored := dig "data" .key "" (lookup "v1" "Secret" .ctx.Release.Namespace (include "mercure.fullname" .ctx) | default dict) -}}
+{{- if .value -}}
+{{- .value | b64enc -}}
+{{- else if $stored -}}
+{{- $stored -}}
+{{- else -}}
+{{- randAlphaNum 40 | b64enc -}}
+{{- end -}}
+{{- end -}}
+
