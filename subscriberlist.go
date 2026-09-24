@@ -1,108 +1,82 @@
 package mercure
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"slices"
-	"strings"
+	"sync"
 
 	"github.com/dunglas/skipfilter"
 )
 
 type SubscriberList struct {
-	skipfilter *skipfilter.SkipFilter[*LocalSubscriber, string]
+	skipfilter *skipfilter.SkipFilter[*LocalSubscriber, filterKey]
+
+	// The digest used as cache key cannot be decoded back into the topics the filter needs.
+	inFlightMu sync.RWMutex
+	inFlight   map[filterKey]inFlightFilter
 }
 
-// We choose a delimiter and an escape character which are unlikely to be used.
-const (
-	escape = '\x00'
-	delim  = '\x01'
-)
+type filterKey [sha256.Size]byte
 
-//nolint:gochecknoglobals
-var replacer = strings.NewReplacer(
-	string(escape), string([]rune{escape, escape}),
-	string(delim), string([]rune{escape, delim}),
-)
+type inFlightFilter struct {
+	topics  []string
+	private bool
+	refs    int
+}
 
 // DefaultSubscriberListCacheSize is the default size of the skipfilter cache.
 //
-// Let's say update topics take 100 bytes on average, a cache with
-// 100,000 entries will use about 10MB.
+// Keys are fixed-size digests, so a full cache of 100,000 filters with no
+// subscribers uses about 25MB whatever the size of the update topics.
 const DefaultSubscriberListCacheSize = 100_000
 
 func NewSubscriberList(cacheSize int) *SubscriberList {
-	return &SubscriberList{
-		skipfilter: skipfilter.New(func(s *LocalSubscriber, filter string) bool {
-			return s.MatchTopics(decode(filter))
-		}, cacheSize),
-	}
+	sl := &SubscriberList{inFlight: make(map[filterKey]inFlightFilter)}
+
+	sl.skipfilter = skipfilter.New(func(s *LocalSubscriber, k filterKey) bool {
+		sl.inFlightMu.RLock()
+		f := sl.inFlight[k]
+		sl.inFlightMu.RUnlock()
+
+		return s.MatchTopics(f.topics, f.private)
+	}, cacheSize)
+
+	return sl
 }
 
-func encode(topics []string, private bool) string {
-	parts := make([]string, len(topics)+1)
+// newFilterKey returns one digest per topic set and private flag; SHA-256 makes the collision that
+// would match an update against another topic set's subscribers computationally infeasible.
+func newFilterKey(topics []string, private bool) filterKey {
+	// Sort a copy: topics can be the Update's own Topics, read concurrently.
+	var sortedBuf [16]string
+
+	sorted := append(sortedBuf[:0], topics...)
+	slices.Sort(sorted)
+
+	var inputBuf [512]byte
+
+	input := inputBuf[:1]
 	if private {
-		parts[0] = "1"
-	} else {
-		parts[0] = "0"
+		input[0] = 1
 	}
 
-	for i, t := range topics {
-		parts[i+1] = replacer.Replace(t)
+	for _, t := range sorted {
+		// Length-prefixed so that topic boundaries are part of the hashed input.
+		input = binary.AppendUvarint(input, uint64(len(t)))
+		input = append(input, t...)
 	}
 
-	// Sort the escaped copies, never the caller's slice: this can be the
-	// Update's own Topics backing array, and reordering it would change what
-	// LogValue and SpanAttributes report, and race with any concurrent
-	// reader. The key only has to be one canonical string per topic set,
-	// which sorting the escaped forms gives just as well.
-	slices.Sort(parts[1:])
-
-	return strings.Join(parts, string(delim))
-}
-
-func decode(f string) (topics []string, private bool) {
-	var (
-		privateExtracted, inEscape bool
-		builder                    strings.Builder
-	)
-
-	for _, char := range f {
-		if inEscape {
-			builder.WriteRune(char)
-
-			inEscape = false
-
-			continue
-		}
-
-		switch char {
-		case escape:
-			inEscape = true
-
-		case delim:
-			if !privateExtracted {
-				private = builder.String() == "1"
-				builder.Reset()
-
-				privateExtracted = true
-
-				break
-			}
-
-			topics = append(topics, builder.String())
-			builder.Reset()
-
-		default:
-			builder.WriteRune(char)
-		}
-	}
-
-	topics = append(topics, builder.String())
-
-	return topics, private
+	return sha256.Sum256(input)
 }
 
 func (sl *SubscriberList) MatchAny(u *Update) []*LocalSubscriber {
-	return sl.skipfilter.MatchAny(encode(u.Topics, u.Private))
+	k := newFilterKey(u.Topics, u.Private)
+
+	sl.retain(k, u)
+	defer sl.release(k)
+
+	return sl.skipfilter.MatchAny(k)
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {
@@ -121,4 +95,33 @@ func (sl *SubscriberList) Remove(s *LocalSubscriber) {
 
 func (sl *SubscriberList) Len() int {
 	return sl.skipfilter.Len()
+}
+
+func (sl *SubscriberList) retain(k filterKey, u *Update) {
+	sl.inFlightMu.Lock()
+	defer sl.inFlightMu.Unlock()
+
+	f, ok := sl.inFlight[k]
+	if !ok {
+		f = inFlightFilter{topics: u.Topics, private: u.Private}
+	}
+
+	f.refs++
+	sl.inFlight[k] = f
+}
+
+func (sl *SubscriberList) release(k filterKey) {
+	sl.inFlightMu.Lock()
+	defer sl.inFlightMu.Unlock()
+
+	f := sl.inFlight[k]
+
+	f.refs--
+	if f.refs == 0 {
+		delete(sl.inFlight, k)
+
+		return
+	}
+
+	sl.inFlight[k] = f
 }
