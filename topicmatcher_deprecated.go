@@ -3,7 +3,9 @@
 package mercure
 
 import (
+	"math"
 	"regexp"
+	"regexp/syntax"
 	"slices"
 	"strings"
 
@@ -50,7 +52,7 @@ func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 
 	if tms.templateCache != nil {
 		if r, found := tms.templateCache.GetIfPresent(pattern); found {
-			return r
+			return r.value
 		}
 	}
 
@@ -60,11 +62,22 @@ func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 		// See https://github.com/yosida95/uritemplate/pull/7
 		r := tpl.Regexp()
 		if tms.templateCache != nil {
-			tms.templateCache.Set(pattern, r)
+			cacheCompiled(tms.templateCache, tms.compiledCacheWeight, pattern, r, templateWeight(r))
 		}
 
 		return r
 	}
 
 	return nil
+}
+
+func templateWeight(r *regexp.Regexp) uint64 {
+	const overhead = 1 << 10
+
+	re, err := syntax.Parse(r.String(), syntax.Perl)
+	if err != nil {
+		return math.MaxUint32
+	}
+
+	return overhead + regexpWeight(re)
 }

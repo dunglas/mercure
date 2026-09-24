@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/url"
 	"regexp"
+	"regexp/syntax"
 	"slices"
 	"strings"
 
@@ -14,7 +15,8 @@ import (
 )
 
 // DefaultTopicMatcherStoreCacheSize bounds the (matcher_type, pattern, topics)
-// -> bool match cache. At ~100 B/entry, 100_000 keeps the cache under ~10 MB.
+// -> bool match cache and each compiled-pattern cache. At ~100 B/entry,
+// 100_000 keeps each cache under ~10 MB.
 // Raise it via the `topic_matcher_cache <N>` Caddyfile directive for hubs
 // handling a much larger topic / matcher universe.
 const DefaultTopicMatcherStoreCacheSize = 100_000
@@ -28,6 +30,110 @@ func matchCacheEntryWeight(k matchCacheKey, _ bool) uint32 {
 	weight := fixedOverhead + len(k.Base) + len(k.Type) + len(k.Pattern) + len(k.Topics)
 
 	return uint32(min(weight, math.MaxUint32))
+}
+
+// Heap upper bounds measured with runtime.MemStats; (a{1000}) compiles to 1000 copies, so length alone is unsafe.
+const (
+	urlPatternOverhead   = 8 << 10 // One compiled regexp per URL component.
+	urlPatternByteWeight = 256
+	regexpInstWeight     = 64
+	regexpRuneWeight     = 8
+)
+
+// maxURLPatternWeight admits any 4 KiB pattern without counted repetitions.
+const maxURLPatternWeight = 2 << 20
+
+var errURLPatternTooComplex = errors.New("pattern too complex")
+
+// compiled carries its weight so it is estimated once, before deciding whether to cache.
+type compiled[T any] struct {
+	value  T
+	weight uint32
+}
+
+func compiledWeight[T any](_ string, c compiled[T]) uint32 {
+	return c.weight
+}
+
+func regexpWeight(re *syntax.Regexp) uint64 {
+	insts, runes := regexpSize(re)
+
+	return insts*regexpInstWeight + runes*regexpRuneWeight
+}
+
+// regexpSize over-approximates regexp/syntax's program size; copies of a repeated operand share its runes.
+func regexpSize(re *syntax.Regexp) (insts, runes uint64) {
+	runes = uint64(len(re.Rune))
+
+	var sub uint64
+
+	for _, s := range re.Sub {
+		i, r := regexpSize(s)
+		sub += i
+		runes += r
+	}
+
+	switch {
+	case re.Op == syntax.OpLiteral:
+		insts = uint64(len(re.Rune))
+	case re.Op == syntax.OpRepeat && re.Max >= 0:
+		insts = uint64(re.Max) * (sub + 1)
+	case re.Op == syntax.OpRepeat && re.Min > 0:
+		insts = 1 + uint64(re.Min)*sub
+	default:
+		insts = 2 + sub + uint64(len(re.Sub))
+	}
+
+	return max(1, insts), runes
+}
+
+// urlPatternWeight reparses regexp groups because urlpattern does not expose its compiled regexps.
+func urlPatternWeight(pattern string) uint64 {
+	weight := urlPatternOverhead + uint64(len(pattern))*urlPatternByteWeight
+
+	for _, group := range urlPatternRegexpGroups(pattern) {
+		re, err := syntax.Parse(group, syntax.Perl)
+		if err != nil {
+			return math.MaxUint32
+		}
+
+		// A repeated group appears twice in the generated regexp.
+		weight += 2 * regexpWeight(re)
+	}
+
+	return weight
+}
+
+// urlPatternRegexpGroups delimits regexp groups as the URL Pattern tokenizer does.
+func urlPatternRegexpGroups(pattern string) []string {
+	var groups []string
+
+	for i := 0; i < len(pattern); i++ {
+		switch pattern[i] {
+		case '\\':
+			i++
+		case '(':
+			start, depth := i+1, 1
+
+		group:
+			for i = start; i < len(pattern); i++ {
+				switch pattern[i] {
+				case '\\':
+					i++
+				case '(':
+					depth++
+				case ')':
+					if depth--; depth == 0 {
+						break group
+					}
+				}
+			}
+
+			groups = append(groups, pattern[start:min(i, len(pattern))])
+		}
+	}
+
+	return groups
 }
 
 // topicsKeySeparator joins the topics of an update into a single cache-key
@@ -67,9 +173,10 @@ type matchCacheKey struct {
 // cache is a single unsharded otter instance; otter v2 is designed for high
 // concurrency.
 type TopicMatcherStore struct {
-	matchCache    *otter.Cache[matchCacheKey, bool]
-	templateCache *otter.Cache[string, *regexp.Regexp]
-	urlPatterns   *otter.Cache[string, *urlpattern.URLPattern]
+	matchCache          *otter.Cache[matchCacheKey, bool]
+	templateCache       *otter.Cache[string, compiled[*regexp.Regexp]]
+	urlPatterns         *otter.Cache[string, compiled[*urlpattern.URLPattern]]
+	compiledCacheWeight uint64
 
 	baseURL string
 }
@@ -82,35 +189,47 @@ func NewTopicMatcherStore(cacheSize int) (*TopicMatcherStore, error) {
 		return &TopicMatcherStore{}, nil
 	}
 
+	weight := uint64(cacheSize) * avgMatchCacheEntrySize
+
 	matchCache, err := otter.New(&otter.Options[matchCacheKey, bool]{
-		MaximumWeight: uint64(cacheSize) * avgMatchCacheEntrySize,
+		MaximumWeight: weight,
 		Weigher:       matchCacheEntryWeight,
 	})
 	if err != nil {
 		return nil, err //nolint:wrapcheck
 	}
 
-	// Compiled templates and URL patterns are fewer but larger than match
-	// results. Size them at a fraction of the match cache, with a floor of 1:
-	// otter treats MaximumSize == 0 as unbounded, which would let an attacker
-	// stream distinct patterns until OOM.
-	auxSize := max(cacheSize/10, 1)
-
-	templateCache, err := otter.New(&otter.Options[string, *regexp.Regexp]{
-		MaximumSize: auxSize,
+	templateCache, err := otter.New(&otter.Options[string, compiled[*regexp.Regexp]]{
+		MaximumWeight: weight,
+		Weigher:       compiledWeight[*regexp.Regexp],
 	})
 	if err != nil {
 		return nil, err //nolint:wrapcheck
 	}
 
-	urlPatterns, err := otter.New(&otter.Options[string, *urlpattern.URLPattern]{
-		MaximumSize: auxSize,
+	urlPatterns, err := otter.New(&otter.Options[string, compiled[*urlpattern.URLPattern]]{
+		MaximumWeight: weight,
+		Weigher:       compiledWeight[*urlpattern.URLPattern],
 	})
 	if err != nil {
 		return nil, err //nolint:wrapcheck
 	}
 
-	return &TopicMatcherStore{matchCache: matchCache, templateCache: templateCache, urlPatterns: urlPatterns}, nil
+	return &TopicMatcherStore{
+		matchCache:          matchCache,
+		templateCache:       templateCache,
+		urlPatterns:         urlPatterns,
+		compiledCacheWeight: weight,
+	}, nil
+}
+
+// cacheCompiled skips values heavier than the whole budget, which would evict everything else.
+func cacheCompiled[T any](c *otter.Cache[string, compiled[T]], budget uint64, key string, value T, weight uint64) {
+	if weight > budget || weight > math.MaxUint32 {
+		return
+	}
+
+	c.Set(key, compiled[T]{value: value, weight: uint32(weight)})
 }
 
 // ErrConflictingBaseURL is returned by setBaseURL (via NewHub) when a store
@@ -237,8 +356,14 @@ func (tms *TopicMatcherStore) getOrCompileURLPattern(pattern string) (*urlpatter
 
 	if tms.urlPatterns != nil {
 		if cached, ok := tms.urlPatterns.GetIfPresent(key); ok {
-			return cached, nil
+			return cached.value, nil
 		}
+	}
+
+	// Checked before compiling: the allocation itself is the amplification.
+	weight := uint64(len(base)) + urlPatternWeight(pattern)
+	if weight > maxURLPatternWeight {
+		return nil, fmt.Errorf("invalid URL pattern: %w", errURLPatternTooComplex)
 	}
 
 	// A nil Options keeps ignoreCase disabled, as mandated by the protocol.
@@ -248,7 +373,7 @@ func (tms *TopicMatcherStore) getOrCompileURLPattern(pattern string) (*urlpatter
 	}
 
 	if tms.urlPatterns != nil {
-		tms.urlPatterns.Set(key, p)
+		cacheCompiled(tms.urlPatterns, tms.compiledCacheWeight, key, p, weight)
 	}
 
 	return p, nil

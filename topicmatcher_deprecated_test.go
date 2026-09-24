@@ -3,6 +3,8 @@
 package mercure
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,4 +40,20 @@ func TestMatchDeprecated(t *testing.T) {
 		Topics:  "https://example.com/foo/bar",
 	})
 	assert.True(t, found)
+}
+
+func TestTemplateCacheBoundedByWeight(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(10_000)
+	require.NoError(t, err)
+
+	for i := range 20 {
+		pattern := "/" + strconv.Itoa(i) + strings.Repeat("{+v}", 256)
+		require.NotNil(t, tms.getRegexp(pattern))
+	}
+
+	// Counting entries would have retained all 20, some 4 MB under a 1 MB budget.
+	assert.Less(t, tms.templateCache.EstimatedSize(), 20)
+	assert.LessOrEqual(t, compiledCacheWeight(tms.templateCache), tms.compiledCacheWeight)
 }
