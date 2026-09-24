@@ -38,8 +38,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.adminPort | default .Values.metrics.port }}
-      targetPort: admin
+    - port: {{ .Values.metrics.port }}
+      targetPort: metrics
       protocol: TCP
       name: metrics
   selector:

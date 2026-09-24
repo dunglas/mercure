@@ -93,11 +93,22 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mercure.fullname" . }}
                   key: global-options
+            {{- if .Values.metrics.enabled }}
+            - name: CADDY_EXTRA_CONFIG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mercure.secretName" . }}
+                  key: caddy-extra-config
+            # Dedicated metrics listener: the admin API must stay on localhost.
+            - name: CADDY_EXTRA_CONFIG
+              value: {{ printf "$(CADDY_EXTRA_CONFIG_SECRET)\n:%v {\n\tmetrics /metrics\n}" .Values.metrics.port | quote }}
+            {{- else }}
             - name: CADDY_EXTRA_CONFIG
               valueFrom:
                 secretKeyRef:
                   name: {{ include "mercure.secretName" . }}
                   key: caddy-extra-config
+            {{- end }}
             - name: CADDY_SERVER_EXTRA_DIRECTIVES
               valueFrom:
                 secretKeyRef:
@@ -161,22 +172,30 @@ spec:
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
             - name: admin
-              containerPort: {{ .Values.adminPort | default .Values.metrics.port }}
+              containerPort: {{ .Values.adminPort }}
               protocol: TCP
+            {{- if .Values.metrics.enabled }}
+            {{- if has (int .Values.metrics.port) (list (int .Values.adminPort) (int .Values.service.targetPort)) }}
+            {{- fail "metrics.port must differ from adminPort and service.targetPort" }}
+            {{- end }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+              protocol: TCP
+            {{- end }}
           {{- if .Values.healthCheck.enabled }}
           # Probes use wget (no curl in caddy:2-alpine) and 127.0.0.1 (not
           # localhost): BusyBox wget prefers ::1, which Caddy's IPv4-only
           # admin listener refuses.
           readinessProbe:
             exec:
-              command: ["wget", "-q", "--spider", "http://127.0.0.1:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/ready"]
+              command: ["wget", "-q", "--spider", "http://127.0.0.1:{{ .Values.adminPort }}/mercure/health/ready"]
             initialDelaySeconds: {{ .Values.healthCheck.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthCheck.readiness.periodSeconds }}
             timeoutSeconds: {{ .Values.healthCheck.readiness.timeoutSeconds }}
             failureThreshold: {{ .Values.healthCheck.readiness.failureThreshold }}
           livenessProbe:
             exec:
-              command: ["wget", "-q", "--spider", "http://127.0.0.1:{{ .Values.adminPort | default .Values.metrics.port }}/mercure/health/live"]
+              command: ["wget", "-q", "--spider", "http://127.0.0.1:{{ .Values.adminPort }}/mercure/health/live"]
             initialDelaySeconds: {{ .Values.healthCheck.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.healthCheck.liveness.periodSeconds }}
             timeoutSeconds: {{ .Values.healthCheck.liveness.timeoutSeconds }}
@@ -198,7 +217,7 @@ spec:
             preStop:
               exec:
                 # wget because caddy:2-alpine doesn't ship curl.
-                command: ["wget", "-q", "-O", "-", "--post-data=", "http://127.0.0.1:{{ .Values.adminPort | default .Values.metrics.port }}/stop"]
+                command: ["wget", "-q", "-O", "-", "--post-data=", "http://127.0.0.1:{{ .Values.adminPort }}/stop"]
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
