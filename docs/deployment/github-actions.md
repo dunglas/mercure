@@ -24,8 +24,8 @@ jobs:
         image: dunglas/mercure
         env:
           SERVER_NAME: ":1337"
-          MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
-          MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+          MERCURE_PUBLISHER_JWT_KEY: "ci-only-publisher-key-never-reuse-it"
+          MERCURE_SUBSCRIBER_JWT_KEY: "ci-only-subscriber-key-never-reuse-it"
           MERCURE_EXTRA_DIRECTIVES: |
             anonymous
             cors_origins *

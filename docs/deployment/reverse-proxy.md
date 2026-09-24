@@ -123,8 +123,8 @@ services:
     restart: unless-stopped
     environment:
       SERVER_NAME: ":80" # let Traefik handle TLS
-      MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
-      MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_PUBLISHER_JWT_KEY}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_SUBSCRIBER_JWT_KEY}
       MERCURE_TRUSTED_ISSUERS: https://app.example.com
       MERCURE_EXTRA_DIRECTIVES: |
         resource_identifier https://hub.example.com/.well-known/mercure

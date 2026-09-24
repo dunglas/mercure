@@ -1,6 +1,7 @@
 package caddy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -1153,5 +1154,26 @@ func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
 
 			require.ErrorIs(t, err, errLegacyVerifiersNeedCompatibility)
 		})
+	}
+}
+
+func TestPopulateJWTConfigWarnsAboutWellKnownKey(t *testing.T) {
+	t.Parallel()
+
+	for _, playground := range []bool{false, true} {
+		var logs bytes.Buffer
+
+		m := &Mercure{
+			Playground: playground,
+			Issuers: []IssuerConfig{{
+				Identifier: "https://localhost",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: devKeyFallback}},
+				Subscriber: VerifierConfig{JWT: JWTConfig{Key: "a-random-subscriber-key-of-32-bytes"}},
+			}},
+			logger: slog.New(slog.NewTextHandler(&logs, nil)),
+		}
+
+		require.NoError(t, m.populateJWTConfig(caddy.Context{Context: context.Background()}))
+		assert.Equal(t, !playground, strings.Contains(logs.String(), "development secret"))
 	}
 }

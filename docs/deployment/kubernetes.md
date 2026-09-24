@@ -7,13 +7,13 @@ description: "Install Mercure.rocks on Kubernetes with the official Helm chart, 
 
 **Run a supported Mercure cluster on your infrastructure with [Mercure Enterprise](https://mercure.rocks/pricing).** The chart supports its Redis/Valkey, PostgreSQL, Kafka, and Pulsar transports. Our Managed On-Premise option covers deployment and operation; [Mercure Cloud](https://mercure.rocks/pricing) lets you skip Kubernetes entirely.
 
-Install the Mercure hub with the official Helm chart:
+Install the Mercure hub with the official Helm chart. Generate each key once with `openssl rand -base64 32` and export it as `MERCURE_PUBLISHER_JWT_KEY` / `MERCURE_SUBSCRIBER_JWT_KEY`: anyone can forge tokens signed with the development key.
 
 ```console
 helm repo add mercure https://charts.mercure.rocks
 helm install mercure mercure/mercure \
-  --set publisherJwtKey='!ChangeThisMercureHubJWTSecretKey!' \
-  --set subscriberJwtKey='!ChangeThisMercureHubJWTSecretKey!'
+  --set publisherJwtKey="$MERCURE_PUBLISHER_JWT_KEY" \
+  --set subscriberJwtKey="$MERCURE_SUBSCRIBER_JWT_KEY"
 ```
 
 For production, use `existingSecret` with a Secret containing all the chart's required keys, as shown below. Setting `existingSecret` disables creation of the chart-managed Secret, including its extra directives.
@@ -82,8 +82,8 @@ metadata:
   name: mercure-jwt
 type: Opaque
 stringData:
-  publisher-jwt-key: "!ChangeThisMercureHubJWTSecretKey!"
-  subscriber-jwt-key: "!ChangeThisMercureHubJWTSecretKey!"
+  publisher-jwt-key: "<output of openssl rand -base64 32>"
+  subscriber-jwt-key: "<output of openssl rand -base64 32>"
   extra-directives: |
     cors_origins https://app.example.com
     subscriptions

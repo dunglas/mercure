@@ -15,10 +15,12 @@ The Mercure.rocks Hub is a custom build of the [Caddy web server](https://caddys
 
 ## Docker (recommended)
 
+Generate each key once with `openssl rand -base64 32` and export it as `MERCURE_PUBLISHER_JWT_KEY` / `MERCURE_SUBSCRIBER_JWT_KEY`: anyone can forge tokens signed with the development key.
+
 ```console
 docker run \
-    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_PUBLISHER_JWT_KEY \
+    -e MERCURE_SUBSCRIBER_JWT_KEY \
     -p 80:80 -p 443:443 \
     dunglas/mercure
 ```
@@ -50,8 +52,8 @@ services:
     environment:
       # Uncomment to disable HTTPS (use behind a reverse proxy)
       #SERVER_NAME: ':80'
-      MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
-      MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_PUBLISHER_JWT_KEY}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_SUBSCRIBER_JWT_KEY}
       # Uncomment to run in development mode (insecure playground)
       #MERCURE_EXTRA_DIRECTIVES: playground
     ports:

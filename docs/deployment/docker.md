@@ -11,14 +11,14 @@ Prefer to skip server maintenance? **[Mercure Cloud](https://mercure.rocks/prici
 
 ## Run the Mercure Docker image
 
-Set the following values for your deployment and replace both example secrets:
+Set the following values for your deployment. Generate each key once with `openssl rand -base64 32` and export it as `MERCURE_PUBLISHER_JWT_KEY` / `MERCURE_SUBSCRIBER_JWT_KEY`: anyone can forge tokens signed with the development key.
 
 ```console
 docker run \
     -e SERVER_NAME=hub.example.com \
     -e MERCURE_TRUSTED_ISSUERS=https://app.example.com \
-    -e MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
-    -e MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' \
+    -e MERCURE_PUBLISHER_JWT_KEY \
+    -e MERCURE_SUBSCRIBER_JWT_KEY \
     -p 80:80 -p 443:443 \
     dunglas/mercure
 ```
@@ -58,7 +58,7 @@ Don't expose this to the internet.
 
 ## Compose
 
-Save this as `compose.yaml`, replace the secrets and hostnames, then run `docker compose up -d`:
+Save this as `compose.yaml`, replace the hostnames, then run `docker compose up -d`:
 
 ```yaml
 services:
@@ -66,8 +66,8 @@ services:
     image: dunglas/mercure
     restart: unless-stopped
     environment:
-      MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
-      MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_PUBLISHER_JWT_KEY}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_SUBSCRIBER_JWT_KEY}
       MERCURE_TRUSTED_ISSUERS: https://app.example.com
       SERVER_NAME: hub.example.com
     ports:
@@ -131,8 +131,8 @@ services:
     tmpfs:
       - /tmp
     environment:
-      MERCURE_PUBLISHER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
-      MERCURE_SUBSCRIBER_JWT_KEY: "!ChangeThisMercureHubJWTSecretKey!"
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_PUBLISHER_JWT_KEY}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_SUBSCRIBER_JWT_KEY}
       MERCURE_TRUSTED_ISSUERS: https://app.example.com
       SERVER_NAME: hub.example.com
     ports:
