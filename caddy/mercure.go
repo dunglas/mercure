@@ -898,6 +898,10 @@ func (m *Mercure) populateJWTConfig(ctx caddy.Context) error {
 		}
 	}
 
+	if !m.Playground {
+		m.warnAboutWellKnownKeys(ctx)
+	}
+
 	if !hasPublisher && !AllowNoPublish {
 		return fmt.Errorf("publishers: %w", errMissingVerifier)
 	}
@@ -907,6 +911,22 @@ func (m *Mercure) populateJWTConfig(ctx caddy.Context) error {
 	}
 
 	return nil
+}
+
+// warnAboutWellKnownKeys flags the development secrets outside the playground:
+// they are published, so anyone can forge tokens the hub accepts.
+func (m *Mercure) warnAboutWellKnownKeys(ctx context.Context) {
+	keys := map[string]string{"publisher": m.PublisherJWT.Key, "subscriber": m.SubscriberJWT.Key}
+	for _, iss := range m.Issuers {
+		keys["issuer "+iss.Identifier+" publisher"] = iss.Publisher.JWT.Key
+		keys["issuer "+iss.Identifier+" subscriber"] = iss.Subscriber.JWT.Key
+	}
+
+	for role, key := range keys {
+		if (key == devKeyFallback || key == "!ChangeMe!") && m.logger.Enabled(ctx, slog.LevelWarn) {
+			m.logger.LogAttrs(ctx, slog.LevelWarn, "The JWT key is a development secret published in the documentation: anyone can forge tokens with it. Generate a random key.", slog.String("role", role))
+		}
+	}
 }
 
 // buildVerifier turns a configured VerifierConfig into a mercure.Verifier. A
