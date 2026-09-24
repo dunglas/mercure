@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -279,39 +278,6 @@ func TestSubscriptionPayloadFastPath(t *testing.T) {
 	s2.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/a"}}, nil)
 	require.Len(t, s2.SubscriptionPayloads, 1)
 	assert.Equal(t, map[string]any{"k": "v"}, s2.SubscriptionPayloads[0])
-}
-
-// TestCompatModeEmptyResourceIdentifierAcceptsToken ensures a hub started in
-// compatibility mode without a resource identifier (a build without the
-// deprecated_claim tag) does not enforce an empty audience, which would reject
-// every otherwise-valid access token.
-func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
-	t.Parallel()
-
-	tms, err := NewTopicMatcherStore(0)
-	require.NoError(t, err)
-
-	h, err := NewHub(t.Context(),
-		WithIssuers([]Issuer{{
-			Identifier: testIssuer,
-			Subscriber: Static{Key: []byte("subscriber"), Algorithm: jwt.SigningMethodHS256.Name},
-		}}),
-		WithProtocolVersionCompatibility(7),
-		WithTopicMatcherStore(tms),
-	)
-	require.NoError(t, err)
-	require.Empty(t, h.resourceIdentifier)
-
-	// A well-formed at+jwt token with an audience the hub does not know must
-	// still be accepted, since no audience is enforced.
-	token := mintAccessToken([]byte("subscriber"), "https://some.other.audience/", nil)
-
-	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
-	r.Header.Add("Authorization", bearerPrefix+token)
-
-	claims, err := h.authorize(r, false)
-	require.NoError(t, err)
-	require.NotNil(t, claims)
 }
 
 // TestInvalidBaseURLRejected ensures a non-absolute public URL is rejected at

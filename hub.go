@@ -486,7 +486,7 @@ func (o *opt) configureIdentifiers() error {
 	// so every configured issuer needs a non-empty identifier to match against.
 	// (Configuring a verifier always creates an issuer, so no separate
 	// "missing issuer" case exists.)
-	if o.protocolVersionCompatibility == 0 && (o.publisherConfigured || o.subscriberConfigured) {
+	if !o.compatClaimsEnabled() && (o.publisherConfigured || o.subscriberConfigured) {
 		if _, ok := o.issuers[""]; ok {
 			return ErrMissingIssuerIdentifier
 		}

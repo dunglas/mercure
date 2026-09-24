@@ -511,3 +511,26 @@ func TestMultiIssuerRoleWithoutVerifier(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidJWT)
 	require.Nil(t, claims)
 }
+
+// Without legacy claims compiled in, compatibility mode relaxes nothing about
+// tokens, so a token minted for another hub sharing the key is refused.
+func TestCompatModeWithoutLegacyClaimsChecksAudience(t *testing.T) {
+	t.Parallel()
+
+	h := createDummy(t, WithProtocolVersionCompatibility(8))
+
+	for audience, accepted := range map[string]bool{
+		testResourceIdentifier:                      true,
+		"https://other.example/.well-known/mercure": false,
+	} {
+		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+		r.Header.Add("Authorization", bearerPrefix+mintAccessToken([]byte("subscriber"), audience, nil))
+
+		_, err := h.authorize(r, false)
+		if accepted {
+			require.NoError(t, err, audience)
+		} else {
+			require.ErrorIs(t, err, ErrInvalidJWT, audience)
+		}
+	}
+}

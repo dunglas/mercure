@@ -22,8 +22,8 @@ const legacyAuthorizationParam = "authorization"
 
 // compatClaimsEnabled reports whether legacy mercure-claim behavior is active:
 // the code is compiled in and the operator enabled compatibility mode.
-func (h *Hub) compatClaimsEnabled() bool {
-	return h.isBackwardCompatiblyEnabledWith(8)
+func (o *opt) compatClaimsEnabled() bool {
+	return o.isBackwardCompatiblyEnabledWith(8)
 }
 
 // requireATJWT reports whether access tokens must carry the at+jwt typ header
