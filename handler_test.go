@@ -14,7 +14,7 @@ func TestSpansArbitraryOrigins(t *testing.T) {
 	for origin, spans := range map[string]bool{
 		"https://example.com":   false,
 		"https://*.example.com": false,
-		"null":                  false,
+		"null":                  true,
 		"*":                     true,
 		"https://*":             true,
 		"https://*example.com":  true,
@@ -41,6 +41,7 @@ func TestCORSWildcardCredentials(t *testing.T) {
 		{"https://*.example.com", "https://app.example.com", true},
 		{"https://*.example.co.uk:8443", "https://app.example.co.uk:8443", true},
 		{"https://*.project.github.io", "https://app.project.github.io", true},
+		{"null", "null", false},
 	} {
 		t.Run(tc.pattern, func(t *testing.T) {
 			t.Parallel()

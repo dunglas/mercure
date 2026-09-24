@@ -88,6 +88,11 @@ func (h *Hub) initHandler() {
 }
 
 func spansArbitraryOrigins(origin string) bool {
+	// Any site can send Origin: null from a sandboxed iframe or a data: URL.
+	if origin == "null" {
+		return true
+	}
+
 	prefix, suffix, found := strings.Cut(origin, "*")
 	if !found {
 		return false
