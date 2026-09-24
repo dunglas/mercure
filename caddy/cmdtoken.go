@@ -409,7 +409,7 @@ func signToken(claims jwt.MapClaims, kid, raw, alg string) (string, string, erro
 		return "", "", err
 	}
 
-	if strings.HasPrefix(strings.TrimSpace(string(material)), pemPrefix) {
+	if strings.Contains(string(material), pemMarker) {
 		if alg == "" {
 			return "", "", errPEMKeyNeedsAlg
 		}

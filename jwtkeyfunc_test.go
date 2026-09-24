@@ -62,6 +62,10 @@ MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVMSpp6r4Rzf1mM4l3q5k9qz2S
 
 	_, _, err := Static{Key: key, Algorithm: "HS256"}.buildKeyfunc()
 	require.ErrorIs(t, err, ErrPEMKeyHMACAlgorithm)
+
+	// OpenSSL writes attributes before the block when exporting from PKCS#12.
+	_, _, err = Static{Key: append([]byte("Bag Attributes\n    friendlyName: hub\n"), key...), Algorithm: "HS256"}.buildKeyfunc()
+	require.ErrorIs(t, err, ErrPEMKeyHMACAlgorithm)
 }
 
 func TestStaticShortHMACKey(t *testing.T) {

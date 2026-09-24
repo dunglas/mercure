@@ -806,10 +806,11 @@ func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
 	return v, nil
 }
 
-// pemPrefix opens a PEM block. Here it only decides which algorithm defaults
-// apply; pairing such a key with HMAC is refused by the verifier
+// pemMarker opens a PEM block, possibly after a preamble such as OpenSSL's
+// "Bag Attributes". Here it only decides which algorithm defaults apply;
+// pairing such a key with HMAC is refused by the verifier
 // (mercure.ErrPEMKeyHMACAlgorithm).
-const pemPrefix = "-----BEGIN"
+const pemMarker = "-----BEGIN"
 
 // defaultJWTAlgorithm is assumed for a raw shared secret whose algorithm is not
 // stated. A PEM-encoded key gets no default (see normalizeJWT).
@@ -839,7 +840,7 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 
 	c.Alg = repl.ReplaceKnown(c.Alg, "")
 
-	if strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+	if strings.Contains(c.Key, pemMarker) {
 		if c.Alg == "" {
 			return fmt.Errorf("%s: %w", role, errPEMKeyMissingAlgorithm)
 		}
@@ -1072,7 +1073,7 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 // algorithm. A PEM key is asymmetric — only its public half is configured here —
 // so it can verify but never sign locally.
 func isHMACSigningKey(c JWTConfig) bool {
-	if c.Key == "" || strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+	if c.Key == "" || strings.Contains(c.Key, pemMarker) {
 		return false
 	}
 

@@ -54,7 +54,7 @@ func (s Static) buildKeyfunc() (jwt.Keyfunc, []string, error) {
 		return nil, nil, ErrMissingKey
 	}
 
-	if bytes.HasPrefix(bytes.TrimSpace(s.Key), []byte("-----BEGIN")) && strings.HasPrefix(s.Algorithm, "HS") {
+	if bytes.Contains(s.Key, []byte("-----BEGIN")) && strings.HasPrefix(s.Algorithm, "HS") {
 		return nil, nil, fmt.Errorf("%q: %w", s.Algorithm, ErrPEMKeyHMACAlgorithm)
 	}
 

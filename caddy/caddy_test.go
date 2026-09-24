@@ -893,6 +893,7 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
 		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
 		{name: "PEM key without an algorithm", key: pem, wantErr: errPEMKeyMissingAlgorithm},
+		{name: "PEM key after a preamble without an algorithm", key: "Bag Attributes\n" + pem, wantErr: errPEMKeyMissingAlgorithm},
 		// Left alone here; the verifier refuses it, one check below.
 		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantAlg: defaultJWTAlgorithm},
 	} {
