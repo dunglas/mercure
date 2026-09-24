@@ -1445,6 +1445,31 @@ func TestNewResponseControllerNoDeadline(t *testing.T) {
 	assert.True(t, rc.disconnectionTime.IsZero())
 }
 
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+
+	deadlines []time.Time
+}
+
+func (r *deadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.deadlines = append(r.deadlines, deadline)
+
+	return nil
+}
+
+// Without a write deadline, a subscriber that stops reading must still be cut off by the dispatch timeout.
+func TestDispatchWriteDeadlineWithoutWriteTimeout(t *testing.T) {
+	t.Parallel()
+
+	h := &Hub{opt: &opt{writeTimeout: 0, dispatchTimeout: time.Second}}
+	w := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	rc := h.newResponseController(w, &LocalSubscriber{})
+
+	require.True(t, rc.setDispatchWriteDeadline(t.Context()))
+	require.Len(t, w.deadlines, 1)
+	assert.WithinDuration(t, time.Now().Add(time.Second), w.deadlines[0], 100*time.Millisecond)
+}
+
 // refusingTransport records dispatched updates and refuses to register
 // subscribers, to exercise the registration-failure path.
 type refusingTransport struct {
