@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"net/http"
@@ -24,6 +25,13 @@ type claims struct {
 	// deprecated_claim tag in compatibility mode, the legacy mercure claim
 	// resolved into the same shape). Unexported, so it is never (un)marshaled.
 	authz *mercureAuthz
+}
+
+// UnmarshalJSON decodes the claim set with encoding/json/v2, like the authorization details.
+func (c *claims) UnmarshalJSON(data []byte) error {
+	type plainClaims claims
+
+	return jsonv2.Unmarshal(data, (*plainClaims)(c)) //nolint:wrapcheck
 }
 
 type role int
