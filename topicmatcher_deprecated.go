@@ -61,9 +61,6 @@ func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 		// Use template.Regexp() instead of template.Match() for performance
 		// See https://github.com/yosida95/uritemplate/pull/7
 		r := templateRegexp(tpl)
-		if r == nil {
-			return nil
-		}
 
 		if tms.templateCache != nil {
 			cacheCompiled(tms.templateCache, tms.compiledCacheWeight, pattern, r, uint64(len(pattern))+templateWeight(r))
