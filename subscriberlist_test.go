@@ -1,6 +1,8 @@
 package mercure
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -61,6 +63,56 @@ func TestFilterKeyKeepsTopicBoundaries(t *testing.T) {
 	assert.NotEqual(t, newFilterKey([]string{"ab"}, false), newFilterKey([]string{"a", "b"}, false))
 	assert.NotEqual(t, newFilterKey([]string{"a", "bc"}, false), newFilterKey([]string{"ab", "c"}, false))
 	assert.NotEqual(t, newFilterKey([]string{""}, false), newFilterKey(nil, false))
+}
+
+func TestFilterKeyStreaming(t *testing.T) {
+	t.Parallel()
+
+	for _, length := range []int{0, 1, 127, 128, 501, 502, 503, 504, 511, 512, 513, 4096, 16384} {
+		for _, private := range []bool{false, true} {
+			topics := []string{"z", strings.Repeat("a", length), "", "\x00\x01"}
+			sorted := slices.Clone(topics)
+			slices.Sort(sorted)
+
+			input := []byte{0}
+			if private {
+				input[0] = 1
+			}
+
+			for _, topic := range sorted {
+				input = binary.AppendUvarint(input, uint64(len(topic)))
+				input = append(input, topic...)
+			}
+
+			assert.Equal(t, filterKey(sha256.Sum256(input)), newFilterKey(topics, private), "length=%d private=%t", length, private)
+		}
+	}
+}
+
+func BenchmarkFilterKey(b *testing.B) {
+	for _, tc := range []struct {
+		name   string
+		count  int
+		length int
+	}{
+		{"short", 1, 32},
+		{"long", 1, 4096},
+		{"large_list", 250, 4000},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			topics := make([]string, tc.count)
+			for i := range topics {
+				topics[i] = fmt.Sprintf("https://example.com/%03d/%s", i, strings.Repeat("a", tc.length))
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+
+			for b.Loop() {
+				newFilterKey(topics, false)
+			}
+		})
+	}
 }
 
 // Filters computed from a digest must still see the update's topics, including

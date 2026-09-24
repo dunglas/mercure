@@ -54,20 +54,41 @@ func newFilterKey(topics []string, private bool) filterKey {
 	sorted := append(sortedBuf[:0], topics...)
 	slices.Sort(sorted)
 
-	var inputBuf [512]byte
+	h := sha256.New()
 
-	input := inputBuf[:1]
+	var buf [512]byte
+
+	input := buf[:1]
 	if private {
 		input[0] = 1
 	}
 
 	for _, t := range sorted {
+		if cap(input)-len(input) < binary.MaxVarintLen64 {
+			h.Write(input)
+			input = buf[:0]
+		}
+
 		// Length-prefixed so that topic boundaries are part of the hashed input.
 		input = binary.AppendUvarint(input, uint64(len(t)))
-		input = append(input, t...)
+		for len(t) > 0 {
+			n := copy(buf[len(input):], t)
+			input = buf[:len(input)+n]
+			t = t[n:]
+
+			if len(input) == len(buf) {
+				h.Write(input)
+				input = buf[:0]
+			}
+		}
 	}
 
-	return sha256.Sum256(input)
+	h.Write(input)
+
+	var key filterKey
+	h.Sum(key[:0])
+
+	return key
 }
 
 func (sl *SubscriberList) MatchAny(u *Update) []*LocalSubscriber {
