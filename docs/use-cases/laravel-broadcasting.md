@@ -1,15 +1,17 @@
 ---
 title: "Laravel Broadcasting with Mercure"
-description: "Using the broadcasting feature of Laravel with Mercure"
+description: "Use Laravel's native Mercure broadcasting driver and Laravel Echo for real-time events. Choose managed Mercure Cloud or an Enterprise deployment on your own servers."
 ---
 
-# Laravel Broadcasting
+# Laravel Broadcasting with Mercure
 
-[Laravel Broadcasting](https://laravel.com/docs/broadcasting) is a feature of Laravel that allows your application to push server-side events to the client in real time, the web client uses [Laravel Echo](https://laravel.com/framework/docs/broadcasting#client-side-installation) to receives the events. It supports several drivers such as Mercure, Reverb, Pusher or Ably.
+[Laravel Broadcasting](https://laravel.com/docs/broadcasting) publishes application events to clients. [Laravel Echo](https://laravel.com/docs/broadcasting#client-side-installation) receives them in the browser. This guide uses Laravel's built-in Mercure driver.
+
+**Keep Laravel's broadcasting API and choose where your real-time service runs.** [Mercure Cloud](https://mercure.rocks/pricing) is the managed option; [Mercure Enterprise](../production/high-availability.md) runs on your infrastructure. Both work with Laravel's native Mercure driver and Echo.
 
 ## Setting up
 
-To set up Laravel Broadcasting with Mercure you only have to execute this command and follow the instructions:
+In a Laravel release that supports the Mercure installer, run:
 
 ```bash
 php artisan install:broadcasting --mercure
@@ -17,28 +19,34 @@ php artisan install:broadcasting --mercure
 
 ## Configuring the hub
 
-Laravel signs every token with `MERCURE_JWT_SECRET`, so your hub must use the same secret.
+Configure Laravel's `MERCURE_URL`, `MERCURE_PUBLIC_URL`, and `MERCURE_JWT_SECRET`. The hub must trust the same signing secret and issuer. In the configuration below, tokens use `https://app.example.com` as `iss` and the public hub URL as `aud`. Match these to your Laravel `claims` configuration (the issuer defaults to `APP_URL`).
 
 ```caddyfile
-# Configuring the hub
 mercure {
-    publisher_jwt {env.MERCURE_JWT_SECRET}
-    subscriber_jwt {env.MERCURE_JWT_SECRET}
+    issuer https://app.example.com {
+        publisher {
+            jwt {env.MERCURE_JWT_SECRET}
+        }
+        subscriber {
+            jwt {env.MERCURE_JWT_SECRET}
+        }
+    }
+    resource_identifier https://hub.example.com/.well-known/mercure
 
-    # Required for presence channels, the browser publishes directly to the hub
+    # Publish presence events
     subscriptions
 
     # Required for whispers
-    publish_origins <url>
+    publish_origins https://app.example.com
 
     # Only if your hub and your app are not on the same origin
-    cors_origins <url>
+    cors_origins https://app.example.com
 }
 ```
 
 ## Our first broadcast event
 
-To create a broadcast event we have to create a class that implements `Illuminate\Contracts\Broadcasting\ShouldBroadcast`.
+Create an event implementing `Illuminate\Contracts\Broadcasting\ShouldBroadcast`. Run a queue worker for queued broadcasts.
 
 ```php
 <?php
@@ -47,7 +55,10 @@ To create a broadcast event we have to create a class that implements `Illuminat
 
 namespace App\Events;
 
-// Imports
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Foundation\Events\Dispatchable;
 
 class MessageSent implements ShouldBroadcast
 {
@@ -58,12 +69,12 @@ class MessageSent implements ShouldBroadcast
         public string $author,
     ) {}
 
-    public function broadcastOn(): Channel // Channel where the event will be published
+    public function broadcastOn(): Channel
     {
-        return new Channel('chat'); // Public channel: every client can receive the update. For private updates use PrivateChannel or PresenceChannel
+        return new Channel('chat');
     }
 
-    public function broadcastAs(): string // The name of our event
+    public function broadcastAs(): string
     {
         return 'message.sent';
     }
@@ -71,7 +82,7 @@ class MessageSent implements ShouldBroadcast
     /**
      * @return array<string, string>
      */
-    public function broadcastWith(): array // The data sent to the client
+    public function broadcastWith(): array
     {
         return [
             'content' => $this->content,
@@ -83,7 +94,7 @@ class MessageSent implements ShouldBroadcast
 
 ## Send the event from a controller
 
-After we created our first broadcast event we can send it by using the `broadcast()` helper.
+Dispatch the event from an authenticated route with the `broadcast()` helper:
 
 ```php
 <?php
@@ -92,7 +103,9 @@ After we created our first broadcast event we can send it by using the `broadcas
 
 namespace App\Http\Controllers;
 
-// Imports
+use App\Events\MessageSent;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class MessageController extends Controller
 {
@@ -103,19 +116,20 @@ class MessageController extends Controller
         ]);
 
         broadcast(new MessageSent($validated['content'], $request->user()->name))
-            ->toOthers(); // The user who sent the message won't receive it
+            ->toOthers();
 
         return response()->json(['status' => 'sent']);
     }
 }
 ```
 
+`toOthers()` excludes the originating Echo connection when the request includes its `X-Socket-ID`. Other tabs belonging to the same user can still receive the event.
+
 ## Private channel
 
-A private channel only sends updates to users authorized in `routes/channels.php`.
+Import `Illuminate\Broadcasting\PrivateChannel` in the event class and add a `roomId` property. Replace `broadcastOn()` with the method below. Authorize members in `routes/channels.php`.
 
 ```php
-// Private channel
 public function broadcastOn(): Channel
 {
     return new PrivateChannel('chat.' . $this->roomId); // Becomes "private-chat.1" on the hub
@@ -139,10 +153,9 @@ With Mercure, each private update is published as a private update on the hub. O
 
 ## Presence channel
 
-A presence channel is a private channel that also knows who is connected. Instead of returning `true`, the callback returns the data of the user.
+Import `Illuminate\Broadcasting\PresenceChannel` and add a `groupId` property. The authorization callback returns member data for presence listeners.
 
 ```php
-// Presence channel
 public function broadcastOn(): Channel
 {
     return new PresenceChannel('group.' . $this->groupId); // Becomes "presence-group.1" on the hub
@@ -162,21 +175,20 @@ Broadcast::channel('group.{groupId}', function (User $user, int $groupId) {
 
 ## End-to-end encryption
 
-With an encrypted channel, the hub never sees the content of your updates. Laravel encrypts the event name, the payload and the socket ID and only authorized users, who have the channel key, can decrypt.
+An encrypted channel hides the event name, payload, and socket ID from the hub. Routing metadata remains visible. Configure Laravel's `MERCURE_ENCRYPTION_KEY` as described in the [broadcasting documentation](https://laravel.com/docs/broadcasting#mercure).
 
 ```php
-// End-to-end encryption
 public function broadcastOn(): Channel
 {
     return new PrivateEncryptedChannel('chat.' . $this->roomId); // Becomes "private-encrypted-chat.1" on the hub
 }
 ```
 
-It uses the same authorization as `PrivateChannel`, so our `chat.{roomId}` callback works for both.
+Import `Illuminate\Broadcasting\PrivateEncryptedChannel` and define `roomId` on the event. It uses the same authorization as `PrivateChannel`, so our `chat.{roomId}` callback works for both.
 
 ## Laravel Echo
 
-[Laravel Echo](https://laravel.com/framework/docs/broadcasting#client-side-installation) listens to the events sent by Laravel. The install command already configures it with the Mercure broadcaster.
+[Laravel Echo](https://laravel.com/docs/broadcasting#client-side-installation) listens to the events sent by Laravel. The install command already configures it with the Mercure broadcaster.
 
 ```javascript
 // resources/js/echo.js
@@ -191,21 +203,20 @@ window.Echo = new Echo({
 ## Listen to a public channel
 
 ```javascript
-// Listen to a public channel
 window.Echo.channel("chat").listen(".message.sent", (event) => {
   // The dot is needed because we used broadcastAs()
   console.log(`${event.author}: ${event.content}`);
 });
 ```
 
-Echo first authenticates its channels even public ones to get a Mercure token:
+Echo requests a Mercure token even for public channels:
 
 ```http
 POST /broadcasting/auth
 {"channel_names":["chat"]}
 
 HTTP/1.1 200 OK
-Set-Cookie: __Secure-mercure_access_token=<token>
+Set-Cookie: __Secure-mercure_access_token=<token>; Path=/.well-known/mercure; Domain=example.com; Secure; HttpOnly; SameSite=Strict
 {"channel_names":[{"name":"chat"}],"expires_in":300,"topic_prefix":"https://laravel.alt/echo/","client_events":true}
 ```
 
@@ -225,7 +236,6 @@ data: {"channels":["chat"],"event":"message.sent","payload":{"content":"Hello!",
 ## Listen to a private channel
 
 ```javascript
-// Listen to a private channel
 window.Echo.private("chat.1")
   .listen(".message.sent", (event) => {
     console.log(`${event.author}: ${event.content}`);
@@ -247,7 +257,7 @@ If the user is not authorized, the auth request still succeeds for the other cha
 }
 ```
 
-## Next steps for Laravel over Mercure
+## Next steps
 
 - [Laravel Broadcasting](https://laravel.com/docs/broadcasting): everything else about broadcasting in Laravel.
-- [Laravel Echo](https://laravel.com/framework/docs/broadcasting#client-side-installation): the client library.
+- [Laravel Echo](https://laravel.com/docs/broadcasting#client-side-installation): the client library.

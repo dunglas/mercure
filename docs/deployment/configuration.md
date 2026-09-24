@@ -3,16 +3,15 @@ title: "Mercure.rocks hub configuration: Caddyfile and environment variables"
 description: "Configure the Mercure.rocks Hub with Caddyfile directives, environment variables, transports, CORS, and JWKS validation."
 ---
 
-# Configuration
+# Mercure configuration
 
 The Mercure.rocks Hub is a [Caddy](https://caddyserver.com/) build with the Mercure module. Anything the [Caddy docs](https://caddyserver.com/docs/) describe also applies to this binary.
 
-The most idiomatic way to configure it is a [`Caddyfile`](https://caddyserver.com/docs/quick-starts/caddyfile). Other formats (JSON, the admin API, env-var-driven config) work too; Mercure ships pre-wired for env vars in the official Docker image.
+The bundled `Caddyfile` supports environment variables for common settings. For more control, write a custom Caddyfile or use [Caddy JSON configuration](https://caddyserver.com/docs/json/).
 
 ## Minimal Caddyfile
 
 ```caddyfile
-# Caddyfile
 hub.example.com {
   mercure {
     issuer https://example.com {
@@ -46,7 +45,6 @@ The algorithm defaults to `HS256` only for a raw shared secret. A PEM-encoded ke
 Caddy provisions a Let's Encrypt certificate for `hub.example.com` automatically. To disable HTTPS (when behind a reverse proxy that terminates TLS), prefix the site address with `http://`:
 
 ```caddyfile
-# Caddyfile
 http://hub.example.com:80 {
   # ...
 }
@@ -64,7 +62,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                                            | off                             |
 | `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only).                                                                                                        |                                 |
 | `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                                    |                                 |
-| `cookie_name <name>`                       | Cookie that carries the access token for browser clients. Use a name without the `__Secure-` prefix for plain-HTTP development.                             | `__Secure-mercure_access_token` |
+| `cookie_name <name>`                       | Cookie that carries the access token for browser clients. Use a prefix-less name only for local HTTP development.                                           | `__Secure-mercure_access_token` |
 | `protocol_version_compatibility <version>` | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).                           | off                             |
 | `subscriptions`                            | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                                                 | off                             |
 | `heartbeat <duration>`                     | Interval between SSE heartbeat comments. `0s` to disable.                                                                                                   | `40s`                           |
@@ -77,7 +75,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `debugger`                                 | Serve the debugger UI at `/.well-known/mercure/debug/` (no token, no playground endpoints). Safe in production.                                             | off                             |
 | `playground`                               | Enable `debugger` **and** the insecure playground: the `/playground/` discovery endpoints, and a hub-minted all-access token prefilled in the UI. Dev only. | off                             |
 
-The debugger UI (`debugger`) is a client-side tool: it opens streams and publishes with a token _you_ paste, exposing nothing the hub's API doesn't already, so it is safe to enable in production. The `playground` directive is not: it mints a token granting publish and subscribe on every topic, registers endpoints that echo whatever they are sent, and turns on `anonymous` for you. Keep `playground` off on any hub that serves real users. `anonymous` itself is a normal, production-ready opt-in for topics you deliberately want readable without a token — safe to enable when it's your own explicit choice, not a side effect of the playground. To try the debugger against a protected hub, mint yourself a scoped token with [`caddy mercure-token`](../concepts/authorization.md#minting-a-token).
+`debugger` serves a browser client that uses the token you provide. `playground` also creates an all-access token and enables permissive defaults. Use `playground` only for development. For a protected hub, generate a scoped token with [`caddy mercure-token`](../concepts/authorization.md#minting-a-token).
 
 ### Issuer blocks
 
@@ -121,21 +119,21 @@ issuer https://issuer-b.example {
 
 The Docker image and the official Caddyfile read these:
 
-| Variable                        | Description                                                                            | Default     |
-| ------------------------------- | -------------------------------------------------------------------------------------- | ----------- |
-| `SERVER_NAME`                   | Site address. Use `:80` to bind without a hostname.                                    | `localhost` |
-| `MERCURE_PUBLISHER_JWT_KEY`     | Publisher signing key.                                                                 |             |
-| `MERCURE_PUBLISHER_JWT_ALG`     | Publisher algorithm.                                                                   | `HS256`     |
-| `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber signing key.                                                                |             |
-| `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`     |
-| `MERCURE_TRUSTED_ISSUERS`       | Sets the `issuer` block identifier (the token `iss`).                                  |             |
-| `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |             |
-| `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |             |
-| `CADDY_EXTRA_CONFIG`            | [Snippets / named routes](https://caddyserver.com/docs/caddyfile/concepts#snippets).   |             |
-| `CADDY_SERVER_EXTRA_DIRECTIVES` | Caddyfile directives outside the `mercure` block.                                      |             |
-| `MERCURE_LICENSE`               | License key for [Self-Hosted Mercure](https://mercure.rocks/pricing).                  |             |
+| Variable                        | Description                                                                            | Default             |
+| ------------------------------- | -------------------------------------------------------------------------------------- | ------------------- |
+| `SERVER_NAME`                   | Site address. Use `:80` to bind without a hostname.                                    | `localhost`         |
+| `MERCURE_PUBLISHER_JWT_KEY`     | Publisher verification secret or public key.                                           |                     |
+| `MERCURE_PUBLISHER_JWT_ALG`     | Publisher algorithm.                                                                   | `HS256`             |
+| `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber verification secret or public key.                                          |                     |
+| `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`             |
+| `MERCURE_TRUSTED_ISSUERS`       | Sets the `issuer` block identifier (the token `iss`).                                  | `https://localhost` |
+| `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |                     |
+| `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |                     |
+| `CADDY_EXTRA_CONFIG`            | [Snippets / named routes](https://caddyserver.com/docs/caddyfile/concepts#snippets).   |                     |
+| `CADDY_SERVER_EXTRA_DIRECTIVES` | Caddyfile directives outside the `mercure` block.                                      |                     |
+| `MERCURE_LICENSE`               | License key for [Self-Hosted Mercure](https://mercure.rocks/pricing).                  |                     |
 
-`MERCURE_EXTRA_DIRECTIVES` is convenient for quick tweaks but **don't put credentials there** (transport passwords, JWKS URLs with tokens). Write a custom Caddyfile and use `{env.MY_SECRET}` for those.
+Use your deployment's secret store for credentials. The JWT directives accept runtime `{env.MY_SECRET}` placeholders. Placeholder support depends on the module: follow the [Enterprise transport examples](../production/high-availability.md#self-hosted-transports) for shared-backend credentials.
 
 ## Mercure hub transports
 
@@ -144,7 +142,6 @@ The transport stores history and (in clustered builds) synchronizes between node
 ### Bolt transport (default, single-node)
 
 ```caddyfile
-# Bolt transport (default, single-node)
 mercure {
   transport bolt {
     path /data/mercure.db
@@ -155,48 +152,44 @@ mercure {
 }
 ```
 
-| Option              | Description                                                                                 |
-| ------------------- | ------------------------------------------------------------------------------------------- |
-| `path`              | Path to the BoltDB file. Default: `mercure.db`.                                             |
-| `bucket_name`       | Bucket name. Default: `updates`.                                                            |
-| `cleanup_frequency` | Probability per publish of running history cleanup. `0` (never) to `1` (always).            |
-| `size`              | Maximum number of events to keep. `0` for **unlimited** (default; bound only by disk size). |
+| Option              | Description                                                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `path`              | Path to the BoltDB file. Default: `mercure.db` in Caddy's application data directory (`/data/caddy/mercure.db` in the image). |
+| `bucket_name`       | Bucket name. Default: `updates`.                                                                                              |
+| `cleanup_frequency` | Probability per publish of running history cleanup; set explicitly when using `size`. `0` (never) to `1` (always).            |
+| `size`              | Retention target; cleanup is probabilistic. `0` for **unlimited** (default; bound only by disk size).                         |
 
-The open-source build keeps history forever by default. Set `size` if you want a cap.
+With `size 0`, BoltDB does not prune history automatically. Set both `size` and a positive `cleanup_frequency` to enable retention cleanup.
 
 ### Local transport (no history)
 
 `transport local` disables history entirely. Use it when reconnect replay isn't needed and you want the lowest possible memory footprint.
 
-### Redis / Postgres / Kafka / Pulsar
+### Shared transports
 
-These ship with [Self-Hosted Mercure](../production/high-availability.md). They enable multi-node deployments and queryable history.
-
-> **Pro tip.** The open-source hub runs on a single node. For redundancy across nodes, low-latency multi-region deploys, or storing events in Redis or Postgres for SQL-backed queries, [Self-Hosted Mercure](https://mercure.rocks/pricing) ships those transports starting at €1,500/year.
+[Mercure Enterprise](https://mercure.rocks/pricing) includes Redis/Valkey, PostgreSQL, Kafka, and Pulsar transports to distribute updates and share history across hub instances. See [transport configuration examples](../production/high-availability.md#self-hosted-transports). Prefer a managed hub? [Mercure Cloud](https://mercure.rocks/pricing) handles the infrastructure for you.
 
 ## CORS
 
 If the page that opens the SSE connection is on a different origin than the hub, you must list it in `cors_origins`:
 
 ```caddyfile
-# CORS
 mercure {
   cors_origins https://app.example.com https://admin.example.com
 }
 ```
 
-`*` is allowed only if the hub is fully anonymous (no JWT, no cookie). Browsers refuse credentialed requests from a wildcard origin.
+`cors_origins *` allows cross-origin requests without cookies. For `EventSource` with `withCredentials: true`, list explicit origins. Sending an `Authorization` header with `fetch` also requires a successful CORS preflight.
 
 Avoid listing the literal `null` origin: browsers send `Origin: null` for sandboxed iframes, `data:` URLs, and local files, so allowlisting it would send credentialed responses to any such opaque context.
 
-If your app and hub run on the same registrable domain (e.g. `example.com` and `hub.example.com`), the hub can be reached without CORS at all by going through a reverse proxy that mounts the hub on the app's origin. See [Reverse proxies](reverse-proxy.md).
+To avoid CORS, expose the hub on the **same origin** as your application: the same scheme, hostname, and port. Sibling subdomains are different origins. See [Reverse proxies](reverse-proxy.md).
 
 ## JWT validation via JWKS
 
 When tokens are minted by an external IdP (Keycloak, Cognito, Auth0):
 
 ```caddyfile
-# JWT validation via JWKS
 mercure {
   issuer https://idp.example.com {
     authorization_server
@@ -219,7 +212,6 @@ The hub fetches and caches the keys, validates each token's `kid` against them, 
 When the hub validates tokens, it serves [protected resource metadata](../concepts/discovery.md) (RFC 9728) at `/.well-known/oauth-protected-resource/.well-known/mercure`. Advertise the authorization servers that issue tokens so clients can discover where to obtain one:
 
 ```caddyfile
-# OAuth 2.0 protected resource metadata
 mercure {
   resource_identifier https://hub.example.com/.well-known/mercure
   issuer https://auth.example.com {
@@ -236,10 +228,9 @@ mercure {
 
 ## Keeping tokens out of logs
 
-The hub accepts no token in the URL ([RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids it), so modern clients never put one there. Only 0.x clients did, in the `authorization` query parameter, and only in [compatibility mode](../UPGRADE.md#compatibility-mode). If you run compatibility mode, redact it from access logs with a log field filter:
+Modern clients must send tokens in a header or cookie. The hub accepts the old `authorization` query parameter only in [compatibility mode](../UPGRADE.md#compatibility-mode). Redact it from access logs while migrating legacy clients:
 
 ```caddyfile
-# Keeping tokens out of logs
 log {
   format filter {
     fields {
@@ -254,20 +245,20 @@ log {
 ## RSA / ECDSA keys
 
 ```console
-# RSA / ECDSA keys
-ssh-keygen -t rsa -b 4096 -m PEM -f publisher.key
-openssl rsa -in publisher.key -pubout -outform PEM -out publisher.key.pub
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out publisher.key
+openssl pkey -in publisher.key -pubout -out publisher.key.pub
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out subscriber.key
+openssl pkey -in subscriber.key -pubout -out subscriber.key.pub
 ```
 
 Start the hub with the public key for verification and the algorithm:
 
 ```console
-# RSA / ECDSA keys
 MERCURE_PUBLISHER_JWT_KEY="$(cat publisher.key.pub)" \
 MERCURE_PUBLISHER_JWT_ALG=RS256 \
 MERCURE_SUBSCRIBER_JWT_KEY="$(cat subscriber.key.pub)" \
 MERCURE_SUBSCRIBER_JWT_ALG=RS256 \
-./mercure run
+./mercure run --config Caddyfile
 ```
 
 ## Mercure hub health check endpoints
@@ -281,22 +272,30 @@ The Caddy admin API (default `localhost:2019`) exposes:
 | `GET /mercure/health/{name}/ready` | Per-hub readiness (when running multiple).                  |
 | `GET /mercure/health/{name}/live`  | Per-hub liveness.                                           |
 
-The endpoints bind to `localhost` for security. Probes from outside the container should use `kubectl exec` or `docker exec` (see [Health monitoring](../production/health-monitoring.md)). Binding the admin API to `0.0.0.0:2019` works but exposes `/stop` and `/load` to the pod network. Almost never what you want.
+The endpoints bind to `localhost` for security. Probes from outside the container should use `kubectl exec` or `docker exec` (see [Health monitoring](../production/health-monitoring.md)). Binding the admin API to `0.0.0.0:2019` works but exposes `/stop` and `/load` to the pod network. Restrict access if you use that configuration.
 
 ## Mercure hub performance tuning
 
-A few knobs that move the needle:
+Tune these settings using measurements from your workload:
 
 - `dispatch_timeout`: too low and slow subscribers get cut off; too high and a stuck dispatch ties up resources. The 5s default is a reasonable starting point.
 - `write_timeout`: controls how often each subscriber rotates its connection in steady state. Higher values mean fewer reconnects but worse drain pacing on shutdown. See [Rolling updates](../production/rolling-updates.md).
 - `topic_matcher_cache` and `subscriber_list_cache_size`: increase if your hub has many distinct matchers and you see CPU spent in matcher evaluation. Decrease if memory is tight.
-- File descriptors: every subscriber takes one. `ulimit -n 100000` on the host (or the equivalent in your orchestrator) for high-fanout hubs.
+- File descriptors: each TCP connection consumes one; HTTP/2 streams can share a connection. `ulimit -n 100000` on the host (or the equivalent in your orchestrator) for high-fanout hubs.
 
 [Load testing](../production/load-testing.md) and [Debugging](../production/debugging.md) cover the rest.
 
 ## Mercure hub configuration reload
 
-Caddy hot-reloads on signal: `kill -USR1 <pid>` or `caddy reload`. Active SSE connections are preserved across reloads as long as the listening sockets don't change.
+Use `caddy reload --config /etc/caddy/Caddyfile` to apply configuration changes. Active subscriptions may drain and reconnect; see [Rolling updates](../production/rolling-updates.md#graceful-mercure-hub-configuration-reloads).
+
+On Unix, you can also reload the configuration file with `SIGUSR1`. Set `MERCURE_PID` to the hub process ID:
+
+```console
+kill -USR1 "$MERCURE_PID"
+```
+
+This works when the hub was started with `run` and a configuration file, without `--resume`. Switching to API-based configuration can disable signal reloads; see [Caddy's signal rules](https://caddyserver.com/docs/command-line#signals).
 
 ## Mercure hub runtime introspection
 
@@ -304,4 +303,4 @@ The Caddy admin API also exposes:
 
 - `/config/`: the current effective config (JSON).
 - `/metrics`: Prometheus metrics (when `metrics` is in `GLOBAL_OPTIONS`).
-- `/debug/pprof/`: Go profiler endpoints (when `debug` is in `GLOBAL_OPTIONS`). See [Debugging](../production/debugging.md).
+- `/debug/pprof/`: Go profiler endpoints on the admin API. See [Debugging](../production/debugging.md).

@@ -3,16 +3,15 @@ title: "Discovering a Mercure hub and its authorization requirements"
 description: "How clients find the Mercure hub with a Link header and read its OAuth 2.0 protected resource metadata (RFC 9728) to learn where to obtain an access token."
 ---
 
-# Discovery
+# Mercure discovery
 
-A client needs two things before it can subscribe to private updates: the **URL of the hub**, and the **authorization requirements** of that hub. Mercure exposes both through standard mechanisms, so a generic OAuth 2.0 client library can discover them without Mercure-specific code.
+A client needs the hub URL and, for private updates, an access token. Resource `Link` headers advertise the hub. OAuth protected resource metadata describes its audience and configured authorization servers. The client still needs support for Mercure topic grants.
 
 ## Finding the hub
 
 A resource advertises its hub with a [Web Linking](https://www.rfc-editor.org/rfc/rfc8288) `Link` header (or the equivalent HTML `<link>` element) carrying `rel="mercure"`:
 
 ```http
-# Finding the hub
 GET /books/42 HTTP/2
 Host: example.com
 
@@ -30,12 +29,10 @@ The client parses the header, takes the URL with `rel="mercure"`, appends its `m
 The hub is an OAuth 2.0 protected resource, so it publishes [OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728). For a hub at `https://hub.example.com/.well-known/mercure`, the metadata lives at:
 
 ```text
-# Protected resource metadata location
 https://hub.example.com/.well-known/oauth-protected-resource/.well-known/mercure
 ```
 
 ```json
-// GET /.well-known/oauth-protected-resource/.well-known/mercure
 {
   "resource": "https://hub.example.com/.well-known/mercure",
   "bearer_methods_supported": ["header"],
@@ -62,7 +59,6 @@ The hub serves this document only when it validates tokens (a pure-anonymous hub
 When a client hits an operation that needs a token without one, the hub answers `401` with a bare `WWW-Authenticate: Bearer` challenge that includes a `resource_metadata` parameter pointing at the document above:
 
 ```http
-# Bearer challenge
 HTTP/2 401
 WWW-Authenticate: Bearer resource_metadata="https://hub.example.com/.well-known/oauth-protected-resource/.well-known/mercure"
 ```

@@ -3,7 +3,7 @@ title: "Distributed tracing for the Mercure hub with OpenTelemetry"
 description: "Collect OpenTelemetry spans for Mercure publish, subscribe, and history operations by enabling Caddy's tracing directive and the standard OTEL_* variables."
 ---
 
-# Tracing
+# Mercure tracing
 
 The Mercure.rocks Hub emits [OpenTelemetry](https://opentelemetry.io/) spans for its main internal operations:
 
@@ -17,7 +17,6 @@ The Mercure.rocks Hub emits [OpenTelemetry](https://opentelemetry.io/) spans for
 Mercure's spans nest under the HTTP request span produced by Caddy's [`tracing`](https://caddyserver.com/docs/caddyfile/directives/tracing) directive, so enable it to start collecting traces:
 
 ```caddyfile
-# Caddyfile
 route {
 	tracing
 	mercure {
@@ -27,7 +26,7 @@ route {
 ```
 
 Exporters, endpoints (OTLP gRPC or HTTP), protocols, resource attributes, and propagators are all configured through the standard [`OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/).
-When the `tracing` directive is not enabled, Mercure's spans are no-ops and have no runtime cost.
+Without a configured OpenTelemetry tracer provider, Mercure uses no-op spans and exports no traces.
 
 ## Next steps
 

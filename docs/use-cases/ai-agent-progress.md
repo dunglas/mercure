@@ -3,9 +3,9 @@ title: "Real-time AI agent progress and state sync with Mercure"
 description: "Push tool calls, step transitions, and live state from a running AI agent to the browser using structured events on Mercure topics."
 ---
 
-# AI agent progress
+# Stream AI agent progress with Mercure
 
-When an LLM is just responding, you stream tokens. When it's an _agent_ (calling tools, searching the web, reading files, branching into sub-tasks), there's a lot more state to communicate than text deltas. The user wants to know "what is it doing right now?" and "how far along is it?".
+An agent may spend time searching, calling tools, and processing results. Publish structured progress events so the UI can show the current step and final output.
 
 This guide pushes structured agent state to the UI in real time using Mercure.
 
@@ -13,8 +13,7 @@ This guide pushes structured agent state to the UI in real time using Mercure.
 
 For a token stream you push `text` chunks. For an agent you push **events** that describe what just happened:
 
-```jsonc
-// Streaming Structured AI Agent Events over Mercure
+```jsonl
 { "type": "step.started",      "step": "search_web",       "input": {"query": "mercure protocol"} }
 { "type": "tool.called",       "tool": "fetch",            "url":   "https://mercure.rocks" }
 { "type": "tool.completed",    "tool": "fetch",            "bytes": 14732 }
@@ -23,20 +22,23 @@ For a token stream you push `text` chunks. For an agent you push **events** that
 { "type": "token",             "text": "Mercure is a..." }
 { "type": "token",             "text": " protocol for..." }
 { "type": "step.completed",    "step": "summarize" }
-{ "type": "run.completed",     "summary": "..." }
+{ "type": "run.completed",     "output": "..." }
 ```
 
-The browser keeps a state machine fed by these events: a status line ("searching the web..."), a step list, partial output. The UI can render whatever fidelity you want (collapsed status pill, full timeline, debug view) without the server needing to know which.
+The browser updates its state from these events. The example below assumes sequential steps; concurrent steps need unique step IDs and separate state.
 
 ## Topics
 
-A run gets its own topic. Subscribe to that topic and you receive everything happening in that run:
+Give each run a topic scoped to its owner. The browser and worker must use the same `userId` and `runId`.
 
 ```javascript
-// Topics
 const url = new URL("https://hub.example.com/.well-known/mercure");
-url.searchParams.append("match", `https://example.com/runs/${runId}`);
+url.searchParams.append(
+  "match",
+  `https://example.com/users/${userId}/runs/${runId}`,
+);
 
+url.searchParams.set("last_event_id", "earliest");
 const es = new EventSource(url, { withCredentials: true });
 const state = { steps: [], output: "" };
 
@@ -53,6 +55,7 @@ es.onmessage = (event) => {
       state.output += msg.text;
       break;
     case "run.completed":
+      state.output = msg.output ?? state.output;
       es.close();
       break;
   }
@@ -60,22 +63,24 @@ es.onmessage = (event) => {
 };
 ```
 
-A user with several runs in flight (say, a chat with multiple turns or a dashboard of background agents) opens **one** `EventSource` and uses `match_urlpattern`:
+To watch several runs, add a URL Pattern before creating the `EventSource`. Keep state per run and do not close the shared stream when one run completes:
 
 ```javascript
-// Topics
-url.searchParams.append("match_urlpattern", "https://example.com/runs/:id");
+url.searchParams.append(
+  "match_urlpattern",
+  `https://example.com/users/${userId}/runs/:id`,
+);
 ```
 
-Now every run the user is allowed to see flows over the same connection. The `id` field on each event tells you which run it belongs to. Or set the topic per-event and read it from the SSE `id`.
+Include `runId` in each payload when multiplexing runs. SSE event IDs are replay cursors; they do not identify the topic or run unless your application explicitly encodes that information.
 
 ## Publisher: a Python agent
 
-A pseudocode harness for a tool-using agent that emits events as it goes:
+This Python worker sketch requires `openai` and `requests`, the `OPENAI_API_KEY`, `OPENAI_MODEL`, and `MERCURE_PUBLISHER_JWT` environment variables, and application-provided `TOOLS` and `TOOLS_IMPL`. Authenticate and authorize the run before scheduling it.
 
 ```python
-# Publisher: a Python agent
 import json
+import os
 import requests
 from openai import OpenAI
 
@@ -83,15 +88,16 @@ HUB = "https://hub.example.com/.well-known/mercure"
 PUBLISHER_JWT = os.environ["MERCURE_PUBLISHER_JWT"]
 
 def publish(topic: str, event: dict, type_: str = "message") -> None:
-    requests.post(
+    response = requests.post(
         HUB,
         headers={"Authorization": f"Bearer {PUBLISHER_JWT}"},
-        data={"topic": topic, "data": json.dumps(event), "type": type_},
-        timeout=2,
+        data={"topic": topic, "data": json.dumps(event), "type": type_, "private": "on"},
+        timeout=10,
     )
+    response.raise_for_status()
 
-def run_agent(run_id: str, prompt: str) -> None:
-    topic = f"https://example.com/runs/{run_id}"
+def run_agent(user_id: str, run_id: str, prompt: str) -> None:
+    topic = f"https://example.com/users/{user_id}/runs/{run_id}"
     publish(topic, {"type": "run.started", "prompt": prompt})
 
     client = OpenAI()
@@ -100,7 +106,7 @@ def run_agent(run_id: str, prompt: str) -> None:
     while True:
         publish(topic, {"type": "step.started", "step": "model"})
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=os.environ["OPENAI_MODEL"],
             messages=messages,
             tools=TOOLS,
         )
@@ -111,7 +117,7 @@ def run_agent(run_id: str, prompt: str) -> None:
             publish(topic, {"type": "run.completed", "output": msg.content})
             return
 
-        messages.append(msg)
+        messages.append(msg.model_dump(exclude_none=True))
         for call in msg.tool_calls:
             publish(topic, {
                 "type": "tool.called",
@@ -135,23 +141,20 @@ Same pattern with [Anthropic's tool use](https://docs.anthropic.com/en/docs/buil
 For private runs, scope the topic to the user that owns it:
 
 ```python
-# Per-user run topics
 USER_TOPIC = f"https://example.com/users/{user_id}/runs/{run_id}"
 
-publish(topic=USER_TOPIC, data=event, private=True)
+publish(topic=USER_TOPIC, event=event)
 ```
 
-Each update goes to one topic that embeds the owning user's ID. Only that user is authorized for their own run space, so even if someone guesses the run ID they can't subscribe to it.
+Private delivery requires both `private=on` on the publication and a subscriber grant scoped to the owner's topic. Knowing a topic name does not grant access to its private updates.
 
 This is the [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-resources) applied to agent runs.
 
 ## What the UI gets for free
 
-Because every event has a Mercure event ID and the hub buffers history:
+With a history-enabled transport, reconnecting clients can replay retained progress events. A new tab must request history explicitly, as the example does with `last_event_id=earliest`.
 
-- **Reconnect resilience.** User closes the laptop mid-run and opens it again; the UI reconnects and replays the events it missed. No dropped progress.
-- **Late join.** A second tab opened halfway through a run sees the run from the start (if the buffer is sized for it). Useful for "share this run" links.
-- **Cross-device.** A user starts a run on desktop, walks away, and the same run shows up on their phone if it's listening to the same user topic.
+Persist the run's status and output in your application so clients can recover after history expires. Add a `runId` to payloads when one stream covers several runs, and close the stream only when all watched runs finish.
 
 ## Cancel a run
 
@@ -159,7 +162,7 @@ Send a `POST` from the browser to a small origin endpoint that flips a flag the 
 
 ## Backpressure for AI agent event streams
 
-Tool-heavy agents can produce a lot of events (an agent that runs hundreds of small tool calls in a loop will publish thousands of messages). The hub takes them all, but the UI may struggle to render them fast enough.
+Agents can emit events faster than a UI can render them. Measure the publish rate and account for hub limits.
 
 Two practical mitigations:
 
@@ -168,8 +171,7 @@ Two practical mitigations:
 
 ## Authorization sketch
 
-```jsonc
-// Authorization sketch (header: { "alg": "...", "typ": "at+jwt" })
+```json
 {
   "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
@@ -181,12 +183,12 @@ Two practical mitigations:
       "topics": [
         {
           "match": "https://example.com/users/42/runs/:runId",
-          "match_type": "urlpattern",
-        },
+          "match_type": "urlpattern"
+        }
       ],
-      "payload": { "username": "alice" },
-    },
-  ],
+      "payload": { "username": "alice" }
+    }
+  ]
 }
 ```
 
@@ -194,13 +196,9 @@ The hub assigns each connection a random `urn:uuid:` subscriber ID; clients can'
 
 ## When this is overkill
 
-If your agent finishes in a few seconds and the only thing you'd push is a final result, just `await` the call from the browser. Mercure earns its keep when:
+Return the result through the initiating HTTP request when the run is short and only one client needs it. Use Mercure when users need intermediate progress, when several clients watch a run, or when generation runs in a background worker.
 
-- runs take long enough that users want to _see_ progress, not just wait;
-- the same agent state needs to reach multiple clients (multi-tab, multi-device, observers);
-- you're already running an agent worker and don't want to keep request-handling threads tied to it.
-
-## Next steps for AI agent streaming with Mercure
+## Next steps
 
 - [LLM token streaming](llm-token-streaming.md): for the simpler "just stream tokens" case.
 - [Active subscriptions](../concepts/active-subscriptions.md): show who else is watching the run.

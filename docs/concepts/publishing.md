@@ -3,12 +3,11 @@ title: "Publishing real-time updates to a Mercure hub"
 description: "Send POST requests to publish public and private updates to a Mercure hub and authorize publishers with an OAuth 2.0 access token."
 ---
 
-# Publishing
+# Publish Mercure updates
 
-A publication is an HTTP `POST` to the hub with a form-encoded body:
+To publish over HTTP, send a `POST` to the hub with a form-encoded body. An embedded hub can also accept updates directly through a library API; the protocol does not require an HTTP publication endpoint. See [Embedded publishing](#embedded-publishing-no-external-hub).
 
 ```http
-# Publishing
 POST /.well-known/mercure
 Host: hub.example.com
 Authorization: Bearer <access token>
@@ -17,7 +16,7 @@ Content-Type: application/x-www-form-urlencoded
 topic=https%3A%2F%2Fexample.com%2Fbooks%2F1&data=%7B%22status%22%3A%22checked+out%22%7D
 ```
 
-The hub fans the update out to every subscriber whose matchers hit one of the publication's topics, then returns the event ID it assigned.
+The hub authorizes the publication, stores and dispatches it through the configured transport, then returns an event ID. Private updates reach only authorized subscribers.
 
 ## Mercure publish form fields
 
@@ -30,7 +29,7 @@ The hub fans the update out to every subscriber whose matchers hit one of the pu
 | `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`.                                                             |
 | `retry`   | No       | Reconnection time hint, in milliseconds.                                                                                                                                                 |
 
-The body is `application/x-www-form-urlencoded`: every field is URL-encoded.
+The body is `application/x-www-form-urlencoded`: URL-encode every field. This hub accepts at most 1,000 topic fields and limits request bodies to 1 MiB by default (`max_request_body_size`).
 
 The hub treats `data` as opaque bytes, so you can push any format the subscriber
 understands: JSON, HTML, plain text, JSON Patch, base64-encoded binary, or an
@@ -45,18 +44,16 @@ pick one.
 ### Publishing to Mercure with `curl`
 
 ```console
-# Publishing to Mercure with curl
 curl -X POST https://hub.example.com/.well-known/mercure \
   -H "Authorization: Bearer $JWT" \
-  -d 'topic=https://example.com/books/1' \
-  -d 'data={"status": "checked out"}'
+  --data-urlencode 'topic=https://example.com/books/1' \
+  --data-urlencode 'data={"status": "checked out"}'
 ```
 
 ### Publishing to Mercure from Node.js
 
 ```javascript
-// Publishing to Mercure from Node.js
-await fetch("https://hub.example.com/.well-known/mercure", {
+const response = await fetch("https://hub.example.com/.well-known/mercure", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${jwt}`,
@@ -67,19 +64,21 @@ await fetch("https://hub.example.com/.well-known/mercure", {
     data: JSON.stringify({ status: "checked out" }),
   }),
 });
+if (!response.ok) throw new Error(`Publish failed: ${response.status}`);
 ```
 
 ### Publishing to Mercure from Python
 
 ```python
-# Publishing to Mercure from Python
 import requests
 
-requests.post(
+response = requests.post(
     "https://hub.example.com/.well-known/mercure",
     headers={"Authorization": f"Bearer {jwt}"},
     data={"topic": "https://example.com/books/1", "data": '{"status": "checked out"}'},
+    timeout=10,
 )
+response.raise_for_status()
 ```
 
 ### Publishing to Mercure from PHP with Symfony
@@ -87,11 +86,10 @@ requests.post(
 The [Symfony Mercure component](https://symfony.com/doc/current/mercure.html) wraps the protocol:
 
 ```php
-// Publishing to Mercure from PHP with Symfony
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
-public function __invoke(HubInterface $hub) {
+function publishBookUpdate(HubInterface $hub): void {
     $hub->publish(new Update(
         'https://example.com/books/1',
         json_encode(['status' => 'checked out']),
@@ -99,11 +97,17 @@ public function __invoke(HubInterface $hub) {
 }
 ```
 
+Inject `HubInterface` in a Symfony controller or service. The [Symfony Mercure guide](https://symfony.com/doc/current/mercure.html) covers hub configuration, token generation, and private updates. The component also works outside the Symfony framework.
+
+### Publishing to Mercure from Laravel
+
+Laravel's native Mercure broadcasting driver publishes your broadcast events through the hub. Keep using `ShouldBroadcast`, private channels, and Laravel Echo. Follow the [Laravel broadcasting guide](../use-cases/laravel-broadcasting.md) for a complete example.
+
 ## Canonical and alternate topics
 
 A publish request usually carries a single `topic`: pick one canonical topic for a resource (its URL is the natural choice) and use it consistently on both the publish and subscribe sides.
 
-The `topic` field **MAY** be repeated. The first occurrence is the canonical topic; any others are alternate topics, and the hub dispatches the update to subscribers matching either the canonical topic or any alternate — see [Alternate topics](topics-and-matchers.md#alternate-topics). This lets one publish serve several differently-scoped private audiences at once, instead of one publish per audience; see [Authorization](authorization.md#per-user-authorization-on-shared-resources) for the pattern and its confidentiality rule.
+The `topic` field **MAY** be repeated. The first occurrence is the canonical topic; any others are alternate topics, and the hub dispatches the update to subscribers matching either the canonical topic or any alternate; see [Alternate topics](topics-and-matchers.md#alternate-topics). This lets one publish serve several differently-scoped private audiences at once, instead of one publish per audience; see [Authorization](authorization.md#per-user-authorization-on-shared-resources) for the pattern and its confidentiality rule.
 
 ## Public vs. Private updates
 
@@ -112,26 +116,24 @@ Without the `private` field, an update is **public**: the hub sends it to every 
 With `private=on` (the value can be anything; `on` is the convention), the update is **private**: a subscriber receives it only if its token grants `subscribe` on at least one of the update's topics.
 
 ```console
-# Public, anyone subscribed to this topic gets it
-curl -X POST $HUB -H "Authorization: Bearer $JWT" \
-  -d 'topic=https://example.com/news/latest' \
-  -d 'data=...'
+curl -X POST "$HUB" -H "Authorization: Bearer $JWT" \
+  --data-urlencode 'topic=https://example.com/news/latest' \
+  --data-urlencode 'data=...'
 
 # Private, only authorized subscribers get it
-curl -X POST $HUB -H "Authorization: Bearer $JWT" \
-  -d 'topic=https://example.com/users/42/inbox' \
-  -d 'data=...' \
-  -d 'private=on'
+curl -X POST "$HUB" -H "Authorization: Bearer $JWT" \
+  --data-urlencode 'topic=https://example.com/users/42/inbox' \
+  --data-urlencode 'data=...' \
+  --data-urlencode 'private=on'
 ```
 
 If you want updates on a topic to be visible only to authorized subscribers, **mark them private**. The hub does not infer privacy from the topic URL.
 
 ## Authorization
 
-The publisher's access token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` cover every topic of the publication — the canonical topic and any alternates. Otherwise the hub returns `403 insufficient_scope` (or `401` when no token is presented).
+The publisher's access token must carry an `authorization_details` entry whose `actions` include `publish` and whose `topics` cover every topic of the publication; the canonical topic and any alternates. Otherwise the hub returns `403 insufficient_scope` (or `401` when no token is presented).
 
-```jsonc
-// Authorization
+```json
 {
   "authorization_details": [
     {
@@ -140,11 +142,11 @@ The publisher's access token must carry an `authorization_details` entry whose `
       "topics": [
         {
           "match": "https://example.com/books/:id",
-          "match_type": "urlpattern",
-        },
-      ],
-    },
-  ],
+          "match_type": "urlpattern"
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -153,7 +155,6 @@ A grant of `[{ "match": "*" }]` can publish to anything. See [Authorization](aut
 ## What the hub returns
 
 ```http
-# What the hub returns
 200 OK
 Content-Type: text/plain
 
@@ -172,7 +173,6 @@ If you provided your own `id`, the hub uses it as-is (subject to a few constrain
 Publish from the same code path that mutates the underlying state. The simplest pattern, in pseudocode:
 
 ```text
-# When to Publish Mercure Updates from Your Application
 function updateBook(id, data):
     db.update(id, data)
     hub.publish(
@@ -181,15 +181,24 @@ function updateBook(id, data):
     )
 ```
 
-For stricter delivery guarantees (every state change reaches the hub even if the publish call fails), wrap both writes in a transactional outbox: persist the update next to the row, and have a worker ship it to the hub. The Mercure hub itself is reliable; the network between your app and the hub is what you need to defend against.
+For retryable publishing, use a transactional outbox: commit the application change and an outgoing event in the same database transaction, then have a worker publish it and retry failures. Retries can create duplicates, so make consumers idempotent.
 
 ## Embedded publishing (no external hub)
 
-The Mercure protocol does not require an external hub. An application that already terminates HTTP/2 connections can speak the protocol directly: write SSE bytes to subscribers, validate JWTs, run matchers. This is unusual outside of frameworks that ship their own hub (FrankenPHP, for instance), but the spec allows it.
+The [Mercure specification](../../spec/mercure.md#publication) makes the HTTP publication endpoint optional. An application can embed the [Go library](https://pkg.go.dev/github.com/dunglas/mercure) and publish directly to the hub in the same process, while subscribers still use the Mercure protocol.
 
-For everyone else, run the hub.
+[FrankenPHP embeds Mercure](https://frankenphp.dev/docs/mercure/) and exposes `mercure_publish()` to PHP:
 
-## Next steps for Mercure publishing
+```php
+$eventId = mercure_publish(
+    'https://example.com/books/1',
+    json_encode(['status' => 'checked out'], JSON_THROW_ON_ERROR),
+);
+```
+
+Enable the built-in hub in FrankenPHP's Caddyfile first. This function publishes directly, without an HTTP request or publisher JWT. Protect the application action that calls it; subscriber authorization still applies to private updates.
+
+## Next steps
 
 - [Authorization](authorization.md): minting JWTs that pass validation.
 - [Active subscriptions](active-subscriptions.md): knowing who's connected.

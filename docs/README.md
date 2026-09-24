@@ -5,21 +5,23 @@ description: "Index for the Mercure protocol and Mercure.rocks Hub documentation
 
 # Mercure documentation
 
-Mercure is a real-time protocol built on HTTP and Server-Sent Events. The reference hub is open-source (AGPL-3.0), production-ready, and used to push billions of messages a month.
+Mercure is an open protocol for real-time updates over HTTP and Server-Sent Events (SSE). These guides cover the protocol and its open-source reference implementation, the Mercure.rocks Hub.
+
+Looking for an alternative to **Pusher / Ably / Firebase / Supabase Realtime**? Mercure works with your existing backend and the browser's native APIs. [Start with managed Mercure Cloud](https://mercure.rocks/pricing), or deploy [Mercure Enterprise on your own infrastructure](production/high-availability.md).
 
 This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 release**. If you're upgrading from 0.x, start with the [upgrade guide](UPGRADE.md).
 
 ## Get started with Mercure
 
-- [Introduction](introduction.md): what Mercure is and when to reach for it
-- [Quickstart](getting-started/quickstart.md): running hub, first subscription, first update in five minutes
+- [Introduction](introduction.md): what Mercure is and when to use it
+- [Quickstart](getting-started/quickstart.md): run a hub, subscribe, and publish an update
 - [Installation](getting-started/installation.md): binary, Docker, Compose, Kubernetes, AUR
 
 ## Mercure core concepts
 
-- [Topics and matchers](concepts/topics-and-matchers.md): how subscribers say what they want
-- [Subscribing](concepts/subscribing.md): the SSE side
-- [Publishing](concepts/publishing.md): the POST side
+- [Topics and matchers](concepts/topics-and-matchers.md): select topics with exact matches and URL Patterns
+- [Subscribing](concepts/subscribing.md): receive updates over SSE
+- [Publishing](concepts/publishing.md): send updates over HTTP
 - [Update payloads](concepts/update-payloads.md): envelopes for the `data` field, ActivityStreams 2.0
 - [Authorization](concepts/authorization.md): OAuth 2.0 access tokens, `authorization_details`, cookies
 - [Discovery](concepts/discovery.md): finding the hub and its protected resource metadata
@@ -38,6 +40,7 @@ This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 r
 - [Notifications](use-cases/notifications.md)
 - [Hotwire / Turbo Streams](use-cases/hotwire.md)
 - [GraphQL subscriptions](use-cases/graphql.md)
+- [Laravel Broadcasting](use-cases/laravel-broadcasting.md)
 
 ## Mercure hub deployment
 
