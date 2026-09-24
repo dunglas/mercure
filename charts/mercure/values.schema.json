@@ -430,6 +430,13 @@
       "type": "integer",
       "minimum": 0
     },
+    "publicUrls": {
+      "description": "Origins the hub answers on (`public_urls`), others get `421 Misdirected Request`. Set it (or `resourceIdentifier`) when clients can reach the pod under any Host, for instance several hubs trusting one issuer. Origins are matched as the pod sees them: `http://` behind a TLS-terminating ingress or gateway.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "publisherJwtAlg": {
       "description": "The JWT algorithm to use for publishers.",
       "type": "string"
@@ -442,6 +449,10 @@
       "description": "The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).",
       "type": "integer",
       "minimum": 1
+    },
+    "resourceIdentifier": {
+      "description": "Pin the OAuth 2.0 resource identifier (the `aud` access tokens must carry), e.g. `https://hub.example.com/.well-known/mercure`. If empty, the hub derives it from each request's origin, which is `http://` behind a TLS-terminating ingress or gateway.",
+      "type": "string"
     },
     "resources": {
       "description": "Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.",

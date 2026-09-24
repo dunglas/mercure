@@ -86,3 +86,14 @@ Base64 JWT key: the explicit value, else the one stored in the release Secret (s
 {{- end -}}
 {{- end -}}
 
+{{/*
+Mercure directives pinning the hub identity, so a catch-all SERVER_NAME can't be reached under another hub's name.
+*/}}
+{{- define "mercure.identityDirectives" -}}
+{{- with .Values.resourceIdentifier }}
+resource_identifier {{ . }}
+{{- end }}
+{{- with .Values.publicUrls }}
+public_urls {{ join " " . }}
+{{- end }}
+{{- end -}}

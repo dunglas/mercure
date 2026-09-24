@@ -15,6 +15,14 @@ extraDirectives: ""
 # -- Inject extra Caddy directives in the Caddyfile.
 caddyExtraDirectives: ""
 
+# -- Pin the OAuth 2.0 resource identifier (the `aud` access tokens must carry), e.g. `https://hub.example.com/.well-known/mercure`.
+# If empty, the hub derives it from each request's origin, which is `http://` behind a TLS-terminating ingress or gateway.
+resourceIdentifier: ""
+# -- Origins the hub answers on (`public_urls`), others get `421 Misdirected Request`.
+# Set it (or `resourceIdentifier`) when clients can reach the pod under any Host, for instance several hubs trusting one issuer.
+# Origins are matched as the pod sees them: `http://` behind a TLS-terminating ingress or gateway.
+publicUrls: []  # @schema item:string
+
 # -- The JWT key to use for publishers. If empty, a random key is generated on install and kept on upgrades
 # (renderers without cluster access, such as `helm template`, generate a new one each time: set it or use `existingSecret`).
 publisherJwtKey: ""

@@ -141,11 +141,22 @@ spec:
                 configMapKeyRef:
                   name: {{ include "mercure.fullname" . }}
                   key: subscriber-jwt-alg
+            {{- $identity := include "mercure.identityDirectives" . | trim }}
+            {{- if $identity }}
+            - name: MERCURE_EXTRA_DIRECTIVES_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mercure.secretName" . }}
+                  key: extra-directives
+            - name: MERCURE_EXTRA_DIRECTIVES
+              value: {{ printf "%s\n$(MERCURE_EXTRA_DIRECTIVES_SECRET)" $identity | quote }}
+            {{- else }}
             - name: MERCURE_EXTRA_DIRECTIVES
               valueFrom:
                 secretKeyRef:
                   name: {{ include "mercure.secretName" . }}
                   key: extra-directives
+            {{- end }}
             - name: MERCURE_LICENSE
               valueFrom:
                 secretKeyRef:
