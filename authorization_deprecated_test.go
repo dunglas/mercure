@@ -4,6 +4,7 @@ package mercure
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -972,4 +973,26 @@ func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
 	require.NotNil(t, claims)
+}
+
+func TestAuthorizeAuthorizationQueryOversized(t *testing.T) {
+	t.Parallel()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"mercure": map[string]any{"subscribe": []string{"foo"}},
+		"jti":     strings.Repeat("a", maxCompactJWSLen),
+	})
+	s, err := token.SignedString([]byte("!ChangeMe!"))
+	require.NoError(t, err)
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	query := r.URL.Query()
+	query.Set("authorization", s)
+	r.URL.RawQuery = query.Encode()
+
+	h := createLegacyDummy(t, withSubscriberJWT([]byte("!ChangeMe!"), "HS256"))
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.ErrorContains(t, err, "exceeds")
 }

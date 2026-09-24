@@ -42,6 +42,8 @@ const (
 	// signature). Anything shorter is garbage and is rejected before signature
 	// verification.
 	minCompactJWSLen = 41
+	// maxCompactJWSLen bounds the unverified input decoded before the signature check.
+	maxCompactJWSLen = 64 << 10
 	// authorizationHeader is the lowercase name of the "Authorization" HTTP
 	// header, used in the CORS allowed-headers list.
 	authorizationHeader = "authorization"
@@ -210,6 +212,10 @@ func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, e
 // validateJWT parses and validates an access token, returning its claims with
 // the mercure authorization details resolved into c.authz.
 func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience string) (*claims, error) {
+	if len(encodedToken) > maxCompactJWSLen {
+		return nil, fmt.Errorf("%w: the token exceeds %d bytes", ErrInvalidJWT, maxCompactJWSLen)
+	}
+
 	// Fail closed: with no identity to bind the token to, parsing without
 	// jwt.WithAudience accepts one audienced anywhere, or carrying no aud at all.
 	if expectedAudience == "" && !h.compatClaimsEnabled() {

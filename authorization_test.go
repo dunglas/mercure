@@ -4,6 +4,7 @@ package mercure
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -533,4 +534,37 @@ func TestCompatModeWithoutLegacyClaimsChecksAudience(t *testing.T) {
 			require.ErrorIs(t, err, ErrInvalidJWT, audience)
 		}
 	}
+}
+
+// Oversized tokens are rejected before parsing, even when validly signed.
+func TestAuthorizeRejectsOversizedToken(t *testing.T) {
+	t.Parallel()
+
+	rc := subscriberRegisteredClaims()
+	rc.ID = strings.Repeat("a", maxCompactJWSLen)
+	token := signSubscriberToken(t, &claims{RegisteredClaims: rc})
+	require.Greater(t, len(token), maxCompactJWSLen)
+
+	h := createDummy(t)
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+token)
+
+	_, err := h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.ErrorContains(t, err, "exceeds")
+
+	r, _ = http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: token})
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.ErrorContains(t, err, "exceeds")
+
+	rc.ID = strings.Repeat("a", maxCompactJWSLen/2)
+	r, _ = http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, &claims{RegisteredClaims: rc}))
+
+	_, err = h.authorize(r, false)
+	require.NoError(t, err)
 }

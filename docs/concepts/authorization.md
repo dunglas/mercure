@@ -97,6 +97,8 @@ The hub reads the token from one of two places. Pick the one that matches your c
 
 There is no query-parameter mechanism: [RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) forbids passing access tokens in URLs, where they leak into proxy logs, browser history, and `Referer` headers. When a request carries both a header and a cookie, the header wins and the cookie is ignored.
 
+The hub rejects tokens longer than 64 KiB with `401 invalid_token`, whichever way they are sent.
+
 Use HTTPS for bearer tokens. The hub can receive HTTP behind a trusted TLS-terminating proxy; it does not enforce TLS on the backend connection. Restrict access to that backend and pin the public audience as described in [Reverse proxies](../deployment/reverse-proxy.md).
 
 ## Publishers
