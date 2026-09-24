@@ -169,6 +169,15 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 		return
 	}
 
+	// The spec requires API clients to be authorized, which needs a subscriber verifier; 0.x served it openly.
+	if !h.subscriberConfigured && !h.compatClaimsEnabled() {
+		if h.logger.Enabled(h.ctx, slog.LevelError) {
+			h.logger.LogAttrs(h.ctx, slog.LevelError, "No subscriber verifier is configured. Subscription API disabled.")
+		}
+
+		return
+	}
+
 	if _, ok := h.transport.(TransportSubscribers); !ok {
 		if h.logger.Enabled(h.ctx, slog.LevelError) {
 			h.logger.LogAttrs(h.ctx, slog.LevelError, "The current transport doesn't support subscriptions. Subscription API disabled.")

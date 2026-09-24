@@ -322,8 +322,9 @@ func TestSubscriptionAPI(t *testing.T) {
 	}
 	`, "caddyfile")
 
+	// Without a subscriber verifier, no client can be authorized to list subscriptions.
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure/subscriptions", nil)
-	resp := tester.AssertResponseCode(req, http.StatusOK)
+	resp := tester.AssertResponseCode(req, http.StatusNotFound)
 	require.NoError(t, resp.Body.Close())
 }
 
