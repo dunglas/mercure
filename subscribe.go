@@ -47,7 +47,7 @@ func (rc *responseController) setDispatchWriteDeadline(ctx context.Context) bool
 	}
 
 	deadline := time.Now().Add(rc.hub.dispatchTimeout)
-	if deadline.After(rc.writeDeadline) {
+	if !rc.writeDeadline.IsZero() && deadline.After(rc.writeDeadline) {
 		return true
 	}
 
