@@ -306,6 +306,16 @@ func TestOriginsValidator(t *testing.T) {
 	}
 }
 
+func TestPublishOriginsRejectSpanningWildcards(t *testing.T) {
+	t.Parallel()
+
+	for _, origin := range []string{"https://*example.com", "https://*.co.uk", "https://*"} {
+		require.ErrorIs(t, WithPublishOrigins([]string{origin})(&opt{}), ErrSpanningPublishOrigin, origin)
+	}
+
+	require.NoError(t, WithPublishOrigins([]string{"https://*.example.co.uk"})(&opt{}))
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	t.Parallel()
 

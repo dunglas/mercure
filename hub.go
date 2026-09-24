@@ -62,6 +62,11 @@ var ErrMissingKey = errors.New("a Static verifier requires a key")
 // an HMAC algorithm, which would make the public key the shared secret.
 var ErrPEMKeyHMACAlgorithm = errors.New("a PEM-encoded key must not be used with an HMAC algorithm")
 
+// ErrSpanningPublishOrigin is returned when a wildcard publish origin matches origins
+// outside one registrable domain, which would let unrelated sites publish with the
+// victim's cookie.
+var ErrSpanningPublishOrigin = errors.New(`a wildcard publish origin must stay within one registrable domain, such as "https://*.example.com"`)
+
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
 
@@ -330,6 +335,10 @@ func WithPublishOrigins(origins []string) Option {
 
 				break
 			} else if prefix, suffix, found := strings.Cut(origin, "*"); found {
+				if spansArbitraryOrigins(origin) {
+					return fmt.Errorf("%q: %w", origin, ErrSpanningPublishOrigin)
+				}
+
 				// Split the origin in two: start and end string without the *
 				w := wildcard{prefix, suffix}
 				o.publishWOrigins = append(o.publishWOrigins, w)
