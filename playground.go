@@ -4,7 +4,6 @@ import (
 	"embed"
 	"io"
 	"log/slog"
-	"mime"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -21,12 +20,17 @@ var debuggerContent embed.FS
 // Playground exposes INSECURE endpoints to test discovery and authorization mechanisms.
 // Add a query parameter named "body" to define the content to return in the response's body.
 // Add a query parameter named "jwt" to set the authorization cookie (see WithCookieName) containing this token.
-// The Content-Type header will automatically be set according to the URL's extension.
+// Responses use JSON or JSON-LD for .json or .jsonld paths, and plain text otherwise.
 func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
-	// JSON-LD is the preferred format
-	_ = mime.AddExtensionType(".jsonld", "application/ld+json")
 	selfLink := "<" + escapeLinkTarget(r.URL.String()) + `>; rel="self"`
-	mimeType := mime.TypeByExtension(filepath.Ext(r.URL.Path))
+	mimeType := "text/plain; charset=utf-8"
+
+	switch strings.ToLower(filepath.Ext(r.URL.Path)) {
+	case ".json":
+		mimeType = "application/json"
+	case ".jsonld":
+		mimeType = "application/ld+json"
+	}
 
 	query := r.URL.Query()
 	body := query.Get("body")
@@ -41,9 +45,9 @@ func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
 		header["Link"] = append(header["Link"], hubLink+`; cookie-name="`+h.cookieName+`"`, selfLink)
 	}
 
-	if mimeType != "" {
-		header["Content-Type"] = []string{mimeType}
-	}
+	header.Set("Content-Type", mimeType)
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("Content-Security-Policy", "sandbox; default-src 'none'")
 
 	// Secure / HttpOnly are conditional on TLS so the playground keeps working
 	// when served over plain HTTP locally (with a prefix-less cookie name);

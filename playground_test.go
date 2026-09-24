@@ -4,10 +4,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmptyBodyAndJWT(t *testing.T) {
@@ -46,7 +48,7 @@ func TestBodyAndJWT(t *testing.T) {
 	h.Playground(w, req)
 
 	resp := w.Result()
-	assert.Contains(t, resp.Header.Get("Content-Type"), "xml") // Before Go 1.17, the charset wasn't set
+	assert.Equal(t, "text/plain; charset=utf-8", resp.Header.Get("Content-Type"))
 	assert.Equal(t, []string{hubLink, `<https://example.com/playground/foo/bar.xml?body=%3Chello/%3E&jwt=token>; rel="self"`}, resp.Header["Link"])
 
 	cookie := resp.Cookies()[0]
@@ -60,6 +62,54 @@ func TestBodyAndJWT(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	assert.Equal(t, "<hello/>", string(body))
+}
+
+func TestPlaygroundResponseFormats(t *testing.T) {
+	t.Parallel()
+
+	for _, debug := range []bool{false, true} {
+		options := []Option{WithPlayground()}
+		if debug {
+			options = append(options, WithDebug())
+		}
+
+		h, err := NewHub(t.Context(), options...)
+		require.NoError(t, err)
+
+		for _, tc := range []struct {
+			path        string
+			contentType string
+		}{
+			{"topic.json", "application/json"},
+			{"topic.jsonld", "application/ld+json"},
+			{"topic.JSONLD", "application/ld+json"},
+			{"topic.txt", "text/plain; charset=utf-8"},
+			{"topic.html", "text/plain; charset=utf-8"},
+			{"topic.js", "text/plain; charset=utf-8"},
+			{"topic.svg", "text/plain; charset=utf-8"},
+			{"topic.xml", "text/plain; charset=utf-8"},
+			{"topic.unknown", "text/plain; charset=utf-8"},
+			{"topic", "text/plain; charset=utf-8"},
+		} {
+			const body = `<script>document.cookie = "injected=1; Domain=example.com; Path=/"</script>`
+
+			req := httptest.NewRequest(http.MethodGet, "https://example.com/playground/"+tc.path+"?body="+url.QueryEscape(body), nil)
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, req)
+
+			assert.Equal(t, http.StatusOK, w.Code, tc.path)
+			assert.Equal(t, tc.contentType, w.Header().Get("Content-Type"), tc.path)
+			assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"), tc.path)
+			assert.Equal(t, "sandbox; default-src 'none'", w.Header().Get("Content-Security-Policy"), tc.path)
+			assert.Equal(t, body, w.Body.String(), tc.path)
+		}
+
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "https://example.com"+defaultDebugURL, nil))
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
+		assert.Equal(t, "default-src 'self'", w.Header().Get("Content-Security-Policy"))
+	}
 }
 
 func TestPlaygroundSelfLinkInjection(t *testing.T) {
