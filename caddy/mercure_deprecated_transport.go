@@ -89,5 +89,10 @@ func (m *Mercure) cleanupTransportDeprecated() error {
 
 // deprecatedTransportKey scopes the pool by hub name, like the transport modules.
 func (m *Mercure) deprecatedTransportKey() string {
-	return m.Name + "\x00" + m.TransportURL
+	name := m.Name
+	if name == "" {
+		name = "default"
+	}
+
+	return name + "\x00" + m.TransportURL
 }
