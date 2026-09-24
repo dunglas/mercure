@@ -66,6 +66,18 @@ func (s Static) buildKeyfunc() (jwt.Keyfunc, []string, error) {
 	return keyfunc, []string{s.Algorithm}, nil
 }
 
+// shortHMACKey reports the RFC 7518 §3.2 minimum length of an HMAC key shorter than the hash output.
+func (s Static) shortHMACKey() (int, bool) {
+	m, ok := jwt.GetSigningMethod(s.Algorithm).(*jwt.SigningMethodHMAC)
+	if !ok {
+		return 0, false
+	}
+
+	n := m.Hash.Size()
+
+	return n, len(s.Key) < n
+}
+
 // KeyFunc verifies tokens with a caller-supplied keyfunc, typically backed by a
 // JWK Set.
 type KeyFunc struct {

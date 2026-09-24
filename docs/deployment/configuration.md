@@ -38,6 +38,8 @@ Inside `publisher`/`subscriber`, use `jwt <key> [<algorithm>]` for a shared secr
 
 The algorithm defaults to `HS256` only for a raw shared secret. A PEM-encoded key must state its algorithm, and that algorithm must not be an HMAC one: the hub refuses to start otherwise, because verifying with `HS*` would use the public key as the shared secret and let anyone holding it forge tokens.
 
+An HMAC secret shorter than the hash output ([RFC 7518 §3.2](https://www.rfc-editor.org/rfc/rfc7518#section-3.2): 32 bytes for `HS256`, 48 for `HS384`, 64 for `HS512`) still works but logs a warning at startup; generate one with `openssl rand -base64 32`.
+
 `resource_identifier` is the OAuth 2.0 audience that access tokens must carry in their `aud` claim (see [Authorization](../concepts/authorization.md)). Leave it unset and the hub derives it from each request (the public URL the client contacted), so a hub reachable through several domains needs no configuration; set it only to pin one canonical audience shared across every domain.
 
 `resource_identifier` and `public_urls` answer different questions and are independent: `resource_identifier` sets the token audience, while `public_urls` restricts which origins the hub answers on (rejecting others with `421`). A single `resource_identifier` is what lets one token work across several public URLs, since a per-request-derived audience is specific to the host the client contacted.

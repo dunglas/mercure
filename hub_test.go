@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -458,6 +459,32 @@ func TestNewHubInvalidResourceIdentifier(t *testing.T) {
 		_, err := NewHub(t.Context(), WithResourceIdentifier(ri))
 		require.ErrorIs(t, err, ErrInvalidResourceIdentifier, ri)
 	}
+}
+
+// Short HMAC keys are accepted for backward compatibility but reported once per issuer role.
+func TestNewHubWarnsShortHMACKey(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	_, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Publisher:  Static{Key: []byte("short"), Algorithm: "HS256"},
+			Subscriber: Static{Key: []byte(strings.Repeat("k", 32)), Algorithm: "HS256"},
+		}, {
+			Identifier: "https://auth.example.com",
+			Subscriber: KeyFunc{Keyfunc: func(*jwt.Token) (any, error) { return nil, ErrInvalidJWT }},
+		}}),
+		WithLogger(slog.New(slog.NewJSONHandler(&buf, nil))),
+	)
+	require.NoError(t, err)
+
+	logs := buf.String()
+	assert.Equal(t, 1, strings.Count(logs, "RFC 7518"))
+	assert.Contains(t, logs, `"issuer":"`+testIssuer+`","role":"publisher","min_length":32`)
+	assert.NotContains(t, logs, "short\"")
 }
 
 // A token-validating hub in modern mode now accepts several issuers, each with

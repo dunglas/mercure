@@ -229,6 +229,8 @@ func WithIssuers(issuers []Issuer) Option {
 
 				iv.publisher = roleVerifier{keyfunc: kf, algorithms: algs}
 				o.publisherConfigured = true
+
+				o.noteShortHMACKey(iss.Identifier, "publisher", iss.Publisher)
 			}
 
 			if iss.Subscriber != nil {
@@ -239,6 +241,8 @@ func WithIssuers(issuers []Issuer) Option {
 
 				iv.subscriber = roleVerifier{keyfunc: kf, algorithms: algs}
 				o.subscriberConfigured = true
+
+				o.noteShortHMACKey(iss.Identifier, "subscriber", iss.Subscriber)
 			}
 
 			if iv.publisher.keyfunc == nil && iv.subscriber.keyfunc == nil {
@@ -446,6 +450,26 @@ type opt struct {
 	resourceIdentifier           string
 	resourceMetadataURL          string
 	authorizationServers         []string
+	shortHMACKeys                []shortHMACKey
+}
+
+// shortHMACKey records a weak HMAC key until the logger is known.
+type shortHMACKey struct {
+	issuer string
+	role   string
+	minLen int
+}
+
+// noteShortHMACKey flags HMAC keys below the RFC 7518 §3.2 minimum; refusing them would break existing deployments.
+func (o *opt) noteShortHMACKey(issuer, role string, v Verifier) {
+	s, ok := v.(interface{ shortHMACKey() (int, bool) })
+	if !ok {
+		return
+	}
+
+	if minLen, short := s.shortHMACKey(); short {
+		o.shortHMACKeys = append(o.shortHMACKeys, shortHMACKey{issuer: issuer, role: role, minLen: minLen})
+	}
 }
 
 // roleVerifier holds the verification material for one role of one issuer.
@@ -549,6 +573,11 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 
 	if opt.logger == nil {
 		opt.logger = slog.New(mercureHandler{slog.Default().Handler()})
+	}
+
+	for _, k := range opt.shortHMACKeys {
+		opt.logger.LogAttrs(ctx, slog.LevelWarn, "The HMAC key is shorter than the hash output (RFC 7518 §3.2), which weakens token signatures: use a longer random secret.",
+			slog.String("issuer", k.issuer), slog.String("role", k.role), slog.Int("min_length", k.minLen))
 	}
 
 	if opt.topicMatcherStore == nil {
