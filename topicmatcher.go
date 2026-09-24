@@ -37,10 +37,9 @@ const (
 	urlPatternOverhead   = 8 << 10 // One compiled regexp per URL component.
 	urlPatternByteWeight = 256
 	regexpInstWeight     = 64
-	regexpRuneWeight     = 8
+	regexpRuneWeight     = 16
 )
 
-// maxURLPatternWeight admits any 4 KiB pattern without counted repetitions.
 const maxURLPatternWeight = 2 << 20
 
 var errURLPatternTooComplex = errors.New("pattern too complex")
@@ -61,7 +60,7 @@ func regexpWeight(re *syntax.Regexp) uint64 {
 	return insts*regexpInstWeight + runes*regexpRuneWeight
 }
 
-// regexpSize over-approximates regexp/syntax's program size; copies of a repeated operand share its runes.
+// One-pass regexps copy rune tables for repeated instructions.
 func regexpSize(re *syntax.Regexp) (insts, runes uint64) {
 	runes = uint64(len(re.Rune))
 
@@ -78,8 +77,10 @@ func regexpSize(re *syntax.Regexp) (insts, runes uint64) {
 		insts = uint64(len(re.Rune))
 	case re.Op == syntax.OpRepeat && re.Max >= 0:
 		insts = uint64(re.Max) * (sub + 1)
+		runes *= uint64(re.Max)
 	case re.Op == syntax.OpRepeat && re.Min > 0:
 		insts = 1 + uint64(re.Min)*sub
+		runes *= uint64(re.Min)
 	default:
 		insts = 2 + sub + uint64(len(re.Sub))
 	}

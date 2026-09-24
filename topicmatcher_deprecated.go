@@ -62,7 +62,7 @@ func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 		// See https://github.com/yosida95/uritemplate/pull/7
 		r := tpl.Regexp()
 		if tms.templateCache != nil {
-			cacheCompiled(tms.templateCache, tms.compiledCacheWeight, pattern, r, templateWeight(r))
+			cacheCompiled(tms.templateCache, tms.compiledCacheWeight, pattern, r, uint64(len(pattern))+templateWeight(r))
 		}
 
 		return r
@@ -73,6 +73,10 @@ func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 
 func templateWeight(r *regexp.Regexp) uint64 {
 	const overhead = 1 << 10
+
+	if r == nil {
+		return overhead
+	}
 
 	re, err := syntax.Parse(r.String(), syntax.Perl)
 	if err != nil {

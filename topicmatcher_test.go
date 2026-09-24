@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"regexp/syntax"
 	"strconv"
 	"strings"
 	"testing"
@@ -222,4 +223,18 @@ func TestURLPatternTooComplexRejectedBeforeCompiling(t *testing.T) {
 
 	_, err = tms.getOrCompileURLPattern("https://example.com/" + strings.Repeat("a", maxTopicLength-20))
 	require.NoError(t, err, "a plain pattern of the maximum topic length stays valid")
+}
+
+func TestRegexpWeightCountsRepeatedRuneTables(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{`\pL{100}`, `\pL{100,}`} {
+		re, err := syntax.Parse(pattern, syntax.Perl)
+		require.NoError(t, err)
+
+		_, runes := regexpSize(re)
+		assert.GreaterOrEqual(t, runes, uint64(100*len(re.Sub[0].Rune)), pattern)
+	}
+
+	assert.Greater(t, urlPatternWeight(`/(\pL{100})`), uint64(maxURLPatternWeight))
 }
