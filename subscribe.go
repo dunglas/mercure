@@ -322,6 +322,13 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 			h.logger.LogAttrs(ctx, slog.LevelError, "Unable to add subscriber", slog.Any("error", err))
 		}
 
+		// Not shutdown(): no active:true was sent, so no active:false must follow.
+		s.Disconnect()
+
+		if err := h.transport.RemoveSubscriber(addCtx, s); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "Failed to remove subscriber after a failed registration", slog.Any("error", err))
+		}
+
 		recordSpanError(span, err)
 
 		return nil, nil

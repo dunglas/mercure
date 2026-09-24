@@ -1470,10 +1470,11 @@ func TestDispatchWriteDeadlineWithoutWriteTimeout(t *testing.T) {
 	assert.WithinDuration(t, time.Now().Add(time.Second), w.deadlines[0], 100*time.Millisecond)
 }
 
-// refusingTransport records dispatched updates and refuses to register
-// subscribers, to exercise the registration-failure path.
+// refusingTransport records dispatched updates and removed subscribers and
+// refuses to register subscribers, to exercise the registration-failure path.
 type refusingTransport struct {
 	dispatched []*Update
+	removed    []*LocalSubscriber
 }
 
 func (t *refusingTransport) Dispatch(_ context.Context, u *Update) error {
@@ -1486,7 +1487,11 @@ func (t *refusingTransport) AddSubscriber(context.Context, *LocalSubscriber) err
 	return ErrClosedTransport
 }
 
-func (t *refusingTransport) RemoveSubscriber(context.Context, *LocalSubscriber) error { return nil }
+func (t *refusingTransport) RemoveSubscriber(_ context.Context, s *LocalSubscriber) error {
+	t.removed = append(t.removed, s)
+
+	return nil
+}
 
 func (t *refusingTransport) Close(context.Context) error { return nil }
 
@@ -1511,6 +1516,30 @@ func TestNoSubscriptionEventWhenRegistrationFails(t *testing.T) {
 
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	assert.Empty(t, transport.dispatched)
+}
+
+// A transport may have listed the subscriber before failing, so it must be
+// removed and disconnected rather than left behind.
+func TestSubscriberRemovedWhenRegistrationFails(t *testing.T) {
+	t.Parallel()
+
+	transport := &refusingTransport{}
+	hub := createAnonymousDummy(t, WithTransport(transport))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
+	w := httptest.NewRecorder()
+
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	require.Len(t, transport.removed, 1)
+	assert.True(t, transport.removed[0].disconnected.Load())
 }
 
 // The subscription is announced once it exists, so a subscriber authorized for
