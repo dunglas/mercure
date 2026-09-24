@@ -429,7 +429,8 @@ func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	removeUntil := lastID - t.size
 
 	c := bucket.Cursor()
-	for k, _ := c.First(); k != nil; k, _ = c.Next() {
+	// Deleting under the cursor makes Next skip a key, so restart from the oldest one.
+	for k, _ := c.First(); k != nil; k, _ = c.First() {
 		if binary.BigEndian.Uint64(k[:8]) > removeUntil {
 			break
 		}
