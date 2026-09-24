@@ -23,6 +23,7 @@ type Transport interface {
 	Dispatch(ctx context.Context, u *Update) error
 
 	// AddSubscriber adds a new subscriber to the transport.
+	// It must call s.HistoryDispatched exactly once when s.RequestLastEventIDSet is true, even for an empty RequestLastEventID: the subscribe handler blocks on it before sending headers.
 	AddSubscriber(ctx context.Context, s *LocalSubscriber) error
 
 	// RemoveSubscriber removes a subscriber from the transport.
