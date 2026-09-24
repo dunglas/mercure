@@ -72,7 +72,7 @@ func NewBoltTransport(
 		return nil, &TransportError{err: err}
 	}
 
-	lastEventID, err := getDBLastEventID(db, bucketName)
+	lastSeq, lastEventID, err := getDBLastEvent(db, bucketName)
 	if err != nil {
 		return nil, &TransportError{err: err}
 	}
@@ -85,11 +85,14 @@ func NewBoltTransport(
 		cleanupFrequency: cleanupFrequency,
 		subscribers:      subscriberList,
 		closed:           make(chan struct{}),
+		lastSeq:          lastSeq,
 		lastEventID:      lastEventID,
 	}, nil
 }
 
-func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
+func getDBLastEvent(db *bolt.DB, bucketName string) (uint64, string, error) {
+	var lastSeq uint64
+
 	lastEventID := EarliestLastEventID
 
 	err := db.View(func(tx *bolt.Tx) error {
@@ -99,16 +102,17 @@ func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 		}
 
 		if k, _ := b.Cursor().Last(); k != nil {
+			lastSeq = binary.BigEndian.Uint64(k[:8])
 			lastEventID = string(k[8:])
 		}
 
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("unable to get last_event_id from BoltDB: %w", err)
+		return 0, "", fmt.Errorf("unable to get last_event_id from BoltDB: %w", err)
 	}
 
-	return lastEventID, nil
+	return lastSeq, lastEventID, nil
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
