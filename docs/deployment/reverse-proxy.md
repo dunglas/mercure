@@ -189,7 +189,7 @@ ALBs support SSE. Their default 60-second idle timeout exceeds the hub's default
 
 Cloudflare can proxy SSE. Configure the hub's heartbeat below the applicable read timeout, bypass caching for the hub endpoint, and test idle streams through your actual deployment.
 
-Limits vary by product and plan. Consult [Cloudflare connection limits](https://developers.cloudflare.com/fundamentals/reference/connection-limits/) and, if using Workers, [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) rather than treating a proxy read timeout as a maximum stream lifetime.
+Limits depend on the product and plan. Consult [Cloudflare connection limits](https://developers.cloudflare.com/fundamentals/reference/connection-limits/) and, if using Workers, [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) rather than treating a proxy read timeout as a maximum stream lifetime.
 
 ## CORS via reverse proxy
 
