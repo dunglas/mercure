@@ -60,7 +60,11 @@ func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 	if tpl, err := uritemplate.New(pattern); err == nil {
 		// Use template.Regexp() instead of template.Match() for performance
 		// See https://github.com/yosida95/uritemplate/pull/7
-		r := tpl.Regexp()
+		r := templateRegexp(tpl)
+		if r == nil {
+			return nil
+		}
+
 		if tms.templateCache != nil {
 			cacheCompiled(tms.templateCache, tms.compiledCacheWeight, pattern, r, uint64(len(pattern))+templateWeight(r))
 		}
@@ -84,4 +88,15 @@ func templateWeight(r *regexp.Regexp) uint64 {
 	}
 
 	return overhead + regexpWeight(re)
+}
+
+// templateRegexp recovers from uritemplate compiling a regexp past Go's repeat limit, which a subscriber-chosen selector can reach.
+func templateRegexp(tpl *uritemplate.Template) (r *regexp.Regexp) {
+	defer func() {
+		if recover() != nil {
+			r = nil
+		}
+	}()
+
+	return tpl.Regexp()
 }

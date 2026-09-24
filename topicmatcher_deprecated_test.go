@@ -32,6 +32,11 @@ func TestMatchDeprecated(t *testing.T) {
 	// A selector that is not a valid URI Template falls back to exact-only.
 	assert.False(t, tms.matches([]string{"foo"}, deprecatedMatcher("{invalid")))
 
+	// So does one whose regexp exceeds Go's repeat limit, instead of panicking.
+	tooManyVariables := "/{" + strings.Repeat("a,", 1100) + "a}"
+	assert.False(t, tms.matches([]string{"/foo"}, deprecatedMatcher(tooManyVariables)))
+	assert.True(t, tms.matches([]string{tooManyVariables}, deprecatedMatcher(tooManyVariables)))
+
 	// Template match results are cached, scoped to the resolution base URL.
 	_, found := tms.matchCache.GetIfPresent(matchCacheKey{
 		Base:    tms.base(),
