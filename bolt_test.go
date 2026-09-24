@@ -723,3 +723,37 @@ func TestBoltTransportCursorAfterRollback(t *testing.T) {
 	assert.Equal(t, uint64(1), transport.lastSeq)
 	assert.Equal(t, "previous", transport.lastEventID)
 }
+
+func TestBoltTransportHistoryAfterRestart(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "bolt.db")
+	topic := "https://example.com/foo"
+
+	transport, err := NewBoltTransport(NewSubscriberList(0), slog.Default(), path, defaultBoltBucketName, 0, 0)
+	require.NoError(t, err)
+
+	for _, id := range []string{"a", "b", "c"} {
+		require.NoError(t, transport.Dispatch(t.Context(), &Update{ID: id, Topics: []string{topic}}))
+	}
+
+	require.NoError(t, transport.Close(t.Context()))
+
+	transport, err = NewBoltTransport(NewSubscriberList(0), slog.Default(), path, defaultBoltBucketName, 0, 0)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, transport.Close(context.Background())) })
+
+	for lastEventID, want := range map[string][]string{"a": {"b", "c"}, EarliestLastEventID: {"a", "b", "c"}} {
+		s := NewLocalSubscriber(lastEventID, transport.logger, &TopicMatcherStore{})
+		s.RequestLastEventIDSet = true
+		s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: topic}}, nil)
+		require.NoError(t, transport.AddSubscriber(t.Context(), s))
+		assert.Equal(t, lastEventID, <-s.responseLastEventID)
+
+		for _, id := range want {
+			assert.Equal(t, id, (<-s.Receive()).ID)
+		}
+
+		s.Disconnect()
+	}
+}
