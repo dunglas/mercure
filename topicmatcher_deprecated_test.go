@@ -38,7 +38,7 @@ func TestMatchDeprecated(t *testing.T) {
 	assert.True(t, tms.matches([]string{tooManyVariables}, deprecatedMatcher(tooManyVariables)))
 	r, cached := tms.templateCache.GetIfPresent(tooManyVariables)
 	require.True(t, cached, "failed compilations must not repeat on every publish")
-	assert.Nil(t, r)
+	assert.Nil(t, r.value)
 	assert.False(t, tms.matches([]string{"/bar"}, deprecatedMatcher(tooManyVariables)))
 
 	// Template match results are cached, scoped to the resolution base URL.
