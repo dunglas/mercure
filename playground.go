@@ -25,7 +25,7 @@ var debuggerContent embed.FS
 func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
 	// JSON-LD is the preferred format
 	_ = mime.AddExtensionType(".jsonld", "application/ld+json")
-	url := r.URL.String()
+	selfLink := "<" + escapeLinkTarget(r.URL.String()) + `>; rel="self"`
 	mimeType := mime.TypeByExtension(filepath.Ext(r.URL.Path))
 
 	query := r.URL.Query()
@@ -36,9 +36,9 @@ func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
 	header := w.Header()
 
 	if h.cookieName == defaultCookieName {
-		header["Link"] = append(header["Link"], hubLink, "<"+url+`>; rel="self"`)
+		header["Link"] = append(header["Link"], hubLink, selfLink)
 	} else {
-		header["Link"] = append(header["Link"], hubLink+`; cookie-name="`+h.cookieName+`"`, "<"+url+`>; rel="self"`)
+		header["Link"] = append(header["Link"], hubLink+`; cookie-name="`+h.cookieName+`"`, selfLink)
 	}
 
 	if mimeType != "" {
@@ -73,4 +73,31 @@ func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write playground response", slog.Any("error", err))
 		}
 	}
+}
+
+// escapeLinkTarget percent-encodes bytes RFC 3986 forbids so the target cannot break out of <...>.
+func escapeLinkTarget(u string) string {
+	const upperhex = "0123456789ABCDEF"
+
+	var b strings.Builder
+
+	for i := range len(u) {
+		c := u[i]
+		if isURIByte(c) {
+			b.WriteByte(c)
+
+			continue
+		}
+
+		b.WriteByte('%')
+		b.WriteByte(upperhex[c>>4])
+		b.WriteByte(upperhex[c&0xF])
+	}
+
+	return b.String()
+}
+
+func isURIByte(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
+		strings.IndexByte("-._~:/?#[]@!$&'()*+,;=%", c) >= 0
 }
