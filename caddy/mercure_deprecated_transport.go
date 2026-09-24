@@ -25,7 +25,7 @@ func (m *Mercure) createTransportDeprecated() (mercure.Transport, error) {
 
 	m.logger.Warn(`Setting the transport_url or the MERCURE_TRANSPORT_URL environment variable is deprecated, use the "transport" directive instead`)
 
-	destructor, _, err := transports.LoadOrNew(m.TransportURL, func() (caddy.Destructor, error) {
+	destructor, _, err := transports.LoadOrNew(m.deprecatedTransportKey(), func() (caddy.Destructor, error) {
 		u, err := url.Parse(m.TransportURL)
 		if err != nil {
 			return nil, fmt.Errorf("invalid transport url: %w", err)
@@ -82,7 +82,12 @@ func (m *Mercure) cleanupTransportDeprecated() error {
 		return nil
 	}
 
-	_, err := transports.Delete(m.TransportURL)
+	_, err := transports.Delete(m.deprecatedTransportKey())
 
 	return err
+}
+
+// deprecatedTransportKey scopes the pool by hub name, like the transport modules.
+func (m *Mercure) deprecatedTransportKey() string {
+	return m.Name + "\x00" + m.TransportURL
 }

@@ -3,12 +3,15 @@ package caddy
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strconv"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/dunglas/mercure"
+	bolterrors "go.etcd.io/bbolt/errors"
 )
 
 func init() { //nolint:gochecknoinits
@@ -50,6 +53,8 @@ func (b *Bolt) Provision(ctx caddy.Context) error {
 		return err
 	}
 
+	key.WriteString(hubName(ctx))
+
 	b.transportKey = key.String()
 
 	destructor, _, err := TransportUsagePool.LoadOrNew(b.transportKey, func() (caddy.Destructor, error) {
@@ -61,6 +66,10 @@ func (b *Bolt) Provision(ctx caddy.Context) error {
 			b.Size,
 			b.cleanupFrequency(),
 		)
+		if errors.Is(err, bolterrors.ErrTimeout) {
+			return nil, fmt.Errorf("%q is already open, give each hub its own path: %w", b.Path, err)
+		}
+
 		if err != nil {
 			return nil, err
 		}

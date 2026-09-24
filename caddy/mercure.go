@@ -251,6 +251,12 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		return err
 	}
 
+	name := m.Name
+	if name == "" {
+		name = "default"
+	}
+
+	ctx = ctx.WithValue(HubNameContextKey, name)
 	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
 	ctx = ctx.WithValue(WriteTimeoutContextKey, m.WriteTimeout)
 
@@ -381,11 +387,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	m.hub = h
-
-	name := m.Name
-	if name == "" {
-		name = "default"
-	}
 
 	info := &hubInfo{
 		hub:       h,
