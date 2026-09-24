@@ -284,10 +284,10 @@ func (tms *TopicMatcherStore) base() string {
 // as a 400 / 401 instead of silently matching nothing.
 func (tms *TopicMatcherStore) validatePattern(m TopicMatcher) error {
 	switch m.Type {
-	case MatcherTypeExact, deprecatedMatcherTypeName:
-		// Any string is a valid exact pattern; v8 selectors that are not
-		// valid URI Templates fall back to exact comparison.
+	case MatcherTypeExact:
 		return nil
+	case deprecatedMatcherTypeName:
+		return tms.validateDeprecated(m.Pattern)
 	case MatcherTypeURLPattern:
 		_, err := tms.getOrCompileURLPattern(m.Pattern)
 

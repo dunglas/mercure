@@ -8,6 +8,12 @@ func (tms *TopicMatcherStore) matchDeprecated([]string, TopicMatcher) bool {
 	return false
 }
 
+// validateDeprecated is the stub compiled without the deprecated_topic build
+// tag: v8 matchers never reach validation.
+func (tms *TopicMatcherStore) validateDeprecated(string) error {
+	return nil
+}
+
 // deprecatedMatcherTypeCompiled is the stub compiled without the
 // deprecated_topic build tag: the v8 matcher-type code is not in the binary.
 func deprecatedMatcherTypeCompiled() bool {

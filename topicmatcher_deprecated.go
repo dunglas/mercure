@@ -3,6 +3,7 @@
 package mercure
 
 import (
+	"errors"
 	"math"
 	"regexp"
 	"regexp/syntax"
@@ -41,6 +42,22 @@ func (tms *TopicMatcherStore) matchDeprecated(topics []string, m TopicMatcher) b
 // matcher type, independent of whether alternate topics are granted.
 func deprecatedMatcherTypeCompiled() bool {
 	return true
+}
+
+var errURITemplateTooComplex = errors.New("URI template too complex to compile")
+
+// validateDeprecated refuses a v8 URI template whose regexp cannot be compiled.
+// Selectors that are not valid URI templates fall back to exact comparison.
+func (tms *TopicMatcherStore) validateDeprecated(pattern string) error {
+	if !strings.Contains(pattern, "{") {
+		return nil
+	}
+
+	if _, err := uritemplate.New(pattern); err == nil && tms.getRegexp(pattern) == nil {
+		return errURITemplateTooComplex
+	}
+
+	return nil
 }
 
 // getRegexp retrieves the regexp for this v8 template selector.
