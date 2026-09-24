@@ -1,108 +1,79 @@
 package mercure
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"slices"
-	"strings"
 
 	"github.com/dunglas/skipfilter"
 )
 
 type SubscriberList struct {
-	skipfilter *skipfilter.SkipFilter[*LocalSubscriber, string]
+	skipfilter *skipfilter.SkipFilter[*LocalSubscriber, filterKey]
 }
 
-// We choose a delimiter and an escape character which are unlikely to be used.
-const (
-	escape = '\x00'
-	delim  = '\x01'
-)
-
-//nolint:gochecknoglobals
-var replacer = strings.NewReplacer(
-	string(escape), string([]rune{escape, escape}),
-	string(delim), string([]rune{escape, delim}),
-)
+type filterKey [sha256.Size]byte
 
 // DefaultSubscriberListCacheSize is the default size of the skipfilter cache.
 //
-// Let's say update topics take 100 bytes on average, a cache with
-// 100,000 entries will use about 10MB.
+// Keys are fixed-size digests, so a full cache of 100,000 filters with no
+// subscribers uses about 25MB whatever the size of the update topics.
 const DefaultSubscriberListCacheSize = 100_000
 
 func NewSubscriberList(cacheSize int) *SubscriberList {
-	return &SubscriberList{
-		skipfilter: skipfilter.New(func(s *LocalSubscriber, filter string) bool {
-			return s.MatchTopics(decode(filter))
-		}, cacheSize),
-	}
+	return &SubscriberList{skipfilter: skipfilter.New[*LocalSubscriber, filterKey](nil, cacheSize)}
 }
 
-func encode(topics []string, private bool) string {
-	parts := make([]string, len(topics)+1)
+// newFilterKey returns one digest per topic set and private flag; SHA-256 makes the collision that
+// would match an update against another topic set's subscribers computationally infeasible.
+func newFilterKey(topics []string, private bool) filterKey {
+	// Sort a copy: topics can be the Update's own Topics, read concurrently.
+	var sortedBuf [16]string
+
+	sorted := append(sortedBuf[:0], topics...)
+	slices.Sort(sorted)
+
+	h := sha256.New()
+
+	var buf [512]byte
+
+	input := buf[:1]
 	if private {
-		parts[0] = "1"
-	} else {
-		parts[0] = "0"
+		input[0] = 1
 	}
 
-	for i, t := range topics {
-		parts[i+1] = replacer.Replace(t)
-	}
-
-	// Sort the escaped copies, never the caller's slice: this can be the
-	// Update's own Topics backing array, and reordering it would change what
-	// LogValue and SpanAttributes report, and race with any concurrent
-	// reader. The key only has to be one canonical string per topic set,
-	// which sorting the escaped forms gives just as well.
-	slices.Sort(parts[1:])
-
-	return strings.Join(parts, string(delim))
-}
-
-func decode(f string) (topics []string, private bool) {
-	var (
-		privateExtracted, inEscape bool
-		builder                    strings.Builder
-	)
-
-	for _, char := range f {
-		if inEscape {
-			builder.WriteRune(char)
-
-			inEscape = false
-
-			continue
+	for _, t := range sorted {
+		if cap(input)-len(input) < binary.MaxVarintLen64 {
+			h.Write(input)
+			input = buf[:0]
 		}
 
-		switch char {
-		case escape:
-			inEscape = true
+		// Length-prefixed so that topic boundaries are part of the hashed input.
+		input = binary.AppendUvarint(input, uint64(len(t)))
+		for len(t) > 0 {
+			n := copy(buf[len(input):], t)
+			input = buf[:len(input)+n]
+			t = t[n:]
 
-		case delim:
-			if !privateExtracted {
-				private = builder.String() == "1"
-				builder.Reset()
-
-				privateExtracted = true
-
-				break
+			if len(input) == len(buf) {
+				h.Write(input)
+				input = buf[:0]
 			}
-
-			topics = append(topics, builder.String())
-			builder.Reset()
-
-		default:
-			builder.WriteRune(char)
 		}
 	}
 
-	topics = append(topics, builder.String())
+	h.Write(input)
 
-	return topics, private
+	var key filterKey
+	h.Sum(key[:0])
+
+	return key
 }
 
 func (sl *SubscriberList) MatchAny(u *Update) []*LocalSubscriber {
-	return sl.skipfilter.MatchAny(encode(u.Topics, u.Private))
+	return sl.skipfilter.MatchFunc(newFilterKey(u.Topics, u.Private), func(s *LocalSubscriber) bool {
+		return s.MatchTopics(u.Topics, u.Private)
+	})
 }
 
 func (sl *SubscriberList) Walk(start uint64, callback func(s *LocalSubscriber) bool) uint64 {
