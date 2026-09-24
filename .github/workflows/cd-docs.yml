@@ -19,12 +19,21 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Revalidate changed pages
         env:
           REVALIDATE_TOKEN: ${{ secrets.REVALIDATE_TOKEN }}
+          BEFORE: ${{ github.event.before }}
         run: |
           shopt -s globstar
-          FILES=$(git --no-pager diff --name-only HEAD~1 -- docs/**/*.md | awk 'BEGIN{RS="\n"} {printf "%s%s",sep,$0; sep="&files="}')
+          # A push can carry several commits; the previous tip is missing after a force push.
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            BEFORE=HEAD~1
+          fi
+          FILES=$(git --no-pager diff --name-only "$BEFORE" HEAD -- docs/**/*.md | awk 'BEGIN{RS="\n"} {printf "%s%s",sep,$0; sep="&files="}')
+          if [ -z "$FILES" ]; then
+            echo "No page to revalidate."
+            exit 0
+          fi
           curl --silent --fail-with-body "https://mercure.rocks/api/revalidate?secret=${REVALIDATE_TOKEN}&files=$FILES"
