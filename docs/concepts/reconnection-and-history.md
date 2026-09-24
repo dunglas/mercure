@@ -110,7 +110,7 @@ mercure {
 
 `size` sets the retention target. Cleanup runs probabilistically on publication, so the count can temporarily exceed it. `cleanup_frequency 0` disables cleanup.
 
-A search for a specific event ID scans at most 10,000 recent events, or `size` events when larger. With `size 0`, an old event can remain stored but fall outside this search window. `earliest` replays the same window: when older events are still stored, `Mercure-Last-Event-ID` carries the ID of the newest one left out instead of `earliest`. See [BoltDB configuration](../deployment/configuration.md#bolt-transport-default-single-node).
+A search for a specific event ID scans at most 10,000 recent events, or `size` events when larger. With `size 0`, an old event can remain stored but fall outside this search window. `earliest` replays the same window. Its `Mercure-Last-Event-ID` response remains `earliest`: IDs outside the replay window may belong to private or unrelated events. See [BoltDB configuration](../deployment/configuration.md#bolt-transport-default-single-node).
 
 ### Recovering when history is incomplete
 

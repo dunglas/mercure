@@ -578,8 +578,6 @@ func TestBoltTransportHistoryScanLimitFollowsSize(t *testing.T) {
 	assert.Equal(t, uint64(maxHistoryScan+1), (&BoltTransport{size: maxHistoryScan + 1}).historyScanLimit())
 }
 
-// "earliest" used to decode the whole history on every request, including
-// ones matching nothing.
 func TestBoltTransportEarliestBoundedByScanLimit(t *testing.T) {
 	t.Parallel()
 
@@ -594,7 +592,7 @@ func TestBoltTransportEarliestBoundedByScanLimit(t *testing.T) {
 	s.setMatchers(stringsToExactMatchers(topics), stringsToExactMatchers(nil))
 	require.NoError(t, transport.AddSubscriber(t.Context(), s))
 
-	assert.Equal(t, "2", <-s.responseLastEventID)
+	assert.Equal(t, EarliestLastEventID, <-s.responseLastEventID)
 	assert.Equal(t, "3", (<-s.Receive()).ID)
 
 	s.Disconnect()
@@ -618,50 +616,32 @@ func TestBoltTransportEarliestReportsEarliestWithinScanLimit(t *testing.T) {
 	s.Disconnect()
 }
 
-func TestBoltTransportEarliestInWindow(t *testing.T) {
+func TestBoltTransportEarliestDoesNotDiscloseOmittedEventID(t *testing.T) {
 	t.Parallel()
 
-	transport := createBoltTransport(t, 0, 0)
-	seedBoltHistory(t, transport, "https://example.com/foo", 5)
-
-	require.NoError(t, transport.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(transport.bucketName))
-		key := make([]byte, 0, 9)
-
-		for _, seq := range []uint64{1, 3} {
-			key = binary.BigEndian.AppendUint64(key[:0], seq)
-			if err := bucket.Delete(append(key, strconv.FormatUint(seq, 10)...)); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}))
-
-	for _, tc := range []struct {
-		name        string
-		toSeq       uint64
-		scanLimit   uint64
-		wantFromSeq uint64
-		wantID      string
-	}{
-		{name: "zero snapshot", toSeq: 0, scanLimit: 1, wantID: EarliestLastEventID},
-		{name: "whole history", toSeq: 5, scanLimit: 5, wantID: EarliestLastEventID},
-		{name: "only deleted events left out", toSeq: 5, scanLimit: 4, wantFromSeq: 1, wantID: EarliestLastEventID},
-		{name: "stored event left out", toSeq: 5, scanLimit: 3, wantFromSeq: 2, wantID: "2"},
-		{name: "deleted boundary", toSeq: 5, scanLimit: 2, wantFromSeq: 3, wantID: "2"},
-		{name: "maximum snapshot", toSeq: ^uint64(0), scanLimit: 1, wantFromSeq: ^uint64(0) - 1, wantID: "5"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, private := range []bool{false, true} {
+		t.Run(strconv.FormatBool(private), func(t *testing.T) {
 			t.Parallel()
 
-			require.NoError(t, transport.db.View(func(tx *bolt.Tx) error {
-				fromSeq, id := earliestInWindow(tx.Bucket([]byte(transport.bucketName)), tc.toSeq, tc.scanLimit)
-				assert.Equal(t, tc.wantFromSeq, fromSeq)
-				assert.Equal(t, tc.wantID, id)
-
-				return nil
+			transport := createBoltTransport(t, 0, 0)
+			require.NoError(t, transport.Dispatch(t.Context(), &Update{
+				ID: "secret-boundary-id", Topics: []string{"https://example.com/secret"}, Private: private,
 			}))
+			require.NoError(t, transport.db.Update(func(tx *bolt.Tx) error {
+				return tx.Bucket([]byte(transport.bucketName)).SetSequence(maxHistoryScan)
+			}))
+			require.NoError(t, transport.Dispatch(t.Context(), &Update{
+				ID: "visible", Topics: []string{"https://example.com/public"},
+			}))
+
+			s := NewLocalSubscriber(EarliestLastEventID, transport.logger, &TopicMatcherStore{})
+			s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/public"}}, nil)
+			require.NoError(t, transport.AddSubscriber(t.Context(), s))
+
+			defer s.Disconnect()
+
+			assert.Equal(t, EarliestLastEventID, <-s.responseLastEventID)
+			assert.Equal(t, "visible", (<-s.Receive()).ID)
 		})
 	}
 }

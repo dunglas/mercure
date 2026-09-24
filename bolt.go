@@ -266,31 +266,6 @@ func findLastEventID(b *bolt.Bucket, lastEventID string, toSeq, scanLimit uint64
 	return seq, found
 }
 
-// earliestInWindow bounds an "earliest" replay to the Last-Event-ID search
-// window and returns the id of the newest event left out, so the gap shows.
-func earliestInWindow(b *bolt.Bucket, toSeq, scanLimit uint64) (uint64, string) {
-	if toSeq <= scanLimit {
-		return 0, EarliestLastEventID
-	}
-
-	fromSeq := toSeq - scanLimit
-
-	c := b.Cursor()
-
-	k, _ := c.Seek(binary.BigEndian.AppendUint64(nil, fromSeq+1))
-	if k == nil {
-		k, _ = c.Last()
-	} else {
-		k, _ = c.Prev()
-	}
-
-	if k == nil {
-		return fromSeq, EarliestLastEventID
-	}
-
-	return fromSeq, string(k[8:])
-}
-
 // historyScanLimit bounds the search for a requested Last-Event-ID. A
 // configured size is retention the operator pays for, so it stays searchable;
 // maxHistoryScan is the floor and the only bound on an unlimited history.
@@ -361,9 +336,13 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 		}
 
 		if s.RequestLastEventID == EarliestLastEventID {
-			fromSeq, responseLastEventID := earliestInWindow(b, toSeq, t.historyScanLimit())
+			var fromSeq uint64
+			if limit := t.historyScanLimit(); toSeq > limit {
+				fromSeq = toSeq - limit
+			}
 
-			return t.replayHistory(ctx, s, b, fromSeq, toSeq, responseLastEventID)
+			// The omitted boundary event may be private or on an unrelated topic.
+			return t.replayHistory(ctx, s, b, fromSeq, toSeq, EarliestLastEventID)
 		}
 
 		fromSeq, found := findLastEventID(b, s.RequestLastEventID, toSeq, t.historyScanLimit())
