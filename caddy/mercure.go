@@ -39,13 +39,16 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
+	errMultipleUnnamedHubs = errors.New("only one unnamed Mercure hub is allowed per configuration; set a name for each additional hub")
+
 	errCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 	errLegacyVerifiersNeedCompatibility = errors.New(`the "publisher_jwt", "subscriber_jwt", "publisher_jwks_url" and "subscriber_jwks_url" directives work only in compatibility mode, which relaxes access-token validation: move them into an "issuer" block for modern mode, or set "protocol_version_compatibility 8" to opt in explicitly`)
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
-	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
-	hubsMu sync.Mutex                        //nolint:gochecknoglobals
+	hubs        = make(map[caddy.Module]*hubInfo)   //nolint:gochecknoglobals
+	unnamedHubs = make(map[*caddyhttp.App]*Mercure) //nolint:gochecknoglobals
+	hubsMu      sync.Mutex                          //nolint:gochecknoglobals
 )
 
 type hubInfo struct {
@@ -210,9 +213,10 @@ type Mercure struct {
 	// The transport configuration.
 	TransportRaw json.RawMessage `json:"transport,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
 
-	hub    *mercure.Hub
-	logger *slog.Logger
-	cancel context.CancelFunc
+	hub           *mercure.Hub
+	logger        *slog.Logger
+	cancel        context.CancelFunc
+	unnamedHubApp *caddyhttp.App
 }
 
 // CaddyModule returns the Caddy module information.
@@ -272,6 +276,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	var transport mercure.Transport
 	if transport, err = m.createTransportDeprecated(); err != nil {
+		return err
+	}
+
+	if err := m.registerUnnamedHub(ctx); err != nil {
 		return err
 	}
 
@@ -422,6 +430,10 @@ func (m *Mercure) Cleanup() error {
 
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
+
+	if unnamedHubs[m.unnamedHubApp] == m {
+		delete(unnamedHubs, m.unnamedHubApp)
+	}
 
 	for k, info := range hubs {
 		if info.hub == m.hub {
@@ -684,6 +696,32 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	// Expand the playground's permissive dev defaults here, at Caddyfile-parse
 	// time, so `caddy adapt` output reflects what the hub actually runs.
 	m.applyPlaygroundDefaults()
+
+	return nil
+}
+
+func (m *Mercure) registerUnnamedHub(ctx caddy.Context) error {
+	if m.Name != "" {
+		return nil
+	}
+
+	app, err := ctx.App("http")
+	if err != nil {
+		return fmt.Errorf("getting HTTP app: %w", err)
+	}
+
+	// App instances separate overlapping configurations during reload.
+	httpApp := app.(*caddyhttp.App)
+
+	hubsMu.Lock()
+	defer hubsMu.Unlock()
+
+	if unnamedHubs[httpApp] != nil {
+		return errMultipleUnnamedHubs
+	}
+
+	unnamedHubs[httpApp] = m
+	m.unnamedHubApp = httpApp
 
 	return nil
 }

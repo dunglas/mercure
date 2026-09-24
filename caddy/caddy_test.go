@@ -131,6 +131,7 @@ func TestMercure(t *testing.T) {
 localhost:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
 			issuer https://example.com {
 				publisher {
@@ -148,6 +149,7 @@ localhost:9080 {
 example.com:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
 			issuer https://example.com {
 				publisher {
