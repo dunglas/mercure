@@ -127,6 +127,7 @@ Subscription documents are now serialised compactly, and `<`, `>` and `&` are no
 - `"mercure": { "publish": [...] }` in issuer code -> `authorization_details` with `actions: ["publish"]`
 - `"mercure": { "subscribe": [...] }` -> `authorization_details` with `actions: ["subscribe"]`
 - `mercureAuthorization` cookie -> `__Secure-mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
+- `publisher_jwt` / `subscriber_jwt` / `*_jwks_url` in the Caddyfile -> `issuer <iss> { publisher { jwt ... } subscriber { jwt ... } }` (see [JWT keys move into `issuer` blocks](#jwt-keys-move-into-issuer-blocks))
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
 - `Last-Event-ID` read from a **response** -> `Mercure-Last-Event-ID` (the request header keeps its name; see [Reconnection and history](concepts/reconnection-and-history.md))
 
@@ -142,10 +143,44 @@ Subscription documents are now serialised compactly, and `<`, `>` and `&` are no
 
 - The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity. List the origins the hub itself receives, scheme included: behind a TLS-terminating proxy that is the `http://` form (see [Reverse proxies](deployment/reverse-proxy.md)).
 
+#### JWT keys move into `issuer` blocks
+
+The JWT key directives move into an `issuer <id> { ... }` block that binds the `iss` value your tokens carry to its verification keys. The block is required when JWT auth is enabled in modern mode.
+
+```caddyfile
+# Before (0.x)
+mercure {
+  publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+  subscriber_jwks_url https://example.com/.well-known/jwks.json
+}
+
+# After (1.0)
+mercure {
+  issuer https://example.com {
+    publisher {
+      jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+    }
+    subscriber {
+      jwks_uri https://example.com/.well-known/jwks.json
+    }
+  }
+}
+```
+
+- `publisher_jwt <key> [<alg>]` becomes `publisher { jwt <key> [<alg>] }`, and `subscriber_jwt` becomes `subscriber { jwt ... }`.
+- `publisher_jwks_url <url>` becomes `publisher { jwks_uri <url> [<alg>...] }` (note `_uri`, after the RFC 8414 member), and likewise for `subscriber_jwks_url`. `jwt` and `jwks_uri` are mutually exclusive within one block.
+- The issuer identifier must equal the `iss` claim of your tokens. Omitting `publisher` or `subscriber` rejects that action for the issuer. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys. See [Issuer blocks](deployment/configuration.md#issuer-blocks).
+- The official Caddyfile and Docker image keep the `MERCURE_PUBLISHER_JWT_KEY`, `MERCURE_PUBLISHER_JWT_ALG`, `MERCURE_SUBSCRIBER_JWT_KEY` and `MERCURE_SUBSCRIBER_JWT_ALG` variables. The new `MERCURE_TRUSTED_ISSUERS` variable sets the issuer identifier. It defaults to `https://localhost`, which only suits local development: set it to the `iss` your tokens carry.
+- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
+
+Key validation is stricter, including for the deprecated directives:
+
+- A PEM-encoded key without an algorithm is a configuration error. 0.x defaulted to `HS256`; set the algorithm explicitly (`RS256`, `ES256`, `EdDSA`, ...). A raw secret still defaults to `HS256`.
+- A PEM-encoded key paired with an HMAC algorithm is refused. 0.x used the public key as the HMAC secret, so anyone holding it could forge tokens.
+- A JWK Set accepts only asymmetric algorithms by default (`EdDSA`, `ES*`, `RS*`, `PS*`). 0.x accepted any algorithm its keys supported, HMAC included. List the allowed algorithms after the URL to change this (`jwks_uri <url> HS256`). The deprecated `*_jwks_url` directives take no algorithm list, so a JWK Set of HMAC keys needs an `issuer` block.
+
 #### Changed configuration
 
-- Declare your token issuer with an `issuer <id> { ... }` block binding the `iss` value your tokens carry to its `publisher`/`subscriber` verifier (`jwt` or `jwks_uri`); it's required when JWT auth is enabled in modern mode. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys.
-- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
 - The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
 - `transport_url` and `MERCURE_TRANSPORT_URL` require the `deprecated_transport` build tag, which official builds still include. Migrate to `transport <name> { ... }`.
 - An unrecognized directive inside the `mercure` block is now a configuration error instead of being ignored. A typo previously disabled whatever it was meant to configure, silently, so check your `MERCURE_EXTRA_DIRECTIVES` if the hub refuses to start after the upgrade.
