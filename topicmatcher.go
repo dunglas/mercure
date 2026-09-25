@@ -29,7 +29,7 @@ func matchCacheEntryWeight(k matchCacheKey, _ bool) uint32 {
 
 	weight := fixedOverhead + len(k.Base) + len(k.Type) + len(k.Pattern) + len(k.Topics)
 
-	return uint32(min(weight, math.MaxUint32))
+	return uint32(min(uint64(weight), math.MaxUint32))
 }
 
 // Heap upper bounds measured with runtime.MemStats; (a{1000}) compiles to 1000 copies, so length alone is unsafe.
