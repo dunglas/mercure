@@ -5,7 +5,7 @@ description: "How clients find the Mercure hub with a Link header and read its O
 
 # Discovery
 
-A client needs three things before it can subscribe to private updates: the **URL of the hub**, the **canonical URL of the topic** it wants, and the **authorization requirements** of that hub. Mercure exposes all three through standard mechanisms, so a generic OAuth 2.0 client library can discover them without Mercure-specific code.
+A client needs two things before it can subscribe to private updates: the **URL of the hub**, and the **authorization requirements** of that hub. Mercure exposes both through standard mechanisms, so a generic OAuth 2.0 client library can discover them without Mercure-specific code.
 
 ## Finding the hub
 
@@ -18,7 +18,6 @@ Host: example.com
 
 HTTP/2 200
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
-Link: </books/42>; rel="self"
 Content-Type: application/json
 
 { "@id": "/books/42", "title": "..." }
@@ -26,13 +25,31 @@ Content-Type: application/json
 
 The client parses the header, takes the URL with `rel="mercure"`, appends its `match*` query parameters, and opens an `EventSource`. Reusing your existing API responses to carry the link keeps subscribers and publishers pointing at the same hub.
 
-## Finding the topic
+A resource's own URL is normally its topic too, so `res.url` is all a subscriber needs to `match` on.
 
-The same response says which topic to subscribe to. The publisher **may** include a second link, `rel="self"`, holding the canonical URL of the topic; when it is absent, the client falls back to the URL of the resource it just fetched:
+## Content negotiation on the topic
+
+The one case that needs more is content negotiation: the same conceptual resource served under several representations, for example by language (`Accept-Language`) or by format (`Accept`). The hub can't see which representation the subscriber's browser would negotiate, so it can't resolve those variants back to one topic on its own.
+
+For that case, the publisher **may** include a second link, `rel="self"`, holding the canonical URL you want subscribers to use as the topic. Point every representation's `rel="self"` at the same URL to share one topic across variants, or give each its own to keep them separate:
+
+```http
+# Content negotiation on the topic
+GET /books/42 HTTP/2
+Host: example.com
+Accept-Language: fr
+
+HTTP/2 200
+Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
+Link: </books/42>; rel="self"
+Content-Language: fr
+```
 
 ```javascript
-// Finding the topic
-const res = await fetch("https://example.com/books/42");
+// Content negotiation on the topic
+const res = await fetch("https://example.com/books/42", {
+  headers: { "Accept-Language": "fr" },
+});
 const links = res.headers.get("Link");
 
 const hub = links.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
@@ -43,9 +60,7 @@ url.searchParams.append("match", new URL(self, res.url).toString());
 new EventSource(url);
 ```
 
-This is what makes a subscriber generic: it never has to know how the publisher builds its topic URLs. It matters most when the resource URL and the topic are not the same string — a resource served under several representations (`/books/42.jsonld`, `/books/42.html`) can point every one of them at one canonical topic, or give each its own. The protocol allows either, as long as `rel="self"` says which; it is also how content negotiation works on the topic, since the hub cannot pick a representation on the subscriber's behalf.
-
-Publish on the topic the self link advertises, and use absolute URLs on both sides where you can; a relative value like `/books/42` is legal, but it then has to resolve the same way for the client that subscribes and for the hub that matches (see [`resource_identifier`](../deployment/configuration.md)).
+Outside content negotiation, skip `rel="self"` and match on `res.url` directly, as in [Subscribing](subscribing.md#discovering-the-mercure-hub-via-link-header).
 
 ## Protected resource metadata
 
