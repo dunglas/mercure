@@ -6,7 +6,9 @@
 {$CADDY_EXTRA_CONFIG}
 
 {$SERVER_NAME:localhost} {
-	encode zstd gzip
+	# Compressed SSE streams cost memory per subscriber and enable BREACH-style attacks.
+	@compressible not path /.well-known/mercure
+	encode @compressible zstd gzip
 
 	mercure {
 		# Trusted issuer: binds the iss claim access tokens must carry (RFC 9068)
