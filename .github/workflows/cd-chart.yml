@@ -87,7 +87,7 @@ jobs:
         # unset `latest_tag` under `set -u` and fails the job after the index
         # has already been pushed. Fixed in helm/chart-releaser-action#202,
         # unreleased at the time of writing.
-        uses: helm/chart-releaser-action@3e001cb8c68933439c7e721650f20a07a1a5c61e # main, post-v1.7.0
+        uses: helm/chart-releaser-action@fae9146b935c45c307b67c4495043ea3fd3e3355 # main, post-v1.7.0
         with:
           skip_packaging: true
           skip_existing: true
