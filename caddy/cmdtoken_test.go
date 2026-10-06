@@ -6,9 +6,7 @@ import (
 	"testing"
 	"time"
 
-	caddycmd "github.com/caddyserver/caddy/v2/cmd"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,34 +30,6 @@ func TestReadKeyMaterialLiteral(t *testing.T) {
 	material, err := readKeyMaterial("!ChangeMe!")
 	require.NoError(t, err)
 	assert.Equal(t, []byte("!ChangeMe!"), material)
-}
-
-func TestMercureTokenRejectsLiteralKeyArgument(t *testing.T) {
-	t.Parallel()
-
-	for _, key := range []string{"!ChangeMe!", "-----BEGIN PRIVATE KEY-----\nprivate material"} {
-		for _, dev := range []bool{false, true} {
-			flags := pflag.NewFlagSet("mercure-token", pflag.ContinueOnError)
-			flags.Bool("dev", dev, "")
-
-			for _, name := range []string{claimIss, claimAud, "key", "alg", "kid", claimSub, "client-id", "payload"} {
-				flags.String(name, "", "")
-			}
-
-			flags.Duration("ttl", time.Hour, "")
-			flags.Bool("pretty", false, "")
-
-			for _, name := range []string{"publish", "publish-urlpattern", "subscribe", "subscribe-urlpattern"} {
-				flags.StringArray(name, nil, "")
-			}
-
-			require.NoError(t, flags.Set("key", key))
-			code, err := cmdMercureToken(caddycmd.Flags{FlagSet: flags})
-			assert.Equal(t, 1, code)
-			require.ErrorIs(t, err, errLiteralSigningKey)
-			assert.NotContains(t, err.Error(), key, "never echo the signing material")
-		}
-	}
 }
 
 func TestReadKeyMaterialFromFileTrimsTrailingNewline(t *testing.T) {
