@@ -1225,3 +1225,36 @@ func TestPopulateJWTConfigWarnsAboutWellKnownKey(t *testing.T) {
 		assert.Equal(t, !playground, strings.Contains(logs.String(), "development secret"))
 	}
 }
+
+func TestSubscriptionLimitsCaddyfile(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		args  string
+		valid bool
+	}{
+		{"10 2 3", true},
+		{"0 0 0", true},
+		{"10 2", false},
+		{"10 -1 3", false},
+		{"10 two 3", false},
+		{"10 2 3 4", false},
+	} {
+		t.Run(tc.args, func(t *testing.T) {
+			t.Parallel()
+
+			m := new(Mercure)
+
+			err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser("mercure {\n subscription_limits " + tc.args + "\n}"))
+			if !tc.valid {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, m.SubscriptionLimits)
+			assert.Equal(t, tc.args == "0 0 0", m.SubscriptionLimits.Total == 0)
+		})
+	}
+}
