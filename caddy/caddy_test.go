@@ -3,6 +3,7 @@ package caddy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -1005,6 +1006,21 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 	assert.Len(t, m.Issuers, 1)
 	require.NotNil(t, m.DrainTimeout)
 	assert.Equal(t, caddy.Duration(30*time.Second), *m.DrainTimeout)
+}
+
+func TestNegativeDrainTimeoutRejected(t *testing.T) {
+	t.Run("caddyfile", func(t *testing.T) {
+		d := caddyfile.NewTestDispenser("mercure {\n\tdrain_timeout -1s\n}")
+
+		require.ErrorContains(t, new(Mercure).UnmarshalCaddyfile(d), "drain_timeout must be >= 0")
+	})
+
+	t.Run("json", func(t *testing.T) {
+		var cfg caddy.Config
+		require.NoError(t, json.Unmarshal([]byte(`{"admin":{"disabled":true},"apps":{"http":{"servers":{"srv":{"listen":["127.0.0.1:0"],"automatic_https":{"disable":true},"routes":[{"handle":[{"handler":"mercure","name":"negative_drain","anonymous":true,"drain_timeout":"-1s","transport":{"name":"local"},"issuers":[{"identifier":"https://example.com","publisher":{"jwt":{"key":"test-publisher-key","alg":"HS256"}}}]}]}]}}}}}`), &cfg))
+
+		require.ErrorContains(t, caddy.Validate(&cfg), mercure.ErrNegativeDrainTimeout.Error())
+	})
 }
 
 func TestShouldDrainOnStopping(t *testing.T) {

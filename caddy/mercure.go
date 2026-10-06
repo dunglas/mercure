@@ -537,6 +537,10 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return err
 				}
 
+				if *m.DrainTimeout < 0 {
+					return d.Errf("drain_timeout must be >= 0, got %s", d.Val())
+				}
+
 			case "dispatch_timeout":
 				if m.DispatchTimeout, err = parseDurationParameter(d); err != nil {
 					return err

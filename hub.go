@@ -68,6 +68,9 @@ var ErrPEMKeyHMACAlgorithm = errors.New("a PEM-encoded key must not be used with
 // victim's cookie.
 var ErrSpanningPublishOrigin = errors.New(`a wildcard publish origin must stay within one registrable domain, such as "https://*.example.com"`)
 
+// ErrNegativeDrainTimeout is returned when the drain timeout is negative.
+var ErrNegativeDrainTimeout = errors.New("the drain timeout must not be negative")
+
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
 
@@ -177,6 +180,10 @@ func WithWriteTimeout(timeout time.Duration) Option {
 // WithDrainTimeout sets the maximum duration of the drain started by Drain, defaults to 0 (disabled).
 func WithDrainTimeout(timeout time.Duration) Option {
 	return func(o *opt) error {
+		if timeout < 0 {
+			return ErrNegativeDrainTimeout
+		}
+
 		o.drainTimeout = timeout
 
 		return nil
