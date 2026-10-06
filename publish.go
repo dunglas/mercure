@@ -135,6 +135,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 	snapshot := *update
 	snapshot.Topics = slices.Clone(update.Topics)
 	update = &snapshot
+
 	defer func() { original.ID = update.ID }()
 
 	ctx, span := startSpan(ctx, "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))

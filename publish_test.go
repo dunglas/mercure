@@ -56,14 +56,19 @@ func TestPublishSnapshotsCallerUpdate(t *testing.T) {
 
 	for _, name := range []string{"local", "bolt"} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			var transport Transport
+
 			if name == "bolt" {
 				var err error
+
 				transport, err = NewBoltTransport(NewSubscriberList(0), slog.Default(), filepath.Join(t.TempDir(), "history.db"), defaultBoltBucketName, 0, 0)
 				require.NoError(t, err)
 			} else {
 				transport = NewLocalTransport(NewSubscriberList(0))
 			}
+
 			t.Cleanup(func() { require.NoError(t, transport.Close(t.Context())) })
 			hub := createDummy(t, WithTransport(transport))
 			topic := "https://example.com/books/1"
@@ -71,7 +76,7 @@ func TestPublishSnapshotsCallerUpdate(t *testing.T) {
 			subscriber.setMatchers(stringsToExactMatchers([]string{topic}), stringsToExactMatchers([]string{topic}))
 			require.NoError(t, transport.AddSubscriber(t.Context(), subscriber))
 
-			update := &Update{Event: Event{Type: "book", Data: "original", Retry: 1000}, Topics: []string{topic}, Private: true}
+			update := &Update{Type: "book", Data: "original", Retry: 1000, Topics: []string{topic}, Private: true}
 			require.NoError(t, hub.Publish(t.Context(), update))
 			require.NotEmpty(t, update.ID, "transport-assigned IDs must still be returned to callers")
 			expected := *update
