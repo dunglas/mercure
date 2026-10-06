@@ -43,7 +43,9 @@ localhost {
 }
 ```
 
-**The rule (with `drain_timeout`):** `stop timeout >= drain_timeout + small margin`.
+**The rule (with `drain_timeout`):** `stop timeout >= shutdown_delay + drain_timeout + small margin`.
+
+The drain starts on Caddy's `stopping` event, before the [`shutdown_delay`](https://caddyserver.com/docs/caddyfile/options#shutdown-delay). Connections opened during the delay get a full `drain_timeout`. A Caddy [`grace_period`](https://caddyserver.com/docs/caddyfile/options#grace-period) shorter than `drain_timeout` cuts the drain short.
 
 With `write_timeout 0s`, connections never rotate, but `drain_timeout` still drains them on termination.
 
@@ -85,7 +87,7 @@ Any supervisor that gives the hub time to drain works the same way:
 | Nomad      | `kill_timeout`      |
 | ECS        | `stopTimeout`       |
 
-Choose the drain window (`write_timeout`, or `drain_timeout` when set) below the supervisor's maximum stop timeout, with margin. Some platforms cap that timeout below the hub's default 600 seconds.
+Choose the drain window (`write_timeout`, or `shutdown_delay + drain_timeout` when `drain_timeout` is set) below the supervisor's maximum stop timeout, with margin. Some platforms cap that timeout below the hub's default 600 seconds.
 
 ## Graceful Mercure hub configuration reloads
 
