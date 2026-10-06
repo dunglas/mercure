@@ -139,6 +139,28 @@ func TestSubscriptionClientIdentityIgnoresForwardedHeaders(t *testing.T) {
 	assert.Equal(t, "client", reason)
 }
 
+func TestSubscriptionClientIdentityGroupsIPv6Prefix(t *testing.T) {
+	t.Parallel()
+
+	h := createAnonymousDummy(t, WithSubscriptionLimits(SubscriptionLimits{PerClient: 1}))
+	r := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.RemoteAddr = "[2001:db8:1:2::1]:1234"
+	p, _ := h.admitSubscription(r, nil)
+
+	require.NotNil(t, p)
+	defer p.release()
+
+	r.RemoteAddr = "[2001:db8:1:2:ffff::2]:5678"
+	second, reason := h.admitSubscription(r, nil)
+	assert.Nil(t, second)
+	assert.Equal(t, "client", reason)
+
+	r.RemoteAddr = "[2001:db8:1:3::1]:1234"
+	other, _ := h.admitSubscription(r, nil)
+	require.NotNil(t, other)
+	other.release()
+}
+
 func TestSubscriptionLimitsRejectNegativeValues(t *testing.T) {
 	t.Parallel()
 

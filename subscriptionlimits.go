@@ -83,6 +83,12 @@ func (h *Hub) admitSubscription(r *http.Request, claims *claims) (*subscriptionP
 
 		if addr, err := netip.ParseAddr(p.client); err == nil {
 			p.client = addr.Unmap().String()
+
+			// A single IPv6 host usually controls a whole /64.
+			if addr.Is6() && !addr.Is4In6() {
+				prefix, _ := addr.Prefix(64)
+				p.client = prefix.String()
+			}
 		}
 	}
 
