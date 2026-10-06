@@ -105,14 +105,14 @@ spec:
             {{- else }}
             - name: CADDY_EXTRA_CONFIG
               valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                secretKeyRef:
+                  name: {{ include "mercure.secretName" . }}
                   key: caddy-extra-config
             {{- end }}
             - name: CADDY_SERVER_EXTRA_DIRECTIVES
               valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                secretKeyRef:
+                  name: {{ include "mercure.secretName" . }}
                   key: caddy-extra-directives
             {{- if .Values.transportUrl }}
             - name: MERCURE_TRANSPORT_URL
@@ -153,8 +153,8 @@ spec:
             {{- else }}
             - name: MERCURE_EXTRA_DIRECTIVES
               valueFrom:
-                configMapKeyRef:
-                  name: {{ include "mercure.fullname" . }}
+                secretKeyRef:
+                  name: {{ include "mercure.secretName" . }}
                   key: extra-directives
             {{- end }}
             - name: MERCURE_LICENSE
