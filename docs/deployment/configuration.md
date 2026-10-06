@@ -70,7 +70,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `subscriptions`                                        | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                                                 | off                             |
 | `heartbeat <duration>`                                 | Interval between SSE heartbeat comments. `0s` to disable.                                                                                                   | `40s`                           |
 | `max_request_body_size <size>`                         | Maximum size of publish and QUERY subscribe request bodies (e.g. `512KB`); larger requests get a `413`. `0` delegates to a reverse proxy.                   | `1MiB`                          |
-| `subscription_limits <total> <per_token> <per_client>` | Concurrent HTTP event streams per hub instance, verified token, and source address. `0` disables an individual limit; excess requests get `429`.            | `10000 1000 0`                  |
+| `subscription_limits <total> <per_token> <per_client>` | Concurrent event streams per hub instance, token, and source. `0` disables a limit. See [subscription limits](#concurrent-subscription-limits).             | `10000 1000 0`                  |
 | `transport <name> [{ <options...> }]`                  | Transport configuration. See [Transports](#mercure-hub-transports).                                                                                         | `bolt`                          |
 | `dispatch_timeout <duration>`                          | Max time to dispatch one update to one subscriber. `0s` disables.                                                                                           | `5s`                            |
 | `write_timeout <duration>`                             | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                                            | `600s`                          |
@@ -122,6 +122,14 @@ issuer https://issuer-b.example {
 
 > [!WARNING]
 > The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` are deprecated. They map to a single implicit issuer and only work in [compatibility mode](../UPGRADE.md); modern mode requires an `issuer` block.
+
+### Concurrent subscription limits
+
+The default `subscription_limits 10000 1000 0` bounds total streams and streams sharing one verified token on each hub instance. Anonymous streams count only toward the total limit. Configure smaller limits for constrained deployments. The source limit counts the socket peer address, ignores forwarding headers, groups IPv4-mapped IPv6 with IPv4, and groups IPv6 by /64. Enable it only when the peer identifies the client; proxies and NAT may put many clients behind one address. For example, `subscription_limits 2000 100 50` permits at most 2,000 streams overall, 100 per token, and 50 per source.
+
+Excess streams receive `429 Too Many Requests` with `Retry-After: 1` before allocating a subscriber or replay queue. Browsers' `EventSource` does not reconnect after a non-200 response, so a rejected browser client stays disconnected until the application reopens the stream. Invalid matchers, disconnects, and failed transport registration release reserved capacity. Programmatic transport subscribers are outside these HTTP admission limits. Prometheus exposes active streams through `mercure_subscribers_connected` and rejections through `mercure_subscriptions_rejected_total{reason="total|token|client"}`; no token or address labels are exported.
+
+These quotas count event streams rather than TCP connections. Apply connection and request-rate limits at the reverse proxy too, and size them for the number of hub instances and HTTP/2 streams. Keep a finite total limit when disabling the per-token limit, and avoid setting all three limits to zero without equivalent infrastructure limits.
 
 ## Mercure hub environment variables
 
@@ -314,11 +322,3 @@ The Caddy admin API also exposes:
 - `/config/`: the current effective config (JSON).
 - `/metrics`: Prometheus metrics (when `metrics` is in `GLOBAL_OPTIONS`).
 - `/debug/pprof/`: Go profiler endpoints on the admin API. See [Debugging](../production/debugging.md).
-
-### Concurrent subscription limits
-
-The default `subscription_limits 10000 1000 0` bounds total streams and streams sharing one verified token on each hub instance. Configure smaller limits for constrained deployments. The source limit counts the socket peer address, ignores forwarding headers, and groups IPv4-mapped IPv6 with IPv4. Enable it only when the peer identifies the client; proxies and NAT may put many clients behind one address. For example, `subscription_limits 2000 100 50` permits at most 2,000 streams overall, 100 per token, and 50 per source.
-
-Excess streams receive `429 Too Many Requests` with `Retry-After: 1` before allocating a subscriber or replay queue. Authentication and request parsing failures release reserved capacity, as do disconnects and failed transport registration. Programmatic transport subscribers are outside these HTTP admission limits. Prometheus exposes active streams through `mercure_subscribers_connected` and rejections through `mercure_subscriptions_rejected_total{reason="total|token|client"}`; no token or address labels are exported.
-
-These quotas count event streams rather than TCP connections. Apply connection and request-rate limits at the reverse proxy too, and size them for the number of hub instances and HTTP/2 streams. Keep a finite total limit when disabling the per-token limit, and avoid setting all three limits to zero without equivalent infrastructure limits.
