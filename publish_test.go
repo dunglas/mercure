@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"testing/synctest"
 	"uuid"
@@ -50,74 +48,6 @@ func TestPublish(t *testing.T) {
 
 		synctest.Wait()
 	})
-}
-
-func TestPublishSnapshotsCallerUpdate(t *testing.T) {
-	t.Parallel()
-
-	for _, name := range []string{"local", "bolt"} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			var transport Transport
-
-			if name == "bolt" {
-				var err error
-
-				transport, err = NewBoltTransport(NewSubscriberList(0), slog.Default(), filepath.Join(t.TempDir(), "history.db"), defaultBoltBucketName, 0, 0)
-				require.NoError(t, err)
-			} else {
-				transport = NewLocalTransport(NewSubscriberList(0))
-			}
-
-			t.Cleanup(func() { require.NoError(t, transport.Close(t.Context())) })
-			hub := createDummy(t, WithTransport(transport))
-			topic := "https://example.com/books/1"
-			subscriber := NewLocalSubscriber("", slog.Default(), hub.topicMatcherStore)
-			subscriber.setMatchers(stringsToExactMatchers([]string{topic}), stringsToExactMatchers([]string{topic}))
-			require.NoError(t, transport.AddSubscriber(t.Context(), subscriber))
-
-			update := &Update{Type: "book", Data: "original", Retry: 1000, Topics: []string{topic}, Private: true}
-			require.NoError(t, hub.Publish(t.Context(), update))
-			require.NotEmpty(t, update.ID, "transport-assigned IDs must still be returned to callers")
-			expected := *update
-			expected.Topics = []string{topic}
-
-			update.ID = "injected\nevent: mercure"
-			update.Type = "mercure"
-			update.Data = "mutated"
-			update.Retry = 0
-			update.Topics[0] = "https://example.com/other"
-			update.Private = false
-			update.Debug = true
-			received := <-subscriber.Receive()
-			assert.Equal(t, &expected, received)
-			assert.Equal(t, expected.String(), received.String())
-			subscriber.Disconnect()
-
-			if name == "bolt" {
-				replay := NewLocalSubscriber(EarliestLastEventID, slog.Default(), hub.topicMatcherStore)
-				replay.setMatchers(stringsToExactMatchers([]string{topic}), stringsToExactMatchers([]string{topic}))
-				require.NoError(t, transport.AddSubscriber(t.Context(), replay))
-				assert.Equal(t, &expected, <-replay.Receive())
-				replay.Disconnect()
-			}
-		})
-	}
-}
-
-func TestPublishSharedUpdateConcurrently(t *testing.T) {
-	t.Parallel()
-
-	hubs := []*Hub{createDummy(t), createDummy(t)}
-	update := &Update{ID: "id", Topics: []string{"https://example.com/books/1"}}
-
-	var wg sync.WaitGroup
-	for _, hub := range hubs {
-		wg.Go(func() { assert.NoError(t, hub.Publish(t.Context(), update)) })
-	}
-
-	wg.Wait()
 }
 
 func TestPublishHandlerNoAuthorizationHeader(t *testing.T) {

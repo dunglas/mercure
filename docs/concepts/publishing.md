@@ -185,7 +185,7 @@ For retryable publishing, use a transactional outbox: commit the application cha
 
 ## Embedded publishing (no external hub)
 
-The [Mercure specification](../../spec/mercure.md#publication) makes the HTTP publication endpoint optional. An application can embed the [Go library](https://pkg.go.dev/github.com/dunglas/mercure) and publish directly to the hub in the same process, while subscribers still use the Mercure protocol.
+The [Mercure specification](../../spec/mercure.md#publication) makes the HTTP publication endpoint optional. An application can embed the [Go library](https://pkg.go.dev/github.com/dunglas/mercure) and publish directly to the hub in the same process, while subscribers still use the Mercure protocol. `Hub.Publish` takes ownership of the `Update`: don't modify it, including its `Topics` slice, after the call, because transports may deliver it asynchronously.
 
 [FrankenPHP embeds Mercure](https://frankenphp.dev/docs/mercure/) and exposes `mercure_publish()` to PHP:
 

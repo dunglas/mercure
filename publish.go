@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -128,21 +127,9 @@ func (u *Update) Validate(baseURL string) error {
 }
 
 // Publish broadcasts the given update to all subscribers.
-// The id field of the Update instance can be updated by the underlying Transport.
-// All other fields are snapshotted so callers may reuse the update after Publish returns.
+// Publish takes ownership of update: transports may deliver it asynchronously, so callers must
+// not modify it, including its Topics slice, after the call. The transport may set its ID.
 func (h *Hub) Publish(ctx context.Context, update *Update) error {
-	original := update
-	snapshot := *update
-	snapshot.Topics = slices.Clone(update.Topics)
-	update = &snapshot
-
-	// Write only when assigned, so publishing a shared update with a preset ID stays race-free.
-	defer func() {
-		if original.ID != update.ID {
-			original.ID = update.ID
-		}
-	}()
-
 	ctx, span := startSpan(ctx, "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))
 	// Deferred so the ID assigned by the transport via AssignUUID lands on the span.
 	defer func() {
