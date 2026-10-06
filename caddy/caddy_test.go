@@ -779,25 +779,25 @@ func TestNewJWKSetKeyfunc(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("file URL with empty host", func(t *testing.T) {
-		k, err := newJWKSetKeyfunc(t.Context(), "file://"+jwksPath)
+		k, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://"+jwksPath)
 		require.NoError(t, err)
 		assert.NotNil(t, k)
 	})
 
 	t.Run("file URL with localhost host", func(t *testing.T) {
-		k, err := newJWKSetKeyfunc(t.Context(), "file://localhost"+jwksPath)
+		k, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://localhost"+jwksPath)
 		require.NoError(t, err)
 		assert.NotNil(t, k)
 	})
 
 	t.Run("file URL with rejected host", func(t *testing.T) {
-		_, err := newJWKSetKeyfunc(t.Context(), "file://example.com"+jwksPath)
+		_, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://example.com"+jwksPath)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `"example.com"`)
 	})
 
 	t.Run("missing file", func(t *testing.T) {
-		_, err := newJWKSetKeyfunc(t.Context(), "file://"+filepath.Join(t.TempDir(), "absent.json"))
+		_, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://"+filepath.Join(t.TempDir(), "absent.json"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to read JWK Set file")
 	})
@@ -806,7 +806,7 @@ func TestNewJWKSetKeyfunc(t *testing.T) {
 		bad := filepath.Join(t.TempDir(), "bad.json")
 		require.NoError(t, os.WriteFile(bad, []byte("not json"), 0o600))
 
-		_, err := newJWKSetKeyfunc(t.Context(), "file://"+bad)
+		_, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://"+bad)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse JWK Set file")
 	})
@@ -837,7 +837,7 @@ func TestNewJWKSetKeyfuncDoesNotFollowRedirects(t *testing.T) {
 			defer cancel()
 			// Keyfunc can defer an initial fetch error until verification, but
 			// it must never send a request to the redirect destination.
-			_, _ = newJWKSetKeyfunc(ctx, server.URL)
+			_, _ = newJWKSetKeyfunc(ctx, slog.New(slog.DiscardHandler), server.URL)
 
 			assert.Zero(t, targetRequests.Load())
 		})
@@ -864,6 +864,30 @@ func TestRefuseJWKSetRedirectNamesTarget(t *testing.T) {
 	assert.ErrorContains(t, err, server.URL+"/jwks/")
 }
 
+func TestBuildVerifierLogsJWKSetFetchFailure(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/elsewhere", http.StatusFound)
+	}))
+	t.Cleanup(server.Close)
+
+	var logs bytes.Buffer
+
+	m := &Mercure{logger: slog.New(slog.NewTextHandler(&logs, nil))}
+	ctx, cancel := context.WithCancel(t.Context())
+
+	defer cancel()
+
+	_, err := m.buildVerifier(ctx, VerifierConfig{JWKSURL: server.URL}, "publisher")
+	require.NoError(t, err)
+
+	assert.Contains(t, logs.String(), "level=ERROR")
+	assert.Contains(t, logs.String(), "Failed to fetch the JWK Set")
+	assert.Contains(t, logs.String(), "url="+server.URL)
+	assert.Contains(t, logs.String(), errJWKSetRedirect.Error())
+}
+
 func TestNewJWKSetKeyfuncFetchesDirectHTTPResource(t *testing.T) {
 	t.Parallel()
 
@@ -878,7 +902,7 @@ func TestNewJWKSetKeyfuncFetchesDirectHTTPResource(t *testing.T) {
 		_, _ = w.Write(data)
 	}))
 	t.Cleanup(server.Close)
-	k, err := newJWKSetKeyfunc(t.Context(), server.URL)
+	k, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), server.URL)
 	require.NoError(t, err)
 	assert.NotNil(t, k)
 	assert.Positive(t, requests.Load())
