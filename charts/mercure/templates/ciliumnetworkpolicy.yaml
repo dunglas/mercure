@@ -1,0 +1,44 @@
+{{- if .Values.ciliumNetworkPolicy.enabled }}
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "mercure.fullname" . }}
+  labels:
+    {{- include "mercure.labels" . | nindent 4 }}
+spec:
+  # Targets the Deployment pods only. The helm test pod shares
+  # `mercure.selectorLabels` but lacks `app.kubernetes.io/component: server`,
+  # so it stays out of scope.
+  endpointSelector:
+    matchLabels:
+      {{- include "mercure.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  {{- /*
+    Always emit all four lists so an explicit `[]` surfaces in the manifest;
+    enabling the policy without rules yields default-deny on every side.
+  */}}
+  {{- if .Values.ciliumNetworkPolicy.ingress }}
+  ingress:
+    {{- toYaml .Values.ciliumNetworkPolicy.ingress | nindent 4 }}
+  {{- else }}
+  ingress: []
+  {{- end }}
+  {{- if .Values.ciliumNetworkPolicy.ingressDeny }}
+  ingressDeny:
+    {{- toYaml .Values.ciliumNetworkPolicy.ingressDeny | nindent 4 }}
+  {{- else }}
+  ingressDeny: []
+  {{- end }}
+  {{- if .Values.ciliumNetworkPolicy.egress }}
+  egress:
+    {{- toYaml .Values.ciliumNetworkPolicy.egress | nindent 4 }}
+  {{- else }}
+  egress: []
+  {{- end }}
+  {{- if .Values.ciliumNetworkPolicy.egressDeny }}
+  egressDeny:
+    {{- toYaml .Values.ciliumNetworkPolicy.egressDeny | nindent 4 }}
+  {{- else }}
+  egressDeny: []
+  {{- end }}
+{{- end }}

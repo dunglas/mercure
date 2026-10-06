@@ -1,21 +1,47 @@
 {
+  // Run/debug the hub locally. Both configs use the bundled bolt transport, so
+  // they need no backing services. Once up, open the UI at
+  // https://localhost/.well-known/mercure/debug/ (accept the local cert once).
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch the hub",
+      // Playground hub: the `playground` directive turns on the insecure dev
+      // defaults, so the hub mints an all-access token and prefills it in the UI,
+      // enables anonymous subscriptions, registers the /playground/ discovery
+      // endpoints, and redirects / to the debug UI. Dev only.
+      "name": "Hub (playground)",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/caddy/mercure",
+      "buildFlags": "-tags=nobadger,nomysql,nopgx,deprecated_transport,deprecated_topic,deprecated_claim",
+      "args": ["run", "--config", "../../Caddyfile", "--adapter", "caddyfile"],
+      "env": {
+        "MERCURE_EXTRA_DIRECTIVES": "playground",
+        "GLOBAL_OPTIONS": "debug",
+        "SERVER_NAME": "localhost",
+        "CADDY_SERVER_EXTRA_DIRECTIVES": "tls internal"
+      }
+    },
+    {
+      // Prod-safe debugger: the default Caddyfile plus the `debugger` directive
+      // only (no playground, no minted token). Subscribing to private topics and
+      // publishing need a token you paste; mint one with `caddy mercure-token`.
+      "name": "Hub (debugger, prod-safe)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/caddy/mercure",
+      "buildFlags": "-tags=nobadger,nomysql,nopgx,deprecated_transport,deprecated_topic,deprecated_claim",
+      "args": ["run", "--config", "../../Caddyfile", "--adapter", "caddyfile"],
       "env": {
         "MERCURE_PUBLISHER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
         "MERCURE_SUBSCRIBER_JWT_KEY": "!ChangeThisMercureHubJWTSecretKey!",
-        "MERCURE_EXTRA_DIRECTIVES": "anonymous\nwrite_timeout 10s",
+        "MERCURE_EXTRA_DIRECTIVES": "debugger",
         "GLOBAL_OPTIONS": "debug",
-        "SERVER_NAME": "localhost, host.docker.internal",
+        "SERVER_NAME": "localhost",
         "CADDY_SERVER_EXTRA_DIRECTIVES": "tls internal"
-      },
-      "args": ["run", "--config", "../../dev.Caddyfile"]
+      }
     }
   ]
 }

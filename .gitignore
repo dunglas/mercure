@@ -10,3 +10,6 @@ dist
 /spec/mercure.html
 /spec/mercure.txt
 /spec/mercure.xml
+
+# Go debugger (Delve/VS Code)
+__debug_bin*

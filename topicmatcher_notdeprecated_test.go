@@ -1,0 +1,21 @@
+//go:build !deprecated_topic
+
+package mercure
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMatchDeprecatedStub(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	// Without the deprecated_topic build tag, v8 matchers never match.
+	m := TopicMatcher{Type: deprecatedMatcherTypeName, Pattern: "foo"}
+	assert.False(t, tms.matches([]string{"foo"}, m))
+}

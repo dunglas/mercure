@@ -24,6 +24,8 @@ MD007:
 MD010:
   ignore_code_languages: [caddyfile]
 MD013: false
+MD025:
+  front_matter_title: "" # Pages carry a YAML `title`; the `#` heading is the sole H1
 MD026:
   punctuation: ".,;:!。，；:" # List of not allowed
 MD029: false # Ordered list item prefix

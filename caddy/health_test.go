@@ -26,7 +26,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -72,7 +77,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -100,7 +110,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -147,7 +162,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 
@@ -225,7 +245,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			transport local
 		}
 

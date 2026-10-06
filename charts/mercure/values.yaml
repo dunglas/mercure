@@ -6,7 +6,7 @@
 globalOptions: ""
 # -- Inject snippet or named-routes options in the Caddyfile
 caddyExtraConfig: ""
-# -- Enable the development mode, including the debug UI and the demo.
+# -- Enable development mode: injects the insecure `playground` directive (debug UI, demo endpoints, anonymous subscriptions, permissive CORS). Never enable in production.
 dev: false
 # -- Deprecated: The URL representation of the transport to use.
 transportUrl: ""
@@ -15,12 +15,21 @@ extraDirectives: ""
 # -- Inject extra Caddy directives in the Caddyfile.
 caddyExtraDirectives: ""
 
-# -- The JWT key to use for publishers, a random key will be generated if empty.
+# -- Pin the OAuth 2.0 resource identifier (the `aud` access tokens must carry), e.g. `https://hub.example.com/.well-known/mercure`.
+# If empty, the hub derives it from each request's origin, which is `http://` behind a TLS-terminating ingress or gateway.
+resourceIdentifier: ""
+# -- Origins the hub answers on (`public_urls`), others get `421 Misdirected Request`.
+# Set it (or `resourceIdentifier`) when clients can reach the pod under any Host, for instance several hubs trusting one issuer.
+# Origins are matched as the pod sees them: `http://` behind a TLS-terminating ingress or gateway.
+publicUrls: []  # @schema item:string
+
+# -- The JWT key to use for publishers. If empty, a random key is generated on install and kept on upgrades
+# (renderers without cluster access, such as `helm template`, generate a new one each time: set it or use `existingSecret`).
 publisherJwtKey: ""
 # -- The JWT algorithm to use for publishers.
 publisherJwtAlg: HS256
 
-# -- The JWT key to use for subscribers, a random key will be generated if empty.
+# -- The JWT key to use for subscribers. Generated and kept like `publisherJwtKey` if empty.
 subscriberJwtKey: ""
 # -- The JWT algorithm to use for subscribers.
 subscriberJwtAlg: HS256
@@ -43,11 +52,11 @@ existingSecret: ""
 # -  license:
 # -  caddy-extra-directives:
 
-# -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary is you use the FOSS version).
+# -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).
 license: ""
 
-# -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
-adminPort: 2019
+# -- Port used for the Caddy admin API (health checks, graceful shutdown). The admin API only listens on localhost.
+adminPort: 2019  # @schema minimum:1;maximum:65535
 
 # -- Transport-aware health checks exposed via the Caddy admin API.
 # When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live
@@ -56,24 +65,21 @@ healthCheck:
   # -- Enable transport-aware health checks.
   enabled: true
   readiness:
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    timeoutSeconds: 3
-    failureThreshold: 2
+    initialDelaySeconds: 5  # @schema minimum:0
+    periodSeconds: 5  # @schema minimum:1
+    timeoutSeconds: 3  # @schema minimum:1
+    failureThreshold: 2  # @schema minimum:1
   liveness:
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
+    initialDelaySeconds: 15  # @schema minimum:0
+    periodSeconds: 10  # @schema minimum:1
+    timeoutSeconds: 5  # @schema minimum:1
+    failureThreshold: 3  # @schema minimum:1
 
 metrics:
-  # -- Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value.
-  # servers {
-  #     metrics
-  # }
+  # -- Serve Prometheus metrics at `/metrics` on a dedicated listener. For Caddy's HTTP metrics, also enable the [`metrics` global option](https://caddyserver.com/docs/caddyfile/options#metrics) in `globalOptions`.
   enabled: false
-  # -- Deprecated: The port to use for exposing the metrics (use adminPort instead).
-  port: 2019
+  # -- Port of the metrics listener, must differ from `adminPort` and `service.targetPort`.
+  port: 9180  # @schema minimum:1;maximum:65535
 
   serviceMonitor:
     # -- Whether to create a ServiceMonitor for Prometheus Operator.
@@ -92,39 +98,33 @@ metrics:
     honorLabels: false
 
 # -- The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster).
-replicaCount: 1
+replicaCount: 1  # @schema minimum:1
 
 # -- [Deployment strategy type](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy).
 # Useful to set it to 'Recreate' when using BoltDB transport with persistence.
 updateStrategy:
-  type: RollingUpdate
+  type: RollingUpdate  # @schema enum:[RollingUpdate, Recreate]
 
-# -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout` plus a
-# margin so the hub's graceful SSE drain (subscribers close at their own
-# write deadline) finishes before k8s SIGKILLs the pod. Default matches
-# Mercure's DefaultWriteTimeout (600s) plus a 60s margin. Only applied
-# when `updateStrategy.type` is `RollingUpdate` — with `Recreate` we
-# intentionally leave k8s to use its default (30s) to minimize the
-# downtime window between old-pod-gone and new-pod-ready.
-terminationGracePeriodSeconds: 660
+# -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout` so SSE
+# subscribers drain at their own write deadline before k8s SIGKILLs the pod.
+# Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin.
+# Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s)
+# to minimize the gap between old pod gone and new pod ready.
+terminationGracePeriodSeconds: 660  # @schema minimum:0
 
-# -- Deployment `spec.progressDeadlineSeconds`. A rolling update of a hub
-# with live SSE subscribers can legitimately spend up to
-# `terminationGracePeriodSeconds` on each pod while the old replica
-# drains — well above the k8s default of 600s. Too-low values make
-# `helm upgrade --wait` (and similar CI gates) fail with
-# `ProgressDeadlineExceeded` even though the rollout is healthy. Default
-# covers a 2-pod rolling update with the defaults above; for larger
-# `replicaCount`, scale up accordingly (roughly `replicaCount ×
-# (terminationGracePeriodSeconds + minReadySeconds)` plus a safety
-# margin). Only applied when `updateStrategy.type` is `RollingUpdate`.
-progressDeadlineSeconds: 1800
+# -- Deployment `spec.progressDeadlineSeconds`. A rolling update can spend
+# up to `terminationGracePeriodSeconds` per pod draining SSE, so the k8s
+# default (600s) trips `ProgressDeadlineExceeded` on healthy rollouts.
+# Default fits a 2-pod rollout; scale up for larger `replicaCount`
+# (roughly `replicaCount × (terminationGracePeriodSeconds + minReadySeconds)`
+# plus a margin). Only applied with `RollingUpdate`.
+progressDeadlineSeconds: 1800  # @schema minimum:0
 
 image:
   # -- Name of the image repository to pull the container image from.
   repository: dunglas/mercure
   # -- [Image pull policy](https://kubernetes.io/docs/concepts/containers/images/#updating-images) for updating already existing images on a node.
-  pullPolicy: IfNotPresent
+  pullPolicy: IfNotPresent  # @schema enum:[Always, IfNotPresent, Never]
   # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
@@ -138,8 +138,11 @@ fullnameOverride: ""
 serviceAccount:
   # -- Specifies whether a service account should be created.
   create: true
-  # -- Automatically mount a ServiceAccount's API credentials?
-  automount: true
+  # -- Automatically mount a ServiceAccount's API credentials in hub pods.
+  # Defaults to false: Mercure does not call the Kubernetes API, so the
+  # token is unused attack surface. Enable for sidecars or modules that
+  # need the in-pod token.
+  automount: false
   # -- Annotations to add to the service account.
   annotations: {}
   # -- The name of the service account to use.
@@ -153,19 +156,31 @@ podAnnotations: {}
 podLabels: {}
 
 # -- Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod).
-# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context) for details.
-podSecurityContext: {}
-  # fsGroup: 2000
+# Defaults target the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted).
+# `fsGroup` makes the chart's writable volumes (/data, /config, /tmp) group-writable
+# by the rootless container; `OnRootMismatch` skips re-chowning PVCs on every restart.
+# Override with `{}` if your cluster forbids these fields.
+podSecurityContext:
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
 
 # -- Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container).
-# See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1) for details.
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+# Defaults satisfy the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted):
+# rootless UID/GID 1000, no caps, no privilege escalation, read-only rootfs.
+# Binding to :80 relies on `net.ipv4.ip_unprivileged_port_start=0`, set by
+# containerd 1.5+ and cri-o. On older runtimes, set `service.targetPort` to
+# an unprivileged port (e.g. `8080`). Override with `{}` to opt out.
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
 
 deployment:
   # -- Annotations to be added to the deployment.
@@ -173,13 +188,13 @@ deployment:
 
 service:
   # -- Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types).
-  type: ClusterIP
+  type: ClusterIP  # @schema enum:[ClusterIP, NodePort, LoadBalancer, ExternalName]
   # -- Service port.
-  port: 80
+  port: 80  # @schema minimum:1;maximum:65535
   # -- Service target port.
-  targetPort: 80
+  targetPort: 80  # @schema type:[integer, string];minimum:1;maximum:65535
   # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
-  nodePort:
+  nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
   annotations: {}
 
 ingress:
@@ -221,7 +236,10 @@ httpRoute:
   # -- Hostnames matching HTTP header.
   hostnames:
     - mercure-example.local
-  # -- List of rules and filters applied. When empty, a default rule routing all traffic to the service is created.
+  # -- List of rules and filters applied. When empty, a default rule
+  # routes all traffic with `timeouts.request: 0s` so long-lived SSE
+  # subscriptions aren't cut by the gateway (Envoy defaults to 15s).
+  # Mercure's own `write_timeout` (600s) drives subscriber rotation.
   # @default -- See [values.yaml](values.yaml).
   rules: []
   # rules:
@@ -244,15 +262,110 @@ httpRoute:
   #         headers:
   #           - name: version
   #             value: v2
+  #   - matches:
+  #       - path:
+  #           type: PathPrefix
+  #           value: /.well-known/mercure
+  #         method: POST
+  #     # Supplying `rules` opts out of the auto-default. Use
+  #     # `timeouts` to bound a specific path: for instance, cap
+  #     # publish POSTs so a slow publisher can't hold a gateway
+  #     # connection open. SSE-serving rules should keep
+  #     # `request: 0s` to avoid premature stream cutoffs.
+  #     timeouts:
+  #       request: 30s
+
+# -- [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) for the hub pods.
+# When enabled with no ingress/egress rules, all traffic to/from the
+# hub pods is denied. Supply rules to allow what you need.
+# @default -- Disabled by default.
+networkPolicy:
+  # -- Enable the NetworkPolicy.
+  enabled: false
+  # -- `policyTypes` for the NetworkPolicy. The chart always renders empty
+  # `ingress` and `egress` lists, so Kubernetes infers
+  # `policyTypes: [Ingress, Egress]`. Set to `[Ingress]` to skip egress.
+  policyTypes: []  # @schema itemEnum:[Ingress, Egress]
+  # policyTypes:
+  #   - Ingress
+  #   - Egress
+  # -- Ingress rules (allowed inbound traffic). Pass-through to
+  # `spec.ingress`. Empty list + `policyTypes: [Ingress]` denies all inbound.
+  ingress: []
+  # ingress:
+  #   - from:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: ingress-nginx
+  #     ports:
+  #     - protocol: TCP
+  #       port: 80
+  # -- Egress rules (allowed outbound traffic). Pass-through to `spec.egress`.
+  # Allow at least DNS (UDP/TCP 53 to kube-system) plus the transport port.
+  egress: []
+  # egress:
+  #   - to:
+  #     - namespaceSelector:
+  #         matchLabels:
+  #           kubernetes.io/metadata.name: kube-system
+  #     ports:
+  #     - protocol: UDP
+  #       port: 53
+  #     - protocol: TCP
+  #       port: 53
+
+# -- [CiliumNetworkPolicy](https://docs.cilium.io/en/stable/security/policy/)
+# for the hub pods. Use on Cilium clusters for features the standard
+# NetworkPolicy lacks (FQDN-based egress, L7 rules, explicit deny).
+# Independent of `networkPolicy.enabled`; enable whichever your CNI supports.
+# @default -- Disabled by default.
+ciliumNetworkPolicy:
+  # -- Enable the CiliumNetworkPolicy. Requires the `cilium.io/v2` CRDs to be
+  # installed in the cluster.
+  enabled: false
+  # -- Allowed inbound traffic. Pass-through to `spec.ingress`.
+  ingress: []
+  # ingress:
+  #   - fromEndpoints:
+  #       - matchLabels:
+  #           k8s:io.kubernetes.pod.namespace: ingress-nginx
+  #           app.kubernetes.io/name: ingress-nginx
+  #     toPorts:
+  #       - ports:
+  #           - port: "80"
+  #             protocol: TCP
+  # -- Explicit inbound deny rules. Pass-through to `spec.ingressDeny`.
+  ingressDeny: []
+  # -- Allowed outbound traffic. Pass-through to `spec.egress`. The DNS rule
+  # below is required when using `toFQDNs`: Cilium learns IPs by inspecting
+  # responses, so DNS visibility on `kube-dns` must be allowed first.
+  egress: []
+  # egress:
+  #   - toEndpoints:
+  #       - matchLabels:
+  #           k8s:io.kubernetes.pod.namespace: kube-system
+  #           k8s:k8s-app: kube-dns
+  #     toPorts:
+  #       - ports:
+  #           - port: "53"
+  #             protocol: ANY
+  #         rules:
+  #           dns:
+  #             - matchPattern: "*"
+  #   - toFQDNs:
+  #       - matchName: redis.example.com
+  #     toPorts:
+  #       - ports:
+  #           - port: "6379"
+  #             protocol: TCP
+  # -- Explicit outbound deny rules. Pass-through to `spec.egressDeny`.
+  egressDeny: []
 
 # -- Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/).
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details.
 # @default -- No requests or limits.
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # No defaults: leave the choice to the user. Set per your workload.
   # limits:
   #   cpu: 100m
   #   memory: 128Mi
@@ -264,9 +377,9 @@ resources: {}
 # @default -- Disabled by default.
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
+  minReplicas: 1  # @schema minimum:1
+  maxReplicas: 100  # @schema minimum:1
+  targetCPUUtilizationPercentage: 80  # @schema minimum:1;maximum:100
   # targetMemoryUtilizationPercentage: 80
   # -- Additional metrics appended to the HPA `spec.metrics` list (Pods, Object, External metric types).
   customMetrics: []
@@ -298,24 +411,28 @@ tolerations: []
 # See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details.
 affinity: {}
 
-# -- [Topology spread constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) configuration.
-# This is a template
+# -- [Topology spread constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) rendered into the pod spec. Evaluated as a Helm template, so it can reference `mercure.selectorLabels`.
+topologySpreadConstraints: ""
+# Example:
 #  topologySpreadConstraints: |
-#  - maxSkew: 1
-#    topologyKey: kubernetes.io/hostname
-#    whenUnsatisfiable: DoNotSchedule
-#    labelSelector:
-#      matchLabels:
-#        {{- include "mercure.selectorLabels" . | nindent 8 }}
+#    - maxSkew: 1
+#      topologyKey: kubernetes.io/hostname
+#      whenUnsatisfiable: DoNotSchedule
+#      labelSelector:
+#        matchLabels:
+#          {{- include "mercure.selectorLabels" . | nindent 12 }}
 
-# -- Enable persistence using [Persistent Volume Claims](http://kubernetes.io/docs/user-guide/persistent-volumes/), only useful if you the BoltDB transport.
+# -- Switch /data from an emptyDir to a [Persistent Volume Claim](http://kubernetes.io/docs/user-guide/persistent-volumes/).
+# /data is always mounted so modules writing under `caddy.AppDataDir()`
+# (e.g. `rate_limit`) work under `readOnlyRootFilesystem: true`. Enable
+# persistence when /data must survive pod restarts (typical with BoltDB).
 persistence:
   enabled: false
   # -- Mercure Data Persistent Volume Storage Class.
-  # If defined, `storageClassName: <storageClass>`
-  # If set to `"-"``, `storageClassName: ""``, which disables dynamic provisioning.
+  # If defined, `storageClassName: <storageClass>`.
+  # If set to `"-"`, `storageClassName: ""`, which disables dynamic provisioning.
   # If undefined (the default) or set to `null`, no `storageClassName` spec is set, choosing the default provisioner.
-  storageClass: ""
+  storageClass: ""  # @schema type:[string, null]
 
   # -- A manually managed Persistent Volume and Claim.
   # Requires `persistence.enabled: true`
