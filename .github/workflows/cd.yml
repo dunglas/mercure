@@ -19,17 +19,69 @@ on:
         type: string
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 
 env:
   GOTOOLCHAIN: local
 
 jobs:
-  release:
+  snapshot:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.tag == '')
     runs-on: ubuntu-latest
-    environment: ${{ (startsWith(github.ref, 'refs/tags/v') || inputs.tag) && 'release' || '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27"
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
+            caddy/go.sum
+
+      - name: Set GoReleaser Git tags
+        run: |
+          # Left to itself GoReleaser takes the closest tag of any shape, which
+          # on this repository is the non-semver `caddy/vX.Y.Z` module tag.
+          # `--sort=version:refname` has no notion of semver prereleases and
+          # ranks a prerelease above the stable release it precedes, so the top
+          # of the sorted list is not necessarily the tag being released. Take
+          # it from the ref and keep the list only for the previous tag.
+          current=${RELEASE_TAG:-$(git describe --tags --abbrev=0 --match 'v*.*.*' 2>/dev/null || echo v0.0.0)}
+          tags=$(git tag --list --sort=-version:refname 'v*.*.*' | grep -Fxv "$current" || true)
+          echo "GORELEASER_CURRENT_TAG=${current}" >> "$GITHUB_ENV"
+          echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")" >> "$GITHUB_ENV"
+
+      - name: Build snapshot
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: v2.18.2
+          args: build --single-target --snapshot --clean --timeout 60m
+
+      - name: Display version
+        run: dist/caddy_linux_amd64_v1/mercure version
+
+      - name: Upload snapshot
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapshot
+          path: dist/*
+          retention-days: 1
+
+  release:
+    if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != ''))
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    environment: release
     env:
       RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag }}
     steps:
@@ -82,8 +134,8 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
-          version: latest
-          args: ${{ env.RELEASE_TAG != '' && 'release' || 'build --single-target --snapshot' }} --clean --timeout 60m
+          version: v2.18.2
+          args: release --clean --timeout 60m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
@@ -117,14 +169,3 @@ jobs:
           subject-name: docker.io/dunglas/mercure
           subject-digest: ${{ steps.caddy_image.outputs.digest }}
           push-to-registry: true
-
-      - name: Display version
-        run: dist/caddy_linux_amd64_v1/mercure version
-
-      - name: Upload snapshot
-        if: env.RELEASE_TAG == ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: snapshot
-          path: dist/*
-          retention-days: 1
