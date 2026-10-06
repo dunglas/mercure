@@ -268,6 +268,26 @@ func TestPublishHandlerMultipartDisabled(t *testing.T) {
 	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
 }
 
+func TestPublishHandlerMultipartTooLarge(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithEventsQuery(), WithMaxRequestBodySize(1024))
+
+	form := url.Values{"topic": {"https://example.com/books/1"}}
+	req := newMultipartPublishRequest(t, form, bytes.Repeat([]byte{0xff}, 2048), "")
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+}
+
 // Like urlencoded fields, the first data part wins, and so does its media type.
 func TestPublishHandlerMultipartDuplicateData(t *testing.T) {
 	t.Parallel()
