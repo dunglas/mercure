@@ -71,7 +71,7 @@ Kubernetes: `>=1.23.0-0`
 | metrics.serviceMonitor.relabelings | list | `[]` | RelabelConfigs to apply to samples before scraping (target relabeling). |
 | metrics.serviceMonitor.scrapeTimeout | string | `""` | Timeout after which the scrape is ended |
 | metrics.serviceMonitor.selector | object | `{}` | Additional labels that can be used so ServiceMonitor will be discovered by Prometheus |
-| metricsService.annotations | object | `{}` | Annotations to be added to the metrics service. |
+| metricsService.annotations | object | `service.annotations` | Annotations to be added to the metrics service. Set `{}` for none. |
 | nameOverride | string | `""` | A name in place of the chart name for `app:` labels. |
 | networkPolicy | object | Disabled by default. | [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) for the hub pods. When enabled with no ingress/egress rules, all traffic to/from the hub pods is denied. Supply rules to allow what you need. |
 | networkPolicy.egress | list | `[]` | Egress rules (allowed outbound traffic). Pass-through to `spec.egress`. Allow at least DNS (UDP/TCP 53 to kube-system) plus the transport port. |

@@ -346,8 +346,11 @@
       "type": "object",
       "properties": {
         "annotations": {
-          "description": "Annotations to be added to the metrics service.",
-          "type": "object"
+          "description": "Annotations to be added to the metrics service. Set `{}` for none.",
+          "type": [
+            "object",
+            "null"
+          ]
         }
       }
     },

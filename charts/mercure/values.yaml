@@ -201,8 +201,9 @@ service:
   annotations: {}
 
 metricsService:
-  # -- Annotations to be added to the metrics service.
-  annotations: {}
+  # -- (object) Annotations to be added to the metrics service. Set `{}` for none.
+  # @default -- `service.annotations`
+  annotations:  # @schema type:[object, null]
 
 ingress:
   # -- Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/).
