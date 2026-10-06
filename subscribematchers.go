@@ -60,21 +60,8 @@ var (
 // type or a case typo of a known one) is rejected with an error mapped to a
 // 400 status code. Parameter names are case-sensitive.
 func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
-	var patternWeight uint64
-
-	baseWeight := uint64(len(h.topicMatcherStore.base()))
-
-	for _, pattern := range query[paramMatch+"_"+string(MatcherTypeURLPattern)] {
-		if err := validateMatcherValue(pattern); err != nil {
-			return nil, err
-		}
-
-		weight := baseWeight + urlPatternWeight(pattern)
-		if weight > maxRequestURLPatternWeight-patternWeight {
-			return nil, errMatcherBudgetExceeded
-		}
-
-		patternWeight += weight
+	if err := h.checkURLPatternBudget(query[paramMatch+"_"+string(MatcherTypeURLPattern)]); err != nil {
+		return nil, err
 	}
 
 	var matchers []TopicMatcher
@@ -126,6 +113,33 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 	}
 
 	return matchers, nil
+}
+
+// checkURLPatternBudget runs before compiling so an over-budget request compiles nothing.
+func (h *Hub) checkURLPatternBudget(patterns []string) error {
+	var total uint64
+
+	baseWeight := uint64(len(h.topicMatcherStore.base()))
+
+	for _, pattern := range patterns {
+		if err := validateMatcherValue(pattern); err != nil {
+			return err
+		}
+
+		weight := baseWeight + urlPatternWeight(pattern)
+		if weight > maxURLPatternWeight {
+			// validatePattern rejects it as invalid without compiling it.
+			continue
+		}
+
+		if weight > maxRequestURLPatternWeight-total {
+			return errMatcherBudgetExceeded
+		}
+
+		total += weight
+	}
+
+	return nil
 }
 
 // matcherTypeFromParam maps a subscribe query parameter name to its matcher

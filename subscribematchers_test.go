@@ -87,6 +87,9 @@ func TestParseMatchersURLPatternAggregateBudget(t *testing.T) {
 
 	_, err = h.parseMatchers(url.Values{"match": exact}, false)
 	require.NoError(t, err, "exact matchers do not consume the compilation budget")
+
+	_, err = h.parseMatchers(url.Values{"match_urlpattern": {"https://example.com/([)"}}, false)
+	require.ErrorIs(t, err, errInvalidMatcherPattern, "a malformed pattern is invalid, not over budget")
 }
 
 // TestParseMatchersCaseSensitive verifies the spec rule: topic matcher query
