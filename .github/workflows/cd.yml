@@ -58,6 +58,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # dockers_v2 pushes multi-platform images, which the default docker driver can't.
+      - name: Set up Docker Buildx
+        if: env.RELEASE_TAG != ''
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
       - name: Import GPG key
         if: env.RELEASE_TAG != ''
         id: import_gpg
