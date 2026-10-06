@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"uuid"
@@ -103,6 +104,20 @@ func TestPublishSnapshotsCallerUpdate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPublishSharedUpdateConcurrently(t *testing.T) {
+	t.Parallel()
+
+	hubs := []*Hub{createDummy(t), createDummy(t)}
+	update := &Update{ID: "id", Topics: []string{"https://example.com/books/1"}}
+
+	var wg sync.WaitGroup
+	for _, hub := range hubs {
+		wg.Go(func() { assert.NoError(t, hub.Publish(t.Context(), update)) })
+	}
+
+	wg.Wait()
 }
 
 func TestPublishHandlerNoAuthorizationHeader(t *testing.T) {
