@@ -267,3 +267,55 @@ func TestPublishHandlerMultipartDisabled(t *testing.T) {
 
 	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
 }
+
+// Like urlencoded fields, the first data part wins, and so does its media type.
+func TestPublishHandlerMultipartDuplicateData(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithEventsQuery())
+
+	s := NewLocalSubscriber("", hub.logger, hub.topicMatcherStore)
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/books/1"}}, nil)
+	require.NoError(t, hub.transport.AddSubscriber(t.Context(), s))
+
+	var body bytes.Buffer
+
+	mw := multipart.NewWriter(&body)
+	require.NoError(t, mw.WriteField("topic", "https://example.com/books/1"))
+
+	for _, p := range []struct{ data, contentType string }{{"\x89PNG", "image/png"}, {"hello", "text/plain"}} {
+		pw, err := mw.CreatePart(textproto.MIMEHeader{
+			"Content-Disposition": {`form-data; name="data"`},
+			"Content-Type":        {p.contentType},
+		})
+		require.NoError(t, err)
+
+		_, err = pw.Write([]byte(p.data))
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, mw.Close())
+
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, &body)
+	req.Header.Add("Content-Type", mw.FormDataContentType())
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	select {
+	case dispatched := <-s.Receive():
+		assert.Equal(t, "\x89PNG", dispatched.Data)
+		assert.Equal(t, "image/png", dispatched.ContentType)
+	case <-time.After(5 * time.Second):
+		t.Fatal("update not received")
+	}
+}

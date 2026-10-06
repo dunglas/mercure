@@ -412,7 +412,8 @@ func parseMultipartPublication(body io.Reader, boundary string) (url.Values, str
 			return nil, "", fmt.Errorf("unable to read multipart publication part: %w", err)
 		}
 
-		if name == fieldData {
+		// form.Get returns the first data value, so keep its media type.
+		if name == fieldData && !form.Has(fieldData) {
 			contentType = p.Header.Get("Content-Type")
 		}
 
