@@ -1,239 +1,195 @@
 ---
-title: "Mercure high availability and self-hosted multi-node transports"
-description: "Scale Mercure beyond a single node with the Self-Hosted Redis, PostgreSQL, Kafka, or Pulsar transports, or with managed Mercure Cloud."
+title: "Mercure high availability: Cloud and Enterprise on-premises"
+description: "Scale Mercure with managed Cloud or Enterprise on your infrastructure. Configure Redis/Valkey, PostgreSQL, Kafka, and Pulsar for shared history and multi-node delivery."
 ---
 
-# High availability
+# Mercure high availability
 
-The open-source Mercure hub is a serious piece of software. A single instance comfortably handles tens of thousands of concurrent connections on modest hardware ([benchmark: 40k concurrent on a t3.micro](load-testing.md)). For most production workloads, **one node is enough**.
+Build for your next traffic spike without rebuilding your real-time stack. Mercure can serve tens of thousands of connected users on one small server: a [published benchmark](https://speakerdeck.com/dunglas/2-plus-and-mercure?slide=41) reported **40,000 concurrent connections on an EC2 t3.micro** with the open-source hub and **200,000 with the on-premises HA version**. See [Load testing](load-testing.md) to measure your workload.
 
-What one node can't give you is redundancy. If the box goes down, every subscriber reconnects to nothing. If the disk fails, the BoltDB history is gone. If you want to survive that, you need more than one node. And more than one node needs a transport that synchronizes between them.
+When availability matters, capacity is only part of the story. A second hub keeps your service reachable when a node fails or needs an upgrade. A shared transport carries updates and history across the cluster.
 
-This page covers your options.
+**[Choose Mercure Cloud](https://mercure.rocks/pricing) to let us operate the hub, or [Mercure Enterprise](https://mercure.rocks/pricing) to run a supported cluster on your own infrastructure.** Your applications keep using the same Mercure protocol.
 
 ## What the open-source build gives you
 
-| Capability             | Open-source                    |
-| ---------------------- | ------------------------------ |
-| Concurrent connections | **Unlimited** (hardware-bound) |
-| Publish rate           | **Unlimited**                  |
-| History buffer         | **Unlimited** (disk-bound)     |
-| Number of nodes        | 1                              |
-| Transports             | BoltDB, local                  |
-| TLS, HTTP/2, HTTP/3    | Yes                            |
-| Authorization          | Full JWT support               |
-| Metrics, profiling     | Full Prometheus + pprof        |
-| Subscription events    | Yes                            |
+| Capability                    | Open-source                                                       |
+| ----------------------------- | ----------------------------------------------------------------- |
+| Concurrent connections        | Unlimited by the license; hardware-bound                          |
+| Publish rate                  | Unlimited by the license; hardware-bound                          |
+| History buffer                | No automatic size cap by default; disk-bound                      |
+| Shared state across nodes     | Requires an [Enterprise transport](https://mercure.rocks/pricing) |
+| Transports                    | BoltDB, local                                                     |
+| TLS, HTTP/2, HTTP/3           | Included                                                          |
+| JWT authorization, presence   | Included                                                          |
+| Prometheus metrics, profiling | Included                                                          |
 
-The "1 node" line is the only ceiling. Everything else is unbounded by the license; only by what your hardware and network can deliver.
+The open-source hub is ready for single-node production deployments. [Enterprise](https://mercure.rocks/pricing) adds shared transports and support when you need redundancy or horizontal scaling.
 
 ## When one node isn't enough
 
-Three reasons people graduate to multi-node:
+Use multiple nodes to survive host failures, distribute subscriber traffic, or place hubs closer to users. A load balancer alone does not synchronize hubs: with independent BoltDB instances, a publication sent to one node does not reach subscribers on another.
 
-1. **Redundancy.** A single replica is a single point of failure. For real-time SLOs (sub-second delivery, no perceptible reconnect), you need more than one replica.
-2. **Throughput beyond a single host.** A box can usually push as much as its NIC allows, but multi-host gives you horizontal scale for fan-out: 1M-subscriber broadcasts split across nodes.
-3. **Geo-distribution.** Multi-region deployments need a transport that crosses regions cheaply.
-
-Connection counts alone rarely justify multi-node. A single hub at 100k concurrent connections is normal.
+A shared transport connects the nodes. After a node fails, clients reconnect to another healthy node and request missed events from retained history. Established SSE connections cannot move between processes.
 
 ## The two paths beyond single-node
 
 ### Mercure Cloud (managed)
 
-A hub provisioned on the [Mercure.rocks Cloud](https://mercure.rocks/pricing). High-availability infrastructure, TLS, custom domains, SRE on call. You don't run anything.
+**Build your application. We'll run the hub.** [Mercure Cloud](https://mercure.rocks/pricing) includes managed hosting, automatic HTTPS, and custom domains. Pro plans and above include high availability. Choose a plan for your expected connections, publication rate, and message size.
 
-| Tier     | €/month | Connections | History        |
-| -------- | ------- | ----------- | -------------- |
-| Free     | 0       | 25          | None           |
-| Hobby    | 35      | 1,000       | 100 messages   |
-| Pro      | 120     | 5,000       | 500 messages   |
-| Business | 450     | 20,000      | 5,000 messages |
-
-The buffer caps exist because managed hubs need predictable storage. If you need more history per topic, run Self-Hosted instead.
-
-The protocol is identical. Migrate later by changing one URL.
+[Start with Mercure Cloud](https://mercure.rocks/pricing).
 
 ### Self-hosted Mercure (multi-node, on your infrastructure)
 
-A licensed build of the same hub with multi-node transports added. You run it on your servers (bare metal, your own Kubernetes, your own clouds). Data never leaves your infrastructure. Useful for GDPR data residency, HIPAA, and internal compliance.
+**Mercure Enterprise brings clustering and maintainer support to your own servers.** Run it on Kubernetes, VMs, or bare metal, with Redis/Valkey, PostgreSQL, Kafka, or Pulsar as the shared backend. You choose where your data lives and how long to retain it.
 
-| Tier        | €/year | Connections | Nodes     | History   | Support           |
-| ----------- | ------ | ----------- | --------- | --------- | ----------------- |
-| Open Source | 0      | Unlimited   | 1         | Unlimited | Community         |
-| Startup     | 1,500  | 1,000       | 2         | Unlimited | Email             |
-| Business    | 5,000  | 10,000      | 3         | Unlimited | Priority next-day |
-| Corporate   | 12,000 | Unlimited   | Unlimited | Unlimited | Priority + SLA    |
-| Elite       | Custom | Unlimited   | Unlimited | Unlimited | 24/7 + SLA        |
+Prefer us to operate it too? The **Managed On-Premise** option adds deployment, monitoring, and managed updates on your infrastructure. [Compare Self-Hosted plans](https://mercure.rocks/pricing) or [contact us](mailto:contact@mercure.rocks).
 
-A separate **Managed On-Premise** add-on (€5,000/year) covers remote setup, monitoring, and managed updates if you want the binaries on your infra without running them yourself.
-
-To purchase, email [contact@mercure.rocks](mailto:contact@mercure.rocks?subject=Self-Hosted%20Mercure).
+The licensed Docker image is `ghcr.io/dunglas/mercure-saas/mercure-saas:1.0`. After obtaining registry access and a license, use it in place of `dunglas/mercure`, set `MERCURE_LICENSE`, and configure a shared transport below. See [Kubernetes deployment](../deployment/kubernetes.md#multi-node-and-self-hosted) for Helm values.
 
 ## Self-hosted transports
 
+The following modules are included in **[Mercure Enterprise](https://mercure.rocks/pricing)**. Add one transport block to your existing `mercure` configuration, keeping its issuer and authorization settings.
+
+Put these examples directly in a custom Caddyfile: `{$VARIABLE}` is expanded before parsing. These transport modules do not expand runtime `{env.VARIABLE}` placeholders, and Caddy does not expand nested variables inside `MERCURE_EXTRA_DIRECTIVES`. For Helm, use the [Redis/Valkey storage configuration](../deployment/kubernetes.md#multi-node-and-self-hosted).
+
+Replicas of one hub must share the same backend namespace. Independent hubs need different Redis/Valkey streams, Kafka/Pulsar topics, or PostgreSQL databases; separate PostgreSQL schemas are not sufficient. Set a distinct Mercure `name` for each independent hub in one Caddy process.
+
 ### Redis / Valkey
 
-The default for low-latency multi-node. Good fit when the hub is one of several services and the data is volatile.
+Redis and Valkey are a good starting point for a cluster, especially when you need presence across nodes. The transport uses streams for history and supports custom event IDs and the cluster-wide subscription API.
 
 ```caddyfile
-# Redis / Valkey
 mercure {
   transport redis {
-    url    rediss://default:p@ssw0rd@redis.example.com:6379
+    url {$REDIS_URL}
     stream mercure
+    max_length 100000
   }
-  # ...
 }
 ```
 
-| Feature          | Supported |
-| ---------------- | --------- |
-| History          | ✅        |
-| Subscription API | ✅        |
-| Custom event ID  | ✅        |
+Set `REDIS_URL` to a Redis or Valkey URI, such as `rediss://default:password@redis.example.com:6379`. Use `redis://` for a connection without TLS. Store production credentials in your secret manager.
 
-Options:
+| Option                 | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `url`                  | Redis or Valkey connection URI.                                                   |
+| `addresses`            | One or more `host:port` addresses, as an alternative to `url`.                    |
+| `stream`               | Shared stream name. Default: `mercure`.                                           |
+| `max_length`           | Approximate retention limit in entries. Default: `0` (unlimited).                 |
+| `username`, `password` | Credentials when configuring addresses separately.                                |
+| `tls`                  | Enable TLS when configuring addresses separately.                                 |
+| `gob`                  | Encode updates with Go gob instead of JSON; configure every replica consistently. |
 
-| Option                        | Description                                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `url`                         | Redis connection URI ([spec](https://github.com/redis/redis-specifications/blob/master/uri/redis.txt)). |
-| `stream`                      | Redis stream name. Default: `mercure`.                                                                  |
-| `max_length`                  | Approximate maximum stream size. `0` for unlimited.                                                     |
-| `gob`                         | Use Go `gob` instead of JSON. Faster, but can't be read by other clients.                               |
-| `addresses`                   | Multiple Redis nodes (cluster).                                                                         |
-| `username`, `password`, `tls` | Authentication and transport security.                                                                  |
-
-Reuse an existing Caddy storage Redis (when you also use [`caddy-storage-redis`](https://github.com/pberkel/caddy-storage-redis)) by passing `address caddy-storage-redis.alt`.
+Configure backend persistence for your recovery requirements. Enable `subscriptions` on the hub to use the subscription API.
 
 ### PostgreSQL
 
-The Postgres transport uses `LISTEN`/`NOTIFY` for pub/sub and SQL tables for history. Right when you want events queryable from the rest of your data.
+Keep your real-time history in PostgreSQL, using infrastructure your team already knows. The transport persists updates in a `history` table and uses `LISTEN`/`NOTIFY` to signal new events to every hub.
 
 ```caddyfile
-# PostgreSQL
 mercure {
   transport postgres {
-    url postgres://user:password@db.example.com/mercure
+    url {$POSTGRES_URL}
   }
 }
 ```
 
-| Feature          | Supported    |
-| ---------------- | ------------ |
-| History          | ✅           |
-| Subscription API | ❌ (planned) |
-| Custom event ID  | ✅           |
+Set `POSTGRES_URL` to a connection URI, for example `postgres://user:password@db.example.com/mercure?sslmode=require`. The database role must be able to create the transport's tables, functions, and triggers. The transport supports replay and custom event IDs; it does not implement the cluster-wide subscription API.
 
-The Postgres transport doubles as an event store. You can join Mercure events with your application data in a single query, which is useful for audit, analytics, and replays.
+History is stored in SQL, so you can query it for diagnostics or analytics. Plan retention and backups as part of operating the database.
 
 ### Apache Kafka
 
-Use Kafka when it's already in your stack and you want Mercure to ride on it. Otherwise, prefer Redis or Postgres.
+Already running Kafka? Use it to distribute Mercure updates across your hubs and retain them under your broker's storage policy.
 
 ```caddyfile
-# Apache Kafka
 mercure {
   transport kafka {
-    addresses host1:9092 host2:9092
+    addresses kafka-1:9092 kafka-2:9092
     topic mercure
-    consumer_group hub-pod-3
+    consumer_group {$HOSTNAME}
   }
 }
 ```
 
-| Option                    | Description                                                   |
-| ------------------------- | ------------------------------------------------------------- |
-| `addresses`               | Broker addresses.                                             |
-| `topic`                   | Kafka topic. **All hub instances must share the same topic.** |
-| `consumer_group`          | Consumer group. **Must be unique per hub instance.**          |
-| `user`, `password`, `tls` | SASL credentials.                                             |
+| Option             | Description                                                                                                             |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `addresses`        | One or more Kafka broker addresses.                                                                                     |
+| `topic`            | Kafka topic shared by all replicas of the hub.                                                                          |
+| `consumer_group`   | Unique per hub instance so every hub receives every update. Defaults to `HOSTNAME`; required if that variable is empty. |
+| `user`, `password` | SASL credentials.                                                                                                       |
+| `tls`              | Enable TLS to the brokers.                                                                                              |
 
-| Feature          | Supported |
-| ---------------- | --------- |
-| History          | ✅        |
-| Subscription API | ❌        |
-| Custom event ID  | ✅        |
+Set a distinct `HOSTNAME` for each instance, as Kubernetes does for pods. Kafka supports replay and custom event IDs, but not the cluster-wide subscription API. Ordering is per Kafka partition; updates across partitions have no global order.
 
 ### Apache Pulsar
 
+Connect Mercure to your Pulsar deployment to share publications and replay across hub instances:
+
 ```caddyfile
-# Apache Pulsar
 mercure {
   transport pulsar {
     url pulsar://pulsar.example.com:6650
     topic mercure
-    subscription_name hub-pod-3
+    subscription_name {$HOSTNAME}
   }
 }
 ```
 
-| Feature          | Supported    |
-| ---------------- | ------------ |
-| History          | ✅           |
-| Subscription API | ❌           |
-| Custom event ID  | ❌ (planned) |
+Use the same topic and a unique `subscription_name` per hub instance. The subscription name defaults to `HOSTNAME`, which must be set if the option is omitted. Configure broker retention for the replay window you need.
+
+Pulsar supports history replay. It assigns the event IDs, so publisher-supplied custom IDs are not preserved. The cluster-wide subscription API is not supported.
 
 ## Picking a Mercure self-hosted transport
 
-| Need                                 | Transport                |
-| ------------------------------------ | ------------------------ |
-| Lowest latency, simplest setup       | **Redis / Valkey**       |
-| Queryable history alongside app data | **PostgreSQL**           |
-| Already running Kafka                | **Kafka**                |
-| Already running Pulsar               | **Pulsar**               |
-| Single node, no extra infra          | **BoltDB** (open-source) |
+| Need                                            | Transport                |
+| ----------------------------------------------- | ------------------------ |
+| Shared history and cluster-wide presence        | **Redis / Valkey**       |
+| SQL history on existing database infrastructure | **PostgreSQL**           |
+| Use your Kafka cluster                          | **Kafka**                |
+| Use your Pulsar cluster                         | **Pulsar**               |
+| Single node with no separate backend            | **BoltDB** (open-source) |
 
-When in doubt, Redis. It's the recommended default for Self-Hosted.
+Each Enterprise transport also accepts `liveness_threshold`, a duration controlling how long a backend outage can last before the hub reports a liveness failure. See [Health monitoring](health-monitoring.md).
+
+For a first cluster, start with Redis/Valkey. For help choosing and sizing a deployment, [talk to the Mercure team](mailto:contact@mercure.rocks).
 
 ## Custom Mercure transports
 
-The transport interface is small and public. If none of the above fits, write your own. See [`transport.go`](https://github.com/dunglas/mercure/blob/main/transport.go) and build a custom hub with `xcaddy`.
+The transport interface is small and public. If you need a custom backend, implement [`transport.go`](https://github.com/dunglas/mercure/blob/main/transport.go) and build a hub with `xcaddy`.
 
 ## License keys
 
-Self-Hosted is gated by a license key passed via `MERCURE_LICENSE`. The check runs in-process; the hub doesn't call back to a license server.
+Set `MERCURE_LICENSE` to the key supplied with your [Self-Hosted plan](https://mercure.rocks/pricing). Inject it through your deployment's secret store alongside the publisher and subscriber keys:
 
 ```console
-# License keys
-MERCURE_LICENSE=<key> \
-MERCURE_PUBLISHER_JWT_KEY=... \
-MERCURE_SUBSCRIBER_JWT_KEY=... \
-./mercure run
+export MERCURE_LICENSE='<your license key>'
+./mercure run --config Caddyfile
 ```
 
-The license enforces node count and connection caps. Going over the cap doesn't crash the hub; it returns `429 Too Many Requests` to publishers and refuses new subscribers.
+The Enterprise binary validates the license signature and expiry locally at startup, without contacting a license server. A missing, invalid, or expired license prevents startup. Check the logs and contact support if validation fails.
 
 ## Mercure migration paths
 
-| From                    | To          | What changes                                                                                                             |
-| ----------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Open-source single node | Cloud       | Change the hub URL on clients. JWT keys move to the dashboard.                                                           |
-| Open-source single node | Self-Hosted | Same binary structure, with a license and a multi-node transport. Subscribe and publish APIs are byte-for-byte the same. |
-| Cloud                   | Self-Hosted | Migrate the hub URL and the keys. Keep the same JWTs.                                                                    |
+The open-source hub, Cloud, and Enterprise speak the same protocol. You keep your publication and subscription logic when changing hosting.
 
-There is no protocol fork: every tier speaks the same Mercure protocol. Code written against the open-source hub runs on Cloud and Self-Hosted unchanged.
+Update the hub URL, token audience, issuer configuration, CORS origins, and cookie scope to match the destination. Plan history migration and client reconnection separately.
 
-## Mercure vs. Pusher and ably: pricing comparison
+## Mercure vs. Pusher and Ably: pricing comparison
 
-For people coming from SaaS-only real-time platforms, here's the rough picture:
+With Mercure, you choose how to pay for real-time delivery: managed Cloud, a supported Enterprise deployment on your infrastructure, or the free open-source hub. You can move between those options without adopting a new client SDK.
 
-| Feature                | Mercure Pro (€120) | Pusher Business ($499) | Ably Pro ($399+)    |
-| ---------------------- | ------------------ | ---------------------- | ------------------- |
-| Concurrent connections | 5,000              | 2,000                  | 5,000               |
-| History buffer         | 500 messages       | Limited                | 2 minutes default   |
-| Messages               | Unlimited          | Daily cap              | Usage-based billing |
-| Self-hostable?         | Yes                | No                     | No                  |
-
-Mercure is the only one of these you can run on your own infrastructure if you need to. That's by design.
+Evaluating **Pusher / Ably / Firebase / Supabase Realtime**? Mercure keeps your real-time delivery independent of your application database and gives you both managed and on-premises options. For large deployments, [Self-Hosted plans](https://mercure.rocks/pricing) let you size your own infrastructure; for teams that want to avoid operations, [Cloud plans](https://mercure.rocks/pricing) include hosting. See the [FAQ comparison](../reference/faq.md#whats-the-difference-between-mercure-and-pusher--ably--firebase--supabase-realtime).
 
 ## Mercure support channels
 
-- **Self-Hosted / Cloud:** [contact@mercure.rocks](mailto:contact@mercure.rocks)
-- **Open-source:** [GitHub Discussions](https://github.com/dunglas/mercure/discussions), [Stack Overflow `mercure` tag](https://stackoverflow.com/questions/tagged/mercure), `#mercure` on the Symfony Slack
+- **Enterprise / Cloud:** [contact@mercure.rocks](mailto:contact@mercure.rocks). [Choose a support plan](https://mercure.rocks/pricing) for your response-time and availability requirements.
+- **Open-source:** [GitHub Discussions](https://github.com/dunglas/mercure/discussions), [Stack Overflow](https://stackoverflow.com/questions/tagged/mercure), or the [Symfony Slack](https://symfony.com/slack).
 
-## Next steps for Mercure high availability
+## Next steps
 
-- [Rolling updates](rolling-updates.md): graceful drain in any deployment.
-- [Health monitoring](health-monitoring.md): knowing the hub is healthy.
-- [Load testing](load-testing.md): figure out what the hardware can do before users do.
+- [Kubernetes](../deployment/kubernetes.md#multi-node-and-self-hosted): deploy the Enterprise image with Helm.
+- [Rolling updates](rolling-updates.md): drain connections during deployments.
+- [Health monitoring](health-monitoring.md): monitor your hub and shared transport.

@@ -22,10 +22,10 @@ func TestDispatch(t *testing.T) {
 
 	// Dispatch must be non-blocking
 	// Messages coming from the history can be sent after live messages, but must be received first
-	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "3"}}, false)
-	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "1"}}, true)
-	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "4"}}, false)
-	s.Dispatch(ctx, &Update{Topics: []string{topic}, Event: Event{ID: "2"}}, true)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, ID: "3"}, false)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, ID: "1"}, true)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, ID: "4"}, false)
+	s.Dispatch(ctx, &Update{Topics: []string{topic}, ID: "2"}, true)
 	s.HistoryDispatched("")
 
 	s.Ready(ctx)
@@ -103,4 +103,22 @@ func TestSubscriberDoesNotBlockWhenChanIsFull(t *testing.T) {
 
 	for range s.Receive() { //nolint:revive
 	}
+}
+
+func TestLiveQueueBoundedBeforeReady(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
+	require.True(t, s.Dispatch(ctx, &Update{ID: "history"}, true))
+
+	for i := 1; i < outBufferLength; i++ {
+		require.True(t, s.Dispatch(ctx, &Update{}, false))
+	}
+
+	assert.False(t, s.Dispatch(ctx, &Update{}, false))
+	assert.True(t, s.disconnected.Load())
+	assert.Len(t, s.liveQueue, outBufferLength-1)
+	assert.Zero(t, s.Ready(ctx))
 }

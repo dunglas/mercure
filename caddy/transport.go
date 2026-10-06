@@ -23,10 +23,20 @@ type (
 	subscriptionsKeyType        struct{}
 	writeTimeoutKeyType         struct{}
 	subscriberListCacheSizeType struct{}
+	hubNameKeyType              struct{}
 )
 
 var (
 	SubscriptionsContextKey           = subscriptionsKeyType{}        //nolint:gochecknoglobals
 	WriteTimeoutContextKey            = writeTimeoutKeyType{}         //nolint:gochecknoglobals
 	SubscriberListCacheSizeContextKey = subscriberListCacheSizeType{} //nolint:gochecknoglobals
+	// HubNameContextKey carries the hub name: pooled transports must key by it
+	// so that differently named hubs never share subscribers or history.
+	HubNameContextKey = hubNameKeyType{} //nolint:gochecknoglobals
 )
+
+func hubName(ctx caddy.Context) string {
+	name, _ := ctx.Value(HubNameContextKey).(string)
+
+	return name
+}

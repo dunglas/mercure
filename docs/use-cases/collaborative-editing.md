@@ -3,7 +3,7 @@ title: "Build collaborative editing on Mercure with CRDTs"
 description: "Combine Mercure broadcast, presence, and replay with Yjs or Automerge to build real-time collaborative editing features."
 ---
 
-# Collaborative editing
+# Mercure collaborative editing
 
 Multiple users edit the same document and see each other's changes in real time. This guide covers the pieces Mercure handles directly (broadcast, presence, replay) and outlines where you still need to bring your own logic (conflict resolution).
 
@@ -17,7 +17,7 @@ A working collaborative editor needs:
 4. **Persistence.** The document survives page reloads.
 5. **Late join.** A user opening the doc mid-session sees the latest state, not just the next change.
 
-Mercure handles 1, 3, and partially 5. Bring a CRDT (Yjs, Automerge, Loro) for 2. Use your normal database for 4.
+Mercure broadcasts updates, reports connected subscriptions, and replays retained changes. Your application supplies conflict resolution, document storage, and cursor updates.
 
 ## Broadcasting document changes via Mercure
 
@@ -30,7 +30,7 @@ const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", `https://docs.example.com/${docId}`);
 url.searchParams.append(
   "match_urlpattern",
-  `/.well-known/mercure/subscriptions/:match_type/:match/:subscriber`,
+  `/.well-known/mercure/subscriptions/exact/${encodeURIComponent(`https://docs.example.com/${docId}`)}/:subscriber`,
 );
 
 const es = new EventSource(url, { withCredentials: true });
@@ -39,7 +39,6 @@ const es = new EventSource(url, { withCredentials: true });
 When the local user types:
 
 ```javascript
-// Broadcasting Document Changes via Mercure
 editor.on("change", async (delta) => {
   await fetch("/api/docs/" + docId + "/change", {
     method: "POST",
@@ -49,15 +48,15 @@ editor.on("change", async (delta) => {
 });
 ```
 
-The origin server stores the delta in the document's history and publishes it to the hub:
+In this pseudocode, the API authorizes the edit, persists it, then publishes a private update. `db` and `publish` are application helpers; the latter sends authenticated Mercure requests with `private=on`.
 
 ```python
-# Broadcasting Document Changes via Mercure
 def post_change(doc_id: str, delta: dict, user_id: str) -> None:
     db.append_change(doc_id, delta, user_id)
     publish(
         topic=f"https://docs.example.com/{doc_id}",
         data=json.dumps({"type": "delta", "delta": delta, "author": user_id}),
+        private=True,
     )
 ```
 
@@ -65,12 +64,11 @@ Every connected client receives the delta and applies it to their local copy.
 
 ## CRDT conflict resolution with Mercure transport
 
-Mercure delivers messages; it does not order them across publishers. If you publish raw text edits ("insert 'h' at position 5"), two users typing at once will produce inconsistent results.
+Mercure broadcasts changes but does not resolve conflicting edits. Raw operations such as "insert at position 5" need an ordering and merge strategy when several users edit concurrently.
 
-The standard answer is a **CRDT**: a data structure that lets local edits commute. The most popular library is [Yjs](https://yjs.dev/). The integration looks like:
+A conflict-free replicated data type (CRDT), such as [Yjs](https://yjs.dev/), can merge concurrent edits. This sketch assumes your editor is bound to the Yjs document:
 
 ```javascript
-// CRDT Conflict Resolution with Mercure Transport
 import * as Y from "yjs";
 
 const ydoc = new Y.Doc();
@@ -86,12 +84,17 @@ ydoc.on("update", (update, origin) => {
 });
 
 es.onmessage = (event) => {
-  const update = base64ToBytes(JSON.parse(event.data).update);
+  const binary = atob(JSON.parse(event.data).update);
+  const update = Uint8Array.from(binary, (character) =>
+    character.charCodeAt(0),
+  );
   Y.applyUpdate(ydoc, update, "remote");
 };
 ```
 
-The CRDT guarantees convergence; Mercure just ferries the binary updates around.
+The server must publish the binary Yjs update as base64 in a JSON `update` property, matching the subscriber above.
+
+The `/change` endpoint must encode the received binary bytes as base64 and publish `{"update":"<base64>"}` privately. This differs from the generic JSON delta format above. Check HTTP failures and retry or resynchronize unsent changes.
 
 [Automerge](https://automerge.org/) and [Loro](https://www.loro.dev/) work the same way. Mercure doesn't care what's in the payload.
 
@@ -99,8 +102,7 @@ The CRDT guarantees convergence; Mercure just ferries the binary updates around.
 
 Use [subscription events](../concepts/active-subscriptions.md) to show who's connected. Each user's access token carries a payload with their name and color:
 
-```jsonc
-// Collaborative Presence with Mercure Subscription Events (header: { "alg": "...", "typ": "at+jwt" })
+```json
 {
   "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
@@ -112,31 +114,31 @@ Use [subscription events](../concepts/active-subscriptions.md) to show who's con
       "topics": [
         { "match": "https://docs.example.com/books/42" },
         {
-          "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
-          "match_type": "urlpattern",
-        },
+          "match": "/.well-known/mercure/subscriptions/exact/https%3A%2F%2Fdocs.example.com%2Fbooks%2F42/:subscriber",
+          "match_type": "urlpattern"
+        }
       ],
-      "payload": { "name": "Alice", "color": "#ff0066" },
-    },
-  ],
+      "payload": { "name": "Alice", "color": "#ff0066" }
+    }
+  ]
 }
 ```
 
 The hub assigns each connection a random `urn:uuid:` subscriber ID. For a stable identity in presence, surface the `payload` (here `name` and `color`) rather than relying on a client-chosen subscriber ID.
 
-When subscriptions on the document topic open or close, the hub broadcasts an event including that payload. The UI maintains a list of "people here":
+Initialize presence from the [subscription API](../concepts/active-subscriptions.md#subscription-api) and its replay cursor. The listener below handles subsequent changes; grant access to the snapshot path separately. When subscriptions on the document topic open or close, the hub broadcasts an event including that payload. The UI maintains a list of "people here":
 
 ```javascript
-// Collaborative Presence with Mercure Subscription Events
 const peers = new Map();
 
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "match_urlpattern",
-  "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
+  "/.well-known/mercure/subscriptions/exact/https%3A%2F%2Fdocs.example.com%2Fbooks%2F42/:subscriber",
 );
 
-new EventSource(url, { withCredentials: true }).onmessage = (event) => {
+const presence = new EventSource(url, { withCredentials: true });
+presence.addEventListener("mercure", (event) => {
   const sub = JSON.parse(event.data);
   if (sub.match !== "https://docs.example.com/books/42") return;
   if (sub.active) {
@@ -145,24 +147,24 @@ new EventSource(url, { withCredentials: true }).onmessage = (event) => {
     peers.delete(sub.subscriber);
   }
   renderPeers(peers);
-};
+});
 ```
 
 For cursor positions and selections, publish them on a separate topic per peer (so they don't pollute the document's change stream):
 
 ```javascript
-// Collaborative Presence with Mercure Subscription Events
 fetch("/api/docs/" + docId + "/cursor", {
   method: "POST",
   body: JSON.stringify({ from, to }),
+  headers: { "Content-Type": "application/json" },
 });
 ```
 
 ```python
-# Collaborative Presence with Mercure Subscription Events
 publish(
   topic=f"https://docs.example.com/{doc_id}/cursors/{user_id}",
   data=json.dumps({"from": from_pos, "to": to_pos}),
+  private=True,
 )
 ```
 
@@ -187,8 +189,7 @@ The hub's history buffer is for surviving brief disconnects, not for storing mon
 
 Documents are usually private. Each user's `subscribe` grant should cover only the documents they have access to:
 
-```jsonc
-// Authorization (header: { "alg": "...", "typ": "at+jwt" })
+```json
 {
   "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
@@ -201,15 +202,15 @@ Documents are usually private. Each user's `subscribe` grant should cover only t
         { "match": "https://docs.example.com/books/42" },
         {
           "match": "https://docs.example.com/books/42/cursors/:user",
-          "match_type": "urlpattern",
+          "match_type": "urlpattern"
         },
         {
-          "match": "/.well-known/mercure/subscriptions/:match_type/:match/:subscriber",
-          "match_type": "urlpattern",
-        },
-      ],
-    },
-  ],
+          "match": "/.well-known/mercure/subscriptions/exact/https%3A%2F%2Fdocs.example.com%2Fbooks%2F42/:subscriber",
+          "match_type": "urlpattern"
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -217,11 +218,9 @@ Mark every change publication `private=on` so the hub enforces the claim.
 
 ## What about the publish path?
 
-If you want clients to publish directly to the hub (skipping the origin server), you can: give them a publisher JWT. But typically you don't. Routing changes through your API lets you persist them, validate them, and rate-limit them. The publish to Mercure is just a fan-out at the end of that pipeline.
+Clients can publish directly with scoped publisher tokens. Routing edits through your API also gives you a place to authorize, validate, and persist changes before broadcasting them.
 
-> **Pro tip.** Collaborative apps benefit from multi-region deployments. The open-source hub runs on a single node; for HA across regions you'll want [Self-Hosted Mercure](https://mercure.rocks/pricing) with Redis or Postgres transports, or the [managed Cloud version](https://mercure.rocks/pricing).
-
-## Next steps for collaborative editing on Mercure
+## Next steps
 
 - [Active subscriptions](../concepts/active-subscriptions.md): the presence layer in detail.
 - [Reconnection and history](../concepts/reconnection-and-history.md): surviving disconnects.

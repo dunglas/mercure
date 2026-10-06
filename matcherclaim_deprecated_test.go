@@ -18,8 +18,8 @@ func TestResolveMatcherClaimsDeprecated(t *testing.T) {
 	require.NoError(t, err)
 
 	cs := []matcherClaim{
-		{TopicMatcher: TopicMatcher{Pattern: "https://example.com/{id}"}},
-		{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}},
+		{Pattern: "https://example.com/{id}"},
+		{Type: MatcherTypeExact, Pattern: "foo"},
 	}
 	require.NoError(t, resolveMatcherClaims(tms, cs, true))
 	assert.Equal(t, deprecatedMatcherTypeName, cs[0].Type)

@@ -3,6 +3,7 @@ package mercure
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -94,6 +96,37 @@ func newSubscribeRecorder() *subscribeRecorder {
 	return &subscribeRecorder{ResponseRecorder: httptest.NewRecorder()}
 }
 
+// sseSubscriptions decodes every subscription document carried by an SSE
+// stream. Assertions then run against the document rather than against its
+// serialised form, so they survive a change of JSON formatting.
+func sseSubscriptions(tb testing.TB, stream string) []subscription {
+	tb.Helper()
+
+	var subs []subscription
+
+	for frame := range strings.SplitSeq(stream, "\n\n") {
+		var data []string
+
+		for line := range strings.SplitSeq(frame, "\n") {
+			if after, ok := strings.CutPrefix(line, "data:"); ok {
+				data = append(data, strings.TrimPrefix(after, " "))
+			}
+		}
+
+		if len(data) == 0 {
+			continue
+		}
+
+		// Per the SSE grammar the data lines of a frame are joined with LF.
+		var sub subscription
+		require.NoError(tb, json.Unmarshal([]byte(strings.Join(data, "\n")), &sub))
+
+		subs = append(subs, sub)
+	}
+
+	return subs
+}
+
 func (r *subscribeRecorder) SetWriteDeadline(deadline time.Time) error {
 	if deadline.After(r.writeDeadline) {
 		r.writeDeadline = deadline
@@ -146,7 +179,7 @@ func TestSubscribeNotAFlusher(t *testing.T) {
 
 		_ = hub.transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/foo"},
-			Event:  Event{Data: "Hello World"},
+			Data:   "Hello World",
 		})
 	}()
 
@@ -421,7 +454,7 @@ func TestSubscribeQueryMethod(t *testing.T) {
 
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/books/1"},
-			Event:  Event{Data: "Hello World", ID: "b"},
+			Data:   "Hello World", ID: "b",
 		})
 	}()
 
@@ -459,23 +492,23 @@ func subscribe(tb testing.TB, numberOfSubscribers int) {
 
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/not-subscribed"},
-			Event:  Event{Data: "Hello World", ID: "a"},
+			Data:   "Hello World", ID: "a",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/books/1"},
-			Event:  Event{Data: "Hello World", ID: "b"},
+			Data:   "Hello World", ID: "b",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/reviews/22"},
-			Event:  Event{Data: "Great", ID: "c"},
+			Data:   "Great", ID: "c",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/hub?topic=faulty{iri"},
-			Event:  Event{Data: "Faulty IRI", ID: "d"},
+			Data:   "Faulty IRI", ID: "d",
 		})
 		_ = hub.transport.Dispatch(ctx, &Update{
 			Topics: []string{"string"},
-			Event:  Event{Data: "string", ID: "e"},
+			Data:   "string", ID: "e",
 		})
 	}()
 
@@ -643,18 +676,18 @@ func TestSubscribePrivate(t *testing.T) {
 			}
 
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/21"},
-				Event:   Event{Data: "Foo", ID: "a"},
+				Topics: []string{"https://example.com/reviews/21"},
+				Data:   "Foo", ID: "a",
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/22"},
-				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+				Topics: []string{"https://example.com/reviews/22"},
+				Data:   "Hello World", ID: "b", Type: "test",
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/23"},
-				Event:   Event{Data: "Great", ID: "c", Retry: 1},
+				Topics: []string{"https://example.com/reviews/23"},
+				Data:   "Great", ID: "c", Retry: 1,
 				Private: true,
 			})
 
@@ -679,96 +712,116 @@ func TestSubscribePrivate(t *testing.T) {
 func TestSubscriptionEvents(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t, WithSubscriptions())
+	synctest.Test(t, func(t *testing.T) {
+		hub := createDummy(t, WithSubscriptions())
 
-	ctx1, cancel1 := context.WithCancel(t.Context())
-	t.Cleanup(cancel1)
+		ctx1, cancel1 := context.WithCancel(t.Context())
+		t.Cleanup(cancel1)
 
-	ctx2, cancel2 := context.WithCancel(t.Context())
-	t.Cleanup(cancel2)
+		ctx2, cancel2 := context.WithCancel(t.Context())
+		t.Cleanup(cancel2)
 
-	var wg sync.WaitGroup
+		var wg sync.WaitGroup
 
-	wg.Go(func() {
-		// Authorized to receive connection events
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
-		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, struct {
-			Foo string `json:"foo"`
-		}{Foo: "bar"}, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
+		wg.Go(func() {
+			// Authorized to receive connection events
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/*", nil).WithContext(ctx1)
+			req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummySubscriberJWTWithDetails(t, struct {
+				Foo string `json:"foo"`
+			}{Foo: "bar"}, TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "/.well-known/mercure/subscriptions/*"})})
 
-		w := newSubscribeRecorder()
-		hub.SubscribeHandler(w, req)
+			w := newSubscribeRecorder()
+			hub.SubscribeHandler(w, req)
 
-		resp := w.Result()
+			resp := w.Result()
 
-		t.Cleanup(func() {
-			_ = resp.Body.Close()
-		})
+			t.Cleanup(func() {
+				_ = resp.Body.Close()
+			})
 
-		body, _ := io.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		bodyContent := string(body)
-		assert.Contains(t, bodyContent, "event: mercure\n")
-		assert.Regexp(t, `(?m)^data:   "id": "/\.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample\.com/.*,$`, bodyContent)
-		assert.Contains(t, bodyContent, `data:   "type": "subscription",`)
-		assert.Contains(t, bodyContent, `data:   "subscriber": "urn:uuid:`)
-		assert.Contains(t, bodyContent, `data:   "match": "https://example.com",`)
-		assert.Contains(t, bodyContent, `data:   "match_type": "exact",`)
-		assert.Contains(t, bodyContent, `data:   "active": true,`)
-		assert.Contains(t, bodyContent, `data:   "active": false,`)
-		assert.Contains(t, bodyContent, `data:   "payload": {`)
-		assert.Contains(t, bodyContent, `data:     "foo": "bar"`)
-	})
+			bodyContent := string(body)
+			assert.Contains(t, bodyContent, "event: mercure\n")
 
-	wg.Go(func() {
-		// Not authorized to receive connection events
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/:match_type/:match/:subscriber", nil).WithContext(ctx2)
-		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+			subs := sseSubscriptions(t, bodyContent)
+			require.NotEmpty(t, subs)
 
-		w := newSubscribeRecorder()
-		hub.SubscribeHandler(w, req)
+			var announced, withdrawn []subscription
 
-		resp := w.Result()
-
-		t.Cleanup(func() {
-			_ = resp.Body.Close()
-		})
-
-		body, _ := io.ReadAll(resp.Body)
-
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
-		assert.Empty(t, string(body))
-	})
-
-	wg.Go(func() {
-		ctx := t.Context()
-
-		for {
-			_, s, _ := hub.transport.(TransportSubscribers).GetSubscribers(ctx)
-			if len(s) == 2 {
-				break
+			for _, sub := range subs {
+				if sub.Active {
+					announced = append(announced, sub)
+				} else {
+					withdrawn = append(withdrawn, sub)
+				}
 			}
-		}
 
-		ctx, cancelRequest2 := context.WithCancel(ctx)
-		req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
-		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
+			assert.NotEmpty(t, announced, "no subscription was announced")
+			assert.NotEmpty(t, withdrawn, "the disconnection was never announced")
 
-		w := &responseTester{
-			expectedStatusCode: http.StatusOK,
-			expectedBody:       ":\n",
-			tb:                 t,
-			cancel:             cancelRequest2,
-		}
-		hub.SubscribeHandler(w, req)
-		time.Sleep(1 * time.Second) // TODO: find a better way to wait for the disconnection update to be dispatched
-		cancel2()
-		cancel1()
+			for _, sub := range subs {
+				assert.Equal(t, "subscription", sub.Type)
+				assert.Regexp(t, `^urn:uuid:`, sub.Subscriber)
+			}
+
+			i := slices.IndexFunc(subs, func(sub subscription) bool { return sub.Match == "https://example.com" })
+			require.GreaterOrEqual(t, i, 0, "no event described the example.com subscription")
+
+			assert.Equal(t, string(MatcherTypeExact), subs[i].MatchType)
+			assert.Regexp(t, `^/\.well-known/mercure/subscriptions/exact/https%3A%2F%2Fexample\.com/`, subs[i].ID)
+			assert.Equal(t, map[string]any{"foo": "bar"}, subs[i].Payload)
+		})
+
+		wg.Go(func() {
+			// Not authorized to receive connection events
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=/.well-known/mercure/subscriptions/:match_type/:match/:subscriber", nil).WithContext(ctx2)
+			req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{})})
+
+			w := newSubscribeRecorder()
+			hub.SubscribeHandler(w, req)
+
+			resp := w.Result()
+
+			t.Cleanup(func() {
+				_ = resp.Body.Close()
+			})
+
+			body, _ := io.ReadAll(resp.Body)
+
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Empty(t, string(body))
+		})
+
+		wg.Go(func() {
+			// Both subscribers above are registered once they are durably
+			// blocked waiting for updates.
+			synctest.Wait()
+
+			ctx, cancelRequest2 := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com", nil).WithContext(ctx)
+			req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"https://example.com"})})
+
+			w := &responseTester{
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\n",
+				tb:                 t,
+				cancel:             cancelRequest2,
+			}
+			hub.SubscribeHandler(w, req)
+
+			// This subscriber is gone; wait for the resulting "active": false
+			// update to reach the subscriber above before tearing it down.
+			synctest.Wait()
+
+			cancel2()
+			cancel1()
+		})
+
+		wg.Wait()
 	})
-
-	wg.Wait()
 }
 
 func TestSubscribeAll(t *testing.T) {
@@ -789,13 +842,13 @@ func TestSubscribeAll(t *testing.T) {
 			}
 
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/21"},
-				Event:   Event{Data: "Foo", ID: "a"},
+				Topics: []string{"https://example.com/reviews/21"},
+				Data:   "Foo", ID: "a",
 				Private: true,
 			})
 			_ = hub.transport.Dispatch(ctx, &Update{
-				Topics:  []string{"https://example.com/reviews/22"},
-				Event:   Event{Data: "Hello World", ID: "b", Type: "test"},
+				Topics: []string{"https://example.com/reviews/22"},
+				Data:   "Hello World", ID: "b", Type: "test",
 				Private: true,
 			})
 
@@ -828,17 +881,13 @@ func TestSendMissedEvents(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event: Event{
-				ID:   "a",
-				Data: "d1",
-			},
+			ID:     "a",
+			Data:   "d1",
 		}))
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		// Using deprecated 'Last-Event-ID' query parameter
@@ -899,17 +948,13 @@ func TestSendAllEvents(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event: Event{
-				ID:   "a",
-				Data: "d1",
-			},
+			ID:     "a",
+			Data:   "d1",
 		}))
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		go func() {
@@ -956,10 +1001,8 @@ func TestUnknownLastEventID(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event: Event{
-				ID:   "a",
-				Data: "d1",
-			},
+			ID:     "a",
+			Data:   "d1",
 		}))
 
 		ctx := t.Context()
@@ -1013,10 +1056,8 @@ func TestUnknownLastEventID(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		synctest.Wait()
@@ -1033,14 +1074,14 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 		// Public event the anonymous subscriber is authorized to read.
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Topics: []string{"https://example.com/foos/a"},
-			Event:  Event{ID: "a", Data: "d1"},
+			ID:     "a", Data: "d1",
 		}))
 		// Private event the anonymous subscriber is NOT authorized to
 		// read. Its id must not appear in the Last-Event-ID response.
 		require.NoError(t, transport.Dispatch(t.Context(), &Update{
 			Topics:  []string{"https://example.com/foos/b"},
 			Private: true,
-			Event:   Event{ID: "b", Data: "secret"},
+			ID:      "b", Data: "secret",
 		}))
 
 		ctx := t.Context()
@@ -1081,7 +1122,7 @@ func TestUnknownLastEventIDDoesNotLeakPrivateEventID(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/c"},
-			Event:  Event{ID: "c", Data: "d3"},
+			ID:     "c", Data: "d3",
 		}))
 
 		synctest.Wait()
@@ -1142,10 +1183,8 @@ func TestUnknownLastEventIDEmptyHistory(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/b"},
-			Event: Event{
-				ID:   "b",
-				Data: "d2",
-			},
+			ID:     "b",
+			Data:   "d2",
 		}))
 
 		synctest.Wait()
@@ -1191,7 +1230,7 @@ func TestEmptyLastEventIDGetsResponseHeader(t *testing.T) {
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foo"},
-			Event:  Event{ID: "e1", Data: "d"},
+			ID:     "e1", Data: "d",
 		}))
 
 		synctest.Wait()
@@ -1215,7 +1254,7 @@ func TestSubscribeHeartbeat(t *testing.T) {
 
 			_ = hub.transport.Dispatch(ctx, &Update{
 				Topics: []string{"https://example.com/books/1"},
-				Event:  Event{Data: "Hello World", ID: "b"},
+				Data:   "Hello World", ID: "b",
 			})
 
 			return
@@ -1242,11 +1281,9 @@ func TestSubscribeExpires(t *testing.T) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    testIssuer,
-			Audience:  jwt.ClaimStrings{testResourceIdentifier},
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Second)),
-		},
+		Issuer:               testIssuer,
+		Audience:             jwt.ClaimStrings{testResourceIdentifier},
+		ExpiresAt:            jwt.NewNumericDate(time.Now().Add(time.Second)),
 		AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "*"}),
 	}
 
@@ -1585,9 +1622,9 @@ func TestNewResponseControllerDisconnectionTimeStaysInTheFuture(t *testing.T) {
 
 			s := &LocalSubscriber{}
 			if tc.tokenExpiresIn != 0 {
-				s.Claims = &claims{RegisteredClaims: jwt.RegisteredClaims{
+				s.Claims = &claims{
 					ExpiresAt: jwt.NewNumericDate(time.Now().Add(tc.tokenExpiresIn)),
-				}}
+				}
 			}
 
 			rc := h.newResponseController(httptest.NewRecorder(), s)
@@ -1612,10 +1649,36 @@ func TestNewResponseControllerNoDeadline(t *testing.T) {
 	assert.True(t, rc.disconnectionTime.IsZero())
 }
 
-// refusingTransport records dispatched updates and refuses to register
-// subscribers, to exercise the registration-failure path.
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+
+	deadlines []time.Time
+}
+
+func (r *deadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.deadlines = append(r.deadlines, deadline)
+
+	return nil
+}
+
+// Without a write deadline, a subscriber that stops reading must still be cut off by the dispatch timeout.
+func TestDispatchWriteDeadlineWithoutWriteTimeout(t *testing.T) {
+	t.Parallel()
+
+	h := &Hub{opt: &opt{writeTimeout: 0, dispatchTimeout: time.Second}}
+	w := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	rc := h.newResponseController(w, &LocalSubscriber{})
+
+	require.True(t, rc.setDispatchWriteDeadline(t.Context()))
+	require.Len(t, w.deadlines, 1)
+	assert.WithinDuration(t, time.Now().Add(time.Second), w.deadlines[0], 100*time.Millisecond)
+}
+
+// refusingTransport records dispatched updates and removed subscribers and
+// refuses to register subscribers, to exercise the registration-failure path.
 type refusingTransport struct {
 	dispatched []*Update
+	removed    []*LocalSubscriber
 }
 
 func (t *refusingTransport) Dispatch(_ context.Context, u *Update) error {
@@ -1628,7 +1691,11 @@ func (t *refusingTransport) AddSubscriber(context.Context, *LocalSubscriber) err
 	return ErrClosedTransport
 }
 
-func (t *refusingTransport) RemoveSubscriber(context.Context, *LocalSubscriber) error { return nil }
+func (t *refusingTransport) RemoveSubscriber(_ context.Context, s *LocalSubscriber) error {
+	t.removed = append(t.removed, s)
+
+	return nil
+}
 
 func (t *refusingTransport) Close(context.Context) error { return nil }
 
@@ -1655,6 +1722,30 @@ func TestNoSubscriptionEventWhenRegistrationFails(t *testing.T) {
 	assert.Empty(t, transport.dispatched)
 }
 
+// A transport may have listed the subscriber before failing, so it must be
+// removed and disconnected rather than left behind.
+func TestSubscriberRemovedWhenRegistrationFails(t *testing.T) {
+	t.Parallel()
+
+	transport := &refusingTransport{}
+	hub := createAnonymousDummy(t, WithTransport(transport))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
+	w := httptest.NewRecorder()
+
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	require.Len(t, transport.removed, 1)
+	assert.True(t, transport.removed[0].disconnected.Load())
+}
+
 // The subscription is announced once it exists, so a subscriber authorized for
 // the subscriptions namespace sees its own arrival and needs no reconciliation
 // against the snapshot it fetched from the subscription API.
@@ -1679,6 +1770,214 @@ func TestSubscriptionEventReachesTheSubscriberItDescribes(t *testing.T) {
 
 	body := w.Body.String()
 	assert.Contains(t, body, "event: mercure")
-	assert.Contains(t, body, `"active": true`)
-	assert.Contains(t, body, `"match": "/.well-known/mercure/subscriptions/:mt/:m/:s"`)
+
+	subs := sseSubscriptions(t, body)
+	require.NotEmpty(t, subs)
+	assert.True(t, slices.ContainsFunc(subs, func(sub subscription) bool {
+		return sub.Active && sub.Match == "/.well-known/mercure/subscriptions/:mt/:m/:s"
+	}), "the subscriber was not told about its own subscription")
+}
+
+// A QUERY naming no media type at all is incorrect by definition, so it is a
+// bad request rather than an unsupported one (RFC 10008, Section 2.3).
+func TestQuerySubscribeWithoutMediaTypeRejectedWith400(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// A QUERY naming a media type the hub cannot read as a subscription is
+// unsupported: its content is not read as a form (RFC 10008, Section 2.3).
+func TestQuerySubscribeUnsupportedMediaTypeRejectedWith415(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader(`{"match": "https://example.com/books/1"}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+}
+
+// Media type parameters do not change what the body is.
+func TestQuerySubscribeMediaTypeParametersAccepted(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1")).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+}
+
+// A subscription that named no media type it will read is not refusing any,
+// and the most specific matching range decides. Only one refusing
+// text/event-stream is answered 406, there being nothing left to send it.
+func TestAcceptsEventStream(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		accept []string
+		want   bool
+	}{
+		"absent":                 {nil, true},
+		"empty":                  {[]string{""}, true},
+		"exact":                  {[]string{"text/event-stream"}, true},
+		"wildcard":               {[]string{"*/*"}, true},
+		"type wildcard":          {[]string{"text/*"}, true},
+		"weighted":               {[]string{"application/json;q=0.8, text/event-stream;q=0.2"}, true},
+		"refused exact":          {[]string{"text/event-stream;q=0"}, false},
+		"refused wildcard":       {[]string{"*/*;q=0"}, false},
+		"specific grant wins":    {[]string{"*/*;q=0, text/event-stream"}, true},
+		"specific refusal wins":  {[]string{"*/*, text/event-stream;q=0"}, false},
+		"other types only":       {[]string{"application/json"}, false},
+		"split over field lines": {[]string{"application/json;q=0.8", "text/event-stream;q=0.2"}, true},
+		"split refusal":          {[]string{"application/json", "text/event-stream;q=0"}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+			for _, a := range tc.accept {
+				req.Header.Add("Accept", a)
+			}
+
+			assert.Equal(t, tc.want, acceptsEventStream(req))
+		})
+	}
+}
+
+// A subscription refusing the only media type the hub streams leaves nothing
+// to send it, whether it asked with GET or QUERY.
+func TestSubscribeRefusedResponseMediaTypeRejectedWith406(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		defaultHubURL+"?match=https://example.com/books/1", nil)
+	req.Header.Set("Accept", "text/event-stream;q=0")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusNotAcceptable, resp.StatusCode)
+}
+
+func TestQuerySubscribeRefusedResponseMediaTypeRejectedWith406(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusNotAcceptable, resp.StatusCode)
+}
+
+// A subscription is answered with the media types a QUERY body can express it
+// in, so a client learns what the hub reads (RFC 10008, Section 3) — on
+// refusals included: a client told 415 needs to know what to send instead.
+func TestSubscribeAcceptQuery(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "application/x-www-form-urlencoded", w.Header().Get("Accept-Query"))
+}
+
+func TestSubscribeAcceptQueryOnUnsupportedMediaType(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
+}
+
+// A subscription asks intermediaries to forward each chunk as it is produced
+// rather than buffered (RFC 10036), which SSE needs as much as any
+// incremental response.
+func TestSubscribeIncremental(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "?1", w.Header().Get("Incremental"))
 }

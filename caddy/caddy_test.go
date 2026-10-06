@@ -1,6 +1,7 @@
 package caddy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddytest"
+	"github.com/dunglas/mercure"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -129,6 +131,7 @@ func TestMercure(t *testing.T) {
 localhost:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
 			issuer https://example.com {
 				publisher {
@@ -146,6 +149,7 @@ localhost:9080 {
 example.com:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
 			issuer https://example.com {
 				publisher {
@@ -318,8 +322,9 @@ func TestSubscriptionAPI(t *testing.T) {
 	}
 	`, "caddyfile")
 
+	// Without a subscriber verifier, no client can be authorized to list subscriptions.
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure/subscriptions", nil)
-	resp := tester.AssertResponseCode(req, http.StatusOK)
+	resp := tester.AssertResponseCode(req, http.StatusNotFound)
 	require.NoError(t, resp.Body.Close())
 }
 
@@ -888,7 +893,9 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
 		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
 		{name: "PEM key without an algorithm", key: pem, wantErr: errPEMKeyMissingAlgorithm},
-		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantErr: errPEMKeyHMACAlgorithm},
+		{name: "PEM key after a preamble without an algorithm", key: "Bag Attributes\n" + pem, wantErr: errPEMKeyMissingAlgorithm},
+		// Left alone here; the verifier refuses it, one check below.
+		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantAlg: defaultJWTAlgorithm},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -907,6 +914,22 @@ func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 			assert.Equal(t, tc.wantAlg, c.Alg)
 		})
 	}
+}
+
+// normalizeJWT passes the pair through, so the verifier is the only check — which
+// is what covers a Go embedder configuring it directly.
+func TestPEMKeyWithHMACAlgorithmRefusedByVerifier(t *testing.T) {
+	t.Parallel()
+
+	c := &JWTConfig{Key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----", Alg: defaultJWTAlgorithm}
+	require.NoError(t, normalizeJWT(caddy.NewReplacer(), c, "", "publisher"))
+
+	_, err := mercure.NewHub(t.Context(), mercure.WithIssuers([]mercure.Issuer{{
+		Identifier: "https://example.com",
+		Publisher:  mercure.Static{Key: []byte(c.Key), Algorithm: c.Alg},
+	}}))
+	require.ErrorIs(t, err, mercure.ErrPEMKeyHMACAlgorithm)
+	assert.ErrorContains(t, err, "publisher")
 }
 
 // An unset MERCURE_*_JWT_ALG placeholder must not silently turn a PEM key into
@@ -1163,5 +1186,26 @@ func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
 
 			require.ErrorIs(t, err, errLegacyVerifiersNeedCompatibility)
 		})
+	}
+}
+
+func TestPopulateJWTConfigWarnsAboutWellKnownKey(t *testing.T) {
+	t.Parallel()
+
+	for _, playground := range []bool{false, true} {
+		var logs bytes.Buffer
+
+		m := &Mercure{
+			Playground: playground,
+			Issuers: []IssuerConfig{{
+				Identifier: "https://localhost",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: devKeyFallback}},
+				Subscriber: VerifierConfig{JWT: JWTConfig{Key: "a-random-subscriber-key-of-32-bytes"}},
+			}},
+			logger: slog.New(slog.NewTextHandler(&logs, nil)),
+		}
+
+		require.NoError(t, m.populateJWTConfig(caddy.Context{Context: context.Background()}))
+		assert.Equal(t, !playground, strings.Contains(logs.String(), "development secret"))
 	}
 }

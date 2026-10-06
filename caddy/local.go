@@ -6,9 +6,9 @@ import (
 	"github.com/dunglas/mercure"
 )
 
-type localTransportKeyStruct struct{}
-
-var localTransportKey = localTransportKeyStruct{} //nolint:gochecknoglobals
+type localTransportKey struct {
+	hub string
+}
 
 func init() { //nolint:gochecknoinits
 	caddy.RegisterModule(&Local{})
@@ -16,6 +16,7 @@ func init() { //nolint:gochecknoinits
 
 type Local struct {
 	transport *mercure.LocalTransport
+	key       localTransportKey
 }
 
 // CaddyModule returns the Caddy module information.
@@ -32,7 +33,9 @@ func (l *Local) GetTransport() mercure.Transport { //nolint:ireturn
 
 // Provision provisions l's configuration.
 func (l *Local) Provision(ctx caddy.Context) error {
-	destructor, _, _ := TransportUsagePool.LoadOrNew(localTransportKey, func() (caddy.Destructor, error) {
+	l.key = localTransportKey{hubName(ctx)}
+
+	destructor, _, _ := TransportUsagePool.LoadOrNew(l.key, func() (caddy.Destructor, error) {
 		return TransportDestructor[*mercure.LocalTransport]{
 			Transport: mercure.NewLocalTransport(
 				mercure.NewSubscriberList(ctx.Value(SubscriberListCacheSizeContextKey).(int)),
@@ -47,7 +50,7 @@ func (l *Local) Provision(ctx caddy.Context) error {
 
 //nolint:wrapcheck
 func (l *Local) Cleanup() error {
-	_, err := TransportUsagePool.Delete(localTransportKey)
+	_, err := TransportUsagePool.Delete(l.key)
 
 	return err
 }
@@ -58,7 +61,7 @@ func (l *Local) UnmarshalCaddyfile(_ *caddyfile.Dispenser) error {
 }
 
 var (
-	_ caddy.Provisioner     = (*Bolt)(nil)
-	_ caddy.CleanerUpper    = (*Bolt)(nil)
-	_ caddyfile.Unmarshaler = (*Bolt)(nil)
+	_ caddy.Provisioner     = (*Local)(nil)
+	_ caddy.CleanerUpper    = (*Local)(nil)
+	_ caddyfile.Unmarshaler = (*Local)(nil)
 )

@@ -55,6 +55,19 @@ var ErrIssuerMissingKey = errors.New("an issuer must configure a publisher or su
 // a signing algorithm.
 var ErrMissingAlgorithm = errors.New("a Static verifier requires a signing algorithm")
 
+// ErrMissingKey is returned when a Static verifier has no key material: an HMAC
+// algorithm accepts a zero-length secret, so every token would verify.
+var ErrMissingKey = errors.New("a Static verifier requires a key")
+
+// ErrPEMKeyHMACAlgorithm is returned when a Static verifier pairs a PEM key with
+// an HMAC algorithm, which would make the public key the shared secret.
+var ErrPEMKeyHMACAlgorithm = errors.New("a PEM-encoded key must not be used with an HMAC algorithm")
+
+// ErrSpanningPublishOrigin is returned when a wildcard publish origin matches origins
+// outside one registrable domain, which would let unrelated sites publish with the
+// victim's cookie.
+var ErrSpanningPublishOrigin = errors.New(`a wildcard publish origin must stay within one registrable domain, such as "https://*.example.com"`)
+
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
 
@@ -229,21 +242,25 @@ func WithIssuers(issuers []Issuer) Option {
 			if iss.Publisher != nil {
 				kf, algs, err := iss.Publisher.buildKeyfunc()
 				if err != nil {
-					return err
+					return fmt.Errorf("issuer %q: publisher: %w", iss.Identifier, err)
 				}
 
 				iv.publisher = roleVerifier{keyfunc: kf, algorithms: algs}
 				o.publisherConfigured = true
+
+				o.noteShortHMACKey(iss.Identifier, "publisher", iss.Publisher)
 			}
 
 			if iss.Subscriber != nil {
 				kf, algs, err := iss.Subscriber.buildKeyfunc()
 				if err != nil {
-					return err
+					return fmt.Errorf("issuer %q: subscriber: %w", iss.Identifier, err)
 				}
 
 				iv.subscriber = roleVerifier{keyfunc: kf, algorithms: algs}
 				o.subscriberConfigured = true
+
+				o.noteShortHMACKey(iss.Identifier, "subscriber", iss.Subscriber)
 			}
 
 			if iv.publisher.keyfunc == nil && iv.subscriber.keyfunc == nil {
@@ -331,6 +348,10 @@ func WithPublishOrigins(origins []string) Option {
 
 				break
 			} else if prefix, suffix, found := strings.Cut(origin, "*"); found {
+				if spansArbitraryOrigins(origin) {
+					return fmt.Errorf("%q: %w", origin, ErrSpanningPublishOrigin)
+				}
+
 				// Split the origin in two: start and end string without the *
 				w := wildcard{prefix, suffix}
 				o.publishWOrigins = append(o.publishWOrigins, w)
@@ -452,6 +473,26 @@ type opt struct {
 	resourceIdentifier           string
 	resourceMetadataURL          string
 	authorizationServers         []string
+	shortHMACKeys                []shortHMACKey
+}
+
+// shortHMACKey records a weak HMAC key until the logger is known.
+type shortHMACKey struct {
+	issuer string
+	role   string
+	minLen int
+}
+
+// noteShortHMACKey flags HMAC keys below the RFC 7518 §3.2 minimum; refusing them would break existing deployments.
+func (o *opt) noteShortHMACKey(issuer, role string, v Verifier) {
+	s, ok := v.(interface{ shortHMACKey() (int, bool) })
+	if !ok {
+		return
+	}
+
+	if minLen, short := s.shortHMACKey(); short {
+		o.shortHMACKeys = append(o.shortHMACKeys, shortHMACKey{issuer: issuer, role: role, minLen: minLen})
+	}
 }
 
 // roleVerifier holds the verification material for one role of one issuer.
@@ -492,7 +533,7 @@ func (o *opt) configureIdentifiers() error {
 	// so every configured issuer needs a non-empty identifier to match against.
 	// (Configuring a verifier always creates an issuer, so no separate
 	// "missing issuer" case exists.)
-	if o.protocolVersionCompatibility == 0 && (o.publisherConfigured || o.subscriberConfigured) {
+	if !o.compatClaimsEnabled() && (o.publisherConfigured || o.subscriberConfigured) {
 		if _, ok := o.issuers[""]; ok {
 			return ErrMissingIssuerIdentifier
 		}
@@ -561,6 +602,11 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 
 	if opt.logger == nil {
 		opt.logger = slog.New(mercureHandler{slog.Default().Handler()})
+	}
+
+	for _, k := range opt.shortHMACKeys {
+		opt.logger.LogAttrs(ctx, slog.LevelWarn, "The HMAC key is shorter than the hash output (RFC 7518 §3.2), which weakens token signatures: use a longer random secret.",
+			slog.String("issuer", k.issuer), slog.String("role", k.role), slog.Int("min_length", k.minLen))
 	}
 
 	if opt.topicMatcherStore == nil {

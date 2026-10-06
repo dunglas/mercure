@@ -1,9 +1,9 @@
 ---
 title: "Mercure 1.0 upgrade guide"
-description: "Step-by-step migration from Mercure 0.x to 1.0: two matcher types, OAuth 2.0 access tokens with authorization_details, RFC 6750 errors, and the new subscription event format."
+description: "Migrate Mercure 0.x to 1.0: topic matchers, OAuth 2.0 tokens, issuer configuration, authorization errors, and subscription events."
 ---
 
-# Upgrade guide
+# Mercure upgrade guide
 
 ## 1.0 (from 0.x)
 
@@ -47,7 +47,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access token](concepts/authorization.md): a `typ: at+jwt` header, an `iss` claim matching one of the hub's trusted issuers, an `aud` claim holding the hub's resource identifier, a required `exp`, and an `authorization_details` array. [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068) also requires issuers to populate `sub`, `client_id`, `iat`, and `jti`.
 
 ```jsonc
-// Before (0.x)
+// Before (0.x): payload
 {
   "mercure": {
     "publish": ["*"],
@@ -60,7 +60,7 @@ The bespoke `mercure` claim is replaced by a standard OAuth 2.0 [JWT access toke
 ```
 
 ```jsonc
-// After (1.0) — header { "alg": "...", "typ": "at+jwt" }
+// After (1.0): payload; also set "typ": "at+jwt" in the header
 {
   "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
@@ -91,6 +91,7 @@ Rules:
 - Each entry is `{ "type": "https://mercure.rocks/authorization-detail", "actions": [...], "topics": [...] }`. `actions` is a non-empty subset of `["publish", "subscribe"]`; `topics` is a non-empty array of `{ "match", "match_type"? }` objects (bare strings are rejected).
 - `match_type` is **case-sensitive** and defaults to `exact`. The reserved `{ "match": "*" }` matches every topic.
 - A `subscribe` entry may carry a `payload`; the old top-level `mercure.payload` is gone. See [subscriber payloads](concepts/authorization.md#subscriber-payloads).
+- The claim must be unambiguous JSON: a duplicate object member or invalid UTF-8 rejects the token, rather than the hub picking one of the readings an authorization server may not have validated.
 - One invalid Mercure detail rejects the whole token with `401 invalid_token`.
 
 ### Migrate token presentation
@@ -117,13 +118,16 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 `<match_type>`, `<match>`, and `<subscriber>` must be percent-encoded. The `mercure.subscriber` claim is gone: the hub assigns the subscriber identifier. See [Active subscriptions](concepts/active-subscriptions.md).
 
+Subscription documents are now serialised compactly, and `<`, `>` and `&` are no longer escaped as `\u003c`, `\u003e` and `\u0026`. Both forms are the same JSON ([RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) whitespace is insignificant, and the escapes were never required), so any conforming parser is unaffected; only a client string-matching the raw bytes needs updating. A subscription event is now a single `data:` line.
+
 ### Find-and-replace checklist
 
 - `?topic=` / `&topic=` in subscriber URLs -> `match=` (or `match_urlpattern=` if templated)
 - URI Template syntax in subscribe URLs (`{id}`) -> URL Pattern syntax (`:id`)
 - `"mercure": { "publish": [...] }` in issuer code -> `authorization_details` with `actions: ["publish"]`
 - `"mercure": { "subscribe": [...] }` -> `authorization_details` with `actions: ["subscribe"]`
-- `mercureAuthorization` cookie -> `mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
+- `mercureAuthorization` cookie -> `__Secure-mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
+- `publisher_jwt` / `subscriber_jwt` / `*_jwks_url` in the Caddyfile -> `issuer <iss> { publisher { jwt ... } subscriber { jwt ... } }` (see [JWT keys move into `issuer` blocks](#jwt-keys-move-into-issuer-blocks))
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
 - `Last-Event-ID` read from a **response** -> `Mercure-Last-Event-ID` (the request header keeps its name; see [Reconnection and history](concepts/reconnection-and-history.md))
 
@@ -135,16 +139,50 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 #### New in 1.0 (nothing to migrate)
 
-`resource_identifier`, `public_urls`, and RFC 9728 discovery have no 0.x equivalent. There's no prior config to translate here, only something new to configure if you want it.
+`resource_identifier`, `public_urls`, and RFC 9728 discovery have no 0.x equivalent. Configure them when you need a fixed audience, an origin allowlist, or authorization-server discovery.
 
-- The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity.
+- The hub derives its public URL, the OAuth 2.0 resource identifier (token `aud`) and the RFC 9728 metadata from each request, so a hub reachable through several public URLs works with no domain configuration. Set `resource_identifier` only to pin one canonical audience shared across every domain. On a catch-all site block (`:443`, no host matcher), add `public_urls <url...>` so a request whose origin is not listed is rejected with `421 Misdirected Request` instead of choosing the derived identity. List the origins the hub itself receives, scheme included: behind a TLS-terminating proxy that is the `http://` form (see [Reverse proxies](deployment/reverse-proxy.md)).
+
+#### JWT keys move into `issuer` blocks
+
+The JWT key directives move into an `issuer <id> { ... }` block that binds the `iss` value your tokens carry to its verification keys. The block is required when JWT auth is enabled in modern mode.
+
+```caddyfile
+# Before (0.x)
+mercure {
+  publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+  subscriber_jwks_url https://example.com/.well-known/jwks.json
+}
+
+# After (1.0)
+mercure {
+  issuer https://example.com {
+    publisher {
+      jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
+    }
+    subscriber {
+      jwks_uri https://example.com/.well-known/jwks.json
+    }
+  }
+}
+```
+
+- `publisher_jwt <key> [<alg>]` becomes `publisher { jwt <key> [<alg>] }`, and `subscriber_jwt` becomes `subscriber { jwt ... }`.
+- `publisher_jwks_url <url>` becomes `publisher { jwks_uri <url> [<alg>...] }` (note `_uri`, after the RFC 8414 member), and likewise for `subscriber_jwks_url`. `jwt` and `jwks_uri` are mutually exclusive within one block.
+- The issuer identifier must equal the `iss` claim of your tokens. Omitting `publisher` or `subscriber` rejects that action for the issuer. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys. See [Issuer blocks](deployment/configuration.md#issuer-blocks).
+- The official Caddyfile and Docker image keep the `MERCURE_PUBLISHER_JWT_KEY`, `MERCURE_PUBLISHER_JWT_ALG`, `MERCURE_SUBSCRIBER_JWT_KEY` and `MERCURE_SUBSCRIBER_JWT_ALG` variables. The new `MERCURE_TRUSTED_ISSUERS` variable sets the issuer identifier. It defaults to `https://localhost`, which only suits local development: set it to the `iss` your tokens carry.
+- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
+
+Key validation is stricter, including for the deprecated directives:
+
+- A PEM-encoded key without an algorithm is a configuration error. 0.x defaulted to `HS256`; set the algorithm explicitly (`RS256`, `ES256`, `EdDSA`, ...). A raw secret still defaults to `HS256`.
+- A PEM-encoded key paired with an HMAC algorithm is refused. 0.x used the public key as the HMAC secret, so anyone holding it could forge tokens.
+- A JWK Set accepts only asymmetric algorithms by default (`EdDSA`, `ES*`, `RS*`, `PS*`). 0.x accepted any algorithm its keys supported, HMAC included. List the allowed algorithms after the URL to change this (`jwks_uri <url> HS256`). The deprecated `*_jwks_url` directives take no algorithm list, so a JWK Set of HMAC keys needs an `issuer` block.
 
 #### Changed configuration
 
-- Declare your token issuer with an `issuer <id> { ... }` block binding the `iss` value your tokens carry to its `publisher`/`subscriber` verifier (`jwt` or `jwks_uri`); it's required when JWT auth is enabled in modern mode. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys.
-- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
 - The official Caddyfile no longer redacts query parameters from logs or serves `/healthz`; both only mattered for 0.x clients. Restore them if you run [compatibility mode](#compatibility-mode).
-- `transport_url` (deprecated since 0.17) is removed; use `transport <name> { ... }`.
+- `transport_url` and `MERCURE_TRANSPORT_URL` require the `deprecated_transport` build tag, which official builds still include. Migrate to `transport <name> { ... }`.
 - An unrecognized directive inside the `mercure` block is now a configuration error instead of being ignored. A typo previously disabled whatever it was meant to configure, silently, so check your `MERCURE_EXTRA_DIRECTIVES` if the hub refuses to start after the upgrade.
 - The `ui` and `demo` directives were renamed. `ui` is now `debugger`: the prod-safe debugger UI, which also moved from `/.well-known/mercure/ui/` to `/.well-known/mercure/debug/`. `demo` is now `playground` (the insecure playground: it additionally mints an all-access token prefilled in the UI, and its echo endpoints moved out of the reserved hub namespace, from `/.well-known/mercure/ui/demo/` to the root `/playground/` path, so the resources they expose are valid, subscribable topics). Because unknown directives now error, rename them in your Caddyfile.
 - `playground` now turns on the permissive dev settings it needs on its own: `anonymous`, `subscriptions`, wildcard `cors_origins`/`publish_origins`, and a prefix-less `cookie_name`, unless you set them explicitly, and redirects the site root `/` to the debugger UI. This is INSECURE; never enable `playground` in production.
@@ -152,7 +190,7 @@ Authorization failures now follow [RFC 6750](https://www.rfc-editor.org/rfc/rfc6
 
 #### Legacy non-Caddy server removed
 
-The standalone non-Caddy binary is gone. It's been deprecated since Mercure 0.11, when the Caddy module became the primary hub, so this shouldn't affect anyone still on a supported setup. If you're still running it: switch to the Caddy-based binary or Docker image everyone else already uses (see [Installation](getting-started/installation.md)). There's no flag-for-flag migration to give, because this isn't a config change, it's a different binary. [Compatibility mode](#compatibility-mode) restores 0.x _protocol_ behaviors on the Caddy-based hub only; it doesn't bring the removed binary back.
+The standalone non-Caddy server has been removed. Deploy the Caddy-based binary or Docker image and translate your settings to a Caddyfile; see [Installation](getting-started/installation.md). [Compatibility mode](#compatibility-mode) restores selected 0.x protocol behaviors, not the old server.
 
 ### Compatibility mode
 
@@ -209,7 +247,6 @@ When Mercure is compiled manually or used as a Go library, deprecated features a
 To re-enable deprecated transports, pass the `deprecated_transport` build tag when compiling Mercure:
 
 ```console
-# Mercure 0.21 Upgrade Notes
 go build -tags deprecated_transport
 ```
 
@@ -222,14 +259,12 @@ The `MERCURE_TRANSPORT_URL` environment variable and the `transport_url` directi
 Before:
 
 ```caddyfile
-# Mercure 0.17 Upgrade Notes
 transport_url bolt://mercure.db?cleanup_frequency=0.2
 ```
 
 After:
 
 ```caddyfile
-# Mercure 0.17 Upgrade Notes
 transport bolt {
   path mercure.db
   cleanup_frequency 0.2
@@ -260,7 +295,7 @@ The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your cli
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 
-A `protocol_version_compatibility 7` directive was added to ease the transition. It has since been removed in 1.0.
+`protocol_version_compatibility 7` was added to ease the transition. The hub still accepts `7` and `8`; use `8` for the latest 0.x behavior during migration.
 
 ### Mercure 0.13 upgrade notes
 

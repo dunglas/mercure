@@ -48,9 +48,15 @@ var bearerMethodsSupported = []string{"header"}
 // ProtectedResourceMetadataHandler serves the hub's RFC 9728 protected
 // resource metadata document.
 func (h *Hub) ProtectedResourceMetadataHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	identifier, _ := h.requestIdentity(r)
+	if identifier == "" {
+		// RFC 9728 requires "resource", and there is no origin to derive it from.
+		http.Error(w, "the hub cannot determine its resource identifier for this request", http.StatusBadRequest)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 
 	metadata := protectedResourceMetadata{
 		Resource:                           identifier,

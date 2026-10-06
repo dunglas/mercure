@@ -4,7 +4,6 @@ import (
 	"embed"
 	"io"
 	"log/slog"
-	"mime"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -21,12 +20,17 @@ var debuggerContent embed.FS
 // Playground exposes INSECURE endpoints to test discovery and authorization mechanisms.
 // Add a query parameter named "body" to define the content to return in the response's body.
 // Add a query parameter named "jwt" to set the authorization cookie (see WithCookieName) containing this token.
-// The Content-Type header will automatically be set according to the URL's extension.
+// Responses use JSON or JSON-LD for .json or .jsonld paths, and plain text otherwise.
 func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
-	// JSON-LD is the preferred format
-	_ = mime.AddExtensionType(".jsonld", "application/ld+json")
-	url := r.URL.String()
-	mimeType := mime.TypeByExtension(filepath.Ext(r.URL.Path))
+	selfLink := "<" + escapeLinkTarget(r.URL.String()) + `>; rel="self"`
+	mimeType := "text/plain; charset=utf-8"
+
+	switch strings.ToLower(filepath.Ext(r.URL.Path)) {
+	case ".json":
+		mimeType = "application/json"
+	case ".jsonld":
+		mimeType = "application/ld+json"
+	}
 
 	query := r.URL.Query()
 	body := query.Get("body")
@@ -36,14 +40,14 @@ func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
 	header := w.Header()
 
 	if h.cookieName == defaultCookieName {
-		header["Link"] = append(header["Link"], hubLink, "<"+url+`>; rel="self"`)
+		header["Link"] = append(header["Link"], hubLink, selfLink)
 	} else {
-		header["Link"] = append(header["Link"], hubLink+`; cookie-name="`+h.cookieName+`"`, "<"+url+`>; rel="self"`)
+		header["Link"] = append(header["Link"], hubLink+`; cookie-name="`+h.cookieName+`"`, selfLink)
 	}
 
-	if mimeType != "" {
-		header["Content-Type"] = []string{mimeType}
-	}
+	header.Set("Content-Type", mimeType)
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("Content-Security-Policy", "sandbox; default-src 'none'")
 
 	// Secure / HttpOnly are conditional on TLS so the playground keeps working
 	// when served over plain HTTP locally (with a prefix-less cookie name);
@@ -73,4 +77,31 @@ func (h *Hub) Playground(w http.ResponseWriter, r *http.Request) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Failed to write playground response", slog.Any("error", err))
 		}
 	}
+}
+
+// escapeLinkTarget percent-encodes bytes RFC 3986 forbids so the target cannot break out of <...>.
+func escapeLinkTarget(u string) string {
+	const upperhex = "0123456789ABCDEF"
+
+	var b strings.Builder
+
+	for i := range len(u) {
+		c := u[i]
+		if isURIByte(c) {
+			b.WriteByte(c)
+
+			continue
+		}
+
+		b.WriteByte('%')
+		b.WriteByte(upperhex[c>>4])
+		b.WriteByte(upperhex[c&0xF])
+	}
+
+	return b.String()
+}
+
+func isURIByte(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
+		strings.IndexByte("-._~:/?#[]@!$&'()*+,;=%", c) >= 0
 }
