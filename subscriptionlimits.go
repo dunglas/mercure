@@ -13,8 +13,8 @@ import (
 
 // SubscriptionLimits bounds concurrent HTTP event streams on one hub instance.
 // A zero field disables that limit, and all are zero by default. Client limits
-// use RemoteAddr, never untrusted forwarding headers; token limits count
-// verified tokens.
+// use the address from WithClientIPFunc, or RemoteAddr, never untrusted
+// forwarding headers; token limits count verified tokens.
 type SubscriptionLimits struct {
 	Total     int `json:"total"`
 	PerToken  int `json:"per_token"`
@@ -32,6 +32,17 @@ func WithSubscriptionLimits(limits SubscriptionLimits) Option {
 		}
 
 		o.subscriptionLimits = limits
+
+		return nil
+	}
+}
+
+// WithClientIPFunc sets how the per-client subscription limit identifies a
+// client, such as a client IP resolved from trusted proxy headers. An empty
+// result falls back to RemoteAddr.
+func WithClientIPFunc(f func(*http.Request) string) Option {
+	return func(o *opt) error {
+		o.clientIPFunc = f
 
 		return nil
 	}
@@ -73,20 +84,7 @@ func (h *Hub) admitSubscription(r *http.Request, claims *claims) (*subscriptionP
 	}
 
 	if l.limits.PerClient > 0 {
-		p.client = r.RemoteAddr
-		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-			p.client = host
-		}
-
-		if addr, err := netip.ParseAddr(p.client); err == nil {
-			p.client = addr.Unmap().String()
-
-			// A single IPv6 host usually controls a whole /64.
-			if addr.Is6() && !addr.Is4In6() {
-				prefix, _ := addr.Prefix(64)
-				p.client = prefix.String()
-			}
-		}
+		p.client = h.subscriptionClient(r)
 	}
 
 	l.mutex.Lock()
@@ -111,6 +109,35 @@ func (h *Hub) admitSubscription(r *http.Request, claims *claims) (*subscriptionP
 	}
 
 	return p, ""
+}
+
+func (h *Hub) subscriptionClient(r *http.Request) string {
+	var client string
+	if h.clientIPFunc != nil {
+		client = h.clientIPFunc(r)
+	}
+
+	if client == "" {
+		client = r.RemoteAddr
+	}
+
+	if host, _, err := net.SplitHostPort(client); err == nil {
+		client = host
+	}
+
+	addr, err := netip.ParseAddr(client)
+	if err != nil {
+		return client
+	}
+
+	// A single IPv6 host usually controls a whole /64.
+	if addr.Is6() && !addr.Is4In6() {
+		prefix, _ := addr.Prefix(64)
+
+		return prefix.String()
+	}
+
+	return addr.Unmap().String()
 }
 
 func (p *subscriptionPermit) release() {

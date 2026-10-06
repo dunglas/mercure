@@ -464,6 +464,7 @@ type opt struct {
 	heartbeat                    time.Duration
 	maxRequestBodySize           int64
 	subscriptionLimits           SubscriptionLimits
+	clientIPFunc                 func(*http.Request) string
 	issuers                      map[string]issuerVerifier
 	publisherConfigured          bool
 	subscriberConfigured         bool

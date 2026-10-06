@@ -165,6 +165,25 @@ func TestSubscriptionClientIdentityGroupsIPv6Prefix(t *testing.T) {
 	other.release()
 }
 
+func TestSubscriptionClientIPFunc(t *testing.T) {
+	t.Parallel()
+
+	h := createAnonymousDummy(t, WithClientIPFunc(func(r *http.Request) string { return r.Header.Get("X-Test-Client") }))
+
+	for _, tc := range []struct{ header, remoteAddr, expected string }{
+		{"192.0.2.1", "198.51.100.1:1234", "192.0.2.1"},
+		{"::ffff:192.0.2.1", "198.51.100.1:1234", "192.0.2.1"},
+		{"2001:db8:1:2::1", "198.51.100.1:1234", "2001:db8:1:2::/64"},
+		{"", "198.51.100.1:1234", "198.51.100.1"},
+	} {
+		r := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+		r.Header.Set("X-Test-Client", tc.header)
+		r.RemoteAddr = tc.remoteAddr
+
+		assert.Equal(t, tc.expected, h.subscriptionClient(r))
+	}
+}
+
 func TestSubscriptionLimitsDisabledByDefault(t *testing.T) {
 	t.Parallel()
 
