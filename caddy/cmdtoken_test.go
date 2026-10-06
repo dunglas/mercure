@@ -41,14 +41,18 @@ func TestMercureTokenRejectsLiteralKeyArgument(t *testing.T) {
 		for _, dev := range []bool{false, true} {
 			flags := pflag.NewFlagSet("mercure-token", pflag.ContinueOnError)
 			flags.Bool("dev", dev, "")
+
 			for _, name := range []string{claimIss, claimAud, "key", "alg", "kid", claimSub, "client-id", "payload"} {
 				flags.String(name, "", "")
 			}
+
 			flags.Duration("ttl", time.Hour, "")
 			flags.Bool("pretty", false, "")
+
 			for _, name := range []string{"publish", "publish-urlpattern", "subscribe", "subscribe-urlpattern"} {
 				flags.StringArray(name, nil, "")
 			}
+
 			require.NoError(t, flags.Set("key", key))
 			code, err := cmdMercureToken(caddycmd.Flags{FlagSet: flags})
 			assert.Equal(t, 1, code)
