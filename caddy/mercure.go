@@ -146,9 +146,7 @@ type Mercure struct {
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
 
-	// Graceful-shutdown drain window. When set, a termination drains subscribers
-	// across this window instead of riding write_timeout; a config reload never
-	// drains. Defaults to 0 (disabled).
+	// Maximum drain duration on termination, overriding write_timeout. Defaults to 0 (disabled).
 	DrainTimeout *caddy.Duration `json:"drain_timeout,omitempty"`
 
 	// Maximum dispatch duration of an update, defaults to 5s.
@@ -402,12 +400,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	m.hub = h
 
-	// The "stopping" event fires on both real termination and config reloads.
-	// On a real termination with a drain timeout, start the graceful drain and
-	// leave the context alone so the drain isn't preempted (see
-	// shouldDrainOnStopping); otherwise cancel the hub context, the escape hatch
-	// for a writeTimeout==0 hub. The cancel must run during the event, or the
-	// handler and the blocking server shutdown would deadlock.
+	// Cancel during the event: waiting for Cleanup would deadlock with the server shutdown.
 	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(func() {
 		if shouldDrainOnStopping(caddy.Exiting(), m.DrainTimeout) {
 			h.Drain()
@@ -1216,12 +1209,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	return m, m.UnmarshalCaddyfile(h.Dispenser)
 }
 
-// shouldDrainOnStopping reports whether a "stopping" event should trigger a
-// graceful drain (Hub.Drain) instead of cancelling the hub context. The
-// "stopping" event fires on both real termination and a config reload; draining
-// applies only on a real termination (exiting) and only when a drain timeout is
-// configured. A reload (not exiting), or a hub with no drain timeout, cancels
-// the hub context instead.
+// shouldDrainOnStopping reports whether to drain; "stopping" also fires on config reloads, which must not drain.
 func shouldDrainOnStopping(exiting bool, drainTimeout *caddy.Duration) bool {
 	return exiting && drainTimeout != nil && time.Duration(*drainTimeout) != 0
 }

@@ -174,10 +174,7 @@ func WithWriteTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithDrainTimeout sets the graceful-shutdown drain window, defaults to 0
-// (disabled). When set, a shutdown (see Drain) reschedules each subscriber to
-// close at a random point spread across this window instead of riding the write
-// timeout, decoupling the shutdown drain from the steady-state rotation cadence.
+// WithDrainTimeout sets the maximum duration of the drain started by Drain, defaults to 0 (disabled).
 func WithDrainTimeout(timeout time.Duration) Option {
 	return func(o *opt) error {
 		o.drainTimeout = timeout
@@ -578,9 +575,7 @@ type Hub struct {
 	handler http.Handler
 	ctx     context.Context //nolint:containedctx
 
-	// drainCh is closed by Drain to start a graceful-shutdown drain. It is
-	// distinct from ctx so that a graceful config reload (which cancels ctx)
-	// does not drain, while real termination (which calls Drain) does.
+	// Separate from ctx, which config reloads cancel too.
 	drainCh   chan struct{}
 	drainOnce sync.Once
 }
@@ -653,12 +648,7 @@ func (h *Hub) Stop(ctx context.Context) error {
 	return nil
 }
 
-// Drain begins a graceful-shutdown drain: when a drain timeout is configured
-// (WithDrainTimeout), each active subscriber reschedules its clean close to a
-// random point within that window, spreading reconnects instead of dropping
-// them all at once. It must be called only on real termination, never on a
-// graceful config reload (which keeps reloads reconnect-free). Safe to call
-// more than once; only the first call has effect.
+// Drain closes subscribers at random times within the drain timeout; call it on termination only, never on reload.
 func (h *Hub) Drain() {
 	h.drainOnce.Do(func() {
 		close(h.drainCh)

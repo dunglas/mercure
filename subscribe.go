@@ -152,10 +152,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
-	// disconnectionTimer is created lazily and stopped through a nil-checking
-	// defer: a subscriber with neither a write timeout nor a token exp starts
-	// with no deadline (disconnectionTimerC stays nil), yet the drain path may
-	// still arm it on shutdown, so its creation can't be pinned to a defer here.
+	// The drain may arm the timer later, for a subscriber that starts without a deadline.
 	defer func() {
 		if disconnectionTimer != nil {
 			disconnectionTimer.Stop()
@@ -177,21 +174,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 	debugLevel := rc.hub.logger.Enabled(ctx, slog.LevelDebug)
 
-	// Two shutdown signals reach an active subscriber:
-	//
-	//   - hubCtxDoneC (h.ctx cancellation) is the hard escape hatch, armed
-	//     whenever writeTimeout is 0: such a connection has no write deadline, so
-	//     without it an idle handler would never end and http.Server.Shutdown
-	//     would hang forever. The Caddy module cancels h.ctx on both reloads and
-	//     terminations; a termination that wants to drain a writeTimeout==0
-	//     connection leaves h.ctx alone and uses drainC instead.
-	//
-	//   - drainC (h.Drain) is the graceful drain, fired only on real termination,
-	//     never on a config reload (which keeps reloads reconnect-free). When a
-	//     drain timeout is set it pulls each connection's clean close forward into
-	//     the drain window, independent of the (possibly much longer) write
-	//     timeout; otherwise it stays nil and connections drain over writeTimeout
-	//     as before.
+	// Reloads cancel h.ctx without draining; deadline-less connections must still exit or Shutdown hangs.
 	var (
 		hubCtxDoneC <-chan struct{}
 		drainC      <-chan struct{}
@@ -214,14 +197,10 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 
 			return
 		case <-drainC:
-			// Graceful drain: reschedule the clean close to a random point in
-			// the drain window. Handle once (drainC is nilled).
 			drainC = nil
 
 			deadline, reschedule := drainDisconnectionTime(time.Now(), rc.disconnectionTime, drainDeadline(h.drainTimeout))
 			if !reschedule {
-				// The connection is already closing at or before the drain
-				// deadline: a shutdown only accelerates a close, never delays it.
 				continue
 			}
 
@@ -230,9 +209,6 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			rc.disconnectionTime = deadline
-			// Keep the socket write deadline one dispatch past the clean close,
-			// mirroring newResponseController, so a pending write can't outlive
-			// it.
 			rc.writeDeadline = deadline.Add(h.dispatchTimeout)
 
 			if disconnectionTimer == nil {
@@ -638,12 +614,7 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 	}
 }
 
-// drainDisconnectionTime picks the disconnection time for a draining
-// connection: now+offset, unless the connection is already set to close at or
-// before that, in which case it keeps the existing (sooner) time — a shutdown
-// only accelerates a close, it never delays it. The bool reports whether the
-// caller should reschedule; false means keep the current timer untouched. A
-// zero existing time (no deadline yet) always reschedules.
+// drainDisconnectionTime returns now+offset and true, unless the connection already closes sooner.
 func drainDisconnectionTime(now, existing time.Time, offset time.Duration) (time.Time, bool) {
 	deadline := now.Add(offset)
 	if !existing.IsZero() && !deadline.Before(existing) {
@@ -653,13 +624,7 @@ func drainDisconnectionTime(now, existing time.Time, offset time.Duration) (time
 	return deadline, true
 }
 
-// drainDeadline returns a uniformly random duration in (0, drainTimeout], used
-// on shutdown to reschedule a connection's clean close somewhere inside the
-// drain window. Unlike randomizeWriteDeadline (80–100%, which keeps
-// steady-state connections close to their full lifetime), it spans the whole
-// window so reconnects spread evenly across the drain rather than clustering at
-// its end. drainTimeout is always strictly positive here: the caller arms the
-// drain only when a drain timeout is configured.
+// drainDeadline spreads reconnects uniformly over (0, drainTimeout]; drainTimeout must be positive.
 func drainDeadline(drainTimeout time.Duration) time.Duration {
 	return time.Duration(rand.Int64N(int64(drainTimeout)) + 1) //nolint:gosec
 }
