@@ -1149,8 +1149,8 @@ var errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empt
 //
 // file:// URLs point to a local JSON file containing a JWK Set; the file is
 // read once at provision time, so rotating the keys requires a Caddy config
-// reload. Other URLs are forwarded to keyfunc.NewDefaultCtx, which handles
-// HTTP(S) and rejects unsupported schemes.
+// reload. HTTP(S) resources are refreshed using a client that refuses redirects,
+// so a trusted JWK Set endpoint cannot redirect requests to other services.
 //
 //nolint:ireturn
 func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, error) {
@@ -1177,7 +1177,13 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 		return k, nil
 	}
 
-	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	return keyfunc.NewDefaultOverrideCtx(ctx, []string{rawURL}, keyfunc.Override{Client: client}) //nolint:wrapcheck
 }
 
 // parseCaddyfile unmarshals tokens from h into a new Middleware.

@@ -211,6 +211,8 @@ mercure {
 
 The hub fetches and caches the keys, validates each token's `kid` against them, and rotates automatically when the IdP rotates. Token issuance stays with the IdP; the hub only verifies.
 
+JWKS requests do not follow HTTP redirects. Configure the final endpoint URL directly so an identity provider cannot redirect the hub to another service.
+
 `jwks_uri` also accepts `file://` URLs, read once at provision time, for keys mounted as files. Append algorithms to pin the allowlist (e.g. `jwks_uri <url> RS256 ES256`); it defaults to the asymmetric algorithms.
 
 ## OAuth 2.0 protected resource metadata

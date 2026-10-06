@@ -7,11 +7,13 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -807,6 +809,49 @@ func TestNewJWKSetKeyfunc(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse JWK Set file")
 	})
+}
+
+func TestNewJWKSetKeyfuncDoesNotFollowRedirects(t *testing.T) {
+	t.Parallel()
+
+	var targetRequests atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		targetRequests.Add(1)
+		_, _ = w.Write([]byte(`{"keys":[]}`))
+	}))
+	t.Cleanup(target.Close)
+
+	for _, status := range []int{http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther, http.StatusTemporaryRedirect, http.StatusPermanentRedirect} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, target.URL, status)
+			}))
+			t.Cleanup(server.Close)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			// Keyfunc can defer an initial fetch error until verification, but
+			// it must never send a request to the redirect destination.
+			_, _ = newJWKSetKeyfunc(ctx, server.URL)
+			assert.Zero(t, targetRequests.Load())
+		})
+	}
+}
+
+func TestNewJWKSetKeyfuncFetchesDirectHTTPResource(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		data, err := os.ReadFile("testdata/RS256.jwks.json")
+		require.NoError(t, err)
+		_, _ = w.Write(data)
+	}))
+	t.Cleanup(server.Close)
+	k, err := newJWKSetKeyfunc(t.Context(), server.URL)
+	require.NoError(t, err)
+	assert.NotNil(t, k)
+	assert.Positive(t, requests.Load())
 }
 
 // TestMultiIssuerPublish exercises per-issuer key binding through the Caddy
