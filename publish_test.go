@@ -235,25 +235,42 @@ func TestPublishHandlerEmptyTopicMatcher(t *testing.T) {
 func TestPublishHandlerLegacyAuthorization(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t, WithProtocolVersionCompatibility(7))
+	for _, tc := range []struct {
+		name    string
+		grants  []string
+		private bool
+		status  int
+	}{
+		{"empty grants", nil, false, http.StatusForbidden},
+		{"other topic", []string{"https://example.com/other"}, false, http.StatusForbidden},
+		{"private other topic", []string{"https://example.com/other"}, true, http.StatusForbidden},
+		{"granted topic", []string{"https://example.com/books/1"}, false, http.StatusOK},
+		{"wildcard", []string{"*"}, false, http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	form := url.Values{}
-	form.Add("topic", "https://example.com/books/1")
+			hub := createDummy(t, WithProtocolVersionCompatibility(7))
 
-	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{}))
+			form := url.Values{"topic": {"https://example.com/books/1"}}
+			if tc.private {
+				form.Set("private", "on")
+			}
 
-	w := httptest.NewRecorder()
-	hub.PublishHandler(w, req)
+			req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, tc.grants))
 
-	resp := w.Result()
+			w := httptest.NewRecorder()
+			hub.PublishHandler(w, req)
 
-	t.Cleanup(func() {
-		assert.NoError(t, resp.Body.Close())
-	})
+			assert.Equal(t, tc.status, w.Code)
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+			if tc.status == http.StatusForbidden {
+				assert.Contains(t, w.Header().Get("WWW-Authenticate"), "insufficient_scope")
+			}
+		})
+	}
 }
 
 func TestPublishHandlerOK(t *testing.T) {

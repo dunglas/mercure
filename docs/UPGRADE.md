@@ -295,7 +295,7 @@ The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your cli
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 
-`protocol_version_compatibility 7` was added to ease the transition. The hub still accepts `7` and `8`; use `8` for the latest 0.x behavior during migration.
+`protocol_version_compatibility 7` was added to ease the transition. The hub still accepts `7` and `8`; use `8` for the latest 0.x behavior during migration. Both modes now enforce publisher topic grants for public and private updates. Tokens used to publish to arbitrary topics must explicitly grant `"*"`; v7 compatibility no longer bypasses this authorization check.
 
 ### Mercure 0.13 upgrade notes
 
