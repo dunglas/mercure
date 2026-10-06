@@ -20,8 +20,9 @@ type RequestOrigin struct {
 // origin. An embedding server (for example the Caddy module) calls it once per
 // request before invoking the hub, passing scheme and host taken from a trusted
 // source; the hub validates them against the public-URL allowlist. The Caddy
-// module reads them from Caddy's request placeholders so the values honor the
-// trusted_proxies configuration rather than raw forwarded headers.
+// module reads them from Caddy's request placeholders, which report the
+// request's own Host and TLS state and no forwarded header, so a hub behind a
+// TLS terminator derives an http:// origin.
 func NewRequestOriginContext(ctx context.Context, scheme, host string) context.Context {
 	return context.WithValue(ctx, requestOriginKey{}, RequestOrigin{Scheme: scheme, Host: host})
 }

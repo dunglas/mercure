@@ -39,13 +39,16 @@ var (
 	// calling mercure.Publish() directly.
 	AllowNoPublish bool //nolint:gochecknoglobals
 
+	errMultipleUnnamedHubs = errors.New("only one unnamed Mercure hub is allowed per configuration; set a name for each additional hub")
+
 	errCompatibility = errors.New("compatibility mode only supports protocol versions 7 and 8")
 
 	errLegacyVerifiersNeedCompatibility = errors.New(`the "publisher_jwt", "subscriber_jwt", "publisher_jwks_url" and "subscriber_jwks_url" directives work only in compatibility mode, which relaxes access-token validation: move them into an "issuer" block for modern mode, or set "protocol_version_compatibility 8" to opt in explicitly`)
 
 	// hubs is a list of registered Mercure hubs, the key is the top-most subroute.
-	hubs   = make(map[caddy.Module]*hubInfo) //nolint:gochecknoglobals
-	hubsMu sync.Mutex                        //nolint:gochecknoglobals
+	hubs        = make(map[caddy.Module]*hubInfo)   //nolint:gochecknoglobals
+	unnamedHubs = make(map[*caddyhttp.App]*Mercure) //nolint:gochecknoglobals
+	hubsMu      sync.Mutex                          //nolint:gochecknoglobals
 )
 
 type hubInfo struct {
@@ -180,8 +183,8 @@ type Mercure struct {
 	// Allowed CORS origins.
 	CORSOrigins []string `json:"cors_origins,omitempty"`
 
-	// Maximum number of entries in the topic matcher cache. 0 or negative
-	// disables the cache. Defaults to DefaultTopicMatcherStoreCacheSize.
+	// Match cache budget in 100-byte units; nonpositive disables it.
+	// Defaults to DefaultTopicMatcherStoreCacheSize.
 	TopicMatcherCacheSize *int `json:"topic_matcher_cache_size,omitempty"`
 
 	SubscriberListCacheSize *int `json:"subscriber_list_cache_size,omitempty"`
@@ -210,9 +213,10 @@ type Mercure struct {
 	// The transport configuration.
 	TransportRaw json.RawMessage `json:"transport,omitempty" caddy:"namespace=http.handlers.mercure inline_key=name"` //nolint:tagalign
 
-	hub    *mercure.Hub
-	logger *slog.Logger
-	cancel context.CancelFunc
+	hub           *mercure.Hub
+	logger        *slog.Logger
+	cancel        context.CancelFunc
+	unnamedHubApp *caddyhttp.App
 }
 
 // CaddyModule returns the Caddy module information.
@@ -251,6 +255,12 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		return err
 	}
 
+	name := m.Name
+	if name == "" {
+		name = "default"
+	}
+
+	ctx = ctx.WithValue(HubNameContextKey, name)
 	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
 	ctx = ctx.WithValue(WriteTimeoutContextKey, m.WriteTimeout)
 
@@ -266,6 +276,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	var transport mercure.Transport
 	if transport, err = m.createTransportDeprecated(); err != nil {
+		return err
+	}
+
+	if err := m.registerUnnamedHub(ctx); err != nil {
 		return err
 	}
 
@@ -382,11 +396,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	m.hub = h
 
-	name := m.Name
-	if name == "" {
-		name = "default"
-	}
-
 	info := &hubInfo{
 		hub:       h,
 		transport: transport,
@@ -422,6 +431,10 @@ func (m *Mercure) Cleanup() error {
 	hubsMu.Lock()
 	defer hubsMu.Unlock()
 
+	if unnamedHubs[m.unnamedHubApp] == m {
+		delete(unnamedHubs, m.unnamedHubApp)
+	}
+
 	for k, info := range hubs {
 		if info.hub == m.hub {
 			delete(hubs, k)
@@ -453,11 +466,11 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 		return next.ServeHTTP(w, r) //nolint:wrapcheck
 	}
 
-	// Resolve the public origin from Caddy's request placeholders so it honors
-	// the trusted_proxies configuration rather than raw forwarded headers. The
-	// hub derives its OAuth resource identifier and RFC 9728 metadata URL from
-	// it (a hub reachable through several public URLs needs no configuration),
-	// and enforces the public_urls allowlist against this trusted origin.
+	// Resolve the public origin from Caddy's request placeholders, which report
+	// the request's own Host and TLS state and honor no forwarded header — so a
+	// hub behind a TLS terminator derives http://, and pinning the https://
+	// identity needs resource_identifier. The hub derives its RFC 9728 metadata
+	// from this origin and enforces public_urls against it.
 	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer) //nolint:forcetypeassert
 	host, _ := repl.GetString("http.request.hostport")
 	scheme, _ := repl.GetString("http.request.scheme")
@@ -465,7 +478,7 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	// Pass the origin out-of-band via the context, never by mutating r.URL: the
 	// playground handler builds its rel="self" Link from r.URL.String(), which
 	// must stay a relative path. Writing scheme/host onto r.URL would corrupt
-	// that Link (and diverge under trusted_proxies).
+	// that Link by turning it into an absolute URL.
 	m.hub.ServeHTTP(w, r.WithContext(mercure.NewRequestOriginContext(r.Context(), scheme, host)))
 
 	return nil
@@ -687,6 +700,32 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 	return nil
 }
 
+func (m *Mercure) registerUnnamedHub(ctx caddy.Context) error {
+	if m.Name != "" {
+		return nil
+	}
+
+	app, err := ctx.App("http")
+	if err != nil {
+		return fmt.Errorf("getting HTTP app: %w", err)
+	}
+
+	// App instances separate overlapping configurations during reload.
+	httpApp := app.(*caddyhttp.App)
+
+	hubsMu.Lock()
+	defer hubsMu.Unlock()
+
+	if unnamedHubs[httpApp] != nil {
+		return errMultipleUnnamedHubs
+	}
+
+	unnamedHubs[httpApp] = m
+	m.unnamedHubApp = httpApp
+
+	return nil
+}
+
 // parseIssuerBlock parses an "issuer <identifier> { ... }" Caddyfile block.
 func parseIssuerBlock(d *caddyfile.Dispenser) (IssuerConfig, error) {
 	var ic IssuerConfig
@@ -767,11 +806,11 @@ func parseVerifierBlock(d *caddyfile.Dispenser) (VerifierConfig, error) {
 	return v, nil
 }
 
-// pemPrefix opens a PEM block. A PEM-encoded key is an asymmetric public key,
-// so it must never be paired with an HMAC algorithm: createJWTKeyfunc would
-// then use the key material itself as the shared secret, and anyone holding
-// that (public) key could mint valid tokens.
-const pemPrefix = "-----BEGIN"
+// pemMarker opens a PEM block, possibly after a preamble such as OpenSSL's
+// "Bag Attributes". Here it only decides which algorithm defaults apply;
+// pairing such a key with HMAC is refused by the verifier
+// (mercure.ErrPEMKeyHMACAlgorithm).
+const pemMarker = "-----BEGIN"
 
 // defaultJWTAlgorithm is assumed for a raw shared secret whose algorithm is not
 // stated. A PEM-encoded key gets no default (see normalizeJWT).
@@ -779,13 +818,16 @@ const defaultJWTAlgorithm = "HS256"
 
 var (
 	errPEMKeyMissingAlgorithm = errors.New("the JWT key is PEM-encoded, so its signing algorithm must be set explicitly (for example RS256, ES256 or EdDSA)")
-	errPEMKeyHMACAlgorithm    = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
+	// Signing-side counterpart of mercure.ErrPEMKeyHMACAlgorithm: the token
+	// command parses a private key, which never reaches a verifier.
+	errPEMKeyHMACAlgorithm = errors.New("the JWT key is PEM-encoded but an HMAC algorithm would use the public key as a shared secret, letting anyone holding it forge tokens")
 )
 
 // normalizeJWT applies Caddy placeholder replacement to a static-key verifier
 // and defaults its algorithm to HS256 for a raw secret. It is a no-op when a
 // JWK Set URL is used or no key is configured. A PEM-encoded key gets no
-// default: its algorithm must be stated, and it must not be an HMAC one.
+// default, which would make the verifier cite an algorithm the operator never
+// wrote.
 func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) error {
 	if jwksURL != "" {
 		return nil
@@ -798,13 +840,9 @@ func normalizeJWT(repl *caddy.Replacer, c *JWTConfig, jwksURL, role string) erro
 
 	c.Alg = repl.ReplaceKnown(c.Alg, "")
 
-	if strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+	if strings.Contains(c.Key, pemMarker) {
 		if c.Alg == "" {
 			return fmt.Errorf("%s: %w", role, errPEMKeyMissingAlgorithm)
-		}
-
-		if strings.HasPrefix(c.Alg, "HS") {
-			return fmt.Errorf("%s: %q: %w", role, c.Alg, errPEMKeyHMACAlgorithm)
 		}
 
 		return nil
@@ -900,6 +938,10 @@ func (m *Mercure) populateJWTConfig(ctx caddy.Context) error {
 		}
 	}
 
+	if !m.Playground {
+		m.warnAboutWellKnownKeys(ctx)
+	}
+
 	if !hasPublisher && !AllowNoPublish {
 		return fmt.Errorf("publishers: %w", errMissingVerifier)
 	}
@@ -909,6 +951,22 @@ func (m *Mercure) populateJWTConfig(ctx caddy.Context) error {
 	}
 
 	return nil
+}
+
+// warnAboutWellKnownKeys flags the development secrets outside the playground:
+// they are published, so anyone can forge tokens the hub accepts.
+func (m *Mercure) warnAboutWellKnownKeys(ctx context.Context) {
+	keys := map[string]string{"publisher": m.PublisherJWT.Key, "subscriber": m.SubscriberJWT.Key}
+	for _, iss := range m.Issuers {
+		keys["issuer "+iss.Identifier+" publisher"] = iss.Publisher.JWT.Key
+		keys["issuer "+iss.Identifier+" subscriber"] = iss.Subscriber.JWT.Key
+	}
+
+	for role, key := range keys {
+		if (key == devKeyFallback || key == "!ChangeMe!") && m.logger.Enabled(ctx, slog.LevelWarn) {
+			m.logger.LogAttrs(ctx, slog.LevelWarn, "The JWT key is a development secret published in the documentation: anyone can forge tokens with it. Generate a random key.", slog.String("role", role))
+		}
+	}
 }
 
 // buildVerifier turns a configured VerifierConfig into a mercure.Verifier. A
@@ -1015,7 +1073,7 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 // algorithm. A PEM key is asymmetric — only its public half is configured here —
 // so it can verify but never sign locally.
 func isHMACSigningKey(c JWTConfig) bool {
-	if c.Key == "" || strings.HasPrefix(strings.TrimSpace(c.Key), pemPrefix) {
+	if c.Key == "" || strings.Contains(c.Key, pemMarker) {
 		return false
 	}
 

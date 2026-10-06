@@ -3,51 +3,26 @@ title: "Mercure topics and matchers: exact and URL Pattern matching"
 description: "How subscribers select topics in Mercure with the two matcher types, Exact and URL Pattern, in both subscribe query parameters and authorization details."
 ---
 
-# Topics and matchers
+# Mercure topics and matchers
 
-A **topic** is the address of an update. A **matcher** is the rule a subscriber uses to say which topics it cares about. Mercure defines two matcher types, `exact` and `urlpattern`; every hub supports both. Pick the one that fits the shape of your data.
+A **topic** identifies the resource or channel an update concerns. A **matcher** selects topics for a subscription or authorization grant. Mercure defines two matcher types: `exact` and `urlpattern`.
 
 > **Upgrading from 0.x?** The subscriber query parameter changed from `topic=` to `match=` (exact) or `match_urlpattern=` (templated), and URI Templates are replaced by [URL Patterns](https://urlpattern.spec.whatwg.org). The URI Template matcher type is gone. Authorization claims are now `authorization_details` objects, not bare strings. Full details: [Upgrade guide](../UPGRADE.md#10-from-0x).
 
 ## Topics
 
-Topics are arbitrary strings. Anything works:
+Topics are non-empty strings. This hub limits each topic or matcher pattern to 4,096 bytes and reserves special values and hub-owned paths; see the [specification](../../spec/mercure.md). Examples:
 
 - `https://example.com/books/42`
 - `chat-room-1234`
 - `urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022`
 - `tenant:acme/orders/new`
 
-### Why URLs are the recommended identifier
-
-URLs (more precisely, [URIs](https://www.rfc-editor.org/rfc/rfc3986)) are the web's native identifier standard. Using them as Mercure topics is a best practice for the same reasons REST uses URIs to name resources:
-
-- **Resources already have URLs.** If your application exposes `https://example.com/books/42`, that URL already identifies the book. Reusing it as the Mercure topic means subscribers and publishers reference the same thing in the same way, end-to-end.
-- **Globally unique by construction.** A URL is unique within its domain and unique across domains. You don't need to coordinate a separate naming scheme between services.
-- **Hypermedia-friendly.** URLs compose with `Link: rel="self"`, `JSON-LD` `@id`, Atom `<id>`, ActivityPub, OpenAPI, and every other web standard that already names things by URL. The same URL drops into a `fetch()`, an `<a href>`, a Mercure `match=`, and a database join.
-- **Tooling understands them.** Browsers, log aggregators, IDEs, and the URL Pattern matcher all parse and validate URLs out of the box. Path-based routing and per-segment matching come for free.
-- **REST principle.** A topic is a resource that publishers update and subscribers observe. Resources have URIs. Naming the topic with the resource's URI keeps the protocol uniform with the rest of your HTTP surface.
-
-When you control the resource the update is about, the natural topic is its canonical URL.
-
-### When to use a non-URL identifier
-
-URLs aren't mandatory. Slugs, UUIDs, custom URN schemes, or any other string can be a topic. Use them when the thing being broadcast doesn't have a meaningful URL:
-
-- Ephemeral or in-memory channels: `chat-room-1234`, `lobby:42`.
-- Domain identifiers that aren't web-addressable: `urn:uuid:...`, `did:...`.
-- Internal namespaced events from a single service: `tenant:acme/orders/new`.
-
-Subscribers match these with `match` (full-string comparison). The hub doesn't care about the scheme; it treats topics as opaque strings.
-
-Pick a scheme up front and stick to it. URLs are usually the right default; reach for a custom scheme only when there's no URL that names the thing you're broadcasting.
-
 ## Subscribing with matchers
 
-A subscriber sends one or more `match*` query parameters when opening the SSE connection:
+A subscriber sends between 1 and 100 `match*` query parameters in this hub when opening the SSE connection:
 
 ```text
-# Subscribing with matchers
 GET /.well-known/mercure?match=https://example.com/books/1&match_urlpattern=https://example.com/users/:id HTTP/2
 ```
 
@@ -63,21 +38,19 @@ The parameter name encodes the matcher type: bare `match` selects the default `e
 Case-sensitive string comparison. This is the matcher type the spec mandates every hub support, and the default when you use the bare `match` parameter.
 
 ```javascript
-// Exact matching with the match parameter
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/books/1");
 url.searchParams.append("match", "https://example.com/users/42");
 new EventSource(url);
 ```
 
-The connection above receives updates published with `topic=https://example.com/books/1` or `topic=https://example.com/users/42` (and nothing else).
+This connection selects updates with either topic. Private updates also require a matching authorization grant.
 
 ## URL Pattern matchers
 
 [URL Patterns](https://urlpattern.spec.whatwg.org) are the WHATWG standard used by service workers and modern routers. They're the way to subscribe to a family of URLs.
 
 ```javascript
-// URL Pattern matchers
 url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 url.searchParams.append(
   "match_urlpattern",
@@ -100,14 +73,13 @@ Patterns can be **absolute** (`https://example.com/...`) or **relative** to the 
 
 A topic matches a URL Pattern if the URL Pattern accepts the topic string as a URL.
 
-> **URL Pattern playground.** The browser ships `urlpattern` natively. You can prototype patterns in the devtools console: `new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")`.
+Test patterns in a browser that supports `URLPattern`: `new URLPattern("https://example.com/books/:id").test("https://example.com/books/42")`.
 
 ## Combining matchers
 
 A subscription with several `match*` parameters is a logical OR. There is no way to express AND inside a single subscription.
 
 ```javascript
-// Combining matchers
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/site/announcement");
 url.searchParams.append(
@@ -126,10 +98,9 @@ This subscriber receives:
 
 The hub uses matchers in two places: at subscription time (which topics does the client want?) and at authorization time (which topics is the client _allowed to use_?). Both share the same two matcher types.
 
-In an access token, each `mercure` entry of the `authorization_details` claim holds a `topics` array of matcher objects:
+In an access token, each Mercure entry of the `authorization_details` claim holds a `topics` array of matcher objects:
 
-```jsonc
-// Authorization details use the same matcher types
+```json
 {
   "authorization_details": [
     {
@@ -139,16 +110,16 @@ In an access token, each `mercure` entry of the `authorization_details` claim ho
         { "match": "https://example.com/users/42" },
         {
           "match": "https://example.com/users/42/:resource",
-          "match_type": "urlpattern",
-        },
-      ],
+          "match_type": "urlpattern"
+        }
+      ]
     },
     {
       "type": "https://mercure.rocks/authorization-detail",
       "actions": ["publish"],
-      "topics": [{ "match": "*" }],
-    },
-  ],
+      "topics": [{ "match": "*" }]
+    }
+  ]
 }
 ```
 
@@ -156,26 +127,48 @@ In an access token, each `mercure` entry of the `authorization_details` claim ho
 
 ## How matching works on the publish side
 
-A publisher posts an update with one or more `topic` fields — the first is the canonical topic, any others are [alternate topics](#alternate-topics). The hub runs every connected subscriber's matchers against all of the update's topics. Public updates go to every subscriber whose matchers hit any one of them. Private updates additionally require that the subscriber's token grants `subscribe` on at least one of them. See [Publishing](publishing.md) and [Authorization](authorization.md) for the full path.
+A publisher posts an update with one or more `topic` fields; the first is the canonical topic, any others are [alternate topics](#alternate-topics). The hub runs every connected subscriber's matchers against all of the update's topics. Public updates go to every subscriber whose matchers hit any one of them. Private updates additionally require that the subscriber's token grants `subscribe` on at least one of them. See [Publishing](publishing.md) and [Authorization](authorization.md) for the full path.
 
 ## Alternate topics
 
-A single update can carry more than one `topic` field. The first is the **canonical topic** — the primary identifier of the updated resource. Any others are **alternate topics**. The hub dispatches the update to every subscriber matching the canonical topic _or_ any alternate, and, for private updates, authorizes it the same way: a subscriber needs a `subscribe` grant on just one of the topics, not the canonical one specifically.
+A single update can carry more than one `topic` field. The first is the **canonical topic**, the primary identifier of the updated resource. Any others are **alternate topics**. The hub dispatches the update to every subscriber matching the canonical topic _or_ any alternate, and, for private updates, authorizes it the same way: a subscriber needs a `subscribe` grant on just one of the topics, not the canonical one specifically.
 
 ```console
-# Publishing with an alternate topic
-curl -X POST $HUB -H "Authorization: Bearer $JWT" \
-  -d 'topic=https://example.com/books/1' \
-  -d 'topic=https://example.com/users/42/books/1' \
-  -d 'private=on' \
-  -d 'data=...'
+curl -X POST "$HUB" -H "Authorization: Bearer $JWT" \
+  --data-urlencode 'topic=https://example.com/books/1' \
+  --data-urlencode 'topic=https://example.com/users/42/books/1' \
+  --data-urlencode 'private=on' \
+  --data-urlencode 'data=...'
 ```
 
-This lets one publish serve several differently-scoped audiences at once — typically a shared canonical resource plus a per-user (or per-tenant) alias — instead of one publish per audience. See [Per-user authorization on shared resources](authorization.md#per-user-authorization-on-shared-resources) for the authorization side, including the publisher grant requirement (every topic, not just the canonical one) and the confidentiality rule (never attach an alternate matchable by a broader audience than intended).
+Alternate topics let one update reach several audiences. For a private update, every alternate topic expands the possible audience. The publisher must be authorized for all topics. See [Per-user authorization on shared resources](authorization.md#per-user-authorization-on-shared-resources).
+
+## Choosing topic identifiers
+
+### Why URLs are the recommended identifier
+
+URLs are the web's native identifiers. Using them as Mercure topics makes your real-time API fit the rest of your application:
+
+- **Reuse the URLs you already have.** If `https://example.com/books/42` identifies a book in your API, use it as the topic too. Publishers and subscribers refer to the same resource.
+- **Keep namespaces distinct.** Your domain separates your topics from those of other services without a central channel registry. Choose a consistent path for each resource.
+- **Connect with web standards.** A resource URL can serve as a JSON-LD `@id`, an ActivityPub object ID, a link target, and a Mercure topic.
+- **Subscribe to related resources.** URL Patterns select families such as `https://example.com/books/:id`, using the same paths your API exposes.
+
+When the resource has a canonical URL, that's the natural topic. The hub does not fetch topic URLs, so a topic does not have to resolve to a page.
+
+### When to use a non-URL identifier
+
+URLs aren't mandatory. Slugs, UUIDs, custom URN schemes, or any other string can be a topic. Use them when the thing being broadcast doesn't have a meaningful URL:
+
+- Ephemeral or in-memory channels: `chat-room-1234`, `lobby:42`.
+- Domain identifiers that aren't web-addressable: `urn:uuid:...`, `did:...`.
+- Internal namespaced events from a single service: `tenant:acme/orders/new`.
+
+Subscribers match these with `match` (full-string comparison). The hub doesn't care about the scheme; it treats topics as opaque strings.
+
+Use a consistent naming scheme across publishers, subscribers, and authorization grants.
 
 ## Picking a matcher
-
-A short rule of thumb:
 
 - One specific resource (or a non-URL identifier) -> **Exact**.
 - All resources of a type -> **URL Pattern**.

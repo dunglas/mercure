@@ -15,12 +15,21 @@ extraDirectives: ""
 # -- Inject extra Caddy directives in the Caddyfile.
 caddyExtraDirectives: ""
 
-# -- The JWT key to use for publishers, a random key will be generated if empty.
+# -- Pin the OAuth 2.0 resource identifier (the `aud` access tokens must carry), e.g. `https://hub.example.com/.well-known/mercure`.
+# If empty, the hub derives it from each request's origin, which is `http://` behind a TLS-terminating ingress or gateway.
+resourceIdentifier: ""
+# -- Origins the hub answers on (`public_urls`), others get `421 Misdirected Request`.
+# Set it (or `resourceIdentifier`) when clients can reach the pod under any Host, for instance several hubs trusting one issuer.
+# Origins are matched as the pod sees them: `http://` behind a TLS-terminating ingress or gateway.
+publicUrls: []  # @schema item:string
+
+# -- The JWT key to use for publishers. If empty, a random key is generated on install and kept on upgrades
+# (renderers without cluster access, such as `helm template`, generate a new one each time: set it or use `existingSecret`).
 publisherJwtKey: ""
 # -- The JWT algorithm to use for publishers.
 publisherJwtAlg: HS256
 
-# -- The JWT key to use for subscribers, a random key will be generated if empty.
+# -- The JWT key to use for subscribers. Generated and kept like `publisherJwtKey` if empty.
 subscriberJwtKey: ""
 # -- The JWT algorithm to use for subscribers.
 subscriberJwtAlg: HS256
@@ -44,7 +53,7 @@ existingSecret: ""
 # -- The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version).
 license: ""
 
-# -- Port used for the Caddy admin API (health checks, metrics, graceful shutdown).
+# -- Port used for the Caddy admin API (health checks, graceful shutdown). The admin API only listens on localhost.
 adminPort: 2019  # @schema minimum:1;maximum:65535
 
 # -- Transport-aware health checks exposed via the Caddy admin API.
@@ -65,13 +74,10 @@ healthCheck:
     failureThreshold: 3  # @schema minimum:1
 
 metrics:
-  # -- Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value.
-  # servers {
-  #     metrics
-  # }
+  # -- Serve Prometheus metrics at `/metrics` on a dedicated listener. For Caddy's HTTP metrics, also enable the [`metrics` global option](https://caddyserver.com/docs/caddyfile/options#metrics) in `globalOptions`.
   enabled: false
-  # -- Deprecated: The port to use for exposing the metrics (use adminPort instead).
-  port: 2019  # @schema minimum:1;maximum:65535
+  # -- Port of the metrics listener, must differ from `adminPort` and `service.targetPort`.
+  port: 9180  # @schema minimum:1;maximum:65535
 
   serviceMonitor:
     # -- Whether to create a ServiceMonitor for Prometheus Operator.

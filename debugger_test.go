@@ -75,6 +75,7 @@ func TestDebugRoutes(t *testing.T) {
 	}{
 		{"config.json with debugger", []Option{WithDebugger()}, "debug/config.json", http.StatusOK},
 		{"config.json without debugger", nil, "debug/config.json", http.StatusNotFound},
+		{"vendored script with debugger", []Option{WithDebugger()}, "debug/vendor/fetch-event-source.js", http.StatusOK},
 		{"playground-token with minter", []Option{WithPlayground(), tokenFunc}, "debug/playground-token", http.StatusOK},
 		{"playground-token without minter", []Option{WithPlayground()}, "debug/playground-token", http.StatusNotFound},
 	} {

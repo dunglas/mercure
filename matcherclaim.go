@@ -5,6 +5,7 @@ package mercure
 import (
 	"bytes"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 )
@@ -64,18 +65,21 @@ func (mc *matcherClaim) MarshalJSON() ([]byte, error) {
 //
 // Always resets every field of the receiver before populating it, so reusing
 // a matcherClaim across decode calls does not leak the previous Type/Payload.
+//
+// Decoding uses encoding/json/v2, which rejects duplicate object members and
+// invalid UTF-8 rather than resolving an ambiguous claim to one reading.
 func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 	*mc = matcherClaim{}
 
 	// A null entry is neither a v8 string selector nor a valid matcher object;
-	// json.Unmarshal(null) is a silent no-op, so reject it explicitly rather
-	// than accept an empty-pattern matcher.
+	// decoding null into a struct zeroes it rather than failing, so reject it
+	// explicitly rather than accept an empty-pattern matcher.
 	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 		return errMissingMatchProperty
 	}
 
 	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
+	if err := jsonv2.Unmarshal(data, &s); err == nil {
 		// Empty Type signals "unresolved string claim"; resolveMatcherClaims
 		// decides what it means based on the protocol version.
 		mc.Pattern = s
@@ -91,7 +95,7 @@ func (mc *matcherClaim) UnmarshalJSON(data []byte) error {
 		Payload   any         `json:"payload"`
 	}
 
-	if err := json.Unmarshal(data, &obj); err != nil {
+	if err := jsonv2.Unmarshal(data, &obj); err != nil {
 		return err //nolint:wrapcheck
 	}
 

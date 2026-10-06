@@ -4,11 +4,18 @@ package mercure
 
 import (
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// wrongKey signs nothing these tests present: it only has to be non-empty, which
+// ErrMissingKey now requires.
+var wrongKey = []byte("!NotTheSigningKey!") //nolint:gochecknoglobals
 
 type authorizationTestData struct {
 	algorithm       string
@@ -162,7 +169,7 @@ func TestAuthorizeMultipleAuthorizationHeader(t *testing.T) {
 			r.Header.Add("Authorization", testdata.validEmpty)
 			r.Header.Add("Authorization", testdata.validEmpty)
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.EqualError(t, err, `invalid "Authorization" HTTP header`)
@@ -185,7 +192,7 @@ func TestAuthorizeAuthorizationHeaderTooShort(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", "Bearer x")
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.EqualError(t, err, `invalid "Authorization" HTTP header`)
@@ -208,7 +215,7 @@ func TestAuthorizeAuthorizationHeaderNoBearer(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", "Greater "+testdata.validEmpty)
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.EqualError(t, err, `invalid "Authorization" HTTP header`)
@@ -231,7 +238,7 @@ func TestAuthorizeAuthorizationHeaderInvalidAlg(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", bearerPrefix+createDummyNoneSignedJWT())
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
@@ -255,7 +262,7 @@ func TestAuthorizeAuthorizationHeaderInvalidKey(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.Header.Add("Authorization", bearerPrefix+testdata.validEmpty)
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err, testdata.algorithm)
@@ -404,7 +411,7 @@ func TestAuthorizeAuthorizationQueryTooShort(t *testing.T) {
 			query.Set("authorization", "x")
 			r.URL.RawQuery = query.Encode()
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			// A too-short deprecated "authorization" query parameter is ignored,
 			// falling through to anonymous access.
@@ -431,7 +438,7 @@ func TestAuthorizeAuthorizationQueryInvalidAlg(t *testing.T) {
 			query.Set("authorization", createDummyNoneSignedJWT())
 			r.URL.RawQuery = query.Encode()
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
@@ -457,7 +464,7 @@ func TestAuthorizeAuthorizationQueryInvalidKey(t *testing.T) {
 			query.Set("authorization", testdata.validEmpty)
 			r.URL.RawQuery = query.Encode()
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
@@ -631,7 +638,7 @@ func TestAuthorizeCookieInvalidKey(t *testing.T) {
 			r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
 			r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: testdata.validEmpty})
 
-			h := createLegacyDummy(t, withSubscriberJWT([]byte{}, testdata.algorithm))
+			h := createLegacyDummy(t, withSubscriberJWT(wrongKey, testdata.algorithm))
 
 			claims, err := h.authorize(r, false)
 			require.Error(t, err)
@@ -865,3 +872,127 @@ func TestAuthorizeCustomCookieName(t *testing.T) {
 // canReceive/canDispatch were replaced by mercureAuthz.grants/grantsAll; the
 // grant matrix is covered by TestMercureAuthzGrants in
 // authorizationdetails_test.go.
+
+func TestLegacyPayloadIgnoredOutsideCompatibilityMode(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h, err := NewHub(t.Context(),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: Static{Key: []byte("subscriber"), Algorithm: "HS256"},
+		}}),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithTopicMatcherStore(tms),
+	)
+	require.NoError(t, err)
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	token.Header["typ"] = atJWTType
+	token.Claims = &claims{
+		Issuer:    testIssuer,
+		Audience:  jwt.ClaimStrings{testResourceIdentifier},
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		Mercure:   mercureClaim{Payload: map[string]any{"ip": "192.0.2.1"}},
+		AuthorizationDetails: []authorizationDetail{{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{actionSubscribe},
+			Topics:  stringsToDetailTopics([]string{"https://example.com/books/1"}),
+		}},
+	}
+
+	encoded, err := token.SignedString([]byte("subscriber"))
+	require.NoError(t, err)
+
+	c, err := h.validateJWT(encoded, false, testResourceIdentifier)
+	require.NoError(t, err)
+	assert.Nil(t, c.Mercure.Payload)
+
+	s := NewSubscriber(nil, tms)
+	s.Claims = c
+	s.SetMatchers([]TopicMatcher{{Type: MatcherTypeExact, Pattern: "https://example.com/books/1"}}, nil)
+	require.Len(t, s.SubscriptionPayloads, 1)
+	assert.Nil(t, s.SubscriptionPayloads[0])
+}
+
+func TestLegacyPayloadIgnoredBesideAuthorizationDetails(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h := createLegacyDummy(t, WithTopicMatcherStore(tms), legacyVerifier(false, []byte("subscriber"), "HS256"))
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	token.Claims = &claims{
+		Mercure: mercureClaim{Payload: map[string]any{"ip": "192.0.2.1"}},
+		AuthorizationDetails: []authorizationDetail{{
+			Type:    authorizationDetailTypeMercure,
+			Actions: []mercureAction{actionSubscribe},
+			Topics:  stringsToDetailTopics([]string{"https://example.com/books/1"}),
+		}},
+	}
+
+	encoded, err := token.SignedString([]byte("subscriber"))
+	require.NoError(t, err)
+
+	c, err := h.validateJWT(encoded, false, "")
+	require.NoError(t, err)
+	assert.Nil(t, c.Mercure.Payload)
+}
+
+// TestCompatModeEmptyResourceIdentifierAcceptsToken ensures a hub started in
+// compatibility mode without a resource identifier does not enforce an empty
+// audience, which would reject every otherwise-valid legacy token.
+func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	h, err := NewHub(t.Context(),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Subscriber: Static{Key: []byte("subscriber"), Algorithm: jwt.SigningMethodHS256.Name},
+		}}),
+		WithProtocolVersionCompatibility(7),
+		WithTopicMatcherStore(tms),
+	)
+	require.NoError(t, err)
+	require.Empty(t, h.resourceIdentifier)
+
+	// A well-formed at+jwt token with an audience the hub does not know must
+	// still be accepted, since no audience is enforced.
+	token := mintAccessToken([]byte("subscriber"), "https://some.other.audience/", nil)
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+token)
+
+	claims, err := h.authorize(r, false)
+	require.NoError(t, err)
+	require.NotNil(t, claims)
+}
+
+func TestAuthorizeAuthorizationQueryOversized(t *testing.T) {
+	t.Parallel()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"mercure": map[string]any{"subscribe": []string{"foo"}},
+		"jti":     strings.Repeat("a", maxCompactJWSLen),
+	})
+	s, err := token.SignedString([]byte("!ChangeMe!"))
+	require.NoError(t, err)
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	query := r.URL.Query()
+	query.Set("authorization", s)
+	r.URL.RawQuery = query.Encode()
+
+	h := createLegacyDummy(t, withSubscriberJWT([]byte("!ChangeMe!"), "HS256"))
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.ErrorContains(t, err, "exceeds")
+}

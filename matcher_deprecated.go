@@ -9,8 +9,8 @@ package mercure
 // appendDeprecatedTopicMatchers wraps each value of the v8 `topic` query
 // parameter into a deprecated TopicMatcher (exact or URI Template matching).
 // Only called when the hub runs under WithProtocolVersionCompatibility. It
-// delegates to appendMatchers; validatePattern is a no-op for the deprecated
-// type, which keeps the v8 "exact or URI Template" fallback.
+// delegates to appendMatchers, which keeps the v8 "exact or URI Template"
+// fallback and only refuses templates too complex to compile.
 func (h *Hub) appendDeprecatedTopicMatchers(matchers []TopicMatcher, values []string) ([]TopicMatcher, error) {
 	return h.appendMatchers(matchers, deprecatedMatcherTypeName, values)
 }

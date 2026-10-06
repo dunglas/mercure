@@ -3,17 +3,16 @@ title: "Real-time dashboards and live data feeds with Mercure"
 description: "Push live values, IoT telemetry, stock tickers, and dashboard updates to web and mobile clients using Mercure topics and URL Patterns."
 ---
 
-# Live data and dashboards
+# Mercure live data and dashboards
 
-The textbook Mercure use case: a value or set of values changes on the server, and connected clients see the change without polling. Stock tickers, room occupancy, IoT telemetry, sales counters, build statuses. Anything where polling would either be too slow or too wasteful.
+Publish changing values to Mercure so connected dashboards can update without polling. Examples include stock prices, room occupancy, device telemetry, and build status.
 
 ## The shape of the problem
 
 ```text
-# The shape of the problem
    data source                hub                        clients
         |                      |                            |
-        |  POST /publish       |   GET /sub?match=...       |
+        |  POST to hub       |   GET hub?match=...       |
         | -------------------> | -------------------------> |
         |  (when value changes)|                            |
         |                      | -------------------------> |  every connected
@@ -36,7 +35,6 @@ The natural topic for a data point is its URL, the same URL that returns its cur
 When clients want a _family_ of values, use `match_urlpattern`:
 
 ```javascript
-// Topic design
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "match_urlpattern",
@@ -50,7 +48,6 @@ One connection, every product's availability changes flow over it.
 ## Subscriber
 
 ```html
-<!-- Subscriber -->
 <table id="prices">
   <tr data-topic="https://prices.example.com/AAPL">
     <td>AAPL</td>
@@ -87,25 +84,29 @@ Two things to notice:
 
 ## Publisher
 
-A worker tailing a price feed:
+This worker sketch uses `requests`, `json`, and `time`. Configure `HUB` and `PUBLISHER_JWT` for your deployment:
 
 ```python
-# Publisher
+import json
+import time
+import requests
+
 def on_price_change(symbol: str, price: float) -> None:
-    requests.post(
+    response = requests.post(
         HUB,
         headers={"Authorization": f"Bearer {PUBLISHER_JWT}"},
         data={
             "topic": f"https://prices.example.com/{symbol}",
             "data": json.dumps({"symbol": symbol, "price": price, "ts": time.time()}),
         },
+        timeout=10,
     )
+    response.raise_for_status()
 ```
 
 Or, in your existing API service, fire the publish from the same code path that writes the database:
 
 ```python
-# Publisher
 def update_availability(product_id: int, in_stock: bool) -> None:
     db.update(product_id, in_stock=in_stock)
     publish(
@@ -114,28 +115,27 @@ def update_availability(product_id: int, in_stock: bool) -> None:
     )
 ```
 
-For exactly-once-ish guarantees, write to a local outbox in the same transaction as the data change and have a worker drain it to the hub.
+For retryable publication, write an outbox entry in the same transaction as the data change. A worker publishes it and retries failures. Consumers must handle duplicates.
 
 ## Public vs. Private Mercure live data topics
 
-For data the whole world can see (public stock prices, public game scores), publish without `private=on`. Subscribers don't need a JWT.
+For public data, omit `private=on`. Enable `anonymous` if subscribers should connect without a token.
 
 For per-user or per-tenant data (a customer's order status, a tenant's CI runs), publish private and authorize the matchers in the subscriber's access token. The [per-user authorization pattern](../concepts/authorization.md#per-user-authorization-on-shared-resources) covers per-resource fine-grained access setups.
 
 ## Sizing the Mercure history buffer for live data
 
-For pure live data (the latest value is what matters; old values are useless), the history buffer doesn't have to be large. A handful of messages is enough to cover reconnects.
+Size retention from the total event rate and expected disconnect duration. For latest-value dashboards, clients can fetch a fresh snapshot instead of replaying a long history.
 
 For replay-driven dashboards (replay the last hour of price changes when the page loads), you want a bigger buffer, or pair the hub with a primary store you can fetch from for the cold-start, and use Mercure only for incremental updates.
 
-> **Pro tip.** The open-source hub stores history in BoltDB with **no built-in cap**: it grows until disk fills. Set `size N` in the transport config to bound it. Cloud tiers cap history at 100-5,000 messages depending on plan; if your dashboards need long histories and predictable storage, [Self-Hosted Mercure](https://mercure.rocks/pricing) with the Postgres transport keeps the data on infrastructure you control.
+For shared dashboard history on your own infrastructure, [Mercure Enterprise with PostgreSQL](../production/high-availability.md#postgresql) keeps events in a database you control. Prefer managed hosting? [Mercure Cloud](https://mercure.rocks/pricing) operates the hub for you.
 
 ## Dashboards: many topics, one connection
 
 A dashboard that watches dozens of metrics opens **one** `EventSource` and uses many `match*` parameters, not one connection per metric:
 
 ```javascript
-// Dashboards: many topics, one connection
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append(
   "match_urlpattern",
@@ -157,15 +157,17 @@ url.searchParams.append(
 new EventSource(url);
 ```
 
-The hub multiplexes them all over a single TCP connection. The browser's HTTP/2 stack does the rest.
+One SSE stream delivers all matching updates.
 
 ## Mercure throughput in practice
 
-Public benchmarks: a t3.micro running the open-source hub holds **40k concurrent SSE connections** with the BoltDB transport. Connections aren't expensive in Mercure: every additional client costs a goroutine and a few KB of RAM. Where you'll feel cost is publish throughput: the hub fans every update out to every matching subscriber, so high-rate streams to many subscribers means high outbound bandwidth.
+A [published benchmark](https://speakerdeck.com/dunglas/2-plus-and-mercure?slide=41) reported **40,000 concurrent connections on an EC2 t3.micro** with the open-source hub. For a large live audience, [Mercure Enterprise](../production/high-availability.md) lets you distribute subscribers across several nodes.
+
+Fan-out determines outbound traffic: each update is sent to every matching subscriber. Measure your payload sizes, publish rate, subscriber counts, and history writes using the [load test](../production/load-testing.md).
 
 For setups beyond what one node can handle, see [High availability](../production/high-availability.md).
 
-## Next steps for Mercure live data
+## Next steps
 
 - [Reconnection and history](../concepts/reconnection-and-history.md): replay after a disconnect.
 - [Authorization](../concepts/authorization.md): per-user data.

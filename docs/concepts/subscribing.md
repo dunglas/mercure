@@ -1,27 +1,25 @@
 ---
 title: "Subscribing to Mercure updates with server-sent events"
-description: "Open SSE subscriptions to a Mercure hub from browsers, Node.js, Go, Python, and other clients with EventSource and fetch-event-source."
+description: "Subscribe to Mercure from browsers, PHP with Symfony HttpClient, Laravel Echo, Node.js, Go, and Python. Learn SSE connection limits and topic subscriptions."
 ---
 
-# Subscribing
+# Subscribe to Mercure updates
 
 A subscription is an HTTP `GET` request to the hub's well-known URL that the hub keeps open and writes [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html) into.
 
 ```http
-# Subscribing
 GET /.well-known/mercure?match=https://example.com/books/1 HTTP/2
 Host: hub.example.com
 Accept: text/event-stream
 ```
 
-Pick the matchers you want with [`match*` query parameters](topics-and-matchers.md). The rest of this page covers the client-side.
+Pick the matchers you want with [`match*` query parameters](topics-and-matchers.md). The rest of this page covers client code.
 
 ## Subscribing from a browser with EventSource
 
 `EventSource` is built into every modern browser:
 
 ```javascript
-// Subscribing from a Browser with EventSource
 const url = new URL("https://hub.example.com/.well-known/mercure");
 url.searchParams.append("match", "https://example.com/books/1");
 url.searchParams.append("match_urlpattern", "https://example.com/users/:id");
@@ -38,35 +36,41 @@ es.onerror = () => {
 
 A few things to know:
 
-- Browsers cap concurrent HTTP/1.1 requests per origin at 6. With HTTP/2 (the default everywhere on HTTPS) the cap is 100 streams negotiated with the server. **Use HTTP/2**: your hub already speaks it.
-- A single `EventSource` connection can carry as many topic subscriptions as you want by passing more `match*` parameters.
+- Browsers typically allow **6 HTTP/1.1 connections per origin**, shared across tabs. With HTTP/2, **100 concurrent streams is a common default**, negotiated between client and server. These are streams sharing a connection, not 100 separate TCP connections. See [MDN's SSE connection limits](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#receiving_events_from_the_server). HTTP/3 also multiplexes streams, with its own negotiated limits.
+- A single `EventSource` connection can carry up to 100 matchers in this hub by passing more `match*` parameters.
 - `EventSource` does not let you set `Authorization` headers. For private subscriptions, use the [`__Secure-mercure_access_token` cookie](authorization.md#cookies-in-detail), or consume the stream with `fetch()` and an `Authorization` header when a cookie can't work (per-tab tokens, cross-domain hub).
+
+### Subscribing with Laravel Echo
+
+Laravel Echo has native Mercure support. Use Echo's channel, private-channel, and presence APIs with Mercure as the broadcaster. See [Laravel broadcasting with Mercure](../use-cases/laravel-broadcasting.md) for server configuration and browser examples.
 
 ### `fetch-event-source` for advanced cases
 
-For finer-grained error handling, custom headers, or non-`GET` requests, use [Microsoft's `fetch-event-source`](https://github.com/Azure/fetch-event-source):
+For custom headers, retry handling, or `QUERY` requests, use [Microsoft's `fetch-event-source`](https://github.com/Azure/fetch-event-source):
 
 ```javascript
-// fetch-event-source for advanced cases
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 await fetchEventSource(url, {
   headers: { Authorization: `Bearer ${jwt}` },
-  onmessage: (event) => /* ... */,
-  onerror: (err) => /* ... */,
+  onmessage: (event) => {
+    console.log(event.data);
+  },
+  onerror: (err) => {
+    console.error(err);
+  },
 });
 ```
 
-This is the right choice for React Native, server-side runtimes, and any case where the native `EventSource` is too constrained.
+`fetch-event-source` uses browser APIs, including `document` and `window`. For Node.js, use the `eventsource` package shown below. For mobile runtimes, choose an SSE client that supports that runtime.
 
 ## Subscribing with the QUERY method
 
-Each `match*` parameter adds to the subscription URL. A subscriber watching hundreds of topics can hit the URL length limits that browsers, proxies, and CDNs enforce (commonly 4 to 8 KB), and the request fails before it reaches the hub.
+Long topic strings can exceed URL limits imposed by browsers or proxies. `QUERY` moves the matchers into the body; it does not remove the hub's limit of 100 matchers per subscription.
 
 To avoid this, the hub also accepts the [`QUERY` HTTP method](https://www.rfc-editor.org/rfc/rfc10008.html) on the subscription URL. `QUERY` is safe and idempotent like `GET`, but carries the topic matcher parameters in the request body instead of the query string. The body **must** be encoded as `application/x-www-form-urlencoded`, exactly as the query string would be:
 
 ```http
-# Subscribing with the QUERY method
 QUERY /.well-known/mercure HTTP/2
 Host: hub.example.com
 Accept: text/event-stream
@@ -78,7 +82,6 @@ match=https://example.com/books/1&match_urlpattern=https://example.com/users/:id
 `EventSource` only issues `GET` requests, so it can't use `QUERY`. Reach for a `fetch`-based client:
 
 ```javascript
-// Subscribing with the QUERY method
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 const body = new URLSearchParams();
@@ -89,7 +92,9 @@ await fetchEventSource("https://hub.example.com/.well-known/mercure", {
   method: "QUERY",
   headers: { "Content-Type": "application/x-www-form-urlencoded" },
   body,
-  onmessage: (event) => /* ... */,
+  onmessage: (event) => {
+    console.log(event.data);
+  },
 });
 ```
 
@@ -97,10 +102,9 @@ Everything else stays the same: the matcher names and values follow the [same ru
 
 ## Closing the Mercure EventSource connection
 
-`EventSource` keeps the TCP connection open until you close it. In single-page apps the connection survives component unmounts and route changes if you don't tear it down explicitly:
+`EventSource` keeps a subscription stream open until you close it or the page unloads. In single-page apps the connection survives component unmounts and route changes if you don't tear it down explicitly:
 
 ```javascript
-// Closing the Mercure EventSource Connection
 useEffect(() => {
   const es = new EventSource(url);
   es.onmessage = handler;
@@ -108,42 +112,92 @@ useEffect(() => {
 }, [url]);
 ```
 
-Skipping this is the most common cause of "the hub keeps a slot for me even though I navigated away." The hub sees the connection as live and counts it against any per-IP or per-token limits.
+Without cleanup, unused subscriptions keep consuming browser and hub resources.
 
 ## Server-side subscribers
 
 Any HTTP client that exposes a streaming response works. A few examples:
 
+### Subscribing to Mercure from PHP with Symfony HttpClient
+
+Symfony's [`EventSourceHttpClient`](https://symfony.com/doc/current/http_client.html#consuming-server-sent-events) parses SSE streams for you. It works in any PHP application; the Symfony framework is not required.
+
+Install it with `composer require symfony/http-client`, then save this as `subscribe.php` and run `php subscribe.php`. Set `MERCURE_URL` and a subscriber token in `MERCURE_JWT`:
+
+```php
+<?php
+
+require __DIR__.'/vendor/autoload.php';
+
+use Symfony\Component\HttpClient\Chunk\ServerSentEvent;
+use Symfony\Component\HttpClient\EventSourceHttpClient;
+
+$client = new EventSourceHttpClient();
+$source = $client->connect(getenv('MERCURE_URL'), [
+    'query' => ['match' => 'https://example.com/books/1'],
+    'auth_bearer' => getenv('MERCURE_JWT'),
+]);
+
+try {
+    foreach ($client->stream($source) as $chunk) {
+        if ($chunk->isTimeout()) {
+            continue;
+        }
+        if ($chunk instanceof ServerSentEvent) {
+            echo $chunk->getData(), PHP_EOL;
+        }
+    }
+} finally {
+    $source->cancel();
+}
+```
+
+Use `getArrayData()` for JSON payloads, `getType()` for named events, and `getId()` to save a replay cursor. Omit `auth_bearer` only when the hub allows anonymous subscriptions and you need public updates.
+
 ### Subscribing to Mercure from Node.js
 
-```javascript
-// Subscribing to Mercure from Node.js
-import { fetchEventSource } from "@microsoft/fetch-event-source";
+Install the [`eventsource` package](https://github.com/EventSource/eventsource), then:
 
-await fetchEventSource(
+```javascript
+import { EventSource } from "eventsource";
+
+const es = new EventSource(
   "https://hub.example.com/.well-known/mercure?match=topic",
-  {
-    onmessage: (e) => console.log(e.data),
-  },
 );
+es.onmessage = (event) => console.log(event.data);
 ```
+
+This example requires anonymous subscriptions. Use the package's custom `fetch` option to attach an `Authorization` header on a protected hub.
 
 ### Subscribing to Mercure from Go
 
-```go
-// Subscribing to Mercure from Go
-import "github.com/r3labs/sse/v2"
+Install `github.com/r3labs/sse/v2`. A complete subscriber:
 
-client := sse.NewClient("https://hub.example.com/.well-known/mercure?match=topic")
-client.Subscribe("messages", func(msg *sse.Event) {
-    fmt.Println(string(msg.Data))
-})
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/r3labs/sse/v2"
+)
+
+func main() {
+    client := sse.NewClient("https://hub.example.com/.well-known/mercure?match=topic")
+    if err := client.SubscribeRaw(func(msg *sse.Event) {
+        fmt.Println(string(msg.Data))
+    }); err != nil {
+        log.Fatal(err)
+    }
+}
 ```
 
 ### Subscribing to Mercure from Python
 
+Install `sseclient` for this API (the similarly named `sseclient-py` package has a different constructor). The example requires anonymous subscriptions.
+
 ```python
-# Subscribing to Mercure from Python
 from sseclient import SSEClient
 
 for event in SSEClient("https://hub.example.com/.well-known/mercure?match=topic"):
@@ -157,7 +211,6 @@ for event in SSEClient("https://hub.example.com/.well-known/mercure?match=topic"
 Each event is a standard SSE message:
 
 ```text
-# What the hub sends
 id: urn:uuid:e1ee88e2-532a-4d6f-ba70-f0f8bd584022
 event: message
 data: {"status": "checked out"}
@@ -172,10 +225,9 @@ Fields:
 
 ## Discovering the Mercure hub via link header
 
-The publisher of a resource can advertise its hub via a `Link` header so clients don't need to hardcode it:
+A resource can advertise its hub in a `Link` header. The following exchange shows a discovery response:
 
 ```http
-# Discovering the Mercure Hub via Link Header
 GET /books/1
 Host: example.com
 
@@ -187,20 +239,20 @@ Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 Subscribers that fetch the resource first can read the header to find the hub:
 
 ```javascript
-// Discovering the Mercure Hub via Link Header
 const res = await fetch("https://example.com/books/1");
 const link = res.headers.get("Link");
-const hub = link.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
+const hub = link?.match(/<([^>]+)>;\s*rel="?mercure"?/)?.[1];
+if (!hub) throw new Error("No Mercure link in the response");
 
-const url = new URL(hub);
+const url = new URL(hub, res.url);
 url.searchParams.append(
   "match",
-  res.headers.get("Content-Location") ?? res.url,
+  new URL(res.headers.get("Content-Location") ?? res.url, res.url).href,
 );
 new EventSource(url);
 ```
 
-This pattern decouples the URL of your data from the URL of the hub serving updates for it. See [Discovery](discovery.md) for the full picture, including how clients learn the hub's authorization requirements.
+The regular expression handles the simple header shown above. For arbitrary `Link` headers, use a Web Linking parser. Cross-origin discovery responses must expose `Link` and `Content-Location` through `Access-Control-Expose-Headers`. See [Discovery](discovery.md).
 
 ## Mercure SSE heartbeats
 
@@ -210,15 +262,15 @@ If you set `heartbeat 0s` to disable them, make sure nothing on the network path
 
 ## Mercure subscriber connection limits
 
-| Limit                                      | Where                                      |
-| ------------------------------------------ | ------------------------------------------ |
-| Concurrent HTTP/2 streams per origin       | Browser-negotiated, default 100            |
-| Concurrent HTTP/1.1 connections per origin | 6 (browser-enforced)                       |
-| Concurrent connections to the hub          | Hardware-bound on OSS; tier-bound on Cloud |
+| Limit                                      | Where                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Concurrent HTTP/2 streams per connection   | Common default: 100; negotiated by client and server                                   |
+| Concurrent HTTP/1.1 connections per origin | Typically 6; browser-dependent                                                         |
+| Concurrent connections to the hub          | Hardware-bound on OSS; see [Cloud and Enterprise plans](https://mercure.rocks/pricing) |
 
-A single connection serves any number of topics: pass more `match*` parameters rather than opening more `EventSource` instances.
+A single connection accepts up to 100 matchers in this hub: pass more `match*` parameters rather than opening more `EventSource` instances.
 
-## Next steps for Mercure subscribing
+## Next steps
 
 - [Topics and matchers](topics-and-matchers.md): choosing the right matcher type.
 - [Reconnection and history](reconnection-and-history.md): surviving disconnects without losing events.

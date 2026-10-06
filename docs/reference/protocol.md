@@ -3,22 +3,22 @@ title: "Mercure protocol specification overview"
 description: "Introduction to the Mercure IETF specification: subscriptions, publications, JWT authorization, replay, active subscriptions, and matcher types."
 ---
 
-# Protocol
+# Mercure protocol
 
-Mercure is a public protocol, not just an implementation. The canonical source of truth is the [IETF Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/), on track for publication as an RFC. The full text is also kept in this repository:
+Mercure is an open protocol. The [specification in this repository](../../spec/mercure.md) describes the behavior documented here. Track standardization through the [IETF Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/); an Internet-Draft is a work in progress, not an RFC.
 
 - **[The Mercure Protocol specification](../../spec/mercure.md)**
 - [OpenAPI definition](https://github.com/dunglas/mercure/blob/master/spec/openapi.yaml)
 
-This page is a quick orientation, not a substitute. Read the spec for normative language and edge cases.
+This overview introduces the main operations. Consult the specification for normative requirements.
 
 ## What's in the protocol
 
 - **Subscription**: `GET /.well-known/mercure?match=...` with one or more matcher query parameters.
-- **Publication**: `POST /.well-known/mercure` with form-encoded `topic`, `data`, and friends.
+- **Publication**: `POST /.well-known/mercure` with form-encoded `topic`, `data`, and optional delivery fields.
 - **Authorization**: OAuth 2.0 JWT access tokens ([RFC 9068](https://www.rfc-editor.org/rfc/rfc9068)) with an `authorization_details` claim ([RFC 9396](https://www.rfc-editor.org/rfc/rfc9396)) granting publish/subscribe per topic matcher; [RFC 6750](https://www.rfc-editor.org/rfc/rfc6750) errors.
 - **Reconnection**: `Last-Event-ID` header and `last_event_id` query parameter for replay.
-- **Active subscriptions**: subscription events on a well-known topic family + a JSON-LD API.
+- **Active subscriptions**: subscription events on a well-known topic family and a JSON API.
 - **Discovery**: `Link: rel="mercure"` headers on the publisher's resources, plus OAuth 2.0 protected resource metadata ([RFC 9728](https://www.rfc-editor.org/rfc/rfc9728)).
 - **Encryption**: JWE for end-to-end privacy.
 
@@ -34,8 +34,8 @@ See [Topics and matchers](../concepts/topics-and-matchers.md) for the developer-
 ## Mercure protocol implementations
 
 - **[Mercure.rocks Hub](https://github.com/dunglas/mercure)**: the reference implementation. Caddy module, Go library, single static binary. Open-source (AGPL-3.0).
-- **[Freddie](https://github.com/bpolaszek/freddie)**: PHP hub. Stable; covers everything except subscription events.
-- **[Ilshidur/node-mercure](https://github.com/Ilshidur/node-mercure)**: Node.js hub and publisher. Beta.
+- **[Freddie](https://github.com/bpolaszek/freddie)**: PHP hub; check its supported protocol revision.
+- **[Ilshidur/node-mercure](https://github.com/Ilshidur/node-mercure)**: Node.js hub and publisher; check its supported protocol revision.
 - **[Symfony Mercure component](https://symfony.com/doc/current/mercure.html)**: PHP publisher and Symfony integration.
 - **[API Platform](https://api-platform.com/docs/core/mercure/)**: full publisher + subscriber + GraphQL subscription support.
 - **[Laravel Mercure Broadcaster](https://github.com/mvanduijker/laravel-mercure-broadcaster)**: publisher for Laravel.
@@ -49,7 +49,7 @@ The reference test suite is published in the [`conformance-tests/`](https://gith
 
 ## Mercure protocol versioning
 
-The protocol is versioned via the IETF draft number. The reference hub follows SemVer and ships breaking changes only at major versions. The current major is **1.0**, aligned with the two-matcher, OAuth 2.0 authorization model described in the spec.
+IETF draft numbers and hub release versions are separate. These pages describe the 1.0 hub and the specification in this checkout. Verify a third-party implementation's supported protocol revision before using 1.0 features.
 
 If you're upgrading from a previous version, see the [upgrade guide](../UPGRADE.md).
 

@@ -22,8 +22,8 @@ const legacyAuthorizationParam = "authorization"
 
 // compatClaimsEnabled reports whether legacy mercure-claim behavior is active:
 // the code is compiled in and the operator enabled compatibility mode.
-func (h *Hub) compatClaimsEnabled() bool {
-	return h.isBackwardCompatiblyEnabledWith(8)
+func (o *opt) compatClaimsEnabled() bool {
+	return o.isBackwardCompatiblyEnabledWith(8)
 }
 
 // requireATJWT reports whether access tokens must carry the at+jwt typ header
@@ -59,6 +59,16 @@ func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
 	}
 
 	return r.Cookie(legacyCookieName) //nolint:wrapcheck
+}
+
+// Discard ignored legacy payloads so subscription events cannot expose them.
+func (h *Hub) dropLegacyClaims(c *claims) {
+	if h.compatClaimsEnabled() && len(c.AuthorizationDetails) == 0 {
+		return
+	}
+
+	c.Mercure = mercureClaim{}
+	c.MercureNamespaced = nil
 }
 
 // resolveLegacyClaims converts the legacy mercure claim into the validated

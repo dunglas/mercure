@@ -66,17 +66,40 @@ func TestMatcherClaimUnmarshalReset(t *testing.T) {
 	assert.Nil(t, mc.Payload)
 }
 
+// TestMatcherClaimRejectsAmbiguousJSON mirrors the authorization_details
+// hardening for the deprecated mercure claim: a duplicate object member or
+// invalid UTF-8 makes the entry mean different things to different parsers,
+// so the claim is rejected instead of resolved to one of the readings.
+func TestMatcherClaimRejectsAmbiguousJSON(t *testing.T) {
+	t.Parallel()
+
+	for name, claim := range map[string]string{
+		"duplicate match":      `{"match": "a", "match": "b"}`,
+		"duplicate match_type": `{"match": "a", "match_type": "exact", "match_type": "urlpattern"}`,
+		"duplicate payload":    `{"match": "a", "payload": 1, "payload": 2}`,
+		"invalid UTF-8 object": "{\"match\": \"a\xffb\"}",
+		"invalid UTF-8 string": "\"a\xffb\"",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var mc matcherClaim
+			require.Error(t, json.Unmarshal([]byte(claim), &mc))
+		})
+	}
+}
+
 func TestMatcherClaimMarshalRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	// Object form
-	in := matcherClaim{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}, Payload: map[string]any{"a": "b"}}
+	in := matcherClaim{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id", Payload: map[string]any{"a": "b"}}
 	b, err := json.Marshal(&in)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"match": "https://example.com/:id", "match_type": "urlpattern", "payload": {"a": "b"}}`, string(b))
 
 	// String form (unresolved)
-	in = matcherClaim{TopicMatcher: TopicMatcher{Pattern: "https://example.com/foo"}}
+	in = matcherClaim{Pattern: "https://example.com/foo"}
 	b, err = json.Marshal(&in)
 	require.NoError(t, err)
 	assert.JSONEq(t, `"https://example.com/foo"`, string(b))
@@ -90,24 +113,24 @@ func TestResolveMatcherClaims(t *testing.T) {
 
 	// Object-form claims with valid types resolve in modern mode.
 	cs := []matcherClaim{
-		{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "foo"}},
-		{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"}},
+		{Type: MatcherTypeExact, Pattern: "foo"},
+		{Type: MatcherTypeURLPattern, Pattern: "https://example.com/:id"},
 	}
 	require.NoError(t, resolveMatcherClaims(tms, cs, false))
 
 	// Bare-string claims are rejected in modern mode.
-	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Pattern: "foo"}}}
+	cs = []matcherClaim{{Pattern: "foo"}}
 	require.ErrorIs(t, resolveMatcherClaims(tms, cs, false), errStringClaimRequiresCompat)
 
 	// Unknown matcher types are rejected; type values are case-sensitive.
-	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: "URLPattern", Pattern: "foo"}}}
+	cs = []matcherClaim{{Type: "URLPattern", Pattern: "foo"}}
 	require.ErrorIs(t, resolveMatcherClaims(tms, cs, false), ErrUnsupportedMatcherType)
 
 	// Forged internal type is rejected in modern mode.
-	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: deprecatedMatcherTypeName, Pattern: "foo"}}}
+	cs = []matcherClaim{{Type: deprecatedMatcherTypeName, Pattern: "foo"}}
 	require.ErrorIs(t, resolveMatcherClaims(tms, cs, false), errStringClaimRequiresCompat)
 
 	// Invalid URLPattern pattern is rejected.
-	cs = []matcherClaim{{TopicMatcher: TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "{unclosed"}}}
+	cs = []matcherClaim{{Type: MatcherTypeURLPattern, Pattern: "{unclosed"}}
 	assert.Error(t, resolveMatcherClaims(tms, cs, false))
 }

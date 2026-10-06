@@ -1,7 +1,7 @@
 <!-- markdownlint-disable -->
 # Mercure Chart for Kubernetes
 
-![Version: 1.0.0-alpha.3](https://img.shields.io/badge/Version-1.0.0--alpha.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.0.0-alpha.3](https://img.shields.io/badge/AppVersion-v1.0.0--alpha.3-informational?style=flat-square)
+![Version: 1.0.4](https://img.shields.io/badge/Version-1.0.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.0.4](https://img.shields.io/badge/AppVersion-v1.0.4-informational?style=flat-square)
 
 A Helm chart to install a Mercure Hub in a Kubernetes cluster. Mercure is a protocol to push data updates to web browsers and other HTTP clients in a convenient, fast, reliable and battery-efficient way.
 
@@ -22,7 +22,7 @@ Kubernetes: `>=1.23.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| adminPort | int | `2019` | Port used for the Caddy admin API (health checks, metrics, graceful shutdown). |
+| adminPort | int | `2019` | Port used for the Caddy admin API (health checks, graceful shutdown). The admin API only listens on localhost. |
 | affinity | object | `{}` | [Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) configuration. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
 | autoscaling | object | Disabled by default. | Autoscaling must not be enabled unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster) (see [values.yaml](values.yaml) for details). |
 | autoscaling.behavior | object | `{}` | [Scaling policies](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#configurable-scaling-behavior) passed to the HPA `spec.behavior`. |
@@ -62,8 +62,8 @@ Kubernetes: `>=1.23.0-0`
 | ingress.hosts | list | See [values.yaml](values.yaml). | Ingress host configuration. |
 | ingress.tls | list | See [values.yaml](values.yaml). | Ingress TLS configuration. |
 | license | string | `""` | The license key for [the High Availability version](https://mercure.rocks/docs/hub/cluster) (not necessary if you use the FOSS version). |
-| metrics.enabled | bool | `false` | Enable metrics. You must also add a `servers` block with a [`metrics` directive](https://caddyserver.com/docs/caddyfile/options#metrics) in the `globalOptions` value. servers {     metrics } |
-| metrics.port | int | `2019` | Deprecated: The port to use for exposing the metrics (use adminPort instead). |
+| metrics.enabled | bool | `false` | Serve Prometheus metrics at `/metrics` on a dedicated listener. For Caddy's HTTP metrics, also enable the [`metrics` global option](https://caddyserver.com/docs/caddyfile/options#metrics) in `globalOptions`. |
+| metrics.port | int | `9180` | Port of the metrics listener, must differ from `adminPort` and `service.targetPort`. |
 | metrics.serviceMonitor.enabled | bool | `false` | Whether to create a ServiceMonitor for Prometheus Operator. |
 | metrics.serviceMonitor.honorLabels | bool | `false` | Specify honorLabels parameter to add the scrape endpoint |
 | metrics.serviceMonitor.interval | string | `"15s"` | The interval to use for the ServiceMonitor to scrape the metrics. |
@@ -87,9 +87,11 @@ Kubernetes: `>=1.23.0-0`
 | podLabels | object | `{}` | Extra labels to be added to pods. |
 | podSecurityContext | object | `{"fsGroup":1000,"fsGroupChangePolicy":"OnRootMismatch","seccompProfile":{"type":"RuntimeDefault"}}` | Pod [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod). Defaults target the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted). `fsGroup` makes the chart's writable volumes (/data, /config, /tmp) group-writable by the rootless container; `OnRootMismatch` skips re-chowning PVCs on every restart. Override with `{}` if your cluster forbids these fields. |
 | progressDeadlineSeconds | int | `1800` | Deployment `spec.progressDeadlineSeconds`. A rolling update can spend up to `terminationGracePeriodSeconds` per pod draining SSE, so the k8s default (600s) trips `ProgressDeadlineExceeded` on healthy rollouts. Default fits a 2-pod rollout; scale up for larger `replicaCount` (roughly `replicaCount × (terminationGracePeriodSeconds + minReadySeconds)` plus a margin). Only applied with `RollingUpdate`. |
+| publicUrls | list | `[]` | Origins the hub answers on (`public_urls`), others get `421 Misdirected Request`. Set it (or `resourceIdentifier`) when clients can reach the pod under any Host, for instance several hubs trusting one issuer. Origins are matched as the pod sees them: `http://` behind a TLS-terminating ingress or gateway. |
 | publisherJwtAlg | string | `"HS256"` | The JWT algorithm to use for publishers. |
-| publisherJwtKey | string | `""` | The JWT key to use for publishers, a random key will be generated if empty. |
+| publisherJwtKey | string | `""` | The JWT key to use for publishers. If empty, a random key is generated on install and kept on upgrades (renderers without cluster access, such as `helm template`, generate a new one each time: set it or use `existingSecret`). |
 | replicaCount | int | `1` | The number of replicas (pods) to launch, must be 1 unless you are using [the High Availability version](https://mercure.rocks/docs/hub/cluster). |
+| resourceIdentifier | string | `""` | Pin the OAuth 2.0 resource identifier (the `aud` access tokens must carry), e.g. `https://hub.example.com/.well-known/mercure`. If empty, the hub derives it from each request's origin, which is `http://` behind a TLS-terminating ingress or gateway. |
 | resources | object | No requests or limits. | Container resource [requests and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/). See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#resources) for details. |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":1000,"runAsNonRoot":true,"runAsUser":1000}` | Container [security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container). Defaults satisfy the [restricted PodSecurity Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted): rootless UID/GID 1000, no caps, no privilege escalation, read-only rootfs. Binding to :80 relies on `net.ipv4.ip_unprivileged_port_start=0`, set by containerd 1.5+ and cri-o. On older runtimes, set `service.targetPort` to an unprivileged port (e.g. `8080`). Override with `{}` to opt out. |
 | service.annotations | object | `{}` | Annotations to be added to the service. |
@@ -103,7 +105,7 @@ Kubernetes: `>=1.23.0-0`
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created. |
 | serviceAccount.name | string | `""` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template. |
 | subscriberJwtAlg | string | `"HS256"` | The JWT algorithm to use for subscribers. |
-| subscriberJwtKey | string | `""` | The JWT key to use for subscribers, a random key will be generated if empty. |
+| subscriberJwtKey | string | `""` | The JWT key to use for subscribers. Generated and kept like `publisherJwtKey` if empty. |
 | terminationGracePeriodSeconds | int | `660` | Pod terminationGracePeriodSeconds. Must be >= `write_timeout` so SSE subscribers drain at their own write deadline before k8s SIGKILLs the pod. Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin. Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s) to minimize the gap between old pod gone and new pod ready. |
 | tolerations | list | `[]` | [Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for node taints. See the [API reference](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling) for details. |
 | topologySpreadConstraints | string | `""` | [Topology spread constraints](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/) rendered into the pod spec. Evaluated as a Helm template, so it can reference `mercure.selectorLabels`. |

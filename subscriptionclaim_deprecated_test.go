@@ -30,12 +30,12 @@ func TestSubscriptionPayloadFallbackToGlobal(t *testing.T) {
 		Payload: map[string]any{"global": true},
 		Subscribe: []matcherClaim{
 			// A claim that doesn't match the subscription's matcher.
-			{TopicMatcher: TopicMatcher{Type: MatcherTypeExact, Pattern: "https://other.example.com/x"}, Payload: map[string]any{"tag": "ignored"}},
+			{Type: MatcherTypeExact, Pattern: "https://other.example.com/x", Payload: map[string]any{"tag": "ignored"}},
 		},
 	}
 	sub.Claims = &claims{
-		deprecatedMercureClaims: deprecatedMercureClaims{Mercure: mc},
-		authz:                   mercureAuthzFromLegacy(mc),
+		Mercure: mc,
+		authz:   mercureAuthzFromLegacy(mc),
 	}
 
 	sub.setMatchers(matchers, nil)

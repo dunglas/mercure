@@ -1,0 +1,46 @@
+name: Debugger UI Dependencies
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ui/**
+      - public/vendor/**
+      - .github/workflows/ui.yml
+  push:
+    branches:
+      - main
+    paths:
+      - ui/**
+      - public/vendor/**
+      - .github/workflows/ui.yml
+
+permissions:
+  contents: read
+
+jobs:
+  vendor:
+    name: Vendored Assets
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui/
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run vendor
+      - name: Check that public/vendor/ matches package-lock.json
+        run: |
+          if [ -n "$(git status --porcelain -- ../public/vendor)" ]; then
+            git status --short -- ../public/vendor
+            echo "::error::public/vendor/ is stale: run 'npm run vendor' in ui/ and commit the result."
+            exit 1
+          fi

@@ -49,17 +49,17 @@ func createDeprecatedAuthorizedJWT(r role, topics []string, payload ...any) stri
 	switch r {
 	case rolePublisher:
 		token.Claims = &claims{
-			deprecatedMercureClaims: deprecatedMercureClaims{Mercure: mercureClaim{Publish: stringsToDeprecatedClaims(topics)}},
-			RegisteredClaims:        jwt.RegisteredClaims{},
+			Mercure:          mercureClaim{Publish: stringsToDeprecatedClaims(topics)},
+			RegisteredClaims: jwt.RegisteredClaims{},
 		}
 		key = []byte("publisher")
 
 	case roleSubscriber:
 		token.Claims = &claims{
-			deprecatedMercureClaims: deprecatedMercureClaims{Mercure: mercureClaim{
+			Mercure: mercureClaim{
 				Subscribe: stringsToDeprecatedClaims(topics),
 				Payload:   p,
-			}},
+			},
 			RegisteredClaims: jwt.RegisteredClaims{},
 		}
 

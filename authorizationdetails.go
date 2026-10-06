@@ -3,6 +3,7 @@ package mercure
 import (
 	"bytes"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 )
@@ -51,12 +52,17 @@ type authorizationDetail struct {
 // define their own member shapes (for example a "topics" string), so applying
 // the mercure schema to every entry would reject valid multi-resource tokens;
 // non-mercure entries are ignored during validation.
+//
+// Decoding uses encoding/json/v2, which rejects duplicate object members and
+// invalid UTF-8: a claim that two parsers read differently must not be
+// resolved to one of the readings, or the hub could grant what the
+// authorization server never validated.
 func (ad *authorizationDetail) UnmarshalJSON(data []byte) error {
 	var head struct {
 		Type string `json:"type"`
 	}
 
-	if err := json.Unmarshal(data, &head); err != nil {
+	if err := jsonv2.Unmarshal(data, &head); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
 	}
 
@@ -71,7 +77,7 @@ func (ad *authorizationDetail) UnmarshalJSON(data []byte) error {
 		Payload any             `json:"payload"`
 	}
 
-	if err := json.Unmarshal(data, &body); err != nil {
+	if err := jsonv2.Unmarshal(data, &body); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidAuthorizationDetail, err)
 	}
 
@@ -108,7 +114,8 @@ func (d detailTopic) MarshalJSON() ([]byte, error) {
 // not silently parse as Exact matchers, and an object without "match" (or a
 // JSON null) invalidates the token instead of becoming an empty-pattern matcher.
 func (d *detailTopic) UnmarshalJSON(data []byte) error {
-	// json.Unmarshal(null) is a silent no-op, so reject null explicitly.
+	// Decoding null into a struct zeroes it rather than failing, so reject
+	// null explicitly to report it as a missing "match" rather than an empty one.
 	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 		return fmt.Errorf(`%w: a topic entry must be an object with a "match" property`, errInvalidAuthorizationDetail)
 	}
@@ -120,7 +127,7 @@ func (d *detailTopic) UnmarshalJSON(data []byte) error {
 		MatchType MatcherType `json:"match_type"`
 	}
 
-	if err := json.Unmarshal(data, &obj); err != nil {
+	if err := jsonv2.Unmarshal(data, &obj); err != nil {
 		return fmt.Errorf("%w: topic entries must be objects: %w", errInvalidAuthorizationDetail, err)
 	}
 
