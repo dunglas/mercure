@@ -53,6 +53,26 @@ const (
 	uriTemplateGroupWeight = 3 << 10 // One rune-class subexpression of the generated regexp.
 )
 
+// templateCompileWeight is zero for selectors that compare exactly and are never compiled.
+func templateCompileWeight(pattern string) uint64 {
+	if !strings.Contains(pattern, "{") {
+		return 0
+	}
+
+	weight := uriTemplateWeight(pattern)
+
+	// Over the cap it is never compiled either way, so skip the parse.
+	if weight > maxURLPatternWeight {
+		return weight
+	}
+
+	if _, err := uritemplate.New(pattern); err != nil {
+		return 0
+	}
+
+	return weight
+}
+
 // uriTemplateWeight estimates the compiled regexp of a valid template without compiling it.
 func uriTemplateWeight(pattern string) uint64 {
 	weight := uriTemplateOverhead + uint64(len(pattern))*uriTemplateByteWeight

@@ -79,7 +79,7 @@ Test patterns in a browser that supports `URLPattern`: `new URLPattern("https://
 
 A subscription with several `match*` parameters is a logical OR. There is no way to express AND inside a single subscription.
 
-The hub also bounds URL Pattern compilation to an estimated 2 MiB per pattern and 8 MiB across a subscription request. Requests exceeding the aggregate budget receive `400 Bad Request` before any pattern is compiled. Exact matchers do not consume this budget.
+The hub also bounds URL Pattern compilation to an estimated 2 MiB per pattern and 8 MiB across a subscription request. Requests exceeding the aggregate budget receive `400 Bad Request` before any pattern is compiled. Exact matchers do not consume this budget. In 0.x-compatible mode, URI Templates passed as `topic=` count toward the same limits.
 
 ```javascript
 const url = new URL("https://hub.example.com/.well-known/mercure");

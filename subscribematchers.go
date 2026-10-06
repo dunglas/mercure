@@ -12,8 +12,8 @@ import (
 const (
 	maxMatcherCount  = 100
 	maxPatternLength = 4096
-	// Bound total URL Pattern compilation work before compiling any pattern.
-	maxRequestURLPatternWeight = 4 * maxURLPatternWeight
+	// Bound total pattern compilation work before compiling any pattern.
+	maxRequestPatternWeight = 4 * maxURLPatternWeight
 
 	// paramMatch is both the subscribe query parameter selecting the Exact
 	// matcher type and the mux path-variable name for the subscription API
@@ -42,7 +42,7 @@ var (
 	errInvalidMatcherValue   = errors.New("topic matcher values must be valid UTF-8 without control characters")
 	errTooManyMatchers       = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
 	errPatternTooLong        = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
-	errMatcherBudgetExceeded = errors.New("URL pattern compilation budget exceeded")
+	errMatcherBudgetExceeded = errors.New("topic matcher compilation budget exceeded")
 	// errInvalidMatcherPattern wraps a pattern-compilation failure. The
 	// underlying compiler error is kept in the chain for logging but must never
 	// be written to the client: for some malformed URL Patterns go-urlpattern
@@ -60,7 +60,7 @@ var (
 // type or a case typo of a known one) is rejected with an error mapped to a
 // 400 status code. Parameter names are case-sensitive.
 func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
-	if err := h.checkURLPatternBudget(query[paramMatch+"_"+string(MatcherTypeURLPattern)]); err != nil {
+	if err := h.checkCompileBudget(query, deprecated); err != nil {
 		return nil, err
 	}
 
@@ -115,28 +115,45 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 	return matchers, nil
 }
 
-// checkURLPatternBudget runs before compiling so an over-budget request compiles nothing.
-func (h *Hub) checkURLPatternBudget(patterns []string) error {
+// checkCompileBudget runs before compiling so an over-budget request compiles nothing.
+func (h *Hub) checkCompileBudget(query url.Values, deprecated bool) error {
 	var total uint64
 
-	baseWeight := uint64(len(h.topicMatcherStore.base()))
-
-	for _, pattern := range patterns {
+	add := func(pattern string, weight uint64) error {
 		if err := validateMatcherValue(pattern); err != nil {
 			return err
 		}
 
-		weight := baseWeight + urlPatternWeight(pattern)
+		// validatePattern rejects a pattern above the per-entry cap without compiling it.
 		if weight > maxURLPatternWeight {
-			// validatePattern rejects it as invalid without compiling it.
-			continue
+			return nil
 		}
 
-		if weight > maxRequestURLPatternWeight-total {
+		if weight > maxRequestPatternWeight-total {
 			return errMatcherBudgetExceeded
 		}
 
 		total += weight
+
+		return nil
+	}
+
+	baseWeight := uint64(len(h.topicMatcherStore.base()))
+
+	for _, pattern := range query[paramMatch+"_"+string(MatcherTypeURLPattern)] {
+		if err := add(pattern, baseWeight+urlPatternWeight(pattern)); err != nil {
+			return err
+		}
+	}
+
+	if !deprecated {
+		return nil
+	}
+
+	for _, pattern := range query[paramTopic] {
+		if err := add(pattern, templateCompileWeight(pattern)); err != nil {
+			return err
+		}
 	}
 
 	return nil
