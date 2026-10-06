@@ -363,7 +363,7 @@ var (
 	headerContentType  = []string{"text/event-stream"}
 	headerCacheControl = []string{"private, no-cache, no-store, must-revalidate, max-age=0"}
 	headerPragma       = []string{"no-cache"}
-	headerExpire       = []string{"0"}
+	headerExpires      = []string{"0"}
 
 	headerXAccelBuffering = []string{"no"}
 
@@ -389,7 +389,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	// Disable cache, even for old browsers and proxies
 	header["Cache-Control"] = headerCacheControl
 	header["Pragma"] = headerPragma
-	header["Expire"] = headerExpire
+	header["Expires"] = headerExpires
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
