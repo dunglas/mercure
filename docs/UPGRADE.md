@@ -201,7 +201,7 @@ The standalone non-Caddy server has been removed. Deploy the Caddy-based binary 
 
 Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
-Compatibility mode never relaxes publisher grants. With `7` or `8`, a token publishes public and private updates only to topics its publish claim matches, so a legacy token whose `mercure.publish` is empty or missing gets a `403`. Grant `"*"` to publish on every topic.
+`protocol_version_compatibility 7` also lets publishers post public updates to topics outside their grants (deprecated). As in 0.13, the token must still carry a `mercure.publish` claim, even an empty one, or a publish authorization detail; other tokens get a `403`.
 
 Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
 
@@ -297,7 +297,7 @@ The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your cli
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 
-`protocol_version_compatibility 7` was added to ease the transition. The hub still accepts `7` and `8`; use `8` for the latest 0.x behavior during migration. Neither mode exempts public updates from publisher grants anymore; see [Compatibility mode](#compatibility-mode).
+`protocol_version_compatibility 7` was added to ease the transition. The hub still accepts `7` and `8`; use `8` for the latest 0.x behavior during migration.
 
 ### Mercure 0.13 upgrade notes
 
