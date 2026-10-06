@@ -372,7 +372,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	if m.SubscriptionLimits != nil {
-		opts = append(opts, mercure.WithSubscriptionLimits(*m.SubscriptionLimits))
+		opts = append(opts, mercure.WithSubscriptionLimits(*m.SubscriptionLimits), mercure.WithClientIPFunc(clientIP))
 	}
 
 	if s := m.MaxRequestBodySize; s != nil {
@@ -1266,3 +1266,10 @@ var (
 	_ caddyhttp.MiddlewareHandler = (*Mercure)(nil)
 	_ caddyfile.Unmarshaler       = (*Mercure)(nil)
 )
+
+// clientIP returns the client IP resolved by Caddy, which honors trusted_proxies.
+func clientIP(r *http.Request) string {
+	ip, _ := caddyhttp.GetVar(r.Context(), caddyhttp.ClientIPVarKey).(string)
+
+	return ip
+}

@@ -1266,3 +1266,66 @@ func TestSubscriptionLimitsPartialJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"subscription_limits":{"total":5000}}`), &m))
 	assert.Equal(t, &mercure.SubscriptionLimits{Total: 5000}, m.SubscriptionLimits)
 }
+
+func TestSubscriptionLimitsUseCaddyClientIP(t *testing.T) {
+	for _, tc := range []struct {
+		name, trustedProxies string
+		otherClientStatus    int
+	}{
+		// Behind a trusted proxy, the forwarded address identifies each client.
+		{"trusted proxy", "127.0.0.1/32 ::1/128", http.StatusOK},
+		// From an untrusted peer, spoofed forwarded addresses are ignored.
+		{"untrusted peer", "192.0.2.0/24", http.StatusTooManyRequests},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tester := caddytest.NewTester(t)
+			tester.InitServer(fmt.Sprintf(`
+			{
+				skip_install_trust
+				admin localhost:2999
+				http_port     9080
+				https_port    9443
+				servers {
+					trusted_proxies static %s
+					client_ip_headers X-Forwarded-For
+				}
+			}
+
+			localhost:9080 {
+				route {
+					mercure {
+						anonymous
+						issuer https://example.com {
+							publisher {
+								jwt !ChangeMe!
+							}
+						}
+						resource_identifier https://example.com/.well-known/mercure
+						subscription_limits 0 0 1
+						transport local
+					}
+
+					respond 404
+				}
+			}
+			`, tc.trustedProxies), "caddyfile")
+
+			subscribe := func(xff string, status int) {
+				ctx, cancel := context.WithCancel(t.Context())
+				t.Cleanup(cancel)
+
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo", nil)
+				require.NoError(t, err)
+				req.Header.Set("X-Forwarded-For", xff)
+
+				resp := tester.AssertResponseCode(req, status)
+
+				t.Cleanup(func() { _ = resp.Body.Close() })
+			}
+
+			subscribe("203.0.113.1", http.StatusOK)
+			subscribe("203.0.113.1", http.StatusTooManyRequests)
+			subscribe("203.0.113.2", tc.otherClientStatus)
+		})
+	}
+}
