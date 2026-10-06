@@ -65,9 +65,12 @@ await fetch("https://hub.example.com/.well-known/mercure", {
   body: new URLSearchParams({
     topic: "https://example.com/books/1",
     data: jwe,
+    private: "on",
   }),
 });
 ```
+
+The `private` field restricts delivery to subscribers with a matching authorization grant. Encryption protects the payload; subscriber authorization also controls who receives the ciphertext.
 
 ## Decrypting on the subscriber
 
