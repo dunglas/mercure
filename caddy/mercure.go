@@ -1143,7 +1143,14 @@ func (m *Mercure) playgroundTokenFunc() func(string) (string, error) {
 	}
 }
 
-var errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+var (
+	errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+	errJWKSetRedirect        = errors.New("refusing to follow JWK Set redirect")
+)
+
+func refuseJWKSetRedirect(req *http.Request, _ []*http.Request) error {
+	return fmt.Errorf("%w to %s: configure the final URL as jwks_uri", errJWKSetRedirect, req.URL.Redacted())
+}
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
 //
@@ -1177,11 +1184,7 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 		return k, nil
 	}
 
-	client := &http.Client{
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := &http.Client{CheckRedirect: refuseJWKSetRedirect}
 
 	return keyfunc.NewDefaultOverrideCtx(ctx, []string{rawURL}, keyfunc.Override{Client: client}) //nolint:wrapcheck
 }

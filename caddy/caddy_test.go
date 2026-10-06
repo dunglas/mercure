@@ -844,6 +844,26 @@ func TestNewJWKSetKeyfuncDoesNotFollowRedirects(t *testing.T) {
 	}
 }
 
+func TestRefuseJWKSetRedirectNamesTarget(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/jwks/", http.StatusMovedPermanently)
+	}))
+	t.Cleanup(server.Close)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"/jwks", nil)
+	require.NoError(t, err)
+
+	resp, err := (&http.Client{CheckRedirect: refuseJWKSetRedirect}).Do(req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+
+	require.ErrorIs(t, err, errJWKSetRedirect)
+	assert.ErrorContains(t, err, server.URL+"/jwks/")
+}
+
 func TestNewJWKSetKeyfuncFetchesDirectHTTPResource(t *testing.T) {
 	t.Parallel()
 
