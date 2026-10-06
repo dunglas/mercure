@@ -1335,13 +1335,13 @@ func hubShutdownTestHub(ctx context.Context, tb testing.TB, writeTimeout time.Du
 	return h
 }
 
-func hubDrainTestHub(ctx context.Context, tb testing.TB, writeTimeout, drainTimeout time.Duration) *Hub {
+func hubDrainTestHub(ctx context.Context, tb testing.TB, writeTimeout, drainTimeout time.Duration, options ...Option) *Hub {
 	tb.Helper()
 
 	tms, err := NewTopicMatcherStore(0)
 	require.NoError(tb, err)
 
-	h, err := NewHub(ctx,
+	h, err := NewHub(ctx, append([]Option{
 		WithAnonymous(),
 		WithIssuers([]Issuer{{
 			Identifier: testIssuer,
@@ -1352,7 +1352,7 @@ func hubDrainTestHub(ctx context.Context, tb testing.TB, writeTimeout, drainTime
 		WithTopicMatcherStore(tms),
 		WithWriteTimeout(writeTimeout),
 		WithDrainTimeout(drainTimeout),
-	)
+	}, options...)...)
 	require.NoError(tb, err)
 
 	return h
@@ -1571,6 +1571,115 @@ func TestDrainReloadWithoutWriteTimeoutStillExits(t *testing.T) {
 		n := transport.subscribers.Len()
 		transport.RUnlock()
 		assert.Equal(t, 0, n, "writeTimeout==0 connection must exit on reload via the escape hatch")
+	})
+}
+
+// syncDeadlineRecorder records socket write deadlines set by the handler goroutine.
+type syncDeadlineRecorder struct {
+	*httptest.ResponseRecorder
+
+	mu        sync.Mutex
+	deadlines []time.Time
+}
+
+func (r *syncDeadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.deadlines = append(r.deadlines, deadline)
+
+	return nil
+}
+
+func (r *syncDeadlineRecorder) last() time.Time {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.deadlines[len(r.deadlines)-1]
+}
+
+// A write blocked on a stalled client must not outlive the drain, even with dispatch_timeout 0.
+func TestDrainShortensSocketWriteDeadline(t *testing.T) {
+	t.Parallel()
+
+	for _, writeTimeout := range []time.Duration{0, 20 * time.Minute} {
+		t.Run(writeTimeout.String(), func(t *testing.T) {
+			t.Parallel()
+
+			synctest.Test(t, func(t *testing.T) {
+				const drainTimeout = 5 * time.Minute
+
+				hub := hubDrainTestHub(t.Context(), t, writeTimeout, drainTimeout, WithDispatchTimeout(0))
+				transport, _ := hub.transport.(*LocalTransport)
+				w := &syncDeadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+
+				go func() {
+					req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/books/1", nil).WithContext(t.Context())
+					hub.SubscribeHandler(w, req)
+				}()
+
+				waitSubscribers(t, transport, 1)
+
+				hub.Drain()
+				synctest.Wait()
+
+				deadline := w.last()
+				assert.False(t, deadline.IsZero(), "drain must set a socket write deadline")
+				assert.False(t, deadline.After(time.Now().Add(drainTimeout)), "socket write deadline must fall within the drain window")
+
+				time.Sleep(drainTimeout)
+				synctest.Wait()
+			})
+		})
+	}
+}
+
+// The drain only shortens deadlines: the dispatch margin it adds must not push the socket deadline past the token exp.
+func TestDrainDoesNotExtendPastTokenExpiry(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		hub := hubDrainTestHub(t.Context(), t, 0, 2*time.Second, WithDispatchTimeout(5*time.Second))
+		transport, _ := hub.transport.(*LocalTransport)
+		w := &syncDeadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+
+		exp := time.Now().Add(3 * time.Second)
+		token := jwt.New(jwt.SigningMethodHS256)
+		token.Header["typ"] = atJWTType
+		token.Claims = &claims{
+			Issuer:               testIssuer,
+			Audience:             jwt.ClaimStrings{testResourceIdentifier},
+			ExpiresAt:            jwt.NewNumericDate(exp),
+			AuthorizationDetails: subscribeDetailsFromMatchers(nil, TopicMatcher{Type: MatcherTypeExact, Pattern: "*"}),
+		}
+
+		signedString, err := token.SignedString([]byte("subscriber"))
+		require.NoError(t, err)
+
+		go func() {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=foo", nil).WithContext(t.Context())
+			req.Header.Add("Authorization", bearerPrefix+signedString)
+			hub.SubscribeHandler(w, req)
+		}()
+
+		waitSubscribers(t, transport, 1)
+
+		hub.Drain()
+		synctest.Wait()
+
+		w.mu.Lock()
+		for _, d := range w.deadlines {
+			assert.False(t, d.After(exp), "socket write deadline %v must not exceed the token exp %v", d, exp)
+		}
+		w.mu.Unlock()
+
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+
+		transport.RLock()
+		n := transport.subscribers.Len()
+		transport.RUnlock()
+		assert.Equal(t, 0, n, "subscriber must disconnect by the token exp")
 	})
 }
 

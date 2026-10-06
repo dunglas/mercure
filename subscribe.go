@@ -209,7 +209,12 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			rc.disconnectionTime = deadline
-			rc.writeDeadline = deadline.Add(h.dispatchTimeout)
+			// Never extend the deadline, which may come from the token exp.
+			if wd := deadline.Add(h.dispatchTimeout); rc.writeDeadline.IsZero() || wd.Before(rc.writeDeadline) {
+				rc.writeDeadline = wd
+			}
+
+			rc.setDefaultWriteDeadline(ctx)
 
 			if disconnectionTimer == nil {
 				disconnectionTimer = time.NewTimer(time.Until(deadline))
