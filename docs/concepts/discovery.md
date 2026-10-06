@@ -24,7 +24,7 @@ Content-Type: application/json
 
 The client parses the header, takes the URL with `rel="mercure"`, appends its `match*` query parameters, and opens an `EventSource`. Reusing your existing API responses to carry the link keeps subscribers and publishers pointing at the same hub.
 
-A resource's own URL is normally its topic too, so `res.url` is all a subscriber needs to `match` on.
+A resource's own URL is normally its topic too, so a subscriber matches on `Content-Location ?? res.url`.
 
 ## Content negotiation on the topic
 
@@ -50,16 +50,19 @@ const res = await fetch("https://example.com/books/42", {
   headers: { "Accept-Language": "fr" },
 });
 const links = res.headers.get("Link");
+const hub = links?.match(/<([^>]+)>;\s*rel="?mercure"?/)?.[1];
+if (!hub) throw new Error("No Mercure link in the response");
+const self =
+  links.match(/<([^>]+)>;\s*rel="?self"?/)?.[1] ??
+  res.headers.get("Content-Location") ??
+  res.url;
 
-const hub = links.match(/<([^>]+)>;\s*rel="?mercure"?/)[1];
-const self = links.match(/<([^>]+)>;\s*rel="?self"?/)?.[1] ?? res.url;
-
-const url = new URL(hub);
-url.searchParams.append("match", new URL(self, res.url).toString());
+const url = new URL(hub, res.url);
+url.searchParams.append("match", new URL(self, res.url).href);
 new EventSource(url);
 ```
 
-Outside content negotiation, skip `rel="self"` and match on `res.url` directly, as in [Subscribing](subscribing.md#discovering-the-mercure-hub-via-link-header).
+Cross-origin, the response must list `Link` (and `Content-Location`, for the fallback) in `Access-Control-Expose-Headers`, or `fetch()` cannot read them. Outside content negotiation, skip `rel="self"` and use the [Subscribing](subscribing.md#discovering-the-mercure-hub-via-link-header) snippet.
 
 ## Protected resource metadata
 

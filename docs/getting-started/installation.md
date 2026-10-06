@@ -113,7 +113,7 @@ xcaddy build \
   --with github.com/dunglas/mercure/caddy
 ```
 
-**Build with Go 1.26 or later.** That is the `go` directive in `caddy/go.mod`. Older toolchains fail the build outright, which includes the `caddy:2.8-builder` image (Go 1.23).
+Build with at least the Go version declared in `caddy/go.mod`; older toolchains fail the build.
 
 To keep accepting 0.x clients during a migration, the two [compatibility-mode](../UPGRADE.md#compatibility-mode) build tags have to be compiled in. `xcaddy` passes `XCADDY_GO_BUILD_FLAGS` through to `go build`:
 

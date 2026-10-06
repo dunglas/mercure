@@ -237,7 +237,7 @@ es.onmessage = (event) => {
 };
 ```
 
-JSON-LD's [`@id`](https://www.w3.org/TR/json-ld11/#node-identifiers) is the natural field because it is the topic URL itself, but any identifier works as long as every publisher of that topic sets it. Publishing a bare value with no identifier in it — a number, a status string — leaves a multi-topic subscriber unable to place the update.
+JSON-LD's [`@id`](https://www.w3.org/TR/json-ld11/#node-identifiers) is the natural field because it is the topic URL itself, but any identifier works as long as every publisher of that topic sets it. Publishing a bare value with no identifier in it (a number, a status string) leaves a multi-topic subscriber unable to place the update.
 
 For coarse routing, the publish `type` becomes the SSE `event` field, so a family of updates can be picked up with `addEventListener("<type>", ...)` instead. That is a label you choose, not the topic, and `mercure` is reserved for [subscription events](active-subscriptions.md).
 

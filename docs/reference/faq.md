@@ -90,8 +90,6 @@ The hub must allow the application origin in its CORS headers (`cors_origins` li
 
 An application can implement the hub role itself or embed the [Go library](https://pkg.go.dev/github.com/dunglas/mercure). The standalone hub is useful when you want to manage subscriber connections separately from your application workers.
 
-An embedded hub is pinned to whatever version of the Mercure module its host compiled in, which is not necessarily the current one: FrankenPHP 1.12.7 embeds `mercure v0.24.2`, so its built-in hub speaks 0.x. See [Embedded publishing](../concepts/publishing.md#embedded-publishing-no-external-hub).
-
 ## Does Mercure work with serverless?
 
 Yes, on the publisher side: a Lambda or Cloud Function can `POST` to the hub and exit. On the subscriber side, the hub is the long-lived process; your serverless functions don't have to keep connections open.

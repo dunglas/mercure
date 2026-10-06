@@ -42,7 +42,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 - The exact-match parameter is `match` (explicit spelling: `match_exact`); the templated one is `match_urlpattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
 - Parameter names are **case-sensitive**. Any other name under the `match` prefix is rejected with `400`, so typos fail loudly.
 - The `URI Template` matcher type is gone; it survives only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`. Rewrite templated topics as URL Patterns and string topics as exact topics.
-- The resumption cursor moves too: the `lastEventID` query parameter is now `last_event_id`. The `Last-Event-ID` request _header_ is unchanged, so a client relying only on `EventSource`'s automatic reconnection needs no change — but one that seeds a cursor itself does, and a browser client has no choice but the query parameter. See [Reconnection and history](concepts/reconnection-and-history.md).
+- The resumption cursor moves too: the `lastEventID` query parameter is now `last_event_id`. The `Last-Event-ID` request _header_ is unchanged, so a client relying only on `EventSource`'s automatic reconnection needs no change. A client that seeds the cursor itself does, and in a browser the query parameter is the only way to seed it. See [Reconnection and history](concepts/reconnection-and-history.md).
 
 ### Migrate your tokens
 
@@ -206,23 +206,12 @@ Enabling it therefore weakens access-token validation, which is why the hub neve
 
 The directive also accepts `7`, which is a **superset** of `8`: it restores everything `8` does, plus two behaviors deprecated in protocol version 7. Unlike the ones above, these two are not gated behind a build tag, so every build honors them:
 
-- the `Last-Event-ID` **query parameter** — the name in use _before_ 0.14 renamed it `lastEventID`. Note what this does not cover: the hub never reads `lastEventID`, in any mode, so the name 0.x clients were told to adopt has no compatibility path and trips no log line;
-- publishing a _public_ update to a topic the token grants no `publish` action on. Without `7` this is a `403 insufficient_scope`; grant the `*` topic instead.
+- the `Last-Event-ID` **query parameter** (the name in use _before_ 0.14 renamed it `lastEventID`). This does not cover `lastEventID`: the hub never reads it, in any mode, so it has no compatibility path and trips no log line.
+- publishing a _public_ update to a topic outside the token's `publish` grants. Without `7`, this is a `403 insufficient_scope`; grant the `*` topic instead.
 
-Prefer `8`. Reach for `7` only if you still run clients from before 0.14, and expect an `Unsupported:` log line naming the behavior when a request trips a relaxation you have not enabled.
+Prefer `8`. Reach for `7` only for subscribers from before 0.14 or publishers posting public updates to topics outside their grants. A request that trips a relaxation you have not enabled logs an `Unsupported:` line naming the behavior.
 
-Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright.
-
-Custom builds must pass the tags to `go build`. With [`xcaddy`](https://github.com/caddyserver/xcaddy), that means `XCADDY_GO_BUILD_FLAGS`:
-
-```console
-# Custom build with compatibility mode
-XCADDY_GO_BUILD_FLAGS='-tags deprecated_topic,deprecated_claim' \
-  xcaddy build \
-  --with github.com/dunglas/mercure/caddy
-```
-
-See [Custom Caddy build](getting-started/installation.md#custom-caddy-build) for the Go toolchain requirement.
+Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`; see [Custom Caddy build](getting-started/installation.md#custom-caddy-build) for the `xcaddy` recipe.
 
 #### Restore the removed Caddyfile directives
 
