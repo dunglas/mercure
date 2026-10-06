@@ -80,7 +80,7 @@ In a browser, with [`jose`](https://github.com/panva/jose):
 import { compactDecrypt, importJWK } from "jose";
 
 const key = await importJWK(privateJwk, "RSA-OAEP-256");
-const es = new EventSource(url);
+const es = new EventSource(url, { withCredentials: true });
 es.onmessage = async (event) => {
   const { plaintext } = await compactDecrypt(event.data, key);
   const update = JSON.parse(new TextDecoder().decode(plaintext));
