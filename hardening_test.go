@@ -1,12 +1,15 @@
 package mercure
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -29,10 +32,10 @@ func TestUpdateValidateRejectsControlCharsInID(t *testing.T) {
 
 	const topic = "https://example.com/1"
 
-	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\x7fb"}).Validate(), ErrInvalidEventID)
-	require.ErrorIs(t, (&Update{Topics: []string{topic}, Type: "a\x9fb"}).Validate(), ErrInvalidEventType)
-	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\xffb"}).Validate(), ErrInvalidEventID) // invalid UTF-8
-	require.NoError(t, (&Update{Topics: []string{topic}, ID: topic, Type: "message"}).Validate())
+	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\x7fb"}).Validate(urlPatternFallbackBase), ErrInvalidEventID)
+	require.ErrorIs(t, (&Update{Topics: []string{topic}, Type: "a\x9fb"}).Validate(urlPatternFallbackBase), ErrInvalidEventType)
+	require.ErrorIs(t, (&Update{Topics: []string{topic}, ID: "a\xffb"}).Validate(urlPatternFallbackBase), ErrInvalidEventID) // invalid UTF-8
+	require.NoError(t, (&Update{Topics: []string{topic}, ID: topic, Type: "message"}).Validate(urlPatternFallbackBase))
 }
 
 // TestPublishTopicWithNULRejected ensures a topic carrying a NUL byte is
@@ -96,6 +99,8 @@ func TestQuerySubscribeBodyOverLimitRejectedWith413(t *testing.T) {
 
 	body := "match=" + strings.Repeat("a", 2048)
 	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
 	w := httptest.NewRecorder()
 	hub.SubscribeHandler(w, req)
 
@@ -279,39 +284,6 @@ func TestSubscriptionPayloadFastPath(t *testing.T) {
 	assert.Equal(t, map[string]any{"k": "v"}, s2.SubscriptionPayloads[0])
 }
 
-// TestCompatModeEmptyResourceIdentifierAcceptsToken ensures a hub started in
-// compatibility mode without a resource identifier (a build without the
-// deprecated_claim tag) does not enforce an empty audience, which would reject
-// every otherwise-valid access token.
-func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
-	t.Parallel()
-
-	tms, err := NewTopicMatcherStore(0)
-	require.NoError(t, err)
-
-	h, err := NewHub(t.Context(),
-		WithIssuers([]Issuer{{
-			Identifier: testIssuer,
-			Subscriber: Static{Key: []byte("subscriber"), Algorithm: jwt.SigningMethodHS256.Name},
-		}}),
-		WithProtocolVersionCompatibility(7),
-		WithTopicMatcherStore(tms),
-	)
-	require.NoError(t, err)
-	require.Empty(t, h.resourceIdentifier)
-
-	// A well-formed at+jwt token with an audience the hub does not know must
-	// still be accepted, since no audience is enforced.
-	token := mintAccessToken([]byte("subscriber"), "https://some.other.audience/", nil)
-
-	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
-	r.Header.Add("Authorization", bearerPrefix+token)
-
-	claims, err := h.authorize(r, false)
-	require.NoError(t, err)
-	require.NotNil(t, claims)
-}
-
 // TestInvalidBaseURLRejected ensures a non-absolute public URL is rejected at
 // configuration time rather than surfacing as an opaque per-request error.
 func TestInvalidBaseURLRejected(t *testing.T) {
@@ -337,4 +309,57 @@ func TestValidProtocolStringRejectsFormatChars(t *testing.T) {
 	assert.False(t, validProtocolString("a\ufeffb")) // ZERO WIDTH NO-BREAK SPACE
 	assert.True(t, validProtocolString("https://example.com/foo"))
 	assert.True(t, validProtocolString("https://example.com/\u0645\u0631\u062d\u0628\u0627")) // RTL letters are fine
+}
+
+// signRawClaims signs a hand-written claim set, which may repeat members.
+func signRawClaims(tb testing.TB, key []byte, payload string) string {
+	tb.Helper()
+
+	enc := base64.RawURLEncoding
+	signingString := enc.EncodeToString([]byte(`{"alg":"HS256","typ":"at+jwt"}`)) + "." + enc.EncodeToString([]byte(payload))
+
+	sig, err := jwt.SigningMethodHS256.Sign(signingString, key)
+	require.NoError(tb, err)
+
+	return signingString + "." + enc.EncodeToString(sig)
+}
+
+// Claim names are case-sensitive and unique (RFC 7519 §4).
+func TestAuthorizeAmbiguousClaimNames(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+	past, future := time.Now().Add(-time.Hour).Unix(), time.Now().Add(time.Hour).Unix()
+	grant := `[{"type":"https://mercure.rocks/authorization-detail","actions":["subscribe"],"topics":[{"match":"*"}]}]`
+	registered := fmt.Sprintf(`"iss":%q,"aud":%q`, testIssuer, testResourceIdentifier)
+
+	authorize := func(t *testing.T, payload string) (*claims, error) {
+		t.Helper()
+
+		r := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+		r.Header.Add("Authorization", bearerPrefix+signRawClaims(t, []byte("subscriber"), payload))
+
+		return hub.authorize(r, false)
+	}
+
+	for name, payload := range map[string]string{
+		"case-folded exp": fmt.Sprintf(`{%s,"exp":%d,"EXP":%d,"authorization_details":%s}`, registered, past, future, grant),
+		"case-folded aud": fmt.Sprintf(`{"iss":%q,"aud":"https://other.example/.well-known/mercure","Aud":%q,"exp":%d,"authorization_details":%s}`, testIssuer, testResourceIdentifier, future, grant),
+		"duplicate exp":   fmt.Sprintf(`{%s,"exp":%d,"exp":%d,"authorization_details":%s}`, registered, past, future, grant),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := authorize(t, payload)
+			require.ErrorIs(t, err, ErrInvalidJWT)
+		})
+	}
+
+	t.Run("case-folded authorization_details", func(t *testing.T) {
+		t.Parallel()
+
+		c, err := authorize(t, fmt.Sprintf(`{%s,"exp":%d,"AUTHORIZATION_DETAILS":%s}`, registered, future, grant))
+		require.NoError(t, err)
+		assert.Empty(t, c.AuthorizationDetails)
+	})
 }

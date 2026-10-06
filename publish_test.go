@@ -489,6 +489,8 @@ func TestUpdateValidate(t *testing.T) {
 		{"non-reserved sibling path", Update{Topics: []string{"https://example.com/.well-known/mercure-dashboard"}}, nil},
 		{"non-reserved opaque topic", Update{Topics: []string{"urn:example:mercure"}}, nil},
 		{"id starts with #", Update{Topics: []string{"https://example.com/books/1"}, ID: "#42"}, ErrInvalidEventID},
+		{"id too long", Update{Topics: []string{"https://example.com/books/1"}, ID: strings.Repeat("a", maxEventIDLength+1)}, ErrInvalidEventID},
+		{"topic too long", Update{Topics: []string{"https://example.com/" + strings.Repeat("a", maxTopicLength)}}, ErrInvalidTopic},
 		{"id earliest", Update{Topics: []string{"https://example.com/books/1"}, ID: EarliestLastEventID}, ErrInvalidEventID},
 		{"topic NUL", Update{Topics: []string{"https://example.com/foo\x00bar"}}, ErrInvalidTopic},
 		{"topic C0", Update{Topics: []string{"https://example.com/foo\nbar"}}, ErrInvalidTopic},
@@ -506,7 +508,7 @@ func TestUpdateValidate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := tc.update.Validate()
+			err := tc.update.Validate(urlPatternFallbackBase)
 			if tc.want == nil {
 				assert.NoError(t, err)
 
@@ -526,7 +528,7 @@ func TestUpdateValidateTooManyTopics(t *testing.T) {
 		topics[i] = "https://example.com/books/1"
 	}
 
-	err := testUpdate(&Update{}, topics...).Validate()
+	err := testUpdate(&Update{}, topics...).Validate(urlPatternFallbackBase)
 	assert.ErrorIs(t, err, ErrTooManyTopics)
 }
 

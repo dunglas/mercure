@@ -97,9 +97,12 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions"})})
 
 	w := httptest.NewRecorder()
+	w.Header().Add("Vary", "Origin")
 	hub.SubscriptionsHandler(w, req)
 	res := w.Result()
 	assert.Equal(t, http.StatusNotModified, res.StatusCode)
+	assert.Equal(t, "private, must-revalidate", res.Header.Get("Cache-Control"))
+	assert.ElementsMatch(t, []string{"Origin", "Authorization", "Cookie"}, res.Header.Values("Vary"))
 	require.NoError(t, res.Body.Close())
 
 	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath+"/foo/bar", nil)
@@ -107,9 +110,12 @@ func TestSubscriptionHandlersETag(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/foo/bar"})})
 
 	w = httptest.NewRecorder()
+	w.Header().Add("Vary", "Origin")
 	hub.SubscriptionHandler(w, req)
 	res = w.Result()
 	assert.Equal(t, http.StatusNotModified, res.StatusCode)
+	assert.Equal(t, "private, must-revalidate", res.Header.Get("Cache-Control"))
+	assert.ElementsMatch(t, []string{"Origin", "Authorization", "Cookie"}, res.Header.Values("Vary"))
 	require.NoError(t, res.Body.Close())
 }
 
@@ -157,6 +163,8 @@ func TestSubscriptionsHandler(t *testing.T) {
 	hub.SubscriptionsHandler(w, req)
 	res := w.Result()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
+	assert.Equal(t, "private, must-revalidate", res.Header.Get("Cache-Control"))
+	assert.ElementsMatch(t, []string{"Authorization", "Cookie"}, res.Header.Values("Vary"))
 	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
 	require.NoError(t, res.Body.Close())
 

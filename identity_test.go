@@ -65,3 +65,52 @@ func TestServeHTTPRejectsOriginNotInAllowlist(t *testing.T) {
 	hub.ServeHTTP(w, r)
 	assert.NotEqual(t, http.StatusMisdirectedRequest, w.Result().StatusCode)
 }
+
+// With no Host there is no identity: modern mode must refuse every token rather
+// than drop the audience check, and must not serve metadata with no "resource".
+func TestNoRequestIdentityFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(0)
+	require.NoError(t, err)
+
+	hub, err := NewHub(t.Context(), testIssuerOption(), WithTopicMatcherStore(tms))
+	require.NoError(t, err)
+	require.Empty(t, hub.resourceIdentifier)
+
+	token := mintAccessToken([]byte("subscriber"), "https://other.example.com/.well-known/mercure", nil)
+
+	r, err := http.NewRequest(http.MethodGet, defaultHubURL, nil) //nolint:noctx
+	require.NoError(t, err)
+	require.Empty(t, r.Host)
+
+	r.Header.Set("Authorization", bearerPrefix+token)
+
+	_, err = hub.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+
+	w := httptest.NewRecorder()
+	hub.ProtectedResourceMetadataHandler(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+
+	// The request is refused outright rather than served without an identity.
+	w = httptest.NewRecorder()
+	hub.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+}
+
+// An anonymous hub derives an identity too, for the metadata URL it advertises,
+// so a hostless request is refused there as well.
+func TestNoRequestIdentityRefusedWhenAnonymous(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	r, err := http.NewRequest(http.MethodGet, defaultHubURL, nil) //nolint:noctx
+	require.NoError(t, err)
+	require.Empty(t, r.Host)
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
+}

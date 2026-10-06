@@ -141,3 +141,21 @@ func TestAuthorizedTopics(t *testing.T) {
 
 	assert.Empty(t, s.AuthorizedTopics(&Update{Topics: []string{"https://example.com/not-authorized"}, Private: true}))
 }
+
+func TestLiveQueueBoundedBeforeReady(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	s := NewLocalSubscriber("", slog.Default(), &TopicMatcherStore{})
+	require.True(t, s.Dispatch(ctx, &Update{ID: "history"}, true))
+
+	for i := 1; i < outBufferLength; i++ {
+		require.True(t, s.Dispatch(ctx, &Update{}, false))
+	}
+
+	assert.False(t, s.Dispatch(ctx, &Update{}, false))
+	assert.True(t, s.disconnected.Load())
+	assert.Len(t, s.liveQueue, outBufferLength-1)
+	assert.Zero(t, s.Ready(ctx))
+}

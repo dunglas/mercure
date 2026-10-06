@@ -68,6 +68,7 @@ func TestMercureDeprecated(t *testing.T) {
 localhost:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
 			publisher_jwt !ChangeMe!
 			protocol_version_compatibility 8
@@ -81,6 +82,7 @@ localhost:9080 {
 example.com:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
 			publisher_jwt !ChangeMe!
 			protocol_version_compatibility 8

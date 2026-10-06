@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -305,6 +306,16 @@ func TestOriginsValidator(t *testing.T) {
 	}
 }
 
+func TestPublishOriginsRejectSpanningWildcards(t *testing.T) {
+	t.Parallel()
+
+	for _, origin := range []string{"https://*example.com", "https://*.co.uk", "https://*"} {
+		require.ErrorIs(t, WithPublishOrigins([]string{origin})(&opt{}), ErrSpanningPublishOrigin, origin)
+	}
+
+	require.NoError(t, WithPublishOrigins([]string{"https://*.example.co.uk"})(&opt{}))
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	t.Parallel()
 
@@ -329,7 +340,7 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, "default-src 'self'; script-src 'self' cdn.jsdelivr.net; style-src 'self' cdn.jsdelivr.net; font-src cdn.jsdelivr.net", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
 	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
@@ -353,7 +364,7 @@ func TestSecurityHeaders(t *testing.T) {
 
 	// Subscriptions
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
+	req = httptest.NewRequest(http.MethodGet, defaultHubURL+subscriptionsPath, nil)
 	hub.ServeHTTP(w, req)
 	resp3 := w.Result()
 
@@ -378,7 +389,7 @@ func TestWithPublishDisabled(t *testing.T) {
 func TestWithSubscribeDisabled(t *testing.T) {
 	t.Parallel()
 
-	h, err := NewHub(t.Context(), WithIssuers([]Issuer{{Identifier: testIssuer, Publisher: Static{Key: []byte(""), Algorithm: "HS256"}}}), WithResourceIdentifier(testResourceIdentifier))
+	h, err := NewHub(t.Context(), WithIssuers([]Issuer{{Identifier: testIssuer, Publisher: Static{Key: []byte("!ChangeMe!"), Algorithm: "HS256"}}}), WithResourceIdentifier(testResourceIdentifier))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -458,6 +469,32 @@ func TestNewHubInvalidResourceIdentifier(t *testing.T) {
 		_, err := NewHub(t.Context(), WithResourceIdentifier(ri))
 		require.ErrorIs(t, err, ErrInvalidResourceIdentifier, ri)
 	}
+}
+
+// Short HMAC keys are accepted for backward compatibility but reported once per issuer role.
+func TestNewHubWarnsShortHMACKey(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	_, err := NewHub(t.Context(),
+		WithResourceIdentifier(testResourceIdentifier),
+		WithIssuers([]Issuer{{
+			Identifier: testIssuer,
+			Publisher:  Static{Key: []byte("short"), Algorithm: "HS256"},
+			Subscriber: Static{Key: []byte(strings.Repeat("k", 32)), Algorithm: "HS256"},
+		}, {
+			Identifier: "https://auth.example.com",
+			Subscriber: KeyFunc{Keyfunc: func(*jwt.Token) (any, error) { return nil, ErrInvalidJWT }},
+		}}),
+		WithLogger(slog.New(slog.NewJSONHandler(&buf, nil))),
+	)
+	require.NoError(t, err)
+
+	logs := buf.String()
+	assert.Equal(t, 1, strings.Count(logs, "RFC 7518"))
+	assert.Contains(t, logs, `"issuer":"`+testIssuer+`","role":"publisher","min_length":32`)
+	assert.NotContains(t, logs, "short\"")
 }
 
 // A token-validating hub in modern mode now accepts several issuers, each with
@@ -645,4 +682,27 @@ func createDummyNoneSignedJWT() string {
 	tokenString, _ := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
 
 	return tokenString
+}
+
+// A subscription answers with Mercure-Last-Event-Id, the cursor to resume
+// from. A fetch-based cross-origin subscriber cannot read it unless CORS
+// exposes it.
+func TestCORSExposesTheLastEventIDCursor(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t, WithCORSOrigins([]string{"https://example.com"}))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+	req.Header.Set("Origin", "https://example.com")
+
+	w := httptest.NewRecorder()
+	hub.ServeHTTP(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		assert.NoError(t, resp.Body.Close())
+	})
+
+	assert.Contains(t, resp.Header.Get("Access-Control-Expose-Headers"), "Mercure-Last-Event-Id")
 }

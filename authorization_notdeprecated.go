@@ -6,7 +6,7 @@ import "net/http"
 
 // compatClaimsEnabled reports whether legacy mercure-claim behavior is active.
 // It never is without the deprecated_claim build tag.
-func (h *Hub) compatClaimsEnabled() bool {
+func (*opt) compatClaimsEnabled() bool {
 	return false
 }
 
@@ -27,6 +27,9 @@ func (h *Hub) legacyAuthQueryParam(*http.Request) (string, bool) {
 func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
 	return r.Cookie(h.cookieName) //nolint:wrapcheck
 }
+
+// This build never unmarshals legacy claims.
+func (h *Hub) dropLegacyClaims(*claims) {}
 
 // resolveLegacyClaims is a no-op without the deprecated_claim tag: the legacy
 // mercure claim grants nothing.

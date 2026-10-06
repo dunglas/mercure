@@ -121,6 +121,13 @@ subscribers can send topic matcher lists too large for the URI length limits of
 intermediaries. When the parameters are carried in the request body, they **MUST** be
 encoded as `application/x-www-form-urlencoded` [@!URL], and the reserved-namespace rule
 and value constraints below apply identically to the body-decoded names and values.
+A server does not infer a media type from the content a request carries [@RFC10008]: hubs
+**MUST** reject a body-carrying subscription request without a `Content-Type` field with a
+400 "Bad Request" HTTP status code, and one declaring a media type the hub does not read
+subscriptions in with a 415 "Unsupported Media Type" HTTP status code. Hubs accepting
+body-carried parameters **SHOULD** advertise the media types they read in an `Accept-Query`
+response header field [@RFC10008], on error responses included, so that a rejected client
+learns what it should have sent.
 
 A request carrying such a body **MAY** also carry parameters in the query component. The hub
 **MUST** then take the union of the two: every name/value pair from the query component and
@@ -197,7 +204,10 @@ the connection. Any other appropriate mechanism, including but not limited to re
 
 Web browsers enforce the CORS protocol [@!FETCH] on cross-origin `EventSource` connections.
 Hubs serving browser-based subscribers on other origins **MUST** send the appropriate CORS
-response headers. When the connection carries credentials (such as the cookie defined in
+response headers. In particular, the `Mercure-Last-Event-ID` response field (see
+(#reconciliation)) **MUST** be exposed to cross-origin subscribers through
+`Access-Control-Expose-Headers`: a subscriber that cannot read it cannot detect data loss
+when resuming. When the connection carries credentials (such as the cookie defined in
 (#cookie)), the `Access-Control-Allow-Origin` response header **MUST NOT** be the `*` wildcard
 and **MUST NOT** be reflected from arbitrary request origins: it **MUST** be restricted to an
 explicit allowlist of trusted origins, and the hub **MUST** also send
@@ -211,13 +221,17 @@ If an update is marked as `private`, the hub **MUST NOT** dispatch it to subscri
 to receive it. See (#authorization).
 
 The hub **MUST** send these updates as `text/event-stream`-compliant events
-[@!HTML].
+[@!HTML]. A subscription request whose `Accept` header field does not allow
+`text/event-stream` under proactive content negotiation [@!RFC9110] refuses the only
+representation the hub can send, and **MUST** be rejected with a 406 "Not Acceptable" HTTP
+status code; an absent `Accept` field states no preference.
 
 Event streams are long-lived responses and interact poorly with intermediaries that buffer
 responses or terminate idle connections. When no update has been dispatched for an
 implementation-defined period, hubs **SHOULD** send an SSE comment line (a line starting with
 `:` [@!HTML]) as a keep-alive, and deployments **SHOULD** configure intermediaries not to
-buffer event streams.
+buffer event streams. Hubs **SHOULD** also signal incremental delivery to intermediaries with
+an `Incremental: ?1` response header field [@RFC10036].
 
 The `data` property **MUST** contain the topic's new version. It **MAY** be the full resource or
 a partial update in formats such as JSON Patch [@RFC6902] or JSON Merge Patch [@RFC7396].
@@ -1202,7 +1216,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-Control: must-revalidate
+Cache-Control: private, must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions",
@@ -1247,7 +1261,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-Control: must-revalidate
+Cache-Control: private, must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector",
@@ -1283,7 +1297,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Link: <https://example.com/.well-known/mercure>; rel="mercure"; last-event-id="urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"; type="mercure"; content-type="application/json"
 ETag: "urn:uuid:5e94c686-2c0b-4f9b-958c-92ccc3bbb4eb"
-Cache-Control: must-revalidate
+Cache-Control: private, must-revalidate
 
 {
    "id": "/.well-known/mercure/subscriptions/urlpattern/https%3A%2F%2Fexample.com%2F%3Aselector/urn%3Auuid%3Abb3de268-05b0-4c65-b44e-8f9acefc29d6",

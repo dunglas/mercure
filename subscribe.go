@@ -8,11 +8,14 @@ import (
 	"io"
 	"log/slog"
 	"math/rand/v2"
+	"mime"
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
+	"github.com/elnormous/contenttype"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -45,7 +48,7 @@ func (rc *responseController) setDispatchWriteDeadline(ctx context.Context) bool
 	}
 
 	deadline := time.Now().Add(rc.hub.dispatchTimeout)
-	if deadline.After(rc.writeDeadline) {
+	if !rc.writeDeadline.IsZero() && deadline.After(rc.writeDeadline) {
 		return true
 	}
 
@@ -250,16 +253,31 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	h.limitRequestBody(w, r)
 
+	// Advertised on every answer, refusals included: a client told 415 needs
+	// to know what it should have sent (RFC 10008, Section 3).
+	w.Header()["Accept-Query"] = headerAcceptQuery
+
 	values, err := h.subscribeValues(r)
 	if err != nil {
 		status := http.StatusBadRequest
 
 		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			status = http.StatusRequestEntityTooLarge
+		} else if errors.Is(err, errUnsupportedSubscriptionMediaType) {
+			status = http.StatusUnsupportedMediaType
 		}
 
 		http.Error(w, http.StatusText(status), status)
 		recordSpanError(span, err)
+
+		return nil, nil
+	}
+
+	// A subscriber refusing text/event-stream leaves nothing for the hub to
+	// send (RFC 9110, Section 12.5.1).
+	if !acceptsEventStream(r) {
+		http.Error(w, http.StatusText(http.StatusNotAcceptable), http.StatusNotAcceptable)
+		recordSpanError(span, errNotAcceptable)
 
 		return nil, nil
 	}
@@ -323,6 +341,13 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 			h.logger.LogAttrs(ctx, slog.LevelError, "Unable to add subscriber", slog.Any("error", err))
 		}
 
+		// Not shutdown(): no active:true was sent, so no active:false must follow.
+		s.Disconnect()
+
+		if err := h.transport.RemoveSubscriber(addCtx, s); err != nil && h.logger.Enabled(ctx, slog.LevelError) {
+			h.logger.LogAttrs(ctx, slog.LevelError, "Failed to remove subscriber after a failed registration", slog.Any("error", err))
+		}
+
 		recordSpanError(span, err)
 
 		return nil, nil
@@ -360,6 +385,15 @@ var (
 	headerExpire       = []string{"0"}
 
 	headerXAccelBuffering = []string{"no"}
+
+	// Accept-Query advertises the media type of the QUERY request body
+	// (RFC 10008): the subscription parameters, form-encoded as for GET.
+	headerAcceptQuery = []string{"application/x-www-form-urlencoded"}
+
+	// Incremental (RFC 10036) tells intermediaries to forward each chunk as
+	// it is produced instead of buffering the response, the standardized
+	// counterpart of X-Accel-Buffering above.
+	headerIncremental = []string{"?1"}
 )
 
 // sendHeaders sends correct HTTP headers to create a keep-alive connection.
@@ -378,6 +412,7 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 
 	// NGINX support https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-buffering
 	header["X-Accel-Buffering"] = headerXAccelBuffering
+	header["Incremental"] = headerIncremental
 
 	if s.RequestLastEventIDSet {
 		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
@@ -390,6 +425,46 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	}
 }
 
+// errUnsupportedSubscriptionMediaType rejects a QUERY subscription body
+// declaring a media type the hub cannot read.
+var errUnsupportedSubscriptionMediaType = errors.New("unsupported subscription media type")
+
+// errNotAcceptable rejects a subscription refusing the only media type the
+// hub can stream, leaving nothing to send it.
+var errNotAcceptable = errors.New("the request does not accept text/event-stream")
+
+// The only representation subscriptions are answered in, parsed once for
+// negotiation.
+//
+//nolint:gochecknoglobals
+var availableEventStream = []contenttype.MediaType{contenttype.NewMediaType("text/event-stream")}
+
+// acceptsEventStream reports whether the request's Accept header field allows
+// text/event-stream, per proactive content negotiation (RFC 9110, Section
+// 12.5.1): the most specific matching media range decides, so an explicit
+// text/event-stream wins over a "*/*;q=0" refusing everything else. An
+// absent or unreadable Accept states no preference.
+func acceptsEventStream(r *http.Request) bool {
+	// A blank Accept lists nothing, which the library reads as accepting
+	// nothing; treat it like an absent field instead.
+	joined := strings.TrimSpace(strings.Join(r.Header.Values("Accept"), ", "))
+	if strings.Trim(joined, ", ") == "" {
+		return true
+	}
+
+	// Field lines repeating Accept form one list (RFC 9110, Section 5.3);
+	// the library reads only the first line.
+	if len(r.Header.Values("Accept")) > 1 {
+		single := r.Clone(r.Context())
+		single.Header.Set("Accept", joined)
+		r = single
+	}
+
+	_, _, err := contenttype.GetAcceptableMediaType(r, availableEventStream)
+
+	return !errors.Is(err, contenttype.ErrNoAcceptableTypeFound)
+}
+
 // subscribeValues returns the subscription parameters. For GET and HEAD they
 // come from the URL query; for QUERY the application/x-www-form-urlencoded
 // request body is parsed and merged on top, so a subscriber can pass topics
@@ -399,6 +474,19 @@ func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
 	values := r.URL.Query()
 	if r.Method != methodQuery {
 		return values, nil
+	}
+
+	// A QUERY naming no media type is incorrect by definition, and one naming
+	// a media type the hub cannot read as a subscription is unsupported
+	// (RFC 10008, Section 2.3). Neither is read as a form: a server does not
+	// infer a media type from the content it carries.
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid QUERY request Content-Type: %w", err)
+	}
+
+	if mediaType != "application/x-www-form-urlencoded" {
+		return nil, fmt.Errorf("%w: %q", errUnsupportedSubscriptionMediaType, mediaType)
 	}
 
 	body, err := io.ReadAll(r.Body)

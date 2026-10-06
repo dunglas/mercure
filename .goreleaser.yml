@@ -68,7 +68,7 @@ dockers:
     goarch: amd64
     image_templates:
       # Rolling tags (vN, vN.M, latest) are suppressed on prereleases so
-      # a 1.0.0-beta.X cut does not move :latest/:v1 off the stable line.
+      # a prerelease cut does not move :latest/:vN off the stable line.
       # GoReleaser drops empty entries, so the {{ if }} blocks emit no tag.
       - "dunglas/mercure:{{ .Tag }}-amd64"
       - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}-amd64{{ end }}"

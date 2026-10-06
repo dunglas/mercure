@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"testing/synctest"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestSubscribeDeprecatedTopicParam covers the v8 end-to-end flow: a
@@ -74,4 +78,18 @@ func TestSubscribeTopicsLegacyRequests(t *testing.T) {
 			}
 		}
 	}
+}
+
+// A URI template too complex to compile is refused up front instead of matching nothing.
+func TestSubscribeDeprecatedTopicParamTooComplex(t *testing.T) {
+	t.Parallel()
+
+	hub := createDeprecatedDummy(t, WithAnonymous())
+
+	topic := "https://example.com/{" + strings.Repeat("a,", 1100) + "a}"
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?topic="+url.QueryEscape(topic), nil)
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Result().StatusCode)
 }

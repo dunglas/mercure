@@ -44,3 +44,48 @@ Ki0jUpg2xzzwyA+nEI6Bf6CDaHKnCqxL7x0yk2XqeA==
 	require.EqualError(t, err, "unable to parse RSA public key: asn1: structure error: integer too large")
 	require.Nil(t, keyfunc)
 }
+
+func TestStaticMissingKey(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := Static{Algorithm: "HS256"}.buildKeyfunc()
+	require.ErrorIs(t, err, ErrMissingKey)
+}
+
+func TestStaticPEMKeyWithHMACAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	key := []byte(`-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVMSpp6r4Rzf1mM4l3q5k9qz2S
+-----END PUBLIC KEY-----
+`)
+
+	_, _, err := Static{Key: key, Algorithm: "HS256"}.buildKeyfunc()
+	require.ErrorIs(t, err, ErrPEMKeyHMACAlgorithm)
+
+	// OpenSSL writes attributes before the block when exporting from PKCS#12.
+	_, _, err = Static{Key: append([]byte("Bag Attributes\n    friendlyName: hub\n"), key...), Algorithm: "HS256"}.buildKeyfunc()
+	require.ErrorIs(t, err, ErrPEMKeyHMACAlgorithm)
+}
+
+func TestStaticShortHMACKey(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		alg    string
+		keyLen int
+		minLen int
+		short  bool
+	}{
+		{"HS256", 31, 32, true},
+		{"HS256", 32, 32, false},
+		{"HS384", 47, 48, true},
+		{"HS512", 63, 64, true},
+		{"HS512", 64, 64, false},
+		{"RS256", 1, 0, false},
+	} {
+		minLen, short := Static{Key: make([]byte, tc.keyLen), Algorithm: tc.alg}.shortHMACKey()
+		require.Equal(t, tc.minLen, minLen, tc.alg)
+		require.Equal(t, tc.short, short, tc.alg)
+	}
+}

@@ -26,7 +26,10 @@ const (
 	reservedEventType = "mercure"
 )
 
-var subscriptionContentType = []string{"application/json"} // nolint:gochecknoglobals
+var (
+	subscriptionContentType  = []string{"application/json"}         // nolint:gochecknoglobals
+	subscriptionCacheControl = []string{"private, must-revalidate"} // nolint:gochecknoglobals
+)
 
 // etagValue encodes lastEventID as the content of an RFC 9110 §8.8.3
 // entity-tag. Publish-time validation forbids control characters but still
@@ -307,10 +310,14 @@ func (h *Hub) initSubscription(w http.ResponseWriter, r *http.Request) (span tra
 	// etagValue percent-encodes anything outside etagc (SP, DQUOTE, ...) that
 	// publish-time validation still permits, so the header stays valid.
 	etag := `"` + etagValue(lastEventID) + `"`
-	// A 304 carries the ETag it would have sent on a 200 (RFC 9110 §15.4.5), so
-	// set it before the conditional check.
+	// A 304 must carry the same ETag and cache directives as a 200.
 	header := w.Header()
 	header["ETag"] = []string{etag}
+	// Cookie-authenticated listings need explicit protection from shared caches.
+	header["Cache-Control"] = subscriptionCacheControl
+	// Preserve the CORS middleware's Vary: Origin.
+	header.Add("Vary", "Authorization")
+	header.Add("Vary", "Cookie")
 
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)

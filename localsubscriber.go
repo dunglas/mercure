@@ -51,6 +51,13 @@ func (s *LocalSubscriber) Dispatch(ctx context.Context, u *Update, fromHistory b
 	}
 
 	if !fromHistory && !s.ready.Load() {
+		// Ready would drop a queue that no longer fits in out, so stop buffering it now.
+		if len(s.liveQueue) >= cap(s.out)-len(s.out) {
+			s.handleFullChan(ctx)
+
+			return false
+		}
+
 		s.liveQueue = append(s.liveQueue, u)
 
 		return true

@@ -4,6 +4,7 @@ package mercure
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -510,4 +511,60 @@ func TestMultiIssuerRoleWithoutVerifier(t *testing.T) {
 	claims, err := h.authorize(r, true)
 	require.ErrorIs(t, err, ErrInvalidJWT)
 	require.Nil(t, claims)
+}
+
+// Without legacy claims compiled in, compatibility mode relaxes nothing about
+// tokens, so a token minted for another hub sharing the key is refused.
+func TestCompatModeWithoutLegacyClaimsChecksAudience(t *testing.T) {
+	t.Parallel()
+
+	h := createDummy(t, WithProtocolVersionCompatibility(8))
+
+	for audience, accepted := range map[string]bool{
+		testResourceIdentifier:                      true,
+		"https://other.example/.well-known/mercure": false,
+	} {
+		r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+		r.Header.Add("Authorization", bearerPrefix+mintAccessToken([]byte("subscriber"), audience, nil))
+
+		_, err := h.authorize(r, false)
+		if accepted {
+			require.NoError(t, err, audience)
+		} else {
+			require.ErrorIs(t, err, ErrInvalidJWT, audience)
+		}
+	}
+}
+
+// Oversized tokens are rejected before parsing, even when validly signed.
+func TestAuthorizeRejectsOversizedToken(t *testing.T) {
+	t.Parallel()
+
+	rc := subscriberRegisteredClaims()
+	rc.ID = strings.Repeat("a", maxCompactJWSLen)
+	token := signSubscriberToken(t, &claims{RegisteredClaims: rc})
+	require.Greater(t, len(token), maxCompactJWSLen)
+
+	h := createDummy(t)
+
+	r, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+token)
+
+	_, err := h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.ErrorContains(t, err, "exceeds")
+
+	r, _ = http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.AddCookie(&http.Cookie{Name: defaultCookieName, Value: token})
+
+	_, err = h.authorize(r, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+	require.ErrorContains(t, err, "exceeds")
+
+	rc.ID = strings.Repeat("a", maxCompactJWSLen/2)
+	r, _ = http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	r.Header.Add("Authorization", bearerPrefix+signSubscriberToken(t, &claims{RegisteredClaims: rc}))
+
+	_, err = h.authorize(r, false)
+	require.NoError(t, err)
 }

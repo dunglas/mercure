@@ -1,6 +1,7 @@
 package mercure
 
 import (
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,6 +27,13 @@ type claims struct {
 	authz *mercureAuthz
 }
 
+// UnmarshalJSON decodes the claim set with encoding/json/v2, like the authorization details.
+func (c *claims) UnmarshalJSON(data []byte) error {
+	type plainClaims claims
+
+	return jsonv2.Unmarshal(data, (*plainClaims)(c)) //nolint:wrapcheck
+}
+
 type role int
 
 const (
@@ -42,6 +50,8 @@ const (
 	// signature). Anything shorter is garbage and is rejected before signature
 	// verification.
 	minCompactJWSLen = 41
+	// maxCompactJWSLen bounds the unverified input decoded before the signature check.
+	maxCompactJWSLen = 64 << 10
 	// authorizationHeader is the lowercase name of the "Authorization" HTTP
 	// header, used in the CORS allowed-headers list.
 	authorizationHeader = "authorization"
@@ -153,7 +163,7 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 
 // jwtParserOptions returns the RFC 9068 parser checks enforced in modern mode:
 // a required audience matching the hub's per-request resource identifier
-// (expectedAudience) and a required exp. In compatibility mode (deprecated_claim builds with
+// (expectedAudience, never empty: validateJWT refuses that) and a required exp. In compatibility mode (deprecated_claim builds with
 // WithProtocolVersionCompatibility) these checks are relaxed. The accepted
 // algorithms are pinned here (RFC 8725) so the algorithm can never be taken
 // from the token header: they come from the selected issuer's Verifier (a
@@ -170,20 +180,7 @@ func (h *Hub) jwtParserOptions(algs []string, expectedAudience string) []jwt.Par
 		return opts
 	}
 
-	opts = append(opts, jwt.WithExpirationRequired())
-
-	// Enforce the audience only when the hub has one (the statically configured
-	// resource identifier, or the per-request identity derived from the public
-	// URL the client contacted). Compatibility mode on a build without the
-	// deprecated_claim tag still reaches this path (compatClaimsEnabled is a
-	// no-op stub there) with an empty audience; golang-jwt treats an empty
-	// expected audience as a required claim, so enforcing it would reject every
-	// otherwise-valid token.
-	if expectedAudience != "" {
-		opts = append(opts, jwt.WithAudience(expectedAudience))
-	}
-
-	return opts
+	return append(opts, jwt.WithExpirationRequired(), jwt.WithAudience(expectedAudience))
 }
 
 // selectVerifier picks the issuer-specific verifier for a token, using the
@@ -223,6 +220,16 @@ func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, e
 // validateJWT parses and validates an access token, returning its claims with
 // the mercure authorization details resolved into c.authz.
 func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience string) (*claims, error) {
+	if len(encodedToken) > maxCompactJWSLen {
+		return nil, fmt.Errorf("%w: the token exceeds %d bytes", ErrInvalidJWT, maxCompactJWSLen)
+	}
+
+	// Fail closed: with no identity to bind the token to, parsing without
+	// jwt.WithAudience accepts one audienced anywhere, or carrying no aud at all.
+	if expectedAudience == "" && !h.compatClaimsEnabled() {
+		return nil, fmt.Errorf("%w: the hub has no resource identifier to check the audience against", ErrInvalidJWT)
+	}
+
 	rv, err := h.selectVerifier(encodedToken, publish)
 	if err != nil {
 		return nil, err
@@ -277,6 +284,8 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 	}
 
 	c.authz = authz
+
+	h.dropLegacyClaims(c)
 
 	// The legacy mercure claim is honored only when the token carries no
 	// authorization_details, and only in deprecated_claim builds running in

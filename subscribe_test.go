@@ -1445,10 +1445,36 @@ func TestNewResponseControllerNoDeadline(t *testing.T) {
 	assert.True(t, rc.disconnectionTime.IsZero())
 }
 
-// refusingTransport records dispatched updates and refuses to register
-// subscribers, to exercise the registration-failure path.
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+
+	deadlines []time.Time
+}
+
+func (r *deadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.deadlines = append(r.deadlines, deadline)
+
+	return nil
+}
+
+// Without a write deadline, a subscriber that stops reading must still be cut off by the dispatch timeout.
+func TestDispatchWriteDeadlineWithoutWriteTimeout(t *testing.T) {
+	t.Parallel()
+
+	h := &Hub{opt: &opt{writeTimeout: 0, dispatchTimeout: time.Second}}
+	w := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	rc := h.newResponseController(w, &LocalSubscriber{})
+
+	require.True(t, rc.setDispatchWriteDeadline(t.Context()))
+	require.Len(t, w.deadlines, 1)
+	assert.WithinDuration(t, time.Now().Add(time.Second), w.deadlines[0], 100*time.Millisecond)
+}
+
+// refusingTransport records dispatched updates and removed subscribers and
+// refuses to register subscribers, to exercise the registration-failure path.
 type refusingTransport struct {
 	dispatched []*Update
+	removed    []*LocalSubscriber
 }
 
 func (t *refusingTransport) Dispatch(_ context.Context, u *Update) error {
@@ -1461,7 +1487,11 @@ func (t *refusingTransport) AddSubscriber(context.Context, *LocalSubscriber) err
 	return ErrClosedTransport
 }
 
-func (t *refusingTransport) RemoveSubscriber(context.Context, *LocalSubscriber) error { return nil }
+func (t *refusingTransport) RemoveSubscriber(_ context.Context, s *LocalSubscriber) error {
+	t.removed = append(t.removed, s)
+
+	return nil
+}
 
 func (t *refusingTransport) Close(context.Context) error { return nil }
 
@@ -1486,6 +1516,30 @@ func TestNoSubscriptionEventWhenRegistrationFails(t *testing.T) {
 
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	assert.Empty(t, transport.dispatched)
+}
+
+// A transport may have listed the subscriber before failing, so it must be
+// removed and disconnected rather than left behind.
+func TestSubscriberRemovedWhenRegistrationFails(t *testing.T) {
+	t.Parallel()
+
+	transport := &refusingTransport{}
+	hub := createAnonymousDummy(t, WithTransport(transport))
+
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil)
+	w := httptest.NewRecorder()
+
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() {
+		require.NoError(t, resp.Body.Close())
+	})
+
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	require.Len(t, transport.removed, 1)
+	assert.True(t, transport.removed[0].disconnected.Load())
 }
 
 // The subscription is announced once it exists, so a subscriber authorized for
@@ -1617,4 +1671,208 @@ func testSubscribeTopics(t *testing.T, compatibility int, private, replay bool, 
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, fields+"id: a\ndata: Foo\n\n", w.Body.String())
+}
+
+// A QUERY naming no media type at all is incorrect by definition, so it is a
+// bad request rather than an unsupported one (RFC 10008, Section 2.3).
+func TestQuerySubscribeWithoutMediaTypeRejectedWith400(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+// A QUERY naming a media type the hub cannot read as a subscription is
+// unsupported: its content is not read as a form (RFC 10008, Section 2.3).
+func TestQuerySubscribeUnsupportedMediaTypeRejectedWith415(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader(`{"match": "https://example.com/books/1"}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+}
+
+// Media type parameters do not change what the body is.
+func TestQuerySubscribeMediaTypeParametersAccepted(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1")).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+
+	w := &responseTester{
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+}
+
+// A subscription that named no media type it will read is not refusing any,
+// and the most specific matching range decides. Only one refusing
+// text/event-stream is answered 406, there being nothing left to send it.
+func TestAcceptsEventStream(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		accept []string
+		want   bool
+	}{
+		"absent":                 {nil, true},
+		"empty":                  {[]string{""}, true},
+		"exact":                  {[]string{"text/event-stream"}, true},
+		"wildcard":               {[]string{"*/*"}, true},
+		"type wildcard":          {[]string{"text/*"}, true},
+		"weighted":               {[]string{"application/json;q=0.8, text/event-stream;q=0.2"}, true},
+		"refused exact":          {[]string{"text/event-stream;q=0"}, false},
+		"refused wildcard":       {[]string{"*/*;q=0"}, false},
+		"specific grant wins":    {[]string{"*/*;q=0, text/event-stream"}, true},
+		"specific refusal wins":  {[]string{"*/*, text/event-stream;q=0"}, false},
+		"other types only":       {[]string{"application/json"}, false},
+		"split over field lines": {[]string{"application/json;q=0.8", "text/event-stream;q=0.2"}, true},
+		"split refusal":          {[]string{"application/json", "text/event-stream;q=0"}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+			for _, a := range tc.accept {
+				req.Header.Add("Accept", a)
+			}
+
+			assert.Equal(t, tc.want, acceptsEventStream(req))
+		})
+	}
+}
+
+// A subscription refusing the only media type the hub streams leaves nothing
+// to send it, whether it asked with GET or QUERY.
+func TestSubscribeRefusedResponseMediaTypeRejectedWith406(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(http.MethodGet,
+		defaultHubURL+"?match=https://example.com/books/1", nil)
+	req.Header.Set("Accept", "text/event-stream;q=0")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusNotAcceptable, resp.StatusCode)
+}
+
+func TestQuerySubscribeRefusedResponseMediaTypeRejectedWith406(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL,
+		strings.NewReader("match=https://example.com/books/1"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusNotAcceptable, resp.StatusCode)
+}
+
+// A subscription is answered with the media types a QUERY body can express it
+// in, so a client learns what the hub reads (RFC 10008, Section 3) — on
+// refusals included: a client told 415 needs to know what to send instead.
+func TestSubscribeAcceptQuery(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "application/x-www-form-urlencoded", w.Header().Get("Accept-Query"))
+}
+
+func TestSubscribeAcceptQueryOnUnsupportedMediaType(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	hub.SubscribeHandler(w, req)
+
+	resp := w.Result()
+
+	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+	assert.Equal(t, "application/x-www-form-urlencoded", resp.Header.Get("Accept-Query"))
+}
+
+// A subscription asks intermediaries to forward each chunk as it is produced
+// rather than buffered (RFC 10036), which SSE needs as much as any
+// incremental response.
+func TestSubscribeIncremental(t *testing.T) {
+	t.Parallel()
+
+	hub := createAnonymousDummy(t)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/foo", nil).WithContext(ctx)
+
+	w := &responseTester{
+		header:             http.Header{},
+		expectedStatusCode: http.StatusOK,
+		expectedBody:       ":\n",
+		tb:                 t,
+		cancel:             cancel,
+	}
+	hub.SubscribeHandler(w, req)
+
+	assert.Equal(t, "?1", w.Header().Get("Incremental"))
 }
