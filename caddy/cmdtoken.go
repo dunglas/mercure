@@ -44,12 +44,15 @@ const (
 	accessTokenType           = "at+jwt"
 )
 
-var errMissingTokenFlag = errors.New("missing required flag")
+var (
+	errMissingTokenFlag  = errors.New("missing required flag")
+	errLiteralSigningKey = errors.New("literal --key values expose signing material in process arguments; use --key @path/to/file or --key @- for stdin")
+)
 
 func init() { //nolint:gochecknoinits
 	caddycmd.RegisterCommand(caddycmd.Command{
 		Name:  "mercure-token",
-		Usage: "[--dev] --iss <issuer> --aud <audience> --key <secret-or-@file> [--publish <topic>]... [--subscribe <topic>]...",
+		Usage: "[--dev] --iss <issuer> --aud <audience> --key <@file-or-@-> [--publish <topic>]... [--subscribe <topic>]...",
 		Short: "Mint a self-issued Mercure access token",
 		Long: `
 Mints an RFC 9068 JWT access token carrying an RFC 9396 authorization_details
@@ -62,9 +65,10 @@ subscribe query parameters (see docs/concepts/topics-and-matchers.md): the
 grant on the token uses the same matcher vocabulary as the subscription URL
 it authorizes.
 
---key accepts a raw HMAC secret, an @-prefixed path to a file holding one,
-@- to read it from stdin, or a PEM-encoded private key (inline, from a file,
-or from stdin). A PEM key requires --alg (e.g. ES256, RS256, EdDSA); a raw
+--key accepts an @-prefixed path to a file holding an HMAC secret or a
+PEM-encoded private key, or @- to read it from stdin. Literal signing
+material is rejected to keep it out of process arguments and shell history.
+A PEM key requires --alg (e.g. ES256, RS256, EdDSA); a raw
 secret defaults to HS256. This is the signing key, not the hub's
 verification key: for HMAC they are the same secret, but for an asymmetric
 issuer, issuer.<publisher|subscriber>.jwt in the Caddyfile holds the public
@@ -89,7 +93,7 @@ Example:
 			cmd.Flags().Bool("dev", false, "fill --iss, --aud, and --key for the quickstart's local dev hub")
 			cmd.Flags().String(claimIss, "", "issuer identifier (the token `iss` claim; must match a trusted issuer on the hub)")
 			cmd.Flags().String(claimAud, "", "hub resource identifier (the token `aud` claim; the hub's canonical URL)")
-			cmd.Flags().String("key", "", "signing key: a raw HMAC secret, @path/to/file, @- for stdin, or a PEM-encoded private key")
+			cmd.Flags().String("key", "", "signing key: @path/to/file or @- for stdin (HMAC secret or PEM private key)")
 			cmd.Flags().String("alg", "", "signing algorithm (default HS256 for a raw secret; required for a PEM key)")
 			cmd.Flags().String("kid", "", "optional `kid` header, a hint for hubs trusting more than one key per issuer")
 			cmd.Flags().String(claimSub, "", "subscriber/publisher identifier (default: a random urn:uuid)")
@@ -182,6 +186,11 @@ func cmdMercureToken(fl caddycmd.Flags) (int, error) {
 	p, err := readTokenParams(fl)
 	if err != nil {
 		return 1, err
+	}
+
+	// Validate the user-supplied flag before --dev can fill an internal key.
+	if p.key != "" && !strings.HasPrefix(p.key, "@") {
+		return 1, errLiteralSigningKey
 	}
 
 	if p.dev {
