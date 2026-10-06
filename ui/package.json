@@ -1,0 +1,18 @@
+{
+  "name": "mercure-debugger",
+  "private": true,
+  "description": "Third-party assets of the debugger UI, bundled into public/vendor/",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "vendor": "node vendor.js",
+    "upgrade": "node upgrade.js",
+    "check": "node check.js"
+  },
+  "dependencies": {
+    "@microsoft/fetch-event-source": "2.0.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

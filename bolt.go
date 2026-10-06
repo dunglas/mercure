@@ -22,11 +22,9 @@ const BoltDefaultCleanupFrequency = 0.3
 
 const defaultBoltBucketName = "updates"
 
-// maxHistoryScan caps how many history events a single subscriber
-// reconnection can force the transport to walk before giving up on
-// finding the requested Last-Event-ID. The cap is a denial-of-service
-// guard: without it, an attacker sending an ancient or non-existent
-// Last-Event-ID forces an O(history-size) scan on every request.
+// maxHistoryScan is the default bound on the search for a requested
+// Last-Event-ID: without it an ancient or forged id forces an O(history) scan
+// on every request. See historyScanLimit.
 const maxHistoryScan = 10000
 
 // BoltTransport implements the TransportInterface using the Bolt database.
@@ -74,7 +72,7 @@ func NewBoltTransport(
 		return nil, &TransportError{err: err}
 	}
 
-	lastEventID, err := getDBLastEventID(db, bucketName)
+	lastSeq, lastEventID, err := getDBLastEvent(db, bucketName)
 	if err != nil {
 		return nil, &TransportError{err: err}
 	}
@@ -87,11 +85,14 @@ func NewBoltTransport(
 		cleanupFrequency: cleanupFrequency,
 		subscribers:      subscriberList,
 		closed:           make(chan struct{}),
+		lastSeq:          lastSeq,
 		lastEventID:      lastEventID,
 	}, nil
 }
 
-func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
+func getDBLastEvent(db *bolt.DB, bucketName string) (uint64, string, error) {
+	var lastSeq uint64
+
 	lastEventID := EarliestLastEventID
 
 	err := db.View(func(tx *bolt.Tx) error {
@@ -101,16 +102,17 @@ func getDBLastEventID(db *bolt.DB, bucketName string) (string, error) {
 		}
 
 		if k, _ := b.Cursor().Last(); k != nil {
+			lastSeq = binary.BigEndian.Uint64(k[:8])
 			lastEventID = string(k[8:])
 		}
 
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("unable to get last_event_id from BoltDB: %w", err)
+		return 0, "", fmt.Errorf("unable to get last_event_id from BoltDB: %w", err)
 	}
 
-	return lastEventID, nil
+	return lastSeq, lastEventID, nil
 }
 
 // Dispatch dispatches an update to all subscribers and persists it in Bolt DB.
@@ -225,7 +227,97 @@ func pastSeqBound(k []byte, toSeq uint64) bool {
 	return binary.BigEndian.Uint64(k[:8]) > toSeq
 }
 
-//nolint:gocognit,funlen
+// findLastEventID returns the seq of the requested Last-Event-ID. Searching
+// backwards matches how subscribers reconnect: forwards from the oldest event,
+// scanLimit cut off exactly the recent ids they ask for. The whole window is
+// scanned because a reused id resolves to its earliest occurrence.
+func findLastEventID(b *bolt.Bucket, lastEventID string, toSeq, scanLimit uint64) (uint64, bool) {
+	if toSeq == 0 {
+		return 0, false
+	}
+
+	// Seek to the snapshot so newer events cannot bypass the scan limit.
+	bound := make([]byte, 8)
+	binary.BigEndian.PutUint64(bound, toSeq)
+
+	c := b.Cursor()
+
+	k, _ := c.Seek(bound)
+	if k == nil {
+		k, _ = c.Last()
+	} else if pastSeqBound(k, toSeq) {
+		k, _ = c.Prev()
+	}
+
+	var (
+		seq     uint64
+		found   bool
+		scanned uint64
+	)
+
+	for ; k != nil && scanned < scanLimit; k, _ = c.Prev() {
+		if string(k[8:]) == lastEventID {
+			seq, found = binary.BigEndian.Uint64(k[:8]), true
+		}
+
+		scanned++
+	}
+
+	return seq, found
+}
+
+// historyScanLimit bounds the search for a requested Last-Event-ID. A
+// configured size is retention the operator pays for, so it stays searchable;
+// maxHistoryScan is the floor and the only bound on an unlimited history.
+func (t *BoltTransport) historyScanLimit() uint64 {
+	if t.size > maxHistoryScan {
+		return t.size
+	}
+
+	return maxHistoryScan
+}
+
+// replayHistory dispatches the authorized updates stored after fromSeq.
+func (t *BoltTransport) replayHistory(
+	ctx context.Context,
+	s *LocalSubscriber,
+	b *bolt.Bucket,
+	fromSeq, toSeq uint64,
+	responseLastEventID string,
+) error {
+	from := make([]byte, 8)
+	binary.BigEndian.PutUint64(from, fromSeq+1)
+
+	c := b.Cursor()
+	for k, v := c.Seek(from); k != nil; k, v = c.Next() {
+		// Dispatched since the subscribe snapshot: the live queue owns it.
+		if pastSeqBound(k, toSeq) {
+			break
+		}
+
+		var update *Update
+		if err := json.Unmarshal(v, &update); err != nil {
+			s.HistoryDispatched(responseLastEventID)
+
+			err := fmt.Errorf("unable to unmarshal update: %w", err)
+
+			if t.logger.Enabled(ctx, slog.LevelError) {
+				t.logger.LogAttrs(ctx, slog.LevelError, "Unable to unmarshal update coming from the Bolt DB", slog.Any("update", update), slog.Any("error", err))
+			}
+
+			return err
+		}
+
+		if s.Match(update) && !s.Dispatch(ctx, update, true) {
+			break
+		}
+	}
+
+	s.HistoryDispatched(responseLastEventID)
+
+	return nil
+}
+
 func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber, toSeq uint64) error {
 	ctx, span := startSpan(ctx, "mercure.transport.history",
 		trace.WithAttributes(
@@ -243,96 +335,32 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 			return nil // No data
 		}
 
-		c := b.Cursor()
-		responseLastEventID := EarliestLastEventID
-		afterFromID := s.RequestLastEventID == EarliestLastEventID
-		scanned := 0
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			// Keys written after the subscribe snapshot (concurrent Dispatch
-			// between subscriber registration and this read transaction)
-			// must not leak into the response header or be re-delivered
-			// alongside the live dispatch queue — check the bound first.
-			if pastSeqBound(k, toSeq) {
-				break
+		if s.RequestLastEventID == EarliestLastEventID {
+			var fromSeq uint64
+			if limit := t.historyScanLimit(); toSeq > limit {
+				fromSeq = toSeq - limit
 			}
 
-			if !afterFromID {
-				// DoS guard: cap the search-for-requested-ID phase only.
-				// Once afterFromID is true the loop is dispatching legitimate
-				// authorized history and must not be truncated.
-				if scanned >= maxHistoryScan {
-					break
-				}
-
-				scanned++
-
-				id := string(k[8:])
-				if id == s.RequestLastEventID {
-					afterFromID = true
-					// The subscriber already knows this id; echoing it
-					// is not a disclosure.
-					responseLastEventID = s.RequestLastEventID
-
-					continue
-				}
-
-				// Only disclose the id of an event the subscriber is
-				// authorized to read. We must deserialize to evaluate
-				// Match against the update's topics and Private flag.
-				var update *Update
-				if err := json.Unmarshal(v, &update); err != nil {
-					// Skip silently — do not disclose this id.
-					continue
-				}
-
-				if s.Match(update) {
-					responseLastEventID = id
-				}
-
-				continue
-			}
-
-			var update *Update
-			if err := json.Unmarshal(v, &update); err != nil {
-				s.HistoryDispatched(responseLastEventID)
-
-				err := fmt.Errorf("unable to unmarshal update: %w", err)
-
-				if t.logger.Enabled(ctx, slog.LevelError) {
-					t.logger.LogAttrs(ctx, slog.LevelError, "Unable to unmarshal update coming from the Bolt DB", slog.Any("update", update), slog.Any("error", err))
-				}
-
-				return err
-			}
-
-			if s.Match(update) && !s.Dispatch(ctx, update, true) {
-				s.HistoryDispatched(responseLastEventID)
-
-				return nil
-			}
+			// The omitted boundary event may be private or on an unrelated topic.
+			return t.replayHistory(ctx, s, b, fromSeq, toSeq, EarliestLastEventID)
 		}
 
-		if !afterFromID {
-			// The requested id was never found, so nothing was replayed and
-			// there is no event preceding a first one sent. The protocol
-			// reserves "earliest" for this case — a requested event that does
-			// not exist or has been discarded — and reporting it tells the
-			// subscriber to re-fetch. Reporting the newest id seen while
-			// searching would instead claim it is caught up to an event it
-			// never received. This also covers giving up at maxHistoryScan.
-			responseLastEventID = EarliestLastEventID
+		fromSeq, found := findLastEventID(b, s.RequestLastEventID, toSeq, t.historyScanLimit())
+		if !found {
+			// Nothing replayed, so no event precedes a first one sent: the
+			// protocol reserves "earliest" to tell the subscriber to re-fetch.
+			// Unblock it before logging, it cannot send headers until then.
+			s.HistoryDispatched(EarliestLastEventID)
+
+			if t.logger.Enabled(ctx, slog.LevelInfo) {
+				t.logger.LogAttrs(ctx, slog.LevelInfo, "Can't find requested LastEventID")
+			}
+
+			return nil
 		}
 
-		// Unblock the subscriber before logging: it is parked on this channel
-		// and cannot send its response headers until the value arrives.
-		s.HistoryDispatched(responseLastEventID)
-
-		if !afterFromID && t.logger.Enabled(ctx, slog.LevelInfo) {
-			t.logger.LogAttrs(ctx, slog.LevelInfo, "Can't find requested LastEventID")
-		}
-
-		return nil
+		// The subscriber already knows this id; echoing it is not a disclosure.
+		return t.replayHistory(ctx, s, b, fromSeq, toSeq, s.RequestLastEventID)
 	})
 	if err != nil {
 		err = fmt.Errorf("unable to retrieve history from BoltDB: %w", err)
@@ -346,6 +374,8 @@ func (t *BoltTransport) dispatchHistory(ctx context.Context, s *LocalSubscriber,
 
 // persist stores update in the database.
 func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
+	var committedSeq uint64
+
 	if err := t.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(t.bucketName))
 		if err != nil {
@@ -366,17 +396,20 @@ func (t *BoltTransport) persist(updateID string, updateJSON []byte) error {
 		// The DB is append-only
 		bucket.FillPercent = 1
 
-		t.lastSeq = seq
-		t.lastEventID = updateID
-
 		if err := bucket.Put(key, updateJSON); err != nil {
 			return fmt.Errorf("unable to put value in Bolt DB: %w", err)
 		}
+
+		committedSeq = seq
 
 		return t.cleanup(bucket, seq)
 	}); err != nil {
 		return fmt.Errorf("bolt error: %w", err)
 	}
+
+	// A rolled-back transaction must not advance the reconnection cursor.
+	t.lastSeq = committedSeq
+	t.lastEventID = updateID
 
 	return nil
 }
@@ -402,7 +435,8 @@ func (t *BoltTransport) cleanup(bucket *bolt.Bucket, lastID uint64) error {
 	removeUntil := lastID - t.size
 
 	c := bucket.Cursor()
-	for k, _ := c.First(); k != nil; k, _ = c.Next() {
+	// Deleting under the cursor makes Next skip a key, so restart from the oldest one.
+	for k, _ := c.First(); k != nil; k, _ = c.First() {
 		if binary.BigEndian.Uint64(k[:8]) > removeUntil {
 			break
 		}

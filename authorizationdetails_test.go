@@ -30,6 +30,47 @@ func TestDetailTopicUnmarshal(t *testing.T) {
 	require.ErrorIs(t, json.Unmarshal([]byte(`"https://example.com/foo"`), &d), errInvalidAuthorizationDetail)
 }
 
+// TestAuthorizationDetailsRejectAmbiguousJSON covers the two ways a JSON
+// document can be read differently by two parsers: a duplicate object member
+// (RFC 8259 leaves the outcome unspecified, and v1 silently kept the last one)
+// and invalid UTF-8. An authorization server that validates the first
+// occurrence while the hub honours the last would grant topics nobody
+// approved, so the hub rejects both rather than picking a winner.
+func TestAuthorizationDetailsRejectAmbiguousJSON(t *testing.T) {
+	t.Parallel()
+
+	for name, claim := range map[string]string{
+		"duplicate member in topic entry": `{"authorization_details":[{"type":"` + authorizationDetailTypeMercure + `","actions":["subscribe"],"topics":[{"match":"https://example.com/a","match":"https://example.com/b"}]}]}`,
+		"duplicate member in detail":      `{"authorization_details":[{"type":"` + authorizationDetailTypeMercure + `","actions":["subscribe"],"actions":["publish"],"topics":[{"match":"https://example.com/a"}]}]}`,
+		"duplicate match_type":            `{"authorization_details":[{"type":"` + authorizationDetailTypeMercure + `","actions":["subscribe"],"topics":[{"match":"https://example.com/a","match_type":"exact","match_type":"urlpattern"}]}]}`,
+		"invalid UTF-8 in match":          "{\"authorization_details\":[{\"type\":\"" + authorizationDetailTypeMercure + "\",\"actions\":[\"subscribe\"],\"topics\":[{\"match\":\"https://example.com/a\xffb\"}]}]}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var c claims
+			require.Error(t, json.Unmarshal([]byte(claim), &c))
+		})
+	}
+}
+
+// TestAuthorizationDetailsAcceptsWellFormedClaim guards the rejections above
+// against over-reach: the same decode path must still accept a valid claim,
+// including the unknown members RFC 9396 requires issuers be free to add.
+func TestAuthorizationDetailsAcceptsWellFormedClaim(t *testing.T) {
+	t.Parallel()
+
+	var c claims
+	require.NoError(t, json.Unmarshal([]byte(`{"authorization_details":[
+		{"type":"payment_initiation","topics":"not-a-mercure-shape"},
+		{"type":"`+authorizationDetailTypeMercure+`","actions":["subscribe"],"topics":[{"match":"https://example.com/a"}],"unknown":1}
+	]}`), &c))
+
+	require.Len(t, c.AuthorizationDetails, 2)
+	assert.Equal(t, authorizationDetailTypeMercure, c.AuthorizationDetails[1].Type)
+	assert.Equal(t, "https://example.com/a", c.AuthorizationDetails[1].Topics[0].Pattern)
+}
+
 func TestValidateAuthorizationDetails(t *testing.T) {
 	tms := newTestTSS(t)
 

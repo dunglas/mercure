@@ -1,24 +1,28 @@
 ---
 title: "What is Mercure? Real-time HTTP push with Server-Sent Events"
-description: "Mercure is an open real-time protocol that pushes server data to clients over plain HTTP and Server-Sent Events, with built-in JWT authorization and replay."
+description: "Build live apps, notifications, and AI streaming with Mercure. An open alternative to Pusher, Ably, Firebase, and Supabase Realtime, available as managed Cloud or on-premises."
 ---
 
-# Introduction
+# What is Mercure?
 
-Mercure pushes data from a server to connected clients in real time, over plain HTTP. It's a thin protocol on top of [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html), with a JWT-based authorization layer and a reconnection model that handles dropped connections without losing messages.
+Mercure brings your application to life: notifications arrive instantly, dashboards update themselves, and AI responses appear as they're generated. It pushes updates from your server to connected users over ordinary HTTP, with no browser SDK required.
 
-If you've ever wired up a WebSocket server just to push notifications, sync a UI, or stream tokens from an LLM, Mercure is the smaller thing you wanted instead.
+If you've ever wired up a WebSocket server just to push notifications, sync a UI, or stream tokens from an LLM, Mercure is the simpler option you wanted. Built on [Server-Sent Events](https://html.spec.whatwg.org/multipage/server-sent-events.html), it handles authorization, reconnection, and replay so you can focus on your application.
+
+**Ready to build? [Start with Mercure Cloud](https://mercure.rocks/pricing) and let us run the hub.** Need to keep everything on your infrastructure? [Mercure Enterprise](production/high-availability.md) brings clustering, shared transports, and direct support to your own servers. Both use the same open protocol as the free, open-source hub.
+
+Your application sends an update to the hub. The hub delivers it to everyone watching the relevant topic, such as a conversation, a document, or an order.
 
 ![Subscriptions Schema](../spec/subscriptions.png)
 
 ## What you get with Mercure
 
-- **Native browser support.** No SDK. The `EventSource` API ships in every modern browser; on the server, any HTTP client can publish.
-- **HTTP/2+ multiplexing.** One TCP connection carries every subscription a client opens, plus the rest of your app traffic.
-- **Built-in reconnection and replay.** Clients reconnect automatically and resume from the last event they saw. The hub's history buffer fills the gap.
-- **Presence.** The hub publishes an event every time someone subscribes or unsubscribes, so "who's online" and "who's viewing this document" work without a separate service. ([Details](concepts/active-subscriptions.md))
+- **Native browser support.** No SDK to install. Every modern browser has `EventSource`; any HTTP client can publish.
+- **HTTP multiplexing.** HTTP/2 and HTTP/3 can carry multiple subscription streams over a shared connection to the same origin.
+- **Built-in reconnection and replay.** `EventSource` reconnects automatically. The hub can replay missed events while they remain available in its history.
+- **Presence.** When enabled, the hub publishes an event every time a subscription opens or closes, so "who's online" and "who's viewing this document" work without a separate service. ([Details](concepts/active-subscriptions.md))
 - **JWT authorization.** Sign tokens with the matchers a publisher or subscriber is allowed to use. The hub enforces them.
-- **Hypermedia-friendly.** Topics are URLs. The protocol works with REST, GraphQL, JSON-LD, and HTML over the wire (Hotwire, htmx).
+- **Resource identifiers.** Topics can use your resource URLs. The protocol works with REST, GraphQL, JSON-LD, and HTML over the wire (Hotwire, htmx).
 - **Encryption support.** Updates can be JWE-encrypted end-to-end, so even the hub operator cannot read them.
 
 ## What it's good for
@@ -32,30 +36,34 @@ If you've ever wired up a WebSocket server just to push notifications, sync a UI
 
 ## How it differs from the alternatives
 
-**vs. WebSockets.** WebSocket is a low-level transport; you still need to design framing, authorization, reconnection, replay, and presence. Mercure gives you all of that on top of HTTP/2, which most infrastructure already understands. For request/response inside the same connection, just use a regular `POST`: HTTP/2 already multiplexes it.
+**vs. WebSockets.** WebSocket gives you a bidirectional connection. Mercure gives you the features a live application needs: topic authorization, reconnection, replay, and presence. Subscribe over SSE and send actions with ordinary HTTP requests; HTTP/2 and HTTP/3 can multiplex both on the same connection.
 
-**vs. Pusher / Ably / Firebase / Supabase Realtime.** These are SaaS-only. Mercure is a protocol, not a vendor: run the open-source hub yourself, or use [Mercure Cloud](https://mercure.rocks/pricing) if you'd rather not manage infrastructure. Either way the wire format is the same, so you're not locked into a proprietary SDK, and switching between self-hosted and Cloud is a config change, not a rewrite. The free self-hosted Hub has **unlimited connections and an unlimited history buffer**, bound only by the hardware you give it. See the [pricing comparison](production/high-availability.md#mercure-vs-pusher-and-ably-pricing-comparison) for the numbers.
+**vs. Pusher / Ably / Firebase / Supabase Realtime.** Choose Mercure when you want real-time features without tying your application to a provider's SDK or database. Use your existing backend, publish over HTTP, and subscribe with the browser's native API. Start on [Mercure Cloud](https://mercure.rocks/pricing), deploy [Enterprise on your infrastructure](production/high-availability.md), or run the open-source hub. Your publishing and subscription code uses the same protocol across all three. See the [comparison](reference/faq.md#whats-the-difference-between-mercure-and-pusher--ably--firebase--supabase-realtime).
 
-**vs. WebSub.** WebSub is server-to-server only. Mercure does server-to-server, server-to-client, and client-to-client over the same primitive.
+**WebSub.** [WebSub](https://www.w3.org/TR/websub/) delivers updates to server callbacks. Mercure delivers an SSE stream, which browsers can consume directly.
 
-**vs. Web Push.** The Push API targets _offline_ devices through vendor servers (Apple, Google, Mozilla). Mercure targets _connected_ clients with no third party in between and no payload-size limit.
+**Web Push.** Web Push can notify users when the application is closed. Mercure sends updates while a client is connected; replay depends on retained history.
 
 See the [FAQ](reference/faq.md) for more.
 
-## The free version is the production version
+## Choose how you run Mercure
+
+**Mercure Cloud: build your app, leave the hub to us.** Managed hosting includes automatic HTTPS and custom domains, with high availability on Pro plans and above. [Choose a Cloud plan](https://mercure.rocks/pricing).
+
+**Mercure Enterprise: your infrastructure, backed by the maintainers.** Run a cluster on your own servers with Redis/Valkey, PostgreSQL, Kafka, or Pulsar. Keep control of your data and get direct support. With the Managed On-Premise option, we also deploy, monitor, and update the hub for you. [Explore Self-Hosted plans](https://mercure.rocks/pricing).
+
+### The free version is a production version
 
 The Mercure.rocks Hub is licensed under AGPL-3.0. Concretely, that means you can:
 
 - Run it on your own infrastructure with no connection limit, no message-rate limit, and no buffer cap other than disk size.
-- Use it in production behind any HTTP/2 or HTTP/3 reverse proxy.
-- Build any kind of application on top of it, commercial or otherwise. The AGPL applies to _modifications of the hub_, not to your application.
+- Use it in production behind a reverse proxy configured for streaming responses.
+- Build any kind of application on top of it, commercial or otherwise. Independent applications can communicate with it over HTTP under their own licenses. See [License](reference/license.md).
 
-There are paid tiers (Cloud for managed deployments, Self-Hosted for multi-node and premium transports), but the free tier is not crippleware. It's what runs the demo hub, what powers production deployments at companies pushing tens of millions of updates a day, and what you should reach for first.
-
-When you outgrow a single node, [the production guide](production/high-availability.md) explains the options.
+Start with the [quickstart](getting-started/quickstart.md) to try it locally, or [choose Mercure Cloud](https://mercure.rocks/pricing) to skip installation. The [production guide](production/high-availability.md) explains clustering and Enterprise transports.
 
 ## Where to go next with Mercure
 
 - [Quickstart](getting-started/quickstart.md): running hub, first subscription, first update.
 - [Topics and matchers](concepts/topics-and-matchers.md): the part of the protocol that changed most in 1.0.
-- [Read the specification](../spec/mercure.md): also published as an [IETF Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) on track for RFC publication.
+- [Read the specification](../spec/mercure.md): also published as an [IETF Internet-Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) for standardization.

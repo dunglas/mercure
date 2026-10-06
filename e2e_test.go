@@ -38,7 +38,7 @@ func e2eToken(t *testing.T, action string, topics []map[string]any, payload any)
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"iss":                   e2eIss,
 		"aud":                   e2eAud,
-		"exp":                   4102444800,
+		"exp":                   int64(4102444800),
 		"authorization_details": []any{detail},
 	})
 	tok.Header["typ"] = "at+jwt"

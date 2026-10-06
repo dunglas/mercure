@@ -1,8 +1,12 @@
 package mercure
 
 import (
+	"regexp/syntax"
+	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/maypok86/otter/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -126,4 +130,111 @@ func TestValidatePattern(t *testing.T) {
 
 	// Unknown matcher types are rejected.
 	assert.ErrorIs(t, tms.validatePattern(TopicMatcher{Type: "Regexp", Pattern: "fo+"}), ErrUnsupportedMatcherType)
+}
+
+func TestMatchCacheBoundedByWeight(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(100)
+	require.NoError(t, err)
+
+	big := strings.Repeat("a", 64*1024)
+	for i := range 100 {
+		tms.matches(
+			[]string{"https://example.com/" + strconv.Itoa(i) + "/" + big, "https://example.com/other"},
+			TopicMatcher{Type: MatcherTypeURLPattern, Pattern: "https://example.com/*"},
+		)
+	}
+
+	var weight, heaviest int
+
+	tms.matchCache.All()(func(k matchCacheKey, v bool) bool {
+		w := int(matchCacheEntryWeight(k, v))
+		weight += w
+		heaviest = max(heaviest, w)
+
+		return true
+	})
+
+	// Allow one oversized entry beyond the approximate cache budget.
+	assert.LessOrEqual(t, weight, 100*avgMatchCacheEntrySize+heaviest)
+}
+
+func compiledCacheWeight[T any](c *otter.Cache[string, compiled[T]]) uint64 {
+	c.CleanUp()
+
+	var weight uint64
+
+	for _, v := range c.All() {
+		weight += uint64(v.weight)
+	}
+
+	return weight
+}
+
+func TestURLPatternCacheBoundedByWeight(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(10_000)
+	require.NoError(t, err)
+
+	for i := range 20 {
+		pattern := "/" + strconv.Itoa(i) + strings.Repeat("/(a|b)*", 146)
+		require.NoError(t, tms.validatePattern(urlPatternMatcher(pattern)))
+	}
+
+	// Counting entries would have retained all 20, some 2.6 MB under a 1 MB budget.
+	assert.Less(t, tms.urlPatterns.EstimatedSize(), 20)
+	assert.LessOrEqual(t, compiledCacheWeight(tms.urlPatterns), tms.compiledCacheWeight)
+}
+
+func TestURLPatternHeavierThanCacheIsNotCached(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(100)
+	require.NoError(t, err)
+
+	assert.True(t, tms.matches([]string{"/books/1"}, urlPatternMatcher("/books/:id")))
+	assert.Zero(t, tms.urlPatterns.EstimatedSize())
+}
+
+func TestURLPatternWeightExpandsRepetitions(t *testing.T) {
+	t.Parallel()
+
+	assert.Greater(t, urlPatternWeight("/(a{1000})"), uint64(1000*regexpInstWeight))
+	assert.Greater(t, urlPatternWeight(`/(\pL)`), urlPatternWeight("/(a)"))
+}
+
+func TestURLPatternRegexpGroups(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, []string{"a|b", `c(?:d\))`}, urlPatternRegexpGroups(`/\(x/(a|b)/:id(c(?:d\)))`))
+	assert.Empty(t, urlPatternRegexpGroups("/books/:id/*"))
+}
+
+func TestURLPatternTooComplexRejectedBeforeCompiling(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
+	require.NoError(t, err)
+
+	_, err = tms.getOrCompileURLPattern("https://example.com/" + strings.Repeat("(a{1000})", 400))
+	require.ErrorIs(t, err, errURLPatternTooComplex)
+
+	_, err = tms.getOrCompileURLPattern("https://example.com/" + strings.Repeat("a", maxTopicLength-20))
+	require.NoError(t, err, "a plain pattern of the maximum topic length stays valid")
+}
+
+func TestRegexpWeightCountsRepeatedRuneTables(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{`\pL{100}`, `\pL{100,}`} {
+		re, err := syntax.Parse(pattern, syntax.Perl)
+		require.NoError(t, err)
+
+		_, runes := regexpSize(re)
+		assert.GreaterOrEqual(t, runes, uint64(100*len(re.Sub[0].Rune)), pattern)
+	}
+
+	assert.Greater(t, urlPatternWeight(`/(\pL{100})`), uint64(maxURLPatternWeight))
 }

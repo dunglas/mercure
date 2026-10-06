@@ -3,18 +3,17 @@ title: "GraphQL subscriptions over Mercure and SSE"
 description: "Back GraphQL subscriptions with Mercure topics and Server-Sent Events instead of WebSockets, including an Apollo Client transport."
 ---
 
-# GraphQL subscriptions
+# GraphQL subscriptions with Mercure
 
-GraphQL subscriptions traditionally run over WebSockets ([`graphql-transport-ws`](https://github.com/enisdenjo/graphql-ws)). That works, but you end up with two real-time stacks if you also use Mercure for non-GraphQL push (HTML, agent state, notifications).
+Mercure can deliver GraphQL subscription results over SSE. Your GraphQL integration registers a subscription, allocates a topic, and publishes results when the selected data changes.
 
-Mercure can carry GraphQL subscriptions directly. The pattern: the server returns a topic URL in response to a subscription query, and the client opens an `EventSource` on that topic.
+Topic registration is an application-defined operation. It is not a standard GraphQL response to a subscription request. [API Platform](https://api-platform.com/docs/core/graphql/#subscriptions) provides its own Mercure integration; the example below illustrates a custom integration.
 
 ## GraphQL subscriptions over Mercure: the flow
 
 ```text
-# GraphQL Subscriptions over Mercure: The Flow
    client                          server
-      |  POST /graphql              |
+      |  POST /graphql/subscriptions              |
       |  subscription { msgAdded { ... } }
       | --------------------------> |
       |                             |
@@ -27,113 +26,250 @@ Mercure can carry GraphQL subscriptions directly. The pattern: the server return
       |     ?match=.../abc123       |
       | -----------------------------> hub
       |                             |
-      |                             |  POST /publish (whenever the
+      |                             |  POST update (whenever the
       |                             |  data changes server-side)
       |                             | --------------> hub
       |  <--------------- SSE event ----------------|
 ```
 
-The GraphQL server's job is reduced to:
+The server must:
 
 1. Validate the subscription query.
-2. Allocate a topic.
+2. Authorize access and allocate a topic.
 3. Return the topic URL.
-4. Push payloads to that topic whenever the subscribed data changes.
+4. Execute the stored selection set with its variables and publish results when data changes.
 
-The client subscribes to the topic with Mercure. When done, it closes the `EventSource`.
+The client opens a Mercure stream. The server must also expire registrations or provide an unsubscribe operation; closing an `EventSource` alone does not remove an application-level registration.
 
-## Server-side GraphQL subscription resolver
+## Working Apollo Server example
 
-A minimal Apollo Server resolver that returns a topic instead of starting a WebSocket subscription:
+This example uses Apollo Server 5 and a standard GraphQL subscription resolver. The resolver returns an `AsyncIterable`; a small Express endpoint registers the operation and forwards its executed results to Mercure. See [Apollo's subscription model](https://www.apollographql.com/docs/apollo-server/data/subscriptions).
+
+Use Node.js 22 or later. In a new project, install the dependencies:
+
+```console
+npm install @apollo/server @as-integrations/express5 express graphql @graphql-tools/schema graphql-subscriptions
+```
+
+Set `MERCURE_URL` and `MERCURE_PUBLISHER_JWT` for a running hub. The publisher token must grant access to `https://example.com/graphql/subscriptions/*` using a URL Pattern. Enable anonymous subscriptions on this demo hub: **the example is a public message feed**, with no application login. Save this as `server.mjs`:
 
 ```javascript
-// Server-Side GraphQL Subscription Resolver
-const resolvers = {
-  Subscription: {
-    messageAdded: {
-      // not the usual subscribe(), just resolve to a topic URL
-      subscribe: (_root, { roomId }, ctx) => {
-        const topic = `https://example.com/graphql/subscriptions/${roomId}/${ctx.user.id}`;
-        return { topic };
+import { randomUUID } from "node:crypto";
+import express from "express";
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@as-integrations/express5";
+import { makeExecutableSchema } from "@graphql-tools/schema";
+import { getOperationAST, parse, subscribe, validate } from "graphql";
+import { PubSub } from "graphql-subscriptions";
+
+const { MERCURE_URL, MERCURE_PUBLISHER_JWT } = process.env;
+if (!MERCURE_URL || !MERCURE_PUBLISHER_JWT) {
+  throw new Error("Set MERCURE_URL and MERCURE_PUBLISHER_JWT");
+}
+
+const pubsub = new PubSub();
+const schema = makeExecutableSchema({
+  typeDefs: `
+    type Message { id: ID!, text: String! }
+    type Query { health: Boolean! }
+    type Mutation { addMessage(text: String!): Message! }
+    type Subscription { messageAdded: Message! }
+  `,
+  resolvers: {
+    Query: { health: () => true },
+    Mutation: {
+      addMessage: async (_, { text }) => {
+        const message = { id: randomUUID(), text };
+        await pubsub.publish("MESSAGE_ADDED", { messageAdded: message });
+        return message;
+      },
+    },
+    Subscription: {
+      messageAdded: {
+        subscribe: () => pubsub.asyncIterableIterator("MESSAGE_ADDED"),
       },
     },
   },
-};
-```
+});
 
-Wherever you mutate the data:
-
-```javascript
-// Server-Side GraphQL Subscription Resolver
-async function postMessage(roomId, message) {
-  await db.messages.insert({ roomId, ...message });
-  for (const userId of await getMembers(roomId)) {
-    await publish(
-      `https://example.com/graphql/subscriptions/${roomId}/${userId}`,
-      JSON.stringify({ data: { messageAdded: message } }),
-      { private: true },
-    );
-  }
+async function publish(topic, result, type = "message") {
+  const response = await fetch(MERCURE_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${MERCURE_PUBLISHER_JWT}` },
+    body: new URLSearchParams({ topic, data: JSON.stringify(result), type }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) throw new Error(`Publish failed: ${response.status}`);
 }
+
+const app = express();
+app.use(express.json());
+const apollo = new ApolloServer({ schema });
+await apollo.start();
+app.post("/graphql", expressMiddleware(apollo));
+
+const registrations = new Map();
+app.post("/graphql/subscriptions", async (req, res) => {
+  const { query, variables, operationName } = req.body;
+  let document;
+  try {
+    document = parse(query);
+  } catch {
+    return res.status(400).json({ error: "Invalid GraphQL document" });
+  }
+  const errors = validate(schema, document);
+  if (errors.length) return res.status(400).json({ errors });
+  if (getOperationAST(document, operationName)?.operation !== "subscription") {
+    return res.status(400).json({ error: "Expected a subscription" });
+  }
+
+  const results = await subscribe({
+    schema,
+    document,
+    variableValues: variables,
+    operationName,
+  });
+  if (!(Symbol.asyncIterator in results)) {
+    return res.status(400).json(results);
+  }
+
+  const id = randomUUID();
+  const topic = `https://example.com/graphql/subscriptions/${id}`;
+  const stop = () => {
+    clearTimeout(timer);
+    registrations.delete(id);
+    return results.return();
+  };
+  const timer = setTimeout(() => void stop(), 5 * 60 * 1000);
+  registrations.set(id, stop);
+
+  async function forward() {
+    try {
+      for await (const result of results) await publish(topic, result);
+      await publish(topic, {}, "complete");
+    } catch (error) {
+      console.error(error);
+      await publish(topic, { errors: [{ message: "Subscription failed" }] });
+    } finally {
+      await stop();
+    }
+  }
+  void forward().catch(console.error);
+  res.json({ id, topic, lastEventId: "earliest" });
+});
+
+app.delete("/graphql/subscriptions/:id", async (req, res) => {
+  await registrations.get(req.params.id)?.();
+  res.sendStatus(204);
+});
+
+app.listen(4000, "127.0.0.1", () => {
+  console.log("GraphQL ready at http://localhost:4000/graphql");
+});
 ```
 
-The payload should be the standard GraphQL response shape (`{ data, errors }`) so the client decoder can hand it straight to Apollo.
+Run `node server.mjs`. Register a subscription:
+
+```console
+curl --fail-with-body http://localhost:4000/graphql/subscriptions \
+  -H 'Content-Type: application/json' \
+  --data '{"query":"subscription { messageAdded { text } }"}'
+```
+
+Open an `EventSource` on the returned topic, as in the client below. Then publish through an Apollo mutation:
+
+```console
+curl --fail-with-body http://localhost:4000/graphql \
+  -H 'Content-Type: application/json' \
+  --data '{"query":"mutation { addMessage(text: \"Hello from Apollo!\") { id } }"}'
+```
+
+Mercure delivers `{"data":{"messageAdded":{"text":"Hello from Apollo!"}}}`. GraphQL executes the stored selection set, so the subscription receives only the fields it requested. `lastEventId: "earliest"` covers results published before the client opens its stream.
+
+Registrations expire after five minutes or when the client calls `DELETE`. This demo uses an in-memory `PubSub` and registration map in one application process. For production, authenticate registration and deletion, limit query cost and registrations, and use a shared event source for multiple application instances. Apply the [private-topic authorization](#authorization) below to confidential data.
 
 ## Apollo client Mercure SSE transport
 
-Apollo and other GraphQL clients accept a custom transport. Hand them an SSE-backed implementation:
+For Apollo Client 4, install `@apollo/client`, `graphql`, and `rxjs`. This link uses the registration endpoint above. Serve or proxy `/graphql` and `/graphql/subscriptions` on the frontend's origin, and replace the hub URL with yours. Allow that origin in the hub's CORS configuration:
 
 ```javascript
-// Apollo Client Mercure SSE Transport
 import {
   ApolloClient,
+  ApolloLink,
+  HttpLink,
   InMemoryCache,
   split,
-  HttpLink,
-  Observable,
 } from "@apollo/client";
 import { getMainDefinition } from "@apollo/client/utilities";
+import { print } from "graphql";
+import { Observable } from "rxjs";
 
 const httpLink = new HttpLink({ uri: "/graphql" });
-
-const sseLink = {
-  request: ({ query, variables, operationName }) =>
+const sseLink = new ApolloLink(
+  ({ query, variables, operationName }) =>
     new Observable((observer) => {
-      let es;
       const controller = new AbortController();
+      let es;
+      let registrationId;
+      const unregister = () => {
+        if (!registrationId) return;
+        void fetch(`/graphql/subscriptions/${registrationId}`, {
+          method: "DELETE",
+          keepalive: true,
+        }).catch(console.error);
+        registrationId = undefined;
+      };
 
-      // Ask the server for the subscription topic
-      fetch("/graphql", {
+      fetch("/graphql/subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, variables, operationName }),
+        body: JSON.stringify({ query: print(query), variables, operationName }),
         signal: controller.signal,
       })
-        .then((r) => r.json())
-        .then(({ data: { topic } }) => {
-          const url = new URL("https://hub.example.com/.well-known/mercure");
-          url.searchParams.append("match", topic);
-          es = new EventSource(url, { withCredentials: true });
-          es.onmessage = (e) => observer.next(JSON.parse(e.data));
-          es.onerror = (e) => observer.error(e);
+        .then(async (response) => {
+          if (!response.ok)
+            throw new Error(`Registration failed: ${response.status}`);
+          return response.json();
         })
-        .catch((err) => {
-          if (err.name !== "AbortError") observer.error(err);
+        .then(({ id, topic, lastEventId }) => {
+          registrationId = id;
+          if (controller.signal.aborted) return unregister();
+          const url = new URL("https://hub.example.com/.well-known/mercure");
+          url.searchParams.set("match", topic);
+          if (lastEventId) url.searchParams.set("last_event_id", lastEventId);
+          es = new EventSource(url, { withCredentials: true });
+          es.onmessage = (event) => {
+            try {
+              observer.next(JSON.parse(event.data));
+            } catch (error) {
+              observer.error(error);
+            }
+          };
+          es.addEventListener("complete", () => observer.complete());
+          es.onerror = () => {
+            if (es.readyState === EventSource.CLOSED) {
+              observer.error(new Error("Subscription closed"));
+            }
+          };
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) observer.error(error);
         });
 
-      // Synchronous teardown: close the SSE if it opened, abort the fetch if it didn't.
       return () => {
         controller.abort();
-        if (es) es.close();
+        es?.close();
+        unregister();
       };
     }),
-};
+);
 
 const link = split(
   ({ query }) => {
-    const def = getMainDefinition(query);
+    const definition = getMainDefinition(query);
     return (
-      def.kind === "OperationDefinition" && def.operation === "subscription"
+      definition.kind === "OperationDefinition" &&
+      definition.operation === "subscription"
     );
   },
   sseLink,
@@ -143,14 +279,15 @@ const link = split(
 export const client = new ApolloClient({ link, cache: new InMemoryCache() });
 ```
 
-The client uses HTTP for queries and mutations; subscriptions go through Mercure.
+Queries and mutations use `/graphql`; subscriptions use the custom registration endpoint and Mercure. Transient SSE errors leave `EventSource` free to reconnect. The client unregisters when disposed, and server-side expiry covers abandoned registrations. The `complete` event ends an expired subscription; subscribe again if the UI still needs updates.
 
 ## Authorization
 
-The same access token + cookie story as anywhere else. The server allocates topics that include the user's identity:
+For private data, authenticate the registration request and authorize the selected resources. Issue a subscriber access token scoped to the allocated topic and send it with a cookie or bearer header. Add `private: "on"` to the server's publication fields. Authorize deletion against the registration's owner too.
+
+The public example uses a random topic per registration. An application that groups private subscriptions by room and user can instead use:
 
 ```text
-# Authorization
 https://example.com/graphql/subscriptions/<roomId>/<userId>
 ```
 
@@ -158,8 +295,7 @@ The user's access token covers `https://example.com/graphql/subscriptions/<roomI
 
 For a subscriber to open one connection that covers all of their subscriptions across rooms:
 
-```jsonc
-// Authorization (header: { "alg": "...", "typ": "at+jwt" })
+```json
 {
   "iss": "https://example.com",
   "aud": "https://hub.example.com/.well-known/mercure",
@@ -171,29 +307,25 @@ For a subscriber to open one connection that covers all of their subscriptions a
       "topics": [
         {
           "match": "https://example.com/graphql/subscriptions/:room/42",
-          "match_type": "urlpattern",
-        },
-      ],
-    },
-  ],
+          "match_type": "urlpattern"
+        }
+      ]
+    }
+  ]
 }
 ```
 
 ## Frameworks that already do this
 
-- **API Platform.** [Built-in support for GraphQL subscriptions over Mercure](https://api-platform.com/docs/master/core/graphql/#subscriptions). Generate a Mercure topic per subscription and a working frontend, no glue code.
-- **GraphQL Mesh, GraphQL Yoga.** Plugins exist; check the respective docs.
-
-If your stack rolls its own GraphQL layer, the pattern in this guide is enough: a topic per subscription, a publish per data change, an `EventSource` on the client.
+[API Platform supports GraphQL subscriptions through Mercure](https://api-platform.com/docs/core/graphql/#subscriptions). Follow its documented registration and authorization format rather than the custom format above.
 
 ## When WebSockets are still better
 
-- The subscription needs **client -> server messages on the subscription stream itself** (uncommon in GraphQL, but possible with `subscribe` operations that take live arguments).
-- Latency budgets that make even `POST /graphql + GET /sub` round-trips a problem (rare; both run on HTTP/2 and the topic discovery is one extra request, once).
+WebSockets fit applications that need frequent messages in both directions on the same channel. GraphQL subscriptions usually push results from server to client; queries and mutations already travel over HTTP. Mercure fits that model and adds topic authorization, replay, and a hub you can scale independently of your GraphQL servers.
 
-For everything else, Mercure plus GraphQL is a smaller stack: one transport for all real-time, no second port, no second protocol.
+Already using Mercure for notifications or AI streaming? Reuse it for GraphQL too. **[Mercure Cloud](https://mercure.rocks/pricing) operates the hub for you; [Mercure Enterprise](../production/high-availability.md) brings the same protocol to a supported cluster on your infrastructure.**
 
-## Next steps for GraphQL subscriptions over Mercure
+## Next steps
 
 - [LLM token streaming](llm-token-streaming.md): for streaming responses outside of GraphQL.
 - [Authorization](../concepts/authorization.md): per-user topics.

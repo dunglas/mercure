@@ -7,7 +7,7 @@ on:
     inputs:
       #checkov:skip=CKV_GHA_7
       version:
-        description: "Version to release (e.g. 0.25.0, no v prefix)"
+        description: "Version to release (e.g. 1.0.1, no v prefix)"
         required: true
         type: string
 permissions: {}
@@ -28,9 +28,9 @@ jobs:
       - name: Validate inputs
         # Reject non-release refs and non-semver versions before they reach
         # go get / sed / tag refs. Release dispatches must run against main
-        # or a maintenance branch named `<major>.x` (e.g. `0.x`, `1.x`); a
+        # or a maintenance branch named `<major>.x` (e.g. `1.x`); a
         # maintenance branch may only release its own major to prevent a
-        # 1.0.0 dispatch against 0.x (or vice versa) from corrupting tags.
+        # 2.0.0 dispatch against 1.x (or vice versa) from corrupting tags.
         # https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
         env:
           VERSION: ${{ inputs.version }}
@@ -346,7 +346,7 @@ jobs:
             exit 0
           fi
           # head_branch on the runs API is the bare tag name (e.g.
-          # v0.25.0), regardless of gh CLI version quirks.
+          # v1.0.1), regardless of gh CLI version quirks.
           in_flight=$(gh api -X GET \
             "repos/${REPO}/actions/workflows/cd.yml/runs" \
             -F "branch=v${VERSION}" \

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	wurl "github.com/nlnwa/whatwg-url/url"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -26,6 +27,10 @@ var UpdateContextKey updateContextKeyType //nolint:gochecknoglobals
 const (
 	maxClaimMatchers = 1000 // mercure.subscribe / mercure.publish array
 	maxPublishTopics = 1000 // "topic" form fields on publish
+	// Persisted IDs are echoed in response headers.
+	maxEventIDLength = 1024
+	// Match cache keys retain the full topic text.
+	maxTopicLength = maxPatternLength
 	// Subscribe-side matcher count is capped by maxMatcherCount
 	// (subscribematchers.go).
 )
@@ -35,10 +40,10 @@ const (
 var (
 	ErrReservedTopic     = errors.New(`topic value resolves into the reserved "/.well-known/mercure" namespace`)
 	ErrReservedWildcard  = errors.New(`topic value "*" is reserved for the wildcard matcher and cannot be published`)
-	ErrInvalidEventID    = errors.New(`"id" field contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
+	ErrInvalidEventID    = errors.New(`"id" field is too long, contains a forbidden control character or invalid UTF-8, starts with "#", or is the reserved value "earliest"`)
 	ErrInvalidEventType  = errors.New(`"type" field contains a forbidden control character or invalid UTF-8`)
 	ErrReservedEventType = errors.New(`"type" field uses the reserved value "mercure"`)
-	ErrInvalidTopic      = errors.New("topic contains a forbidden control character or invalid UTF-8")
+	ErrInvalidTopic      = errors.New("topic is too long, or contains a forbidden control character or invalid UTF-8")
 	ErrTooManyTopics     = errors.New("too many topics in update")
 	ErrMissingTopic      = errors.New("update carries no topic")
 	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
@@ -50,12 +55,13 @@ var (
 //
 // A caller that builds an Update from untrusted input (e.g. a publisher
 // request) and dispatches it through a Transport directly, bypassing
-// Hub.Publish, MUST call Validate first and reject the update on error.
+// Hub.Publish, MUST call Validate with the same base URL used for topic matching
+// and reject the update on error. The base must be an absolute URL with a host.
 // Skipping it lets a CR, LF, or NUL in ID or Type inject arbitrary SSE
 // fields into subscribers' streams (CWE-93). Validate also rejects the
 // reserved "/.well-known/mercure" topic namespace, so it is meant for
 // publisher input, not hub-internal updates such as subscription events.
-func (u *Update) Validate() error {
+func (u *Update) Validate(baseURL string) error {
 	topics := u.Topics
 	if len(topics) == 0 {
 		return ErrMissingTopic
@@ -65,14 +71,19 @@ func (u *Update) Validate() error {
 		return ErrTooManyTopics
 	}
 
+	base, err := wurl.Parse(baseURL)
+	if err != nil || base.Hostname() == "" {
+		return fmt.Errorf("%w: %q", ErrInvalidBaseURL, baseURL)
+	}
+
 	for _, t := range topics {
 		// Control characters are forbidden by the protocol; a NUL would also
 		// collide with the match cache's topic-list separator.
-		if !validProtocolString(t) {
+		if !validProtocolString(t) || len(t) > maxTopicLength {
 			return fmt.Errorf("%q: %w", t, ErrInvalidTopic)
 		}
 
-		if addressesReservedNamespace(t) {
+		if addressesReservedNamespace(t, base) {
 			return fmt.Errorf("%q: %w", t, ErrReservedTopic)
 		}
 
@@ -90,7 +101,7 @@ func (u *Update) Validate() error {
 	// reserved for hub-generated fragment IDs and "earliest" for the reserved
 	// last-event-id value; accepting either from a publisher would corrupt
 	// reconnection cursors.
-	if !validProtocolString(u.ID) ||
+	if !validProtocolString(u.ID) || len(u.ID) > maxEventIDLength ||
 		strings.HasPrefix(u.ID, "#") || u.ID == EarliestLastEventID {
 		return ErrInvalidEventID
 	}
@@ -128,7 +139,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 		span.End()
 	}()
 
-	if err := update.Validate(); err != nil {
+	if err := update.Validate(h.topicMatcherStore.base()); err != nil {
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Rejected invalid update", slog.Any("error", err))
 		}
@@ -224,14 +235,9 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate topics before they can reach the shared match cache via the
-	// authorization grant check (grantsAll → matches → cachedMatch), which
-	// keys the cache on the topic list joined with NUL; an unvalidated topic
-	// containing a literal NUL would collide with a legitimate multi-topic key
-	// and poison the entry (CWE-20). Update.Validate() re-checks later, but only
-	// after the grant check has already consulted the cache.
+	// Reject cache-key collisions and oversized keys before authorization populates the cache.
 	for _, t := range topics {
-		if !validProtocolString(t) {
+		if !validProtocolString(t) || len(t) > maxTopicLength {
 			http.Error(w, fmt.Errorf("%q: %w", t, ErrInvalidTopic).Error(), http.StatusBadRequest)
 
 			return

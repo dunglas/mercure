@@ -3,12 +3,15 @@ package caddy
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
+	"fmt"
 	"path/filepath"
 	"strconv"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/dunglas/mercure"
+	bolterrors "go.etcd.io/bbolt/errors"
 )
 
 func init() { //nolint:gochecknoinits
@@ -16,10 +19,10 @@ func init() { //nolint:gochecknoinits
 }
 
 type Bolt struct {
-	Path             string  `json:"path,omitempty"`
-	BucketName       string  `json:"bucket_name,omitempty"`
-	Size             uint64  `json:"size,omitempty"`
-	CleanupFrequency float64 `json:"cleanup_frequency,omitempty"`
+	Path             string   `json:"path,omitempty"`
+	BucketName       string   `json:"bucket_name,omitempty"`
+	Size             uint64   `json:"size,omitempty"`
+	CleanupFrequency *float64 `json:"cleanup_frequency,omitempty"`
 
 	transport    *mercure.BoltTransport
 	transportKey string
@@ -50,6 +53,8 @@ func (b *Bolt) Provision(ctx caddy.Context) error {
 		return err
 	}
 
+	key.WriteString(hubName(ctx))
+
 	b.transportKey = key.String()
 
 	destructor, _, err := TransportUsagePool.LoadOrNew(b.transportKey, func() (caddy.Destructor, error) {
@@ -59,8 +64,12 @@ func (b *Bolt) Provision(ctx caddy.Context) error {
 			b.Path,
 			b.BucketName,
 			b.Size,
-			b.CleanupFrequency,
+			b.cleanupFrequency(),
 		)
+		if errors.Is(err, bolterrors.ErrTimeout) {
+			return nil, fmt.Errorf("%q is already open, give each hub its own path: %w", b.Path, err)
+		}
+
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +123,7 @@ func (b *Bolt) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return d.WrapErr(e)
 				}
 
-				b.CleanupFrequency = f
+				b.CleanupFrequency = &f
 
 			case "size":
 				if !d.NextArg() {
@@ -132,6 +141,14 @@ func (b *Bolt) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	}
 
 	return nil
+}
+
+func (b *Bolt) cleanupFrequency() float64 {
+	if b.CleanupFrequency == nil {
+		return mercure.BoltDefaultCleanupFrequency
+	}
+
+	return *b.CleanupFrequency
 }
 
 var (
