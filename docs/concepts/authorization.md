@@ -76,7 +76,7 @@ caddy mercure-token \
   --payload '{"user": "https://example.com/users/42"}'
 ```
 
-`--publish`/`--subscribe` grant an exact topic and may be repeated; `--publish-urlpattern`/`--subscribe-urlpattern` grant a [URL Pattern](topics-and-matchers.md) and may also be repeated; the same two matcher types as the subscribe query parameters. `--key` takes `@path/to/file` or `@-` to read an HMAC secret or PEM-encoded private key from stdin. PEM keys require `--alg` and must be the private counterpart of the public key the hub's `issuer` block verifies with. Literal signing material is rejected because command-line arguments are visible to other processes on the same machine (`ps`) and land in shell history. `sub`, `client_id`, `iat`, and `jti` are filled in automatically. Run `caddy mercure-token --help` for the full flag reference.
+`--publish`/`--subscribe` grant an exact topic and may be repeated; `--publish-urlpattern`/`--subscribe-urlpattern` grant a [URL Pattern](topics-and-matchers.md) and may also be repeated; the same two matcher types as the subscribe query parameters. `--key` takes `@path/to/file`, or `@-` to read from stdin, holding an HMAC secret or a PEM-encoded private key. To sign with a secret stored in an environment variable, pipe it: `printf '%s' "$MERCURE_PUBLISHER_JWT_KEY" | caddy mercure-token --key @- ...`. PEM keys require `--alg` and must be the private counterpart of the public key the hub's `issuer` block verifies with. Literal signing material is rejected because command-line arguments are visible to other processes on the same machine (`ps`) and land in shell history. `sub`, `client_id`, `iat`, and `jti` are filled in automatically. Run `caddy mercure-token --help` for the full flag reference.
 
 ### Authorization details
 
