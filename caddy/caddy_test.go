@@ -3,6 +3,7 @@ package caddy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -975,6 +976,7 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 		debugger
 		subscriptions
 		write_timeout 1m
+		drain_timeout 30s
 		dispatch_timeout 5s
 		heartbeat 40s
 		max_request_body_size 1MB
@@ -1002,6 +1004,48 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 	assert.True(t, m.Anonymous)
 	assert.Equal(t, []string{"*"}, m.CORSOrigins)
 	assert.Len(t, m.Issuers, 1)
+	require.NotNil(t, m.DrainTimeout)
+	assert.Equal(t, caddy.Duration(30*time.Second), *m.DrainTimeout)
+}
+
+func TestNegativeDrainTimeoutRejected(t *testing.T) {
+	t.Run("caddyfile", func(t *testing.T) {
+		d := caddyfile.NewTestDispenser("mercure {\n\tdrain_timeout -1s\n}")
+
+		require.ErrorContains(t, new(Mercure).UnmarshalCaddyfile(d), "drain_timeout must be >= 0")
+	})
+
+	t.Run("json", func(t *testing.T) {
+		var cfg caddy.Config
+		require.NoError(t, json.Unmarshal([]byte(`{"admin":{"disabled":true},"apps":{"http":{"servers":{"srv":{"listen":["127.0.0.1:0"],"automatic_https":{"disable":true},"routes":[{"handle":[{"handler":"mercure","name":"negative_drain","anonymous":true,"drain_timeout":"-1s","transport":{"name":"local"},"issuers":[{"identifier":"https://example.com","publisher":{"jwt":{"key":"test-publisher-key","alg":"HS256"}}}]}]}]}}}}}`), &cfg))
+
+		require.ErrorContains(t, caddy.Validate(&cfg), mercure.ErrNegativeDrainTimeout.Error())
+	})
+}
+
+func TestShouldDrainOnStopping(t *testing.T) {
+	t.Parallel()
+
+	drain := caddy.Duration(5 * time.Minute)
+	zero := caddy.Duration(0)
+
+	for _, tc := range []struct {
+		name    string
+		exiting bool
+		drain   *caddy.Duration
+		want    bool
+	}{
+		{name: "real termination with drain timeout drains", exiting: true, drain: &drain, want: true},
+		{name: "config reload never drains", exiting: false, drain: &drain, want: false},
+		{name: "termination without drain timeout cancels", exiting: true, drain: nil, want: false},
+		{name: "termination with zero drain timeout cancels", exiting: true, drain: &zero, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, shouldDrainOnStopping(tc.exiting, tc.drain))
+		})
+	}
 }
 
 func TestApplyPlaygroundDefaults(t *testing.T) {

@@ -1,6 +1,6 @@
 ---
 title: "Mercure rolling updates and graceful SSE shutdown"
-description: "Drain Server-Sent Events connections cleanly during Mercure restarts and rolling updates with write_timeout and orchestrator grace periods."
+description: "Drain Server-Sent Events connections cleanly during Mercure restarts and rolling updates with write_timeout, drain_timeout, and orchestrator grace periods."
 ---
 
 # Mercure rolling updates and graceful shutdown
@@ -18,7 +18,7 @@ When the hub receives a shutdown signal (`SIGTERM`, the Caddy admin `/stop` endp
 
 The hub randomizes connection deadlines between 80% and 100% of `write_timeout` (480 to 600 seconds by default). During shutdown, existing connections use those deadlines. This spreads reconnections, although the distribution still depends on when clients connected.
 
-With `write_timeout 0s`, the hub closes subscribers immediately on shutdown.
+With `write_timeout 0s`, the hub closes subscribers immediately on shutdown, unless [`drain_timeout`](#faster-drains-with-drain_timeout) is set.
 
 ## Sizing the drain window
 
@@ -26,7 +26,30 @@ The orchestrator must allow enough time between `SIGTERM` and `SIGKILL`; otherwi
 
 **The rule:** `stop timeout >= write_timeout + small margin`.
 
-For the default `write_timeout 600s`, a 660s grace period is the right starting point. If you bump `write_timeout`, bump the orchestrator's grace period to match.
+For the default `write_timeout 600s`, a 660s grace period is the right starting point. If you bump `write_timeout`, bump the orchestrator's grace period to match, or set `drain_timeout`.
+
+## Faster drains with `drain_timeout`
+
+`write_timeout` sets both the steady-state rotation period and the drain duration. A long `write_timeout` cuts reconnects but slows rollouts: with `maxUnavailable: 0`, four pods at `write_timeout 1200s` can take over an hour.
+
+Set `drain_timeout` to bound the drain on termination (`SIGTERM`, `SIGINT`, the admin `/stop` endpoint). The hub moves each subscriber's close to a random time within `drain_timeout`. A connection already set to close sooner keeps its deadline.
+
+```caddyfile
+localhost {
+  mercure {
+    write_timeout 1200s
+    drain_timeout 300s
+  }
+}
+```
+
+**The rule (with `drain_timeout`):** `stop timeout >= shutdown_delay + drain_timeout + small margin`.
+
+The drain starts on Caddy's `stopping` event, before the [`shutdown_delay`](https://caddyserver.com/docs/caddyfile/options#shutdown-delay). Connections opened during the delay get a full `drain_timeout`. A Caddy [`grace_period`](https://caddyserver.com/docs/caddyfile/options#grace-period) shorter than `drain_timeout` cuts the drain short.
+
+With `write_timeout 0s`, connections never rotate, but `drain_timeout` still drains them on termination.
+
+Config reloads never trigger the drain. With `write_timeout 0s`, a reload still closes subscribers immediately.
 
 ## Kubernetes
 
@@ -44,7 +67,7 @@ If you set `write_timeout` higher than 600s, raise `terminationGracePeriodSecond
 terminationGracePeriodSeconds: 960 # for write_timeout 900s
 ```
 
-A shorter grace period forces the remaining subscribers to disconnect together.
+A shorter grace period forces the remaining subscribers to disconnect together. To keep a long `write_timeout`, set `drain_timeout` and size the grace period from it instead.
 
 ## Why `minReadySeconds` matters for Mercure rollouts
 
@@ -64,7 +87,7 @@ Any supervisor that gives the hub time to drain works the same way:
 | Nomad      | `kill_timeout`      |
 | ECS        | `stopTimeout`       |
 
-Choose `write_timeout` below the supervisor's maximum stop timeout, with margin. Some platforms cap that timeout below the hub's default 600 seconds.
+Choose the drain window (`write_timeout`, or `shutdown_delay + drain_timeout` when `drain_timeout` is set) below the supervisor's maximum stop timeout, with margin. Some platforms cap that timeout below the hub's default 600 seconds.
 
 ## Graceful Mercure hub configuration reloads
 
@@ -74,7 +97,7 @@ On supported systems, `SIGUSR1` can reload the startup configuration file when C
 
 ## Self-hosted transports
 
-The drain mechanism is built into the open-source hub and works with BoltDB. The [Self-Hosted transports](high-availability.md) (Redis/Valkey, PostgreSQL, Kafka, Pulsar) inherit it automatically: each connection drains at its own `write_timeout` regardless of which backend carries the updates.
+The drain mechanism is built into the open-source hub and works with BoltDB. The [Self-Hosted transports](high-availability.md) (Redis/Valkey, PostgreSQL, Kafka, Pulsar) inherit it automatically: each connection drains at its own `write_timeout`, or within `drain_timeout` on termination, regardless of which backend carries the updates.
 
 [Choose an Enterprise plan](https://mercure.rocks/pricing) for shared transports and maintainer support, or let [Mercure Cloud](https://mercure.rocks/pricing) handle the rollout. A shared transport lets a reconnecting client resume on another replica. Clients attached to a restarting replica still reconnect; a load balancer cannot migrate an established SSE connection.
 

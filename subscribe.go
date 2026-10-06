@@ -141,6 +141,7 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		heartbeatTimer      *time.Timer
 		heartbeatTimerC     <-chan time.Time
+		disconnectionTimer  *time.Timer
 		disconnectionTimerC <-chan time.Time
 	)
 
@@ -151,6 +152,13 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		heartbeatTimerC = heartbeatTimer.C
 	}
 
+	// The drain may arm the timer later, for a subscriber that starts without a deadline.
+	defer func() {
+		if disconnectionTimer != nil {
+			disconnectionTimer.Stop()
+		}
+	}()
+
 	// Arm the disconnection timer whenever a write deadline exists, including
 	// when it comes solely from the token's exp (write_timeout disabled):
 	// getWriteDeadline leaves the deadline zero only when neither a write
@@ -159,29 +167,25 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	// deadline would otherwise leave an authenticated connection open up to a
 	// heartbeat interval past exp, or indefinitely with heartbeat off.
 	if !rc.writeDeadline.IsZero() {
-		disconnectionTimer := time.NewTimer(time.Until(rc.disconnectionTime))
-		defer disconnectionTimer.Stop()
+		disconnectionTimer = time.NewTimer(time.Until(rc.disconnectionTime))
 
 		disconnectionTimerC = disconnectionTimer.C
 	}
 
 	debugLevel := rc.hub.logger.Enabled(ctx, slog.LevelDebug)
 
-	// On hub shutdown (Caddy "stopping" event, pod SIGTERM, …) we prefer to
-	// let each subscriber drain on its own per-connection write deadline
-	// (derived from writeTimeout, and optionally shortened by JWT expiry)
-	// rather than closing everything at once — that spreads the reconnect
-	// load at the same pace clients already experience in steady state,
-	// instead of producing a synchronized storm on the ingress and the
-	// transport. The orchestrator's grace period (k8s
-	// terminationGracePeriodSeconds, etc.) remains the hard deadline.
-	//
-	// When writeTimeout is disabled (0) there is no disconnectionTimerC, so
-	// the only way out on shutdown is still h.ctx.Done() — otherwise
-	// http.Server.Shutdown would hang indefinitely on active handlers.
-	var hubCtxDoneC <-chan struct{}
+	// Reloads cancel h.ctx without draining; deadline-less connections must still exit or Shutdown hangs.
+	var (
+		hubCtxDoneC <-chan struct{}
+		drainC      <-chan struct{}
+	)
+
 	if h.writeTimeout == 0 {
 		hubCtxDoneC = h.ctx.Done()
+	}
+
+	if h.drainTimeout != 0 {
+		drainC = h.drainCh
 	}
 
 	for {
@@ -192,6 +196,32 @@ func (h *Hub) SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			return
+		case <-drainC:
+			drainC = nil
+
+			deadline, reschedule := drainDisconnectionTime(time.Now(), rc.disconnectionTime, drainDeadline(h.drainTimeout))
+			if !reschedule {
+				continue
+			}
+
+			if debugLevel {
+				rc.hub.logger.LogAttrs(ctx, slog.LevelDebug, "Hub is draining, rescheduling disconnection", slog.Time("disconnection_time", deadline))
+			}
+
+			rc.disconnectionTime = deadline
+			// Never extend the deadline, which may come from the token exp.
+			if wd := deadline.Add(h.dispatchTimeout); rc.writeDeadline.IsZero() || wd.Before(rc.writeDeadline) {
+				rc.writeDeadline = wd
+			}
+
+			rc.setDefaultWriteDeadline(ctx)
+
+			if disconnectionTimer == nil {
+				disconnectionTimer = time.NewTimer(time.Until(deadline))
+				disconnectionTimerC = disconnectionTimer.C
+			} else {
+				disconnectionTimer.Reset(time.Until(deadline))
+			}
 		case <-ctx.Done():
 			if debugLevel {
 				rc.hub.logger.LogAttrs(ctx, slog.LevelDebug, "Connection closed by the client")
@@ -587,6 +617,21 @@ func (h *Hub) dispatchSubscriptionUpdate(ctx context.Context, s *LocalSubscriber
 			h.logger.LogAttrs(ctx, slog.LevelError, "Failed to dispatch update", slog.Any("update", u), slog.Any("subscription", subscription.ID), slog.Any("error", err))
 		}
 	}
+}
+
+// drainDisconnectionTime returns now+offset and true, unless the connection already closes sooner.
+func drainDisconnectionTime(now, existing time.Time, offset time.Duration) (time.Time, bool) {
+	deadline := now.Add(offset)
+	if !existing.IsZero() && !deadline.Before(existing) {
+		return existing, false
+	}
+
+	return deadline, true
+}
+
+// drainDeadline spreads reconnects uniformly over (0, drainTimeout]; drainTimeout must be positive.
+func drainDeadline(drainTimeout time.Duration) time.Duration {
+	return time.Duration(rand.Int64N(int64(drainTimeout)) + 1) //nolint:gosec
 }
 
 // randomizeWriteDeadline generates a random duration between 80% and 100% of the original value.
