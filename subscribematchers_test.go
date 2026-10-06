@@ -54,6 +54,38 @@ func TestParseMatchersURLPattern(t *testing.T) {
 	assert.Equal(t, MatcherTypeURLPattern, matchers[0].Type)
 }
 
+func TestParseMatchersURLPatternAggregateBudget(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
+	require.NoError(t, err)
+	h := createDummy(t, WithTopicMatcherStore(tms))
+	patterns := make([]string, maxMatcherCount)
+	for i := range patterns {
+		// Each pattern is valid and below the individual compilation limit.
+		patterns[i] = "https://example.com/" + strings.Repeat("a", maxPatternLength-22) + string(rune('A'+i))
+		weight := uint64(len(tms.base())) + urlPatternWeight(patterns[i])
+		require.Less(t, weight, uint64(maxURLPatternWeight))
+	}
+
+	_, err = h.parseMatchers(url.Values{"match_urlpattern": patterns}, false)
+	require.ErrorIs(t, err, errMatcherBudgetExceeded)
+	for _, pattern := range patterns {
+		_, cached := tms.urlPatterns.GetIfPresent(tms.base() + topicsKeySeparator + pattern)
+		assert.False(t, cached, "reject the entire request before compiling any pattern")
+	}
+
+	_, err = h.parseMatchers(url.Values{"match_urlpattern": patterns[:2]}, false)
+	require.NoError(t, err, "ordinary multi-pattern subscriptions remain supported")
+
+	exact := make([]string, maxMatcherCount)
+	for i := range exact {
+		exact[i] = patterns[0]
+	}
+	_, err = h.parseMatchers(url.Values{"match": exact}, false)
+	require.NoError(t, err, "exact matchers do not consume the compilation budget")
+}
+
 // TestParseMatchersCaseSensitive verifies the spec rule: topic matcher query
 // parameter names are case-sensitive, and a request using any other parameter
 // name in the reserved "match" namespace (an unknown matcher type or a case

@@ -12,6 +12,8 @@ import (
 const (
 	maxMatcherCount  = 100
 	maxPatternLength = 4096
+	// Bound total URL Pattern compilation work before compiling any pattern.
+	maxRequestURLPatternWeight = 4 * maxURLPatternWeight
 
 	// paramMatch is both the subscribe query parameter selecting the Exact
 	// matcher type and the mux path-variable name for the subscription API
@@ -36,10 +38,11 @@ var (
 	// "match" namespace that are not defined by the protocol (an unknown
 	// matcher type or a case typo); parameter names are case-sensitive and the
 	// request must be rejected per the spec.
-	errUnknownMatcherParam = errors.New("unknown topic matcher query parameter")
-	errInvalidMatcherValue = errors.New("topic matcher values must be valid UTF-8 without control characters")
-	errTooManyMatchers     = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
-	errPatternTooLong      = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
+	errUnknownMatcherParam   = errors.New("unknown topic matcher query parameter")
+	errInvalidMatcherValue   = errors.New("topic matcher values must be valid UTF-8 without control characters")
+	errTooManyMatchers       = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
+	errPatternTooLong        = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
+	errMatcherBudgetExceeded = errors.New("URL pattern compilation budget exceeded")
 	// errInvalidMatcherPattern wraps a pattern-compilation failure. The
 	// underlying compiler error is kept in the chain for logging but must never
 	// be written to the client: for some malformed URL Patterns go-urlpattern
@@ -57,6 +60,20 @@ var (
 // type or a case typo of a known one) is rejected with an error mapped to a
 // 400 status code. Parameter names are case-sensitive.
 func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
+	var patternWeight uint64
+	baseWeight := uint64(len(h.topicMatcherStore.base()))
+	for _, pattern := range query[paramMatch+"_"+string(MatcherTypeURLPattern)] {
+		if err := validateMatcherValue(pattern); err != nil {
+			return nil, err
+		}
+
+		weight := baseWeight + urlPatternWeight(pattern)
+		if weight > maxRequestURLPatternWeight-patternWeight {
+			return nil, errMatcherBudgetExceeded
+		}
+		patternWeight += weight
+	}
+
 	var matchers []TopicMatcher
 
 	// Iterate parameter names in sorted order so the resulting matcher order —
