@@ -256,10 +256,34 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	private := len(r.PostForm["private"]) != 0
-	if claims != nil && !claims.authz.grantsAll(h.topicMatcherStore, actionPublish, topics) {
-		h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
+	if claims != nil && !claims.authz.grantsAll(h.topicMatcherStore, actionPublish, topics) { //nolint:nestif
+		if private {
+			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
-		return
+			return
+		}
+
+		infoEnabled := h.logger.Enabled(ctx, slog.LevelInfo)
+		if h.isBackwardCompatiblyEnabledWith(7) {
+			// Like 0.13, the exemption requires a publish claim, even an empty one.
+			if !claims.authz.hasPublishClaim() {
+				h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
+
+				return
+			}
+
+			if infoEnabled {
+				h.logger.LogAttrs(ctx, slog.LevelInfo, `Deprecated: posting public updates to topics not granted to the token is deprecated since the version 7 of the protocol, grant the "*" topic to allow publishing on all topics.`)
+			}
+		} else {
+			if infoEnabled {
+				h.logger.LogAttrs(ctx, slog.LevelInfo, `Unsupported: posting public updates to topics not granted to the token is not supported anymore, grant the "*" topic to allow publishing on all topics or enable backward compatibility with the version 7 of the protocol.`)
+			}
+
+			h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
+
+			return
+		}
 	}
 
 	u = &Update{
