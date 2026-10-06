@@ -3,6 +3,7 @@ package mercure
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -48,7 +49,10 @@ func TestSubscriptionLimits(t *testing.T) {
 			rejected, w := register()
 			assert.Nil(t, rejected)
 			assert.Equal(t, http.StatusTooManyRequests, w.Code)
-			assert.Equal(t, "1", w.Header().Get("Retry-After"))
+			retryAfter, err := strconv.Atoi(w.Header().Get("Retry-After"))
+			require.NoError(t, err)
+			assert.GreaterOrEqual(t, retryAfter, 5)
+			assert.LessOrEqual(t, retryAfter, 10)
 			assertGaugeValue(t, 2, metrics.subscribers)
 			assertCounterValue(t, 1, metrics.subscriptionsRejected.WithLabelValues(tc.reason))
 
@@ -159,6 +163,27 @@ func TestSubscriptionClientIdentityGroupsIPv6Prefix(t *testing.T) {
 	other, _ := h.admitSubscription(r, nil)
 	require.NotNil(t, other)
 	other.release()
+}
+
+func TestSubscriptionLimitsDisabledByDefault(t *testing.T) {
+	t.Parallel()
+
+	h := createAnonymousDummy(t)
+	assert.Equal(t, SubscriptionLimits{}, h.subscriptionLimits)
+
+	r := httptest.NewRequest(http.MethodGet, defaultHubURL, nil)
+
+	permits := make([]*subscriptionPermit, 3)
+	for i := range permits {
+		permits[i], _ = h.admitSubscription(r, nil)
+		require.NotNil(t, permits[i])
+	}
+
+	for _, p := range permits {
+		p.release()
+	}
+
+	assert.Zero(t, h.subscriptionLimiter.total)
 }
 
 func TestSubscriptionLimitsRejectNegativeValues(t *testing.T) {

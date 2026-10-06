@@ -3,25 +3,22 @@ package mercure
 import (
 	"crypto/sha256"
 	"errors"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/netip"
+	"strconv"
 	"sync"
 )
 
 // SubscriptionLimits bounds concurrent HTTP event streams on one hub instance.
-// A zero value disables the corresponding limit. Client limits use RemoteAddr,
-// never untrusted forwarding headers; token limits count verified tokens.
+// A zero field disables that limit, and all are zero by default. Client limits
+// use RemoteAddr, never untrusted forwarding headers; token limits count
+// verified tokens.
 type SubscriptionLimits struct {
 	Total     int `json:"total"`
 	PerToken  int `json:"per_token"`
 	PerClient int `json:"per_client"`
-}
-
-// DefaultSubscriptionLimits bounds total and per-token streams. Source limits
-// are opt-in because reverse proxies and NAT can share one source address.
-func DefaultSubscriptionLimits() SubscriptionLimits {
-	return SubscriptionLimits{Total: 10000, PerToken: 1000}
 }
 
 // ErrInvalidSubscriptionLimits rejects negative subscription limits.
@@ -153,7 +150,8 @@ func (h *Hub) reserveSubscription(w http.ResponseWriter, r *http.Request, claims
 		metrics.SubscriptionRejected(reason)
 	}
 
-	w.Header().Set("Retry-After", "1")
+	// Jitter spreads retries from clients rejected together.
+	w.Header().Set("Retry-After", strconv.Itoa(5+rand.IntN(6))) //nolint:gosec
 	http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 
 	return nil

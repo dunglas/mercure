@@ -596,7 +596,6 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		dispatchTimeout:    DefaultDispatchTimeout,
 		heartbeat:          DefaultHeartbeat,
 		maxRequestBodySize: DefaultMaxRequestBodySize,
-		subscriptionLimits: DefaultSubscriptionLimits(),
 	}
 
 	for _, o := range options {

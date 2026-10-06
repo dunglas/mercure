@@ -1230,15 +1230,15 @@ func TestSubscriptionLimitsCaddyfile(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
-		args  string
-		valid bool
+		args     string
+		expected *mercure.SubscriptionLimits
 	}{
-		{"10 2 3", true},
-		{"0 0 0", true},
-		{"10 2", false},
-		{"10 -1 3", false},
-		{"10 two 3", false},
-		{"10 2 3 4", false},
+		{"10 2 3", &mercure.SubscriptionLimits{Total: 10, PerToken: 2, PerClient: 3}},
+		{"0 0 0", &mercure.SubscriptionLimits{}},
+		{"10 2", nil},
+		{"10 -1 3", nil},
+		{"10 two 3", nil},
+		{"10 2 3 4", nil},
 	} {
 		t.Run(tc.args, func(t *testing.T) {
 			t.Parallel()
@@ -1246,15 +1246,23 @@ func TestSubscriptionLimitsCaddyfile(t *testing.T) {
 			m := new(Mercure)
 
 			err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser("mercure {\n subscription_limits " + tc.args + "\n}"))
-			if !tc.valid {
+			if tc.expected == nil {
 				require.Error(t, err)
 
 				return
 			}
 
 			require.NoError(t, err)
-			require.NotNil(t, m.SubscriptionLimits)
-			assert.Equal(t, tc.args == "0 0 0", m.SubscriptionLimits.Total == 0)
+			assert.Equal(t, tc.expected, m.SubscriptionLimits)
 		})
 	}
+}
+
+func TestSubscriptionLimitsPartialJSON(t *testing.T) {
+	t.Parallel()
+
+	var m Mercure
+
+	require.NoError(t, json.Unmarshal([]byte(`{"subscription_limits":{"total":5000}}`), &m))
+	assert.Equal(t, &mercure.SubscriptionLimits{Total: 5000}, m.SubscriptionLimits)
 }
