@@ -3,7 +3,7 @@ title: "Using an OAuth 2.0 authorization server with Mercure"
 description: "Issue Mercure access tokens from Keycloak or any OAuth 2.0 authorization server that can mint RFC 9396 authorization_details claims, and point the hub at its JWKS."
 ---
 
-# Authorization servers
+# Mercure authorization servers
 
 The hub is an OAuth 2.0 protected resource: it validates access tokens, it never issues them. Small applications mint their own tokens with a shared secret ([Authorization](authorization.md)). Once several applications publish to the same hub, or users log in through an identity provider, the tokens should come from a real **authorization server** instead.
 
@@ -98,7 +98,7 @@ The rest of this page does the second, because it is the case that needs explain
 
 ## Keycloak
 
-Keycloak has no native Rich Authorization Requests support, so the grants live in a user attribute and a protocol mapper copies them into the claim. Four pieces of configuration.
+Keycloak never puts `authorization_details` in access tokens on its own, so the grants live in a user attribute and a protocol mapper copies them into the claim. Four pieces of configuration.
 
 ### The `at+jwt` header type
 
@@ -124,7 +124,7 @@ Add an **Audience** mapper whose included custom audience is the hub's resource 
 }
 ```
 
-Keycloak adds audiences of its own; the hub only requires that its identifier be among them.
+Keycloak adds audiences of its own; the hub only requires that its identifier be among them. Without `resource_identifier`, the hub derives that identifier from the host each request reaches, so pin it when publishers call the hub on a private address.
 
 ### Per-user grants
 
@@ -233,18 +233,18 @@ The server returns the approved subset in the token. With a claim mapper, the sa
 
 ## Security checklist
 
-- **One `issuer` block per authorization server.** Never reuse one block for two servers; the hub would then accept either server's keys for either issuer.
+- **One `issuer` block per authorization server.** Each block's keys verify only tokens whose `iss` names it.
 - **Pin the algorithms.** `jwks_uri <url> RS256` rather than the default allowlist when you know what the server signs with.
 - **Keep `exp` short.** The hub drops the connection when the token expires and the browser reconnects, so short lifetimes cost little. Refresh the token and update the cookie before it expires.
 - **Grants belong to the server, not the client.** Whatever stores them (a user attribute, a database, a policy engine) must be writable only by administrators.
-- **HTTPS everywhere.** The hub refuses tokens over plain HTTP for any non-anonymous request.
+- **HTTPS everywhere.** A bearer token sent over plain HTTP can be replayed by anyone on the path, and browsers refuse the default `__Secure-` cookie without TLS.
 
 ## Troubleshooting
 
 | Symptom                                                | Cause                                                                                          |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | `401 invalid_token`, token looks fine                  | `typ` is `JWT` instead of `at+jwt`, or `iss` does not match the `issuer` block byte for byte   |
-| `401 invalid_token` right after switching servers      | The hub is verifying with the other issuer's keys: each server needs its own block             |
+| `401 invalid_token`, logs say "untrusted issuer"       | No `issuer` block matches the token's `iss`: each server needs its own block                   |
 | `401 invalid_token`, `authorization_details` present   | The claim is a JSON string rather than an array, or a `topics` entry is a bare string          |
 | `403 insufficient_scope` on publish                    | No entry grants `publish` on that topic; alternate topics each need their own grant            |
 | Subscriber connects but never receives private updates | No entry grants `subscribe` on the update's topic                                              |
