@@ -1,0 +1,17 @@
+# Test with HTTPRoute enabled
+httpRoute:
+  enabled: true
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  hostnames:
+    - mercure-example.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /.well-known/mercure
+      # Exercise the rules[].timeouts rendering path so `ct install`
+      # catches Gateway API schema or template indentation regressions.
+      timeouts:
+        request: 0s

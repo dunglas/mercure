@@ -27,12 +27,6 @@ test.describe("Publish update", () => {
       topicSelectors: [randomStrings[0]],
     },
     {
-      name: "multiple topics",
-      mustBeReceived: true,
-      updateTopics: [randomString(), randomStrings[1]],
-      topicSelectors: [randomStrings[1]],
-    },
-    {
       name: "multiple topic selectors",
       mustBeReceived: true,
       updateTopics: [randomStrings[2]],
@@ -45,28 +39,28 @@ test.describe("Publish update", () => {
       topicSelectors: [`https://example.net/foo/${randomStrings[3]}`],
     },
     {
-      name: "URI template",
+      name: "URL pattern",
       mustBeReceived: true,
       updateTopics: [`https://example.net/foo/${randomStrings[4]}`],
-      topicSelectors: ["https://example.net/foo/{random}"],
+      topicSelectors: ["https://example.net/foo/:random"],
     },
     {
       name: "nonmatching raw string",
       mustBeReceived: false,
-      updateTopics: [`will-not-match}`],
+      updateTopics: [`will-not-match`],
       topicSelectors: ["another-name"],
     },
     {
       name: "nonmatching URI",
       mustBeReceived: false,
-      updateTopics: [`https://example.net/foo/will-not-match}`],
+      updateTopics: [`https://example.net/foo/will-not-match`],
       topicSelectors: ["https://example.net/foo/another-name"],
     },
     {
-      name: "nonmatching URI template",
+      name: "nonmatching URL pattern",
       mustBeReceived: false,
-      updateTopics: [`https://example.net/foo/will-not-match}`],
-      topicSelectors: ["https://example.net/bar/{var}"],
+      updateTopics: [`https://example.net/foo/will-not-match`],
+      topicSelectors: ["https://example.net/bar/:var"],
     },
     {
       name: "private raw string",
@@ -83,11 +77,11 @@ test.describe("Publish update", () => {
       topicSelectors: [`https://example.net/foo/${randomStrings[3]}`],
     },
     {
-      name: "private URI template",
+      name: "private URL pattern",
       mustBeReceived: false,
       private: true,
       updateTopics: [`https://example.net/foo/${randomStrings[4]}`],
-      topicSelectors: ["https://example.net/foo/{random}"],
+      topicSelectors: ["https://example.net/foo/:random"],
     },
   ];
 
@@ -117,8 +111,15 @@ test.describe("Publish update", () => {
           );
 
           const url = new window.URL("/.well-known/mercure", window.origin);
+          // The `match` query parameter selects exact matching;
+          // `match_urlpattern` selects the URL Pattern matcher. Selectors
+          // carrying a `:param` placeholder go through the latter.
+          const paramName = (selector: string): string => {
+            if (/\/:[A-Za-z_]/.test(selector)) return "match_urlpattern";
+            return "match";
+          };
           data.topicSelectors.forEach((topicSelector) =>
-            url.searchParams.append("topic", topicSelector),
+            url.searchParams.append(paramName(topicSelector), topicSelector),
           );
 
           const event = new window.URLSearchParams();
@@ -163,8 +164,11 @@ test.describe("Publish update", () => {
           const resp = await fetch(`/.well-known/mercure`, {
             method: "POST",
             headers: {
+              // RFC 9068 access token (typ at+jwt, aud the hub resource
+              // identifier, iss the trusted issuer) granting publish and
+              // subscribe on every topic via an authorization_details claim.
               Authorization:
-                "Bearer eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiKiJdfX0.bVXdlWXwfw9ySx7-iV5OpUSHo34RkjUdVzDLBcc6l_g",
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3QiLCJhdXRob3JpemF0aW9uX2RldGFpbHMiOlt7InR5cGUiOiJodHRwczovL21lcmN1cmUucm9ja3MvYXV0aG9yaXphdGlvbi1kZXRhaWwiLCJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV19LHsidHlwZSI6Imh0dHBzOi8vbWVyY3VyZS5yb2Nrcy9hdXRob3JpemF0aW9uLWRldGFpbCIsImFjdGlvbnMiOlsic3Vic2NyaWJlIl0sInRvcGljcyI6W3sibWF0Y2giOiIqIn1dfV0sImV4cCI6NDEwMjQ0NDgwMH0.z_S8IP5WZsCK8h3pcq0PB5zvJE0OdTrGA70khAYJQy4",
             },
             body: event,
           });

@@ -13,14 +13,17 @@ release:
   draft: true
 env:
   - CGO_ENABLED=0
-
 builds:
   - id: caddy
     dir: caddy/mercure
     ldflags:
+      - -X 'github.com/caddyserver/caddy/v2/modules/caddyhttp.ServerHeader=Mercure.rocks Caddy'
       - -X 'github.com/caddyserver/caddy/v2.CustomVersion=Mercure.rocks {{ .Version }} Caddy'
+      - -X 'github.com/caddyserver/caddy/v2.CustomBinaryName=mercure'
     tags:
       - deprecated_transport
+      - deprecated_topic
+      - deprecated_claim
       - nobadger
       - nomysql
       - nopgx
@@ -40,32 +43,6 @@ builds:
     ignore:
       - goos: windows
         goarch: arm
-
-  - id: legacy
-    dir: cmd/mercure
-    ldflags:
-      - -s -w -X github.com/dunglas/mercure/common.version={{ .Version }} -X github.com/dunglas/mercure/common.commit={{ .ShortCommit }} -X github.com/dunglas/mercure/common.buildDate={{ .Date }}
-    tags:
-      - deprecated_transport
-      - deprecated_server
-    goos:
-      - linux
-      - darwin
-      - windows
-    goarch:
-      - "386"
-      - amd64
-      - arm
-      - arm64
-    ignore:
-      - goos: windows
-        goarch: arm
-
-upx:
-  - enabled: true
-    goos: [linux]
-    compress: best
-
 archives:
   - ids:
       - caddy
@@ -81,61 +58,26 @@ archives:
       - LICENSE
       - README.md
       - Caddyfile
-      - dev.Caddyfile
     format_overrides:
       - goos: windows
         formats: [zip]
-  - id: legacy
-    ids:
-      - legacy
-    name_template: >-
-      {{ .ProjectName }}-legacy_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
-    files:
-      - COPYRIGHT
-      - LICENSE
-      - README.md
-    format_overrides:
-      - goos: windows
-        formats: [zip]
-
 dockers_v2:
-  - id: caddy
-    ids:
+  - ids:
       - caddy
     images:
-      - "dunglas/mercure"
+      - dunglas/mercure
     tags:
+      # Rolling tags are suppressed on prereleases so a prerelease cut does
+      # not move :latest/:vN off the stable line. Empty tags are dropped.
       - "{{ .Tag }}"
-      - "v{{ .Major }}"
-      - "v{{ .Major }}.{{ .Minor }}"
-      - "latest"
+      - "{{ if not .Prerelease }}v{{ .Major }}{{ end }}"
+      - "{{ if not .Prerelease }}v{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
     platforms:
       - linux/amd64
-      - linux/arm64/v8
+      - linux/arm64
     extra_files:
       - Caddyfile
-      - dev.Caddyfile
-
-  - id: legacy
-    ids:
-      - legacy
-    dockerfile: Dockerfile.legacy
-    images:
-      - "dunglas/mercure"
-    tags:
-      - "legacy-{{ .Tag }}"
-      - "legacy-v{{ .Major }}"
-      - "legacy-v{{ .Major }}.{{ .Minor }}"
-      - "legacy-latest"
-    platforms:
-      - linux/amd64
-      - linux/arm64/v8
-
 nfpms:
   - id: linux_packages
     package_name: mercure
@@ -152,7 +94,6 @@ nfpms:
     vendor: "Dunglas Services SAS"
     homepage: "https://mercure.rocks"
     bindir: /usr/bin
-
 signs:
   - artifacts: checksum
     args:

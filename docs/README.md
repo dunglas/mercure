@@ -1,33 +1,80 @@
-# Mercure Documentation
+---
+title: "Mercure documentation"
+description: "Index for the Mercure protocol and Mercure.rocks Hub documentation: real-time SSE push, OAuth 2.0 authorization, deployment, and AI streaming use cases."
+---
 
-- [Mercure in a Few Words](mercure.md)
-- [Getting Started](getting-started.md)
+# Mercure documentation
 
-## Protocol Specification
+Mercure is an open protocol for real-time updates over HTTP and Server-Sent Events (SSE). These guides cover the protocol and its open-source reference implementation, the Mercure.rocks Hub.
 
-- [The Specification](../spec/mercure.md) (also available as an [IETF Internet Draft](https://datatracker.ietf.org/doc/draft-dunglas-mercure/) designed to be published as an RFC)
-- [Case studies and use cases](spec/use-cases.md)
-- [Frequently Asked Questions](spec/faq.md)
-- [OpenAPI spec](https://github.com/dunglas/mercure/blob/master/spec/openapi.yaml)
+Looking for an alternative to **Pusher / Ably / Firebase / Supabase Realtime**? Mercure works with your existing backend and the browser's native APIs. [Start with managed Mercure Cloud](https://mercure.rocks/pricing), or deploy [Mercure Enterprise on your own infrastructure](production/high-availability.md).
 
-## Mercure.rocks Hub
+This documentation covers the protocol and the Mercure.rocks Hub for the **1.0 release**. If you're upgrading from 0.x, start with the [upgrade guide](UPGRADE.md).
 
-- [Installing the Mercure.rocks Hub](hub/install.md)
-- [Configuration](hub/config.md)
-- [The Cloud version](hub/cloud.md)
-- [Creating a cluster of hubs](hub/cluster.md)
-- [Cookbooks](hub/cookbooks.md)
-- [Running behind NGINX](hub/nginx.md)
-- [Running behind Traefik Proxy](hub/traefik.md)
-- [Troubleshooting](hub/troubleshooting.md)
-- [Debug the Mercure.rocks Hub](hub/debug.md)
-- [Upgrade to new versions](UPGRADE.md)
-- [Load Testing](hub/load-test.md)
+## Get started with Mercure
 
-## Ecosystem
+- [Introduction](introduction.md): what Mercure is and when to use it
+- [Quickstart](getting-started/quickstart.md): run a hub, subscribe, and publish an update
+- [Installation](getting-started/installation.md): binary, Docker, Compose, Kubernetes, AUR
 
-- [Awesome Mercure: Libraries, Examples and Learning Resources](ecosystem/awesome.md)
-- [Using a Mercure Service in Your GitHub Actions](ecosystem/github-actions.md)
-- [Using Mercure and Hotwire to Stream Page Changes](ecosystem/hotwire.md)
-- [Getting Help](ecosystem/help.md)
-- [Conformance Tests](ecosystem/conformance-tests.md)
+## Mercure core concepts
+
+- [Topics and matchers](concepts/topics-and-matchers.md): select topics with exact matches and URL Patterns
+- [Subscribing](concepts/subscribing.md): receive updates over SSE
+- [Publishing](concepts/publishing.md): send updates over HTTP
+- [Update payloads](concepts/update-payloads.md): envelopes for the `data` field, ActivityStreams 2.0
+- [Authorization](concepts/authorization.md): OAuth 2.0 access tokens, `authorization_details`, cookies
+- [Discovery](concepts/discovery.md): finding the hub and its protected resource metadata
+- [Reconnection and history](concepts/reconnection-and-history.md): `Last-Event-ID`, replay
+- [Active subscriptions](concepts/active-subscriptions.md): presence and the subscription API
+- [Encryption](concepts/encryption.md): JWE end-to-end
+
+## Mercure use cases
+
+- [Use cases overview](use-cases/README.md)
+- [LLM token streaming](use-cases/llm-token-streaming.md)
+- [AI agent progress](use-cases/ai-agent-progress.md)
+- [Live data and dashboards](use-cases/live-data.md)
+- [Collaborative editing](use-cases/collaborative-editing.md)
+- [Async jobs and progress](use-cases/async-jobs.md)
+- [Notifications](use-cases/notifications.md)
+- [Hotwire / Turbo Streams](use-cases/hotwire.md)
+- [GraphQL subscriptions](use-cases/graphql.md)
+- [Laravel Broadcasting](use-cases/laravel-broadcasting.md)
+
+## Mercure hub deployment
+
+- [Configuration](deployment/configuration.md): Caddyfile directives and environment variables
+- [Docker](deployment/docker.md)
+- [Kubernetes](deployment/kubernetes.md)
+- [Reverse proxies](deployment/reverse-proxy.md): NGINX and Traefik
+- [GitHub Actions](deployment/github-actions.md)
+
+## Running Mercure in production
+
+- [High availability](production/high-availability.md): scaling beyond one node
+- [Rolling updates](production/rolling-updates.md): graceful shutdown for SSE
+- [Health checks and monitoring](production/health-monitoring.md)
+- [Tracing](production/tracing.md): OpenTelemetry spans
+- [Load testing](production/load-testing.md)
+- [Debugging](production/debugging.md)
+- [Troubleshooting](production/troubleshooting.md)
+
+## Mercure protocol reference
+
+- [Protocol](reference/protocol.md): the IETF specification
+- [FAQ](reference/faq.md)
+- [License](reference/license.md)
+- [Upgrade guide](UPGRADE.md)
+
+## Mercure ecosystem
+
+- [Awesome Mercure](ecosystem/awesome.md): libraries, integrations, demos
+- [Conformance tests](ecosystem/conformance-tests.md)
+
+## Mercure support and community
+
+- [GitHub Discussions](https://github.com/dunglas/mercure/discussions) for community questions
+- [Stack Overflow `mercure` tag](https://stackoverflow.com/questions/tagged/mercure)
+- [`#mercure` on the Symfony Slack](https://symfony.com/slack)
+- Cloud and Enterprise support: [contact@mercure.rocks](mailto:contact@mercure.rocks)

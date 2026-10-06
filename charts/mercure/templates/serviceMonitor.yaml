@@ -3,9 +3,9 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "mercure.fullname" . }}-metrics
-  labels:
-    {{- include "mercure.labels" . | nindent 4 }}
-    app.kubernetes.io/component: metrics
+  {{- $labels := merge (dict "app.kubernetes.io/component" "metrics") (include "mercure.labels" . | fromYaml) }}
+  {{- $labels = merge $labels (.Values.metrics.serviceMonitor.selector | default dict) }}
+  labels: {{- toYaml $labels | nindent 4 }}
 spec:
   selector:
     matchLabels:
@@ -19,10 +19,10 @@ spec:
       scrapeTimeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout }}
       {{- end }}
       honorLabels: {{ .Values.metrics.serviceMonitor.honorLabels }}
-      {{- if .Values.metrics.serviceMonitor.relabelings }}
-      metricRelabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 8 }}
+      {{- if .Values.metrics.serviceMonitor.metricRelabelings }}
+      metricRelabelings: {{- toYaml .Values.metrics.serviceMonitor.metricRelabelings | nindent 8 }}
       {{- end }}
       {{- if .Values.metrics.serviceMonitor.relabelings }}
-      relabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 6 }}
+      relabelings: {{- toYaml .Values.metrics.serviceMonitor.relabelings | nindent 8 }}
       {{- end }}
 {{- end }}

@@ -1,22 +1,36 @@
 name: Release Chart
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
+  # Backfill: releases cut while the signing step was broken carry no chart
+  # asset, and `release: published` cannot be replayed for them.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to package the chart for (e.g. v1.0.1)"
+        required: true
+        type: string
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
+    if: startsWith(github.event.release.tag_name || inputs.tag, 'v')
     runs-on: ubuntu-latest
+    environment: release
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Configure Git
         run: |
@@ -24,12 +38,59 @@ jobs:
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
 
-      - name: Run chart-releaser
-        uses: dunglas/chart-releaser-action@feat/match-tags
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
-          match_tags: helm-chart-*
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+
+      - name: Package and sign Helm chart
+        env:
+          PASSPHRASE: ${{ secrets.PASSPHRASE }}
+          # `helm package --sign --key` substring-matches User IDs only
+          # (fingerprint/keyid lookups fail), so pass the email, which is
+          # unique within the keyring. The import action exposes no output
+          # holding the whole UID.
+          KEY_UID: ${{ steps.import_gpg.outputs.email }}
+        run: |
+          umask 077
+          mkdir -p .cr-release-packages
+          # Helm signs using the legacy GPG keyring format. Keep both the
+          # keyring and the passphrase out of disk: the keyring goes to a
+          # tmp file removed on exit, the passphrase is piped via stdin.
+          SECRING=$(mktemp)
+          trap 'rm -f "$SECRING"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase "$PASSPHRASE" \
+            --export-secret-keys > "$SECRING"
+          printf '%s' "$PASSPHRASE" | helm package --sign \
+            --key "$KEY_UID" \
+            --keyring "$SECRING" \
+            --passphrase-file - \
+            charts/mercure -d .cr-release-packages
+
+      - name: Attest Helm chart
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: .cr-release-packages/*.tgz
+
+      - name: Upload Helm chart to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" .cr-release-packages/* --clobber
+
+      - name: Update Helm chart repo index
+        # Pinned past v1.7.0: with skip_packaging the released cr.sh reads an
+        # unset `latest_tag` under `set -u` and fails the job after the index
+        # has already been pushed. Fixed in helm/chart-releaser-action#202,
+        # unreleased at the time of writing.
+        uses: helm/chart-releaser-action@fae9146b935c45c307b67c4495043ea3fd3e3355 # main, post-v1.7.0
+        with:
+          skip_packaging: true
+          skip_existing: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_RELEASE_NAME_TEMPLATE: "helm-chart-{{ .Version }}"
+          CR_RELEASE_NAME_TEMPLATE: "v{{ .Version }}"

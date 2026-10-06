@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+//nolint:gochecknoglobals
+var dataReplacer = strings.NewReplacer("\r\n", "\ndata: ", "\r", "\ndata: ", "\n", "\ndata: ")
+
 // Event is the actual Server Sent Event that will be dispatched.
 type Event struct {
 	// The updates' data, encoded in the sever-sent event format: every line starts with the string "data: "
@@ -33,8 +36,7 @@ func (e *Event) String() string {
 		_, _ = fmt.Fprintf(&b, "retry: %d\n", e.Retry)
 	}
 
-	r := strings.NewReplacer("\r\n", "\ndata: ", "\r", "\ndata: ", "\n", "\ndata: ")
-	_, _ = fmt.Fprintf(&b, "id: %s\ndata: %s\n\n", e.ID, r.Replace(e.Data))
+	_, _ = fmt.Fprintf(&b, "id: %s\ndata: %s\n\n", e.ID, dataReplacer.Replace(e.Data))
 
 	return b.String()
 }

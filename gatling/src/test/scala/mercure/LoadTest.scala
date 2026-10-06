@@ -36,7 +36,7 @@ class LoadTest extends Simulation {
   /** JWT to use to publish */
   val Jwt = Properties.envOrElse(
     "JWT",
-    "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.KKPIikwUzRuB3DTpVw6ajzwSChwFw5omBMmMcWKiDcM"
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6ImF0K2p3dCJ9.eyJhdWQiOiJodHRwczovL2xvY2FsaG9zdC8ud2VsbC1rbm93bi9tZXJjdXJlIiwiYXV0aG9yaXphdGlvbl9kZXRhaWxzIjpbeyJhY3Rpb25zIjpbInB1Ymxpc2giXSwidG9waWNzIjpbeyJtYXRjaCI6IioifV0sInR5cGUiOiJodHRwczovL21lcmN1cmUucm9ja3MvYXV0aG9yaXphdGlvbi1kZXRhaWwifSx7ImFjdGlvbnMiOlsic3Vic2NyaWJlIl0sInRvcGljcyI6W3sibWF0Y2giOiIqIn1dLCJ0eXBlIjoiaHR0cHM6Ly9tZXJjdXJlLnJvY2tzL2F1dGhvcml6YXRpb24tZGV0YWlsIn1dLCJleHAiOjQxMDI0NDQ4MDAsImlzcyI6Imh0dHBzOi8vbG9jYWxob3N0In0.VO0-PRjJ2MGOrMk2HxlrBv217pB7hyLxLIQUGgSfyXs"
   )
 
   /** JWT to use to subscribe, fallbacks to JWT if not set and PRIVATE_UPDATES
@@ -77,17 +77,36 @@ class LoadTest extends Simulation {
   var PrivateUpdates =
     Properties.envOrElse("PRIVATE_UPDATES", "false").toBoolean
 
+  /** Override the subscribe matcher query parameter, e.g.
+    * "match=https://example.com" (exact) or
+    * "match_urlpattern=https://example.com/:id" (URL Pattern). Lets a run
+    * target a specific matcher type without editing this file; defaults to a
+    * value derived from PRIVATE_UPDATES.
+    */
+  val SubscribeParam = Properties.envOrElse("SUBSCRIBE_PARAM", null)
+
+  /** Override the published topic. Must stay matchable by the subscriber's
+    * matcher, otherwise the delivery check times out. Defaults to a value
+    * derived from PRIVATE_UPDATES.
+    */
+  val PublishTopic = Properties.envOrElse("PUBLISH_TOPIC", null)
+
   val rnd = new scala.util.Random
 
   /** Subscriber test as a function to handle conditional Authorization header
     */
   def subscriberTest() = {
-    var topic = "https://example.com"
+    // Public updates share one exact topic; private updates use random topics
+    // under a URL Pattern. SUBSCRIBE_PARAM overrides both.
+    var param = "match=https://example.com"
     if (PrivateUpdates) {
-      topic = topic + "/{id}"
+      param = "match_urlpattern=https://example.com/:id"
+    }
+    if (SubscribeParam != null) {
+      param = SubscribeParam
     }
 
-    var requestBuilder = sse("Subscribe").get("?topic=" + topic)
+    var requestBuilder = sse("Subscribe").get("?" + param)
 
     if (SubscriberJwt != null) {
       requestBuilder =
@@ -107,6 +126,9 @@ class LoadTest extends Simulation {
   var topic = "https://example.com"
   if (PrivateUpdates) {
     topic = topic + "/" + rnd.nextInt()
+  }
+  if (PublishTopic != null) {
+    topic = PublishTopic
   }
 
   var data = Map("topic" -> topic, "data" -> "Hi")

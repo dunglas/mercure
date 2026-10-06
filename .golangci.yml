@@ -1,21 +1,40 @@
 version: "2"
 run:
   tests: true
+  # Match the tags the released binaries are built with (see .goreleaser.yml),
+  # so the code that ships is the code that gets linted.
   build-tags:
     - deprecated_transport
-    - deprecated_server
+    - deprecated_topic
+    - deprecated_claim
     - nobadger
     - nomysql
     - nopgx
 linters:
   default: all
+  settings:
+    gomoddirectives:
+      replace-local: true
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+        - generic
+        - go.opentelemetry.io/otel/trace.Span
+    spancheck:
+      extra-start-span-signatures:
+        - "github.com/dunglas/mercure.startSpan:opentelemetry"
   disable:
     - canonicalheader
     - cyclop
     - depguard
     - errcheck
     - exhaustruct
+    - exhaustruct_v5
     - forcetypeassert
+    - gomodguard
     - intrange
     - lll
     - mnd
@@ -38,12 +57,18 @@ linters:
       - std-error-handling
     rules:
       - linters:
+          - gosec
           - funlen
           - gochecknoglobals
           - goconst
           - godox
           - noctx
           - wrapcheck
+          # A deprecated test variant deliberately mirrors its modern
+          # counterpart, so that the two protocol versions are covered by the
+          # same scenario. Same reasoning as the disabled jscpd check in
+          # .github/workflows/lint.yml.
+          - dupl
         path: _test\.go
     paths:
       - third_party$

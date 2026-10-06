@@ -1,8 +1,11 @@
 package caddy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,18 +13,91 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddytest"
+	"github.com/dunglas/mercure"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	bearerPrefix    = "Bearer "
-	publisherJWT    = "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdfX0.vhMwOaN5K68BTIhWokMLOeOJO4EPfT64brd8euJOA4M"
-	publisherJWTRSA = "eyJhbGciOiJSUzI1NiJ9.eyJtZXJjdXJlIjp7InB1Ymxpc2giOlsiKiJdLCJzdWJzY3JpYmUiOlsiaHR0cHM6Ly9leGFtcGxlLmNvbS9teS1wcml2YXRlLXRvcGljIiwie3NjaGVtZX06Ly97K2hvc3R9L2RlbW8vYm9va3Mve2lkfS5qc29ubGQiLCIvLndlbGwta25vd24vbWVyY3VyZS9zdWJzY3JpcHRpb25zey90b3BpY317L3N1YnNjcmliZXJ9Il0sInBheWxvYWQiOnsidXNlciI6Imh0dHBzOi8vZXhhbXBsZS5jb20vdXNlcnMvZHVuZ2xhcyIsInJlbW90ZUFkZHIiOiIxMjcuMC4wLjEifX19.iwryQ5k-CWNCNQLPg7CtgTdDWbG_CurSxDK8kMjTZfprGhh7Yli1SFt8WB3U4zbZ2wxUO7UfprZq3hnl8nSrozO9KDTCDwCYhMgRlcrdwm6XL1uXFwMJt4VSmp1srCQotv0FgT11jF8Km1vMQQOnUC27Va9fbfRtITVsjxsveYeMJqusVWO6F3vAvkM35oL8E8qgBbfrG_lnuhb_9Ws6RIq4YOslkOar_gopEs00CITxmV_aHVHRYzeW7QpycxjC7m8Mp-lKzaUewvJuKWI5HsM134xfaH8RAHSvh6H9pVQAiJ9tyc17bAx46M98WMsHFokVwz3rd7PoGGou6A7y5RzeGpiSxykTWCPPcBnxJ1gwUYqEYGTnRjl9JmhHY_VfQP4edyU-zhmMCCSie8rvkRDilAQGd5kj5m1voSn-EqA13sSe69evXxVUIB2nO70qHCcHBBHxunLqTIIerpc3F9_WWM4_Q_0j9CoTd2aFyuq_sdc6RcmAE3uTznp2DyKNQkT1EfpY7xCCe1MR-Webez5Ioa1EMDP0KrvLdnNRmuM3THSu1pqcvPV7Di7dJci5QWsYEmaP8cLuuZXdAhy_UoSgzbvfT_8mlDoJ9VvDXLJ39OwGYIyZiZ9VTNXm8mxre993cqg7boZRS8x70VRxnjmNxm40SgEvb6CHYO0lSBU"
-	subscriberJWT   = "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjdXJlIjp7InN1YnNjcmliZSI6WyIqIl19fQ.g3w81T7YQLKLrgovor9uEKUiOCAx6DmAAbq18qmDwsY"
+	bearerPrefix = "Bearer "
+
+	// caddyResourceIdentifier is the access-token audience the test Caddyfiles
+	// configure via `resource_identifier`.
+	caddyResourceIdentifier = "https://example.com/.well-known/mercure"
+
+	// caddyTrustedIssuer is the access-token issuer the test Caddyfiles
+	// configure via `trusted_issuers`.
+	caddyTrustedIssuer = "https://example.com"
 )
+
+// RFC 9068 access tokens used by the non-deprecated tests, minted at package
+// init so the assertions stay readable.
+//
+//nolint:gochecknoglobals
+var (
+	// publisherJWT grants publish on every topic (HS256, key "!ChangeMe!").
+	publisherJWT = mustMintHMACToken(actionDetail("publish", topicMatch()))
+	// subscriberJWT grants subscribe on every topic (HS256, key "!ChangeMe!").
+	subscriberJWT = mustMintHMACToken(actionDetail("subscribe", topicMatch()))
+	// publisherJWTRSA grants publish on every topic, signed with
+	// fixtures/jwt/RS256.key, to exercise RS256 verification.
+	publisherJWTRSA = mustMintRSAToken(actionDetail("publish", topicMatch()))
+)
+
+func topicMatch() map[string]any { return map[string]any{"match": "*"} }
+
+func actionDetail(action string, topics ...map[string]any) map[string]any {
+	return map[string]any{"type": "https://mercure.rocks/authorization-detail", "actions": []string{action}, "topics": topics}
+}
+
+func newAccessTokenClaims(details ...map[string]any) jwt.MapClaims {
+	return jwt.MapClaims{
+		"iss":                   caddyTrustedIssuer,
+		"aud":                   caddyResourceIdentifier,
+		"exp":                   time.Now().Add(time.Hour).Unix(),
+		"authorization_details": details,
+	}
+}
+
+func mustMintHMACToken(details ...map[string]any) string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessTokenClaims(details...))
+	token.Header["typ"] = "at+jwt"
+
+	s, err := token.SignedString([]byte("!ChangeMe!"))
+	if err != nil {
+		panic(err)
+	}
+
+	return s
+}
+
+func mustMintRSAToken(details ...map[string]any) string {
+	pem, err := os.ReadFile("../fixtures/jwt/RS256.key")
+	if err != nil {
+		panic(err)
+	}
+
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(pem)
+	if err != nil {
+		panic(err)
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, newAccessTokenClaims(details...))
+	token.Header["typ"] = "at+jwt"
+
+	s, err := token.SignedString(key)
+	if err != nil {
+		panic(err)
+	}
+
+	return s
+}
 
 func TestMercure(t *testing.T) {
 	boltPath := filepath.Join(t.TempDir(), "bolt.db")
@@ -55,8 +131,14 @@ func TestMercure(t *testing.T) {
 localhost:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			%[1]s
 		}
 
@@ -67,8 +149,14 @@ localhost:9080 {
 example.com:9080 {
 	route {
 		mercure {
+			name shared
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			%[1]s
 		}
 
@@ -81,7 +169,7 @@ example.com:9080 {
 			connected.Add(1)
 			received.Go(func() {
 				cx, cancel := context.WithCancel(t.Context())
-				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+				req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 				req = req.WithContext(cx)
 				resp := tester.AssertResponseCode(req, http.StatusOK)
 
@@ -126,6 +214,10 @@ example.com:9080 {
 	}
 }
 
+// TestJWTPlaceholders exercises env-var placeholder support with an object-form
+// RS256 JWT. The deprecated URI-template subscribe claim lives in
+// TestJWTPlaceholdersDeprecated — here the publisher uses the modern
+// "publish all topics" form with a URL-pattern subscribe claim.
 func TestJWTPlaceholders(t *testing.T) {
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	t.Setenv("TEST_JWT_KEY", string(k))
@@ -144,10 +236,15 @@ func TestJWTPlaceholders(t *testing.T) {
 		route {
 			mercure {
 				anonymous
-				publisher_jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+				issuer https://example.com {
+					publisher {
+						jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
 				transport local
 			}
-	
+
 			respond 404
 		}
 	}
@@ -158,7 +255,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	connected.Add(1)
 	received.Go(func() {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req = req.WithContext(cx)
 		resp := tester.AssertResponseCode(req, http.StatusOK)
 
@@ -212,16 +309,22 @@ func TestSubscriptionAPI(t *testing.T) {
 			mercure {
 				anonymous
 				subscriptions
-				publisher_jwt !ChangeMe!
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
 			}
-	
+
 			respond 404
 		}
 	}
 	`, "caddyfile")
 
+	// Without a subscriber verifier, no client can be authorized to list subscriptions.
 	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure/subscriptions", nil)
-	resp := tester.AssertResponseCode(req, http.StatusOK)
+	resp := tester.AssertResponseCode(req, http.StatusNotFound)
 	require.NoError(t, resp.Body.Close())
 }
 
@@ -237,12 +340,19 @@ func TestCookieName(t *testing.T) {
 	localhost:9080 {
 		route {
 			mercure {
-				publisher_jwt !ChangeMe!
-				subscriber_jwt !ChangeMe!
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
 				cookie_name foo
 				publish_origins http://localhost:9080
 			}
-	
+
 			respond 404
 		}
 	}
@@ -253,7 +363,7 @@ func TestCookieName(t *testing.T) {
 	connected.Add(1)
 	received.Go(func() {
 		cx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?topic=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
+		req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo%2F1", nil)
 		req.Header.Add("Origin", "http://localhost:9080")
 		req.AddCookie(&http.Cookie{Name: "foo", Value: subscriberJWT})
 		req = req.WithContext(cx)
@@ -295,6 +405,214 @@ func TestCookieName(t *testing.T) {
 	received.Wait()
 }
 
+func TestProtectedResourceMetadata(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				issuer https://as.example.com {
+					authorization_server
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure", nil)
+
+	resp := tester.AssertResponseCode(req, http.StatusOK)
+	defer resp.Body.Close()
+
+	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(b), `"resource":"https://example.com/.well-known/mercure"`)
+	assert.Contains(t, string(b), `"authorization_servers":["https://as.example.com"]`)
+}
+
+// The protocol requires rejecting requests exceeding the body-size limit with
+// a 413 status code.
+func TestMaxRequestBodySize(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				issuer https://example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
+				max_request_body_size 1KB
+				transport local
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	body := url.Values{"topic": {"https://example.com/foo/1"}, "data": {strings.Repeat("x", 2048)}}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+	require.NoError(t, err)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+publisherJWT)
+
+	resp := tester.AssertResponseCode(req, http.StatusRequestEntityTooLarge)
+	require.NoError(t, resp.Body.Close())
+}
+
+// On a catch-all site block, public_urls rejects an unlisted origin with 421;
+// an allowed origin reaches the hub, which derives its identity from that host.
+func TestPublicURLs(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	:9080 {
+		route {
+			mercure {
+				issuer https://as.example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				public_urls http://good.example.com
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	metadataPath := "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure"
+
+	req, _ := http.NewRequest(http.MethodGet, metadataPath, nil)
+	req.Host = "bad.example.com"
+	resp := tester.AssertResponseCode(req, http.StatusMisdirectedRequest)
+	require.NoError(t, resp.Body.Close())
+
+	req, _ = http.NewRequest(http.MethodGet, metadataPath, nil)
+	req.Host = "good.example.com"
+	resp = tester.AssertResponseCode(req, http.StatusOK)
+
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(b), `"resource":"http://good.example.com/.well-known/mercure"`)
+}
+
+// TestPlaygroundRootRedirectAndForwarding covers ServeHTTP's playground-gated
+// branches: the "/" -> debug UI redirect, and forwarding requests under
+// PlaygroundURLPrefix to the hub instead of the site's own routes. Neither
+// branch fires unless the playground is on.
+func TestPlaygroundRootRedirectAndForwarding(t *testing.T) {
+	const caddyfileTemplate = `
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	:9080 {
+		route {
+			mercure {
+				%s
+				issuer https://as.example.com {
+					publisher {
+						jwt !ChangeMe!
+					}
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				transport local
+			}
+
+			respond * "fallback"
+		}
+	}
+	`
+
+	t.Run("playground redirects the site root to the debugger", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground\n\t\t\t\tdebugger"), "caddyfile")
+
+		resp := tester.AssertRedirect("http://localhost:9080/", "http://localhost:9080/.well-known/mercure/debug/", http.StatusFound)
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("without playground the site root is not redirected", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "debugger"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/", nil)
+		require.NoError(t, err)
+
+		resp, _ := tester.AssertResponse(req, http.StatusOK, "fallback")
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("playground echo endpoints are forwarded to the hub", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/playground/foo.jsonld", nil)
+		require.NoError(t, err)
+
+		resp := tester.AssertResponseCode(req, http.StatusOK)
+		assert.Equal(t, "application/ld+json", resp.Header.Get("Content-Type"))
+		require.NoError(t, resp.Body.Close())
+	})
+
+	t.Run("without playground its URL prefix falls through to the site", func(t *testing.T) {
+		tester := caddytest.NewTester(t)
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "debugger"), "caddyfile")
+
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/playground/foo.jsonld", nil)
+		require.NoError(t, err)
+
+		resp, _ := tester.AssertResponse(req, http.StatusOK, "fallback")
+		require.NoError(t, resp.Body.Close())
+	})
+}
+
 func TestAllowNoPublish(t *testing.T) {
 	AllowNoPublish = true
 
@@ -313,9 +631,14 @@ func TestAllowNoPublish(t *testing.T) {
 	localhost:9080 {
 		route {
 			mercure {
-				subscriber_jwt !ChangeMe!
+				issuer https://example.com {
+					subscriber {
+						jwt !ChangeMe!
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
 			}
-	
+
 			respond 404
 		}
 	}
@@ -344,7 +667,12 @@ localhost:9080 {
 	route {
 		mercure {
 			anonymous
-			publisher_jwt !ChangeMe!
+			issuer https://example.com {
+				publisher {
+					jwt !ChangeMe!
+				}
+			}
+			resource_identifier https://example.com/.well-known/mercure
 			transport bolt {
 				path test.db
 				bucket_name foo
@@ -441,4 +769,415 @@ mercure {
 		}
 	}
 }`)
+}
+
+func TestNewJWKSetKeyfunc(t *testing.T) {
+	jwksPath, err := filepath.Abs("testdata/RS256.jwks.json")
+	require.NoError(t, err)
+
+	t.Run("file URL with empty host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with localhost host", func(t *testing.T) {
+		k, err := newJWKSetKeyfunc(t.Context(), "file://localhost"+jwksPath)
+		require.NoError(t, err)
+		assert.NotNil(t, k)
+	})
+
+	t.Run("file URL with rejected host", func(t *testing.T) {
+		_, err := newJWKSetKeyfunc(t.Context(), "file://example.com"+jwksPath)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"example.com"`)
+	})
+
+	t.Run("missing file", func(t *testing.T) {
+		_, err := newJWKSetKeyfunc(t.Context(), "file://"+filepath.Join(t.TempDir(), "absent.json"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read JWK Set file")
+	})
+
+	t.Run("invalid JWK Set JSON", func(t *testing.T) {
+		bad := filepath.Join(t.TempDir(), "bad.json")
+		require.NoError(t, os.WriteFile(bad, []byte("not json"), 0o600))
+
+		_, err := newJWKSetKeyfunc(t.Context(), "file://"+bad)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse JWK Set file")
+	})
+}
+
+// TestMultiIssuerPublish exercises per-issuer key binding through the Caddy
+// module: two issuers with distinct keys, each verified only with its own key.
+func TestMultiIssuerPublish(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				issuer https://a.example {
+					publisher {
+						jwt key-a
+					}
+				}
+				issuer https://b.example {
+					publisher {
+						jwt key-b
+					}
+				}
+				resource_identifier https://example.com/.well-known/mercure
+				transport local
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	mint := func(key []byte, iss string) string {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"iss":                   iss,
+			"aud":                   caddyResourceIdentifier,
+			"exp":                   time.Now().Add(time.Hour).Unix(),
+			"authorization_details": []map[string]any{actionDetail("publish", topicMatch())},
+		})
+		token.Header["typ"] = "at+jwt"
+
+		s, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		return s
+	}
+
+	publish := func(tokenStr string) *http.Request {
+		body := url.Values{"topic": {"https://example.com/foo"}, "data": {"hi"}}
+		req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+		require.NoError(t, err)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", bearerPrefix+tokenStr)
+
+		return req
+	}
+
+	// Issuer A signed with key A is accepted.
+	resp := tester.AssertResponseCode(publish(mint([]byte("key-a"), "https://a.example")), http.StatusOK)
+	require.NoError(t, resp.Body.Close())
+
+	// Issuer A signed with key B is rejected: keys are not pooled across issuers.
+	resp = tester.AssertResponseCode(publish(mint([]byte("key-b"), "https://a.example")), http.StatusUnauthorized)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
+	t.Parallel()
+
+	const pem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----"
+
+	for _, tc := range []struct {
+		name    string
+		key     string
+		alg     string
+		wantAlg string
+		wantErr error
+	}{
+		{name: "raw secret without algorithm defaults to HS256", key: "!ChangeMe!", wantAlg: defaultJWTAlgorithm},
+		{name: "raw secret keeps an explicit algorithm", key: "!ChangeMe!", alg: "HS512", wantAlg: "HS512"},
+		{name: "PEM key with an asymmetric algorithm", key: pem, alg: "RS256", wantAlg: "RS256"},
+		{name: "PEM key without an algorithm", key: pem, wantErr: errPEMKeyMissingAlgorithm},
+		{name: "PEM key after a preamble without an algorithm", key: "Bag Attributes\n" + pem, wantErr: errPEMKeyMissingAlgorithm},
+		// Left alone here; the verifier refuses it, one check below.
+		{name: "PEM key with an HMAC algorithm", key: pem, alg: defaultJWTAlgorithm, wantAlg: defaultJWTAlgorithm},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &JWTConfig{Key: tc.key, Alg: tc.alg}
+
+			err := normalizeJWT(caddy.NewReplacer(), c, "", "publisher")
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				assert.ErrorContains(t, err, "publisher")
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantAlg, c.Alg)
+		})
+	}
+}
+
+// normalizeJWT passes the pair through, so the verifier is the only check — which
+// is what covers a Go embedder configuring it directly.
+func TestPEMKeyWithHMACAlgorithmRefusedByVerifier(t *testing.T) {
+	t.Parallel()
+
+	c := &JWTConfig{Key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----", Alg: defaultJWTAlgorithm}
+	require.NoError(t, normalizeJWT(caddy.NewReplacer(), c, "", "publisher"))
+
+	_, err := mercure.NewHub(t.Context(), mercure.WithIssuers([]mercure.Issuer{{
+		Identifier: "https://example.com",
+		Publisher:  mercure.Static{Key: []byte(c.Key), Algorithm: c.Alg},
+	}}))
+	require.ErrorIs(t, err, mercure.ErrPEMKeyHMACAlgorithm)
+	assert.ErrorContains(t, err, "publisher")
+}
+
+// An unset MERCURE_*_JWT_ALG placeholder must not silently turn a PEM key into
+// an HMAC secret: the shipped Caddyfile pairs both as placeholders.
+func TestNormalizeJWTPEMKeyWithUnsetAlgPlaceholder(t *testing.T) {
+	c := &JWTConfig{Key: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq\n-----END PUBLIC KEY-----", Alg: "{env.MERCURE_TEST_UNSET_ALG}"}
+
+	err := normalizeJWT(caddy.NewReplacer(), c, "", "subscriber")
+	require.ErrorIs(t, err, errPEMKeyMissingAlgorithm)
+	assert.ErrorContains(t, err, "subscriber")
+}
+
+func TestUnmarshalCaddyfileRejectsUnknownDirective(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		block   string
+		wantErr string
+	}{
+		{name: "typo of a boolean directive", block: "anonymus", wantErr: `unknown mercure directive "anonymus"`},
+		{name: "typo of cors_origins", block: "cors_origin *", wantErr: `unknown mercure directive "cors_origin"`},
+		{name: "typo of publish_origins", block: "publish_origin *", wantErr: `unknown mercure directive "publish_origin"`},
+		{name: "wholly unknown directive", block: "totally_bogus foo bar", wantErr: `unknown mercure directive "totally_bogus"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			d := caddyfile.NewTestDispenser("mercure {\n\t" + tc.block + "\n}")
+
+			require.ErrorContains(t, new(Mercure).UnmarshalCaddyfile(d), tc.wantErr)
+		})
+	}
+}
+
+func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
+	t.Parallel()
+
+	d := caddyfile.NewTestDispenser(`mercure {
+		name test
+		anonymous
+		playground
+		debugger
+		subscriptions
+		write_timeout 1m
+		dispatch_timeout 5s
+		heartbeat 40s
+		max_request_body_size 1MB
+		cookie_name mercure_access_token
+		cors_origins *
+		publish_origins *
+		public_urls https://example.com
+		resource_identifier https://example.com/.well-known/mercure
+		topic_matcher_cache 10
+		subscriber_list_cache_size 10
+		protocol_version_compatibility 8
+		issuer https://example.com {
+			authorization_server
+			publisher {
+				jwt !ChangeMe!
+			}
+			subscriber {
+				jwt !ChangeMe!
+			}
+		}
+	}`)
+
+	m := new(Mercure)
+	require.NoError(t, m.UnmarshalCaddyfile(d))
+	assert.True(t, m.Anonymous)
+	assert.Equal(t, []string{"*"}, m.CORSOrigins)
+	assert.Len(t, m.Issuers, 1)
+}
+
+func TestApplyPlaygroundDefaults(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fills unset dev settings", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{Playground: true}
+		m.applyPlaygroundDefaults()
+
+		assert.True(t, m.Anonymous)
+		assert.True(t, m.Subscriptions)
+		assert.Equal(t, "mercure_access_token", m.CookieName)
+		assert.Equal(t, []string{"*"}, m.CORSOrigins)
+		assert.Equal(t, []string{"*"}, m.PublishOrigins)
+	})
+
+	t.Run("keeps explicit settings", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{
+			Playground:     true,
+			CookieName:     "__Host-token",
+			CORSOrigins:    []string{"https://example.com"},
+			PublishOrigins: []string{"https://example.com"},
+		}
+		m.applyPlaygroundDefaults()
+
+		assert.Equal(t, "__Host-token", m.CookieName)
+		assert.Equal(t, []string{"https://example.com"}, m.CORSOrigins)
+		assert.Equal(t, []string{"https://example.com"}, m.PublishOrigins)
+	})
+
+	t.Run("no-op without playground", func(t *testing.T) {
+		t.Parallel()
+
+		m := Mercure{}
+		m.applyPlaygroundDefaults()
+
+		assert.False(t, m.Anonymous)
+		assert.False(t, m.Subscriptions)
+		assert.Empty(t, m.CookieName)
+		assert.Nil(t, m.CORSOrigins)
+		assert.Nil(t, m.PublishOrigins)
+	})
+}
+
+func TestPopulateJWTConfigDefaultsPlaygroundKey(t *testing.T) {
+	t.Parallel()
+
+	ctx := caddy.Context{Context: context.Background()}
+	discardLogger := slog.New(slog.DiscardHandler)
+
+	t.Run("defaults both roles when nothing is configured", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Issuers:    []IssuerConfig{{Identifier: "https://localhost"}},
+			logger:     discardLogger,
+		}
+		require.NoError(t, m.populateJWTConfig(ctx))
+
+		want := JWTConfig{Key: devKeyFallback, Alg: defaultJWTAlgorithm}
+		assert.Equal(t, want, m.Issuers[0].Publisher.JWT)
+		assert.Equal(t, want, m.Issuers[0].Subscriber.JWT)
+	})
+
+	t.Run("an explicit key on either role prevents defaulting", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Anonymous:  true, // sidesteps the unrelated missing-subscriber error
+			Issuers: []IssuerConfig{{
+				Identifier: "https://localhost",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: "custom-key"}},
+			}},
+			logger: discardLogger,
+		}
+		require.NoError(t, m.populateJWTConfig(ctx))
+
+		assert.Equal(t, "custom-key", m.Issuers[0].Publisher.JWT.Key)
+		assert.Empty(t, m.Issuers[0].Subscriber.JWT.Key)
+	})
+
+	t.Run("no-op without playground", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{Issuers: []IssuerConfig{{Identifier: "https://localhost"}}, logger: discardLogger}
+		require.ErrorIs(t, m.populateJWTConfig(ctx), errMissingVerifier)
+		assert.Empty(t, m.Issuers[0].Publisher.JWT.Key)
+	})
+
+	t.Run("does not guess among several issuers", func(t *testing.T) {
+		t.Parallel()
+
+		m := &Mercure{
+			Playground: true,
+			Issuers: []IssuerConfig{
+				{Identifier: "https://a.example.com"},
+				{Identifier: "https://b.example.com"},
+			},
+			logger: discardLogger,
+		}
+		require.ErrorIs(t, m.populateJWTConfig(ctx), errMissingVerifier)
+		assert.Empty(t, m.Issuers[0].Publisher.JWT.Key)
+		assert.Empty(t, m.Issuers[1].Publisher.JWT.Key)
+	})
+}
+
+// Compatibility mode relaxes access-token validation, so a leftover deprecated
+// JWT directive must not switch it on by itself.
+func TestLegacyJWTDirectivesRequireExplicitCompatibility(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		mercure       Mercure
+		wantRejection bool
+	}{
+		{
+			name:          "legacy publisher key without compatibility mode",
+			mercure:       Mercure{PublisherJWT: JWTConfig{Key: "!ChangeMe!"}},
+			wantRejection: true,
+		},
+		{
+			name:          "legacy subscriber JWK Set without compatibility mode",
+			mercure:       Mercure{SubscriberJWKSURL: "https://example.com/jwks.json"},
+			wantRejection: true,
+		},
+		{
+			name:    "legacy publisher key with compatibility mode",
+			mercure: Mercure{PublisherJWT: JWTConfig{Key: "!ChangeMe!"}, ProtocolVersionCompatibility: 8},
+		},
+		{
+			name: "issuer block only",
+			mercure: Mercure{Issuers: []IssuerConfig{{
+				Identifier: "https://example.com",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: "!ChangeMe!"}},
+			}}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tc.mercure.checkLegacyVerifiers()
+			if !tc.wantRejection {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.ErrorIs(t, err, errLegacyVerifiersNeedCompatibility)
+		})
+	}
+}
+
+func TestPopulateJWTConfigWarnsAboutWellKnownKey(t *testing.T) {
+	t.Parallel()
+
+	for _, playground := range []bool{false, true} {
+		var logs bytes.Buffer
+
+		m := &Mercure{
+			Playground: playground,
+			Issuers: []IssuerConfig{{
+				Identifier: "https://localhost",
+				Publisher:  VerifierConfig{JWT: JWTConfig{Key: devKeyFallback}},
+				Subscriber: VerifierConfig{JWT: JWTConfig{Key: "a-random-subscriber-key-of-32-bytes"}},
+			}},
+			logger: slog.New(slog.NewTextHandler(&logs, nil)),
+		}
+
+		require.NoError(t, m.populateJWTConfig(caddy.Context{Context: context.Background()}))
+		assert.Equal(t, !playground, strings.Contains(logs.String(), "development secret"))
+	}
 }

@@ -19,10 +19,64 @@ const (
 	DefaultWriteTimeout    = 600 * time.Second
 	DefaultDispatchTimeout = 5 * time.Second
 	DefaultHeartbeat       = 40 * time.Second
+
+	// DefaultMaxRequestBodySize bounds the publish and QUERY subscribe request
+	// bodies; larger requests are rejected with a 413 as the protocol requires.
+	DefaultMaxRequestBodySize int64 = 1 << 20 // 1 MiB
 )
 
 // ErrUnsupportedProtocolVersion is returned when the version passed is unsupported.
-var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol version 7")
+var ErrUnsupportedProtocolVersion = errors.New("compatibility mode only supports protocol versions 7 and 8")
+
+// ErrInvalidResourceIdentifier is returned when the configured resource
+// identifier is not an RFC 9728 protected resource identifier: an absolute
+// URL without a fragment component.
+var ErrInvalidResourceIdentifier = errors.New("the resource identifier must be an absolute URL without a fragment (RFC 9728)")
+
+// ErrInvalidPublicURL is returned when a public URL in the allowlist is not an
+// absolute URL with a scheme and a host.
+var ErrInvalidPublicURL = errors.New("a public URL must be an absolute URL with a scheme and a host")
+
+// ErrMissingIssuerIdentifier is returned when an issuer is configured in modern
+// mode with an empty identifier: the token iss claim is matched against it, so
+// it must be set.
+var ErrMissingIssuerIdentifier = errors.New("an issuer identifier is required in modern mode")
+
+// ErrDuplicateIssuer is returned when the same issuer identifier is configured
+// more than once.
+var ErrDuplicateIssuer = errors.New("duplicate issuer identifier")
+
+// ErrIssuerMissingKey is returned when an issuer has no verifier for either
+// role, so no token could ever be verified for it.
+var ErrIssuerMissingKey = errors.New("an issuer must configure a publisher or subscriber verifier")
+
+// ErrMissingAlgorithm is returned when a Static verifier is configured without
+// a signing algorithm.
+var ErrMissingAlgorithm = errors.New("a Static verifier requires a signing algorithm")
+
+// ErrMissingKey is returned when a Static verifier has no key material: an HMAC
+// algorithm accepts a zero-length secret, so every token would verify.
+var ErrMissingKey = errors.New("a Static verifier requires a key")
+
+// ErrPEMKeyHMACAlgorithm is returned when a Static verifier pairs a PEM key with
+// an HMAC algorithm, which would make the public key the shared secret.
+var ErrPEMKeyHMACAlgorithm = errors.New("a PEM-encoded key must not be used with an HMAC algorithm")
+
+// ErrSpanningPublishOrigin is returned when a wildcard publish origin matches origins
+// outside one registrable domain, which would let unrelated sites publish with the
+// victim's cookie.
+var ErrSpanningPublishOrigin = errors.New(`a wildcard publish origin must stay within one registrable domain, such as "https://*.example.com"`)
+
+// schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
+const schemeHTTPS = "https"
+
+// defaultJWTAlgorithms is the signature-algorithm allowlist applied, in every
+// mode, when a JWT key function is configured without an explicit list (the
+// JWKS path). It contains only asymmetric algorithms: allowing an HMAC
+// algorithm next to public keys would enable algorithm-confusion attacks.
+//
+//nolint:gochecknoglobals
+var defaultJWTAlgorithms = []string{"EdDSA", "ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"}
 
 // Option instances allow to configure the library.
 type Option func(o *opt) error
@@ -45,19 +99,39 @@ func WithDebug() Option {
 	}
 }
 
-func WithUI() Option {
+func WithDebugger() Option {
 	return func(o *opt) error {
-		o.ui = true
+		o.debugger = true
 
 		return nil
 	}
 }
 
-// WithDemo enables the demo.
-func WithDemo() Option {
+// WithPlayground enables the playground.
+func WithPlayground() Option {
 	return func(o *opt) error {
-		o.demo = true
-		o.ui = true
+		o.playground = true
+		o.debugger = true
+
+		return nil
+	}
+}
+
+// WithPlaygroundTokenFunc sets the callback the playground UI uses to prefill an
+// access token, exposed at .well-known/mercure/debug/playground-token. The callback
+// receives the request's resource identifier (the token's aud claim, derived per
+// request so the token is valid on whatever public URL the playground answers on).
+// It has no effect unless the playground is also enabled (see WithPlayground).
+//
+// INSECURE: it hands every visitor an all-access token (publish and subscribe on
+// every topic) signed with the hub's key, so only ever configure it on a throwaway
+// playground hub. The Caddy module wires it automatically for a `playground` hub
+// that has a symmetric signing key.
+//
+// EXPERIMENTAL. Not covered by the backward compatibility promise.
+func WithPlaygroundTokenFunc(f func(resourceIdentifier string) (string, error)) Option {
+	return func(o *opt) error {
+		o.playgroundTokenFunc = f
 
 		return nil
 	}
@@ -108,7 +182,8 @@ func WithDispatchTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithHeartbeat sets the frequency of the heartbeat, disabled by default.
+// WithHeartbeat sets the frequency of the SSE keep-alive comments, defaults
+// to 40s, set to 0 to disable.
 func WithHeartbeat(interval time.Duration) Option {
 	return func(o *opt) error {
 		o.heartbeat = interval
@@ -117,48 +192,100 @@ func WithHeartbeat(interval time.Duration) Option {
 	}
 }
 
-// WithPublisherJWTKeyFunc sets the function to use to parse and verify the publisher JWT.
-func WithPublisherJWTKeyFunc(keyfunc jwt.Keyfunc) Option {
+// WithMaxRequestBodySize bounds the size, in bytes, of publish and QUERY
+// subscribe request bodies; larger requests are rejected with a 413 status
+// code. Defaults to DefaultMaxRequestBodySize, set to 0 to disable the
+// in-hub limit (for example, when a reverse proxy already enforces one).
+func WithMaxRequestBodySize(size int64) Option {
 	return func(o *opt) error {
-		o.publisherJWTKeyFunc = keyfunc
+		o.maxRequestBodySize = size
 
 		return nil
 	}
 }
 
-// WithSubscriberJWTKeyFunc sets the function to use to parse and verify the subscriber JWT.
-func WithSubscriberJWTKeyFunc(keyfunc jwt.Keyfunc) Option {
+// WithIssuers configures access-token verification, binding each trusted issuer
+// (RFC 9068 §4) to its own verification material. It replaces the former
+// per-role options: a token is verified only with the key(s) associated with
+// its iss claim, so key material is never pooled across issuers.
+//
+// Each Issuer provides a Publisher and/or Subscriber Verifier (a nil Verifier
+// means that role is not accepted for the issuer). Setting AuthorizationServer
+// advertises the issuer in the hub's RFC 9728 protected resource metadata; a
+// self-issued issuer (a key shared out of band) leaves it false.
+func WithIssuers(issuers []Issuer) Option {
 	return func(o *opt) error {
-		o.subscriberJWTKeyFunc = keyfunc
+		if o.issuers == nil {
+			o.issuers = make(map[string]issuerVerifier, len(issuers))
+		}
+
+		for _, iss := range issuers {
+			if _, ok := o.issuers[iss.Identifier]; ok {
+				return fmt.Errorf("%w: %q", ErrDuplicateIssuer, iss.Identifier)
+			}
+
+			var iv issuerVerifier
+
+			if iss.Publisher != nil {
+				kf, algs, err := iss.Publisher.buildKeyfunc()
+				if err != nil {
+					return fmt.Errorf("issuer %q: publisher: %w", iss.Identifier, err)
+				}
+
+				iv.publisher = roleVerifier{keyfunc: kf, algorithms: algs}
+				o.publisherConfigured = true
+
+				o.noteShortHMACKey(iss.Identifier, "publisher", iss.Publisher)
+			}
+
+			if iss.Subscriber != nil {
+				kf, algs, err := iss.Subscriber.buildKeyfunc()
+				if err != nil {
+					return fmt.Errorf("issuer %q: subscriber: %w", iss.Identifier, err)
+				}
+
+				iv.subscriber = roleVerifier{keyfunc: kf, algorithms: algs}
+				o.subscriberConfigured = true
+
+				o.noteShortHMACKey(iss.Identifier, "subscriber", iss.Subscriber)
+			}
+
+			if iv.publisher.keyfunc == nil && iv.subscriber.keyfunc == nil {
+				return fmt.Errorf("%w: %q", ErrIssuerMissingKey, iss.Identifier)
+			}
+
+			o.issuers[iss.Identifier] = iv
+
+			if iss.AuthorizationServer {
+				o.authorizationServers = append(o.authorizationServers, iss.Identifier)
+			}
+		}
 
 		return nil
 	}
 }
 
-// WithPublisherJWT sets the JWT key and the signing algorithm to use for publishers.
-func WithPublisherJWT(key []byte, alg string) Option {
+// WithPublicURLs restricts the hub to the given public URLs, pinning their
+// scheme as well as their host. A request whose derived origin (scheme + host)
+// is not one of them is rejected with 421 Misdirected Request, and the hub
+// never derives an identity from an unlisted origin. This is the safety gate
+// for a catch-all site block, where the fronting server does not already
+// constrain the Host. Each value is an absolute URL; only its scheme and host
+// (with optional port) are significant.
+func WithPublicURLs(urls []string) Option {
 	return func(o *opt) error {
-		keyfunc, err := createJWTKeyfunc(key, alg)
-		o.publisherJWTKeyFunc = keyfunc
+		origins := make([]string, 0, len(urls))
 
-		return err
-	}
-}
+		for _, raw := range urls {
+			u, err := url.Parse(raw)
+			if err != nil || !u.IsAbs() || u.Host == "" {
+				return fmt.Errorf("%w: %q", ErrInvalidPublicURL, raw)
+			}
 
-// WithSubscriberJWT sets the JWT key and the signing algorithm to use for subscribers.
-func WithSubscriberJWT(key []byte, alg string) Option {
-	return func(o *opt) error {
-		keyfunc, err := createJWTKeyfunc(key, alg)
-		o.subscriberJWTKeyFunc = keyfunc
+			origins = append(origins, strings.ToLower(u.Scheme+"://"+u.Host))
+		}
 
-		return err
-	}
-}
-
-// WithAllowedHosts sets the allowed hosts.
-func WithAllowedHosts(hosts []string) Option {
-	return func(o *opt) error {
-		o.allowedHosts = hosts
+		o.allowedOrigins = origins
 
 		return nil
 	}
@@ -167,7 +294,7 @@ func WithAllowedHosts(hosts []string) Option {
 func validateOrigins(origins []string) error {
 	for _, origin := range origins {
 		switch origin {
-		case "*", "null":
+		case "*", "null": //nolint:goconst
 			continue
 		}
 
@@ -208,6 +335,10 @@ func WithPublishOrigins(origins []string) Option {
 
 				break
 			} else if prefix, suffix, found := strings.Cut(origin, "*"); found {
+				if spansArbitraryOrigins(origin) {
+					return fmt.Errorf("%q: %w", origin, ErrSpanningPublishOrigin)
+				}
+
 				// Split the origin in two: start and end string without the *
 				w := wildcard{prefix, suffix}
 				o.publishWOrigins = append(o.publishWOrigins, w)
@@ -242,16 +373,19 @@ func WithTransport(t Transport) Option {
 	}
 }
 
-// WithTopicSelectorStore sets the TopicSelectorStore instance to use.
-func WithTopicSelectorStore(tss *TopicSelectorStore) Option {
+// WithTopicMatcherStore sets the TopicMatcherStore instance to use.
+func WithTopicMatcherStore(tms *TopicMatcherStore) Option {
 	return func(o *opt) error {
-		o.topicSelectorStore = tss
+		o.topicMatcherStore = tms
 
 		return nil
 	}
 }
 
-// WithCookieName sets the name of the authorization cookie (defaults to "mercureAuthorization").
+// WithCookieName sets the name of the authorization cookie (defaults to
+// "__Secure-mercure_access_token"). The default "__Secure-" prefix makes user
+// agents refuse the cookie over insecure transport; plain-HTTP deployments
+// (local development) must configure a prefix-less name.
 func WithCookieName(cookieName string) Option {
 	return func(o *opt) error {
 		o.cookieName = cookieName
@@ -260,11 +394,15 @@ func WithCookieName(cookieName string) Option {
 	}
 }
 
-// WithProtocolVersionCompatibility sets the version of the Mercure protocol to be backward compatible with (only version 7 is supported).
+// WithProtocolVersionCompatibility sets the version of the Mercure protocol
+// to be backward compatible with (versions 7 and 8 are supported). The v8
+// behaviors (URI Template selectors in the `topic` parameter, bare-string
+// JWT claims, alternate topics, v8 subscription routes) additionally require
+// a hub binary built with the deprecated_topic tag.
 func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	return func(o *opt) error {
 		switch protocolVersionCompatibility {
-		case 7:
+		case 7, 8:
 			o.protocolVersionCompatibility = protocolVersionCompatibility
 
 			return nil
@@ -274,31 +412,145 @@ func WithProtocolVersionCompatibility(protocolVersionCompatibility int) Option {
 	}
 }
 
+// WithResourceIdentifier pins the hub's OAuth 2.0 resource identifier (RFC 9068
+// `aud` value, advertised through RFC 9728 protected resource metadata) to a
+// single static value. When unset, the hub derives the identifier from each
+// request (the public URL the client contacted), so a hub reachable through
+// several public URLs needs no configuration; set this only to force one
+// canonical audience shared across every URL. A value ending in
+// "/.well-known/mercure" also becomes the base URL for matching relative URL
+// patterns and topics.
+func WithResourceIdentifier(resourceIdentifier string) Option {
+	return func(o *opt) error {
+		o.resourceIdentifier = resourceIdentifier
+
+		return nil
+	}
+}
+
 // opt contains the available options.
 //
 // If you change this, also update the Caddy module and the documentation.
 type opt struct {
 	transport                    Transport
-	topicSelectorStore           *TopicSelectorStore
+	topicMatcherStore            *TopicMatcherStore
 	anonymous                    bool
 	debug                        bool
 	subscriptions                bool
-	ui                           bool
-	demo                         bool
+	debugger                     bool
+	playground                   bool
+	playgroundTokenFunc          func(resourceIdentifier string) (string, error)
 	logger                       *slog.Logger
 	writeTimeout                 time.Duration
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
-	publisherJWTKeyFunc          jwt.Keyfunc
-	subscriberJWTKeyFunc         jwt.Keyfunc
+	maxRequestBodySize           int64
+	issuers                      map[string]issuerVerifier
+	publisherConfigured          bool
+	subscriberConfigured         bool
 	metrics                      Metrics
-	allowedHosts                 []string
 	publishOriginsAll            bool
 	publishOrigins               []string
 	publishWOrigins              []wildcard
 	corsOrigins                  []string
+	allowedOrigins               []string
 	cookieName                   string
 	protocolVersionCompatibility int
+	resourceIdentifier           string
+	resourceMetadataURL          string
+	authorizationServers         []string
+	shortHMACKeys                []shortHMACKey
+}
+
+// shortHMACKey records a weak HMAC key until the logger is known.
+type shortHMACKey struct {
+	issuer string
+	role   string
+	minLen int
+}
+
+// noteShortHMACKey flags HMAC keys below the RFC 7518 §3.2 minimum; refusing them would break existing deployments.
+func (o *opt) noteShortHMACKey(issuer, role string, v Verifier) {
+	s, ok := v.(interface{ shortHMACKey() (int, bool) })
+	if !ok {
+		return
+	}
+
+	if minLen, short := s.shortHMACKey(); short {
+		o.shortHMACKeys = append(o.shortHMACKeys, shortHMACKey{issuer: issuer, role: role, minLen: minLen})
+	}
+}
+
+// roleVerifier holds the verification material for one role of one issuer.
+type roleVerifier struct {
+	keyfunc    jwt.Keyfunc
+	algorithms []string
+}
+
+// issuerVerifier binds an issuer to its per-role verification material. A role
+// with a nil keyfunc is not accepted for the issuer.
+type issuerVerifier struct {
+	publisher  roleVerifier
+	subscriber roleVerifier
+}
+
+// configureIdentifiers wires the URL Pattern base and the statically
+// configured resource identifier, then applies the modern-mode rules. When no
+// resource identifier is configured the hub derives its identity from each
+// request instead (see requestIdentity).
+func (o *opt) configureIdentifiers() error {
+	// A configured resource identifier that is a full hub URL doubles as the
+	// URL Pattern base, so relative patterns and topics resolve per the
+	// protocol without configuring the base twice. Without one, the base stays
+	// the synthetic fallback (see urlPatternFallbackBase).
+	if strings.HasSuffix(o.resourceIdentifier, defaultHubURL) {
+		if err := o.topicMatcherStore.setBaseURL(o.resourceIdentifier); err != nil {
+			return err
+		}
+	}
+
+	// Build the RFC 9728 metadata URL once for the static override; when none
+	// is configured the hub derives it per request.
+	if o.resourceIdentifier != "" {
+		o.resourceMetadataURL = buildResourceMetadataURL(o.resourceIdentifier)
+	}
+
+	// In modern mode the token iss claim must exactly match a trusted issuer,
+	// so every configured issuer needs a non-empty identifier to match against.
+	// (Configuring a verifier always creates an issuer, so no separate
+	// "missing issuer" case exists.)
+	if !o.compatClaimsEnabled() && (o.publisherConfigured || o.subscriberConfigured) {
+		if _, ok := o.issuers[""]; ok {
+			return ErrMissingIssuerIdentifier
+		}
+	}
+
+	return o.applyModernDefaults()
+}
+
+// applyModernDefaults enforces the modern-mode invariant of an RFC 9728-shaped
+// resource identifier. The JWS algorithm allowlist is pinned per issuer when
+// the verifiers are built (see WithIssuers and buildKeyfunc).
+func (o *opt) applyModernDefaults() error {
+	if o.protocolVersionCompatibility != 0 {
+		return nil
+	}
+
+	// The resource identifier is published as the RFC 9728 "resource" member
+	// and checked against the token audience; strict clients ignore metadata
+	// whose identifier is not a URL without a fragment.
+	if o.resourceIdentifier != "" {
+		u, err := url.Parse(o.resourceIdentifier)
+		if err != nil || !u.IsAbs() || u.Host == "" || u.Fragment != "" {
+			return ErrInvalidResourceIdentifier
+		}
+
+		if u.Scheme != schemeHTTPS {
+			o.logger.Warn(`The resource identifier does not use the "https" scheme; strict RFC 9728 clients will ignore the hub's protected resource metadata.`)
+		}
+	}
+
+	return nil
 }
 
 func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
@@ -307,7 +559,6 @@ func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 
 // Hub stores channels with clients currently subscribed and allows to dispatch updates.
 type Hub struct {
-	deprecatedHub
 	*opt
 
 	handler http.Handler
@@ -317,9 +568,10 @@ type Hub struct {
 // NewHub creates a new Hub instance.
 func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 	opt := &opt{
-		writeTimeout:    DefaultWriteTimeout,
-		dispatchTimeout: DefaultDispatchTimeout,
-		heartbeat:       DefaultHeartbeat,
+		writeTimeout:       DefaultWriteTimeout,
+		dispatchTimeout:    DefaultDispatchTimeout,
+		heartbeat:          DefaultHeartbeat,
+		maxRequestBodySize: DefaultMaxRequestBodySize,
 	}
 
 	for _, o := range options {
@@ -332,21 +584,30 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.logger = slog.New(mercureHandler{slog.Default().Handler()})
 	}
 
-	if opt.topicSelectorStore == nil {
-		tss, err := NewTopicSelectorStoreCache(DefaultTopicSelectorStoreCacheMaxEntriesPerShard, DefaultTopicSelectorStoreCacheShardCount)
+	for _, k := range opt.shortHMACKeys {
+		opt.logger.LogAttrs(ctx, slog.LevelWarn, "The HMAC key is shorter than the hash output (RFC 7518 §3.2), which weakens token signatures: use a longer random secret.",
+			slog.String("issuer", k.issuer), slog.String("role", k.role), slog.Int("min_length", k.minLen))
+	}
+
+	if opt.topicMatcherStore == nil {
+		tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
 		if err != nil {
 			return nil, err
 		}
 
-		opt.topicSelectorStore = tss
+		opt.topicMatcherStore = tms
+	}
+
+	if err := opt.configureIdentifiers(); err != nil {
+		return nil, err
 	}
 
 	if opt.transport == nil {
 		opt.transport = NewLocalTransport(NewSubscriberList(DefaultSubscriberListCacheSize))
 	}
 
-	if ttss, ok := opt.transport.(TransportTopicSelectorStore); ok {
-		ttss.SetTopicSelectorStore(opt.topicSelectorStore)
+	if ttss, ok := opt.transport.(TransportTopicMatcherStore); ok {
+		ttss.SetTopicMatcherStore(opt.topicMatcherStore)
 	}
 
 	if opt.metrics == nil {
@@ -370,4 +631,13 @@ func (h *Hub) Stop(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// limitRequestBody bounds the request body per WithMaxRequestBodySize; the
+// protocol requires rejecting larger requests with a 413 status code, which
+// handlers detect through the *http.MaxBytesError read failure.
+func (h *Hub) limitRequestBody(w http.ResponseWriter, r *http.Request) {
+	if h.maxRequestBodySize > 0 {
+		r.Body = http.MaxBytesReader(w, r.Body, h.maxRequestBodySize)
+	}
 }
