@@ -178,3 +178,5 @@ Subscription events are private updates like any other. They go through the hub'
 ## Disabling Mercure active subscriptions
 
 Leave `subscriptions` out of the Caddyfile to disable presence events and the subscription API. Requests to the disabled API return `404`.
+
+The subscription API requires a configured subscriber verifier and a token granting access to the requested API path in every protocol mode, including v7 and v8 compatibility. Without a verifier, registry routes are disabled even when anonymous event subscriptions are allowed.
