@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yosida95/uritemplate/v3"
 )
 
 func deprecatedMatcher(pattern string) TopicMatcher {
@@ -65,4 +66,46 @@ func TestTemplateCacheBoundedByWeight(t *testing.T) {
 	// Counting entries would have retained all 20, some 4 MB under a 1 MB budget.
 	assert.Less(t, tms.templateCache.EstimatedSize(), 20)
 	assert.LessOrEqual(t, compiledCacheWeight(tms.templateCache), tms.compiledCacheWeight)
+}
+
+// The estimate must bound the cached weight, or the request budget would undercount.
+func TestURITemplateWeightBoundsCompiledWeight(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{
+		"https://example.com/books/{id}",
+		"https://example.com/{+path}{?q,lang}",
+		"{/a,b,c,d,e,f,g,h}",
+		"{;a*}{#b*}{.c}{&d*}",
+		"/" + strings.Repeat("{a*}", 200),
+		"/" + strings.Repeat("{+a*}", 200),
+		"/" + strings.Repeat("{#a*}", 200),
+		"/" + strings.Repeat("{;a}", 200),
+		"{" + strings.Repeat("a,", 600) + "a}",
+		"{;" + strings.Repeat("a,", 600) + "a}",
+		"https://example.com/" + strings.Repeat("x", 3000) + "{a}",
+	} {
+		tpl, err := uritemplate.New(pattern)
+		require.NoError(t, err)
+
+		r := templateRegexp(tpl)
+		require.NotNil(t, r)
+		assert.GreaterOrEqual(t, uriTemplateWeight(pattern), uint64(len(pattern))+templateWeight(r), "%.40s", pattern)
+	}
+}
+
+func TestURITemplateTooComplexRejectedBeforeCompiling(t *testing.T) {
+	t.Parallel()
+
+	tms, err := NewTopicMatcherStore(DefaultTopicMatcherStoreCacheSize)
+	require.NoError(t, err)
+
+	pattern := "/" + strings.Repeat("{a*}", 1000)
+	require.ErrorIs(t, tms.validateDeprecated(pattern), errURITemplateTooComplex)
+
+	r, cached := tms.templateCache.GetIfPresent(pattern)
+	require.True(t, cached, "the refusal is cached like failed compilations")
+	assert.Nil(t, r.value)
+	assert.False(t, tms.matchDeprecated([]string{"/x"}, deprecatedMatcher(pattern)))
+	assert.True(t, tms.matchDeprecated([]string{pattern}, deprecatedMatcher(pattern)), "exact comparison still applies")
 }

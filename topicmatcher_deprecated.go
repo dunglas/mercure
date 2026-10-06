@@ -46,6 +46,42 @@ func deprecatedMatcherTypeCompiled() bool {
 
 var errURITemplateTooComplex = errors.New("URI template too complex to compile")
 
+// Upper bounds of templateWeight, calibrated with runtime.MemStats like the URL Pattern weights.
+const (
+	uriTemplateOverhead    = 2 << 10
+	uriTemplateByteWeight  = 128
+	uriTemplateGroupWeight = 3 << 10 // One rune-class subexpression of the generated regexp.
+)
+
+// uriTemplateWeight estimates the compiled regexp of a valid template without compiling it.
+func uriTemplateWeight(pattern string) uint64 {
+	weight := uriTemplateOverhead + uint64(len(pattern))*uriTemplateByteWeight
+
+	var vars uint64
+
+	explode := false
+
+	for i := range len(pattern) {
+		switch pattern[i] {
+		case '{':
+			vars, explode = 1, false
+		case ',':
+			vars++
+		case '*':
+			explode = true
+		case '}':
+			// An exploded list repeats one group with "*"; otherwise "{0,vars-1}" copies it once per extra variable.
+			if explode {
+				vars = 2
+			}
+
+			weight += vars * uriTemplateGroupWeight
+		}
+	}
+
+	return weight
+}
+
 // validateDeprecated refuses a v8 URI template whose regexp cannot be compiled.
 // Selectors that are not valid URI templates fall back to exact comparison.
 func (tms *TopicMatcherStore) validateDeprecated(pattern string) error {
@@ -75,9 +111,13 @@ func (tms *TopicMatcherStore) getRegexp(pattern string) *regexp.Regexp {
 
 	// If an error occurs, it's a raw string
 	if tpl, err := uritemplate.New(pattern); err == nil {
-		// Use template.Regexp() instead of template.Match() for performance
-		// See https://github.com/yosida95/uritemplate/pull/7
-		r := templateRegexp(tpl)
+		var r *regexp.Regexp
+
+		if uriTemplateWeight(pattern) <= maxURLPatternWeight {
+			// Use template.Regexp() instead of template.Match() for performance
+			// See https://github.com/yosida95/uritemplate/pull/7
+			r = templateRegexp(tpl)
+		}
 
 		if tms.templateCache != nil {
 			cacheCompiled(tms.templateCache, tms.compiledCacheWeight, pattern, r, uint64(len(pattern))+templateWeight(r))
