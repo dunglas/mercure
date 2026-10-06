@@ -199,24 +199,15 @@ ingress:
 
 See [Reverse proxies](reverse-proxy.md) for full configurations.
 
-## HTTPS/HTTP2 passthrough with mounted TLS certificates
+## Serving HTTPS from the pod
 
-When deploying Mercure on OpenShift, using a passthrough route allows TLS termination to occur in the Mercure pod instead of at the ingress. This preserves end-to-end HTTPS and enables HTTP/2 communication between clients and the application, which is important for Mercure's real-time capabilities. To achieve this you need to keep Mercure serving TLS directly and present the Service port as `https`.
-
-The typical setup is:
-
-- mount certificate files from a Kubernetes `Secret` (`extraVolumes` + `extraVolumeMounts`),
-- configure Caddy to bind and use those files (`caddyExtraDirectives`),
-- expose the service with `service.portName: https` (and matching ports).
-
-Example:
+To terminate TLS in the hub instead of at the ingress, for instance behind an OpenShift passthrough route to keep HTTP/2 end to end, mount the certificate from a Kubernetes `Secret` and point Caddy at it:
 
 ```yaml
-# values.yaml (snippet)
 service:
   portName: https
   port: 443
-  targetPort: 8080
+  targetPort: 8443
 
 extraVolumes:
   - name: mercure-certs
@@ -229,13 +220,10 @@ extraVolumeMounts:
     readOnly: true
 
 caddyExtraDirectives: |
-  bind 0.0.0.0
   tls /certs/tls.crt /certs/tls.key
-
-extraEnvs:
-  - name: SERVER_NAME
-    value: ":8080"
 ```
+
+The hub listens on `:<service.targetPort>`. The legacy `/healthz` probes (`healthCheck.enabled: false`) use plain HTTP and fail once this port serves TLS: keep the default health checks, which query the admin port.
 
 ## Upgrading the Mercure Helm release
 
