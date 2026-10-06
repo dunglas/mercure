@@ -14,7 +14,7 @@ set -o errtrace
 set -o pipefail
 set -o xtrace
 
-for cmd in git go yq curl java openssl; do
+for cmd in git go yq curl java; do
 	if ! type "$cmd" >/dev/null; then
 		echo "The \"$cmd\" command must be installed." >&2
 		exit 1
@@ -42,41 +42,28 @@ cleanup() {
 trap cleanup EXIT
 
 # Build tags must match the caddy build in .goreleaser.yml so the profile
-# reflects the code that actually ships. .golangci.yml is deliberately wider
-# (it adds deprecated_server for lint coverage) and is not the right source.
+# reflects the code that actually ships.
 tags="$(yq '.builds[] | select(.id == "caddy") | .tags | join(",")' .goreleaser.yml)"
 
 GOFLAGS='-pgo=off' go build -C caddy/mercure -tags "$tags" -o "$tmp/mercure" .
 
-# Matches the test JWT shipped by the Gatling simulation in gatling/ and the
-# keys documented in docs/hub/install.md.
-export MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'
+key='!ChangeThisMercureHubJWTSecretKey!'
+export MERCURE_PUBLISHER_JWT_KEY="$key"
 export MERCURE_PUBLISHER_JWT_ALG=HS256
-export MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!'
+export MERCURE_SUBSCRIBER_JWT_KEY="$key"
 export MERCURE_SUBSCRIBER_JWT_ALG=HS256
 # Matches the mix of traffic most production hubs see: anonymous SSE
 # subscribers for public browser traffic, and the subscription API enabled
-# for operators.
-export MERCURE_EXTRA_DIRECTIVES=$'anonymous\n\tsubscriptions'
+# for operators. The local transport keeps the bolt write path from
+# dominating the profile.
+export MERCURE_EXTRA_DIRECTIVES=$'anonymous\n\tsubscriptions\n\ttransport local'
 # Gatling (JSSE/Netty) strips SNI for single-label hostnames like localhost,
 # so tell Caddy to serve the localhost cert on empty-SNI handshakes.
 export GLOBAL_OPTIONS='default_sni localhost'
-# Use the in-memory local transport rather than the bolt default. The bolt
-# write path would otherwise dominate the profile, which over-fits PGO to a
-# code path users running Enterprise transports (or local://) don't exercise.
-export MERCURE_TRANSPORT_URL='local://'
-
-# Generate an HS256 JWT with publish/subscribe = ["*"] signed with the same
-# key the hub is configured with. The Gatling default JWT only authorises
-# subscribe selectors for /my-private-topic etc., which would reject the
-# random topics that PRIVATE_UPDATES=true produces.
-b64url() { openssl base64 -A | tr -d '=' | tr '/+' '_-'; }
-jwt_header='eyJhbGciOiJIUzI1NiJ9'
-jwt_payload="$(printf '%s' '{"mercure":{"publish":["*"],"subscribe":["*"]}}' | b64url)"
-jwt_sig="$(printf '%s.%s' "$jwt_header" "$jwt_payload" \
-	| openssl dgst -sha256 -hmac '!ChangeThisMercureHubJWTSecretKey!' -binary \
-	| b64url)"
-jwt="${jwt_header}.${jwt_payload}.${jwt_sig}"
+# Wildcard grants: PRIVATE_UPDATES=true publishes to random topics.
+jwt="$("$tmp/mercure" mercure-token --iss https://localhost \
+	--aud https://localhost/.well-known/mercure --key "$key" \
+	--publish '*' --subscribe '*' --ttl 1h)"
 
 "$tmp/mercure" run --config Caddyfile --adapter caddyfile &
 hub_pid=$!
