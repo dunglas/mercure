@@ -61,6 +61,7 @@ func TestParseMatchersURLPatternAggregateBudget(t *testing.T) {
 	require.NoError(t, err)
 	h := createDummy(t, WithTopicMatcherStore(tms))
 	patterns := make([]string, maxMatcherCount)
+
 	for i := range patterns {
 		// Each pattern is valid and below the individual compilation limit.
 		patterns[i] = "https://example.com/" + strings.Repeat("a", maxPatternLength-22) + string(rune('A'+i))
@@ -70,6 +71,7 @@ func TestParseMatchersURLPatternAggregateBudget(t *testing.T) {
 
 	_, err = h.parseMatchers(url.Values{"match_urlpattern": patterns}, false)
 	require.ErrorIs(t, err, errMatcherBudgetExceeded)
+
 	for _, pattern := range patterns {
 		_, cached := tms.urlPatterns.GetIfPresent(tms.base() + topicsKeySeparator + pattern)
 		assert.False(t, cached, "reject the entire request before compiling any pattern")
@@ -82,6 +84,7 @@ func TestParseMatchersURLPatternAggregateBudget(t *testing.T) {
 	for i := range exact {
 		exact[i] = patterns[0]
 	}
+
 	_, err = h.parseMatchers(url.Values{"match": exact}, false)
 	require.NoError(t, err, "exact matchers do not consume the compilation budget")
 }

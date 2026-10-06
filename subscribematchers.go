@@ -61,7 +61,9 @@ var (
 // 400 status code. Parameter names are case-sensitive.
 func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
 	var patternWeight uint64
+
 	baseWeight := uint64(len(h.topicMatcherStore.base()))
+
 	for _, pattern := range query[paramMatch+"_"+string(MatcherTypeURLPattern)] {
 		if err := validateMatcherValue(pattern); err != nil {
 			return nil, err
@@ -71,6 +73,7 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 		if weight > maxRequestURLPatternWeight-patternWeight {
 			return nil, errMatcherBudgetExceeded
 		}
+
 		patternWeight += weight
 	}
 
