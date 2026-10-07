@@ -235,25 +235,61 @@ func TestPublishHandlerEmptyTopicMatcher(t *testing.T) {
 func TestPublishHandlerLegacyAuthorization(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t, WithProtocolVersionCompatibility(7))
+	subscriberSignedByPublisher := mintAccessToken([]byte("publisher"), testResourceIdentifier, []authorizationDetail{{
+		Type:    authorizationDetailTypeMercure,
+		Actions: []mercureAction{actionSubscribe},
+		Topics:  stringsToDetailTopics([]string{"*"}),
+	}})
 
-	form := url.Values{}
-	form.Add("topic", "https://example.com/books/1")
+	for _, tc := range []struct {
+		name    string
+		mode    int
+		token   string
+		private bool
+		status  int
+	}{
+		{"v7 no publish grant", 7, createDummyAuthorizedJWT(rolePublisher, nil), false, http.StatusForbidden},
+		{"v7 subscriber-only token", 7, subscriberSignedByPublisher, false, http.StatusForbidden},
+		{"v7 other topic", 7, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}), false, http.StatusOK},
+		{"v7 private other topic", 7, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}), true, http.StatusForbidden},
+		{"v7 granted topic", 7, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/books/1"}), true, http.StatusOK},
+		{"v7 wildcard", 7, createDummyAuthorizedJWT(rolePublisher, []string{"*"}), false, http.StatusOK},
+		{"v8 other topic", 8, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}), false, http.StatusForbidden},
+		{"modern other topic", 0, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}), false, http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var opts []Option
+			if tc.mode != 0 {
+				opts = append(opts, WithProtocolVersionCompatibility(tc.mode))
+			}
+
+			assertPublishStatus(t, createDummy(t, opts...), tc.token, tc.private, tc.status)
+		})
+	}
+}
+
+func assertPublishStatus(t *testing.T, hub *Hub, token string, private bool, status int) {
+	t.Helper()
+
+	form := url.Values{"topic": {"https://example.com/books/1"}}
+	if private {
+		form.Set("private", "on")
+	}
 
 	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{}))
+	req.Header.Add("Authorization", bearerPrefix+token)
 
 	w := httptest.NewRecorder()
 	hub.PublishHandler(w, req)
 
-	resp := w.Result()
+	assert.Equal(t, status, w.Code)
 
-	t.Cleanup(func() {
-		assert.NoError(t, resp.Body.Close())
-	})
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if status == http.StatusForbidden {
+		assert.Contains(t, w.Header().Get("WWW-Authenticate"), "insufficient_scope")
+	}
 }
 
 func TestPublishHandlerOK(t *testing.T) {
