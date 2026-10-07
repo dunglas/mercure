@@ -250,7 +250,9 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 // subscription API URL, writing the HTTP error response on failure.
 func (h *Hub) authorizeSubscriptionRequest(span trace.Span, w http.ResponseWriter, r *http.Request) bool {
 	if !h.subscriberConfigured {
-		return true
+		h.writeAuthError(w, r, nil)
+
+		return false
 	}
 
 	claims, err := h.authorize(r, false)
