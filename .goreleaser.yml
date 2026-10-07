@@ -76,6 +76,11 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
+    # Otherwise inherited from the Caddy base image.
+    labels:
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
     extra_files:
       - Caddyfile
 nfpms:
