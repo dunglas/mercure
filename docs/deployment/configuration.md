@@ -288,13 +288,37 @@ The endpoints bind to `localhost` for security. Probes from outside the containe
 Tune these settings using measurements from your workload:
 
 - `dispatch_timeout`: too low and slow subscribers get cut off; too high and a stuck dispatch ties up resources. The 5s default is a reasonable starting point. Caddy 2.11.7 and later reset the write deadline to `write_idle_timeout` (1 minute by default) on every write, which overrides `dispatch_timeout` until [caddyserver/caddy#8145](https://github.com/caddyserver/caddy/pull/8145) is released. In the meantime, set the `write_idle` timeout of the [`servers` global option](https://caddyserver.com/docs/caddyfile/options#timeouts) to the same value: `servers { timeouts { write_idle 5s } }`.
-- Compression: the default Caddyfile doesn't compress `/.well-known/mercure`. Since Caddy 2.11.7, `encode` compresses SSE responses, and each one holds its own encoder for the whole connection, which adds up quickly on hubs with many subscribers. Compressing private updates in the same stream as attacker-controlled data also enables [BREACH](https://www.breachattack.com/)-style attacks.
+- Compression: the default Caddyfile doesn't compress responses. See [Compressing the event stream](#compressing-the-event-stream).
 - `write_timeout`: controls how often each subscriber rotates its connection in steady state. Higher values mean fewer reconnects but slower drains on shutdown, unless `drain_timeout` is set. See [Rolling updates](../production/rolling-updates.md).
 - `drain_timeout`: bounds the drain on termination, so a long `write_timeout` doesn't slow rolling updates. See [Rolling updates](../production/rolling-updates.md).
 - `topic_matcher_cache` and `subscriber_list_cache_size`: increase if your hub has many distinct matchers and you see CPU spent in matcher evaluation. Decrease if memory is tight.
 - File descriptors: each TCP connection consumes one; HTTP/2 streams can share a connection. `ulimit -n 100000` on the host (or the equivalent in your orchestrator) for high-fanout hubs.
 
 [Load testing](../production/load-testing.md) and [Debugging](../production/debugging.md) cover the rest.
+
+## Compressing the event stream
+
+The default Caddyfile doesn't compress responses: the hub mostly serves event streams and small documents. Compressing the stream trades memory and security for bandwidth.
+
+Since Caddy 2.11.7, `encode` compresses SSE responses with one encoder per connection, kept until the subscriber disconnects. Each update is compressed against the previous ones, so streams of repetitive payloads, such as HTML fragments or JSON documents sharing the same keys, shrink a lot.
+
+The encoder holds memory for the lifetime of the connection: about 1 MiB with gzip and a few MiB with zstd at Caddy's default settings, multiplied by the number of concurrent subscribers.
+
+The shared compression context also enables [BREACH](https://www.breachattack.com/)-style attacks. An attacker can recover a secret from a stream when all these conditions are met:
+
+- the stream carries the secret, such as a private update or a CSRF token in an HTML fragment;
+- the attacker can get content they control into the same stream, for instance a comment that your app publishes to the topic;
+- the attacker can observe the size of the encrypted traffic, for instance from the same network.
+
+The attacker publishes guesses and watches the size of each event: a guess matching the secret compresses better. Unlike BREACH against regular responses, the victim doesn't need to send any request.
+
+Compress the stream only when the hub has enough memory for one encoder per subscriber, and when streams never mix secrets with content that untrusted users can influence. Tokens masked differently on each render also defeat the attack. To compress responses, add the `encode` directive to the site block, and prefer gzip if memory is tight:
+
+```caddyfile
+encode gzip
+```
+
+A reverse proxy or CDN in front of the hub may compress the stream on its own. The same trade-off applies.
 
 ## Mercure hub configuration reload
 
