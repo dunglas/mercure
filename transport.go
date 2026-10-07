@@ -12,7 +12,6 @@ const EarliestLastEventID = "earliest"
 // Transport provides methods to dispatch and persist updates.
 type Transport interface {
 	// Dispatch dispatches an update to all subscribers.
-	// It takes ownership of u and may hand it to subscribers without copying; it may set u.ID.
 	//
 	// It trusts u to be well-formed. A caller that builds u from untrusted
 	// input (e.g. a publisher request) and dispatches it directly instead of
