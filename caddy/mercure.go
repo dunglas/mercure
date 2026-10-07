@@ -1000,7 +1000,7 @@ func (m *Mercure) warnAboutWellKnownKeys(ctx context.Context) {
 // VerifierConfig that isSet reports as configured.
 func (m *Mercure) buildVerifier(ctx context.Context, c VerifierConfig, role string) (mercure.Verifier, error) { //nolint:ireturn
 	if c.JWKSURL != "" {
-		k, err := newJWKSetKeyfunc(ctx, c.JWKSURL)
+		k, err := newJWKSetKeyfunc(ctx, m.logger, c.JWKSURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve %s JWK Set: %w", role, err)
 		}
@@ -1169,17 +1169,24 @@ func (m *Mercure) playgroundTokenFunc() func(string) (string, error) {
 	}
 }
 
-var errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+var (
+	errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+	errJWKSetRedirect        = errors.New("refusing to follow JWK Set redirect")
+)
+
+func refuseJWKSetRedirect(req *http.Request, _ []*http.Request) error {
+	return fmt.Errorf("%w to %s: configure the final URL as jwks_uri", errJWKSetRedirect, req.URL.Redacted())
+}
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
 //
 // file:// URLs point to a local JSON file containing a JWK Set; the file is
 // read once at provision time, so rotating the keys requires a Caddy config
-// reload. Other URLs are forwarded to keyfunc.NewDefaultCtx, which handles
-// HTTP(S) and rejects unsupported schemes.
+// reload. HTTP(S) resources are refreshed using a client that refuses redirects,
+// so a trusted JWK Set endpoint cannot redirect requests to other services.
 //
 //nolint:ireturn
-func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, error) {
+func newJWKSetKeyfunc(ctx context.Context, logger *slog.Logger, rawURL string) (keyfunc.Keyfunc, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid JWK Set URL %q: %w", rawURL, err)
@@ -1203,7 +1210,19 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 		return k, nil
 	}
 
-	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
+	// Otherwise keyfunc logs to slog.Default(), hiding even the swallowed first-fetch error from Caddy's logs.
+	refreshErrorHandler := func(string) func(context.Context, error) {
+		return func(ctx context.Context, err error) {
+			if logger.Enabled(ctx, slog.LevelError) {
+				logger.LogAttrs(ctx, slog.LevelError, "Failed to fetch the JWK Set", slog.String("url", u.Redacted()), slog.Any("error", err))
+			}
+		}
+	}
+
+	return keyfunc.NewDefaultOverrideCtx(ctx, []string{rawURL}, keyfunc.Override{ //nolint:wrapcheck
+		Client:                  &http.Client{CheckRedirect: refuseJWKSetRedirect},
+		RefreshErrorHandlerFunc: refreshErrorHandler,
+	})
 }
 
 // parseCaddyfile unmarshals tokens from h into a new Middleware.
