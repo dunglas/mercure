@@ -295,19 +295,12 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	lastEventID, lastEventIDSet := h.retrieveLastEventID(ctx, r, values)
 
-	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
-	s.RequestLastEventIDSet = lastEventIDSet
-
 	var claims *claims
 
 	if h.subscriberConfigured { //nolint:nestif
 		var err error
 
 		claims, err = h.authorize(r, false)
-		if claims != nil {
-			s.Claims = claims
-		}
-
 		if err != nil || (claims == nil && !h.anonymous) {
 			h.writeAuthError(w, r, err)
 
@@ -318,6 +311,19 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 			return nil, nil
 		}
 	}
+
+	permit := h.reserveSubscription(w, r, claims)
+	if permit == nil {
+		return nil, nil
+	}
+
+	registered := false
+
+	defer func() {
+		if !registered {
+			permit.release()
+		}
+	}()
 
 	deprecated := h.isBackwardCompatiblyEnabledWith(8)
 
@@ -334,6 +340,10 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 		privateTopicMatchers = claims.authz.subscribeMatchers()
 	}
 
+	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
+	s.RequestLastEventIDSet = lastEventIDSet
+	s.Claims = claims
+	s.subscriptionPermit = permit
 	s.setMatchers(matchers, privateTopicMatchers)
 
 	if span.IsRecording() {
@@ -383,6 +393,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	h.metrics.SubscriberConnected(s)
+
+	registered = true
 
 	return s, rc
 }
@@ -570,6 +582,8 @@ func (h *Hub) write(ctx context.Context, rc *responseController, data string) bo
 }
 
 func (h *Hub) shutdown(ctx context.Context, s *LocalSubscriber) {
+	defer s.subscriptionPermit.release()
+
 	// Notify that the client is closing the connection
 	s.Disconnect()
 

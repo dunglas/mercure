@@ -463,6 +463,8 @@ type opt struct {
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
 	maxRequestBodySize           int64
+	subscriptionLimits           SubscriptionLimits
+	clientIPFunc                 func(*http.Request) string
 	issuers                      map[string]issuerVerifier
 	publisherConfigured          bool
 	subscriberConfigured         bool
@@ -579,8 +581,9 @@ func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 type Hub struct {
 	*opt
 
-	handler http.Handler
-	ctx     context.Context //nolint:containedctx
+	subscriptionLimiter *subscriptionLimiter
+	handler             http.Handler
+	ctx                 context.Context //nolint:containedctx
 
 	// Separate from ctx, which config reloads cancel too.
 	drainCh   chan struct{}
@@ -640,7 +643,7 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.cookieName = defaultCookieName
 	}
 
-	h := &Hub{opt: opt, ctx: ctx, drainCh: make(chan struct{})}
+	h := &Hub{opt: opt, ctx: ctx, drainCh: make(chan struct{}), subscriptionLimiter: &subscriptionLimiter{limits: opt.subscriptionLimits, tokens: make(map[[32]byte]int), clients: make(map[string]int)}}
 	h.initHandler()
 
 	return h, nil

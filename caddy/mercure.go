@@ -160,6 +160,9 @@ type Mercure struct {
 	// set to 0 to disable the in-hub limit.
 	MaxRequestBodySize *int64 `json:"max_request_body_size,omitempty"`
 
+	// Per-instance concurrent stream limits. Zero disables an individual limit.
+	SubscriptionLimits *mercure.SubscriptionLimits `json:"subscription_limits,omitempty"`
+
 	// Issuers binds each trusted issuer (RFC 9068 §4) to its own verification
 	// material, so key material is never pooled across issuers.
 	Issuers []IssuerConfig `json:"issuers,omitempty"`
@@ -368,6 +371,10 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithHeartbeat(time.Duration(*d)))
 	}
 
+	if m.SubscriptionLimits != nil {
+		opts = append(opts, mercure.WithSubscriptionLimits(*m.SubscriptionLimits), mercure.WithClientIPFunc(clientIP))
+	}
+
 	if s := m.MaxRequestBodySize; s != nil {
 		opts = append(opts, mercure.WithMaxRequestBodySize(*s))
 	}
@@ -550,6 +557,25 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				if m.Heartbeat, err = parseDurationParameter(d); err != nil {
 					return err
 				}
+
+			case "subscription_limits":
+				args := d.RemainingArgs()
+				if len(args) != 3 {
+					return d.ArgErr()
+				}
+
+				var limits [3]int
+
+				for i, arg := range args {
+					value, err := strconv.Atoi(arg)
+					if err != nil || value < 0 {
+						return d.Errf("invalid subscription limit %q", arg)
+					}
+
+					limits[i] = value
+				}
+
+				m.SubscriptionLimits = &mercure.SubscriptionLimits{Total: limits[0], PerToken: limits[1], PerClient: limits[2]}
 
 			case "max_request_body_size":
 				if !d.NextArg() {
@@ -1259,3 +1285,10 @@ var (
 	_ caddyhttp.MiddlewareHandler = (*Mercure)(nil)
 	_ caddyfile.Unmarshaler       = (*Mercure)(nil)
 )
+
+// clientIP returns the client IP resolved by Caddy, which honors trusted_proxies.
+func clientIP(r *http.Request) string {
+	ip, _ := caddyhttp.GetVar(r.Context(), caddyhttp.ClientIPVarKey).(string)
+
+	return ip
+}
