@@ -24,6 +24,46 @@ Content-Type: application/json
 
 The client parses the header, takes the URL with `rel="mercure"`, appends its `match*` query parameters, and opens an `EventSource`. Reusing your existing API responses to carry the link keeps subscribers and publishers pointing at the same hub.
 
+A resource's own URL is normally its topic too, so a subscriber matches on `Content-Location ?? res.url`.
+
+## Content negotiation on the topic
+
+The one case that needs more is content negotiation: the same conceptual resource served under several representations, for example by language (`Accept-Language`) or by format (`Accept`). The hub can't see which representation the subscriber's browser would negotiate, so it can't resolve those variants back to one topic on its own.
+
+For that case, the publisher **may** include a second link, `rel="self"`, holding the canonical URL you want subscribers to use as the topic. Point every representation's `rel="self"` at the same URL to share one topic across variants, or give each its own to keep them separate:
+
+```http
+# Content negotiation on the topic
+GET /books/42 HTTP/2
+Host: example.com
+Accept-Language: fr
+
+HTTP/2 200
+Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
+Link: </books/42>; rel="self"
+Content-Language: fr
+```
+
+```javascript
+// Content negotiation on the topic
+const res = await fetch("https://example.com/books/42", {
+  headers: { "Accept-Language": "fr" },
+});
+const links = res.headers.get("Link");
+const hub = links?.match(/<([^>]+)>;\s*rel="?mercure"?/)?.[1];
+if (!hub) throw new Error("No Mercure link in the response");
+const self =
+  links.match(/<([^>]+)>;\s*rel="?self"?/)?.[1] ??
+  res.headers.get("Content-Location") ??
+  res.url;
+
+const url = new URL(hub, res.url);
+url.searchParams.append("match", new URL(self, res.url).href);
+new EventSource(url);
+```
+
+Cross-origin, the response must list `Link` (and `Content-Location`, for the fallback) in `Access-Control-Expose-Headers`, or `fetch()` cannot read them. Outside content negotiation, skip `rel="self"` and use the [Subscribing](subscribing.md#discovering-the-mercure-hub-via-link-header) snippet.
+
 ## Protected resource metadata
 
 The hub is an OAuth 2.0 protected resource, so it publishes [OAuth 2.0 Protected Resource Metadata](https://www.rfc-editor.org/rfc/rfc9728). For a hub at `https://hub.example.com/.well-known/mercure`, the metadata lives at:

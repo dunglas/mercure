@@ -17,6 +17,7 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | ------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
 | Matcher types             | URI Template, string, plus exploratory types                       | `exact` and `urlpattern` only                                                  |
 | Subscribe query parameter | `topic=<pattern>` (URI Template or string)                         | `match=<exact>` or `match_urlpattern=<pattern>` (case-sensitive)               |
+| Resumption parameter      | `lastEventID` (`Last-Event-ID` before 0.14)                        | `last_event_id` (the request header keeps its name)                            |
 | Templating language       | URI Templates ([RFC 6570](https://www.rfc-editor.org/rfc/rfc6570)) | URL Patterns ([WHATWG](https://urlpattern.spec.whatwg.org))                    |
 | Token                     | bespoke `mercure` JWT claim                                        | OAuth 2.0 access token: `typ: at+jwt`, `iss`, `aud`, `authorization_details`   |
 | Authorization             | `mercure.publish` / `mercure.subscribe` string arrays              | `authorization_details` entries with the Mercure `type` URI (see below)        |
@@ -41,6 +42,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 - The exact-match parameter is `match` (explicit spelling: `match_exact`); the templated one is `match_urlpattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
 - Parameter names are **case-sensitive**. Any other name under the `match` prefix is rejected with `400`, so typos fail loudly.
 - The `URI Template` matcher type is gone; it survives only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`. Rewrite templated topics as URL Patterns and string topics as exact topics.
+- The resumption cursor moves too: the `lastEventID` query parameter is now `last_event_id`. The `Last-Event-ID` request _header_ is unchanged, so a client relying only on `EventSource`'s automatic reconnection needs no change. A client that seeds the cursor itself does, and in a browser the query parameter is the only way to seed it. See [Reconnection and history](concepts/reconnection-and-history.md).
 
 ### Migrate your tokens
 
@@ -129,6 +131,7 @@ Subscription documents are now serialised compactly, and `<`, `>` and `&` are no
 - `mercureAuthorization` cookie -> `__Secure-mercure_access_token`; `authorization=` query param -> `Authorization` header or cookie (no query parameter)
 - `publisher_jwt` / `subscriber_jwt` / `*_jwks_url` in the Caddyfile -> `issuer <iss> { publisher { jwt ... } subscriber { jwt ... } }` (see [JWT keys move into `issuer` blocks](#jwt-keys-move-into-issuer-blocks))
 - Hardcoded `subscriptions/{topic}/{subscriber}` paths -> add the `{match_type}` segment
+- `?lastEventID=` / `&lastEventID=` in subscriber URLs -> `last_event_id=`. Not covered by compatibility mode: `7` restores the pre-0.14 `Last-Event-ID` query parameter, not this one
 - `Last-Event-ID` read from a **response** -> `Mercure-Last-Event-ID` (the request header keeps its name; see [Reconnection and history](concepts/reconnection-and-history.md))
 
 - JSON-LD subscription documents (`application/ld+json`, `@context`) -> plain JSON served as `application/json`
@@ -201,7 +204,14 @@ The standalone non-Caddy server has been removed. Deploy the Caddy-based binary 
 
 Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
-Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
+The directive also accepts `7`, which is a **superset** of `8`: it restores everything `8` does, plus two behaviors deprecated in protocol version 7. Unlike the ones above, these two are not gated behind a build tag, so every build honors them:
+
+- the `Last-Event-ID` **query parameter** (the name in use _before_ 0.14 renamed it `lastEventID`). This does not cover `lastEventID`: the hub never reads it, in any mode, so it has no compatibility path and trips no log line.
+- publishing a _public_ update to a topic outside the token's `publish` grants. Without `7`, this is a `403 insufficient_scope`; grant the `*` topic instead.
+
+Prefer `8`. Reach for `7` only for subscribers from before 0.14 or publishers posting public updates to topics outside their grants. A request that trips a relaxation you have not enabled logs an `Unsupported:` line naming the behavior.
+
+Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`; see [Custom Caddy build](getting-started/installation.md#custom-caddy-build) for the `xcaddy` recipe.
 
 #### Restore the removed Caddyfile directives
 
@@ -291,7 +301,7 @@ The default development key changed from `!ChangeMe!` to `!ChangeThisMercureHubJ
 
 ### Mercure 0.14 upgrade notes
 
-The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your clients.
+The `Last-Event-ID` query parameter was renamed `lastEventID`. Update your clients. (1.0 renamed it again, to `last_event_id`; see [Migrate your subscribers](#migrate-your-subscribers).)
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 

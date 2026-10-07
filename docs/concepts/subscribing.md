@@ -37,7 +37,7 @@ es.onerror = () => {
 A few things to know:
 
 - Browsers typically allow **6 HTTP/1.1 connections per origin**, shared across tabs. With HTTP/2, **100 concurrent streams is a common default**, negotiated between client and server. These are streams sharing a connection, not 100 separate TCP connections. See [MDN's SSE connection limits](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#receiving_events_from_the_server). HTTP/3 also multiplexes streams, with its own negotiated limits.
-- A single `EventSource` connection can carry up to 100 matchers in this hub by passing more `match*` parameters.
+- A single `EventSource` connection can carry up to 100 matchers in this hub by passing more `match*` parameters. The frames it delivers carry no topic field, so see [Telling which topic an update belongs to](#telling-which-topic-an-update-belongs-to) for how to route them.
 - `EventSource` does not let you set `Authorization` headers. For private subscriptions, use the [`__Secure-mercure_access_token` cookie](authorization.md#cookies-in-detail), or consume the stream with `fetch()` and an `Authorization` header when a cookie can't work (per-tab tokens, cross-domain hub).
 
 ### Subscribing with Laravel Echo
@@ -223,6 +223,26 @@ Fields:
 - `event`: the `type` field from the publish request, if any. Defaults to `message`. `EventSource` triggers `addEventListener("<type>", ...)` for non-default types.
 - `data`: whatever the publisher sent in `data`. Mercure does not interpret it; it's bytes you decided on (JSON, HTML, JSON Patch, plain text...).
 
+### Telling which topic an update belongs to
+
+There is no topic field in the frame, so the hub does not tell a subscriber which of its matchers an update arrived on. It could not say it unambiguously anyway: [several `match*` parameters are a logical OR](topics-and-matchers.md#combining-matchers) and one update can satisfy more than one of them, and an update published with [alternate topics](topics-and-matchers.md#alternate-topics) carries several topics to begin with.
+
+On a connection carrying more than one subscription, **the payload is the discriminator**. Publish something self-describing and route on it:
+
+```javascript
+// Telling which topic an update belongs to
+es.onmessage = (event) => {
+  const update = JSON.parse(event.data);
+  render(update["@id"], update);
+};
+```
+
+JSON-LD's [`@id`](https://www.w3.org/TR/json-ld11/#node-identifiers) is the natural field because it is the topic URL itself, but any identifier works as long as every publisher of that topic sets it. Publishing a bare value with no identifier in it (a number, a status string) leaves a multi-topic subscriber unable to place the update.
+
+For coarse routing, the publish `type` becomes the SSE `event` field, so a family of updates can be picked up with `addEventListener("<type>", ...)` instead. That is a label you choose, not the topic, and `mercure` is reserved for [subscription events](active-subscriptions.md).
+
+None of this applies to a connection with a single subscription: the topic is the one you passed in the single `match*` parameter.
+
 ## Discovering the Mercure hub via link header
 
 A resource can advertise its hub in a `Link` header. The following exchange shows a discovery response:
@@ -236,7 +256,7 @@ Content-Type: application/ld+json
 Link: <https://hub.example.com/.well-known/mercure>; rel="mercure"
 ```
 
-Subscribers that fetch the resource first can read the header to find the hub:
+Subscribers that fetch the resource first can read the headers to find both the hub and the topic to subscribe to:
 
 ```javascript
 const res = await fetch("https://example.com/books/1");
@@ -268,7 +288,7 @@ If you set `heartbeat 0s` to disable them, make sure nothing on the network path
 | Concurrent HTTP/1.1 connections per origin | Typically 6; browser-dependent                                                         |
 | Concurrent connections to the hub          | Hardware-bound on OSS; see [Cloud and Enterprise plans](https://mercure.rocks/pricing) |
 
-A single connection accepts up to 100 matchers in this hub: pass more `match*` parameters rather than opening more `EventSource` instances.
+A single connection accepts up to 100 matchers in this hub: pass more `match*` parameters rather than opening more `EventSource` instances, and [route the updates on their payload](#telling-which-topic-an-update-belongs-to).
 
 ## Next steps
 
