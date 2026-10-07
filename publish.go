@@ -127,7 +127,8 @@ func (u *Update) Validate(baseURL string) error {
 }
 
 // Publish broadcasts the given update to all subscribers.
-// The id field of the Update instance can be updated by the underlying Transport.
+// Publish takes ownership of update: transports may deliver it asynchronously, so callers must
+// not modify it, including its Topics slice, after the call. The transport may set its ID.
 func (h *Hub) Publish(ctx context.Context, update *Update) error {
 	ctx, span := startSpan(ctx, "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))
 	// Deferred so the ID assigned by the transport via AssignUUID lands on the span.
