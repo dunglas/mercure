@@ -61,61 +61,28 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-dockers:
+dockers_v2:
   - ids:
       - caddy
-    goos: linux
-    goarch: amd64
-    image_templates:
-      # Rolling tags (vN, vN.M, latest) are suppressed on prereleases so
-      # a prerelease cut does not move :latest/:vN off the stable line.
-      # GoReleaser drops empty entries, so the {{ if }} blocks emit no tag.
-      - "dunglas/mercure:{{ .Tag }}-amd64"
-      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}-amd64{{ end }}"
-      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64{{ end }}"
-      - "{{ if not .Prerelease }}dunglas/mercure:latest-amd64{{ end }}"
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
+    images:
+      - dunglas/mercure
+    tags:
+      # Rolling tags are suppressed on prereleases so a prerelease cut does
+      # not move :latest/:vN off the stable line. Empty tags are dropped.
+      - "{{ .Tag }}"
+      - "{{ if not .Prerelease }}v{{ .Major }}{{ end }}"
+      - "{{ if not .Prerelease }}v{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    # Otherwise inherited from the Caddy base image.
+    labels:
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
     extra_files:
       - Caddyfile
-  - ids:
-      - caddy
-    goos: linux
-    goarch: arm64
-    image_templates:
-      - "dunglas/mercure:{{ .Tag }}-arm64v8"
-      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}-arm64v8{{ end }}"
-      - "{{ if not .Prerelease }}dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8{{ end }}"
-      - "{{ if not .Prerelease }}dunglas/mercure:latest-arm64v8{{ end }}"
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-    extra_files:
-      - Caddyfile
-docker_manifests:
-  - name_template: dunglas/mercure:{{ .Tag }}
-    image_templates:
-      - dunglas/mercure:{{ .Tag }}-amd64
-      - dunglas/mercure:{{ .Tag }}-arm64v8
-  # skip_push "auto" omits the rolling manifests on prereleases; a templated
-  # "{{ .Prerelease }}" renders to the non-empty tag (e.g. "alpha.1"), which is
-  # truthy and would push them, referencing per-arch images guarded off above.
-  - name_template: dunglas/mercure:v{{ .Major }}
-    skip_push: "auto"
-    image_templates:
-      - dunglas/mercure:v{{ .Major }}-amd64
-      - dunglas/mercure:v{{ .Major }}-arm64v8
-  - name_template: dunglas/mercure:v{{ .Major }}.{{ .Minor }}
-    skip_push: "auto"
-    image_templates:
-      - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-amd64
-      - dunglas/mercure:v{{ .Major }}.{{ .Minor }}-arm64v8
-  - name_template: dunglas/mercure:latest
-    skip_push: "auto"
-    image_templates:
-      - dunglas/mercure:latest-amd64
-      - dunglas/mercure:latest-arm64v8
 nfpms:
   - id: linux_packages
     package_name: mercure
