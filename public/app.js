@@ -67,9 +67,10 @@ const ensureCookie = async () => {
 };
 
 // openStream connects an SSE stream and returns its AbortController. onMessage
-// receives every fetchEventSource message ({ id, event, data }). Transient
-// network drops reconnect automatically (fetchEventSource resends the
-// Last-Event-ID header, which the hub honors); an HTTP error is fatal.
+// receives every fetchEventSource message ({ id, event, data }). Network drops
+// and streams the hub ends (write timeout, shutdown) reconnect automatically
+// (fetchEventSource resends the Last-Event-ID header, which the hub honors); an
+// HTTP error is fatal.
 const openStream = (url, onMessage) => {
   const controller = new AbortController();
 
@@ -98,7 +99,8 @@ const openStream = (url, onMessage) => {
       setStatus("error", "Reconnecting…"); // transient: retry with default backoff
     },
     onclose() {
-      setStatus("off", "Disconnected");
+      // A clean end is final to fetchEventSource; throw to retry via onerror.
+      throw new Error("Connection closed by the hub");
     },
   }).catch(report);
 
