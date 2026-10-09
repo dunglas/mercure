@@ -75,11 +75,8 @@ Libraries, framework integrations, and tutorials for Mercure. Check each project
 
 - 📺 [API updates in real time with Mercure.rocks](https://www.youtube.com/watch?v=odNsxoHSkT4)
 - 📺 [Building async public APIs using HTTP/2+ and the Mercure protocol](https://www.youtube.com/watch?v=IUx47Tx0O8E)
-- 📺 [Real-time notifications with Symfony and Mercure (basics)](https://www.youtube.com/watch?v=kYNC47V7R_0)
-- 📺 [Real-time chat app with Symfony and Mercure](https://www.youtube.com/watch?v=wnr2A4aKnPU)
 - [Official push and real-time capabilities for Symfony and API Platform](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
-- [Tech workshop: Mercure by Kévin Dunglas](https://blog.sensiolabs.com/2019/01/24/tech-workshop-mercure-kevin-dunglas-sensiolabs/)
-- [Real-time messages with Mercure using Laravel](http://thedevopsguide.com/real-time-notifications-with-mercure/)
+- [Laravel Broadcasting: Mercure driver](https://laravel.com/docs/broadcasting)
 - [Using Mercure on Stackhero](https://www.stackhero.io/services/Mercure-Hub/documentations)
 
 ### Mercure resources in French
@@ -90,7 +87,6 @@ Libraries, framework integrations, and tutorials for Mercure. Check each project
 - 📺 [Mercure: des UIs synchronisées avec les données en BDD](https://www.youtube.com/watch?v=UcBa4AugNTE)
 - 📺 [Async avec Messenger, AMQP et Mercure](https://www.youtube.com/watch?v=cHPbcuydJiA)
 - [Mercure, un protocole pour pousser des mises à jour en temps réel (Les-Tilleuls.coop)](https://les-tilleuls.coop/blog/mercure-un-protocole-pour-pousser-des-mises-a-jour-vers-des-navigateurs-et-app-mobiles-en-temps-reel)
-- [Symfony et Mercure](https://afsy.fr/avent/2019/21-symfony-et-mercure)
 - [À la découverte de Mercure](https://blog.eleven-labs.com/fr/a-la-decouverte-de-mercure/)
 
 ### Mercure resources in German
