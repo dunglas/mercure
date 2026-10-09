@@ -76,6 +76,7 @@ Libraries, framework integrations, and tutorials for Mercure. Check each project
 - 📺 [API updates in real time with Mercure.rocks](https://www.youtube.com/watch?v=odNsxoHSkT4)
 - 📺 [Building async public APIs using HTTP/2+ and the Mercure protocol](https://www.youtube.com/watch?v=IUx47Tx0O8E)
 - [Official push and real-time capabilities for Symfony and API Platform](https://dunglas.fr/2019/03/official-push-and-real-time-capabilities-for-symfony-and-api-platform-mercure-protocol/)
+- [Laravel Broadcasting: Mercure driver](https://laravel.com/docs/broadcasting)
 - [Using Mercure on Stackhero](https://www.stackhero.io/services/Mercure-Hub/documentations)
 
 ### Mercure resources in French
