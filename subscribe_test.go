@@ -621,6 +621,52 @@ func TestSubscribeLogAnonymousSubscriber(t *testing.T) {
 	assert.NotContains(t, buf.String(), "payload")
 }
 
+func TestSubscribeLogClientIP(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		opts     []Option
+		expected string
+	}{
+		{"remote address", nil, "192.0.2.1"},
+		{"client IP func", []Option{WithClientIPFunc(func(*http.Request) string { return "198.51.100.7" })}, "198.51.100.7"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var buf bytes.Buffer
+
+			h := createAnonymousDummy(t, append(tc.opts, WithLogger(slog.New(slog.NewJSONHandler(&buf, nil))))...)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=https://example.com/", nil).WithContext(ctx)
+
+			h.SubscribeHandler(&responseTester{expectedStatusCode: http.StatusOK, expectedBody: ":\n", tb: t, cancel: cancel}, req)
+
+			logged := map[string]string{}
+
+			for line := range strings.Lines(buf.String()) {
+				var entry struct {
+					Msg        string              `json:"msg"`
+					ClientIP   string              `json:"client_ip"`
+					Subscriber struct{ ID string } `json:"subscriber"`
+				}
+
+				require.NoError(t, json.Unmarshal([]byte(line), &entry))
+
+				if entry.Msg == "New subscriber" || entry.Msg == "Subscriber disconnected" {
+					assert.NotEmpty(t, entry.Subscriber.ID)
+
+					logged[entry.Msg] = entry.ClientIP
+				}
+			}
+
+			assert.Equal(t, map[string]string{"New subscriber": tc.expected, "Subscriber disconnected": tc.expected}, logged)
+		})
+	}
+}
+
 func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
 

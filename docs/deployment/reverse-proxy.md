@@ -219,7 +219,7 @@ Serving the hub on the application's origin avoids CORS. A host-only authorizati
 
 ## Configure trusted proxies and the public hub URL
 
-Caddy can derive client IP addresses from trusted `X-Forwarded-For` headers. Configure trusted proxy addresses:
+Caddy can derive client IP addresses from trusted `X-Forwarded-For` headers. The hub logs this address as `client_ip` on subscriber connection and disconnection, and uses it for per-client subscription limits. Configure trusted proxy addresses:
 
 ```caddyfile
 {
