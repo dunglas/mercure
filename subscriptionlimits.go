@@ -37,9 +37,9 @@ func WithSubscriptionLimits(limits SubscriptionLimits) Option {
 	}
 }
 
-// WithClientIPFunc sets how the per-client subscription limit identifies a
-// client, such as a client IP resolved from trusted proxy headers. An empty
-// result falls back to RemoteAddr.
+// WithClientIPFunc sets how the hub identifies a client in logs and per-client
+// subscription limits, such as a client IP resolved from trusted proxy
+// headers. An empty result falls back to RemoteAddr.
 func WithClientIPFunc(f func(*http.Request) string) Option {
 	return func(o *opt) error {
 		o.clientIPFunc = f
@@ -111,7 +111,7 @@ func (h *Hub) admitSubscription(r *http.Request, claims *claims) (*subscriptionP
 	return p, ""
 }
 
-func (h *Hub) subscriptionClient(r *http.Request) string {
+func (h *Hub) clientIP(r *http.Request) string {
 	var client string
 	if h.clientIPFunc != nil {
 		client = h.clientIPFunc(r)
@@ -122,8 +122,14 @@ func (h *Hub) subscriptionClient(r *http.Request) string {
 	}
 
 	if host, _, err := net.SplitHostPort(client); err == nil {
-		client = host
+		return host
 	}
+
+	return client
+}
+
+func (h *Hub) subscriptionClient(r *http.Request) string {
+	client := h.clientIP(r)
 
 	addr, err := netip.ParseAddr(client)
 	if err != nil {

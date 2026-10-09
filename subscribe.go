@@ -344,6 +344,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	s.RequestLastEventIDSet = lastEventIDSet
 	s.Claims = claims
 	s.subscriptionPermit = permit
+	s.clientIP = h.clientIP(r)
 	s.setMatchers(matchers, privateTopicMatchers)
 
 	if span.IsRecording() {
@@ -386,9 +387,9 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
 		if claims != nil && h.logger.Enabled(ctx, slog.LevelDebug) {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("payload", s.SubscriptionPayloads))
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("subscriber", s), slog.String("client_ip", s.clientIP), slog.Any("payload", s.SubscriptionPayloads))
 		} else {
-			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber")
+			h.logger.LogAttrs(ctx, slog.LevelInfo, "New subscriber", slog.Any("subscriber", s), slog.String("client_ip", s.clientIP))
 		}
 	}
 
@@ -596,7 +597,7 @@ func (h *Hub) shutdown(ctx context.Context, s *LocalSubscriber) {
 	h.dispatchSubscriptionUpdate(ctx, s, false)
 
 	if h.logger.Enabled(ctx, slog.LevelInfo) {
-		h.logger.LogAttrs(ctx, slog.LevelInfo, "Subscriber disconnected")
+		h.logger.LogAttrs(ctx, slog.LevelInfo, "Subscriber disconnected", slog.Any("subscriber", s), slog.String("client_ip", s.clientIP))
 	}
 
 	h.metrics.SubscriberDisconnected(s)

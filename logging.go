@@ -25,13 +25,26 @@ func (m mercureHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (m mercureHandler) Handle(ctx context.Context, record slog.Record) error {
+	var hasUpdate, hasSubscriber bool
+
+	record.Attrs(func(attr slog.Attr) bool {
+		switch attr.Key {
+		case "update":
+			hasUpdate = true
+		case "subscriber":
+			hasSubscriber = true
+		}
+
+		return !hasUpdate || !hasSubscriber
+	})
+
 	var attrs []slog.Attr
 
-	if u, ok := ctx.Value(UpdateContextKey).(*Update); ok {
+	if u, ok := ctx.Value(UpdateContextKey).(*Update); ok && !hasUpdate {
 		attrs = append(attrs, slog.Any("update", u))
 	}
 
-	if s, ok := ctx.Value(SubscriberContextKey).(*Subscriber); ok {
+	if s, ok := ctx.Value(SubscriberContextKey).(*Subscriber); ok && !hasSubscriber {
 		attrs = append(attrs, slog.Any("subscriber", s))
 	}
 

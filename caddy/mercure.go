@@ -310,6 +310,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
+		mercure.WithClientIPFunc(clientIP),
 	}
 
 	if m.ResourceIdentifier != "" {
@@ -372,7 +373,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	if m.SubscriptionLimits != nil {
-		opts = append(opts, mercure.WithSubscriptionLimits(*m.SubscriptionLimits), mercure.WithClientIPFunc(clientIP))
+		opts = append(opts, mercure.WithSubscriptionLimits(*m.SubscriptionLimits))
 	}
 
 	if s := m.MaxRequestBodySize; s != nil {
