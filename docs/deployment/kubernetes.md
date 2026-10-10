@@ -199,6 +199,32 @@ ingress:
 
 See [Reverse proxies](reverse-proxy.md) for full configurations.
 
+## Serving HTTPS from the pod
+
+To terminate TLS in the hub instead of at the ingress, for instance behind an OpenShift passthrough route to keep HTTP/2 end to end, mount the certificate from a Kubernetes `Secret` and point Caddy at it:
+
+```yaml
+service:
+  portName: https
+  port: 443
+  targetPort: 8443
+
+extraVolumes:
+  - name: mercure-certs
+    secret:
+      secretName: mercure-tls
+
+extraVolumeMounts:
+  - name: mercure-certs
+    mountPath: /certs
+    readOnly: true
+
+caddyExtraDirectives: |
+  tls /certs/tls.crt /certs/tls.key
+```
+
+The hub listens on `:<service.targetPort>`. The legacy `/healthz` probes (`healthCheck.enabled: false`) use plain HTTP and fail once this port serves TLS: keep the default health checks, which query the admin port.
+
 ## Upgrading the Mercure Helm release
 
 ```console
