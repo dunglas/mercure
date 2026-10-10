@@ -115,9 +115,20 @@ xcaddy build \
 
 Or use the [Caddy download page](https://caddyserver.com/download?package=github.com%2Fdunglas%2Fmercure%2Fcaddy) to assemble a build in the browser.
 
+The prebuilt binaries and Docker images are compiled with a [Profile-Guided Optimization](https://go.dev/doc/pgo) (PGO) profile. To keep it in a custom build, pass the `default.pgo` file shipped with the Mercure module:
+
+```console
+go mod download github.com/dunglas/mercure@vX.Y.Z
+XCADDY_GO_BUILD_FLAGS="-pgo=$(go env GOMODCACHE)/github.com/dunglas/mercure@vX.Y.Z/default.pgo" \
+  xcaddy build \
+  --with github.com/dunglas/mercure/caddy@vX.Y.Z
+```
+
 ## Embedding the Mercure hub in a Go binary
 
 Mercure is also a Go library. See [pkg.go.dev/github.com/dunglas/mercure](https://pkg.go.dev/github.com/dunglas/mercure). You'd typically reach for it when you want to ship a hub as part of a larger Go binary; for everything else the standalone server is simpler.
+
+To benefit from the PGO profile, build with `-pgo="$(go list -m -f '{{.Dir}}' github.com/dunglas/mercure)/default.pgo"`.
 
 A hub built without a publisher key leaves the publish endpoint unauthenticated (the protocol's closed-network deployment mode): such a hub must never be reachable from untrusted networks. The Caddy module refuses this configuration unless the embedding application opts in with `AllowNoPublish`.
 
