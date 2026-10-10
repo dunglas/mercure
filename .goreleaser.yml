@@ -66,6 +66,7 @@ dockers_v2:
       - caddy
     images:
       - dunglas/mercure
+      - ghcr.io/dunglas/mercure
     tags:
       # Rolling tags are suppressed on prereleases so a prerelease cut does
       # not move :latest/:vN off the stable line. Empty tags are dropped.

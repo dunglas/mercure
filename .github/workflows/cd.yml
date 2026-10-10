@@ -80,6 +80,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+      packages: write
     runs-on: ubuntu-latest
     environment: release
     env:
@@ -108,6 +109,16 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Uses the workflow GITHUB_TOKEN (needs packages: write), so no extra
+      # secret is required. Pushes to ghcr.io/dunglas/mercure.
+      - name: Login to GitHub Container Registry
+        if: env.RELEASE_TAG != ''
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # dockers_v2 pushes multi-platform images, which the default docker driver can't.
       - name: Set up Docker Buildx
@@ -157,19 +168,31 @@ jobs:
             ${{ github.workspace }}/dist/*.rpm
             ${{ github.workspace }}/dist/checksums.txt
 
-      - name: Inspect Caddy Docker manifest
+      - name: Inspect Caddy Docker manifests
         id: caddy_image
         if: env.RELEASE_TAG != ''
         run: |
-          digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "dunglas/mercure:${RELEASE_TAG}")
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+          dockerhub_digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "dunglas/mercure:${RELEASE_TAG}")
+          ghcr_digest=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "ghcr.io/dunglas/mercure:${RELEASE_TAG}")
+          {
+            echo "dockerhub_digest=${dockerhub_digest}"
+            echo "ghcr_digest=${ghcr_digest}"
+          } >> "${GITHUB_OUTPUT}"
 
-      - name: Attest Caddy Docker manifest
+      - name: Attest Docker Hub Caddy manifest
         if: env.RELEASE_TAG != ''
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           # docker.io/ prefix is required: actions/attest splits subject-name
-          # on the first '/' to find the registry. We only push to Docker Hub.
+          # on the first '/' to find the registry.
           subject-name: docker.io/dunglas/mercure
-          subject-digest: ${{ steps.caddy_image.outputs.digest }}
+          subject-digest: ${{ steps.caddy_image.outputs.dockerhub_digest }}
+          push-to-registry: true
+
+      - name: Attest GHCR Caddy manifest
+        if: env.RELEASE_TAG != ''
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ghcr.io/dunglas/mercure
+          subject-digest: ${{ steps.caddy_image.outputs.ghcr_digest }}
           push-to-registry: true
