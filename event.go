@@ -26,6 +26,11 @@ type Event struct {
 
 // String serializes the event in a "text/event-stream" representation.
 func (e *Event) String() string {
+	return e.serialize(nil)
+}
+
+// serialize relies on publication validation to prevent topic values from injecting SSE fields.
+func (e *Event) serialize(topics []string) string {
 	var b strings.Builder
 
 	if e.Type != "" {
@@ -34,6 +39,10 @@ func (e *Event) String() string {
 
 	if e.Retry != 0 {
 		_, _ = fmt.Fprintf(&b, "retry: %d\n", e.Retry)
+	}
+
+	for _, t := range topics {
+		_, _ = fmt.Fprintf(&b, "topics: %s\n", t)
 	}
 
 	_, _ = fmt.Fprintf(&b, "id: %s\ndata: %s\n\n", e.ID, dataReplacer.Replace(e.Data))

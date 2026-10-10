@@ -60,6 +60,26 @@ func (s *Subscriber) Match(u *Update) bool {
 	return s.MatchTopics(u.Topics, u.Private)
 }
 
+// AuthorizedTopics returns the update's authorized topics in publication order.
+func (s *Subscriber) AuthorizedTopics(u *Update) []string {
+	if !u.Private {
+		return u.Topics
+	}
+
+	var authorized []string
+
+	for i := range u.Topics {
+		topic := u.Topics[i : i+1 : i+1]
+		if !s.matchesAny(topic, s.AllowedPrivateMatchers) {
+			continue
+		}
+
+		authorized = append(authorized, u.Topics[i])
+	}
+
+	return authorized
+}
+
 func (s *Subscriber) LogValue() slog.Value {
 	attrs := []slog.Attr{
 		slog.String("id", s.ID),

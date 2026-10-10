@@ -194,6 +194,11 @@ The standalone non-Caddy server has been removed. Deploy the Caddy-based binary 
 
 ### Compatibility mode
 
+With `protocol_version_compatibility` set to `7` or `8`, subscriptions using only the legacy
+`topic` parameter omit the `topics` SSE fields. Requests containing `match` or `match_*`
+parameters include authorized topics even with compatibility enabled or when mixed with `topic`.
+This applies to live and replayed updates; see [What the hub sends](concepts/subscribing.md#what-the-hub-sends).
+
 0.x behaviors are gated behind two build tags, honored only with `protocol_version_compatibility 8`:
 
 - `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, the `/subscriptions/{topic}` routes. Canonical and alternate topics (repeated `topic=` publish fields) are a modern-mode feature, not gated by this tag; see [Alternate topics](concepts/topics-and-matchers.md#alternate-topics).
