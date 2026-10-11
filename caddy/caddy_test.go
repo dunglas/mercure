@@ -1428,3 +1428,144 @@ func TestSubscriptionLimitsUseCaddyClientIP(t *testing.T) {
 		})
 	}
 }
+
+func TestForwardedOriginFromTrustedProxies(t *testing.T) {
+	for _, tc := range []struct {
+		name, trustedProxies string
+		status               int
+	}{
+		// Behind a trusted proxy, the forwarded origin is the expected audience.
+		{"trusted proxy", "127.0.0.1/32 ::1/128", http.StatusOK},
+		// From an untrusted peer, spoofed forwarded headers are ignored.
+		{"untrusted peer", "192.0.2.0/24", http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tester := caddytest.NewTester(t)
+			tester.InitServer(fmt.Sprintf(`
+			{
+				skip_install_trust
+				admin localhost:2999
+				http_port     9080
+				https_port    9443
+				servers {
+					trusted_proxies static %s
+				}
+			}
+
+			localhost:9080 {
+				route {
+					mercure {
+						anonymous
+						issuer https://example.com {
+							publisher {
+								jwt !ChangeMe!
+							}
+						}
+						transport local
+					}
+
+					respond 404
+				}
+			}
+			`, tc.trustedProxies), "caddyfile")
+
+			body := url.Values{"topic": {"https://example.com/foo"}, "data": {"bar"}}
+			req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+			require.NoError(t, err)
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Authorization", bearerPrefix+publisherJWT)
+			req.Header.Add("X-Forwarded-Proto", "https")
+			req.Header.Add("X-Forwarded-Host", "example.com")
+
+			resp := tester.AssertResponseCode(req, tc.status)
+			require.NoError(t, resp.Body.Close())
+		})
+	}
+}
+
+func TestForwardedOrigin(t *testing.T) {
+	for _, tc := range []struct {
+		name, proto, host, wantScheme, wantHost string
+	}{
+		{"no headers", "", "", "http", "hub:80"},
+		{"forwarded", "HTTPS", "example.com:8443", "https", "example.com:8443"},
+		{"first of a list", "https, http", "example.com, hub", "https", "example.com"},
+		{"invalid proto", "ftp", "", "http", "hub:80"},
+		{"host with a path", "", "evil.com/x", "http", "hub:80"},
+		{"host with userinfo", "", "user@evil.com", "http", "hub:80"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := http.Header{}
+			if tc.proto != "" {
+				h.Set("X-Forwarded-Proto", tc.proto)
+			}
+
+			if tc.host != "" {
+				h.Set("X-Forwarded-Host", tc.host)
+			}
+
+			scheme, host := forwardedOrigin(h, "http", "hub:80")
+			assert.Equal(t, tc.wantScheme, scheme)
+			assert.Equal(t, tc.wantHost, host)
+		})
+	}
+}
+
+func TestForwardedOriginMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name, directive, forwardedHost string
+		status                         int
+		resource                       string
+	}{
+		{"allowed public URL", "public_urls https://good.example.com", "good.example.com", http.StatusOK, "https://good.example.com/.well-known/mercure"},
+		{"disallowed public URL", "public_urls https://good.example.com", "bad.example.com", http.StatusMisdirectedRequest, ""},
+		{"pinned resource identifier", "resource_identifier https://pinned.example.com/.well-known/mercure", "good.example.com", http.StatusOK, "https://pinned.example.com/.well-known/mercure"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tester := caddytest.NewTester(t)
+			tester.InitServer(fmt.Sprintf(`
+			{
+				skip_install_trust
+				admin localhost:2999
+				http_port     9080
+				https_port    9443
+				servers {
+					trusted_proxies static 127.0.0.1/32 ::1/128
+				}
+			}
+			:9080 {
+				route {
+					mercure {
+						issuer https://as.example.com {
+							publisher {
+								jwt !ChangeMe!
+							}
+							subscriber {
+								jwt !ChangeMe!
+							}
+						}
+						%s
+					}
+
+					respond 404
+				}
+			}
+			`, tc.directive), "caddyfile")
+
+			req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure", nil)
+			req.Header.Set("X-Forwarded-Proto", "https")
+			req.Header.Set("X-Forwarded-Host", tc.forwardedHost)
+
+			resp := tester.AssertResponseCode(req, tc.status)
+			defer resp.Body.Close()
+
+			if tc.resource == "" {
+				return
+			}
+
+			b, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Contains(t, string(b), `"resource":"`+tc.resource+`"`)
+		})
+	}
+}

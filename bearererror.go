@@ -97,9 +97,9 @@ func (h *Hub) setWWWAuthenticate(w http.ResponseWriter, r *http.Request, code st
 //
 // The derived origin is trusted only because the embedding server validated it
 // (the Caddy module reads Caddy's request placeholders, gated by the site's
-// host matching and the optional public_urls allowlist) — a raw Host or
-// X-Forwarded-Proto header could otherwise point discovery at an attacker
-// origin. Returns empty strings when no identifier is configured and no origin
+// host matching and the optional public_urls allowlist, and forwarded headers
+// from trusted_proxies only) — a raw Host or X-Forwarded-Proto header could
+// otherwise point discovery at an attacker origin. Returns empty strings when no identifier is configured and no origin
 // is available — reached in every mode by a request carrying no Host, where
 // modern mode then refuses every token (see validateJWT).
 func (h *Hub) requestIdentity(r *http.Request) (identifier, metadataURL string) {
