@@ -492,13 +492,17 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	}
 
 	// Resolve the public origin from Caddy's request placeholders, which report
-	// the request's own Host and TLS state and honor no forwarded header — so a
-	// hub behind a TLS terminator derives http://, and pinning the https://
-	// identity needs resource_identifier. The hub derives its RFC 9728 metadata
-	// from this origin and enforces public_urls against it.
+	// the request's own Host and TLS state. Forwarded headers are honored only
+	// from trusted_proxies: anyone else could point discovery at their origin.
+	// The hub derives its RFC 9728 metadata from this origin and enforces
+	// public_urls against it.
 	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer) //nolint:forcetypeassert
 	host, _ := repl.GetString("http.request.hostport")
 	scheme, _ := repl.GetString("http.request.scheme")
+
+	if trusted, _ := caddyhttp.GetVar(r.Context(), caddyhttp.TrustedProxyVarKey).(bool); trusted {
+		scheme, host = forwardedOrigin(r.Header, scheme, host)
+	}
 
 	// Pass the origin out-of-band via the context, never by mutating r.URL: the
 	// playground handler builds its rel="self" Link from r.URL.String(), which
@@ -507,6 +511,28 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	m.hub.ServeHTTP(w, r.WithContext(mercure.NewRequestOriginContext(r.Context(), scheme, host)))
 
 	return nil
+}
+
+// forwardedOrigin overrides scheme and host with the X-Forwarded-Proto and
+// X-Forwarded-Host headers set by a trusted proxy, ignoring malformed values.
+func forwardedOrigin(h http.Header, scheme, host string) (string, string) {
+	if p := strings.ToLower(firstHeaderValue(h, "X-Forwarded-Proto")); p == "http" || p == "https" {
+		scheme = p
+	}
+
+	if fh := firstHeaderValue(h, "X-Forwarded-Host"); fh != "" {
+		if u, err := url.Parse("//" + fh); err == nil && u.Host == fh {
+			host = fh
+		}
+	}
+
+	return scheme, host
+}
+
+func firstHeaderValue(h http.Header, name string) string {
+	v, _, _ := strings.Cut(h.Get(name), ",")
+
+	return strings.TrimSpace(v)
 }
 
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.

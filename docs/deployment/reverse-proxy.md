@@ -219,7 +219,7 @@ Serving the hub on the application's origin avoids CORS. A host-only authorizati
 
 ## Configure trusted proxies and the public hub URL
 
-Caddy can derive client IP addresses from trusted `X-Forwarded-For` headers. The hub logs this address as `client_ip` on subscriber connection and disconnection, and uses it for per-client subscription limits. Configure trusted proxy addresses:
+Caddy can derive client IP addresses from trusted `X-Forwarded-For` headers. The hub logs this address as `client_ip` on subscriber connection and disconnection, and uses it for per-client subscription limits. On requests from these proxies, the hub also derives its public identity from the `X-Forwarded-Proto` and `X-Forwarded-Host` headers: the OAuth 2.0 resource identifier it expects as the token `aud`, the RFC 9728 metadata URL it advertises, and the origin `public_urls` checks. Configure trusted proxy addresses:
 
 ```caddyfile
 {
@@ -229,11 +229,9 @@ Caddy can derive client IP addresses from trusted `X-Forwarded-For` headers. The
 }
 ```
 
-Only trust these headers when the proxy in front of the hub strips or replaces them on every request. If clients can send their own `X-Forwarded-For` and the hub trusts it, your IP-based logic is wrong.
+Only trust these headers when the proxy in front of the hub strips or replaces them on every request. If clients can send their own `X-Forwarded-For` and the hub trusts it, your IP-based logic is wrong. The same goes for `X-Forwarded-Proto` and `X-Forwarded-Host`: a spoofed value changes the audience the hub expects and the metadata it advertises.
 
-`trusted_proxies` resolves the client IP only. The hub derives the scheme of its own public identity from the connection it terminates, so behind a proxy that terminates TLS it derives `http://`: the OAuth 2.0 resource identifier it expects as the token `aud`, and the RFC 9728 metadata URL it advertises, are `http://` too.
-
-Set `resource_identifier` to the public `https://` URL to fix that:
+Without `trusted_proxies`, the hub derives the scheme of its own public identity from the connection it terminates, so behind a proxy that terminates TLS it derives `http://`. Either trust the proxy, or set `resource_identifier` to the public `https://` URL:
 
 ```caddyfile
 mercure {
@@ -241,7 +239,7 @@ mercure {
 }
 ```
 
-`public_urls` does not fix it, and does not belong here: it pins the scheme of the origin the hub _receives_, so listing the `https://` form on a hub that is reached over plain HTTP rejects every request with `421 Misdirected Request`. Use it on a catch-all site block reached directly over TLS.
+`public_urls` restricts the origins the hub answers on. Behind a trusted proxy, it applies to the forwarded origin. Otherwise it applies to the origin the hub _receives_, so listing the `https://` form on a hub reached over plain HTTP rejects every request with `421 Misdirected Request`.
 
 ## Next steps
 
