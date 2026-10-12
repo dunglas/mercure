@@ -15,7 +15,7 @@
     <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
     <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
     <maven-jar-plugin.version>3.5.1</maven-jar-plugin.version>
-    <scala-maven-plugin.version>4.9.10</scala-maven-plugin.version>
+    <scala-maven-plugin.version>4.10.0</scala-maven-plugin.version>
   </properties>
 
   <dependencies>
