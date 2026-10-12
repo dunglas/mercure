@@ -201,7 +201,7 @@ See [Reverse proxies](reverse-proxy.md) for full configurations.
 
 ## Serving HTTPS from the pod
 
-To terminate TLS in the hub instead of at the ingress, for instance behind an OpenShift passthrough route to keep HTTP/2 end to end, mount the certificate from a Kubernetes `Secret` and point Caddy at it:
+To terminate TLS in the hub instead of at the ingress, for instance behind an OpenShift passthrough route to keep HTTP/2 end-to-end, mount the certificate from a Kubernetes `Secret` and point Caddy at it:
 
 ```yaml
 service:
