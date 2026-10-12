@@ -105,8 +105,9 @@ replicaCount: 1  # @schema minimum:1
 updateStrategy:
   type: RollingUpdate  # @schema enum:[RollingUpdate, Recreate]
 
-# -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout` so SSE
-# subscribers drain at their own write deadline before k8s SIGKILLs the pod.
+# -- Pod terminationGracePeriodSeconds. Must be >= `write_timeout`, or
+# `shutdown_delay` + `drain_timeout` when `drain_timeout` is set (via
+# `extraDirectives`), so SSE subscribers drain before k8s SIGKILLs the pod.
 # Default = Mercure's `DefaultWriteTimeout` (600s) + 60s margin.
 # Only applied with `RollingUpdate`; `Recreate` keeps the k8s default (30s)
 # to minimize the gap between old pod gone and new pod ready.

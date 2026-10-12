@@ -316,6 +316,13 @@ func TestPublishOriginsRejectSpanningWildcards(t *testing.T) {
 	require.NoError(t, WithPublishOrigins([]string{"https://*.example.co.uk"})(&opt{}))
 }
 
+func TestWithDrainTimeoutRejectsNegative(t *testing.T) {
+	t.Parallel()
+
+	require.ErrorIs(t, WithDrainTimeout(-time.Second)(&opt{}), ErrNegativeDrainTimeout)
+	require.NoError(t, WithDrainTimeout(0)(&opt{}))
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	t.Parallel()
 

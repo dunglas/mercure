@@ -127,7 +127,8 @@ func (u *Update) Validate(baseURL string) error {
 }
 
 // Publish broadcasts the given update to all subscribers.
-// The id field of the Update instance can be updated by the underlying Transport.
+// Publish takes ownership of update: transports may deliver it asynchronously, so callers must
+// not modify it, including its Topics slice, after the call. The transport may set its ID.
 func (h *Hub) Publish(ctx context.Context, update *Update) error {
 	ctx, span := startSpan(ctx, "mercure.publish", trace.WithSpanKind(trace.SpanKindProducer))
 	// Deferred so the ID assigned by the transport via AssignUUID lands on the span.
@@ -265,6 +266,13 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 		infoEnabled := h.logger.Enabled(ctx, slog.LevelInfo)
 		if h.isBackwardCompatiblyEnabledWith(7) {
+			// Like 0.13, the exemption requires a publish claim, even an empty one.
+			if !claims.authz.hasPublishClaim() {
+				h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
+
+				return
+			}
+
 			if infoEnabled {
 				h.logger.LogAttrs(ctx, slog.LevelInfo, `Deprecated: posting public updates to topics not granted to the token is deprecated since the version 7 of the protocol, grant the "*" topic to allow publishing on all topics.`)
 			}

@@ -177,6 +177,7 @@ Bump verbosity with `GLOBAL_OPTIONS=debug` (don't leave it on in prod: it logs u
 
 - `dunglas/mercure`: Alpine-based, statically linked.
 - `dunglas/mercure:<version>`: pin to a specific release.
+- `ghcr.io/dunglas/mercure`: the same image and tags, published to GitHub Container Registry. Use it to avoid Docker Hub pull rate limits, for example in GitHub Actions.
 - `ghcr.io/dunglas/mercure-saas/mercure-saas:1.0`: the licensed Enterprise image with Redis/Valkey, PostgreSQL, Kafka, and Pulsar transports. [Choose a Self-Hosted plan](https://mercure.rocks/pricing), then follow [High availability](../production/high-availability.md).
 
 ## Behind a reverse proxy

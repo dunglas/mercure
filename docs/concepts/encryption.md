@@ -65,9 +65,12 @@ await fetch("https://hub.example.com/.well-known/mercure", {
   body: new URLSearchParams({
     topic: "https://example.com/books/1",
     data: jwe,
+    private: "on",
   }),
 });
 ```
+
+The `private` field restricts delivery to subscribers with a matching authorization grant. Encryption protects the payload; subscriber authorization also controls who receives the ciphertext.
 
 ## Decrypting on the subscriber
 
@@ -77,7 +80,7 @@ In a browser, with [`jose`](https://github.com/panva/jose):
 import { compactDecrypt, importJWK } from "jose";
 
 const key = await importJWK(privateJwk, "RSA-OAEP-256");
-const es = new EventSource(url);
+const es = new EventSource(url, { withCredentials: true });
 es.onmessage = async (event) => {
   const { plaintext } = await compactDecrypt(event.data, key);
   const update = JSON.parse(new TextDecoder().decode(plaintext));

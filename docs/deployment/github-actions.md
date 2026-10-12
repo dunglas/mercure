@@ -21,7 +21,7 @@ jobs:
 
     services:
       mercure:
-        image: dunglas/mercure
+        image: ghcr.io/dunglas/mercure
         env:
           SERVER_NAME: ":1337"
           MERCURE_PUBLISHER_JWT_KEY: "ci-only-publisher-key-never-reuse-it"
@@ -47,6 +47,8 @@ jobs:
 ```
 
 The hub is reachable at `http://localhost:1337/.well-known/mercure` from job steps. This HTTP setup is for an isolated CI environment. The default issuer is `https://localhost`; test tokens need the audience `http://localhost:1337/.well-known/mercure`.
+
+The example pulls from GitHub Container Registry rather than Docker Hub. GitHub-hosted runners pull GHCR images without authentication, which avoids Docker Hub's unauthenticated pull rate limits and intermittent auth timeouts. The image and its tags are identical on both registries, so `dunglas/mercure` works too if you prefer Docker Hub.
 
 ## Healthcheck before tests start
 

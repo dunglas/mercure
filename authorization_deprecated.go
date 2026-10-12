@@ -112,7 +112,8 @@ func (h *Hub) resolveLegacyClaims(c *claims) error {
 // mercureAuthzFromLegacy builds a mercureAuthz from a resolved legacy claim,
 // one subscribe detail per claim so per-claim payloads are preserved.
 func mercureAuthzFromLegacy(mc mercureClaim) *mercureAuthz {
-	authz := &mercureAuthz{}
+	// A JSON [] decodes to a non-nil slice: an empty claim is distinct from a missing one.
+	authz := &mercureAuthz{legacyPublish: mc.Publish != nil}
 
 	if len(mc.Publish) > 0 {
 		authz.details = append(authz.details, validatedDetail{publish: true, topics: matcherClaimTopics(mc.Publish)})

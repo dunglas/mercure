@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -66,6 +67,9 @@ var ErrPEMKeyHMACAlgorithm = errors.New("a PEM-encoded key must not be used with
 // outside one registrable domain, which would let unrelated sites publish with the
 // victim's cookie.
 var ErrSpanningPublishOrigin = errors.New(`a wildcard publish origin must stay within one registrable domain, such as "https://*.example.com"`)
+
+// ErrNegativeDrainTimeout is returned when the drain timeout is negative.
+var ErrNegativeDrainTimeout = errors.New("the drain timeout must not be negative")
 
 // schemeHTTPS is the URL scheme required by RFC 9728 resource identifiers.
 const schemeHTTPS = "https"
@@ -168,6 +172,19 @@ func WithLogger(logger *slog.Logger) Option {
 func WithWriteTimeout(timeout time.Duration) Option {
 	return func(o *opt) error {
 		o.writeTimeout = timeout
+
+		return nil
+	}
+}
+
+// WithDrainTimeout sets the maximum duration of the drain started by Drain, defaults to 0 (disabled).
+func WithDrainTimeout(timeout time.Duration) Option {
+	return func(o *opt) error {
+		if timeout < 0 {
+			return ErrNegativeDrainTimeout
+		}
+
+		o.drainTimeout = timeout
 
 		return nil
 	}
@@ -442,9 +459,12 @@ type opt struct {
 	playgroundTokenFunc          func(resourceIdentifier string) (string, error)
 	logger                       *slog.Logger
 	writeTimeout                 time.Duration
+	drainTimeout                 time.Duration
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
 	maxRequestBodySize           int64
+	subscriptionLimits           SubscriptionLimits
+	clientIPFunc                 func(*http.Request) string
 	issuers                      map[string]issuerVerifier
 	publisherConfigured          bool
 	subscriberConfigured         bool
@@ -561,8 +581,13 @@ func (o *opt) isBackwardCompatiblyEnabledWith(version int) bool {
 type Hub struct {
 	*opt
 
-	handler http.Handler
-	ctx     context.Context //nolint:containedctx
+	subscriptionLimiter *subscriptionLimiter
+	handler             http.Handler
+	ctx                 context.Context //nolint:containedctx
+
+	// Separate from ctx, which config reloads cancel too.
+	drainCh   chan struct{}
+	drainOnce sync.Once
 }
 
 // NewHub creates a new Hub instance.
@@ -618,7 +643,7 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		opt.cookieName = defaultCookieName
 	}
 
-	h := &Hub{opt: opt, ctx: ctx}
+	h := &Hub{opt: opt, ctx: ctx, drainCh: make(chan struct{}), subscriptionLimiter: &subscriptionLimiter{limits: opt.subscriptionLimits, tokens: make(map[[32]byte]int), clients: make(map[string]int)}}
 	h.initHandler()
 
 	return h, nil
@@ -631,6 +656,13 @@ func (h *Hub) Stop(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Drain closes subscribers at random times within the drain timeout; call it on termination only, never on reload.
+func (h *Hub) Drain() {
+	h.drainOnce.Do(func() {
+		close(h.drainCh)
+	})
 }
 
 // limitRequestBody bounds the request body per WithMaxRequestBodySize; the

@@ -18,6 +18,8 @@ type LocalSubscriber struct {
 	responseLastEventID chan string
 	ready               atomic.Bool
 	liveQueue           []*Update
+	subscriptionPermit  *subscriptionPermit
+	clientIP            string
 }
 
 const outBufferLength = 1000

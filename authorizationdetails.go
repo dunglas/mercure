@@ -156,6 +156,8 @@ type validatedDetail struct {
 // mercureAuthz holds the validated mercure authorization details of a token.
 type mercureAuthz struct {
 	details []validatedDetail
+	// legacyPublish records a legacy mercure.publish claim, kept even when empty.
+	legacyPublish bool
 }
 
 // validateAuthorizationDetails parses and validates the mercure entries of an
@@ -332,6 +334,25 @@ func (a *mercureAuthz) grantsAll(tms *TopicMatcherStore, action mercureAction, t
 	}
 
 	return true
+}
+
+// hasPublishClaim reports whether the token carries a publish detail or a legacy mercure.publish claim.
+func (a *mercureAuthz) hasPublishClaim() bool {
+	if a == nil {
+		return false
+	}
+
+	if a.legacyPublish {
+		return true
+	}
+
+	for i := range a.details {
+		if a.details[i].publish {
+			return true
+		}
+	}
+
+	return false
 }
 
 // subscribeMatchers returns every topic matcher carried by a subscribe detail,

@@ -56,27 +56,29 @@ Setting the port to 80 also disables HTTPS implicitly.
 
 ## Mercure directives
 
-| Directive                                  | Description                                                                                                                                                 | Default                         |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `issuer <id> { … }`                        | Bind a trusted issuer to its verification material. Repeatable. See [issuer blocks](#issuer-blocks).                                                        |                                 |
-| `resource_identifier <id>`                 | Pin the OAuth 2.0 resource identifier (token `aud`); unset, it is derived per request. See [Discovery](../concepts/discovery.md).                           | derived per request             |
-| `public_urls <url...>`                     | Public URLs the hub answers on (scheme pinned); an unlisted origin gets `421 Misdirected Request`. Set it on a catch-all site.                              | site host matching              |
-| `name <name>`                              | Hub name for health checks, metrics, and transport sharing. Equal names share a transport; at most one hub per configuration may omit its name.             | `default`                       |
-| `anonymous`                                | Allow subscribers without a token to receive **public** updates.                                                                                            | off                             |
-| `publish_origins <origin...>`              | Origins allowed to publish (cookie-based auth only). A wildcard must stay within one registrable domain, such as `https://*.example.com`.                   |                                 |
-| `cors_origins <origin...>`                 | CORS allowed origins. See [CORS](#cors).                                                                                                                    |                                 |
-| `cookie_name <name>`                       | Cookie that carries the access token for browser clients. Use a prefix-less name only for local HTTP development.                                           | `__Secure-mercure_access_token` |
-| `protocol_version_compatibility <version>` | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).                           | off                             |
-| `subscriptions`                            | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                                                 | off                             |
-| `heartbeat <duration>`                     | Interval between SSE heartbeat comments. `0s` to disable.                                                                                                   | `40s`                           |
-| `max_request_body_size <size>`             | Maximum size of publish and QUERY subscribe request bodies (e.g. `512KB`); larger requests get a `413`. `0` delegates to a reverse proxy.                   | `1MiB`                          |
-| `transport <name> [{ <options...> }]`      | Transport configuration. See [Transports](#mercure-hub-transports).                                                                                         | `bolt`                          |
-| `dispatch_timeout <duration>`              | Max time to dispatch one update to one subscriber. `0s` disables.                                                                                           | `5s`                            |
-| `write_timeout <duration>`                 | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                                            | `600s`                          |
-| `topic_matcher_cache <maxEntries>`         | Cache for topic matcher evaluations, sized in entries of ~100 B (longer topics count for more). `0` or negative disables it.                                | `100000`                        |
-| `subscriber_list_cache_size <maxSize>`     | Subscriber list cache size. `0` for unbounded.                                                                                                              | `100000`                        |
-| `debugger`                                 | Serve the debugger UI at `/.well-known/mercure/debug/` (no token, no playground endpoints). Safe in production.                                             | off                             |
-| `playground`                               | Enable `debugger` **and** the insecure playground: the `/playground/` discovery endpoints, and a hub-minted all-access token prefilled in the UI. Dev only. | off                             |
+| Directive                                              | Description                                                                                                                                                 | Default                         |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `issuer <id> { … }`                                    | Bind a trusted issuer to its verification material. Repeatable. See [issuer blocks](#issuer-blocks).                                                        |                                 |
+| `resource_identifier <id>`                             | Pin the OAuth 2.0 resource identifier (token `aud`); unset, it is derived per request. See [Discovery](../concepts/discovery.md).                           | derived per request             |
+| `public_urls <url...>`                                 | Public URLs the hub answers on (scheme pinned); an unlisted origin gets `421 Misdirected Request`. Set it on a catch-all site.                              | site host matching              |
+| `name <name>`                                          | Hub name for health checks, metrics, and transport sharing. Equal names share a transport; at most one hub per configuration may omit its name.             | `default`                       |
+| `anonymous`                                            | Allow subscribers without a token to receive **public** updates.                                                                                            | off                             |
+| `publish_origins <origin...>`                          | Origins allowed to publish (cookie-based auth only). A wildcard must stay within one registrable domain, such as `https://*.example.com`.                   |                                 |
+| `cors_origins <origin...>`                             | CORS allowed origins. See [CORS](#cors).                                                                                                                    |                                 |
+| `cookie_name <name>`                                   | Cookie that carries the access token for browser clients. Use a prefix-less name only for local HTTP development.                                           | `__Secure-mercure_access_token` |
+| `protocol_version_compatibility <version>`             | Accept 0.x behaviors (`7` or `8`). Requires the `deprecated_topic` / `deprecated_claim` build tags. See [Upgrade](../UPGRADE.md).                           | off                             |
+| `subscriptions`                                        | Enable subscription events and the [subscription API](../concepts/active-subscriptions.md).                                                                 | off                             |
+| `heartbeat <duration>`                                 | Interval between SSE heartbeat comments. `0s` to disable.                                                                                                   | `40s`                           |
+| `max_request_body_size <size>`                         | Maximum size of publish and QUERY subscribe request bodies (e.g. `512KB`); larger requests get a `413`. `0` delegates to a reverse proxy.                   | `1MiB`                          |
+| `subscription_limits <total> <per_token> <per_client>` | Concurrent event streams per hub instance, token, and source. `0` disables a limit. See [subscription limits](#concurrent-subscription-limits).             | `0 0 0` (off)                   |
+| `transport <name> [{ <options...> }]`                  | Transport configuration. See [Transports](#mercure-hub-transports).                                                                                         | `bolt`                          |
+| `dispatch_timeout <duration>`                          | Max time to dispatch one update to one subscriber. `0s` disables.                                                                                           | `5s`                            |
+| `write_timeout <duration>`                             | Max duration of a subscriber connection. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                                            | `600s`                          |
+| `drain_timeout <duration>`                             | Max drain duration on termination, overriding `write_timeout`. `0s` disables. See [Rolling updates](../production/rolling-updates.md).                      | `0s`                            |
+| `topic_matcher_cache <maxEntries>`                     | Cache for topic matcher evaluations, sized in entries of ~100 B (longer topics count for more). `0` or negative disables it.                                | `100000`                        |
+| `subscriber_list_cache_size <maxSize>`                 | Subscriber list cache size. `0` for unbounded.                                                                                                              | `100000`                        |
+| `debugger`                                             | Serve the debugger UI at `/.well-known/mercure/debug/` (no token, no playground endpoints). Safe in production.                                             | off                             |
+| `playground`                                           | Enable `debugger` **and** the insecure playground: the `/playground/` discovery endpoints, and a hub-minted all-access token prefilled in the UI. Dev only. | off                             |
 
 `debugger` serves a browser client that uses the token you provide. `playground` also creates an all-access token and enables permissive defaults. Use `playground` only for development. For a protected hub, generate a scoped token with [`caddy mercure-token`](../concepts/authorization.md#minting-a-token).
 
@@ -120,6 +122,14 @@ issuer https://issuer-b.example {
 
 > [!WARNING]
 > The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` are deprecated. They map to a single implicit issuer and only work in [compatibility mode](../UPGRADE.md); modern mode requires an `issuer` block.
+
+### Concurrent subscription limits
+
+`subscription_limits <total> <per_token> <per_client>` caps concurrent event streams on each hub instance: overall, per verified token, and per source address. All three are off by default because a safe value depends on memory, the number of instances, and whether clients share a token or an address. Many applications give every browser the same token, and anonymous streams count only toward the total.
+
+Size the total from memory per subscriber measured under your own load, and keep the per-token limit off when tokens are shared. The source limit counts the client IP resolved by Caddy: the socket peer, or the forwarded address when the peer matches [`trusted_proxies`](https://caddyserver.com/docs/caddyfile/options#trusted-proxies). Behind a reverse proxy, configure `trusted_proxies` or every client shares the proxy's address. IPv4-mapped IPv6 counts as IPv4, and IPv6 is grouped by /64. Clients behind one NAT still share an address, so size the limit for them. For example, `subscription_limits 2000 100 50` permits at most 2,000 streams overall, 100 per token, and 50 per source.
+
+Excess streams get `429 Too Many Requests` with a `Retry-After` of 5 to 10 seconds. Browsers' `EventSource` does not reconnect after a non-200 response, so the application must reopen the stream. Rejections are counted by `mercure_subscriptions_rejected_total{reason="total|token|client"}`. These limits count streams, not TCP connections; keep connection and request-rate limits at the reverse proxy.
 
 ## Mercure hub environment variables
 
@@ -211,6 +221,8 @@ mercure {
 
 The hub fetches and caches the keys, validates each token's `kid` against them, and rotates automatically when the IdP rotates. Token issuance stays with the IdP; the hub only verifies.
 
+JWKS requests do not follow HTTP redirects. Configure the final endpoint URL directly so an identity provider cannot redirect the hub to another service.
+
 `jwks_uri` also accepts `file://` URLs, read once at provision time, for keys mounted as files. Append algorithms to pin the allowlist (e.g. `jwks_uri <url> RS256 ES256`); it defaults to the asymmetric algorithms.
 
 ## OAuth 2.0 protected resource metadata
@@ -285,12 +297,37 @@ The endpoints bind to `localhost` for security. Probes from outside the containe
 Tune these settings using measurements from your workload:
 
 - `dispatch_timeout`: too low and slow subscribers get cut off; too high and a stuck dispatch ties up resources. The 5s default is a reasonable starting point. Caddy 2.11.7 and later reset the write deadline to `write_idle_timeout` (1 minute by default) on every write, which overrides `dispatch_timeout` until [caddyserver/caddy#8145](https://github.com/caddyserver/caddy/pull/8145) is released. In the meantime, set the `write_idle` timeout of the [`servers` global option](https://caddyserver.com/docs/caddyfile/options#timeouts) to the same value: `servers { timeouts { write_idle 5s } }`.
-- Compression: the default Caddyfile doesn't compress `/.well-known/mercure`. Since Caddy 2.11.7, `encode` compresses SSE responses, and each one holds its own encoder for the whole connection, which adds up quickly on hubs with many subscribers. Compressing private updates in the same stream as attacker-controlled data also enables [BREACH](https://www.breachattack.com/)-style attacks.
-- `write_timeout`: controls how often each subscriber rotates its connection in steady state. Higher values mean fewer reconnects but worse drain pacing on shutdown. See [Rolling updates](../production/rolling-updates.md).
+- Compression: the default Caddyfile doesn't compress responses. See [Compressing the event stream](#compressing-the-event-stream).
+- `write_timeout`: controls how often each subscriber rotates its connection in steady state. Higher values mean fewer reconnects but slower drains on shutdown, unless `drain_timeout` is set. See [Rolling updates](../production/rolling-updates.md).
+- `drain_timeout`: bounds the drain on termination, so a long `write_timeout` doesn't slow rolling updates. See [Rolling updates](../production/rolling-updates.md).
 - `topic_matcher_cache` and `subscriber_list_cache_size`: increase if your hub has many distinct matchers and you see CPU spent in matcher evaluation. Decrease if memory is tight.
 - File descriptors: each TCP connection consumes one; HTTP/2 streams can share a connection. `ulimit -n 100000` on the host (or the equivalent in your orchestrator) for high-fanout hubs.
 
 [Load testing](../production/load-testing.md) and [Debugging](../production/debugging.md) cover the rest.
+
+## Compressing the event stream
+
+The default Caddyfile doesn't compress responses: the hub mostly serves event streams and small documents. Compressing the stream trades memory and security for bandwidth.
+
+Since Caddy 2.11.7, `encode` compresses SSE responses with one encoder per connection, kept until the subscriber disconnects. Each update is compressed against the previous ones, so streams of repetitive payloads, such as HTML fragments or JSON documents sharing the same keys, shrink a lot.
+
+The encoder holds memory for the lifetime of the connection: about 1 MiB with gzip and a few MiB with zstd at Caddy's default settings, multiplied by the number of concurrent subscribers.
+
+The shared compression context also enables [BREACH](https://www.breachattack.com/)-style attacks. An attacker can recover a secret from a stream when all these conditions are met:
+
+- the stream carries the secret, such as a private update or a CSRF token in an HTML fragment;
+- the attacker can get content they control into the same stream, for instance a comment that your app publishes to the topic;
+- the attacker can observe the size of the encrypted traffic, for instance from the same network.
+
+The attacker publishes guesses and watches the size of each event: a guess matching the secret compresses better. Unlike BREACH against regular responses, the victim doesn't need to send any request.
+
+Compress the stream only when the hub has enough memory for one encoder per subscriber, and when streams never mix secrets with content that untrusted users can influence. Tokens masked differently on each render also defeat the attack. To compress responses, add the `encode` directive to the site block, and prefer gzip if memory is tight:
+
+```caddyfile
+encode gzip
+```
+
+A reverse proxy or CDN in front of the hub may compress the stream on its own. The same trade-off applies.
 
 ## Mercure hub configuration reload
 

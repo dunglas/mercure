@@ -64,11 +64,12 @@ it authorizes.
 
 --key accepts a raw HMAC secret, an @-prefixed path to a file holding one,
 @- to read it from stdin, or a PEM-encoded private key (inline, from a file,
-or from stdin). A PEM key requires --alg (e.g. ES256, RS256, EdDSA); a raw
-secret defaults to HS256. This is the signing key, not the hub's
-verification key: for HMAC they are the same secret, but for an asymmetric
-issuer, issuer.<publisher|subscriber>.jwt in the Caddyfile holds the public
-key, and this command needs the matching private key.
+or from stdin). Prefer @file or @-: a literal value is visible to other
+processes (ps) and lands in shell history. A PEM key requires --alg (e.g.
+ES256, RS256, EdDSA); a raw secret defaults to HS256. This is the signing
+key, not the hub's verification key: for HMAC they are the same secret, but
+for an asymmetric issuer, issuer.<publisher|subscriber>.jwt in the Caddyfile
+holds the public key, and this command needs the matching private key.
 
 --dev fills in --iss, --aud, and --key (from ` + devKeyEnv + `, falling back
 to the quickstart's default secret) to match the hub started by the quickstart's
@@ -89,7 +90,7 @@ Example:
 			cmd.Flags().Bool("dev", false, "fill --iss, --aud, and --key for the quickstart's local dev hub")
 			cmd.Flags().String(claimIss, "", "issuer identifier (the token `iss` claim; must match a trusted issuer on the hub)")
 			cmd.Flags().String(claimAud, "", "hub resource identifier (the token `aud` claim; the hub's canonical URL)")
-			cmd.Flags().String("key", "", "signing key: a raw HMAC secret, @path/to/file, @- for stdin, or a PEM-encoded private key")
+			cmd.Flags().String("key", "", "signing key (HMAC secret or PEM private key): prefer @path/to/file or @- for stdin; a literal value is visible in process listings and shell history")
 			cmd.Flags().String("alg", "", "signing algorithm (default HS256 for a raw secret; required for a PEM key)")
 			cmd.Flags().String("kid", "", "optional `kid` header, a hint for hubs trusting more than one key per issuer")
 			cmd.Flags().String(claimSub, "", "subscriber/publisher identifier (default: a random urn:uuid)")

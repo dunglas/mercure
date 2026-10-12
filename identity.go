@@ -21,8 +21,8 @@ type RequestOrigin struct {
 // request before invoking the hub, passing scheme and host taken from a trusted
 // source; the hub validates them against the public-URL allowlist. The Caddy
 // module reads them from Caddy's request placeholders, which report the
-// request's own Host and TLS state and no forwarded header, so a hub behind a
-// TLS terminator derives an http:// origin.
+// request's own Host and TLS state, overridden by the X-Forwarded-Proto and
+// X-Forwarded-Host headers of requests from trusted_proxies only.
 func NewRequestOriginContext(ctx context.Context, scheme, host string) context.Context {
 	return context.WithValue(ctx, requestOriginKey{}, RequestOrigin{Scheme: scheme, Host: host})
 }

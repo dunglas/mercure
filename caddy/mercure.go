@@ -146,6 +146,9 @@ type Mercure struct {
 	// Maximum duration before closing the connection, defaults to 600s, set to 0 to disable.
 	WriteTimeout *caddy.Duration `json:"write_timeout,omitempty"`
 
+	// Maximum drain duration on termination, overriding write_timeout. Defaults to 0 (disabled).
+	DrainTimeout *caddy.Duration `json:"drain_timeout,omitempty"`
+
 	// Maximum dispatch duration of an update, defaults to 5s.
 	DispatchTimeout *caddy.Duration `json:"dispatch_timeout,omitempty"`
 
@@ -156,6 +159,9 @@ type Mercure struct {
 	// larger requests are rejected with a 413 status code. Defaults to 1MiB,
 	// set to 0 to disable the in-hub limit.
 	MaxRequestBodySize *int64 `json:"max_request_body_size,omitempty"`
+
+	// Per-instance concurrent stream limits. Zero disables an individual limit.
+	SubscriptionLimits *mercure.SubscriptionLimits `json:"subscription_limits,omitempty"`
 
 	// Issuers binds each trusted issuer (RFC 9068 §4) to its own verification
 	// material, so key material is never pooled across issuers.
@@ -304,6 +310,7 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		mercure.WithTransport(transport),
 		mercure.WithMetrics(metrics),
 		mercure.WithCookieName(m.CookieName),
+		mercure.WithClientIPFunc(clientIP),
 	}
 
 	if m.ResourceIdentifier != "" {
@@ -353,12 +360,20 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 		opts = append(opts, mercure.WithWriteTimeout(time.Duration(*d)))
 	}
 
+	if d := m.DrainTimeout; d != nil {
+		opts = append(opts, mercure.WithDrainTimeout(time.Duration(*d)))
+	}
+
 	if d := m.DispatchTimeout; d != nil {
 		opts = append(opts, mercure.WithDispatchTimeout(time.Duration(*d)))
 	}
 
 	if d := m.Heartbeat; d != nil {
 		opts = append(opts, mercure.WithHeartbeat(time.Duration(*d)))
+	}
+
+	if m.SubscriptionLimits != nil {
+		opts = append(opts, mercure.WithSubscriptionLimits(*m.SubscriptionLimits))
 	}
 
 	if s := m.MaxRequestBodySize; s != nil {
@@ -385,9 +400,6 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	var c context.Context
 
 	c, m.cancel = context.WithCancel(ctx)
-	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(m.cancel)); err != nil {
-		return err
-	}
 
 	h, err := mercure.NewHub(c, opts...)
 	if err != nil {
@@ -395,6 +407,19 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	}
 
 	m.hub = h
+
+	// Cancel during the event: waiting for Cleanup would deadlock with the server shutdown.
+	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(func() {
+		if shouldDrainOnStopping(caddy.Exiting(), m.DrainTimeout) {
+			h.Drain()
+
+			return
+		}
+
+		m.cancel()
+	})); err != nil {
+		return err
+	}
 
 	info := &hubInfo{
 		hub:       h,
@@ -467,13 +492,17 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	}
 
 	// Resolve the public origin from Caddy's request placeholders, which report
-	// the request's own Host and TLS state and honor no forwarded header — so a
-	// hub behind a TLS terminator derives http://, and pinning the https://
-	// identity needs resource_identifier. The hub derives its RFC 9728 metadata
-	// from this origin and enforces public_urls against it.
+	// the request's own Host and TLS state. Forwarded headers are honored only
+	// from trusted_proxies: anyone else could point discovery at their origin.
+	// The hub derives its RFC 9728 metadata from this origin and enforces
+	// public_urls against it.
 	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer) //nolint:forcetypeassert
 	host, _ := repl.GetString("http.request.hostport")
 	scheme, _ := repl.GetString("http.request.scheme")
+
+	if trusted, _ := caddyhttp.GetVar(r.Context(), caddyhttp.TrustedProxyVarKey).(bool); trusted {
+		scheme, host = forwardedOrigin(r.Header, scheme, host)
+	}
 
 	// Pass the origin out-of-band via the context, never by mutating r.URL: the
 	// playground handler builds its rel="self" Link from r.URL.String(), which
@@ -482,6 +511,28 @@ func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 	m.hub.ServeHTTP(w, r.WithContext(mercure.NewRequestOriginContext(r.Context(), scheme, host)))
 
 	return nil
+}
+
+// forwardedOrigin overrides scheme and host with the X-Forwarded-Proto and
+// X-Forwarded-Host headers set by a trusted proxy, ignoring malformed values.
+func forwardedOrigin(h http.Header, scheme, host string) (string, string) {
+	if p := strings.ToLower(firstHeaderValue(h, "X-Forwarded-Proto")); p == "http" || p == "https" {
+		scheme = p
+	}
+
+	if fh := firstHeaderValue(h, "X-Forwarded-Host"); fh != "" {
+		if u, err := url.Parse("//" + fh); err == nil && u.Host == fh {
+			host = fh
+		}
+	}
+
+	return scheme, host
+}
+
+func firstHeaderValue(h http.Header, name string) string {
+	v, _, _ := strings.Cut(h.Get(name), ",")
+
+	return strings.TrimSpace(v)
 }
 
 // UnmarshalCaddyfile sets up the handler from Caddyfile tokens.
@@ -515,6 +566,15 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 					return err
 				}
 
+			case "drain_timeout":
+				if m.DrainTimeout, err = parseDurationParameter(d); err != nil {
+					return err
+				}
+
+				if *m.DrainTimeout < 0 {
+					return d.Errf("drain_timeout must be >= 0, got %s", d.Val())
+				}
+
 			case "dispatch_timeout":
 				if m.DispatchTimeout, err = parseDurationParameter(d); err != nil {
 					return err
@@ -524,6 +584,25 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 				if m.Heartbeat, err = parseDurationParameter(d); err != nil {
 					return err
 				}
+
+			case "subscription_limits":
+				args := d.RemainingArgs()
+				if len(args) != 3 {
+					return d.ArgErr()
+				}
+
+				var limits [3]int
+
+				for i, arg := range args {
+					value, err := strconv.Atoi(arg)
+					if err != nil || value < 0 {
+						return d.Errf("invalid subscription limit %q", arg)
+					}
+
+					limits[i] = value
+				}
+
+				m.SubscriptionLimits = &mercure.SubscriptionLimits{Total: limits[0], PerToken: limits[1], PerClient: limits[2]}
 
 			case "max_request_body_size":
 				if !d.NextArg() {
@@ -974,7 +1053,7 @@ func (m *Mercure) warnAboutWellKnownKeys(ctx context.Context) {
 // VerifierConfig that isSet reports as configured.
 func (m *Mercure) buildVerifier(ctx context.Context, c VerifierConfig, role string) (mercure.Verifier, error) { //nolint:ireturn
 	if c.JWKSURL != "" {
-		k, err := newJWKSetKeyfunc(ctx, c.JWKSURL)
+		k, err := newJWKSetKeyfunc(ctx, m.logger, c.JWKSURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve %s JWK Set: %w", role, err)
 		}
@@ -1143,17 +1222,24 @@ func (m *Mercure) playgroundTokenFunc() func(string) (string, error) {
 	}
 }
 
-var errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+var (
+	errInvalidJWKSetFileHost = errors.New(`file:// JWK Set URL host must be empty or "localhost"`)
+	errJWKSetRedirect        = errors.New("refusing to follow JWK Set redirect")
+)
+
+func refuseJWKSetRedirect(req *http.Request, _ []*http.Request) error {
+	return fmt.Errorf("%w to %s: configure the final URL as jwks_uri", errJWKSetRedirect, req.URL.Redacted())
+}
 
 // newJWKSetKeyfunc builds a Keyfunc from a JWK Set URL.
 //
 // file:// URLs point to a local JSON file containing a JWK Set; the file is
 // read once at provision time, so rotating the keys requires a Caddy config
-// reload. Other URLs are forwarded to keyfunc.NewDefaultCtx, which handles
-// HTTP(S) and rejects unsupported schemes.
+// reload. HTTP(S) resources are refreshed using a client that refuses redirects,
+// so a trusted JWK Set endpoint cannot redirect requests to other services.
 //
 //nolint:ireturn
-func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, error) {
+func newJWKSetKeyfunc(ctx context.Context, logger *slog.Logger, rawURL string) (keyfunc.Keyfunc, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid JWK Set URL %q: %w", rawURL, err)
@@ -1177,7 +1263,19 @@ func newJWKSetKeyfunc(ctx context.Context, rawURL string) (keyfunc.Keyfunc, erro
 		return k, nil
 	}
 
-	return keyfunc.NewDefaultCtx(ctx, []string{rawURL}) //nolint:wrapcheck
+	// Otherwise keyfunc logs to slog.Default(), hiding even the swallowed first-fetch error from Caddy's logs.
+	refreshErrorHandler := func(string) func(context.Context, error) {
+		return func(ctx context.Context, err error) {
+			if logger.Enabled(ctx, slog.LevelError) {
+				logger.LogAttrs(ctx, slog.LevelError, "Failed to fetch the JWK Set", slog.String("url", u.Redacted()), slog.Any("error", err))
+			}
+		}
+	}
+
+	return keyfunc.NewDefaultOverrideCtx(ctx, []string{rawURL}, keyfunc.Override{ //nolint:wrapcheck
+		Client:                  &http.Client{CheckRedirect: refuseJWKSetRedirect},
+		RefreshErrorHandlerFunc: refreshErrorHandler,
+	})
 }
 
 // parseCaddyfile unmarshals tokens from h into a new Middleware.
@@ -1185,6 +1283,11 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	m := new(Mercure)
 
 	return m, m.UnmarshalCaddyfile(h.Dispenser)
+}
+
+// shouldDrainOnStopping reports whether to drain; "stopping" also fires on config reloads, which must not drain.
+func shouldDrainOnStopping(exiting bool, drainTimeout *caddy.Duration) bool {
+	return exiting && drainTimeout != nil && time.Duration(*drainTimeout) != 0
 }
 
 func parseDurationParameter(d *caddyfile.Dispenser) (*caddy.Duration, error) {
@@ -1209,3 +1312,10 @@ var (
 	_ caddyhttp.MiddlewareHandler = (*Mercure)(nil)
 	_ caddyfile.Unmarshaler       = (*Mercure)(nil)
 )
+
+// clientIP returns the client IP resolved by Caddy, which honors trusted_proxies.
+func clientIP(r *http.Request) string {
+	ip, _ := caddyhttp.GetVar(r.Context(), caddyhttp.ClientIPVarKey).(string)
+
+	return ip
+}

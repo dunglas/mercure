@@ -3,15 +3,19 @@ package caddy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -776,25 +780,25 @@ func TestNewJWKSetKeyfunc(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("file URL with empty host", func(t *testing.T) {
-		k, err := newJWKSetKeyfunc(t.Context(), "file://"+jwksPath)
+		k, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://"+jwksPath)
 		require.NoError(t, err)
 		assert.NotNil(t, k)
 	})
 
 	t.Run("file URL with localhost host", func(t *testing.T) {
-		k, err := newJWKSetKeyfunc(t.Context(), "file://localhost"+jwksPath)
+		k, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://localhost"+jwksPath)
 		require.NoError(t, err)
 		assert.NotNil(t, k)
 	})
 
 	t.Run("file URL with rejected host", func(t *testing.T) {
-		_, err := newJWKSetKeyfunc(t.Context(), "file://example.com"+jwksPath)
+		_, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://example.com"+jwksPath)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `"example.com"`)
 	})
 
 	t.Run("missing file", func(t *testing.T) {
-		_, err := newJWKSetKeyfunc(t.Context(), "file://"+filepath.Join(t.TempDir(), "absent.json"))
+		_, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://"+filepath.Join(t.TempDir(), "absent.json"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to read JWK Set file")
 	})
@@ -803,10 +807,106 @@ func TestNewJWKSetKeyfunc(t *testing.T) {
 		bad := filepath.Join(t.TempDir(), "bad.json")
 		require.NoError(t, os.WriteFile(bad, []byte("not json"), 0o600))
 
-		_, err := newJWKSetKeyfunc(t.Context(), "file://"+bad)
+		_, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), "file://"+bad)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to parse JWK Set file")
 	})
+}
+
+func TestNewJWKSetKeyfuncDoesNotFollowRedirects(t *testing.T) {
+	t.Parallel()
+
+	var targetRequests atomic.Int32
+
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		targetRequests.Add(1)
+
+		_, _ = w.Write([]byte(`{"keys":[]}`))
+	}))
+	t.Cleanup(target.Close)
+
+	for _, status := range []int{http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther, http.StatusTemporaryRedirect, http.StatusPermanentRedirect} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, target.URL, status)
+			}))
+			t.Cleanup(server.Close)
+			ctx, cancel := context.WithCancel(t.Context())
+
+			defer cancel()
+			// Keyfunc can defer an initial fetch error until verification, but
+			// it must never send a request to the redirect destination.
+			_, _ = newJWKSetKeyfunc(ctx, slog.New(slog.DiscardHandler), server.URL)
+
+			assert.Zero(t, targetRequests.Load())
+		})
+	}
+}
+
+func TestRefuseJWKSetRedirectNamesTarget(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/jwks/", http.StatusMovedPermanently)
+	}))
+	t.Cleanup(server.Close)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"/jwks", nil)
+	require.NoError(t, err)
+
+	resp, err := (&http.Client{CheckRedirect: refuseJWKSetRedirect}).Do(req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+
+	require.ErrorIs(t, err, errJWKSetRedirect)
+	assert.ErrorContains(t, err, server.URL+"/jwks/")
+}
+
+func TestBuildVerifierLogsJWKSetFetchFailure(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/elsewhere", http.StatusFound)
+	}))
+	t.Cleanup(server.Close)
+
+	var logs bytes.Buffer
+
+	m := &Mercure{logger: slog.New(slog.NewTextHandler(&logs, nil))}
+	ctx, cancel := context.WithCancel(t.Context())
+
+	defer cancel()
+
+	_, err := m.buildVerifier(ctx, VerifierConfig{JWKSURL: server.URL}, "publisher")
+	require.NoError(t, err)
+
+	assert.Contains(t, logs.String(), "level=ERROR")
+	assert.Contains(t, logs.String(), "Failed to fetch the JWK Set")
+	assert.Contains(t, logs.String(), "url="+server.URL)
+	assert.Contains(t, logs.String(), errJWKSetRedirect.Error())
+}
+
+func TestNewJWKSetKeyfuncFetchesDirectHTTPResource(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int32
+
+	data, err := os.ReadFile("testdata/RS256.jwks.json")
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+
+		_, _ = w.Write(data)
+	}))
+	t.Cleanup(server.Close)
+	k, err := newJWKSetKeyfunc(t.Context(), slog.New(slog.DiscardHandler), server.URL)
+	require.NoError(t, err)
+	assert.NotNil(t, k)
+	assert.Positive(t, requests.Load())
 }
 
 // TestMultiIssuerPublish exercises per-issuer key binding through the Caddy
@@ -975,6 +1075,7 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 		debugger
 		subscriptions
 		write_timeout 1m
+		drain_timeout 30s
 		dispatch_timeout 5s
 		heartbeat 40s
 		max_request_body_size 1MB
@@ -1002,6 +1103,48 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 	assert.True(t, m.Anonymous)
 	assert.Equal(t, []string{"*"}, m.CORSOrigins)
 	assert.Len(t, m.Issuers, 1)
+	require.NotNil(t, m.DrainTimeout)
+	assert.Equal(t, caddy.Duration(30*time.Second), *m.DrainTimeout)
+}
+
+func TestNegativeDrainTimeoutRejected(t *testing.T) {
+	t.Run("caddyfile", func(t *testing.T) {
+		d := caddyfile.NewTestDispenser("mercure {\n\tdrain_timeout -1s\n}")
+
+		require.ErrorContains(t, new(Mercure).UnmarshalCaddyfile(d), "drain_timeout must be >= 0")
+	})
+
+	t.Run("json", func(t *testing.T) {
+		var cfg caddy.Config
+		require.NoError(t, json.Unmarshal([]byte(`{"admin":{"disabled":true},"apps":{"http":{"servers":{"srv":{"listen":["127.0.0.1:0"],"automatic_https":{"disable":true},"routes":[{"handle":[{"handler":"mercure","name":"negative_drain","anonymous":true,"drain_timeout":"-1s","transport":{"name":"local"},"issuers":[{"identifier":"https://example.com","publisher":{"jwt":{"key":"test-publisher-key","alg":"HS256"}}}]}]}]}}}}}`), &cfg))
+
+		require.ErrorContains(t, caddy.Validate(&cfg), mercure.ErrNegativeDrainTimeout.Error())
+	})
+}
+
+func TestShouldDrainOnStopping(t *testing.T) {
+	t.Parallel()
+
+	drain := caddy.Duration(5 * time.Minute)
+	zero := caddy.Duration(0)
+
+	for _, tc := range []struct {
+		name    string
+		exiting bool
+		drain   *caddy.Duration
+		want    bool
+	}{
+		{name: "real termination with drain timeout drains", exiting: true, drain: &drain, want: true},
+		{name: "config reload never drains", exiting: false, drain: &drain, want: false},
+		{name: "termination without drain timeout cancels", exiting: true, drain: nil, want: false},
+		{name: "termination with zero drain timeout cancels", exiting: true, drain: &zero, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, shouldDrainOnStopping(tc.exiting, tc.drain))
+		})
+	}
 }
 
 func TestApplyPlaygroundDefaults(t *testing.T) {
@@ -1179,5 +1322,250 @@ func TestPopulateJWTConfigWarnsAboutWellKnownKey(t *testing.T) {
 
 		require.NoError(t, m.populateJWTConfig(caddy.Context{Context: context.Background()}))
 		assert.Equal(t, !playground, strings.Contains(logs.String(), "development secret"))
+	}
+}
+
+func TestSubscriptionLimitsCaddyfile(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		args     string
+		expected *mercure.SubscriptionLimits
+	}{
+		{"10 2 3", &mercure.SubscriptionLimits{Total: 10, PerToken: 2, PerClient: 3}},
+		{"0 0 0", &mercure.SubscriptionLimits{}},
+		{"10 2", nil},
+		{"10 -1 3", nil},
+		{"10 two 3", nil},
+		{"10 2 3 4", nil},
+	} {
+		t.Run(tc.args, func(t *testing.T) {
+			t.Parallel()
+
+			m := new(Mercure)
+
+			err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser("mercure {\n subscription_limits " + tc.args + "\n}"))
+			if tc.expected == nil {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, m.SubscriptionLimits)
+		})
+	}
+}
+
+func TestSubscriptionLimitsPartialJSON(t *testing.T) {
+	t.Parallel()
+
+	var m Mercure
+
+	require.NoError(t, json.Unmarshal([]byte(`{"subscription_limits":{"total":5000}}`), &m))
+	assert.Equal(t, &mercure.SubscriptionLimits{Total: 5000}, m.SubscriptionLimits)
+}
+
+func TestSubscriptionLimitsUseCaddyClientIP(t *testing.T) {
+	for _, tc := range []struct {
+		name, trustedProxies string
+		otherClientStatus    int
+	}{
+		// Behind a trusted proxy, the forwarded address identifies each client.
+		{"trusted proxy", "127.0.0.1/32 ::1/128", http.StatusOK},
+		// From an untrusted peer, spoofed forwarded addresses are ignored.
+		{"untrusted peer", "192.0.2.0/24", http.StatusTooManyRequests},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tester := caddytest.NewTester(t)
+			tester.InitServer(fmt.Sprintf(`
+			{
+				skip_install_trust
+				admin localhost:2999
+				http_port     9080
+				https_port    9443
+				servers {
+					trusted_proxies static %s
+					client_ip_headers X-Forwarded-For
+				}
+			}
+
+			localhost:9080 {
+				route {
+					mercure {
+						anonymous
+						issuer https://example.com {
+							publisher {
+								jwt !ChangeMe!
+							}
+						}
+						resource_identifier https://example.com/.well-known/mercure
+						subscription_limits 0 0 1
+						transport local
+					}
+
+					respond 404
+				}
+			}
+			`, tc.trustedProxies), "caddyfile")
+
+			subscribe := func(xff string, status int) {
+				ctx, cancel := context.WithCancel(t.Context())
+				t.Cleanup(cancel)
+
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:9080/.well-known/mercure?match=https%3A%2F%2Fexample.com%2Ffoo", nil)
+				require.NoError(t, err)
+				req.Header.Set("X-Forwarded-For", xff)
+
+				resp := tester.AssertResponseCode(req, status)
+
+				t.Cleanup(func() { _ = resp.Body.Close() })
+			}
+
+			subscribe("203.0.113.1", http.StatusOK)
+			subscribe("203.0.113.1", http.StatusTooManyRequests)
+			subscribe("203.0.113.2", tc.otherClientStatus)
+		})
+	}
+}
+
+func TestForwardedOriginFromTrustedProxies(t *testing.T) {
+	for _, tc := range []struct {
+		name, trustedProxies string
+		status               int
+	}{
+		// Behind a trusted proxy, the forwarded origin is the expected audience.
+		{"trusted proxy", "127.0.0.1/32 ::1/128", http.StatusOK},
+		// From an untrusted peer, spoofed forwarded headers are ignored.
+		{"untrusted peer", "192.0.2.0/24", http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tester := caddytest.NewTester(t)
+			tester.InitServer(fmt.Sprintf(`
+			{
+				skip_install_trust
+				admin localhost:2999
+				http_port     9080
+				https_port    9443
+				servers {
+					trusted_proxies static %s
+				}
+			}
+
+			localhost:9080 {
+				route {
+					mercure {
+						anonymous
+						issuer https://example.com {
+							publisher {
+								jwt !ChangeMe!
+							}
+						}
+						transport local
+					}
+
+					respond 404
+				}
+			}
+			`, tc.trustedProxies), "caddyfile")
+
+			body := url.Values{"topic": {"https://example.com/foo"}, "data": {"bar"}}
+			req, err := http.NewRequest(http.MethodPost, "http://localhost:9080/.well-known/mercure", strings.NewReader(body.Encode()))
+			require.NoError(t, err)
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Authorization", bearerPrefix+publisherJWT)
+			req.Header.Add("X-Forwarded-Proto", "https")
+			req.Header.Add("X-Forwarded-Host", "example.com")
+
+			resp := tester.AssertResponseCode(req, tc.status)
+			require.NoError(t, resp.Body.Close())
+		})
+	}
+}
+
+func TestForwardedOrigin(t *testing.T) {
+	for _, tc := range []struct {
+		name, proto, host, wantScheme, wantHost string
+	}{
+		{"no headers", "", "", "http", "hub:80"},
+		{"forwarded", "HTTPS", "example.com:8443", "https", "example.com:8443"},
+		{"first of a list", "https, http", "example.com, hub", "https", "example.com"},
+		{"invalid proto", "ftp", "", "http", "hub:80"},
+		{"host with a path", "", "evil.com/x", "http", "hub:80"},
+		{"host with userinfo", "", "user@evil.com", "http", "hub:80"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := http.Header{}
+			if tc.proto != "" {
+				h.Set("X-Forwarded-Proto", tc.proto)
+			}
+
+			if tc.host != "" {
+				h.Set("X-Forwarded-Host", tc.host)
+			}
+
+			scheme, host := forwardedOrigin(h, "http", "hub:80")
+			assert.Equal(t, tc.wantScheme, scheme)
+			assert.Equal(t, tc.wantHost, host)
+		})
+	}
+}
+
+func TestForwardedOriginMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name, directive, forwardedHost string
+		status                         int
+		resource                       string
+	}{
+		{"allowed public URL", "public_urls https://good.example.com", "good.example.com", http.StatusOK, "https://good.example.com/.well-known/mercure"},
+		{"disallowed public URL", "public_urls https://good.example.com", "bad.example.com", http.StatusMisdirectedRequest, ""},
+		{"pinned resource identifier", "resource_identifier https://pinned.example.com/.well-known/mercure", "good.example.com", http.StatusOK, "https://pinned.example.com/.well-known/mercure"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tester := caddytest.NewTester(t)
+			tester.InitServer(fmt.Sprintf(`
+			{
+				skip_install_trust
+				admin localhost:2999
+				http_port     9080
+				https_port    9443
+				servers {
+					trusted_proxies static 127.0.0.1/32 ::1/128
+				}
+			}
+			:9080 {
+				route {
+					mercure {
+						issuer https://as.example.com {
+							publisher {
+								jwt !ChangeMe!
+							}
+							subscriber {
+								jwt !ChangeMe!
+							}
+						}
+						%s
+					}
+
+					respond 404
+				}
+			}
+			`, tc.directive), "caddyfile")
+
+			req, _ := http.NewRequest(http.MethodGet, "http://localhost:9080/.well-known/oauth-protected-resource/.well-known/mercure", nil)
+			req.Header.Set("X-Forwarded-Proto", "https")
+			req.Header.Set("X-Forwarded-Host", tc.forwardedHost)
+
+			resp := tester.AssertResponseCode(req, tc.status)
+			defer resp.Body.Close()
+
+			if tc.resource == "" {
+				return
+			}
+
+			b, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Contains(t, string(b), `"resource":"`+tc.resource+`"`)
+		})
 	}
 }

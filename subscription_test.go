@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -374,4 +375,36 @@ func TestEscapeSubscriptionSegmentRoundTrip(t *testing.T) {
 	got, err := url.PathUnescape("foo+bar")
 	require.NoError(t, err)
 	assert.Equal(t, "foo+bar", got)
+}
+
+func TestSubscriptionAPIRequiresVerifierInEveryMode(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []int{0, 7, 8} {
+		t.Run(strconv.Itoa(mode), func(t *testing.T) {
+			t.Parallel()
+
+			opts := []Option{WithAnonymous(), WithSubscriptions()}
+			if mode != 0 {
+				opts = append(opts, WithProtocolVersionCompatibility(mode))
+			}
+
+			hub, err := NewHub(t.Context(), opts...)
+			require.NoError(t, err)
+
+			for _, path := range []string{subscriptionsURL, subscriptionsURL + "/exact/topic/subscriber"} {
+				req := httptest.NewRequest(http.MethodGet, path, nil)
+				w := httptest.NewRecorder()
+				hub.ServeHTTP(w, req)
+				assert.Equal(t, http.StatusNotFound, w.Code)
+			}
+
+			for _, handler := range []http.HandlerFunc{hub.SubscriptionsHandler, hub.SubscriptionHandler} {
+				req := httptest.NewRequest(http.MethodGet, subscriptionsURL, nil)
+				w := httptest.NewRecorder()
+				handler(w, req)
+				assert.Equal(t, http.StatusUnauthorized, w.Code)
+			}
+		})
+	}
 }
