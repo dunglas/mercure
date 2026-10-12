@@ -102,7 +102,7 @@ jobs:
           sed '1d' profile.cov >> ../profile.cov
 
       - name: Upload coverage results
-        uses: shogo82148/actions-goveralls@77a1912dca42260ee3e97f61bd13ea7ef40baa93 # v1.11.2
+        uses: shogo82148/actions-goveralls@daabb2902148216a0b13c82107a6e67ed97f796e # v1.11.3
         with:
           path-to-profile: profile.cov
           parallel: true
@@ -156,6 +156,6 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: shogo82148/actions-goveralls@77a1912dca42260ee3e97f61bd13ea7ef40baa93 # v1.11.2
+      - uses: shogo82148/actions-goveralls@daabb2902148216a0b13c82107a6e67ed97f796e # v1.11.3
         with:
           parallel-finished: true
