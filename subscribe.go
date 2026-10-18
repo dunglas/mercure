@@ -342,6 +342,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
 	s.RequestLastEventIDSet = lastEventIDSet
+	s.legacyClient = h.isLegacyClient(values)
 	s.Claims = claims
 	s.subscriptionPermit = permit
 	s.clientIP = h.clientIP(r)
@@ -439,7 +440,13 @@ func (h *Hub) sendHeaders(ctx context.Context, w http.ResponseWriter, s *LocalSu
 	header["Incremental"] = headerIncremental
 
 	if s.RequestLastEventIDSet {
-		header["Mercure-Last-Event-Id"] = []string{<-s.responseLastEventID}
+		responseLastEventID := []string{<-s.responseLastEventID}
+		header["Mercure-Last-Event-Id"] = responseLastEventID
+
+		// 0.x clients read the reconciliation cursor from this field.
+		if s.legacyClient {
+			header["Last-Event-Id"] = responseLastEventID
+		}
 	}
 
 	// Write a comment in the body
@@ -530,6 +537,20 @@ func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
 	return values, nil
 }
 
+// isLegacyClient reports whether the request carries a subscribe query
+// parameter only 0.x clients send.
+func (h *Hub) isLegacyClient(query url.Values) bool {
+	if !h.isBackwardCompatiblyEnabledWith(8) {
+		return false
+	}
+
+	_, topic := query[paramTopic]
+	_, lastEventID := query["lastEventID"]
+	_, v7LastEventID := query["Last-Event-ID"]
+
+	return topic || lastEventID || v7LastEventID
+}
+
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP
 // header with a fallback on the query parameter. The second return value
 // reports whether either was present at all, even with an empty value: the
@@ -547,6 +568,13 @@ func (h *Hub) retrieveLastEventID(ctx context.Context, r *http.Request, query ur
 	}
 
 	_, queryPresent := query["last_event_id"]
+
+	// Like 0.x, an empty lastEventID is ignored.
+	if h.isBackwardCompatiblyEnabledWith(8) {
+		if id := query.Get("lastEventID"); id != "" {
+			return id, true
+		}
+	}
 
 	if legacyEventIDValues, present := query["Last-Event-ID"]; present { //nolint:nestif
 		infoLevel := h.logger.Enabled(ctx, slog.LevelInfo)

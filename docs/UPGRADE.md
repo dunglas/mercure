@@ -23,6 +23,7 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `__Secure-mercure_access_token` cookie; no query parameter (RFC 9700)          |
 | Auth errors               | `401` / silent drop                                                | RFC 6750: `401 invalid_token`, `403 insufficient_scope`, `400 invalid_request` |
 | Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`         |
+| Reconnection              | `lastEventID` param, `Last-Event-ID` response field                | `last_event_id` param, `Mercure-Last-Event-ID` response field                  |
 
 ### Migrate your subscribers
 
@@ -41,6 +42,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 - The exact-match parameter is `match` (explicit spelling: `match_exact`); the templated one is `match_urlpattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
 - Parameter names are **case-sensitive**. Any other name under the `match` prefix is rejected with `400`, so typos fail loudly.
 - The `URI Template` matcher type is gone; it survives only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`. Rewrite templated topics as URL Patterns and string topics as exact topics.
+- The `lastEventID` query parameter is renamed `last_event_id`, and the hub answers with a `Mercure-Last-Event-ID` response field instead of `Last-Event-ID`. `protocol_version_compatibility 8` also accepts `lastEventID` and sends `Last-Event-ID` to requests using `lastEventID` or `topic=`.
 
 ### Migrate your tokens
 
@@ -293,7 +295,7 @@ The default development key changed from `!ChangeMe!` to `!ChangeThisMercureHubJ
 
 ### Mercure 0.14 upgrade notes
 
-The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your clients.
+The `Last-Event-ID` query parameter was renamed `lastEventID`. Update your clients.
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 
