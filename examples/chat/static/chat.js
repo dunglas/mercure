@@ -1,5 +1,3 @@
-/* eslint-env browser */
-
 const type = "https://chat.example.com/Message";
 const {
   hubURL,

@@ -213,14 +213,14 @@ h3 {
   font-size: 18px;
 }
 
-.card > .hint {
-  margin: 0 0 18px;
-}
-
 .hint {
   color: var(--ink-3);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.card > .hint {
+  margin: 0 0 18px;
 }
 
 .eyebrow {
@@ -271,6 +271,14 @@ textarea {
   min-height: 72px;
 }
 
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a9398' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -281,14 +289,6 @@ select:focus {
 input::placeholder,
 textarea::placeholder {
   color: var(--ink-3);
-}
-
-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a9398' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
 }
 
 .checkbox {
@@ -381,13 +381,13 @@ button.btn {
     color 0.15s;
 }
 
-button.btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
 button.btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+button.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .btn-primary {
@@ -499,7 +499,7 @@ button.btn:disabled {
   margin-bottom: 4px;
 }
 
-.event .meta .id {
+.meta .id {
   color: var(--brand-1);
   overflow-wrap: anywhere;
 }
