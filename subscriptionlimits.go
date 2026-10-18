@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -77,6 +78,12 @@ func (h *Hub) admitSubscription(r *http.Request, claims *claims) (*subscriptionP
 			token = legacy
 		} else if cookie, err := h.readCookie(r); err == nil {
 			token = cookie.Value
+		}
+
+		// Key on the signed part: base64url spellings and ECDSA malleability give
+		// one token several valid signatures.
+		if i := strings.LastIndexByte(token, '.'); i >= 0 {
+			token = token[:i]
 		}
 
 		p.token = sha256.Sum256([]byte(token))
