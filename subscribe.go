@@ -538,7 +538,7 @@ func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
 }
 
 // isLegacyClient reports whether the request carries a subscribe query
-// parameter only 0.x clients send.
+// parameter only 0.x clients send; parseMatchers refuses it beside a 1.x one.
 func (h *Hub) isLegacyClient(query url.Values) bool {
 	if !h.isBackwardCompatiblyEnabledWith(8) {
 		return false

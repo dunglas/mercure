@@ -26,13 +26,6 @@ func (o *opt) compatClaimsEnabled() bool {
 	return o.isBackwardCompatiblyEnabledWith(8)
 }
 
-// requireATJWT reports whether access tokens must carry the at+jwt typ header
-// and a matching audience. Relaxed in compatibility mode so legacy tokens
-// (which predate RFC 9068) keep working.
-func (h *Hub) requireATJWT() bool {
-	return !h.compatClaimsEnabled()
-}
-
 // legacyAuthQueryParam returns the token carried by the deprecated
 // "authorization" query parameter when compatibility mode is enabled. Modern
 // mode accepts no query parameter (RFC 9700 §4.3.2).
@@ -49,36 +42,31 @@ func (h *Hub) legacyAuthQueryParam(r *http.Request) (string, bool) {
 	return q[0], true
 }
 
-// readCookie returns the authorization cookie. In compatibility mode, the
-// pre-1.0 cookie name is accepted as a fallback when the configured name is
-// absent, so subscribers still sending "mercureAuthorization" keep working.
-func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
+// readCookie returns the authorization cookie, and whether it is the pre-1.0
+// one. In compatibility mode, that name is accepted as a fallback when the
+// configured name is absent, so subscribers still sending
+// "mercureAuthorization" keep working.
+func (h *Hub) readCookie(r *http.Request) (*http.Cookie, bool, error) {
 	cookie, err := r.Cookie(h.cookieName)
 	if err == nil || !h.compatClaimsEnabled() {
-		return cookie, err //nolint:wrapcheck
+		return cookie, false, err //nolint:wrapcheck
 	}
 
-	return r.Cookie(legacyCookieName) //nolint:wrapcheck
+	cookie, err = r.Cookie(legacyCookieName)
+
+	return cookie, true, err //nolint:wrapcheck
 }
 
 // Discard ignored legacy payloads so subscription events cannot expose them.
-func (h *Hub) dropLegacyClaims(c *claims) {
-	if h.compatClaimsEnabled() && len(c.AuthorizationDetails) == 0 {
-		return
-	}
-
+func dropLegacyClaims(c *claims) {
 	c.Mercure = mercureClaim{}
 	c.MercureNamespaced = nil
 }
 
-// resolveLegacyClaims converts the legacy mercure claim into the validated
-// authorization details shape, so the grant logic is uniform across token
-// formats. It runs only in compatibility mode.
+// resolveLegacyClaims converts the legacy mercure claim of a 0.x token into
+// the validated authorization details shape, so the grant logic is uniform
+// across token formats.
 func (h *Hub) resolveLegacyClaims(c *claims) error {
-	if !h.compatClaimsEnabled() {
-		return nil
-	}
-
 	mc := c.Mercure
 	if c.MercureNamespaced != nil {
 		mc = *c.MercureNamespaced
@@ -90,10 +78,10 @@ func (h *Hub) resolveLegacyClaims(c *claims) error {
 
 	// Bare-string v8 claims are only meaningful when the deprecated_topic
 	// matcher code is compiled in. Using isBackwardCompatiblyEnabledWith(8)
-	// here would be always-true (this function already returned unless compat
-	// is on), so a "*" string claim would authorize every topic via the
-	// wildcard short-circuit even in a deprecated_claim-only build where the
-	// v8 matcher is absent.
+	// here would be always-true (callers only pass 0.x tokens, accepted only
+	// in compatibility mode), so a "*" string claim would authorize every
+	// topic via the wildcard short-circuit even in a deprecated_claim-only
+	// build where the v8 matcher is absent.
 	deprecated := deprecatedMatcherTypeCompiled()
 	if err := resolveMatcherClaims(h.topicMatcherStore, mc.Publish, deprecated); err != nil {
 		return err

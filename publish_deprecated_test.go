@@ -43,7 +43,8 @@ func TestPublishHandlerLegacyClaimV7(t *testing.T) {
 		private bool
 		status  int
 	}{
-		{"no mercure claim", 7, nil, false, http.StatusForbidden},
+		// Not a 0.x token, so the 1.x checks reject it.
+		{"no mercure claim", 7, nil, false, http.StatusUnauthorized},
 		{"missing publish", 7, map[string]any{"subscribe": matchers("https://example.com/books/1")}, false, http.StatusForbidden},
 		{"null publish", 7, map[string]any{"publish": nil}, false, http.StatusForbidden},
 		{"empty publish", 7, map[string]any{"publish": []any{}}, false, http.StatusOK},

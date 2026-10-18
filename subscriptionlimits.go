@@ -75,7 +75,7 @@ func (h *Hub) admitSubscription(r *http.Request, claims *claims) (*subscriptionP
 			token = header[len(bearerPrefix):]
 		} else if legacy, ok := h.legacyAuthQueryParam(r); ok {
 			token = legacy
-		} else if cookie, err := h.readCookie(r); err == nil {
+		} else if cookie, _, err := h.readCookie(r); err == nil {
 			token = cookie.Value
 		}
 

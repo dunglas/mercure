@@ -1026,6 +1026,15 @@ func TestSendMissedEventsModernClientInCompatMode(t *testing.T) {
 		}
 
 		synctest.Wait()
+
+		// A 0.x cursor beside 1.x matchers makes the protocol version ambiguous.
+		for _, query := range []string{"&lastEventID=a", "&Last-Event-ID=a"} {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=https://example.com/foos/:id"+query, nil)
+			w := httptest.NewRecorder()
+			hub.SubscribeHandler(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code, query)
+		}
 	})
 }
 
