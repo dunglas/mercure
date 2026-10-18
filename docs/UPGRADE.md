@@ -5,6 +5,10 @@ description: "Migrate Mercure 0.x to 1.0: topic matchers, OAuth 2.0 tokens, issu
 
 # Mercure upgrade guide
 
+## 1.1.3
+
+- `protocol_version_compatibility 7` no longer lets a token with a publish authorization detail post public updates to topics it isn't granted. Only tokens with a `mercure.publish` claim keep this exemption. Grant the topics, or `*`, in the authorization detail.
+
 ## 1.0 (from 0.x)
 
 The 1.0 release aligns the hub with the standards-based specification: two matcher types and an OAuth 2.0 authorization model. It is a **breaking change** for subscribers, publishers, and token issuers.
@@ -203,7 +207,7 @@ The standalone non-Caddy server has been removed. Deploy the Caddy-based binary 
 
 Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
-`protocol_version_compatibility 7` also lets publishers post public updates to topics outside their grants (deprecated). As in 0.13, the token must still carry a `mercure.publish` claim, even an empty one, or a publish authorization detail; other tokens get a `403`.
+`protocol_version_compatibility 7` also lets publishers post public updates to topics outside their grants (deprecated). As in 0.13, the token must carry a `mercure.publish` claim, even an empty one; other tokens, including ones with a publish authorization detail, get a `403`.
 
 Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
 

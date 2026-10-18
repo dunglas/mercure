@@ -250,7 +250,8 @@ func TestPublishHandlerLegacyAuthorization(t *testing.T) {
 	}{
 		{"v7 no publish grant", 7, createDummyAuthorizedJWT(rolePublisher, nil), false, http.StatusForbidden},
 		{"v7 subscriber-only token", 7, subscriberSignedByPublisher, false, http.StatusForbidden},
-		{"v7 other topic", 7, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}), false, http.StatusOK},
+		// The exemption is reserved to legacy mercure.publish claims.
+		{"v7 other topic", 7, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}), false, http.StatusForbidden},
 		{"v7 private other topic", 7, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/other"}), true, http.StatusForbidden},
 		{"v7 granted topic", 7, createDummyAuthorizedJWT(rolePublisher, []string{"https://example.com/books/1"}), true, http.StatusOK},
 		{"v7 wildcard", 7, createDummyAuthorizedJWT(rolePublisher, []string{"*"}), false, http.StatusOK},
