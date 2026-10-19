@@ -60,7 +60,7 @@ adminPort: 2019  # @schema minimum:1;maximum:65535
 
 # -- Transport-aware health checks exposed via the Caddy admin API.
 # When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live
-# on the admin port instead of /healthz on the HTTP port.
+# on the admin port. When disabled, the pod has no probes.
 healthCheck:
   # -- Enable transport-aware health checks.
   enabled: true

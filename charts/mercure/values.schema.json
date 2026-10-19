@@ -126,7 +126,7 @@
       "type": "string"
     },
     "healthCheck": {
-      "description": "Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port instead of /healthz on the HTTP port.",
+      "description": "Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port. When disabled, the pod has no probes.",
       "type": "object",
       "properties": {
         "enabled": {

@@ -214,18 +214,6 @@ spec:
             periodSeconds: {{ .Values.healthCheck.liveness.periodSeconds }}
             timeoutSeconds: {{ .Values.healthCheck.liveness.timeoutSeconds }}
             failureThreshold: {{ .Values.healthCheck.liveness.failureThreshold }}
-          {{- else }}
-          # Deprecated: use healthCheck.enabled=true for transport-aware health checks
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: {{ .Values.service.portName }}
-              scheme: {{ include "mercure.scheme" . | upper }}
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: {{ .Values.service.portName }}
-              scheme: {{ include "mercure.scheme" . | upper }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
