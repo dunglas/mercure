@@ -932,7 +932,7 @@ func TestSendMissedEvents(t *testing.T) {
 		transport := createBoltTransport(t, 0, 0)
 		ctx := t.Context()
 
-		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
+		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport))
 
 		require.NoError(t, transport.Dispatch(ctx, &Update{
 			Topics: []string{"https://example.com/foos/a"},
@@ -944,21 +944,6 @@ func TestSendMissedEvents(t *testing.T) {
 			ID:     "b",
 			Data:   "d2",
 		}))
-
-		// Using deprecated 'Last-Event-ID' query parameter
-		go func() {
-			ctx, cancel := context.WithCancel(t.Context())
-			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=https://example.com/foos/:id&Last-Event-ID=a", nil).WithContext(ctx)
-
-			w := &responseTester{
-				expectedStatusCode: http.StatusOK,
-				expectedBody:       ":\nid: b\ndata: d2\n\n",
-				tb:                 t,
-				cancel:             cancel,
-			}
-
-			hub.SubscribeHandler(w, req)
-		}()
 
 		go func() {
 			ctx, cancel := context.WithCancel(t.Context())
@@ -987,6 +972,102 @@ func TestSendMissedEvents(t *testing.T) {
 			}
 
 			hub.SubscribeHandler(w, req)
+		}()
+
+		synctest.Wait()
+	})
+}
+
+// 1.x clients served by a hub in compatibility mode get only the 1.x field.
+func TestSendMissedEventsModernClientInCompatMode(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		ctx := t.Context()
+
+		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport), WithProtocolVersionCompatibility(7))
+
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/a"},
+			ID:     "a",
+			Data:   "d1",
+		}))
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/b"},
+			ID:     "b",
+			Data:   "d2",
+		}))
+
+		for _, tc := range []struct{ query, header string }{
+			{query: "&last_event_id=a"},
+			{header: "a"},
+		} {
+			go func() {
+				ctx, cancel := context.WithCancel(t.Context())
+				req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=https://example.com/foos/:id"+tc.query, nil).WithContext(ctx)
+
+				if tc.header != "" {
+					req.Header.Set("Last-Event-ID", tc.header)
+				}
+
+				w := &responseTester{
+					header:             http.Header{},
+					expectedStatusCode: http.StatusOK,
+					expectedBody:       ":\nid: b\ndata: d2\n\n",
+					tb:                 t,
+					cancel:             cancel,
+				}
+
+				hub.SubscribeHandler(w, req)
+				assert.Equal(t, "a", w.Header().Get("Mercure-Last-Event-ID"))
+				assert.NotContains(t, w.Header(), "Last-Event-Id")
+			}()
+		}
+
+		synctest.Wait()
+
+		// A 0.x cursor beside 1.x matchers makes the protocol version ambiguous.
+		for _, query := range []string{"&lastEventID=a", "&Last-Event-ID=a"} {
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=https://example.com/foos/:id"+query, nil)
+			w := httptest.NewRecorder()
+			hub.SubscribeHandler(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code, query)
+		}
+	})
+}
+
+func TestLegacyLastEventIDQueryParameterIgnoredInModernMode(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		transport := createBoltTransport(t, 0, 0)
+		ctx := t.Context()
+
+		hub := createAnonymousDummy(t, WithLogger(transport.logger), WithTransport(transport))
+
+		require.NoError(t, transport.Dispatch(ctx, &Update{
+			Topics: []string{"https://example.com/foos/a"},
+			ID:     "a",
+			Data:   "d1",
+		}))
+
+		go func() {
+			ctx, cancel := context.WithCancel(t.Context())
+			req := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match_urlpattern=https://example.com/foos/:id&lastEventID=earliest", nil).WithContext(ctx)
+
+			w := &responseTester{
+				header:             http.Header{},
+				expectedStatusCode: http.StatusOK,
+				expectedBody:       ":\n",
+				tb:                 t,
+				cancel:             cancel,
+			}
+
+			hub.SubscribeHandler(w, req)
+			assert.Empty(t, w.Header().Get("Mercure-Last-Event-ID"))
+			assert.Empty(t, w.Header().Get("Last-Event-ID"))
 		}()
 
 		synctest.Wait()

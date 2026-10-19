@@ -266,8 +266,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 		infoEnabled := h.logger.Enabled(ctx, slog.LevelInfo)
 		if h.isBackwardCompatiblyEnabledWith(7) {
-			// Like 0.13, the exemption requires a publish claim, even an empty one.
-			if !claims.authz.hasPublishClaim() {
+			// Like 0.13, the exemption requires a mercure.publish claim, even an empty one.
+			if !claims.authz.hasLegacyPublishClaim() {
 				h.writeBearerError(w, r, bearerErrInsufficientScope, http.StatusForbidden)
 
 				return

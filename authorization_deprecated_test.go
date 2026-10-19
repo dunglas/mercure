@@ -302,10 +302,10 @@ func TestAuthorizeAuthorizationHeaderNoContent(t *testing.T) {
 
 			h := createLegacyDummy(t, withSubscriberJWT([]byte(testdata.publicKey), testdata.algorithm))
 
+			// Without a mercure claim the token is not a 0.x one, so it gets the 1.x checks.
 			claims, err := h.authorize(r, false)
-			require.NoError(t, err)
-			require.Nil(t, matcherClaimPatterns(claims.Mercure.Publish))
-			require.Nil(t, matcherClaimPatterns(claims.Mercure.Subscribe))
+			require.ErrorIs(t, err, ErrInvalidJWT)
+			require.Nil(t, claims)
 		})
 	}
 }
@@ -508,10 +508,10 @@ func TestAuthorizeAuthorizationQueryNoContent(t *testing.T) {
 
 			h := createLegacyDummy(t, withSubscriberJWT([]byte(testdata.publicKey), testdata.algorithm))
 
+			// Without a mercure claim the token is not a 0.x one, so it gets the 1.x checks.
 			claims, err := h.authorize(r, false)
-			require.NoError(t, err)
-			require.Nil(t, matcherClaimPatterns(claims.Mercure.Publish))
-			require.Nil(t, matcherClaimPatterns(claims.Mercure.Subscribe))
+			require.ErrorIs(t, err, ErrInvalidJWT)
+			require.Nil(t, claims)
 		})
 	}
 }
@@ -676,10 +676,10 @@ func TestAuthorizeCookieNoContent(t *testing.T) {
 
 			h := createLegacyDummy(t, withSubscriberJWT([]byte(testdata.publicKey), testdata.algorithm))
 
+			// Without a mercure claim the token is not a 0.x one, so it gets the 1.x checks.
 			claims, err := h.authorize(r, false)
-			require.NoError(t, err)
-			require.Nil(t, matcherClaimPatterns(claims.Mercure.Publish))
-			require.Nil(t, matcherClaimPatterns(claims.Mercure.Subscribe))
+			require.ErrorIs(t, err, ErrInvalidJWT)
+			require.Nil(t, claims)
 		})
 	}
 }
@@ -926,8 +926,12 @@ func TestLegacyPayloadIgnoredBesideAuthorizationDetails(t *testing.T) {
 	h := createLegacyDummy(t, WithTopicMatcherStore(tms), legacyVerifier(false, []byte("subscriber"), "HS256"))
 
 	token := jwt.New(jwt.SigningMethodHS256)
+	token.Header["typ"] = atJWTType
 	token.Claims = &claims{
-		Mercure: mercureClaim{Payload: map[string]any{"ip": "192.0.2.1"}},
+		Issuer:    testIssuer,
+		Audience:  jwt.ClaimStrings{testResourceIdentifier},
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		Mercure:   mercureClaim{Payload: map[string]any{"ip": "192.0.2.1"}},
 		AuthorizationDetails: []authorizationDetail{{
 			Type:    authorizationDetailTypeMercure,
 			Actions: []mercureAction{actionSubscribe},
@@ -938,7 +942,7 @@ func TestLegacyPayloadIgnoredBesideAuthorizationDetails(t *testing.T) {
 	encoded, err := token.SignedString([]byte("subscriber"))
 	require.NoError(t, err)
 
-	c, err := h.validateJWT(encoded, false, "")
+	c, err := h.validateJWT(encoded, false, testResourceIdentifier)
 	require.NoError(t, err)
 	assert.Nil(t, c.Mercure.Payload)
 }
@@ -973,6 +977,135 @@ func TestCompatModeEmptyResourceIdentifierAcceptsToken(t *testing.T) {
 	claims, err := h.authorize(r, false)
 	require.NoError(t, err)
 	require.NotNil(t, claims)
+}
+
+// Compatibility mode relaxes RFC 9068 for 0.x tokens only: a token carrying
+// authorization_details gets the modern checks.
+func TestCompatModeValidatesAuthorizationDetailsTokens(t *testing.T) {
+	t.Parallel()
+
+	details := []authorizationDetail{{
+		Type:    authorizationDetailTypeMercure,
+		Actions: []mercureAction{actionSubscribe},
+		Topics:  stringsToDetailTopics([]string{"https://example.com/books/1"}),
+	}}
+
+	for _, tc := range []struct {
+		name  string
+		alter func(*jwt.Token, *claims)
+		valid bool
+	}{
+		{"valid", func(*jwt.Token, *claims) {}, true},
+		{"no typ", func(tok *jwt.Token, _ *claims) { delete(tok.Header, "typ") }, false},
+		{"no exp", func(_ *jwt.Token, c *claims) { c.ExpiresAt = nil }, false},
+		{"other audience", func(_ *jwt.Token, c *claims) { c.Audience = jwt.ClaimStrings{"https://other.example.com/"} }, false},
+		{"untrusted issuer", func(_ *jwt.Token, c *claims) { c.Issuer = "https://other.example.com" }, false},
+		{"legacy", func(tok *jwt.Token, c *claims) {
+			delete(tok.Header, "typ")
+
+			*c = claims{Mercure: mercureClaim{Payload: "legacy"}}
+		}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c := &claims{
+				Issuer:               testIssuer,
+				Audience:             jwt.ClaimStrings{testResourceIdentifier},
+				ExpiresAt:            jwt.NewNumericDate(time.Now().Add(time.Hour)),
+				AuthorizationDetails: details,
+			}
+			token := jwt.New(jwt.SigningMethodHS256)
+			token.Header["typ"] = atJWTType
+			tc.alter(token, c)
+			token.Claims = c
+
+			encoded, err := token.SignedString([]byte("subscriber"))
+			require.NoError(t, err)
+
+			_, err = createLegacyDummy(t).validateJWT(encoded, false, testResourceIdentifier)
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, ErrInvalidJWT)
+			}
+		})
+	}
+}
+
+// A 1.x token must not travel through a carrier only 0.x clients use.
+func TestCompatModeRejectsAuthorizationDetailsTokenInLegacyCarrier(t *testing.T) {
+	t.Parallel()
+
+	token := mintAccessToken([]byte("subscriber"), testResourceIdentifier, []authorizationDetail{{
+		Type:    authorizationDetailTypeMercure,
+		Actions: []mercureAction{actionSubscribe},
+		Topics:  stringsToDetailTopics([]string{"https://example.com/books/1"}),
+	}})
+	h := createLegacyDummy(t)
+
+	header, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	header.Header.Add("Authorization", bearerPrefix+token)
+	_, err := h.authorize(header, false)
+	require.NoError(t, err)
+
+	query, _ := http.NewRequest(http.MethodGet, defaultHubURL+"?authorization="+token, nil)
+	_, err = h.authorize(query, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+
+	cookie, _ := http.NewRequest(http.MethodGet, defaultHubURL, nil)
+	cookie.AddCookie(&http.Cookie{Name: legacyCookieName, Value: token})
+	_, err = h.authorize(cookie, false)
+	require.ErrorIs(t, err, ErrInvalidJWT)
+}
+
+// Under the implicit issuer of the deprecated directives, a 1.x token may
+// carry any iss but must carry one, and a null mercure claim is no 0.x claim.
+func TestCompatModeImplicitIssuer(t *testing.T) {
+	t.Parallel()
+
+	h := createLegacyDummy(t, withSubscriberJWT([]byte("subscriber"), "HS256"))
+
+	for _, tc := range []struct {
+		name   string
+		claims jwt.MapClaims
+		valid  bool
+	}{
+		{"any issuer", jwt.MapClaims{"iss": "https://issuer.example.com"}, true},
+		{"no issuer", jwt.MapClaims{}, false},
+		// Only the 0.x relaxation would excuse the missing typ.
+		{"null mercure claim", jwt.MapClaims{"iss": "https://issuer.example.com", "mercure": nil}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tc.claims["aud"] = testResourceIdentifier
+			tc.claims["exp"] = time.Now().Add(time.Hour).Unix()
+			tc.claims["authorization_details"] = []map[string]any{{
+				"type":    authorizationDetailTypeMercure,
+				"actions": []string{"subscribe"},
+				"topics":  []map[string]string{{"match": "https://example.com/books/1"}},
+			}}
+
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, tc.claims)
+			token.Header["typ"] = atJWTType
+
+			if _, ok := tc.claims["mercure"]; ok {
+				delete(tc.claims, "authorization_details")
+				delete(token.Header, "typ")
+			}
+
+			encoded, err := token.SignedString([]byte("subscriber"))
+			require.NoError(t, err)
+
+			_, err = h.validateJWT(encoded, false, testResourceIdentifier)
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, ErrInvalidJWT)
+			}
+		})
+	}
 }
 
 func TestAuthorizeAuthorizationQueryOversized(t *testing.T) {
