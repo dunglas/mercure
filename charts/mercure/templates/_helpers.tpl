@@ -99,7 +99,7 @@ public_urls {{ join " " . }}
 {{- end -}}
 
 {{/*
-URL scheme served by the hub port, inferred from the port name like Istio and Linkerd do.
+URL scheme served by the hub port, inferred from the port name like Istio does.
 */}}
 {{- define "mercure.scheme" -}}
 {{- if regexMatch "^https(-|$)" .Values.service.portName }}https{{ else }}http{{ end }}
