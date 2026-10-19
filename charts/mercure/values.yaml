@@ -196,8 +196,8 @@ service:
   targetPort: 80  # @schema type:[integer, string];minimum:1;maximum:65535
   # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
   nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
-  # -- Service port name.
-  portName: http  # @schema minLength:1
+  # -- Service and container port name. `https` or an `https-` prefix marks the port as serving TLS.
+  portName: http  # @schema minLength:1;maxLength:15
   # -- Annotations to be added to the service.
   annotations: {}
 

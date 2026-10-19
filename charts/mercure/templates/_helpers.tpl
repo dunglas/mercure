@@ -97,3 +97,10 @@ resource_identifier {{ . }}
 public_urls {{ join " " . }}
 {{- end }}
 {{- end -}}
+
+{{/*
+URL scheme served by the hub port, inferred from the port name like Istio and Linkerd do.
+*/}}
+{{- define "mercure.scheme" -}}
+{{- if regexMatch "^https(-|$)" .Values.service.portName }}https{{ else }}http{{ end }}
+{{- end -}}

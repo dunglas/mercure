@@ -97,7 +97,7 @@ Kubernetes: `>=1.23.0-0`
 | service.annotations | object | `{}` | Annotations to be added to the service. |
 | service.nodePort | string | `nil` | Set this, to pin the external nodePort in case `service.type` is `NodePort`. |
 | service.port | int | `80` | Service port. |
-| service.portName | string | `"http"` | Service port name. |
+| service.portName | string | `"http"` | Service and container port name. `https` or an `https-` prefix marks the port as serving TLS. |
 | service.targetPort | int | `80` | Service target port. |
 | service.type | string | `"ClusterIP"` | Kubernetes [service type](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types). |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account. |

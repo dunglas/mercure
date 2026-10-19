@@ -533,8 +533,9 @@
           "minimum": 1
         },
         "portName": {
-          "description": "Service port name.",
+          "description": "Service and container port name. `https` or an `https-` prefix marks the port as serving TLS.",
           "type": "string",
+          "maxLength": 15,
           "minLength": 1
         },
         "targetPort": {
