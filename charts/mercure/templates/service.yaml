@@ -30,7 +30,7 @@ metadata:
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
     app.kubernetes.io/component: metrics
-  {{- $annotations := .Values.metricsService.annotations }}
+  {{- $annotations := (.Values.metricsService | default dict).annotations }}
   {{- if kindIs "invalid" $annotations }}
   {{- $annotations = .Values.service.annotations }}
   {{- end }}
