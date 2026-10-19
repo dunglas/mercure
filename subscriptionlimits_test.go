@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -239,4 +240,40 @@ func TestSubscriptionTokenLimitSharesCookieAndHeaderCapacity(t *testing.T) {
 	other, _ := h.registerSubscriber(t.Context(), httptest.NewRecorder(), otherRequest)
 	require.NotNil(t, other)
 	h.shutdown(t.Context(), other)
+}
+
+// A signature has several valid base64url spellings, which must share one token's capacity.
+func TestSubscriptionTokenLimitIgnoresSignatureSpelling(t *testing.T) {
+	t.Parallel()
+
+	h := createDummy(t, WithSubscriptionLimits(SubscriptionLimits{Total: 3, PerToken: 1}))
+	token := createDummyAuthorizedJWT(roleSubscriber, []string{"*"})
+
+	// The last character of an HS256 signature carries 2 unused bits.
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+
+	last := strings.IndexByte(alphabet, token[len(token)-1])
+	respelled := token[:len(token)-1] + string(alphabet[last^1])
+	require.NotEqual(t, token, respelled)
+
+	register := func(token string) (*LocalSubscriber, int) {
+		r := httptest.NewRequest(http.MethodGet, defaultHubURL+"?match=foo", nil)
+		r.Header.Set("Authorization", bearerPrefix+token)
+
+		w := httptest.NewRecorder()
+		s, _ := h.registerSubscriber(t.Context(), w, r)
+
+		return s, w.Code
+	}
+
+	first, _ := register(token)
+	require.NotNil(t, first)
+	t.Cleanup(func() { h.shutdown(t.Context(), first) })
+
+	second, code := register(respelled)
+	if second != nil {
+		h.shutdown(t.Context(), second)
+	}
+
+	assert.Equal(t, http.StatusTooManyRequests, code)
 }
