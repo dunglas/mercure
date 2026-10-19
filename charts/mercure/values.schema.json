@@ -106,7 +106,7 @@
       "type": "array"
     },
     "extraVolumes": {
-      "description": "Additional volumes to set.",
+      "description": "Additional volumes to set. `mercure-data`, `mercure-config` and `mercure-tmp` are reserved names.",
       "type": "array"
     },
     "fullnameOverride": {

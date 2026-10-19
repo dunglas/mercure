@@ -223,7 +223,9 @@ caddyExtraDirectives: |
   tls /certs/tls.crt /certs/tls.key
 ```
 
-The hub listens on `:<service.targetPort>`. The legacy `/healthz` probes (`healthCheck.enabled: false`) use plain HTTP and fail once this port serves TLS: keep the default health checks, which query the admin port.
+The `https` port name switches the chart's test pod, notes and legacy probes to HTTPS. An ingress or HTTPRoute in front of the hub must also speak TLS to the backend, for instance with the `nginx.ingress.kubernetes.io/backend-protocol: HTTPS` annotation or a Gateway API `BackendTLSPolicy`.
+
+Caddy loads the certificate files only at startup: restart the pods when the `Secret` is renewed, for instance with [Reloader](https://github.com/stakater/Reloader).
 
 ## Upgrading the Mercure Helm release
 

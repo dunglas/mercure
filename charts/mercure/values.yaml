@@ -454,7 +454,7 @@ persistence:
   # -- If defined, PVC must be created manually before volume will be bound
   existingClaim: ""
 
-# -- Additional volumes to set.
+# -- Additional volumes to set. `mercure-data`, `mercure-config` and `mercure-tmp` are reserved names.
 extraVolumes: []  # @schema type:[array]
 
 # -- Additional volume mounts to set.
