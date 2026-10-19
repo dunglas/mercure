@@ -535,8 +535,8 @@
         "portName": {
           "description": "Service and container port name. `https` or an `https-` prefix marks the port as serving TLS.",
           "type": "string",
-          "maxLength": 15,
-          "minLength": 1
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "maxLength": 15
         },
         "targetPort": {
           "description": "Service target port.",
