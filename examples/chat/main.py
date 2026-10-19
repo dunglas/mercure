@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """A minimalist chat system, using the Flask microframework to handle cookie authentication
 
 Install:
