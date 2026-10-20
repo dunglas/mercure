@@ -28,20 +28,25 @@ func TestParseMatchersDeprecatedTopic(t *testing.T) {
 }
 
 // TestParseMatchersURLPatternInCompatMode checks that the modern parameters
-// remain available when compatibility mode is enabled.
+// remain available when compatibility mode is enabled, but not beside 0.x ones.
 func TestParseMatchersURLPatternInCompatMode(t *testing.T) {
 	t.Parallel()
 
 	h := createDeprecatedDummy(t)
 
-	query := url.Values{
-		"match_urlpattern": {"https://example.com/:id"},
-		"topic":            {"https://example.com/{id}"},
-	}
-	matchers, err := h.parseMatchers(query, true)
+	matchers, err := h.parseMatchers(url.Values{"match_urlpattern": {"https://example.com/:id"}}, true)
 	require.NoError(t, err)
+	assert.Len(t, matchers, 1)
 
-	assert.Len(t, matchers, 2)
+	for _, query := range []url.Values{
+		{"match_urlpattern": {"https://example.com/:id"}, "topic": {"https://example.com/{id}"}},
+		{"match": {"https://example.com/1"}, "lastEventID": {"a"}},
+		{"match": {"https://example.com/1"}, "Last-Event-ID": {"a"}},
+		{"topic": {"https://example.com/{id}"}, "last_event_id": {"a"}},
+	} {
+		_, err := h.parseMatchers(query, true)
+		require.ErrorIs(t, err, errMixedProtocolParams, query)
+	}
 }
 
 func TestParseMatchersDeprecatedTopicAggregateBudget(t *testing.T) {
@@ -68,9 +73,6 @@ func TestParseMatchersDeprecatedTopicAggregateBudget(t *testing.T) {
 
 	_, err = h.parseMatchers(url.Values{"topic": templates[:2]}, true)
 	require.NoError(t, err, "ordinary multi-template subscriptions remain supported")
-
-	_, err = h.parseMatchers(url.Values{"topic": templates[2:8], "match_urlpattern": {"https://example.com/" + strings.Repeat("a", maxPatternLength-20)}}, true)
-	require.ErrorIs(t, err, errMatcherBudgetExceeded, "templates and URL Patterns share the budget")
 
 	exact := make([]string, maxMatcherCount)
 	for i := range exact {

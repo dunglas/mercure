@@ -336,23 +336,10 @@ func (a *mercureAuthz) grantsAll(tms *TopicMatcherStore, action mercureAction, t
 	return true
 }
 
-// hasPublishClaim reports whether the token carries a publish detail or a legacy mercure.publish claim.
-func (a *mercureAuthz) hasPublishClaim() bool {
-	if a == nil {
-		return false
-	}
-
-	if a.legacyPublish {
-		return true
-	}
-
-	for i := range a.details {
-		if a.details[i].publish {
-			return true
-		}
-	}
-
-	return false
+// hasLegacyPublishClaim reports whether the token carries a legacy
+// mercure.publish claim, even an empty one.
+func (a *mercureAuthz) hasLegacyPublishClaim() bool {
+	return a != nil && a.legacyPublish
 }
 
 // subscribeMatchers returns every topic matcher carried by a subscribe detail,

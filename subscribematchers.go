@@ -39,6 +39,7 @@ var (
 	// matcher type or a case typo); parameter names are case-sensitive and the
 	// request must be rejected per the spec.
 	errUnknownMatcherParam   = errors.New("unknown topic matcher query parameter")
+	errMixedProtocolParams   = errors.New("0.x and 1.x subscribe query parameters cannot be mixed")
 	errInvalidMatcherValue   = errors.New("topic matcher values must be valid UTF-8 without control characters")
 	errTooManyMatchers       = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
 	errPatternTooLong        = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
@@ -60,6 +61,10 @@ var (
 // type or a case typo of a known one) is rejected with an error mapped to a
 // 400 status code. Parameter names are case-sensitive.
 func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
+	if deprecated && h.isLegacyClient(query) && hasModernParam(query) {
+		return nil, errMixedProtocolParams
+	}
+
 	if err := h.checkCompileBudget(query, deprecated); err != nil {
 		return nil, err
 	}
@@ -113,6 +118,21 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 	}
 
 	return matchers, nil
+}
+
+// hasModernParam reports whether the query carries a 1.x subscribe parameter.
+func hasModernParam(query url.Values) bool {
+	if _, ok := query["last_event_id"]; ok {
+		return true
+	}
+
+	for key := range query {
+		if strings.HasPrefix(key, paramMatch) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // checkCompileBudget runs before compiling so an over-budget request compiles nothing.

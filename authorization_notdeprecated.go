@@ -10,12 +10,6 @@ func (*opt) compatClaimsEnabled() bool {
 	return false
 }
 
-// requireATJWT reports whether access tokens must carry the at+jwt typ header
-// and a matching audience. Always required without the deprecated_claim tag.
-func (h *Hub) requireATJWT() bool {
-	return true
-}
-
 // legacyAuthQueryParam is the stub for the deprecated "authorization" query
 // parameter: it is never honored without the deprecated_claim tag.
 func (h *Hub) legacyAuthQueryParam(*http.Request) (string, bool) {
@@ -24,15 +18,17 @@ func (h *Hub) legacyAuthQueryParam(*http.Request) (string, bool) {
 
 // readCookie returns the authorization cookie. Without the deprecated_claim
 // tag, only the configured cookie name is accepted.
-func (h *Hub) readCookie(r *http.Request) (*http.Cookie, error) {
-	return r.Cookie(h.cookieName) //nolint:wrapcheck
+func (h *Hub) readCookie(r *http.Request) (*http.Cookie, bool, error) {
+	cookie, err := r.Cookie(h.cookieName)
+
+	return cookie, false, err //nolint:wrapcheck
 }
 
 // This build never unmarshals legacy claims.
-func (h *Hub) dropLegacyClaims(*claims) {}
+func dropLegacyClaims(*claims) {}
 
-// resolveLegacyClaims is a no-op without the deprecated_claim tag: the legacy
-// mercure claim grants nothing.
+// resolveLegacyClaims is never reached without the deprecated_claim tag: no
+// token is legacy.
 func (h *Hub) resolveLegacyClaims(*claims) error {
 	return nil
 }

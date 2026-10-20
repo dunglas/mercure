@@ -17,9 +17,11 @@ type LocalSubscriber struct {
 	mutex               sync.Mutex
 	responseLastEventID chan string
 	ready               atomic.Bool
-	liveQueue           []*Update
-	subscriptionPermit  *subscriptionPermit
-	clientIP            string
+	// legacyClient marks a 0.x client served under protocol compatibility.
+	legacyClient       bool
+	liveQueue          []*Update
+	subscriptionPermit *subscriptionPermit
+	clientIP           string
 }
 
 const outBufferLength = 1000

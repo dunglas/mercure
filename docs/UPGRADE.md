@@ -5,6 +5,15 @@ description: "Migrate Mercure 0.x to 1.0: topic matchers, OAuth 2.0 tokens, issu
 
 # Mercure upgrade guide
 
+## 1.1.3
+
+Compatibility mode now relaxes only what 0.x clients need, and a request can no longer mix 0.x and 1.x behaviors:
+
+- Only tokens carrying a `mercure` claim and no `authorization_details` skip the 1.x checks. Any other token must pass them even with `protocol_version_compatibility` set: `typ: at+jwt`, `exp`, an `aud` matching the hub's resource identifier, and an `iss` matching a configured issuer. When the hub only uses the deprecated top-level `*_jwt`/`*_jwks_url` directives, which define no issuer identifier, `iss` must still be present but may hold any value. A 0.x token with no `mercure` claim at all is now rejected: add `"mercure": {}` to keep it working.
+- A token carrying `authorization_details` is rejected in the `authorization` query parameter and the `mercureAuthorization` cookie. Send it in the `Authorization` header or the configured cookie.
+- A subscribe request mixing 0.x parameters (`topic`, `lastEventID`, the `Last-Event-ID` query parameter) with 1.x ones (`match`, `match_*`, `last_event_id`) gets a `400`.
+- `protocol_version_compatibility 7` no longer lets a token with a publish authorization detail post public updates to topics it isn't granted. Only tokens with a `mercure.publish` claim keep this exemption. Grant the topics, or `*`, in the authorization detail.
+
 ## 1.0 (from 0.x)
 
 The 1.0 release aligns the hub with the standards-based specification: two matcher types and an OAuth 2.0 authorization model. It is a **breaking change** for subscribers, publishers, and token issuers.
@@ -23,6 +32,7 @@ If you only run the hub and don't author clients or mint tokens, the upgrade is 
 | Token in query / cookie   | `authorization` param, `mercureAuthorization` cookie               | `__Secure-mercure_access_token` cookie; no query parameter (RFC 9700)          |
 | Auth errors               | `401` / silent drop                                                | RFC 6750: `401 invalid_token`, `403 insufficient_scope`, `400 invalid_request` |
 | Subscription event topic  | `/.well-known/mercure/subscriptions/{topic}/{subscriber}`          | `/.well-known/mercure/subscriptions/{match_type}/{match}/{subscriber}`         |
+| Reconnection              | `lastEventID` param, `Last-Event-ID` response field                | `last_event_id` param, `Mercure-Last-Event-ID` response field                  |
 
 ### Migrate your subscribers
 
@@ -41,6 +51,7 @@ url.searchParams.append("match_urlpattern", "https://example.com/books/:id");
 - The exact-match parameter is `match` (explicit spelling: `match_exact`); the templated one is `match_urlpattern`, using [URL Pattern](https://urlpattern.spec.whatwg.org) syntax (`:id`, not `{id}`).
 - Parameter names are **case-sensitive**. Any other name under the `match` prefix is rejected with `400`, so typos fail loudly.
 - The `URI Template` matcher type is gone; it survives only on a hub built with `deprecated_topic` running `protocol_version_compatibility 8`. Rewrite templated topics as URL Patterns and string topics as exact topics.
+- The `lastEventID` query parameter is renamed `last_event_id`, and the hub answers with a `Mercure-Last-Event-ID` response field instead of `Last-Event-ID`. `protocol_version_compatibility 8` also accepts `lastEventID` and sends `Last-Event-ID` to requests using `lastEventID` or `topic=`.
 
 ### Migrate your tokens
 
@@ -171,7 +182,7 @@ mercure {
 - `publisher_jwks_url <url>` becomes `publisher { jwks_uri <url> [<alg>...] }` (note `_uri`, after the RFC 8414 member), and likewise for `subscriber_jwks_url`. `jwt` and `jwks_uri` are mutually exclusive within one block.
 - The issuer identifier must equal the `iss` claim of your tokens. Omitting `publisher` or `subscriber` rejects that action for the issuer. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys. See [Issuer blocks](deployment/configuration.md#issuer-blocks).
 - The official Caddyfile and Docker image keep the `MERCURE_PUBLISHER_JWT_KEY`, `MERCURE_PUBLISHER_JWT_ALG`, `MERCURE_SUBSCRIBER_JWT_KEY` and `MERCURE_SUBSCRIBER_JWT_ALG` variables. The new `MERCURE_TRUSTED_ISSUERS` variable sets the issuer identifier. It defaults to `https://localhost`, which only suits local development: set it to the `iss` your tokens carry.
-- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
+- The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check for 0.x tokens, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
 
 Key validation is stricter, including for the deprecated directives:
 
@@ -197,11 +208,11 @@ The standalone non-Caddy server has been removed. Deploy the Caddy-based binary 
 0.x behaviors are gated behind two build tags, honored only with `protocol_version_compatibility 8`:
 
 - `deprecated_topic`: URI Template selectors in `topic=`, bare-string JWT matcher claims, the `/subscriptions/{topic}` routes. Canonical and alternate topics (repeated `topic=` publish fields) are a modern-mode feature, not gated by this tag; see [Alternate topics](concepts/topics-and-matchers.md#alternate-topics).
-- `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt`, `aud`, `exp` or a matching `iss`.
+- `deprecated_claim`: the legacy `mercure` claim (string and object forms), the `https://mercure.rocks/` namespaced claim, `mercure.payload`, the `authorization` query parameter, the `mercureAuthorization` cookie, and tokens without `typ: at+jwt`, `aud`, `exp` or a matching `iss`. These relaxed checks only apply to tokens carrying a `mercure` claim and no `authorization_details`, and only those tokens are accepted in the `authorization` query parameter and the `mercureAuthorization` cookie.
 
 Enabling it therefore weakens access-token validation, which is why the hub never turns it on by itself.
 
-`protocol_version_compatibility 7` also lets publishers post public updates to topics outside their grants (deprecated). As in 0.13, the token must still carry a `mercure.publish` claim, even an empty one, or a publish authorization detail; other tokens get a `403`.
+`protocol_version_compatibility 7` also lets publishers post public updates to topics outside their grants (deprecated). As in 0.13, the token must carry a `mercure.publish` claim, even an empty one; other tokens, including ones with a publish authorization detail, get a `403`.
 
 Official binaries and Docker images ship with both tags, so you can run `protocol_version_compatibility 8` during the migration. A hub built without a tag rejects the corresponding 0.x behavior outright. Custom builds must pass the tags to `go build`.
 
@@ -293,7 +304,7 @@ The default development key changed from `!ChangeMe!` to `!ChangeThisMercureHubJ
 
 ### Mercure 0.14 upgrade notes
 
-The `Last-Event-ID` query parameter was renamed `last_event_id`. Update your clients.
+The `Last-Event-ID` query parameter was renamed `lastEventID`. Update your clients.
 
 Publishing public updates in topics not listed in `mercure.publish` was removed; use `["*"]` to keep the old behavior.
 

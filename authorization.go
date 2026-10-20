@@ -25,6 +25,8 @@ type claims struct {
 	// deprecated_claim tag in compatibility mode, the legacy mercure claim
 	// resolved into the same shape). Unexported, so it is never (un)marshaled.
 	authz *mercureAuthz
+	// legacy marks a 0.x token accepted under compatibility mode.
+	legacy bool
 }
 
 // UnmarshalJSON decodes the claim set with encoding/json/v2, like the authorization details.
@@ -114,18 +116,23 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	// "access_token" query parameter is not accepted: RFC 9700 §4.3.2 forbids
 	// passing access tokens in the URI query string.
 	if token, ok := h.legacyAuthQueryParam(r); ok {
-		return h.validateJWT(token, publish, expectedAudience)
+		return h.validateLegacyCarriedJWT(token, publish, expectedAudience)
 	}
 
-	cookie, err := h.readCookie(r)
+	cookie, legacyCookie, err := h.readCookie(r)
 	if err != nil {
 		// Anonymous
 		return nil, nil //nolint:nilerr,nilnil
 	}
 
+	validate := h.validateJWT
+	if legacyCookie {
+		validate = h.validateLegacyCarriedJWT
+	}
+
 	// CSRF attacks cannot occur when using safe methods
 	if r.Method != http.MethodPost {
-		return h.validateJWT(cookie.Value, publish, expectedAudience)
+		return validate(cookie.Value, publish, expectedAudience)
 	}
 
 	origin := r.Header.Get("Origin")
@@ -145,59 +152,66 @@ func (h *Hub) authorize(r *http.Request, publish bool) (*claims, error) { //noli
 	}
 
 	if h.publishOriginsAll {
-		return h.validateJWT(cookie.Value, publish, expectedAudience)
+		return validate(cookie.Value, publish, expectedAudience)
 	}
 
 	if slices.Contains(h.publishOrigins, origin) {
-		return h.validateJWT(cookie.Value, publish, expectedAudience)
+		return validate(cookie.Value, publish, expectedAudience)
 	}
 
 	for _, allowedOrigin := range h.publishWOrigins {
 		if allowedOrigin.match(origin) {
-			return h.validateJWT(cookie.Value, publish, expectedAudience)
+			return validate(cookie.Value, publish, expectedAudience)
 		}
 	}
 
 	return nil, fmt.Errorf("%q: %w", origin, ErrOriginNotAllowed)
 }
 
-// jwtParserOptions returns the RFC 9068 parser checks enforced in modern mode:
-// a required audience matching the hub's per-request resource identifier
-// (expectedAudience, never empty: validateJWT refuses that) and a required exp. In compatibility mode (deprecated_claim builds with
-// WithProtocolVersionCompatibility) these checks are relaxed. The accepted
-// algorithms are pinned here (RFC 8725) so the algorithm can never be taken
-// from the token header: they come from the selected issuer's Verifier (a
-// Static pins its one algorithm, a KeyFunc its allowlist, defaulting to the
-// asymmetric algorithms), so algs is only empty in compatibility mode.
-func (h *Hub) jwtParserOptions(algs []string, expectedAudience string) []jwt.ParserOption {
+// jwtParserOptions returns the RFC 9068 parser checks: a required audience
+// matching the hub's per-request resource identifier (expectedAudience, never
+// empty: validateJWT refuses that) and a required exp. Legacy tokens (see
+// validateJWT) skip them. The accepted algorithms are pinned here (RFC 8725)
+// so the algorithm can never be taken from the token header: they come from
+// the selected issuer's Verifier (a Static pins its one algorithm, a KeyFunc
+// its allowlist, defaulting to the asymmetric algorithms).
+func jwtParserOptions(algs []string, expectedAudience string, legacy bool) []jwt.ParserOption {
 	var opts []jwt.ParserOption
 
 	if len(algs) > 0 {
 		opts = append(opts, jwt.WithValidMethods(algs))
 	}
 
-	if h.compatClaimsEnabled() {
+	if legacy {
 		return opts
 	}
 
 	return append(opts, jwt.WithExpirationRequired(), jwt.WithAudience(expectedAudience))
 }
 
+// soleIssuerFallback reports whether a token whose iss names no configured
+// issuer may be verified by the sole configured one. Legacy tokens may, as 0.x
+// did not check iss; other tokens only when that issuer is the implicit one of
+// the deprecated top-level directives, which has no identifier to match.
+func (h *Hub) soleIssuerFallback(legacy bool) bool {
+	if !h.compatClaimsEnabled() || len(h.issuers) != 1 {
+		return false
+	}
+
+	_, implicit := h.issuers[""]
+
+	return legacy || implicit
+}
+
 // selectVerifier picks the issuer-specific verifier for a token, using the
 // token's unverified iss claim as a selection hint only. An unverified iss can
 // only select among the issuer bindings established by trusted configuration;
-// it never introduces a key source. Compatibility mode does not check the iss
-// claim, so it falls back to the sole configured issuer.
-func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, error) {
-	var pre claims
-	if _, _, err := jwt.NewParser().ParseUnverified(encodedToken, &pre); err != nil {
-		return roleVerifier{}, fmt.Errorf("%w: %w", ErrInvalidJWT, err)
-	}
-
-	iv, ok := h.issuers[pre.Issuer]
+// it never introduces a key source.
+func (h *Hub) selectVerifier(issuer string, publish, legacy bool) (roleVerifier, error) {
+	iv, ok := h.issuers[issuer]
 	if !ok {
-		if !h.compatClaimsEnabled() || len(h.issuers) != 1 {
-			return roleVerifier{}, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, pre.Issuer)
+		if !h.soleIssuerFallback(legacy) {
+			return roleVerifier{}, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, issuer)
 		}
 
 		for _, v := range h.issuers {
@@ -217,6 +231,30 @@ func (h *Hub) selectVerifier(encodedToken string, publish bool) (roleVerifier, e
 	return rv, nil
 }
 
+// checkAccessTokenProfile applies the RFC 9068 checks the parser does not. The
+// token must be issued as a JWT access token, so one minted for another
+// purpose (e.g. an OpenID Connect ID Token) is not accepted; the media type is
+// matched case-insensitively, including the optional "application/" prefix. It
+// must carry iss (§2.2), which only the implicit issuer could otherwise match.
+func checkAccessTokenProfile(token *jwt.Token, c *claims) error {
+	typ, _ := token.Header["typ"].(string)
+
+	const mediaTypePrefix = "application/"
+	if len(typ) >= len(mediaTypePrefix) && strings.EqualFold(typ[:len(mediaTypePrefix)], mediaTypePrefix) {
+		typ = typ[len(mediaTypePrefix):]
+	}
+
+	if !strings.EqualFold(typ, atJWTType) {
+		return fmt.Errorf(`%w: the "typ" header must be %q`, ErrInvalidJWT, atJWTType)
+	}
+
+	if c.Issuer == "" {
+		return fmt.Errorf("%w: the token has no issuer", ErrInvalidJWT)
+	}
+
+	return nil
+}
+
 // validateJWT parses and validates an access token, returning its claims with
 // the mercure authorization details resolved into c.authz.
 func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience string) (*claims, error) {
@@ -224,18 +262,27 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 		return nil, fmt.Errorf("%w: the token exceeds %d bytes", ErrInvalidJWT, maxCompactJWSLen)
 	}
 
+	var pre claims
+	if _, _, err := jwt.NewParser().ParseUnverified(encodedToken, &pre); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidJWT, err)
+	}
+
+	// Compatibility mode relaxes RFC 9068 only for tokens in the 0.x format, so
+	// a token minted for 1.x or for another purpose gets every check.
+	legacy := h.compatClaimsEnabled() && len(pre.AuthorizationDetails) == 0 && pre.hasLegacyClaim()
+
 	// Fail closed: with no identity to bind the token to, parsing without
 	// jwt.WithAudience accepts one audienced anywhere, or carrying no aud at all.
-	if expectedAudience == "" && !h.compatClaimsEnabled() {
+	if expectedAudience == "" && !legacy {
 		return nil, fmt.Errorf("%w: the hub has no resource identifier to check the audience against", ErrInvalidJWT)
 	}
 
-	rv, err := h.selectVerifier(encodedToken, publish)
+	rv, err := h.selectVerifier(pre.Issuer, publish, legacy)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, rv.keyfunc, h.jwtParserOptions(rv.algorithms, expectedAudience)...)
+	token, err := jwt.ParseWithClaims(encodedToken, &claims{}, rv.keyfunc, jwtParserOptions(rv.algorithms, expectedAudience, legacy)...)
 	if err != nil {
 		// Signature, audience, expiration and algorithm failures are all
 		// invalid-token conditions; classify them as such for RFC 6750.
@@ -247,20 +294,9 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 		return nil, ErrInvalidJWT
 	}
 
-	// RFC 9068: reject tokens not issued as JWT access tokens, so a token
-	// minted for another purpose (e.g. an OpenID Connect ID Token) is not
-	// accepted. The media type is matched case-insensitively, including the
-	// optional "application/" prefix. Relaxed in compatibility mode.
-	if h.requireATJWT() {
-		typ, _ := token.Header["typ"].(string)
-
-		const mediaTypePrefix = "application/"
-		if len(typ) >= len(mediaTypePrefix) && strings.EqualFold(typ[:len(mediaTypePrefix)], mediaTypePrefix) {
-			typ = typ[len(mediaTypePrefix):]
-		}
-
-		if !strings.EqualFold(typ, atJWTType) {
-			return nil, fmt.Errorf(`%w: the "typ" header must be %q`, ErrInvalidJWT, atJWTType)
+	if !legacy {
+		if err := checkAccessTokenProfile(token, c); err != nil {
+			return nil, err
 		}
 	}
 
@@ -270,9 +306,8 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 	// choosing a keyfunc and rejects an unknown one; both parses decode the same
 	// payload, so this lookup cannot fail today. It is kept as a guard on that
 	// invariant: should selectVerifier ever widen which issuer it falls back to,
-	// this is what still refuses the token. Relaxed in compatibility mode, whose
-	// fallback to the sole configured issuer is deliberate.
-	if !h.compatClaimsEnabled() {
+	// this is what still refuses the token. Skipped where that fallback is deliberate.
+	if !h.soleIssuerFallback(legacy) {
 		if _, ok := h.issuers[c.Issuer]; !ok {
 			return nil, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, c.Issuer)
 		}
@@ -284,16 +319,27 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 	}
 
 	c.authz = authz
+	c.legacy = legacy
 
-	h.dropLegacyClaims(c)
+	if !legacy {
+		dropLegacyClaims(c)
+	} else if err := h.resolveLegacyClaims(c); err != nil {
+		return nil, err
+	}
 
-	// The legacy mercure claim is honored only when the token carries no
-	// authorization_details, and only in deprecated_claim builds running in
-	// compatibility mode (the stub is a no-op otherwise).
-	if len(c.AuthorizationDetails) == 0 {
-		if err := h.resolveLegacyClaims(c); err != nil {
-			return nil, err
-		}
+	return c, nil
+}
+
+// validateLegacyCarriedJWT validates a token read from a carrier only 0.x
+// clients use, which must not leak a 1.x token (RFC 9700 §4.3.2).
+func (h *Hub) validateLegacyCarriedJWT(encodedToken string, publish bool, expectedAudience string) (*claims, error) {
+	c, err := h.validateJWT(encodedToken, publish, expectedAudience)
+	if err != nil {
+		return nil, err
+	}
+
+	if !c.legacy {
+		return nil, fmt.Errorf("%w: only 0.x tokens are accepted in the authorization query parameter or the legacy cookie", ErrInvalidJWT)
 	}
 
 	return c, nil
