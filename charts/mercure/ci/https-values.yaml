@@ -1,0 +1,20 @@
+# Test TLS served by the pod, with a self-signed certificate
+service:
+  portName: https
+  port: 443
+  targetPort: 8443
+caddyExtraDirectives: |
+  tls internal {
+  	on_demand
+  }
+extraVolumes:
+  - name: extra
+    emptyDir: {}
+extraVolumeMounts:
+  - name: extra
+    mountPath: /extra
+metrics:
+  enabled: true
+metricsService:
+  annotations:
+    example.com/scrape: "true"

@@ -199,6 +199,36 @@ ingress:
 
 See [Reverse proxies](reverse-proxy.md) for full configurations.
 
+## Serving HTTPS from the pod
+
+To terminate TLS in the hub instead of at the ingress, for instance behind an OpenShift passthrough route to keep HTTP/2 end-to-end, mount the certificate from a Kubernetes `Secret` and point Caddy at it:
+
+```yaml
+service:
+  portName: https
+  port: 443
+  targetPort: 8443
+
+extraVolumes:
+  - name: mercure-certs
+    secret:
+      secretName: mercure-tls
+
+extraVolumeMounts:
+  - name: mercure-certs
+    mountPath: /certs
+    readOnly: true
+
+caddyExtraDirectives: |
+  tls /certs/tls.crt /certs/tls.key
+```
+
+The `https` port name switches the chart's test pod and notes to HTTPS. An ingress or HTTPRoute in front of the hub must also speak TLS to the backend, for instance with the `nginx.ingress.kubernetes.io/backend-protocol: HTTPS` annotation or a Gateway API `BackendTLSPolicy`.
+
+The chart also exposes the port over UDP for HTTP/3. Passthrough routes and most ingress controllers only carry TCP, so HTTP/3 needs a `LoadBalancer` or `NodePort` Service reaching clients directly; clients fall back to HTTP/2 otherwise. Set `service.http3: false` if your load balancer can't mix TCP and UDP ports.
+
+Caddy loads the certificate files only at startup: restart the pods when the `Secret` is renewed, for instance with [Reloader](https://github.com/stakater/Reloader).
+
 ## Upgrading the Mercure Helm release
 
 ```console

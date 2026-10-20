@@ -101,6 +101,14 @@
       "description": "Additional environment variables to set",
       "type": "array"
     },
+    "extraVolumeMounts": {
+      "description": "Additional volume mounts to set.",
+      "type": "array"
+    },
+    "extraVolumes": {
+      "description": "Additional volumes to set. `mercure-data`, `mercure-config` and `mercure-tmp` are reserved names.",
+      "type": "array"
+    },
     "fullnameOverride": {
       "description": "A name to substitute for the full names of resources.",
       "type": "string"
@@ -118,7 +126,7 @@
       "type": "string"
     },
     "healthCheck": {
-      "description": "Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port instead of /healthz on the HTTP port.",
+      "description": "Transport-aware health checks exposed via the Caddy admin API. When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live on the admin port. When disabled, the pod has no probes.",
       "type": "object",
       "properties": {
         "enabled": {
@@ -334,6 +342,18 @@
         }
       }
     },
+    "metricsService": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "description": "Annotations to be added to the metrics service. Set `{}` for none.",
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
     "nameOverride": {
       "description": "A name in place of the chart name for `app:` labels.",
       "type": "string"
@@ -494,7 +514,12 @@
       "type": "object",
       "properties": {
         "annotations": {
+          "description": "Annotations to be added to the service.",
           "type": "object"
+        },
+        "http3": {
+          "description": "Also expose the port over UDP for HTTP/3 when it serves TLS. Disable if your load balancer can't mix TCP and UDP.",
+          "type": "boolean"
         },
         "nodePort": {
           "description": "Set this, to pin the external nodePort in case `service.type` is `NodePort`.",
@@ -510,6 +535,12 @@
           "type": "integer",
           "maximum": 65535,
           "minimum": 1
+        },
+        "portName": {
+          "description": "Service and container port name. `https` or an `https-` prefix marks the port as serving TLS.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "maxLength": 15
         },
         "targetPort": {
           "description": "Service target port.",

@@ -15,10 +15,19 @@ spec:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
-      name: http
+      name: {{ .Values.service.portName }}
       {{- if .Values.service.nodePort }}
       nodePort: {{ .Values.service.nodePort }}
       {{- end }}
+    {{- if include "mercure.http3" . }}
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      protocol: UDP
+      name: http3
+      {{- if .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
+    {{- end }}
   selector:
     {{- include "mercure.selectorLabels" . | nindent 4 }}
 ---
@@ -30,11 +39,14 @@ metadata:
   labels:
     {{- include "mercure.labels" . | nindent 4 }}
     app.kubernetes.io/component: metrics
-  {{- with .Values.service.annotations }}
+  {{- $annotations := (.Values.metricsService | default dict).annotations }}
+  {{- if kindIs "invalid" $annotations }}
+  {{- $annotations = .Values.service.annotations }}
+  {{- end }}
+  {{- with $annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-
 spec:
   type: ClusterIP
   ports:

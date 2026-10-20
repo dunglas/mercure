@@ -60,7 +60,7 @@ adminPort: 2019  # @schema minimum:1;maximum:65535
 
 # -- Transport-aware health checks exposed via the Caddy admin API.
 # When enabled, readiness and liveness probes use /mercure/health/ready and /mercure/health/live
-# on the admin port instead of /healthz on the HTTP port.
+# on the admin port. When disabled, the pod has no probes.
 healthCheck:
   # -- Enable transport-aware health checks.
   enabled: true
@@ -196,7 +196,17 @@ service:
   targetPort: 80  # @schema type:[integer, string];minimum:1;maximum:65535
   # -- Set this, to pin the external nodePort in case `service.type` is `NodePort`.
   nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
+  # -- Service and container port name. `https` or an `https-` prefix marks the port as serving TLS.
+  portName: http  # @schema pattern:^[a-z0-9]([a-z0-9-]*[a-z0-9])?$;maxLength:15
+  # -- Also expose the port over UDP for HTTP/3 when it serves TLS. Disable if your load balancer can't mix TCP and UDP.
+  http3: true
+  # -- Annotations to be added to the service.
   annotations: {}
+
+metricsService:
+  # -- (object) Annotations to be added to the metrics service. Set `{}` for none.
+  # @default -- `service.annotations`
+  annotations:  # @schema type:[object, null]
 
 ingress:
   # -- Enable [ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/).
@@ -445,3 +455,9 @@ persistence:
   # -- Requires `persistence.enabled: true`
   # -- If defined, PVC must be created manually before volume will be bound
   existingClaim: ""
+
+# -- Additional volumes to set. `mercure-data`, `mercure-config` and `mercure-tmp` are reserved names.
+extraVolumes: []  # @schema type:[array]
+
+# -- Additional volume mounts to set.
+extraVolumeMounts: []  # @schema type:[array]

@@ -178,10 +178,21 @@ spec:
               name: mercure-config
             - mountPath: /tmp
               name: mercure-tmp
+          {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
-            - name: http
+            {{- if has .Values.service.portName (list "admin" "metrics" "http3") }}
+            {{- fail "service.portName must differ from admin, metrics and http3" }}
+            {{- end }}
+            - name: {{ .Values.service.portName }}
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
+            {{- if include "mercure.http3" . }}
+            - name: http3
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: UDP
+            {{- end }}
             - name: admin
               containerPort: {{ .Values.adminPort }}
               protocol: TCP
@@ -211,16 +222,6 @@ spec:
             periodSeconds: {{ .Values.healthCheck.liveness.periodSeconds }}
             timeoutSeconds: {{ .Values.healthCheck.liveness.timeoutSeconds }}
             failureThreshold: {{ .Values.healthCheck.liveness.failureThreshold }}
-          {{- else }}
-          # Deprecated: use healthCheck.enabled=true for transport-aware health checks
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: http
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -257,3 +258,6 @@ spec:
           emptyDir: {}
         - name: mercure-tmp
           emptyDir: {}
+      {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
