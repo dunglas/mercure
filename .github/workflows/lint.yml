@@ -27,7 +27,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FILTER_REGEX_EXCLUDE: .*gatling/mvnw.*|conformance-tests/.*\.ts$|examples/chat/chart/mercure-example-chat/README.md$|\.vscode/launch\.json$|public/vendor/.*
-          CSS_FILE_NAME: .stylelintrc.json
           VALIDATE_BIOME_FORMAT: false
           VALIDATE_BIOME_LINT: false
           VALIDATE_CHECKOV: false
