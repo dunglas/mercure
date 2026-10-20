@@ -198,6 +198,8 @@ service:
   nodePort:  # @schema type:[integer, null];minimum:1;maximum:65535
   # -- Service and container port name. `https` or an `https-` prefix marks the port as serving TLS.
   portName: http  # @schema pattern:^[a-z0-9]([a-z0-9-]*[a-z0-9])?$;maxLength:15
+  # -- Also expose the port over UDP for HTTP/3 when it serves TLS. Disable if your load balancer can't mix TCP and UDP.
+  http3: true
   # -- Annotations to be added to the service.
   annotations: {}
 

@@ -225,6 +225,8 @@ caddyExtraDirectives: |
 
 The `https` port name switches the chart's test pod and notes to HTTPS. An ingress or HTTPRoute in front of the hub must also speak TLS to the backend, for instance with the `nginx.ingress.kubernetes.io/backend-protocol: HTTPS` annotation or a Gateway API `BackendTLSPolicy`.
 
+The chart also exposes the port over UDP for HTTP/3. Passthrough routes and most ingress controllers only carry TCP, so HTTP/3 needs a `LoadBalancer` or `NodePort` Service reaching clients directly; clients fall back to HTTP/2 otherwise. Set `service.http3: false` if your load balancer can't mix TCP and UDP ports.
+
 Caddy loads the certificate files only at startup: restart the pods when the `Secret` is renewed, for instance with [Reloader](https://github.com/stakater/Reloader).
 
 ## Upgrading the Mercure Helm release

@@ -517,6 +517,10 @@
           "description": "Annotations to be added to the service.",
           "type": "object"
         },
+        "http3": {
+          "description": "Also expose the port over UDP for HTTP/3 when it serves TLS. Disable if your load balancer can't mix TCP and UDP.",
+          "type": "boolean"
+        },
         "nodePort": {
           "description": "Set this, to pin the external nodePort in case `service.type` is `NodePort`.",
           "type": [

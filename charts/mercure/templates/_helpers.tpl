@@ -104,3 +104,10 @@ URL scheme served by the hub port, inferred from the port name like Istio does.
 {{- define "mercure.scheme" -}}
 {{- if regexMatch "^https(-|$)" .Values.service.portName }}https{{ else }}http{{ end }}
 {{- end -}}
+
+{{/*
+Non-empty when the hub port also serves HTTP/3, which Caddy enables on every TLS listener.
+*/}}
+{{- define "mercure.http3" -}}
+{{- if and .Values.service.http3 (eq (include "mercure.scheme" .) "https") }}true{{ end }}
+{{- end -}}
