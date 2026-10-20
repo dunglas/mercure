@@ -5,6 +5,10 @@ description: "Migrate Mercure 0.x to 1.0: topic matchers, OAuth 2.0 tokens, issu
 
 # Mercure upgrade guide
 
+## 1.1.4
+
+In compatibility mode, a subscribe request may carry `last_event_id` beside 0.x parameters again, as in 1.0 to 1.1.2: 1.1.3 rejected it with a `400`. The hub logs a deprecation notice; switch these clients from `topic` to `match`. Mixing 0.x parameters with `match` or `match_*` still gets a `400`.
+
 ## 1.1.3
 
 Compatibility mode now relaxes only what 0.x clients need, and a request can no longer mix 0.x and 1.x behaviors:

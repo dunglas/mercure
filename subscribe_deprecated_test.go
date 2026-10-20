@@ -77,6 +77,10 @@ func TestSubscribeDeprecatedTopicParamLastEventID(t *testing.T) {
 			{query: "&lastEventID=earliest", lastEventID: EarliestLastEventID, expectedBody: ":\nid: a\ndata: d1\n\nid: b\ndata: d2\n\n"},
 			{query: "&Last-Event-ID=a", lastEventID: "a", expectedBody: ":\nid: b\ndata: d2\n\n"},
 			{header: "a", lastEventID: "a", expectedBody: ":\nid: b\ndata: d2\n\n"},
+			// Some 0.x clients also send last_event_id, which takes precedence.
+			{query: "&last_event_id=a", lastEventID: "a", expectedBody: ":\nid: b\ndata: d2\n\n"},
+			{query: "&Last-Event-ID=a&last_event_id=a", lastEventID: "a", expectedBody: ":\nid: b\ndata: d2\n\n"},
+			{query: "&lastEventID=earliest&last_event_id=a", lastEventID: "a", expectedBody: ":\nid: b\ndata: d2\n\n"},
 			// Like 0.x, an empty lastEventID requests no history.
 			{query: "&lastEventID=", expectedBody: ":\n"},
 		} {

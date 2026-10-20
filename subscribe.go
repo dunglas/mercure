@@ -343,6 +343,7 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 	s := NewLocalSubscriber(lastEventID, h.logger, h.topicMatcherStore)
 	s.RequestLastEventIDSet = lastEventIDSet
 	s.legacyClient = h.isLegacyClient(values)
+	h.logLegacyClientLastEventID(ctx, values, s.legacyClient)
 	s.Claims = claims
 	s.subscriptionPermit = permit
 	s.clientIP = h.clientIP(r)
@@ -538,7 +539,7 @@ func (h *Hub) subscribeValues(r *http.Request) (url.Values, error) {
 }
 
 // isLegacyClient reports whether the request carries a subscribe query
-// parameter only 0.x clients send; parseMatchers refuses it beside a 1.x one.
+// parameter only 0.x clients send; parseMatchers refuses it beside a 1.x matcher.
 func (h *Hub) isLegacyClient(query url.Values) bool {
 	if !h.isBackwardCompatiblyEnabledWith(8) {
 		return false
@@ -549,6 +550,14 @@ func (h *Hub) isLegacyClient(query url.Values) bool {
 	_, v7LastEventID := query["Last-Event-ID"]
 
 	return topic || lastEventID || v7LastEventID
+}
+
+func (h *Hub) logLegacyClientLastEventID(ctx context.Context, query url.Values, legacyClient bool) {
+	if _, ok := query["last_event_id"]; !ok || !legacyClient || !h.logger.Enabled(ctx, slog.LevelInfo) {
+		return
+	}
+
+	h.logger.LogAttrs(ctx, slog.LevelInfo, `Deprecated: mixing the "last_event_id" query parameter with 0.x ones is deprecated, use "match" instead of "topic".`)
 }
 
 // retrieveLastEventID extracts the Last-Event-ID from the corresponding HTTP
