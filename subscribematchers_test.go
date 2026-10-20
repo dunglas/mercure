@@ -116,6 +116,9 @@ func TestParseMatchersTopicRejectedInModernMode(t *testing.T) {
 	h := createDummy(t)
 
 	_, err := h.parseMatchers(url.Values{"topic": {"foo"}}, false)
+	require.ErrorIs(t, err, errUnknownMatcherParam)
+
+	_, err = h.parseMatchers(url.Values{"topic": {"foo"}, "last_event_id": {"a"}}, false)
 	assert.ErrorIs(t, err, errUnknownMatcherParam)
 }
 

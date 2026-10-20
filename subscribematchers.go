@@ -61,7 +61,7 @@ var (
 // type or a case typo of a known one) is rejected with an error mapped to a
 // 400 status code. Parameter names are case-sensitive.
 func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, error) {
-	if deprecated && h.isLegacyClient(query) && hasModernParam(query) {
+	if deprecated && h.isLegacyClient(query) && hasModernMatcher(query) {
 		return nil, errMixedProtocolParams
 	}
 
@@ -120,12 +120,9 @@ func (h *Hub) parseMatchers(query url.Values, deprecated bool) ([]TopicMatcher, 
 	return matchers, nil
 }
 
-// hasModernParam reports whether the query carries a 1.x subscribe parameter.
-func hasModernParam(query url.Values) bool {
-	if _, ok := query["last_event_id"]; ok {
-		return true
-	}
-
+// hasModernMatcher reports whether the query carries a 1.x matcher parameter.
+// last_event_id is left out so 0.x clients sending it beside topic keep replaying history.
+func hasModernMatcher(query url.Values) bool {
 	for key := range query {
 		if strings.HasPrefix(key, paramMatch) {
 			return true

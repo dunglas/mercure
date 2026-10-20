@@ -42,10 +42,18 @@ func TestParseMatchersURLPatternInCompatMode(t *testing.T) {
 		{"match_urlpattern": {"https://example.com/:id"}, "topic": {"https://example.com/{id}"}},
 		{"match": {"https://example.com/1"}, "lastEventID": {"a"}},
 		{"match": {"https://example.com/1"}, "Last-Event-ID": {"a"}},
-		{"topic": {"https://example.com/{id}"}, "last_event_id": {"a"}},
 	} {
 		_, err := h.parseMatchers(query, true)
 		require.ErrorIs(t, err, errMixedProtocolParams, query)
+	}
+
+	for _, query := range []url.Values{
+		{"topic": {"https://example.com/{id}"}, "last_event_id": {"a"}},
+		{"topic": {"https://example.com/{id}"}, "Last-Event-ID": {"a"}, "last_event_id": {"a"}},
+	} {
+		matchers, err := h.parseMatchers(query, true)
+		require.NoError(t, err, query)
+		assert.Len(t, matchers, 1)
 	}
 }
 
