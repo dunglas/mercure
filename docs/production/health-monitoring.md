@@ -109,6 +109,8 @@ Metrics live on the admin API at `/metrics`. The hub exposes Caddy's built-in me
 | `mercure_subscribers_total`     | Total subscribers seen.                  |
 | `mercure_updates_total`         | Total updates published.                 |
 
+When the same Caddy instance serves several hubs, these series are summed across all of them. Each of them also has a per-hub counterpart, `mercure_hub_subscribers_connected`, `mercure_hub_subscribers_total`, `mercure_hub_updates_total` and `mercure_hub_subscriptions_rejected_total`, labeled with `hub` set to the hub's `name` (`default` for the unnamed hub). Hubs sharing the same `name` share the same per-hub series. Don't sum `mercure_*` and `mercure_hub_*` together: that counts every event twice.
+
 Plus standard Caddy metrics: request counts, latencies, in-flight requests, certificate expiry. See the [Caddy metrics docs](https://caddyserver.com/docs/metrics).
 
 ## Useful alerts for the Mercure hub

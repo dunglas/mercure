@@ -243,8 +243,6 @@ func (s stoppingHandlerFunc) Handle(_ context.Context, _ caddy.Event) error {
 
 //nolint:wrapcheck
 func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,gocognit,gocyclo,maintidx
-	metrics := mercure.NewPrometheusMetrics(ctx.GetMetricsRegistry())
-
 	m.logger = slog.New(mercure.NewSlogHandler(ctx.Slogger().Handler()))
 
 	if err := m.populateJWTConfig(ctx); err != nil {
@@ -265,6 +263,8 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 	if name == "" {
 		name = "default"
 	}
+
+	metrics := mercure.NewPrometheusMetricsForHub(ctx.GetMetricsRegistry(), name)
 
 	ctx = ctx.WithValue(HubNameContextKey, name)
 	ctx = ctx.WithValue(SubscriptionsContextKey, m.Subscriptions)
