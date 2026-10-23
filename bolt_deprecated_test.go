@@ -5,9 +5,9 @@ package mercure
 import (
 	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,11 +25,13 @@ func TestNewBoltTransport(t *testing.T) {
 	_, err = DeprecatedNewBoltTransport(u, nil)
 	require.EqualError(t, err, `"bolt:": invalid transport: missing path`)
 
-	u, _ = url.Parse("bolt:///test.db")
-	_, err = DeprecatedNewBoltTransport(u, nil)
+	// A regular file as parent directory fails even when running as root.
+	notADir := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(notADir, nil, 0o600))
 
-	// The exact error message depends on the OS
-	assert.Contains(t, err.Error(), "open /test.db:")
+	u, _ = url.Parse("bolt://" + filepath.ToSlash(notADir) + "/test.db")
+	_, err = DeprecatedNewBoltTransport(u, nil)
+	require.ErrorContains(t, err, notADir)
 
 	u, _ = url.Parse("bolt://test.db?cleanup_frequency=invalid")
 	_, err = DeprecatedNewBoltTransport(u, nil)
