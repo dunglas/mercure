@@ -3,7 +3,8 @@
 ## Reporting a vulnerability
 
 Report security issues through GitHub's private vulnerability reporting:
-<https://github.com/dunglas/mercure/security/advisories/new>.
+<https://github.com/dunglas/mercure/security/advisories/new>, or by email to
+<contact+security@mercure.rocks>.
 
 Do not open public issues or PRs for suspected vulnerabilities.
 
