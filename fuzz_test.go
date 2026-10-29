@@ -58,6 +58,7 @@ func FuzzPublish(f *testing.F) {
 	}{
 		{"https://localhost/foo/bar", "baz", "", "", "", "", ""},
 		{"https://localhost/foo/baz", "bat", "id", "data", "on", "22", "mytype"},
+		{"https://localhost/foo/bar", "baz", "", strings.Repeat("\xe9", int(DefaultMaxRequestBodySize)/3), "", "", ""},
 	}
 
 	for _, tc := range testCases {
@@ -89,7 +90,7 @@ func FuzzPublish(f *testing.F) {
 
 		body, _ := io.ReadAll(resp.Body)
 
-		if resp.StatusCode == http.StatusBadRequest {
+		if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusRequestEntityTooLarge {
 			return
 		}
 
