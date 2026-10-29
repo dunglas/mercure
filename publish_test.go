@@ -501,6 +501,16 @@ func TestUpdateValidate(t *testing.T) {
 	}
 }
 
+func TestUpdateValidateDoesNotQuoteTooLongTopics(t *testing.T) {
+	t.Parallel()
+
+	u := Update{Topics: []string{"https://example.com/" + strings.Repeat("\x7f", 1<<20)}}
+	err := u.Validate(urlPatternFallbackBase)
+
+	require.ErrorIs(t, err, ErrInvalidTopic)
+	assert.Equal(t, ErrInvalidTopic.Error(), err.Error())
+}
+
 func TestUpdateValidateTooManyTopics(t *testing.T) {
 	t.Parallel()
 

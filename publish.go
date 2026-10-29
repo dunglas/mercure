@@ -49,6 +49,15 @@ var (
 	ErrInvalidData       = errors.New(`"data" field is not valid UTF-8`)
 )
 
+// invalidTopicError keeps the error bounded whatever the topic size.
+func invalidTopicError(t string) error {
+	if len(t) > maxTopicLength {
+		return ErrInvalidTopic
+	}
+
+	return fmt.Errorf("%q: %w", t, ErrInvalidTopic)
+}
+
 // Validate enforces the publish-side input rules that protect subscribers
 // from update forgery and SSE field injection. Hub.Publish calls it, so the
 // bundled hub and PublishHandler are already covered.
@@ -80,7 +89,7 @@ func (u *Update) Validate(baseURL string) error {
 		// Control characters are forbidden by the protocol; a NUL would also
 		// collide with the match cache's topic-list separator.
 		if !validProtocolString(t) || len(t) > maxTopicLength {
-			return fmt.Errorf("%q: %w", t, ErrInvalidTopic)
+			return invalidTopicError(t)
 		}
 
 		if addressesReservedNamespace(t, base) {
@@ -239,7 +248,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// Reject cache-key collisions and oversized keys before authorization populates the cache.
 	for _, t := range topics {
 		if !validProtocolString(t) || len(t) > maxTopicLength {
-			http.Error(w, fmt.Errorf("%q: %w", t, ErrInvalidTopic).Error(), http.StatusBadRequest)
+			http.Error(w, invalidTopicError(t).Error(), http.StatusBadRequest)
 
 			return
 		}
