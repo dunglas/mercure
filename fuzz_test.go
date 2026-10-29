@@ -58,6 +58,7 @@ func FuzzPublish(f *testing.F) {
 	}{
 		{"https://localhost/foo/bar", "baz", "", "", "", "", ""},
 		{"https://localhost/foo/baz", "bat", "id", "data", "on", "22", "mytype"},
+		{"https://localhost/foo/bar", "baz", "", strings.Repeat("\xe9", int(DefaultMaxRequestBodySize)/3), "", "", ""},
 	}
 
 	for _, tc := range testCases {
@@ -89,7 +90,7 @@ func FuzzPublish(f *testing.F) {
 
 		body, _ := io.ReadAll(resp.Body)
 
-		if resp.StatusCode == http.StatusBadRequest {
+		if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusRequestEntityTooLarge {
 			return
 		}
 
@@ -175,13 +176,15 @@ func FuzzReservedTopicRejectedWhenPatternMatches(f *testing.F) {
 		"http:mercure/x", "ws:mercure/x", "//hub.example/.well-known/mercure/x",
 		"%2e%77ell-known/mercure/x", "?q", "#f", "", "*", "bar",
 		"https:", "http:", "ws:", "HTTPS:", " https:", " https:mercure/", "https:?q", "https:#f",
+		"/.well-known/mercure/" + strings.Repeat("a", maxTopicLength),
 	} {
 		f.Add(topic)
 	}
 
 	f.Fuzz(func(t *testing.T, topic string) {
-		// Validate rejects these first, on other grounds.
-		if !validProtocolString(topic) {
+		// Validate rejects these first, on other grounds; skipping long topics
+		// also keeps quadratic URL parsing from timing out the fuzzer.
+		if !validProtocolString(topic) || len(topic) > maxTopicLength {
 			return
 		}
 
