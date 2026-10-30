@@ -117,6 +117,7 @@ func FuzzReservedNamespaceValidation(f *testing.F) {
 		"", "?q", "#f", "*", "//host/mercure", `https://example.com\.well-known\mercure`,
 		"https:", "..", "/.well-known/./mercure", "%2e%77ell-known/mercure",
 		"HTTPS://EXAMPLE.COM/.WELL-KNOWN/MERCURE", "bar",
+		"/.well-known/mercure/" + strings.Repeat("a", maxTopicLength),
 	} {
 		f.Add(topic)
 	}
@@ -128,7 +129,7 @@ func FuzzReservedNamespaceValidation(f *testing.F) {
 		}
 
 		update := &Update{Topics: []string{topic}}
-		if !validProtocolString(topic) {
+		if !validProtocolString(topic) || len(topic) > maxTopicLength {
 			require.ErrorIs(t, update.Validate(urlPatternFallbackBase), ErrInvalidTopic)
 		} else {
 			require.ErrorIs(t, update.Validate(urlPatternFallbackBase), ErrReservedTopic)
