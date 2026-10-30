@@ -110,7 +110,7 @@ func TestMetricsOfSeveralHubsSharingARegistry(t *testing.T) {
 	NewPrometheusMetricsForHub(registry, "hub-a").UpdatePublished(&Update{Topics: []string{"topic1"}})
 
 	assert.Equal(t, map[string]float64{
-		// Summed across all the hubs sharing the registry, as before per-hub series existed.
+		// Summed across all the hubs sharing the registry.
 		`mercure_subscribers_connected{}`:                      3,
 		`mercure_subscribers_total{}`:                          4,
 		`mercure_subscriptions_rejected_total{reason="total"}`: 1,
@@ -126,8 +126,8 @@ func TestMetricsOfSeveralHubsSharingARegistry(t *testing.T) {
 	}, gatherSeries(t, registry))
 }
 
-// TestMetricsWithoutHubName guards the series exposed before per-hub metrics
-// were introduced: no hub label and no mercure_hub_* series.
+// TestMetricsWithoutHubName checks that unnamed hubs expose no hub label and
+// no mercure_hub_* series.
 func TestMetricsWithoutHubName(t *testing.T) {
 	t.Parallel()
 

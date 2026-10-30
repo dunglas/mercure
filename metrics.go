@@ -57,7 +57,6 @@ func NewPrometheusMetricsForHub(registry prometheus.Registerer, hub string) *Pro
 		registry = prometheus.NewRegistry()
 	}
 
-	// https://github.com/caddyserver/caddy/pull/6820
 	m := &PrometheusMetrics{
 		subscriptionsRejected: registerOrReuse(registry, prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "mercure_subscriptions_rejected_total",
@@ -104,7 +103,8 @@ func NewPrometheusMetricsForHub(registry prometheus.Registerer, hub string) *Pro
 }
 
 // registerOrReuse registers c, or returns the equivalent collector already
-// registered (e.g. by another hub sharing the registry).
+// registered by another hub sharing the registry
+// (https://github.com/caddyserver/caddy/pull/6820).
 func registerOrReuse[T prometheus.Collector](registry prometheus.Registerer, c T) T {
 	err := registry.Register(c)
 	if err == nil {
