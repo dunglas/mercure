@@ -7,12 +7,43 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
     environment: release
     if: github.event.pull_request.user.login == 'dependabot[bot]'
+    timeout-minutes: 60
+    permissions:
+      checks: read
+      pull-requests: read
+      statuses: read
     steps:
+      # The release app is exempt from the ruleset (release.yml pushes to main), so GitHub wouldn't wait for CI on its merges
+      - name: Wait for required checks
+        run: |
+          required=$(gh api "repos/$GITHUB_REPOSITORY/rules/branches/main" \
+            --jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | unique')
+          jq -e 'length > 0' <<<"$required" >/dev/null
+          while :; do
+            state=$(gh pr checks "$PR_URL" --json name,bucket | jq -r --argjson required "$required" '
+              [$required[] as $name | [.[] | select(.name == $name) | .bucket]
+                | if any(. == "fail" or . == "cancel") then "fail"
+                  elif length == 0 or any(. == "pending") then "pending"
+                  else "pass" end]
+              | if any(. == "fail") then "fail" elif any(. == "pending") then "pending" else "pass" end')
+            case "$state" in
+              pass) exit 0 ;;
+              fail) echo "::error::A required check failed" && exit 1 ;;
+            esac
+            sleep 30
+          done
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app-token
         with:
@@ -21,8 +52,9 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
           permission-workflows: write
-      - name: Enable auto-merge
-        run: gh pr merge --auto --rebase "$PR_URL"
+      - name: Merge
+        run: gh pr merge --rebase --match-head-commit "$HEAD_SHA" "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
