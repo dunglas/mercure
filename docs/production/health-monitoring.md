@@ -103,11 +103,14 @@ Enable metrics in `GLOBAL_OPTIONS`:
 
 Metrics live on the admin API at `/metrics`. The hub exposes Caddy's built-in metrics plus Mercure-specific ones:
 
-| Metric                          | Description                              |
-| ------------------------------- | ---------------------------------------- |
-| `mercure_subscribers_connected` | Current number of connected subscribers. |
-| `mercure_subscribers_total`     | Total subscribers seen.                  |
-| `mercure_updates_total`         | Total updates published.                 |
+| Metric                                 | Description                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `mercure_subscribers_connected`        | Current number of connected subscribers.                                    |
+| `mercure_subscribers_total`            | Total subscribers seen.                                                     |
+| `mercure_updates_total`                | Total updates published.                                                    |
+| `mercure_subscriptions_rejected_total` | Subscriptions rejected by a concurrent stream limit, labeled with `reason`. |
+
+When the same Caddy instance serves several hubs, these series are summed across all of them. Each of them also has a per-hub counterpart, `mercure_hub_subscribers_connected`, `mercure_hub_subscribers_total`, `mercure_hub_updates_total` and `mercure_hub_subscriptions_rejected_total`, labeled with `hub` set to the hub's `name` (`default` for the unnamed hub). Hubs sharing the same `name`, including a hub explicitly named `default` and the unnamed hub, share the same per-hub series. Don't sum `mercure_*` and `mercure_hub_*` together: that counts every event twice.
 
 Plus standard Caddy metrics: request counts, latencies, in-flight requests, certificate expiry. See the [Caddy metrics docs](https://caddyserver.com/docs/metrics).
 
