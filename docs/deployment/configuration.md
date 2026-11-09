@@ -80,7 +80,7 @@ Setting the port to 80 also disables HTTPS implicitly.
 | `debugger`                                             | Serve the debugger UI at `/.well-known/mercure/debug/` (no token, no playground endpoints). Safe in production.                                             | off                             |
 | `playground`                                           | Enable `debugger` **and** the insecure playground: the `/playground/` discovery endpoints, and a hub-minted all-access token prefilled in the UI. Dev only. | off                             |
 
-`debugger` serves a browser client that uses the token you provide. `playground` also creates an all-access token and enables permissive defaults. Use `playground` only for development. For a protected hub, generate a scoped token with [`caddy mercure-token`](../concepts/authorization.md#minting-a-token).
+`debugger` serves a browser client that uses the token you provide. `playground` also creates an all-access token and enables permissive defaults. It also defaults `drain_timeout` to `1s`, so stopping a local hub doesn't wait for `write_timeout`. Use `playground` only for development. For a protected hub, generate a scoped token with [`caddy mercure-token`](../concepts/authorization.md#minting-a-token).
 
 The playground echo endpoints serve `.json` paths as `application/json`, `.jsonld` paths as `application/ld+json`, and all other paths as `text/plain; charset=utf-8`.
 They return the `body` query parameter unchanged, with `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox; default-src 'none'` to prevent it from executing in the browser. These restrictions do not apply to the debugger UI.
