@@ -43,7 +43,7 @@ The open-source hub has no licensed connection cap. Your capacity depends on pub
 
 With HTTP/2, **100 concurrent streams is a common default**, negotiated between the browser and server. These streams share a connection. HTTP/1.1 typically allows **6 connections per origin**, shared across tabs. See [MDN's SSE connection limits](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#receiving_events_from_the_server). HTTP/3 also multiplexes streams with negotiated limits.
 
-Use several matchers on one `EventSource` when possible. This hub accepts up to 100 matchers per subscription; a URL Pattern can select many topics.
+Use several matchers on one `EventSource` when possible. This hub accepts up to 100 matchers per subscription by default (`max_matchers`); a URL Pattern can select many topics.
 
 ## Can a single subscriber be in many topics over one connection?
 

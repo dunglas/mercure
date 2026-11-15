@@ -160,6 +160,12 @@ type Mercure struct {
 	// set to 0 to disable the in-hub limit.
 	MaxRequestBodySize *int64 `json:"max_request_body_size,omitempty"`
 
+	// Maximum number of topic matchers in a subscribe request, defaults to 100.
+	MaxMatchers *int `json:"max_matchers,omitempty"`
+
+	// Maximum number of topics in a published update, defaults to 1000.
+	MaxPublishTopics *int `json:"max_publish_topics,omitempty"`
+
 	// Per-instance concurrent stream limits. Zero disables an individual limit.
 	SubscriptionLimits *mercure.SubscriptionLimits `json:"subscription_limits,omitempty"`
 
@@ -378,6 +384,14 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	if s := m.MaxRequestBodySize; s != nil {
 		opts = append(opts, mercure.WithMaxRequestBodySize(*s))
+	}
+
+	if n := m.MaxMatchers; n != nil {
+		opts = append(opts, mercure.WithMaxMatchers(*n))
+	}
+
+	if n := m.MaxPublishTopics; n != nil {
+		opts = append(opts, mercure.WithMaxPublishTopics(*n))
 	}
 
 	if len(m.PublishOrigins) > 0 {
@@ -616,6 +630,23 @@ func (m *Mercure) UnmarshalCaddyfile(d *caddyfile.Dispenser) (err error) { //nol
 
 				s := int64(size)
 				m.MaxRequestBodySize = &s
+
+			case "max_matchers", "max_publish_topics":
+				directive := d.Val()
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+
+				n, err := strconv.Atoi(d.Val())
+				if err != nil || n < 1 {
+					return d.Errf("invalid %s %q", directive, d.Val())
+				}
+
+				if directive == "max_matchers" {
+					m.MaxMatchers = &n
+				} else {
+					m.MaxPublishTopics = &n
+				}
 
 			case "publisher_jwks_url":
 				if !d.NextArg() {

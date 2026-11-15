@@ -170,7 +170,7 @@ Set it as the `__Secure-mercure_access_token` cookie with `Domain=example.com; P
 
 ## Limits to be aware of
 
-- **One `EventSource` per browser tab is enough.** Use multiple `match*` parameters before opening the stream. This hub accepts at most 100 matchers per subscription.
+- **One `EventSource` per browser tab is enough.** Use multiple `match*` parameters before opening the stream. This hub accepts at most 100 matchers per subscription by default.
 - **Connection counts.** A streaming chat keeps a connection open for the life of the page. The open-source hub has [no built-in cap](../concepts/reconnection-and-history.md#the-mercure-history-buffer): sizing is whatever your hardware can handle. [Mercure Cloud plans](https://mercure.rocks/pricing) provide managed capacity; [Enterprise](../production/high-availability.md) lets you scale across your own hubs.
 - **Buffer size.** If you want a user reloading mid-stream to recover the in-progress answer, retain enough events for the expected recovery window across all active responses. Persist completed output in your database and refetch it if replay is incomplete.
 

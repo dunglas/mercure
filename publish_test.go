@@ -637,6 +637,25 @@ func TestPublishHandlerTooManyTopics(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
+func TestPublishCustomTopicLimit(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t, WithMaxPublishTopics(2))
+
+	require.NoError(t, hub.Publish(t.Context(), testUpdate(&Update{}, "https://example.com/1", "https://example.com/2")))
+	require.ErrorIs(t, hub.Publish(t.Context(), testUpdate(&Update{}, "https://example.com/1", "https://example.com/2", "https://example.com/3")), ErrTooManyTopics)
+
+	form := url.Values{"topic": {"https://example.com/1", "https://example.com/2", "https://example.com/3"}, "data": {"Hello!"}}
+	req := httptest.NewRequest(http.MethodPost, defaultHubURL, strings.NewReader(form.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", bearerPrefix+createDummyAuthorizedJWT(rolePublisher, []string{"*"}))
+
+	w := httptest.NewRecorder()
+	hub.PublishHandler(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 func TestPublishHandlerTooManyClaimMatchers(t *testing.T) {
 	t.Parallel()
 

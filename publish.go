@@ -59,8 +59,9 @@ func invalidTopicError(t string) error {
 }
 
 // Validate enforces the publish-side input rules that protect subscribers
-// from update forgery and SSE field injection. Hub.Publish calls it, so the
-// bundled hub and PublishHandler are already covered.
+// from update forgery and SSE field injection, with the default topic count
+// limit. Hub.Publish runs the same checks with the hub's limit, so the bundled
+// hub and PublishHandler are already covered.
 //
 // A caller that builds an Update from untrusted input (e.g. a publisher
 // request) and dispatches it through a Transport directly, bypassing
@@ -71,12 +72,16 @@ func invalidTopicError(t string) error {
 // reserved "/.well-known/mercure" topic namespace, so it is meant for
 // publisher input, not hub-internal updates such as subscription events.
 func (u *Update) Validate(baseURL string) error {
+	return u.validate(baseURL, maxPublishTopics)
+}
+
+func (u *Update) validate(baseURL string, maxTopics int) error {
 	topics := u.Topics
 	if len(topics) == 0 {
 		return ErrMissingTopic
 	}
 
-	if len(topics) > maxPublishTopics {
+	if len(topics) > maxTopics {
 		return ErrTooManyTopics
 	}
 
@@ -149,7 +154,7 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 		span.End()
 	}()
 
-	if err := update.Validate(h.topicMatcherStore.base()); err != nil {
+	if err := update.validate(h.topicMatcherStore.base(), h.maxPublishTopics); err != nil {
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Rejected invalid update", slog.Any("error", err))
 		}
@@ -239,7 +244,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// Reject oversized topic lists before running canDispatch — otherwise
 	// an authenticated publisher could force O(topics × matchers)
 	// matching work on every request before being rejected by validate.
-	if len(topics) > maxPublishTopics {
+	if len(topics) > h.maxPublishTopics {
 		http.Error(w, ErrTooManyTopics.Error(), http.StatusBadRequest)
 
 		return
