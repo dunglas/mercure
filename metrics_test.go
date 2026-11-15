@@ -3,6 +3,7 @@ package mercure
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -104,6 +105,7 @@ func TestMetricsOfSeveralHubsSharingARegistry(t *testing.T) {
 
 	b.UpdatePublished(&Update{Topics: []string{"topic1"}})
 	a.SubscriptionRejected("total")
+	b.RequestRejected("max_matchers")
 
 	// Provisioning the same hub again (e.g. the same name in another site block)
 	// must not panic and must feed the same series.
@@ -111,18 +113,20 @@ func TestMetricsOfSeveralHubsSharingARegistry(t *testing.T) {
 
 	assert.Equal(t, map[string]float64{
 		// Summed across all the hubs sharing the registry.
-		`mercure_subscribers_connected{}`:                      3,
-		`mercure_subscribers_total{}`:                          4,
-		`mercure_subscriptions_rejected_total{reason="total"}`: 1,
-		`mercure_updates_total{}`:                              2,
+		`mercure_subscribers_connected{}`:                       3,
+		`mercure_subscribers_total{}`:                           4,
+		`mercure_requests_rejected_total{limit="max_matchers"}`: 1,
+		`mercure_subscriptions_rejected_total{reason="total"}`:  1,
+		`mercure_updates_total{}`:                               2,
 
-		`mercure_hub_subscribers_connected{hub="hub-a"}`:                       1,
-		`mercure_hub_subscribers_connected{hub="hub-b"}`:                       2,
-		`mercure_hub_subscribers_total{hub="hub-a"}`:                           1,
-		`mercure_hub_subscribers_total{hub="hub-b"}`:                           3,
-		`mercure_hub_subscriptions_rejected_total{hub="hub-a",reason="total"}`: 1,
-		`mercure_hub_updates_total{hub="hub-a"}`:                               1,
-		`mercure_hub_updates_total{hub="hub-b"}`:                               1,
+		`mercure_hub_subscribers_connected{hub="hub-a"}`:                        1,
+		`mercure_hub_subscribers_connected{hub="hub-b"}`:                        2,
+		`mercure_hub_subscribers_total{hub="hub-a"}`:                            1,
+		`mercure_hub_subscribers_total{hub="hub-b"}`:                            3,
+		`mercure_hub_requests_rejected_total{hub="hub-b",limit="max_matchers"}`: 1,
+		`mercure_hub_subscriptions_rejected_total{hub="hub-a",reason="total"}`:  1,
+		`mercure_hub_updates_total{hub="hub-a"}`:                                1,
+		`mercure_hub_updates_total{hub="hub-b"}`:                                1,
 	}, gatherSeries(t, registry))
 }
 
@@ -208,4 +212,19 @@ func assertCounterValue(t *testing.T, v float64, c prometheus.Counter) {
 	}
 
 	assert.Equal(t, v, metricOut.GetCounter().GetValue()) // nolint:testifylint
+}
+
+func TestRequestRejectedByLimits(t *testing.T) {
+	t.Parallel()
+
+	registry := prometheus.NewPedanticRegistry()
+	h := createDummy(t, WithMetrics(NewPrometheusMetrics(registry)), WithMaxMatchers(1), WithMaxPublishTopics(1))
+
+	_, err := h.parseMatchers(url.Values{"match": {"a", "b"}}, false)
+	require.ErrorIs(t, err, errTooManyMatchers)
+	require.ErrorIs(t, h.Publish(t.Context(), testUpdate(&Update{}, "https://example.com/1", "https://example.com/2")), ErrTooManyTopics)
+
+	series := gatherSeries(t, registry)
+	assert.InDelta(t, 1, series[`mercure_requests_rejected_total{limit="max_matchers"}`], 0)
+	assert.InDelta(t, 1, series[`mercure_requests_rejected_total{limit="max_publish_topics"}`], 0)
 }

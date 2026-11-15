@@ -207,6 +207,8 @@ func (h *Hub) appendMatchers(matchers []TopicMatcher, matcherType MatcherType, v
 	// only the per-value length, charset and pattern checks apply.
 	for _, v := range values {
 		if len(matchers) >= h.maxMatchers {
+			h.requestRejected("max_matchers")
+
 			return nil, fmt.Errorf("%w (max %d)", errTooManyMatchers, h.maxMatchers)
 		}
 

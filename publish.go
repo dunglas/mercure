@@ -155,6 +155,10 @@ func (h *Hub) Publish(ctx context.Context, update *Update) error {
 	}()
 
 	if err := update.validate(h.topicMatcherStore.base(), h.maxPublishTopics); err != nil {
+		if errors.Is(err, ErrTooManyTopics) {
+			h.requestRejected("max_publish_topics")
+		}
+
 		if h.logger.Enabled(ctx, slog.LevelInfo) {
 			h.logger.LogAttrs(ctx, slog.LevelInfo, "Rejected invalid update", slog.Any("error", err))
 		}
@@ -227,6 +231,8 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 
 		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			status = http.StatusRequestEntityTooLarge
+
+			h.requestRejected("max_request_body_size")
 		}
 
 		http.Error(w, http.StatusText(status), status)
@@ -245,6 +251,7 @@ func (h *Hub) PublishHandler(w http.ResponseWriter, r *http.Request) {
 	// an authenticated publisher could force O(topics × matchers)
 	// matching work on every request before being rejected by validate.
 	if len(topics) > h.maxPublishTopics {
+		h.requestRejected("max_publish_topics")
 		http.Error(w, ErrTooManyTopics.Error(), http.StatusBadRequest)
 
 		return
