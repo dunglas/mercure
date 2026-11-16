@@ -8,8 +8,8 @@ import (
 	"fmt"
 )
 
-// Caps on the authorization_details claim, aligned with the subscribe query
-// limit (maxMatcherCount, in subscribematchers.go): the total number of topic
+// Caps on the authorization_details claim, aligned with the default subscribe
+// query limit (maxMatcherCount, in subscribematchers.go): the total number of topic
 // matchers a token can carry, summed across all mercure details, is bounded by
 // maxMatcherCount, and the number of mercure details by the same value. Each
 // matcher can force a URL Pattern compilation during validation, so these

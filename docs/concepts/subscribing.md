@@ -37,7 +37,7 @@ es.onerror = () => {
 A few things to know:
 
 - Browsers typically allow **6 HTTP/1.1 connections per origin**, shared across tabs. With HTTP/2, **100 concurrent streams is a common default**, negotiated between client and server. These are streams sharing a connection, not 100 separate TCP connections. See [MDN's SSE connection limits](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#receiving_events_from_the_server). HTTP/3 also multiplexes streams, with its own negotiated limits.
-- A single `EventSource` connection can carry up to 100 matchers in this hub by passing more `match*` parameters.
+- A single `EventSource` connection can carry up to 100 matchers by default (`max_matchers`) by passing more `match*` parameters.
 - `EventSource` does not let you set `Authorization` headers. For private subscriptions, use the [`__Secure-mercure_access_token` cookie](authorization.md#cookies-in-detail), or consume the stream with `fetch()` and an `Authorization` header when a cookie can't work (per-tab tokens, cross-domain hub).
 
 ### Subscribing with Laravel Echo
@@ -66,7 +66,7 @@ await fetchEventSource(url, {
 
 ## Subscribing with the QUERY method
 
-Long topic strings can exceed URL limits imposed by browsers or proxies. `QUERY` moves the matchers into the body; it does not remove the hub's limit of 100 matchers per subscription.
+Long topic strings can exceed URL limits imposed by browsers or proxies. `QUERY` moves the matchers into the body; it does not remove the hub's `max_matchers` limit.
 
 To avoid this, the hub also accepts the [`QUERY` HTTP method](https://www.rfc-editor.org/rfc/rfc10008.html) on the subscription URL. `QUERY` is safe and idempotent like `GET`, but carries the topic matcher parameters in the request body instead of the query string. The body **must** be encoded as `application/x-www-form-urlencoded`, exactly as the query string would be:
 
@@ -268,7 +268,7 @@ If you set `heartbeat 0s` to disable them, make sure nothing on the network path
 | Concurrent HTTP/1.1 connections per origin | Typically 6; browser-dependent                                                         |
 | Concurrent connections to the hub          | Hardware-bound on OSS; see [Cloud and Enterprise plans](https://mercure.rocks/pricing) |
 
-A single connection accepts up to 100 matchers in this hub: pass more `match*` parameters rather than opening more `EventSource` instances.
+A single connection accepts up to 100 matchers by default (`max_matchers`): pass more `match*` parameters rather than opening more `EventSource` instances.
 
 ## Next steps
 

@@ -68,6 +68,9 @@ var ErrPEMKeyHMACAlgorithm = errors.New("a PEM-encoded key must not be used with
 // victim's cookie.
 var ErrSpanningPublishOrigin = errors.New(`a wildcard publish origin must stay within one registrable domain, such as "https://*.example.com"`)
 
+// ErrNonPositiveRequestLimit is returned when a per-request limit is below 1.
+var ErrNonPositiveRequestLimit = errors.New("a request limit must be positive")
+
 // ErrNegativeDrainTimeout is returned when the drain timeout is negative.
 var ErrNegativeDrainTimeout = errors.New("the drain timeout must not be negative")
 
@@ -216,6 +219,34 @@ func WithHeartbeat(interval time.Duration) Option {
 func WithMaxRequestBodySize(size int64) Option {
 	return func(o *opt) error {
 		o.maxRequestBodySize = size
+
+		return nil
+	}
+}
+
+// WithMaxMatchers bounds the number of topic matchers in a subscribe request.
+// Defaults to 100. Tokens stay capped at 100 matchers whatever this value.
+func WithMaxMatchers(n int) Option {
+	return func(o *opt) error {
+		if n < 1 {
+			return ErrNonPositiveRequestLimit
+		}
+
+		o.maxMatchers = n
+
+		return nil
+	}
+}
+
+// WithMaxPublishTopics bounds the number of topics in a published update.
+// Defaults to 1000.
+func WithMaxPublishTopics(n int) Option {
+	return func(o *opt) error {
+		if n < 1 {
+			return ErrNonPositiveRequestLimit
+		}
+
+		o.maxPublishTopics = n
 
 		return nil
 	}
@@ -463,6 +494,8 @@ type opt struct {
 	dispatchTimeout              time.Duration
 	heartbeat                    time.Duration
 	maxRequestBodySize           int64
+	maxMatchers                  int
+	maxPublishTopics             int
 	subscriptionLimits           SubscriptionLimits
 	clientIPFunc                 func(*http.Request) string
 	issuers                      map[string]issuerVerifier
@@ -597,6 +630,8 @@ func NewHub(ctx context.Context, options ...Option) (*Hub, error) {
 		dispatchTimeout:    DefaultDispatchTimeout,
 		heartbeat:          DefaultHeartbeat,
 		maxRequestBodySize: DefaultMaxRequestBodySize,
+		maxMatchers:        maxMatcherCount,
+		maxPublishTopics:   maxPublishTopics,
 	}
 
 	for _, o := range options {

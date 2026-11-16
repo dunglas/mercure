@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,7 +72,8 @@ func TestPublishTopicWithNULRejected(t *testing.T) {
 func TestPublishBodyOverLimitRejectedWith413(t *testing.T) {
 	t.Parallel()
 
-	hub := createDummy(t, WithMaxRequestBodySize(1024))
+	registry := prometheus.NewPedanticRegistry()
+	hub := createDummy(t, WithMaxRequestBodySize(1024), WithMetrics(NewPrometheusMetrics(registry)))
 	token := mintAccessToken([]byte("publisher"), testResourceIdentifier, publishAllDetails())
 
 	form := url.Values{}
@@ -90,12 +92,14 @@ func TestPublishBodyOverLimitRejectedWith413(t *testing.T) {
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+	assert.InDelta(t, 1, gatherSeries(t, registry)[`mercure_requests_rejected_total{limit="max_request_body_size"}`], 0)
 }
 
 func TestQuerySubscribeBodyOverLimitRejectedWith413(t *testing.T) {
 	t.Parallel()
 
-	hub := createAnonymousDummy(t, WithMaxRequestBodySize(1024))
+	registry := prometheus.NewPedanticRegistry()
+	hub := createAnonymousDummy(t, WithMaxRequestBodySize(1024), WithMetrics(NewPrometheusMetrics(registry)))
 
 	body := "match=" + strings.Repeat("a", 2048)
 	req := httptest.NewRequest(methodQuery, defaultHubURL, strings.NewReader(body))
@@ -109,6 +113,7 @@ func TestQuerySubscribeBodyOverLimitRejectedWith413(t *testing.T) {
 	t.Cleanup(func() { assert.NoError(t, resp.Body.Close()) })
 
 	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+	assert.InDelta(t, 1, gatherSeries(t, registry)[`mercure_requests_rejected_total{limit="max_request_body_size"}`], 0)
 }
 
 // A zero size disables the in-hub limit (delegation to a reverse proxy).

@@ -274,6 +274,8 @@ func (h *Hub) registerSubscriber(ctx context.Context, w http.ResponseWriter, r *
 
 		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			status = http.StatusRequestEntityTooLarge
+
+			h.requestRejected("max_request_body_size")
 		} else if errors.Is(err, errUnsupportedSubscriptionMediaType) {
 			status = http.StatusUnsupportedMediaType
 		}
