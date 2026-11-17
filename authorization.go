@@ -194,7 +194,15 @@ func jwtParserOptions(algs []string, expectedAudience string, legacy bool) []jwt
 // did not check iss; other tokens only when that issuer is the implicit one of
 // the deprecated top-level directives, which has no identifier to match.
 func (h *Hub) soleIssuerFallback(legacy bool) bool {
-	if !h.compatClaimsEnabled() || len(h.issuers) != 1 {
+	if !h.compatClaimsEnabled() {
+		return false
+	}
+
+	if h.selfIssuer != nil {
+		return legacy && len(h.issuers) == 0
+	}
+
+	if len(h.issuers) != 1 {
 		return false
 	}
 
@@ -203,12 +211,35 @@ func (h *Hub) soleIssuerFallback(legacy bool) bool {
 	return legacy || implicit
 }
 
+// lookupIssuer returns the verifier bound to issuer. The self issuer answers to
+// the hub's resource identifier for this request (resourceIdentifier) and to
+// its origin, the form self-issued tokens conventionally carry.
+func (h *Hub) lookupIssuer(issuer, resourceIdentifier string) (issuerVerifier, bool) {
+	if iv, ok := h.issuers[issuer]; ok {
+		return iv, true
+	}
+
+	if h.selfIssuer == nil || issuer == "" || resourceIdentifier == "" {
+		return issuerVerifier{}, false
+	}
+
+	if issuer == resourceIdentifier {
+		return *h.selfIssuer, true
+	}
+
+	if u, err := url.Parse(resourceIdentifier); err == nil && u.Host != "" && issuer == u.Scheme+"://"+u.Host {
+		return *h.selfIssuer, true
+	}
+
+	return issuerVerifier{}, false
+}
+
 // selectVerifier picks the issuer-specific verifier for a token, using the
 // token's unverified iss claim as a selection hint only. An unverified iss can
 // only select among the issuer bindings established by trusted configuration;
 // it never introduces a key source.
-func (h *Hub) selectVerifier(issuer string, publish, legacy bool) (roleVerifier, error) {
-	iv, ok := h.issuers[issuer]
+func (h *Hub) selectVerifier(issuer, resourceIdentifier string, publish, legacy bool) (roleVerifier, error) {
+	iv, ok := h.lookupIssuer(issuer, resourceIdentifier)
 	if !ok {
 		if !h.soleIssuerFallback(legacy) {
 			return roleVerifier{}, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, issuer)
@@ -216,6 +247,10 @@ func (h *Hub) selectVerifier(issuer string, publish, legacy bool) (roleVerifier,
 
 		for _, v := range h.issuers {
 			iv = v
+		}
+
+		if h.selfIssuer != nil {
+			iv = *h.selfIssuer
 		}
 	}
 
@@ -277,7 +312,7 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 		return nil, fmt.Errorf("%w: the hub has no resource identifier to check the audience against", ErrInvalidJWT)
 	}
 
-	rv, err := h.selectVerifier(pre.Issuer, publish, legacy)
+	rv, err := h.selectVerifier(pre.Issuer, expectedAudience, publish, legacy)
 	if err != nil {
 		return nil, err
 	}
@@ -308,7 +343,7 @@ func (h *Hub) validateJWT(encodedToken string, publish bool, expectedAudience st
 	// invariant: should selectVerifier ever widen which issuer it falls back to,
 	// this is what still refuses the token. Skipped where that fallback is deliberate.
 	if !h.soleIssuerFallback(legacy) {
-		if _, ok := h.issuers[c.Issuer]; !ok {
+		if _, ok := h.lookupIssuer(c.Issuer, expectedAudience); !ok {
 			return nil, fmt.Errorf("%w: untrusted issuer %q", ErrInvalidJWT, c.Issuer)
 		}
 	}

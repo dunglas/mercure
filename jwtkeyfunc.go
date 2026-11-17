@@ -17,6 +17,10 @@ var ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
 type Issuer struct {
 	// Identifier is the exact value of the token iss claim.
 	Identifier string
+	// Self trusts the hub's own per-request resource identifier, or its
+	// origin, as the iss claim, so tokens self-issued for the hub URL verify
+	// without configuring that URL twice. Identifier must then be empty.
+	Self bool
 	// AuthorizationServer advertises Identifier in the hub's RFC 9728 protected
 	// resource metadata. Leave false for self-issued tokens (a key shared out
 	// of band, no authorization server).
