@@ -63,7 +63,7 @@ One SSE stream carries updates matching either parameter.
 
 ## How do I use Mercure with GraphQL?
 
-Mercure is delivery-agnostic, so it pairs cleanly with GraphQL subscriptions: the GraphQL integration returns a topic through an application-defined registration request, the client opens an `EventSource` on that topic. See [GraphQL subscriptions](../use-cases/graphql.md). The [API Platform framework](https://api-platform.com/docs/master/core/graphql/#subscriptions) ships this integration out of the box.
+Mercure is delivery-agnostic, so it pairs cleanly with GraphQL subscriptions: the GraphQL integration returns a topic through an application-defined registration request, the client opens an `EventSource` on that topic. See [GraphQL subscriptions](../use-cases/graphql.md). The [API Platform framework](https://api-platform.com/docs/core/graphql/#subscriptions) ships this integration out of the box.
 
 ## How do I use Mercure with Hotwire / Turbo Streams?
 
