@@ -32,7 +32,7 @@ hub.example.com {
 
 Each `issuer` binds a trusted issuer (the value accepted in the token `iss` claim, RFC 9068 §4) to its own verification material, so a token is verified only with the key(s) of the issuer it claims. Repeat the block to trust several issuers with distinct keys.
 
-The identifier is the stable identifier of whoever signs the tokens: your app's URL when it signs them itself, or the authorization server's issuer identifier. Add `authorization_server` inside the block to advertise that issuer in the [protected resource metadata](../concepts/discovery.md).
+The identifier is the stable identifier of whoever signs the tokens: your app's URL when it signs them itself, or the authorization server's issuer identifier. Omit it (`issuer { … }`) to trust the hub's own public URL: the origin the client contacted (`https://hub.example.com`) or the full hub URL it uses as `aud`. That issuer follows the hub's resource identifier: pinned by `resource_identifier`, otherwise derived from each request like the audience, so on a catch-all `SERVER_NAME` restrict it with `public_urls`. Add `authorization_server` inside a block with an identifier to advertise that issuer in the [protected resource metadata](../concepts/discovery.md).
 
 Inside `publisher`/`subscriber`, use `jwt <key> [<algorithm>]` for a shared secret or public key, or `jwks_uri <url> [<algorithm>...]` for a JWK Set. The two are mutually exclusive.
 
@@ -87,7 +87,7 @@ They return the `body` query parameter unchanged, with `X-Content-Type-Options: 
 
 ### Issuer blocks
 
-An `issuer` block binds a trusted issuer to its own verification material:
+An `issuer` block binds a trusted issuer to its own verification material. Without an identifier, the block trusts the hub's own public URL (see [above](#minimal-caddyfile)):
 
 ```caddyfile
 issuer https://issuer-a.example {
@@ -135,19 +135,19 @@ Excess streams get `429 Too Many Requests` with a `Retry-After` of 5 to 10 secon
 
 The Docker image and the official Caddyfile read these:
 
-| Variable                        | Description                                                                            | Default             |
-| ------------------------------- | -------------------------------------------------------------------------------------- | ------------------- |
-| `SERVER_NAME`                   | Site address. Use `:80` to bind without a hostname.                                    | `localhost`         |
-| `MERCURE_PUBLISHER_JWT_KEY`     | Publisher verification secret or public key.                                           |                     |
-| `MERCURE_PUBLISHER_JWT_ALG`     | Publisher algorithm.                                                                   | `HS256`             |
-| `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber verification secret or public key.                                          |                     |
-| `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`             |
-| `MERCURE_TRUSTED_ISSUERS`       | Sets the `issuer` block identifier (the token `iss`).                                  | `https://localhost` |
-| `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |                     |
-| `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |                     |
-| `CADDY_EXTRA_CONFIG`            | [Snippets / named routes](https://caddyserver.com/docs/caddyfile/concepts#snippets).   |                     |
-| `CADDY_SERVER_EXTRA_DIRECTIVES` | Caddyfile directives outside the `mercure` block.                                      |                     |
-| `MERCURE_LICENSE`               | License key for [Self-Hosted Mercure](https://mercure.rocks/pricing).                  |                     |
+| Variable                        | Description                                                                            | Default              |
+| ------------------------------- | -------------------------------------------------------------------------------------- | -------------------- |
+| `SERVER_NAME`                   | Site address. Use `:80` to bind without a hostname.                                    | `localhost`          |
+| `MERCURE_PUBLISHER_JWT_KEY`     | Publisher verification secret or public key.                                           |                      |
+| `MERCURE_PUBLISHER_JWT_ALG`     | Publisher algorithm.                                                                   | `HS256`              |
+| `MERCURE_SUBSCRIBER_JWT_KEY`    | Subscriber verification secret or public key.                                          |                      |
+| `MERCURE_SUBSCRIBER_JWT_ALG`    | Subscriber algorithm.                                                                  | `HS256`              |
+| `MERCURE_TRUSTED_ISSUERS`       | Sets the `issuer` block identifier (the token `iss`).                                  | the hub's public URL |
+| `MERCURE_EXTRA_DIRECTIVES`      | Additional Mercure directives. One per line.                                           |                      |
+| `GLOBAL_OPTIONS`                | Caddy [global options](https://caddyserver.com/docs/caddyfile/options#global-options). |                      |
+| `CADDY_EXTRA_CONFIG`            | [Snippets / named routes](https://caddyserver.com/docs/caddyfile/concepts#snippets).   |                      |
+| `CADDY_SERVER_EXTRA_DIRECTIVES` | Caddyfile directives outside the `mercure` block.                                      |                      |
+| `MERCURE_LICENSE`               | License key for [Self-Hosted Mercure](https://mercure.rocks/pricing).                  |                      |
 
 Use your deployment's secret store for credentials. The JWT directives accept runtime `{env.MY_SECRET}` placeholders. Placeholder support depends on the module: follow the [Enterprise transport examples](../production/high-availability.md#self-hosted-transports) for shared-backend credentials.
 

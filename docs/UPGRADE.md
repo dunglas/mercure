@@ -5,6 +5,10 @@ description: "Migrate Mercure 0.x to 1.0: topic matchers, OAuth 2.0 tokens, issu
 
 # Mercure upgrade guide
 
+## 1.2
+
+An `issuer` block without an identifier trusts the hub's own public URL: a token's `iss` must be the origin the client contacted (`https://hub.example.com`) or the full hub URL it uses as `aud`. The official Caddyfile and Docker image use such a block when `MERCURE_TRUSTED_ISSUERS` is unset, instead of trusting `https://localhost`. Tokens carrying `iss: https://localhost` are now rejected unless clients reach the hub at exactly `https://localhost` (not `http://`, another port, or another host). Set `MERCURE_TRUSTED_ISSUERS=https://localhost` to keep accepting them, or mint them with the hub URL as `iss`.
+
 ## 1.1.4
 
 In compatibility mode, a subscribe request may carry `last_event_id` beside 0.x parameters again, as in 1.0 to 1.1.2: 1.1.3 rejected it with a `400`. The hub logs a deprecation notice; switch these clients from `topic` to `match`. Mixing 0.x parameters with `match` or `match_*` still gets a `400`.
@@ -185,7 +189,7 @@ mercure {
 - `publisher_jwt <key> [<alg>]` becomes `publisher { jwt <key> [<alg>] }`, and `subscriber_jwt` becomes `subscriber { jwt ... }`.
 - `publisher_jwks_url <url>` becomes `publisher { jwks_uri <url> [<alg>...] }` (note `_uri`, after the RFC 8414 member), and likewise for `subscriber_jwks_url`. `jwt` and `jwks_uri` are mutually exclusive within one block.
 - The issuer identifier must equal the `iss` claim of your tokens. Omitting `publisher` or `subscriber` rejects that action for the issuer. Add `authorization_server` inside the block to advertise it (see [Discovery](concepts/discovery.md)). Repeat the block to trust several issuers with distinct keys. See [Issuer blocks](deployment/configuration.md#issuer-blocks).
-- The official Caddyfile and Docker image keep the `MERCURE_PUBLISHER_JWT_KEY`, `MERCURE_PUBLISHER_JWT_ALG`, `MERCURE_SUBSCRIBER_JWT_KEY` and `MERCURE_SUBSCRIBER_JWT_ALG` variables. The new `MERCURE_TRUSTED_ISSUERS` variable sets the issuer identifier. It defaults to `https://localhost`, which only suits local development: set it to the `iss` your tokens carry.
+- The official Caddyfile and Docker image keep the `MERCURE_PUBLISHER_JWT_KEY`, `MERCURE_PUBLISHER_JWT_ALG`, `MERCURE_SUBSCRIBER_JWT_KEY` and `MERCURE_SUBSCRIBER_JWT_ALG` variables. The new `MERCURE_TRUSTED_ISSUERS` variable sets the issuer identifier. When unset, the hub trusts its own public URL (see [1.2](#12)): set it to the `iss` your tokens carry when another issuer signs them.
 - The pre-1.0 top-level directives `publisher_jwt`, `subscriber_jwt`, `publisher_jwks_url` and `subscriber_jwks_url` still parse but map to a single implicit issuer usable only in compatibility mode. Setting one without `protocol_version_compatibility` is now a configuration error, because that mode also drops the required `exp`, the audience check, the `at+jwt` check and the issuer check for 0.x tokens, and re-accepts the token in the URL query string. Migrate them into an `issuer` block for modern mode, or add `protocol_version_compatibility 8` to accept those trade-offs deliberately.
 
 Key validation is stricter, including for the deprecated directives:
