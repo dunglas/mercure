@@ -3,7 +3,7 @@ package mercure
 import (
 	"strings"
 
-	wurl "github.com/nlnwa/whatwg-url/url"
+	wurl "github.com/nationallibraryofnorway/whatwg-url/url"
 )
 
 // addressesReservedNamespace uses the matching base to prevent subscription-event forgery.
