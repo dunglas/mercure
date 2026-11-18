@@ -90,7 +90,8 @@ type JWTConfig struct {
 
 // IssuerConfig binds a trusted issuer to its per-role verification material.
 type IssuerConfig struct {
-	// Identifier is the exact token iss claim value (RFC 9068 §4).
+	// Identifier is the exact token iss claim value (RFC 9068 §4). Leave it
+	// empty to trust the hub's own public URL instead.
 	Identifier string `json:"identifier,omitempty"`
 
 	// AuthorizationServer advertises this issuer in the hub's RFC 9728
@@ -805,15 +806,13 @@ func (m *Mercure) registerUnnamedHub(ctx caddy.Context) error {
 	return nil
 }
 
-// parseIssuerBlock parses an "issuer <identifier> { ... }" Caddyfile block.
+// parseIssuerBlock parses an "issuer [<identifier>] { ... }" Caddyfile block.
 func parseIssuerBlock(d *caddyfile.Dispenser) (IssuerConfig, error) {
 	var ic IssuerConfig
 
-	if !d.NextArg() {
-		return ic, d.ArgErr() //nolint:wrapcheck
+	if d.NextArg() {
+		ic.Identifier = d.Val()
 	}
-
-	ic.Identifier = d.Val()
 
 	for d.NextBlock(1) {
 		switch d.Val() {
@@ -1066,8 +1065,8 @@ func (m *Mercure) buildVerifier(ctx context.Context, c VerifierConfig, role stri
 
 // buildIssuer builds one mercure.Issuer, skipping the verifier for an
 // unconfigured role.
-func (m *Mercure) buildIssuer(ctx context.Context, id string, authServer bool, pub, sub VerifierConfig) (mercure.Issuer, error) {
-	issuer := mercure.Issuer{Identifier: id, AuthorizationServer: authServer}
+func (m *Mercure) buildIssuer(ctx context.Context, id string, self, authServer bool, pub, sub VerifierConfig) (mercure.Issuer, error) {
+	issuer := mercure.Issuer{Identifier: id, AuthorizationServer: authServer, Self: self}
 
 	if pub.isSet() {
 		v, err := m.buildVerifier(ctx, pub, "publisher")
@@ -1125,7 +1124,7 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 	issuers := make([]mercure.Issuer, 0, len(m.Issuers)+1)
 
 	for _, ic := range m.Issuers {
-		issuer, err := m.buildIssuer(ctx, ic.Identifier, ic.AuthorizationServer, ic.Publisher, ic.Subscriber)
+		issuer, err := m.buildIssuer(ctx, ic.Identifier, ic.Identifier == "", ic.AuthorizationServer, ic.Publisher, ic.Subscriber)
 		if err != nil {
 			return nil, err
 		}
@@ -1136,7 +1135,7 @@ func (m *Mercure) buildIssuers(ctx context.Context) ([]mercure.Issuer, error) {
 	legacyPub, legacySub := m.legacyVerifiers()
 
 	if legacyPub.isSet() || legacySub.isSet() {
-		issuer, err := m.buildIssuer(ctx, "", false, legacyPub, legacySub)
+		issuer, err := m.buildIssuer(ctx, "", false, false, legacyPub, legacySub)
 		if err != nil {
 			return nil, err
 		}
@@ -1203,8 +1202,14 @@ func (m *Mercure) playgroundTokenFunc() func(string) (string, error) {
 	}
 
 	return func(resourceIdentifier string) (string, error) {
+		iss := id
+		if iss == "" {
+			// The self issuer and the implicit one both accept the hub's own URL.
+			iss = resourceIdentifier
+		}
+
 		p := tokenParams{
-			iss:       id,
+			iss:       iss,
 			aud:       resourceIdentifier,
 			key:       sub.Key,
 			alg:       sub.Alg,

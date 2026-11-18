@@ -8,12 +8,13 @@
 {$SERVER_NAME:localhost} {
 	mercure {
 		# Trusted issuer: binds the iss claim access tokens must carry (RFC 9068)
-		# to its verification keys. The localhost default suits local development
-		# only. In production set MERCURE_TRUSTED_ISSUERS to the stable identifier
-		# of your token issuer (your app's URL for self-issued tokens). Add
-		# `authorization_server` inside the block to advertise it in the protected
-		# resource metadata, or add more `issuer` blocks via MERCURE_EXTRA_DIRECTIVES.
-		issuer {$MERCURE_TRUSTED_ISSUERS:https://localhost} {
+		# to its verification keys. Unset, MERCURE_TRUSTED_ISSUERS trusts the hub's
+		# own public URL: its origin (e.g. https://example.com) or the full hub
+		# URL used as the audience. Set it to the stable identifier of another
+		# token issuer. Add `authorization_server` inside the block to advertise
+		# it in the protected resource metadata, or add more `issuer` blocks via
+		# MERCURE_EXTRA_DIRECTIVES.
+		issuer {$MERCURE_TRUSTED_ISSUERS} {
 			# Publisher JWT key
 			publisher {
 				jwt {env.MERCURE_PUBLISHER_JWT_KEY} {env.MERCURE_PUBLISHER_JWT_ALG}
