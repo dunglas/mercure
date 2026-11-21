@@ -1161,22 +1161,27 @@ func TestApplyPlaygroundDefaults(t *testing.T) {
 		assert.Equal(t, "mercure_access_token", m.CookieName)
 		assert.Equal(t, []string{"*"}, m.CORSOrigins)
 		assert.Equal(t, []string{"*"}, m.PublishOrigins)
+		require.NotNil(t, m.DrainTimeout)
+		assert.Equal(t, caddy.Duration(time.Second), *m.DrainTimeout)
 	})
 
 	t.Run("keeps explicit settings", func(t *testing.T) {
 		t.Parallel()
 
+		noDrain := caddy.Duration(0)
 		m := Mercure{
 			Playground:     true,
 			CookieName:     "__Host-token",
 			CORSOrigins:    []string{"https://example.com"},
 			PublishOrigins: []string{"https://example.com"},
+			DrainTimeout:   &noDrain,
 		}
 		m.applyPlaygroundDefaults()
 
 		assert.Equal(t, "__Host-token", m.CookieName)
 		assert.Equal(t, []string{"https://example.com"}, m.CORSOrigins)
 		assert.Equal(t, []string{"https://example.com"}, m.PublishOrigins)
+		assert.Equal(t, &noDrain, m.DrainTimeout)
 	})
 
 	t.Run("no-op without playground", func(t *testing.T) {
@@ -1190,7 +1195,41 @@ func TestApplyPlaygroundDefaults(t *testing.T) {
 		assert.Empty(t, m.CookieName)
 		assert.Nil(t, m.CORSOrigins)
 		assert.Nil(t, m.PublishOrigins)
+		assert.Nil(t, m.DrainTimeout)
 	})
+}
+
+func TestLogDrainWait(t *testing.T) {
+	t.Parallel()
+
+	noWriteTimeout := caddy.Duration(0)
+
+	for _, tc := range []struct {
+		name         string
+		writeTimeout *caddy.Duration
+		want         string
+	}{
+		{name: "default write timeout", want: "write_timeout=10m0s"},
+		{name: "write timeout disabled closes subscribers at once", writeTimeout: &noWriteTimeout},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var buf bytes.Buffer
+
+			m := Mercure{WriteTimeout: tc.writeTimeout, logger: slog.New(slog.NewTextHandler(&buf, nil))}
+			m.logDrainWait(t.Context())
+
+			if tc.want == "" {
+				assert.Empty(t, buf.String())
+
+				return
+			}
+
+			assert.Contains(t, buf.String(), "interrupt again to force quit")
+			assert.Contains(t, buf.String(), tc.want)
+		})
+	}
 }
 
 func TestPopulateJWTConfigDefaultsPlaygroundKey(t *testing.T) {

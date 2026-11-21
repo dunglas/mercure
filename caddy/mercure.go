@@ -410,10 +410,15 @@ func (m *Mercure) Provision(ctx caddy.Context) (err error) { //nolint:funlen,goc
 
 	// Cancel during the event: waiting for Cleanup would deadlock with the server shutdown.
 	if err := eventApp.(*caddyevents.App).On("stopping", stoppingHandlerFunc(func() {
-		if shouldDrainOnStopping(caddy.Exiting(), m.DrainTimeout) {
+		exiting := caddy.Exiting()
+		if shouldDrainOnStopping(exiting, m.DrainTimeout) {
 			h.Drain()
 
 			return
+		}
+
+		if exiting {
+			m.logDrainWait(context.Background())
 		}
 
 		m.cancel()
@@ -962,6 +967,12 @@ func (m *Mercure) applyPlaygroundDefaults() {
 	if m.PublishOrigins == nil {
 		m.PublishOrigins = []string{"*"}
 	}
+
+	// Stopping a local hub shouldn't wait for every subscriber's write deadline
+	if m.DrainTimeout == nil {
+		drainTimeout := caddy.Duration(time.Second)
+		m.DrainTimeout = &drainTimeout
+	}
 }
 
 var errMissingVerifier = errors.New("a JWT key or the URL of a JWK Set must be provided")
@@ -1283,6 +1294,21 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 	m := new(Mercure)
 
 	return m, m.UnmarshalCaddyfile(h.Dispenser)
+}
+
+// logDrainWait tells why the process may not exit right away: without a drain, subscribers keep their connection until
+// their write deadline.
+func (m *Mercure) logDrainWait(ctx context.Context) {
+	writeTimeout := mercure.DefaultWriteTimeout
+	if m.WriteTimeout != nil {
+		writeTimeout = time.Duration(*m.WriteTimeout)
+	}
+
+	if writeTimeout == 0 || !m.logger.Enabled(ctx, slog.LevelInfo) {
+		return
+	}
+
+	m.logger.LogAttrs(ctx, slog.LevelInfo, "Open subscriber connections close at their write deadline: set drain_timeout to stop sooner, or interrupt again to force quit", slog.Duration("write_timeout", writeTimeout))
 }
 
 // shouldDrainOnStopping reports whether to drain; "stopping" also fires on config reloads, which must not drain.

@@ -51,6 +51,8 @@ With `write_timeout 0s`, connections never rotate, but `drain_timeout` still dra
 
 Config reloads never trigger the drain. With `write_timeout 0s`, a reload still closes subscribers immediately.
 
+Without `drain_timeout`, a first interrupt (Ctrl-C) waits for the deadlines, and the hub logs it; a second interrupt exits at once. With [`playground`](../deployment/configuration.md), `drain_timeout` defaults to `1s`, so stopping a local hub is quick.
+
 ## Kubernetes
 
 For `RollingUpdate`, the Helm chart sets:
