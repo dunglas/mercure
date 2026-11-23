@@ -29,7 +29,7 @@ jobs:
         uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
 
       - name: Regenerate values.schema.json
-        uses: losisin/helm-values-schema-json-action@9ed68d9d464a5e6f7f5fc1f3dc071828cf7d13a2 # v3.2.0
+        uses: losisin/helm-values-schema-json-action@3bbbe5960e765b4e45205e6b3af45daeaec7d7f5 # v3.2.1
         with:
           working-directory: charts/mercure
           fail-on-diff: true
