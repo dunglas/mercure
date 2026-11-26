@@ -470,16 +470,6 @@ func (m *Mercure) Cleanup() error {
 }
 
 func (m *Mercure) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	// On a playground (dev) hub, send the site root to the debugger UI as a
-	// convenience landing page. Gated on the playground so a prod-safe debugger
-	// hub never hijacks the operator's own "/". The target mirrors the debugger
-	// UI mount in the mercure package (defaultDebugURL).
-	if m.Playground && r.URL.Path == "/" {
-		http.Redirect(w, r, defaultHubURL+"/debug/", http.StatusFound)
-
-		return nil
-	}
-
 	// The playground echo endpoints live at a root prefix (outside the reserved
 	// hub namespace so their resources are valid topics), so forward them too,
 	// but only when the playground is enabled, to avoid shadowing an operator's
