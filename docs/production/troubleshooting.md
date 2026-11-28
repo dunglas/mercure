@@ -21,6 +21,18 @@ The hub returns `401` either with a bare `WWW-Authenticate: Bearer` challenge (n
 
 The hub logs the exact reason on `stderr`. Read the logs.
 
+## 400 invalid_request behind HTTP Basic auth
+
+Every subscription fails with `400 Bad Request` and a `WWW-Authenticate: Bearer error="invalid_request"` challenge, even though the browser holds a valid authorization cookie. The hub logs `invalid "Authorization" HTTP header`.
+
+The hub accepts only one form of `Authorization` header: `Bearer <token>`. When a subscriber key is configured, it rejects any other scheme before it reads the cookie, even in `anonymous` mode. When the application protects the whole site with HTTP Basic auth, the browser resends the Basic credentials to every URL at or below the challenged path, `/.well-known/mercure` included. Same-origin `EventSource` and `fetch()` requests carry them too.
+
+Fixes:
+
+- **Restrict Basic auth to a sub-path** that doesn't cover the hub, such as `/admin/`. Browsers send Basic credentials only to URLs under the path that returned the challenge.
+- **Use another authentication scheme** for the application, such as a session cookie.
+- **Serve the hub from another origin**, such as `https://mercure.example.com`, so the browser doesn't attach the application's Basic credentials.
+
 ## 403 insufficient_scope on publish
 
 The token is valid but no `authorization_details` entry grants `publish` on the publication's topic.
