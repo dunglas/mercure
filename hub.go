@@ -43,6 +43,10 @@ var ErrInvalidPublicURL = errors.New("a public URL must be an absolute URL with 
 // it must be set.
 var ErrMissingIssuerIdentifier = errors.New("an issuer identifier is required in modern mode")
 
+// ErrInvalidSelfIssuer is returned when a self issuer sets an identifier or
+// claims to be an authorization server.
+var ErrInvalidSelfIssuer = errors.New("a self issuer takes no identifier and cannot be an authorization server")
+
 // ErrDuplicateIssuer is returned when the same issuer identifier is configured
 // more than once.
 var ErrDuplicateIssuer = errors.New("duplicate issuer identifier")
@@ -237,38 +241,27 @@ func WithIssuers(issuers []Issuer) Option {
 		}
 
 		for _, iss := range issuers {
-			if _, ok := o.issuers[iss.Identifier]; ok {
+			if iss.Self {
+				if iss.Identifier != "" || iss.AuthorizationServer {
+					return ErrInvalidSelfIssuer
+				}
+
+				if o.selfIssuer != nil {
+					return fmt.Errorf("%w: self issuer", ErrDuplicateIssuer)
+				}
+			} else if _, ok := o.issuers[iss.Identifier]; ok {
 				return fmt.Errorf("%w: %q", ErrDuplicateIssuer, iss.Identifier)
 			}
 
-			var iv issuerVerifier
-
-			if iss.Publisher != nil {
-				kf, algs, err := iss.Publisher.buildKeyfunc()
-				if err != nil {
-					return fmt.Errorf("issuer %q: publisher: %w", iss.Identifier, err)
-				}
-
-				iv.publisher = roleVerifier{keyfunc: kf, algorithms: algs}
-				o.publisherConfigured = true
-
-				o.noteShortHMACKey(iss.Identifier, "publisher", iss.Publisher)
+			iv, err := o.buildIssuerVerifier(iss)
+			if err != nil {
+				return err
 			}
 
-			if iss.Subscriber != nil {
-				kf, algs, err := iss.Subscriber.buildKeyfunc()
-				if err != nil {
-					return fmt.Errorf("issuer %q: subscriber: %w", iss.Identifier, err)
-				}
+			if iss.Self {
+				o.selfIssuer = &iv
 
-				iv.subscriber = roleVerifier{keyfunc: kf, algorithms: algs}
-				o.subscriberConfigured = true
-
-				o.noteShortHMACKey(iss.Identifier, "subscriber", iss.Subscriber)
-			}
-
-			if iv.publisher.keyfunc == nil && iv.subscriber.keyfunc == nil {
-				return fmt.Errorf("%w: %q", ErrIssuerMissingKey, iss.Identifier)
+				continue
 			}
 
 			o.issuers[iss.Identifier] = iv
@@ -466,6 +459,7 @@ type opt struct {
 	subscriptionLimits           SubscriptionLimits
 	clientIPFunc                 func(*http.Request) string
 	issuers                      map[string]issuerVerifier
+	selfIssuer                   *issuerVerifier
 	publisherConfigured          bool
 	subscriberConfigured         bool
 	metrics                      Metrics
@@ -499,6 +493,41 @@ func (o *opt) noteShortHMACKey(issuer, role string, v Verifier) {
 	if minLen, short := s.shortHMACKey(); short {
 		o.shortHMACKeys = append(o.shortHMACKeys, shortHMACKey{issuer: issuer, role: role, minLen: minLen})
 	}
+}
+
+// buildIssuerVerifier builds the per-role verification material of iss.
+func (o *opt) buildIssuerVerifier(iss Issuer) (issuerVerifier, error) {
+	var iv issuerVerifier
+
+	if iss.Publisher != nil {
+		kf, algs, err := iss.Publisher.buildKeyfunc()
+		if err != nil {
+			return iv, fmt.Errorf("issuer %q: publisher: %w", iss.Identifier, err)
+		}
+
+		iv.publisher = roleVerifier{keyfunc: kf, algorithms: algs}
+		o.publisherConfigured = true
+
+		o.noteShortHMACKey(iss.Identifier, "publisher", iss.Publisher)
+	}
+
+	if iss.Subscriber != nil {
+		kf, algs, err := iss.Subscriber.buildKeyfunc()
+		if err != nil {
+			return iv, fmt.Errorf("issuer %q: subscriber: %w", iss.Identifier, err)
+		}
+
+		iv.subscriber = roleVerifier{keyfunc: kf, algorithms: algs}
+		o.subscriberConfigured = true
+
+		o.noteShortHMACKey(iss.Identifier, "subscriber", iss.Subscriber)
+	}
+
+	if iv.publisher.keyfunc == nil && iv.subscriber.keyfunc == nil {
+		return iv, fmt.Errorf("%w: %q", ErrIssuerMissingKey, iss.Identifier)
+	}
+
+	return iv, nil
 }
 
 // roleVerifier holds the verification material for one role of one issuer.

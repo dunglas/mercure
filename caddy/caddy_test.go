@@ -977,6 +977,76 @@ func TestMultiIssuerPublish(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 }
 
+// An issuer block without an identifier trusts the hub's own public URL.
+func TestSelfIssuerPublish(t *testing.T) {
+	tester := caddytest.NewTester(t)
+	tester.InitServer(`
+	{
+		skip_install_trust
+		admin localhost:2999
+		http_port     9080
+		https_port    9443
+	}
+	localhost:9080 {
+		route {
+			mercure {
+				anonymous
+				issuer {
+					publisher {
+						jwt self-key
+					}
+				}
+				transport local
+			}
+
+			respond 404
+		}
+	}
+	`, "caddyfile")
+
+	const hubURL = "http://localhost:9080/.well-known/mercure"
+
+	publish := func(iss string) *http.Request {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"iss":                   iss,
+			"aud":                   hubURL,
+			"exp":                   time.Now().Add(time.Hour).Unix(),
+			"authorization_details": []map[string]any{actionDetail("publish", topicMatch())},
+		})
+		token.Header["typ"] = "at+jwt"
+
+		s, err := token.SignedString([]byte("self-key"))
+		require.NoError(t, err)
+
+		body := url.Values{"topic": {"https://example.com/foo"}, "data": {"hi"}}
+		req, err := http.NewRequest(http.MethodPost, hubURL, strings.NewReader(body.Encode()))
+		require.NoError(t, err)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Add("Authorization", bearerPrefix+s)
+
+		return req
+	}
+
+	for iss, code := range map[string]int{
+		"http://localhost:9080": http.StatusOK,
+		hubURL:                  http.StatusOK,
+		"https://localhost":     http.StatusUnauthorized,
+	} {
+		resp := tester.AssertResponseCode(publish(iss), code)
+		require.NoError(t, resp.Body.Close())
+	}
+}
+
+func TestParseIssuerBlockWithoutIdentifier(t *testing.T) {
+	t.Parallel()
+
+	m := new(Mercure)
+	require.NoError(t, m.UnmarshalCaddyfile(caddyfile.NewTestDispenser("mercure {\n issuer {\n  publisher {\n   jwt k\n  }\n }\n}")))
+	require.Len(t, m.Issuers, 1)
+	assert.Empty(t, m.Issuers[0].Identifier)
+	assert.Equal(t, "k", m.Issuers[0].Publisher.JWT.Key)
+}
+
 func TestNormalizeJWTPEMKeyRejectsHMAC(t *testing.T) {
 	t.Parallel()
 

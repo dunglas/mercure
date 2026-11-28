@@ -88,7 +88,7 @@ MERCURE_EXTRA_DIRECTIVES='playground' \
 ./mercure run --config Caddyfile
 ```
 
-The hub listens at `https://localhost`. For production, remove `playground`, configure publisher and subscriber verification keys, and set `SERVER_NAME` and `MERCURE_TRUSTED_ISSUERS` for your deployment.
+The hub listens at `https://localhost`. For production, remove `playground`, configure publisher and subscriber verification keys, and set `SERVER_NAME` for your deployment. Tokens then use the hub URL as `iss`, unless `MERCURE_TRUSTED_ISSUERS` names another issuer.
 
 **macOS users:** downloaded binaries may carry a quarantine attribute. If macOS blocks the downloaded binary, remove the quarantine attribute with `xattr -d com.apple.quarantine ./mercure`.
 

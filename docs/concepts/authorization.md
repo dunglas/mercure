@@ -53,7 +53,7 @@ A Mercure access token is a JWT access token as defined by [RFC 9068](https://ww
 The hub enforces, on every token:
 
 - **`typ: at+jwt` header.** Tokens minted for other purposes (an OpenID Connect ID token, for example) are rejected.
-- **`iss` claim.** It must exactly match one of the hub's trusted issuers, each declared with an `issuer` block (see [Discovery](discovery.md)). Add `authorization_server` inside a block to advertise that issuer.
+- **`iss` claim.** It must exactly match one of the hub's trusted issuers, each declared with an `issuer` block (see [Discovery](discovery.md)). A block without an identifier, the default of the official Caddyfile, trusts the hub's own public URL: its origin or the full hub URL used as `aud`. Add `authorization_server` inside a block to advertise that issuer.
 - **`aud` claim.** It must contain the hub's resource identifier: the value pinned with `resource_identifier`, or, when unset, the public URL the client contacted (derived per request). `aud` may be a string or an array.
 - **`exp` claim.** Required. The hub rejects expired tokens, including on the first request. `nbf` is enforced when present.
 - **Signature** with the issuer's configured key (its `publisher`/`subscriber` verifier; see below). The token is verified only with the key(s) bound to its `iss`, so keys are never pooled across issuers. The algorithm comes from hub configuration, never from the token, so `alg=none` and algorithm-confusion attacks are blocked.

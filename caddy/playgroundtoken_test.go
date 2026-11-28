@@ -54,6 +54,24 @@ func TestPlaygroundTokenFuncMintsAllAccessToken(t *testing.T) {
 	assert.True(t, actions["subscribe"])
 }
 
+// The self issuer has no identifier: the token names the hub URL instead.
+func TestPlaygroundTokenFuncSelfIssuer(t *testing.T) {
+	t.Parallel()
+
+	const key = "!ChangeMe!"
+
+	m := &Mercure{Issuers: []IssuerConfig{{Subscriber: VerifierConfig{JWT: JWTConfig{Key: key}}}}}
+
+	fn := m.playgroundTokenFunc()
+	require.NotNil(t, fn)
+
+	signed, err := fn("https://hub.example.com/.well-known/mercure")
+	require.NoError(t, err)
+
+	claims, _ := grantedActions(t, signed, key)
+	assert.Equal(t, "https://hub.example.com/.well-known/mercure", claims[claimIss])
+}
+
 func TestPlaygroundTokenFuncSubscribeOnlyWhenKeysDiffer(t *testing.T) {
 	t.Parallel()
 
