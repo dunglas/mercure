@@ -149,7 +149,7 @@ The Docker image and the official Caddyfile read these:
 | `CADDY_SERVER_EXTRA_DIRECTIVES` | Caddyfile directives outside the `mercure` block.                                      |                     |
 | `MERCURE_LICENSE`               | License key for [Self-Hosted Mercure](https://mercure.rocks/pricing).                  |                     |
 
-Use your deployment's secret store for credentials. The JWT directives accept runtime `{env.MY_SECRET}` placeholders. Placeholder support depends on the module: follow the [Enterprise transport examples](../production/high-availability.md#self-hosted-transports) for shared-backend credentials.
+Use your deployment's secret store for credentials. The JWT directives accept runtime `{env.MY_SECRET}` placeholders. `issuer` identifiers accept them too, for instance `issuer {env.MERCURE_JWT_ISSUER}`, to change the trusted issuer per environment. Placeholder support depends on the module: follow the [Enterprise transport examples](../production/high-availability.md#self-hosted-transports) for shared-backend credentials.
 
 ## Mercure hub transports
 

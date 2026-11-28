@@ -982,6 +982,7 @@ func (m *Mercure) populateJWTConfig(ctx caddy.Context) error {
 
 	for i := range m.Issuers {
 		iss := &m.Issuers[i]
+		iss.Identifier = repl.ReplaceKnown(iss.Identifier, "")
 
 		if err := normalizeJWT(repl, &iss.Publisher.JWT, iss.Publisher.JWKSURL, "publisher"); err != nil {
 			return fmt.Errorf("issuer %q: %w", iss.Identifier, err)

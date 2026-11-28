@@ -226,6 +226,7 @@ func TestJWTPlaceholders(t *testing.T) {
 	k, _ := os.ReadFile("../fixtures/jwt/RS256.key.pub")
 	t.Setenv("TEST_JWT_KEY", string(k))
 	t.Setenv("TEST_JWT_ALG", "RS256")
+	t.Setenv("TEST_JWT_ISSUER", caddyTrustedIssuer)
 
 	tester := caddytest.NewTester(t)
 	tester.InitServer(`
@@ -240,7 +241,7 @@ func TestJWTPlaceholders(t *testing.T) {
 		route {
 			mercure {
 				anonymous
-				issuer https://example.com {
+				issuer {env.TEST_JWT_ISSUER} {
 					publisher {
 						jwt {env.TEST_JWT_KEY} {env.TEST_JWT_ALG}
 					}
