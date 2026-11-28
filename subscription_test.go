@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -307,10 +306,8 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	sub.setMatchers(matchers, nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, sub))
 
-	router := mux.NewRouter()
-	router.UseEncodedPath()
-	router.SkipClean(true)
-	router.HandleFunc(subscriptionMatchURL, hub.SubscriptionHandler)
+	router := http.NewServeMux()
+	router.HandleFunc("GET "+subscriptionMatchURL, hub.SubscriptionHandler)
 
 	// Use the escaped matcher directly from the subscriber to avoid encoding drift.
 	authURL := "/.well-known/mercure/subscriptions/" + sub.EscapedMatchers[0] + "/" + sub.EscapedID
@@ -334,11 +331,42 @@ func TestSubscriptionHandlerMatchRoute(t *testing.T) {
 	assert.NotContains(t, w.Body.String(), "last_event_id", "the cursor lives in the Link header, not the body")
 }
 
+// TestSubscriptionsHandlerDecodesPathOnce guards against unescaping path
+// values a second time, which would turn "%25" into a different matcher.
+func TestSubscriptionsHandlerDecodesPathOnce(t *testing.T) {
+	t.Parallel()
+
+	hub := createDummy(t)
+
+	sub := NewLocalSubscriber("", slog.Default(), hub.topicMatcherStore)
+	matchers, err := hub.parseMatchers(url.Values{paramMatch: {"https://example.com/100%25"}}, false)
+	require.NoError(t, err)
+	sub.setMatchers(matchers, nil)
+	require.NoError(t, hub.transport.AddSubscriber(t.Context(), sub))
+
+	router := http.NewServeMux()
+	router.HandleFunc("GET "+subscriptionsForMatchURL, hub.SubscriptionsHandler)
+
+	collURL := subscriptionsURL + "/" + sub.EscapedMatchers[0]
+
+	req := httptest.NewRequest(http.MethodGet, collURL, nil)
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{collURL})})
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var got subscriptionCollection
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.Len(t, got.Subscriptions, 1)
+	assert.Equal(t, "https://example.com/100%25", got.Subscriptions[0].Match)
+}
+
 // TestEscapeSubscriptionSegmentRoundTrip verifies the segment encoder
 // produces only RFC 3986 unreserved characters and %XX sequences (a
 // requirement for v8 URI-template subscription auth) AND that the
-// resulting slug round-trips through url.PathUnescape — the decoder used
-// by filterFromVars and isKnownMatchType. Literal '+' from a hand-built
+// resulting slug round-trips through url.PathUnescape — the decoder
+// ServeMux applies to path values. Literal '+' from a hand-built
 // client URL must also decode to literal '+'.
 func TestEscapeSubscriptionSegmentRoundTrip(t *testing.T) {
 	t.Parallel()

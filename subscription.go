@@ -2,13 +2,10 @@ package mercure
 
 import (
 	jsonv2 "encoding/json/v2"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -18,6 +15,8 @@ const (
 
 	subscriptionMatchURL     = defaultHubURL + subscriptionsPath + "/{match_type}/{match}/{subscriber}"
 	subscriptionsForMatchURL = defaultHubURL + subscriptionsPath + "/{match_type}/{match}"
+
+	paramSubscriber = "subscriber"
 
 	// reservedEventType is the SSE "event" field value the hub sets on every
 	// update it generates itself (currently subscription events). Publishers
@@ -124,23 +123,12 @@ type subscriptionFilter struct {
 	match     string
 }
 
-// filterFromVars builds a subscriptionFilter from mux path variables. Returns
-// an error if any of the URL-encoded segments contains invalid escape
-// sequences — the caller should answer 400 rather than silently serving an
-// unfiltered listing.
-func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
-	var f subscriptionFilter
-
-	for _, seg := range []struct {
-		name string
-		dst  *string
-	}{{paramTopic, &f.topic}, {paramMatch, &f.match}, {paramMatchType, &f.matchType}} {
-		v, err := url.PathUnescape(vars[seg.name])
-		if err != nil {
-			return subscriptionFilter{}, fmt.Errorf("invalid %s segment: %w", seg.name, err)
-		}
-
-		*seg.dst = v
+// filterFromRequest builds a subscriptionFilter from the request's path values.
+func filterFromRequest(r *http.Request) (subscriptionFilter, error) {
+	f := subscriptionFilter{
+		topic:     r.PathValue(paramTopic),
+		matchType: r.PathValue(paramMatchType),
+		match:     r.PathValue(paramMatch),
 	}
 
 	// Reject unknown matcher types with a 400 instead of silently serving an
@@ -155,7 +143,7 @@ func filterFromVars(vars map[string]string) (subscriptionFilter, error) {
 func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate the URL shape before authorizing or fetching subscribers, so a
 	// malformed request answers 400 without any response headers being set.
-	filter, err := filterFromVars(mux.Vars(r))
+	filter, err := filterFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -199,21 +187,14 @@ func (h *Hub) SubscriptionsHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate the URL shape before authorizing or fetching subscribers, so a
 	// malformed request answers 400 without any response headers being set.
-	vars := mux.Vars(r)
-
-	s, err := url.PathUnescape(vars["subscriber"])
-	if err != nil {
-		http.Error(w, "invalid subscriber segment: "+err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	filter, err := filterFromVars(vars)
+	filter, err := filterFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
+
+	id := r.PathValue(paramSubscriber)
 
 	span, _, subscribers, ok := h.initSubscription(w, r)
 	defer span.End()
@@ -225,7 +206,7 @@ func (h *Hub) SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	for _, subscriber := range subscribers {
-		if subscriber.ID != s {
+		if subscriber.ID != id {
 			continue
 		}
 

@@ -8,15 +8,17 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"github.com/unrolled/secure"
 	"golang.org/x/net/publicsuffix"
 )
 
 const (
 	defaultHubURL   = "/.well-known/mercure"
 	defaultDebugURL = defaultHubURL + "/debug/"
+
+	// The debugger UI handles access tokens: everything it loads is vendored,
+	// with no inline script or style.
+	contentSecurityPolicy = "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 )
 
 // PlaygroundURLPrefix is the root path the insecure playground echo endpoints are
@@ -28,24 +30,17 @@ const (
 const PlaygroundURLPrefix = "/playground/"
 
 func (h *Hub) initHandler() {
-	router := mux.NewRouter()
-	router.UseEncodedPath()
-	router.SkipClean(true)
-
-	csp := "default-src 'self'"
+	router := http.NewServeMux()
 
 	if h.playground {
-		router.PathPrefix(PlaygroundURLPrefix).HandlerFunc(h.Playground).Methods(http.MethodGet, http.MethodHead)
+		router.HandleFunc("GET "+PlaygroundURLPrefix, h.Playground)
 	}
 
 	if h.debugger {
-		// Register the UI's dynamic endpoints before the file server: it claims
-		// the whole defaultDebugURL prefix, so the more specific routes must come
-		// first (gorilla/mux matches in registration order).
-		router.HandleFunc(defaultDebugURL+"config.json", h.DebuggerConfigHandler).Methods(http.MethodGet, http.MethodHead)
+		router.HandleFunc("GET "+defaultDebugURL+"config.json", h.DebuggerConfigHandler)
 
 		if h.playground && h.playgroundTokenFunc != nil {
-			router.HandleFunc(defaultDebugURL+"playground-token", h.PlaygroundTokenHandler).Methods(http.MethodGet, http.MethodHead)
+			router.HandleFunc("GET "+defaultDebugURL+"playground-token", h.PlaygroundTokenHandler)
 		}
 
 		public, err := fs.Sub(debuggerContent, "public")
@@ -53,38 +48,40 @@ func (h *Hub) initHandler() {
 			panic(err)
 		}
 
-		router.PathPrefix(defaultDebugURL).Handler(http.StripPrefix(defaultDebugURL, http.FileServer(http.FS(public))))
-
-		// The page handles access tokens: everything it loads is vendored, with no inline script or style.
-		csp = "default-src 'self'"
+		router.Handle(defaultDebugURL, http.StripPrefix(defaultDebugURL, http.FileServer(http.FS(public))))
 	}
 
 	h.registerSubscriptionHandlers(router)
 
 	if h.subscriberConfigured || h.anonymous {
-		router.HandleFunc(defaultHubURL, h.SubscribeHandler).Methods(http.MethodGet, http.MethodHead, methodQuery)
+		router.HandleFunc("GET "+defaultHubURL, h.SubscribeHandler)
+		router.HandleFunc(methodQuery+" "+defaultHubURL, h.SubscribeHandler)
 	}
 
 	if h.publisherConfigured {
-		router.HandleFunc(defaultHubURL, h.PublishHandler).Methods(http.MethodPost)
+		router.HandleFunc("POST "+defaultHubURL, h.PublishHandler)
 	}
 
 	// Advertise OAuth 2.0 protected resource metadata (RFC 9728) only when the
 	// hub validates access tokens; a pure-anonymous hub is not a protected
 	// resource.
 	if h.publisherConfigured || h.subscriberConfigured {
-		router.HandleFunc(protectedResourceMetadataPath, h.ProtectedResourceMetadataHandler).Methods(http.MethodGet, http.MethodHead)
+		router.HandleFunc("GET "+protectedResourceMetadataPath, h.ProtectedResourceMetadataHandler)
 	}
 
-	secureMiddleware := secure.New(secure.Options{
-		IsDevelopment:         h.debug,
-		FrameDeny:             true,
-		ContentTypeNosniff:    true,
-		BrowserXssFilter:      true,
-		ContentSecurityPolicy: csp,
-	})
+	h.handler = securityHeaders(h.corsHandler(router))
+}
 
-	h.handler = secureMiddleware.Handler(h.corsHandler(router))
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header := w.Header()
+		header.Set("X-Frame-Options", "DENY")
+		header.Set("X-Content-Type-Options", "nosniff")
+		header.Set("Content-Security-Policy", contentSecurityPolicy)
+		header.Set("Cross-Origin-Opener-Policy", "same-origin")
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func spansArbitraryOrigins(origin string) bool {
@@ -164,7 +161,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handler.ServeHTTP(w, r)
 }
 
-func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
+func (h *Hub) registerSubscriptionHandlers(router *http.ServeMux) {
 	if !h.subscriptions {
 		return
 	}
@@ -186,19 +183,13 @@ func (h *Hub) registerSubscriptionHandlers(r *mux.Router) {
 		return
 	}
 
-	// 3-segment route (more specific, registered first).
-	r.HandleFunc(subscriptionMatchURL, h.SubscriptionHandler).Methods(http.MethodGet)
+	router.HandleFunc("GET "+subscriptionMatchURL, h.SubscriptionHandler)
 
-	// The collection route /subscriptions/{match_type}/{match} and the
-	// deprecated /subscriptions/{topic}/{subscriber} route have the same
-	// shape. In modern-only mode only the modern route is registered, so
-	// there is no ambiguity and no per-request check is added — this is the
-	// hot path. Under the deprecated_topic tag and compatibility mode, the
-	// deprecated registration guards the modern route with a MatcherFunc and
-	// adds the v8 routes.
-	if !h.registerDeprecatedSubscriptionHandlers(r) {
-		r.HandleFunc(subscriptionsForMatchURL, h.SubscriptionsHandler).Methods(http.MethodGet)
+	// Compatibility mode serves the same-shaped v8 /{topic}/{subscriber} from
+	// this route; modern-only mode adds no per-request check.
+	if !h.registerDeprecatedSubscriptionHandlers(router) {
+		router.HandleFunc("GET "+subscriptionsForMatchURL, h.SubscriptionsHandler)
 	}
 
-	r.HandleFunc(subscriptionsURL, h.SubscriptionsHandler).Methods(http.MethodGet)
+	router.HandleFunc("GET "+subscriptionsURL, h.SubscriptionsHandler)
 }
