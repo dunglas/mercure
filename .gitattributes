@@ -7,3 +7,4 @@ testdata/fuzz/** linguist-generated
 gatling/mvnw linguist-vendored
 gatling/mvnw.cmd linguist-vendored
 gatling/.mvn/wrapper/** linguist-vendored
+*.pgo binary
