@@ -1,7 +1,0 @@
----
-rules:
-  # Dependabot auto-merge requires pull_request_target to access repo-write
-  # permissions; the workflow is guarded by an `if:` check on the PR author.
-  dangerous-triggers:
-    ignore:
-      - dependabot.yml
