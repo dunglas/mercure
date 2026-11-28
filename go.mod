@@ -12,7 +12,6 @@ require (
 	github.com/dunglas/skipfilter v1.2.0
 	github.com/elnormous/contenttype v1.0.4
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/gorilla/mux v1.8.1
 	github.com/maypok86/otter/v2 v2.4.0
 	github.com/nlnwa/whatwg-url v0.6.2
 	github.com/prometheus/client_golang v1.25.0

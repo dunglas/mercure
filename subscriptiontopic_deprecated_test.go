@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,10 +33,8 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	s2.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/bar"}), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s2))
 
-	router := mux.NewRouter()
-	router.UseEncodedPath()
-	router.SkipClean(true)
-	router.HandleFunc(subscriptionsForTopicURL, hub.SubscriptionsHandler)
+	router := http.NewServeMux()
+	router.HandleFunc("GET "+subscriptionsForTopicURL, hub.SubscriptionsHandler)
 
 	s2EscapedTopic := url.QueryEscape(s2.SubscribedMatchers[0].Pattern)
 
@@ -45,7 +42,7 @@ func TestSubscriptionsHandlerForTopic(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions/" + s2EscapedTopic})})
 
 	w := httptest.NewRecorder()
-	hub.SubscriptionsHandler(w, req)
+	router.ServeHTTP(w, req)
 	res := w.Result()
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	require.NoError(t, res.Body.Close())
@@ -88,10 +85,8 @@ func TestSubscriptionHandlerForTopic(t *testing.T) {
 	s.setMatchers(stringsToDeprecatedMatchers(sTopics), nil)
 	require.NoError(t, hub.transport.AddSubscriber(ctx, s))
 
-	router := mux.NewRouter()
-	router.UseEncodedPath()
-	router.SkipClean(true)
-	router.HandleFunc(subscriptionURL, hub.SubscriptionHandler)
+	router := http.NewServeMux()
+	router.HandleFunc("GET "+subscriptionsForMatchURL, hub.subscriptionsForMatchOrTopicHandler)
 
 	sEscapedTemplate := url.QueryEscape(s.SubscribedMatchers[1].Pattern)
 
@@ -121,4 +116,62 @@ func TestSubscriptionHandlerForTopic(t *testing.T) {
 	res = w.Result()
 	assert.Equal(t, http.StatusNotFound, res.StatusCode)
 	require.NoError(t, res.Body.Close())
+}
+
+// TestSubscriptionsForMatchOrTopicHandlerModernRoute checks that compatibility
+// mode still serves /{match_type}/{match} as a collection.
+func TestSubscriptionsForMatchOrTopicHandlerModernRoute(t *testing.T) {
+	t.Parallel()
+
+	hub := createDeprecatedDummy(t)
+
+	sub := NewLocalSubscriber("", slog.Default(), hub.topicMatcherStore)
+	matchers, err := hub.parseMatchers(url.Values{paramMatch: {"https://example.com/foo"}}, false)
+	require.NoError(t, err)
+	sub.setMatchers(matchers, nil)
+	require.NoError(t, hub.transport.AddSubscriber(t.Context(), sub))
+
+	router := http.NewServeMux()
+	router.HandleFunc("GET "+subscriptionsForMatchURL, hub.subscriptionsForMatchOrTopicHandler)
+
+	collURL := subscriptionsURL + "/" + sub.EscapedMatchers[0]
+
+	req := httptest.NewRequest(http.MethodGet, collURL, nil)
+	req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDummyAuthorizedJWT(roleSubscriber, []string{collURL})})
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var got subscriptionCollection
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	assert.Equal(t, "subscriptions", got.Type)
+	require.Len(t, got.Subscriptions, 1)
+	assert.Equal(t, "https://example.com/foo", got.Subscriptions[0].Match)
+}
+
+// TestSubscriptionAPIRoutesInCompatibilityMode checks that the hub registers
+// the modern and v8 subscription routes together without a pattern conflict.
+func TestSubscriptionAPIRoutesInCompatibilityMode(t *testing.T) {
+	t.Parallel()
+
+	hub := createDeprecatedDummy(t, WithSubscriptions())
+
+	sub := NewLocalSubscriber("", slog.Default(), hub.topicMatcherStore)
+	sub.setMatchers(stringsToDeprecatedMatchers([]string{"https://example.com/foo"}), nil)
+	require.NoError(t, hub.transport.AddSubscriber(t.Context(), sub))
+
+	for _, path := range []string{
+		subscriptionsURL + "/" + sub.EscapedMatchers[0],
+		subscriptionsURL + "/" + sub.EscapedMatchers[0] + "/" + sub.EscapedID,
+		subscriptionsURL + "/" + url.QueryEscape("https://example.com/foo"),
+		subscriptionsURL + "/" + url.QueryEscape("https://example.com/foo") + "/" + sub.EscapedID,
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: defaultCookieName, Value: createDeprecatedAuthorizedJWT(roleSubscriber, []string{"/.well-known/mercure/subscriptions{/topic}{/subscriber}", path})})
+
+		w := httptest.NewRecorder()
+		hub.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code, path)
+	}
 }
