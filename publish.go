@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	wurl "github.com/nlnwa/whatwg-url/url"
+	wurl "github.com/nationallibraryofnorway/whatwg-url/url"
 	"go.opentelemetry.io/otel/trace"
 )
 

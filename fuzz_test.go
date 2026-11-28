@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	wurl "github.com/nlnwa/whatwg-url/url"
+	wurl "github.com/nationallibraryofnorway/whatwg-url/url"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
