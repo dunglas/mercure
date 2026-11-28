@@ -29,7 +29,7 @@ The hub authorizes the publication, stores and dispatches it through the configu
 | `type`    | No       | Custom SSE `event` type. Defaults to `message`. `mercure` is reserved for hub-generated events and is rejected with a `400`.                                                             |
 | `retry`   | No       | Reconnection time hint, in milliseconds.                                                                                                                                                 |
 
-The body is `application/x-www-form-urlencoded`: URL-encode every field. This hub accepts at most 1,000 topic fields and limits request bodies to 1 MiB by default (`max_request_body_size`).
+The body is `application/x-www-form-urlencoded`: URL-encode every field. By default, this hub accepts at most 1,000 topic fields (`max_publish_topics`) and limits request bodies to 1 MiB (`max_request_body_size`).
 
 The hub treats `data` as opaque bytes, so you can push any format the subscriber
 understands: JSON, HTML, plain text, JSON Patch, base64-encoded binary, or an

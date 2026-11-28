@@ -41,7 +41,7 @@ var (
 	errUnknownMatcherParam   = errors.New("unknown topic matcher query parameter")
 	errMixedProtocolParams   = errors.New("0.x and 1.x subscribe query parameters cannot be mixed")
 	errInvalidMatcherValue   = errors.New("topic matcher values must be valid UTF-8 without control characters")
-	errTooManyMatchers       = fmt.Errorf("too many matchers (max %d)", maxMatcherCount)
+	errTooManyMatchers       = errors.New("too many matchers")
 	errPatternTooLong        = fmt.Errorf("pattern too long (max %d bytes)", maxPatternLength)
 	errMatcherBudgetExceeded = errors.New("topic matcher compilation budget exceeded")
 	// errInvalidMatcherPattern wraps a pattern-compilation failure. The
@@ -206,8 +206,10 @@ func (h *Hub) appendMatchers(matchers []TopicMatcher, matcherType MatcherType, v
 	// deprecated-topic path), so the type-membership gate is not repeated here;
 	// only the per-value length, charset and pattern checks apply.
 	for _, v := range values {
-		if len(matchers) >= maxMatcherCount {
-			return nil, errTooManyMatchers
+		if len(matchers) >= h.maxMatchers {
+			h.requestRejected("max_matchers")
+
+			return nil, fmt.Errorf("%w (max %d)", errTooManyMatchers, h.maxMatchers)
 		}
 
 		if err := validateMatcherValue(v); err != nil {

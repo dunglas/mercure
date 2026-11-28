@@ -161,6 +161,28 @@ func TestParseMatchersLimits(t *testing.T) {
 	require.ErrorIs(t, err, errPatternTooLong)
 }
 
+func TestParseMatchersCustomLimit(t *testing.T) {
+	t.Parallel()
+
+	h := createDummy(t, WithMaxMatchers(2))
+
+	_, err := h.parseMatchers(url.Values{"match": {"a", "b"}}, false)
+	require.NoError(t, err)
+
+	_, err = h.parseMatchers(url.Values{"match": {"a", "b", "c"}}, false)
+	require.ErrorIs(t, err, errTooManyMatchers)
+	require.ErrorContains(t, err, "max 2")
+}
+
+func TestWithRequestLimitsRejectNonPositive(t *testing.T) {
+	t.Parallel()
+
+	for _, o := range []Option{WithMaxMatchers(0), WithMaxPublishTopics(-1)} {
+		_, err := NewHub(t.Context(), o)
+		require.ErrorIs(t, err, ErrNonPositiveRequestLimit)
+	}
+}
+
 // TestParseMatchersURLPatternRelativeAccepted exercises the spec rule that
 // allows relative URL patterns (anchored at the hub URL). This shape is also
 // used by the hub's own subscription-events stream.

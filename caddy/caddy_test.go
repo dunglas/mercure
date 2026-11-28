@@ -1070,6 +1070,8 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 		dispatch_timeout 5s
 		heartbeat 40s
 		max_request_body_size 1MB
+		max_matchers 500
+		max_publish_topics 5000
 		cookie_name mercure_access_token
 		cors_origins *
 		publish_origins *
@@ -1096,6 +1098,20 @@ func TestUnmarshalCaddyfileAcceptsKnownDirectives(t *testing.T) {
 	assert.Len(t, m.Issuers, 1)
 	require.NotNil(t, m.DrainTimeout)
 	assert.Equal(t, caddy.Duration(30*time.Second), *m.DrainTimeout)
+	require.NotNil(t, m.MaxMatchers)
+	assert.Equal(t, 500, *m.MaxMatchers)
+	require.NotNil(t, m.MaxPublishTopics)
+	assert.Equal(t, 5000, *m.MaxPublishTopics)
+}
+
+func TestNonPositiveRequestLimitRejected(t *testing.T) {
+	t.Parallel()
+
+	for _, block := range []string{"max_matchers 0", "max_publish_topics -1", "max_matchers foo"} {
+		d := caddyfile.NewTestDispenser("mercure {\n\t" + block + "\n}")
+
+		require.ErrorContains(t, new(Mercure).UnmarshalCaddyfile(d), "invalid max_")
+	}
 }
 
 func TestNegativeDrainTimeoutRejected(t *testing.T) {

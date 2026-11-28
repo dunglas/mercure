@@ -30,6 +30,7 @@ type PrometheusMetrics struct {
 	subscribers           prometheus.Gauge
 	updatesTotal          prometheus.Counter
 	subscriptionsRejected *prometheus.CounterVec
+	requestsRejected      *prometheus.CounterVec
 
 	// hub holds the series labeled with the hub name, nil if the hub is unnamed.
 	hub *hubPrometheusMetrics
@@ -40,6 +41,7 @@ type hubPrometheusMetrics struct {
 	subscribers           prometheus.Gauge
 	updatesTotal          prometheus.Counter
 	subscriptionsRejected *prometheus.CounterVec
+	requestsRejected      *prometheus.CounterVec
 }
 
 // NewPrometheusMetrics creates a Prometheus metrics collector.
@@ -62,6 +64,10 @@ func NewPrometheusMetricsForHub(registry prometheus.Registerer, hub string) *Pro
 			Name: "mercure_subscriptions_rejected_total",
 			Help: "Subscriptions rejected by a concurrent stream limit",
 		}, []string{"reason"})),
+		requestsRejected: registerOrReuse(registry, prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "mercure_requests_rejected_total",
+			Help: "Requests rejected by a configurable size or count limit",
+		}, []string{"limit"})),
 		subscribers: registerOrReuse(registry, prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "mercure_subscribers_connected",
 			Help: "The current number of running subscribers",
@@ -85,6 +91,10 @@ func NewPrometheusMetricsForHub(registry prometheus.Registerer, hub string) *Pro
 			Name: "mercure_hub_subscriptions_rejected_total",
 			Help: "Subscriptions rejected by a concurrent stream limit, per hub",
 		}, []string{hubLabel, "reason"})).MustCurryWith(prometheus.Labels{hubLabel: hub}),
+		requestsRejected: registerOrReuse(registry, prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "mercure_hub_requests_rejected_total",
+			Help: "Requests rejected by a configurable size or count limit, per hub",
+		}, []string{hubLabel, "limit"})).MustCurryWith(prometheus.Labels{hubLabel: hub}),
 		subscribers: registerOrReuse(registry, prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "mercure_hub_subscribers_connected",
 			Help: "The current number of running subscribers, per hub",
@@ -158,5 +168,22 @@ func (m *PrometheusMetrics) SubscriptionRejected(reason string) {
 
 	if m.hub != nil {
 		m.hub.subscriptionsRejected.WithLabelValues(reason).Inc()
+	}
+}
+
+// RequestRejected records a request rejected by the limit named after its
+// configuration key (max_matchers, max_publish_topics or max_request_body_size).
+// Custom Metrics implementations may optionally implement this method.
+func (m *PrometheusMetrics) RequestRejected(limit string) {
+	m.requestsRejected.WithLabelValues(limit).Inc()
+
+	if m.hub != nil {
+		m.hub.requestsRejected.WithLabelValues(limit).Inc()
+	}
+}
+
+func (h *Hub) requestRejected(limit string) {
+	if metrics, ok := h.metrics.(interface{ RequestRejected(limit string) }); ok {
+		metrics.RequestRejected(limit)
 	}
 }
