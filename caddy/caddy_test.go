@@ -542,11 +542,10 @@ func TestPublicURLs(t *testing.T) {
 	assert.Contains(t, string(b), `"resource":"http://good.example.com/.well-known/mercure"`)
 }
 
-// TestPlaygroundRootRedirectAndForwarding covers ServeHTTP's playground-gated
-// branches: the "/" -> debug UI redirect, and forwarding requests under
-// PlaygroundURLPrefix to the hub instead of the site's own routes. Neither
-// branch fires unless the playground is on.
-func TestPlaygroundRootRedirectAndForwarding(t *testing.T) {
+// TestPlaygroundRootAndForwarding covers ServeHTTP's playground-gated
+// forwarding of requests under PlaygroundURLPrefix to the hub instead of the
+// site's own routes, and checks that the site root always stays the site's.
+func TestPlaygroundRootAndForwarding(t *testing.T) {
 	const caddyfileTemplate = `
 	{
 		skip_install_trust
@@ -574,17 +573,9 @@ func TestPlaygroundRootRedirectAndForwarding(t *testing.T) {
 	}
 	`
 
-	t.Run("playground redirects the site root to the debugger", func(t *testing.T) {
+	t.Run("playground leaves the site root to the site", func(t *testing.T) {
 		tester := caddytest.NewTester(t)
-		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground\n\t\t\t\tdebugger"), "caddyfile")
-
-		resp := tester.AssertRedirect("http://localhost:9080/", "http://localhost:9080/.well-known/mercure/debug/", http.StatusFound)
-		require.NoError(t, resp.Body.Close())
-	})
-
-	t.Run("without playground the site root is not redirected", func(t *testing.T) {
-		tester := caddytest.NewTester(t)
-		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "debugger"), "caddyfile")
+		tester.InitServer(fmt.Sprintf(caddyfileTemplate, "playground"), "caddyfile")
 
 		req, err := http.NewRequest(http.MethodGet, "http://localhost:9080/", nil)
 		require.NoError(t, err)
