@@ -1,0 +1,14 @@
+---
+rules:
+  # The lockfile pins these; super-linter's zizmor predates lockfile support (1.32)
+  unpinned-uses:
+    ignore:
+      - cd-chart.yml
+      - cd-docs.yml
+      - cd.yml
+      - ci-chart.yml
+      - ci.yml
+      - lint.yml
+      - release.yml
+      - ui-update.yml
+      - ui.yml

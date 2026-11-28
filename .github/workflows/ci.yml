@@ -21,11 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version: "1.27"
           check-latest: true
@@ -34,13 +34,13 @@ jobs:
             caddy/go.sum
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        uses: golangci/golangci-lint-action@v9.3.0
         with:
           version: latest
           args: --timeout=30m
 
       - name: golangci-lint (caddy module)
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        uses: golangci/golangci-lint-action@v9.3.0
         with:
           version: latest
           args: --timeout=30m --config ../.golangci.yml
@@ -50,7 +50,7 @@ jobs:
       # variants selected by !deprecated_topic / !deprecated_claim would never
       # be linted. Mirror the reduced-tag test run below.
       - name: golangci-lint (without the deprecated_topic and deprecated_claim tags)
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        uses: golangci/golangci-lint-action@v9.3.0
         with:
           version: latest
           args: --timeout=30m --build-tags deprecated_transport,nobadger,nomysql,nopgx
@@ -73,12 +73,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
@@ -104,7 +104,7 @@ jobs:
           sed '1d' profile.cov >> ../profile.cov
 
       - name: Upload coverage results
-        uses: shogo82148/actions-goveralls@548a2a7896df420c38df648845a5525a33f82585 # v1.11.5
+        uses: shogo82148/actions-goveralls@v1.11.5
         with:
           path-to-profile: profile.cov
           parallel: true
@@ -113,7 +113,7 @@ jobs:
         working-directory: caddy/mercure/
         run: sudo MERCURE_PUBLISHER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_SUBSCRIBER_JWT_KEY='!ChangeThisMercureHubJWTSecretKey!' MERCURE_EXTRA_DIRECTIVES='playground' go run main.go start --config ../../Caddyfile
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: "lts/*"
           cache: "npm"
@@ -125,7 +125,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('conformance-tests/package-lock.json') }}
@@ -158,6 +158,6 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: shogo82148/actions-goveralls@548a2a7896df420c38df648845a5525a33f82585 # v1.11.5
+      - uses: shogo82148/actions-goveralls@v1.11.5
         with:
           parallel-finished: true

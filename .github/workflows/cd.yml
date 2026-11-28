@@ -30,13 +30,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@v7.0.0
         with:
           cache: false
           go-version: "1.27"
@@ -59,7 +59,7 @@ jobs:
           echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")" >> "$GITHUB_ENV"
 
       - name: Build snapshot
-        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        uses: goreleaser/goreleaser-action@v7.3.0
         with:
           version: v2.18.2
           args: build --single-target --snapshot --clean --timeout 60m
@@ -68,7 +68,7 @@ jobs:
         run: dist/caddy_linux_amd64_v1/mercure version
 
       - name: Upload snapshot
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: snapshot
           path: dist/*
@@ -87,14 +87,14 @@ jobs:
       RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@v7.0.0
         with:
           cache: false
           go-version: "1.27"
@@ -105,7 +105,7 @@ jobs:
 
       - name: Login to Docker Hub
         if: env.RELEASE_TAG != ''
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -114,7 +114,7 @@ jobs:
       # secret is required. Pushes to ghcr.io/dunglas/mercure.
       - name: Login to GitHub Container Registry
         if: env.RELEASE_TAG != ''
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        uses: docker/login-action@v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -123,12 +123,12 @@ jobs:
       # dockers_v2 pushes multi-platform images, which the default docker driver can't.
       - name: Set up Docker Buildx
         if: env.RELEASE_TAG != ''
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        uses: docker/setup-buildx-action@v4.4.1
 
       - name: Import GPG key
         if: env.RELEASE_TAG != ''
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        uses: crazy-max/ghaction-import-gpg@v7.0.0
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
@@ -147,7 +147,7 @@ jobs:
           echo "GORELEASER_PREVIOUS_TAG=$(awk 'NR==1 {print;exit}' <<< "$tags")" >> "$GITHUB_ENV"
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+        uses: goreleaser/goreleaser-action@v7.3.0
         with:
           version: v2.18.2
           args: release --clean --timeout 60m
@@ -157,7 +157,7 @@ jobs:
 
       - name: Attest release artifacts
         if: env.RELEASE_TAG != ''
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-path: |
             ${{ github.workspace }}/dist/**/mercure
@@ -181,7 +181,7 @@ jobs:
 
       - name: Attest Docker Hub Caddy manifest
         if: env.RELEASE_TAG != ''
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           # docker.io/ prefix is required: actions/attest splits subject-name
           # on the first '/' to find the registry.
@@ -191,7 +191,7 @@ jobs:
 
       - name: Attest GHCR Caddy manifest
         if: env.RELEASE_TAG != ''
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-name: ghcr.io/dunglas/mercure
           subject-digest: ${{ steps.caddy_image.outputs.ghcr_digest }}

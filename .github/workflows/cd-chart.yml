@@ -26,7 +26,7 @@ jobs:
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -38,11 +38,11 @@ jobs:
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Install Helm
-        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+        uses: azure/setup-helm@v5.1.0
 
       - name: Import GPG key
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        uses: crazy-max/ghaction-import-gpg@v7.0.0
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
@@ -72,7 +72,7 @@ jobs:
             charts/mercure -d .cr-release-packages
 
       - name: Attest Helm chart
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-path: .cr-release-packages/*.tgz
 
@@ -87,7 +87,7 @@ jobs:
         # unset `latest_tag` under `set -u` and fails the job after the index
         # has already been pushed. Fixed in helm/chart-releaser-action#202,
         # unreleased at the time of writing.
-        uses: helm/chart-releaser-action@c5a1c1b527a31d92ad837d7723dd67f0b8b62f15 # main, post-v1.7.0
+        uses: helm/chart-releaser-action@main
         with:
           skip_packaging: true
           skip_existing: true

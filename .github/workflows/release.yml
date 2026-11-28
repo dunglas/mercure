@@ -50,14 +50,14 @@ jobs:
             echo "::error::Branch ${GITHUB_REF#refs/heads/} can only release versions with major ${branch_major} (e.g. ${branch_major}.0.0), got ${VERSION}"
             exit 1
           fi
-      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      - uses: actions/create-github-app-token@v3.3.0
         id: release-app-token
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-actions: write
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -155,7 +155,7 @@ jobs:
             echo "resume=false" >> "${GITHUB_OUTPUT}"
           fi
       - if: steps.state.outputs.resume != 'true'
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: "1.27"
           check-latest: true
