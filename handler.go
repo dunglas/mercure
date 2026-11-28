@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/rs/cors"
-	"github.com/unrolled/secure"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -71,15 +70,18 @@ func (h *Hub) initHandler() {
 		router.HandleFunc("GET "+protectedResourceMetadataPath, h.ProtectedResourceMetadataHandler)
 	}
 
-	secureMiddleware := secure.New(secure.Options{
-		IsDevelopment:         h.debug,
-		FrameDeny:             true,
-		ContentTypeNosniff:    true,
-		BrowserXssFilter:      true,
-		ContentSecurityPolicy: csp,
-	})
+	h.handler = securityHeaders(h.corsHandler(router), csp)
+}
 
-	h.handler = secureMiddleware.Handler(h.corsHandler(router))
+func securityHeaders(next http.Handler, csp string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header := w.Header()
+		header.Set("X-Frame-Options", "DENY")
+		header.Set("X-Content-Type-Options", "nosniff")
+		header.Set("Content-Security-Policy", csp)
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func spansArbitraryOrigins(origin string) bool {

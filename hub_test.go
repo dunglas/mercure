@@ -350,7 +350,6 @@ func TestSecurityHeaders(t *testing.T) {
 	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
-	assert.Equal(t, "1; mode=block", resp.Header.Get("X-Xss-Protection"))
 	require.NoError(t, resp.Body.Close())
 
 	// Preflight request

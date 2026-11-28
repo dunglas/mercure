@@ -18,7 +18,6 @@ require (
 	github.com/prometheus/client_model v0.6.3
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
-	github.com/unrolled/secure v1.17.0
 	github.com/yosida95/uritemplate/v3 v3.0.2
 	go.etcd.io/bbolt v1.5.0
 	go.opentelemetry.io/otel v1.47.0
