@@ -8,7 +8,7 @@ workflows:
         - 'actions/checkout@v7.0.1'
         - 'azure/setup-helm@v5.1.0'
         - 'crazy-max/ghaction-import-gpg@v7.0.0'
-        - 'helm/chart-releaser-action@main'
+        - 'helm/chart-releaser-action@v1.9.0'
     '.github/workflows/cd-docs.yml':
         - 'actions/checkout@v7.0.1'
     '.github/workflows/cd.yml':
@@ -132,9 +132,9 @@ dependencies:
         commit: 'sha1-a4f02ab5355a589de60d917a659ce617ed19b3de'
         owner_id: 24697112
         repo_id: 209873006
-    'helm/chart-releaser-action@main':
-        ref: 'main'
-        commit: 'sha1-c5a1c1b527a31d92ad837d7723dd67f0b8b62f15'
+    'helm/chart-releaser-action@v1.9.0':
+        ref: 'v1.9.0'
+        commit: 'sha1-92c6b97fa9f664492a2592e0d1d80bc6bf378957'
         owner_id: 15859888
         repo_id: 223775198
     'helm/chart-testing-action@v2.9.0':
