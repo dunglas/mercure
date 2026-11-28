@@ -15,6 +15,10 @@ import (
 const (
 	defaultHubURL   = "/.well-known/mercure"
 	defaultDebugURL = defaultHubURL + "/debug/"
+
+	// The debugger UI handles access tokens: everything it loads is vendored,
+	// with no inline script or style.
+	contentSecurityPolicy = "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 )
 
 // PlaygroundURLPrefix is the root path the insecure playground echo endpoints are
@@ -27,8 +31,6 @@ const PlaygroundURLPrefix = "/playground/"
 
 func (h *Hub) initHandler() {
 	router := http.NewServeMux()
-
-	csp := "default-src 'self'"
 
 	if h.playground {
 		router.HandleFunc("GET "+PlaygroundURLPrefix, h.Playground)
@@ -47,9 +49,6 @@ func (h *Hub) initHandler() {
 		}
 
 		router.Handle(defaultDebugURL, http.StripPrefix(defaultDebugURL, http.FileServer(http.FS(public))))
-
-		// The page handles access tokens: everything it loads is vendored, with no inline script or style.
-		csp = "default-src 'self'"
 	}
 
 	h.registerSubscriptionHandlers(router)
@@ -70,15 +69,16 @@ func (h *Hub) initHandler() {
 		router.HandleFunc("GET "+protectedResourceMetadataPath, h.ProtectedResourceMetadataHandler)
 	}
 
-	h.handler = securityHeaders(h.corsHandler(router), csp)
+	h.handler = securityHeaders(h.corsHandler(router))
 }
 
-func securityHeaders(next http.Handler, csp string) http.Handler {
+func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := w.Header()
 		header.Set("X-Frame-Options", "DENY")
 		header.Set("X-Content-Type-Options", "nosniff")
-		header.Set("Content-Security-Policy", csp)
+		header.Set("Content-Security-Policy", contentSecurityPolicy)
+		header.Set("Cross-Origin-Opener-Policy", "same-origin")
 
 		next.ServeHTTP(w, r)
 	})

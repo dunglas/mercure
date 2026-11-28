@@ -108,7 +108,7 @@ func TestPlaygroundResponseFormats(t *testing.T) {
 		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "https://example.com"+defaultDebugURL, nil))
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
-		assert.Equal(t, "default-src 'self'", w.Header().Get("Content-Security-Policy"))
+		assert.Equal(t, contentSecurityPolicy, w.Header().Get("Content-Security-Policy"))
 	}
 }
 

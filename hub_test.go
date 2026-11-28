@@ -347,9 +347,10 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.NoError(t, resp.Body.Close())
 	})
 
-	assert.Equal(t, "default-src 'self'", resp.Header.Get("Content-Security-Policy"))
+	assert.Equal(t, contentSecurityPolicy, resp.Header.Get("Content-Security-Policy"))
 	assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
 	assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	assert.Equal(t, "same-origin", resp.Header.Get("Cross-Origin-Opener-Policy"))
 	require.NoError(t, resp.Body.Close())
 
 	// Preflight request
